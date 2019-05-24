@@ -15,8 +15,9 @@ class RedisSet(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             which stores your AWS credentials
-        - redis_key (optional): Redis key to be set, can be provided at initialization or runtime
-        - redis_val (optional): Redis val to be set, can be provided at initialization or runtime
+        - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
+        - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
+            Redis native types include strings, dictionaries, lists, sets, and sorted sets
         - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
             initializer
         - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
@@ -35,7 +36,7 @@ class RedisSet(Task):
         port: int = 6379,
         db: int = 0,
         password_secret: str = "REDIS_PASSWORD",
-        redis_key=None,
+        redis_key: str = None,
         redis_val=None,
         redis_connection_params: dict = None,
         ex: int = None,
@@ -61,7 +62,7 @@ class RedisSet(Task):
     @defaults_from_attrs("redis_key", "redis_val", "ex", "px", "nx", "xx")
     def run(
         self,
-        redis_key=None,
+        redis_key: str = None,
         redis_val=None,
         ex: int = None,
         px: int = None,
@@ -72,8 +73,9 @@ class RedisSet(Task):
         Task run method. Sets Redis key-value pair.
 
         Args:
-            - redis_key (optional): Redis key to be set, can be provided at initialization or runtime
-            - redis_val (optional): Redis val to be set, can be provided at initialization or runtime
+            - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
+            - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
+                Redis native types include strings, dictionaries, lists, sets, and sorted sets
             - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
             - px (int, optional): if provided, sets an expire flag, in milliseconds, on 'redis_key' set
             - nx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
@@ -119,7 +121,7 @@ class RedisGet(Task):
             which stores your Redis password
         - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
             initializer
-        - redis_key (optional): Redis key to get value, can be provided at initialization or runtime
+        - redis_key (str, optional): Redis key to get value, can be provided at initialization or runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -131,7 +133,7 @@ class RedisGet(Task):
         db: int = 0,
         password_secret: str = "REDIS_PASSWORD",
         redis_connection_params: dict = None,
-        redis_key=None,
+        redis_key: str = None,
         **kwargs
     ):
         self.host = host
@@ -144,12 +146,12 @@ class RedisGet(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("redis_key")
-    def run(self, redis_key=None):
+    def run(self, redis_key: str = None):
         """
         Task run method.
 
         Args:
-            - redis_key (optional): Redis key to get value, can be provided at initialization or runtime
+            - redis_key (str, optional): Redis key to get value, can be provided at initialization or runtime
 
         Returns:
             - value: value associated with redis_key
