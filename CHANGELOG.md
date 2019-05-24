@@ -16,7 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add flow run id to k8s labels on Cloud Environment jobs / pods for easier filtering in deployment - [#1016](https://github.com/PrefectHQ/prefect/pull/1016)
 - Allow for `SlackTask` to pull the Slack webhook URL from a custom named Secret - [#1023](https://github.com/PrefectHQ/prefect/pull/1023)
 - Raise informative errors when Docker storage push / pull fails - [#1029](https://github.com/PrefectHQ/prefect/issues/1029)
-- Standardized `__repr__`s for various classes, to remove inconsistencies  - [#617](https://github.com/PrefectHQ/prefect/issues/617)
+- Standardized `__repr__`s for various classes, to remove inconsistencies - [#617](https://github.com/PrefectHQ/prefect/issues/617)
 - Allow for use of local images in Docekr storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
 - Allow for doc tests and doc generation to run without installing `all_extras` - [#1057](https://github.com/PrefectHQ/prefect/issues/1057)
 
@@ -36,6 +36,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix an issue where user configurations were loaded after config interpolation had already taken place - [#1037](https://github.com/PrefectHQ/prefect/pull/1037)
 - Fix an issue with saving a flow visualization to a file from a notebook - [#1056](https://github.com/PrefectHQ/prefect/pull/1056)
 - Fix an issue in which mapped tasks incorrectly tried to run when their upstream was skipped - [#1068](https://github.com/PrefectHQ/prefect/issues/1068)
+- Fix an issue in which mapped tasks were not using their caches locally - [#1067](https://github.com/PrefectHQ/prefect/issues/1067)
 
 ### Breaking Changes
 
@@ -47,6 +48,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Zach Angell](https://github.com/zangell44)
 - [Nanda H Krishna](https://nandahkrishna.me)
 - [Brett Naul](https://github.com/bnaul)
+- [Jeremiah Lewis](https://github.com/jlewis91)
 
 ## 0.5.3 <Badge text="beta" type="success"/>
 
