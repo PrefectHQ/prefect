@@ -9,8 +9,6 @@ class RedisSet(Task):
     Task for setting a Redis key-value pair.
 
     Args:
-        - connection (Redis Connection , optional): if not provided, connection will be established using
-            host, port, db, and password parameters
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
@@ -29,7 +27,6 @@ class RedisSet(Task):
 
     def __init__(
         self,
-        connection=None,
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
@@ -42,13 +39,12 @@ class RedisSet(Task):
         xx: bool = False,
         **kwargs
     ):
-        ## connect to Redis
-        if connection:
-            self.connection = connection
-        else:
-            self.connection = redis.Redis(
-                host=host, port=port, db=db, password=password
-            )
+        self.host = host
+        self.port = port
+        self.db = db
+
+        # TODO - use prefect secrets
+        self.password = password
 
         self.redis_key = redis_key
         self.redis_val = redis_val
@@ -90,7 +86,12 @@ class RedisSet(Task):
         if None in (redis_key, redis_val):
             raise ValueError("redis_key and redis_val must be provided")
 
-        result = self.connection.set(
+        ## connect to redis
+        connection = redis.Redis(
+            host=self.host, port=self.port, db=self.db, password=self.password
+        )
+
+        result = connection.set(
             name=redis_key, value=redis_val, ex=ex, px=px, nx=nx, xx=xx
         )
 
@@ -102,8 +103,6 @@ class RedisGet(Task):
     Task for getting a value based on key from a Redis connection.
 
     Args:
-        - connection (Redis Connection , optional): if not provided, connection will be established using
-            host, port, db, and password parameters
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
@@ -115,7 +114,6 @@ class RedisGet(Task):
 
     def __init__(
         self,
-        connection=None,
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
@@ -123,13 +121,12 @@ class RedisGet(Task):
         redis_key=None,
         **kwargs
     ):
-        ## connect to Redis
-        if connection:
-            self.connection = connection
-        else:
-            self.connection = redis.Redis(
-                host=host, port=port, db=db, password=password
-            )
+        self.host = host
+        self.port = port
+        self.db = db
+
+        # TODO - use prefect secrets
+        self.password = password
 
         self.redis_key = redis_key
         super().__init__(**kwargs)
@@ -151,7 +148,12 @@ class RedisGet(Task):
         if not redis_key:
             raise ValueError("redis_key must be provided")
 
-        result = self.connection.get(name=redis_key)
+        ## connect to redis
+        connection = redis.Redis(
+            host=self.host, port=self.port, db=self.db, password=self.password
+        )
+
+        result = connection.get(name=redis_key)
 
         return result
 
@@ -161,8 +163,6 @@ class RedisExecute(Task):
     Task for executing a command against a Redis connection
 
     Args:
-        - connection (Redis Connection , optional): if not provided, connection will be established using
-            host, port, db, and password parameters
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
@@ -175,7 +175,6 @@ class RedisExecute(Task):
 
     def __init__(
         self,
-        connection=None,
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
@@ -183,13 +182,12 @@ class RedisExecute(Task):
         redis_cmd: str = None,
         **kwargs
     ):
-        ## connect to Redis
-        if connection:
-            self.connection = connection
-        else:
-            self.connection = redis.Redis(
-                host=host, port=port, db=db, password=password
-            )
+        self.host = host
+        self.port = port
+        self.db = db
+
+        # TODO - use prefect secrets
+        self.password = password
 
         self.redis_cmd = redis_cmd
         super().__init__(**kwargs)
@@ -209,6 +207,11 @@ class RedisExecute(Task):
         if not redis_cmd:
             raise ValueError("A redis command must be specified")
 
-        result = self.connection.execute_command(redis_cmd)
+        ## connect to redis
+        connection = redis.Redis(
+            host=self.host, port=self.port, db=self.db, password=self.password
+        )
+
+        result = connection.execute_command(redis_cmd)
 
         return result
