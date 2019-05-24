@@ -227,6 +227,11 @@ title = "Postgres Tasks"
 module = "prefect.tasks.postgres"
 classes = ["PostgresExecute", "PostgresFetch"]
 
+[pages.tasks.redis]
+title = "Redis Tasks"
+module = "prefect.tasks.redis"
+classes = ["RedisSet", "RedisGet", "RedisExecute"]
+
 [pages.tasks.rss]
 title = "RSS Tasks"
 module = "prefect.tasks.rss"
