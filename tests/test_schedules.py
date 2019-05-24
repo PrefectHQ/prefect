@@ -592,13 +592,16 @@ class TestUnionSchedule:
         )
         main = schedules.UnionSchedule([east, west])
 
+        ## have to do some additional work so this test passes
+        ## regardless of what time it is
+        now = pendulum.now("US/Pacific")
+        after = east.next(1, after=now)[0] + pendulum.duration(minutes=-1)
+
         expected = [
-            east.next(1)[0],
-            west.next(1)[0],
-            east.next(2)[1],
-            west.next(2)[1],
-            east.next(3)[2],
+            east.next(1, after=after)[0],
+            west.next(1, after=after)[0],
+            east.next(2, after=after)[1],
+            west.next(2, after=after)[1],
         ]
 
-        # there is an edge case if this test runs between 9-9:30AM EST
-        assert main.next(4) in [expected[:4], expected[1:]]
+        assert main.next(4, after=after) == expected
