@@ -1,4 +1,5 @@
 from prefect import Task
+from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 import redis
@@ -12,7 +13,8 @@ class RedisSet(Task):
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
-        - password (str, optional): Redis password, defaults to None
+        - password_secret (str, optional): the name of the Prefect Secret
+            which stores your AWS credentials
         - redis_key (optional): Redis key to be set, can be provided at initialization or runtime
         - redis_val (optional): Redis val to be set, can be provided at initialization or runtime
         - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
@@ -30,7 +32,7 @@ class RedisSet(Task):
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: str = None,
+        password_secret: str = "REDIS_PASSWORD",
         redis_key=None,
         redis_val=None,
         ex: int = None,
@@ -42,9 +44,7 @@ class RedisSet(Task):
         self.host = host
         self.port = port
         self.db = db
-
-        # TODO - use prefect secrets
-        self.password = password
+        self.password_secret = password_secret
 
         self.redis_key = redis_key
         self.redis_val = redis_val
@@ -87,8 +87,9 @@ class RedisSet(Task):
             raise ValueError("redis_key and redis_val must be provided")
 
         ## connect to redis
+        password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=self.password
+            host=self.host, port=self.port, db=self.db, password=password
         )
 
         result = connection.set(
@@ -106,7 +107,8 @@ class RedisGet(Task):
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
-        - password (str, optional): Redis password, defaults to None
+        - password_secret (str, optional): the name of the Prefect Secret
+            which stores your Redis password
         - redis_key (optional): Redis key to get value, can be provided at initialization or runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -117,16 +119,14 @@ class RedisGet(Task):
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: str = None,
+        password_secret: str = "REDIS_PASSWORD",
         redis_key=None,
         **kwargs
     ):
         self.host = host
         self.port = port
         self.db = db
-
-        # TODO - use prefect secrets
-        self.password = password
+        self.password_secret = password_secret
 
         self.redis_key = redis_key
         super().__init__(**kwargs)
@@ -149,8 +149,9 @@ class RedisGet(Task):
             raise ValueError("redis_key must be provided")
 
         ## connect to redis
+        password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=self.password
+            host=self.host, port=self.port, db=self.db, password=password
         )
 
         result = connection.get(name=redis_key)
@@ -166,7 +167,8 @@ class RedisExecute(Task):
         - host (str, optional): name of Redis host, defaults to 'localhost'
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
-        - password (str, optional): Redis password, defaults to None
+        - password_secret (str, optional): the name of the Prefect Secret
+            which stores your Redis credentials
         - redis_cmd (str, optional): Redis command to execute, must be provided at initialization or
             runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -178,16 +180,14 @@ class RedisExecute(Task):
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: str = None,
+        password_secret: str = "REDIS_PASSWORD",
         redis_cmd: str = None,
         **kwargs
     ):
         self.host = host
         self.port = port
         self.db = db
-
-        # TODO - use prefect secrets
-        self.password = password
+        self.password_secret = password_secret
 
         self.redis_cmd = redis_cmd
         super().__init__(**kwargs)
@@ -208,8 +208,9 @@ class RedisExecute(Task):
             raise ValueError("A redis command must be specified")
 
         ## connect to redis
+        password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=self.password
+            host=self.host, port=self.port, db=self.db, password=password
         )
 
         result = connection.execute_command(redis_cmd)
