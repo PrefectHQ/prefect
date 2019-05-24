@@ -886,6 +886,18 @@ class Flow:
                 cached_tasks = {
                     t: s for t, s in flow_state.result.items() if s.is_cached()
                 }
+                for t, s in flow_state.result.items():
+                    if s.is_cached():
+                        cached_tasks.update({t: s})
+                    elif s.is_mapped() and any(
+                        [sub_state.is_cached() for sub_state in s.map_states]
+                    ):
+                        new = prefect.engine.state.Mapped(map_states=[])
+                        for sub_state in s.map_states:
+                            new.map_states.append(
+                                sub_state if sub_state.is_cached() else None
+                            )
+                        cached_tasks.update({t: new})
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:
