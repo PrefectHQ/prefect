@@ -1652,6 +1652,66 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
+    def test_flow_dot_run_handles_mapped_cached_states_with_non_cached(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    return []
+
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+                if self.maxit:
+                    return [max(self.call_count, 2)] * 3
+                else:
+                    return [self.call_count + i for i in range(3)]
+
+        @task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=partial_inputs_only(validate_on=["x"]),
+        )
+        def return_x(x, y):
+            return 1 / (y - 1)
+
+        storage = {"y": []}
+
+        @task(trigger=prefect.triggers.always_run)
+        def store_y(y):
+            storage["y"].append(y)
+
+        t1, t2 = StatefulTask(maxit=True), StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_y(return_x.map(x=t1, y=t2))
+
+        f.run()
+
+        first_run = storage["y"][0]
+        second_run = storage["y"][1]
+        third_run = storage["y"][2]
+
+        ## first run: one child fails, the other two succeed
+        assert isinstance(first_run[0], ZeroDivisionError)
+        assert first_run[1:] == [1.0, 0.5]
+
+        ## second run: all tasks succeed, the latter two use cached state
+        assert second_run[0] == 1.0
+        assert second_run[1:] == [1.0, 0.5]
+
+        ## third run: all tasks succeed, no caching used
+        assert third_run == [1 / 2, 1 / 3, 1 / 4]
+
     def test_scheduled_runs_handle_mapped_retries(self):
         class StatefulTask(Task):
             call_count = 0
