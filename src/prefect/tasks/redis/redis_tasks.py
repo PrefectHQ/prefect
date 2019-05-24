@@ -17,6 +17,8 @@ class RedisSet(Task):
             which stores your AWS credentials
         - redis_key (optional): Redis key to be set, can be provided at initialization or runtime
         - redis_val (optional): Redis val to be set, can be provided at initialization or runtime
+        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
+            initializer
         - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
         - px (int, optional): if provided, sets an expire flag, in milliseconds, on 'redis_key' set
         - nx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
@@ -35,6 +37,7 @@ class RedisSet(Task):
         password_secret: str = "REDIS_PASSWORD",
         redis_key=None,
         redis_val=None,
+        redis_connection_params: dict = None,
         ex: int = None,
         px: int = None,
         nx: bool = False,
@@ -45,6 +48,7 @@ class RedisSet(Task):
         self.port = port
         self.db = db
         self.password_secret = password_secret
+        self.redis_connection_params = redis_connection_params or {}
 
         self.redis_key = redis_key
         self.redis_val = redis_val
@@ -89,7 +93,11 @@ class RedisSet(Task):
         ## connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=password
+            host=self.host,
+            port=self.port,
+            db=self.db,
+            password=password,
+            **self.redis_connection_params
         )
 
         result = connection.set(
@@ -109,6 +117,8 @@ class RedisGet(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             which stores your Redis password
+        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
+            initializer
         - redis_key (optional): Redis key to get value, can be provided at initialization or runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -120,6 +130,7 @@ class RedisGet(Task):
         port: int = 6379,
         db: int = 0,
         password_secret: str = "REDIS_PASSWORD",
+        redis_connection_params: dict = None,
         redis_key=None,
         **kwargs
     ):
@@ -127,6 +138,7 @@ class RedisGet(Task):
         self.port = port
         self.db = db
         self.password_secret = password_secret
+        self.redis_connection_params = redis_connection_params or {}
 
         self.redis_key = redis_key
         super().__init__(**kwargs)
@@ -151,7 +163,11 @@ class RedisGet(Task):
         ## connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=password
+            host=self.host,
+            port=self.port,
+            db=self.db,
+            password=password,
+            **self.redis_connection_params
         )
 
         result = connection.get(name=redis_key)
@@ -169,6 +185,8 @@ class RedisExecute(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             which stores your Redis credentials
+        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
+            initializer
         - redis_cmd (str, optional): Redis command to execute, must be provided at initialization or
             runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -181,6 +199,7 @@ class RedisExecute(Task):
         port: int = 6379,
         db: int = 0,
         password_secret: str = "REDIS_PASSWORD",
+        redis_connection_params: dict = None,
         redis_cmd: str = None,
         **kwargs
     ):
@@ -188,6 +207,7 @@ class RedisExecute(Task):
         self.port = port
         self.db = db
         self.password_secret = password_secret
+        self.redis_connection_params = redis_connection_params or {}
 
         self.redis_cmd = redis_cmd
         super().__init__(**kwargs)
@@ -210,7 +230,11 @@ class RedisExecute(Task):
         ## connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
-            host=self.host, port=self.port, db=self.db, password=password
+            host=self.host,
+            port=self.port,
+            db=self.db,
+            password=password,
+            **self.redis_connection_params
         )
 
         result = connection.execute_command(redis_cmd)
