@@ -451,6 +451,26 @@ class TestCheckUpstreamSkipped:
         )
         assert new_state is state
 
+    def test_raises_if_single_mapped_upstream_skipped(self):
+        state = Pending()
+        task = Task()
+        with pytest.raises(ENDRUN) as exc:
+            edge = Edge(1, 2, mapped=False)
+            new_state = TaskRunner(task).check_upstream_skipped(
+                state=state,
+                upstream_states={edge: Mapped(map_states=[Skipped(), Success()])},
+            )
+
+    def test_doesnt_raise_if_single_mapped_upstream_skipped_and_edge_is_mapped(self):
+        state = Pending()
+        task = Task()
+        edge = Edge(1, 2, mapped=True)
+        new_state = TaskRunner(task).check_upstream_skipped(
+            state=state,
+            upstream_states={edge: Mapped(map_states=[Skipped(), Success()])},
+        )
+        assert new_state is state
+
 
 class TestCheckTaskTrigger:
     def test_all_successful_pass(self):
