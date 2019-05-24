@@ -5,11 +5,11 @@ import pytest
 
 class TestRedisSet:
     def test_construction(self):
-        task = RedisSet(connection="foo")
-        assert task.connection == "foo"
+        task = RedisSet()
+        assert task.host == "localhost"
 
     def test_raises_key_val_not_provided(self):
-        task = RedisSet(connection="foo")
+        task = RedisSet()
 
         ## raises if neither provided
         with pytest.raises(ValueError) as exc:
@@ -27,11 +27,11 @@ class TestRedisSet:
 
 class TestRedisGet:
     def test_construction(self):
-        task = RedisGet(connection="foo")
-        assert task.connection == "foo"
+        task = RedisGet()
+        assert task.host == "localhost"
 
     def test_raises_key_val_not_provided(self):
-        task = RedisGet(connection="foo")
+        task = RedisGet()
         with pytest.raises(ValueError) as exc:
             task.run()
         assert "redis_key must be provided" == str(exc.value)
@@ -39,11 +39,11 @@ class TestRedisGet:
 
 class TestRedisExecute:
     def test_construction(self):
-        task = RedisExecute(connection="foo")
-        assert task.connection == "foo"
+        task = RedisExecute()
+        assert task.host == "localhost"
 
     def test_raises_if_command_not_provided(self):
-        task = RedisExecute(connection="foo")
+        task = RedisExecute()
         with pytest.raises(ValueError) as exc:
             task.run()
         assert "A redis command must be specified" == str(exc.value)
