@@ -14,7 +14,7 @@ class RedisSet(Task):
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials
+            which stores your Redis credentials
         - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
         - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
             Redis native types include strings, dictionaries, lists, sets, and sorted sets
