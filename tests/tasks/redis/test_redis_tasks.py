@@ -37,6 +37,16 @@ class TestRedisSet:
                 task.run(redis_key="foo", redis_val="bar")
         assert redis.call_args[1]["password"] == 42
 
+    def test_redis_params_passed_to_connection(self, monkeypatch):
+        redis_params = {"custom_parameter": "value"}
+        task = RedisSet(redis_connection_params=redis_params)
+        redis = MagicMock()
+        monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
+                task.run(redis_key="foo", redis_val="bar")
+        assert redis.call_args[1]["custom_parameter"] == "value"
+
 
 class TestRedisGet:
     def test_construction(self):
@@ -58,6 +68,16 @@ class TestRedisGet:
                 task.run(redis_key="foo")
         assert redis.call_args[1]["password"] == 42
 
+    def test_redis_params_passed_to_connection(self, monkeypatch):
+        redis_params = {"custom_parameter": "value"}
+        task = RedisGet(redis_connection_params=redis_params)
+        redis = MagicMock()
+        monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
+                task.run(redis_key="foo")
+        assert redis.call_args[1]["custom_parameter"] == "value"
+
 
 class TestRedisExecute:
     def test_construction(self):
@@ -78,3 +98,13 @@ class TestRedisExecute:
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_cmd="GET foo")
         assert redis.call_args[1]["password"] == 42
+
+    def test_redis_params_passed_to_connection(self, monkeypatch):
+        redis_params = {"custom_parameter": "value"}
+        task = RedisExecute(redis_connection_params=redis_params)
+        redis = MagicMock()
+        monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
+                task.run(redis_cmd="GET foo")
+        assert redis.call_args[1]["custom_parameter"] == "value"
