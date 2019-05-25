@@ -49,6 +49,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Nanda H Krishna](https://nandahkrishna.me)
 - [Brett Naul](https://github.com/bnaul)
 - [Jeremiah Lewis](https://github.com/jlewis91)
+- [Dave Hirschfeld](https://github.com/dhirschfeld)
 
 ## 0.5.3 <Badge text="beta" type="success"/>
 
