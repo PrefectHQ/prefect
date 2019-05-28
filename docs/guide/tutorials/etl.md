@@ -7,7 +7,7 @@ sidebarDepth: 0
 
 ETL ("extract, transform, load") is a basic data workflow, but can be surprisingly complicated to set up in most data engineering frameworks.
 
-Some tools don't have an easy way to pass data between tasks, resulting in companies maintaining internal representations of all possible combinations of sources and sinks (`S3_to_Redshift`; `S3_to_S3`; `Redshift_to_S3`; `Postgres_to_Redshift`; `Postgres_to_S3`, etc. etc.). Other frameworks have flexible sources and sinks, but lack the ability to write totally customizable transformations.
+Some tools don't have an easy way to pass data between tasks, resulting in companies maintaining internal representations of all possible combinations of sources and sinks (`S3_to_Redshift`; `S3_to_S3`; `Redshift_to_S3`; `Postgres_to_Redshift`; `Postgres_to_S3`, etc.). Other frameworks have flexible sources and sinks, but lack the ability to write totally customizable transformations.
 
 Prefect makes ETL easy.
 
