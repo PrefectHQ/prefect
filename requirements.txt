@@ -1,10 +1,10 @@
 click >= 7.0, < 8.0
-cloudpickle >= 0.6.0, < 1.1
+cloudpickle >=0.6.0,<1.2
 croniter >= 0.3, < 0.4
 cryptography >= 2.2.2, < 3.0
-dask >= 0.18, < 1.2.2
+dask >=0.18,<1.2.3
 distributed >= 1.26.1, < 2.0
-docker >= 3.4.1, < 4.0
+docker >=3.4.1,<5.0
 idna < 2.8, >= 2.5
 marshmallow == 3.0.0b19
 marshmallow-oneofschema >= 2.0.0b2, < 3.0
