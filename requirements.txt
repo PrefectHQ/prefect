@@ -6,11 +6,11 @@ dask >= 0.18, < 1.2.2
 distributed >= 1.26.1, < 2.0
 docker >= 3.4.1, < 4.0
 idna < 2.8, >= 2.5
-marshmallow >= 3.0.0b19, < 3.1
+marshmallow == 3.0.0b19
 marshmallow-oneofschema >= 2.0.0b2, < 3.0
 mypy >= 0.600, < 0.800
 mypy_extensions >= 0.4.0, < 0.5
-pendulum >= 2.0.4, < 3.0
+pendulum >= 2.0.2, < 3.0
 python-dateutil >2.7.3, < 3.0
 pyyaml >= 3.13, < 4.3
 python-slugify >= 1.2.6, < 2.0
