@@ -12,7 +12,7 @@ mypy >= 0.600, < 0.800
 mypy_extensions >= 0.4.0, < 0.5
 pendulum >= 2.0.2, < 3.0
 python-dateutil >2.7.3, < 3.0
-pyyaml >= 3.13, < 4.3
+pyyaml >=3.13,<5.2
 python-slugify >=1.2.6,<4.0
 pytz >= 2018.7
 requests >= 2.20, < 3.0
