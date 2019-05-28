@@ -1,36 +1,12 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
-
-### Features
-
-- None
-
-### Enhancements
-
-- None
-
-### Task Library
-
-- None
-
-### Fixes
-
-- None
-
-### Breaking Changes
-
-- None
-
-### Contributors
-
-- None
-
-## 0.5.4 <Badge text="beta" type="success"/>
-
-Released May 28, 2019
 
 ### Features
 
@@ -559,3 +535,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>by Prefect 0.5.3+275.g38ab4505 on May 28, 2019 at 20:38 UTC</p>
