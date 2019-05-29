@@ -67,7 +67,7 @@ def test_run_cloud(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
 
 
 def test_run_cloud_fails(monkeypatch):

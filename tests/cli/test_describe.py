@@ -64,7 +64,7 @@ def test_describe_flows(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
 
 
 def test_describe_flows_not_found(monkeypatch):
@@ -119,7 +119,7 @@ def test_describe_flows_populated(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
 
 
 def test_describe_tasks(monkeypatch):
@@ -158,7 +158,7 @@ def test_describe_tasks(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
 
 
 def test_describe_tasks_flow_not_found(monkeypatch):
@@ -232,7 +232,7 @@ def test_describe_flow_runs(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
 
 
 def test_describe_flow_runs_not_found(monkeypatch):
@@ -292,4 +292,4 @@ def test_describe_flow_runs_populated(monkeypatch):
         """
 
         assert post.called
-        assert post.call_args[1]["json"]["query"].split() == query.split()
+        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
