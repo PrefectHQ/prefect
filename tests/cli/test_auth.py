@@ -18,6 +18,13 @@ def test_auth_init():
     assert "Handle Prefect Cloud authorization." in result.output
 
 
+def test_auth_help():
+    runner = CliRunner()
+    result = runner.invoke(auth, ["--help"])
+    assert result.exit_code == 0
+    assert "Handle Prefect Cloud authorization." in result.output
+
+
 def test_auth_add_not_exist():
     runner = CliRunner()
     result = runner.invoke(
