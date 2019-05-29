@@ -79,7 +79,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
         logging.setLogRecordFactory(cloud_record_factory)
         remote_handler = RemoteHandler()
         logger.addHandler(remote_handler)
-
+        atexit.register(logger.debug, "System exiting.")
     return logger
 
 
