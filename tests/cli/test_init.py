@@ -14,6 +14,7 @@ def test_init():
         in result.output
     )
 
+
 def test_init_help():
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
