@@ -883,9 +883,25 @@ class Flow:
 
             ## create next scheduled run
             try:
-                cached_tasks = {
-                    t: s for t, s in flow_state.result.items() if s.is_cached()
-                }
+                cached_tasks = {}
+
+                for t, s in flow_state.result.items():
+                    if s.is_cached():
+                        cached_tasks.update({t: s})
+                    elif s.is_mapped() and any(
+                        sub_state.is_cached() for sub_state in s.map_states
+                    ):
+                        cached_sub_states = [
+                            sub_state if sub_state.is_cached() else None
+                            for sub_state in s.map_states
+                        ]
+                        cached_tasks.update(
+                            {
+                                t: prefect.engine.state.Mapped(
+                                    map_states=cached_sub_states
+                                )
+                            }
+                        )
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:
