@@ -1,3 +1,4 @@
+import re
 from unittest.mock import MagicMock
 
 import click
@@ -64,8 +65,8 @@ def test_describe_flows(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
 
 
@@ -121,8 +122,8 @@ def test_describe_flows_populated(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
 
 
@@ -162,8 +163,8 @@ def test_describe_tasks(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
 
 
@@ -238,8 +239,8 @@ def test_describe_flow_runs(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
 
 
@@ -300,6 +301,6 @@ def test_describe_flow_runs_populated(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
