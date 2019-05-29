@@ -3,7 +3,6 @@ import pendulum
 from tabulate import tabulate
 
 from prefect.client import Client
-from prefect.utilities.cli import open_in_playground
 from prefect.utilities.graphql import with_args, EnumValue
 
 
@@ -58,10 +57,7 @@ def describe():
 @click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
 @click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
 @click.option("--project", "-p", help="The name of a project to query.", hidden=True)
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def flows(name, version, project, playground):
+def flows(name, version, project):
     """
     Describe a Prefect flow.
 
@@ -70,7 +66,6 @@ def flows(name, version, project, playground):
         --name, -n      TEXT    A flow name to query                [required]
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
-        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -104,10 +99,6 @@ def flows(name, version, project, playground):
         }
     }
 
-    if playground:
-        open_in_playground(query)
-        return
-
     result = Client().graphql(query)
 
     flow_data = result.data.flow
@@ -122,10 +113,7 @@ def flows(name, version, project, playground):
 @click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
 @click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
 @click.option("--project", "-p", help="The name of a project to query.", hidden=True)
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def tasks(name, version, project, playground):
+def tasks(name, version, project):
     """
     Describe tasks from a Prefect flow. This command is similar to `prefect describe flow`
     but instead of flow metadata it outputs task metadata.
@@ -135,7 +123,6 @@ def tasks(name, version, project, playground):
         --name, -n      TEXT    A flow name to query                [required]
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
-        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -170,10 +157,6 @@ def tasks(name, version, project, playground):
         }
     }
 
-    if playground:
-        open_in_playground(query)
-        return
-
     result = Client().graphql(query)
 
     flow_data = result.data.flow
@@ -195,10 +178,7 @@ def tasks(name, version, project, playground):
     "--name", "-n", required=True, help="A flow run name to query", hidden=True
 )
 @click.option("--flow-name", "-fn", help="A flow name to query", hidden=True)
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def flow_runs(name, flow_name, playground):
+def flow_runs(name, flow_name):
     """
     Describe a Prefect flow run.
 
@@ -206,7 +186,6 @@ def flow_runs(name, flow_name, playground):
     Options:
         --name, -n          TEXT    A flow run name to query            [required]
         --flow-name, -fn    TEXT    A flow name to query
-        --playground                Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -235,10 +214,6 @@ def flow_runs(name, flow_name, playground):
             }
         }
     }
-
-    if playground:
-        open_in_playground(query)
-        return
 
     result = Client().graphql(query)
 

@@ -1,5 +1,4 @@
 import prefect.utilities.logging
-import prefect.utilities.cli
 import prefect.utilities.collections
 import prefect.utilities.configuration
 import prefect.utilities.datetimes

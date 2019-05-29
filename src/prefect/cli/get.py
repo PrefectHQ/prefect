@@ -4,7 +4,6 @@ from tabulate import tabulate
 
 from prefect import config
 from prefect.client import Client
-from prefect.utilities.cli import open_in_playground
 from prefect.utilities.graphql import with_args, EnumValue
 
 
@@ -55,10 +54,7 @@ def get():
 @click.option(
     "--all-versions", is_flag=True, help="Query all flow versions.", hidden=True
 )
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def flows(name, version, project, limit, all_versions, playground):
+def flows(name, version, project, limit, all_versions):
     """
     Query information regarding your Prefect flows.
 
@@ -69,7 +65,6 @@ def flows(name, version, project, limit, all_versions, playground):
         --project, -p   TEXT    The name of a project to query
         --limit, -l     INTEGER A limit amount of flows to query, defaults to 10
         --all-versions          Output all versions of a flow, default shows most recent
-        --playground            Open query in a GraphQL Playground
     """
 
     distinct_on = EnumValue("name")
@@ -104,10 +99,6 @@ def flows(name, version, project, limit, all_versions, playground):
         }
     }
 
-    if playground:
-        open_in_playground(query)
-        return
-
     result = Client().graphql(query)
 
     flow_data = result.data.flow
@@ -136,17 +127,13 @@ def flows(name, version, project, limit, all_versions, playground):
 
 @get.command(hidden=True)
 @click.option("--name", "-n", help="A project name to query.", hidden=True)
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def projects(name, playground):
+def projects(name):
     """
     Query information regarding your Prefect projects.
 
     \b
     Options:
         --name, -n      TEXT    A project name to query
-        --playground            Open query in a GraphQL Playground
     """
     query = {
         "query": {
@@ -166,10 +153,6 @@ def projects(name, playground):
             }
         }
     }
-
-    if playground:
-        open_in_playground(query)
-        return
 
     result = Client().graphql(query)
 
@@ -214,10 +197,7 @@ def projects(name, playground):
     help="Only retrieve started flow runs.",
     hidden=True,
 )
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def flow_runs(limit, flow, project, started, playground):
+def flow_runs(limit, flow, project, started):
     """
     Query information regarding Prefect flow runs.
 
@@ -227,7 +207,6 @@ def flow_runs(limit, flow, project, started, playground):
         --flow, -f          TEXT    Name of a flow to query for runs
         --project, -p       TEXT    Name of a project to query
         --started, -s               Only retrieve started flow runs, default shows `Scheduled` runs
-        --playground, -p            Open query in a GraphQL Playground
     """
 
     if started:
@@ -267,10 +246,6 @@ def flow_runs(limit, flow, project, started, playground):
             }
         }
     }
-
-    if playground:
-        open_in_playground(query)
-        return
 
     result = Client().graphql(query)
 
@@ -315,10 +290,7 @@ def flow_runs(limit, flow, project, started, playground):
 @click.option(
     "--limit", "-l", default=10, help="A limit amount of tasks to query.", hidden=True
 )
-@click.option(
-    "--playground", is_flag=True, help="Open this query in the playground.", hidden=True
-)
-def tasks(name, flow_name, flow_version, project, limit, playground):
+def tasks(name, flow_name, flow_version, project, limit):
     """
     Query information regarding your Prefect tasks.
 
@@ -329,7 +301,6 @@ def tasks(name, flow_name, flow_version, project, limit, playground):
         --flow-version, -fx INTEGER A flow version to query
         --project, -p       TEXT    The name of a project to query
         --limit, -l         INTEGER A limit amount of tasks to query, defaults to 10
-        --playground                Open query in a GraphQL playground
     """
 
     query = {
@@ -359,10 +330,6 @@ def tasks(name, flow_name, flow_version, project, limit, playground):
             }
         }
     }
-
-    if playground:
-        open_in_playground(query)
-        return
 
     result = Client().graphql(query)
 
