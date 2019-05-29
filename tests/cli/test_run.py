@@ -1,3 +1,4 @@
+import re
 from unittest.mock import MagicMock
 
 import click
@@ -67,8 +68,8 @@ def test_run_cloud(monkeypatch):
         """
 
         assert post.called
-        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
-            query.split()
+        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
+            r"[\n\t\s]*", "", query
         )
 
 
