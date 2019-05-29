@@ -60,7 +60,9 @@ def test_get_flows(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_flows_populated(monkeypatch):
@@ -104,7 +106,9 @@ def test_get_flows_populated(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_projects(monkeypatch):
@@ -142,7 +146,9 @@ def test_get_projects(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_projects_populated(monkeypatch):
@@ -174,7 +180,9 @@ def test_get_projects_populated(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_flow_runs(monkeypatch):
@@ -216,7 +224,9 @@ def test_get_flow_runs(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_flow_runs_populated(monkeypatch):
@@ -262,7 +272,9 @@ def test_get_flow_runs_populated(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_tasks(monkeypatch):
@@ -302,7 +314,9 @@ def test_get_tasks(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
 
 
 def test_get_tasks_populated(monkeypatch):
@@ -349,4 +363,6 @@ def test_get_tasks_populated(monkeypatch):
         """
 
         assert post.called
-        assert set(post.call_args[1]["json"]["query"].split()) == set(query.split())
+        assert sorted(post.call_args[1]["json"]["query"].split()) == sorted(
+            query.split()
+        )
