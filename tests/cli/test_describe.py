@@ -1,8 +1,9 @@
-import re
+import sys
 from unittest.mock import MagicMock
 
 import click
 from click.testing import CliRunner
+import pytest
 import requests
 
 import prefect
@@ -30,6 +31,7 @@ def test_describe_help():
     )
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_describe_flows(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -65,9 +67,7 @@ def test_describe_flows(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
 def test_describe_flows_not_found(monkeypatch):
@@ -85,6 +85,7 @@ def test_describe_flows_not_found(monkeypatch):
         assert "flow not found" in result.output
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_describe_flows_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -122,11 +123,10 @@ def test_describe_flows_populated(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_describe_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -163,9 +163,7 @@ def test_describe_tasks(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
 def test_describe_tasks_flow_not_found(monkeypatch):
@@ -200,6 +198,7 @@ def test_describe_tasks_not_found(monkeypatch):
         assert "No tasks found for flow flow" in result.output
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_describe_flow_runs(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -239,9 +238,7 @@ def test_describe_flow_runs(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
 def test_describe_flow_runs_not_found(monkeypatch):
@@ -261,6 +258,7 @@ def test_describe_flow_runs_not_found(monkeypatch):
         assert "flow-run not found" in result.output
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_describe_flow_runs_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -301,6 +299,4 @@ def test_describe_flow_runs_populated(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()

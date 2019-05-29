@@ -1,8 +1,9 @@
-import re
+import sys
 from unittest.mock import MagicMock
 
 import click
 from click.testing import CliRunner
+import pytest
 import requests
 
 import prefect
@@ -36,6 +37,7 @@ def test_run_docker():
     assert result.exit_code == 0
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_run_cloud(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -68,9 +70,7 @@ def test_run_cloud(monkeypatch):
         """
 
         assert post.called
-        assert re.sub(r"[\n\t\s]*", "", post.call_args[1]["json"]["query"]) == re.sub(
-            r"[\n\t\s]*", "", query
-        )
+        assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
 def test_run_cloud_fails(monkeypatch):
