@@ -13,7 +13,7 @@
 [build]
   base    = ""
   publish = "docs/.vuepress/dist"
-  command = 'export GIT_SHA=$COMMIT_REF && pip install -e ".[dev]" && yarn docs:build'
+  command = 'export GIT_SHA=$COMMIT_REF && git pull && pip install -e ".[dev]" && yarn docs:build'
 
 [[redirects]]
   from = "/*"
