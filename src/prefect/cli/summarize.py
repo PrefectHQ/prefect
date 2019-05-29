@@ -4,7 +4,7 @@ import click
 @click.group(hidden=True)
 def summarize():
     """
-    Handle Prefect Cloud authorization.
+    Summarize Prefect Cloud metadata. *Not yet implemented*
 
     \b
     Usage:
