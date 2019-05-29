@@ -26,10 +26,6 @@ def test_get_help():
         "Get commands that refer to querying Prefect Cloud metadata." in result.output
     )
 
-    # from prefect.utilities.graphql import parse_graphql
-
-    # print(parse_graphql(query))
-
 
 def test_get_flows(monkeypatch):
     post = MagicMock(
