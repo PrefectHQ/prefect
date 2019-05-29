@@ -26,7 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Kwangyoun Jung](https://github.com/initialkommit)
 
 ## 0.5.4 <Badge text="beta" type="success"/>
 
@@ -78,7 +78,6 @@ Released May 28, 2019
 - [Brett Naul](https://github.com/bnaul)
 - [Jeremiah Lewis](https://github.com/jlewis91)
 - [Dave Hirschfeld](https://github.com/dhirschfeld)
-- [Kwangyoun Jung](https://github.com/initialkommit)
 
 ## 0.5.3 <Badge text="beta" type="success"/>
 
