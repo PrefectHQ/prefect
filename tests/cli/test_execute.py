@@ -1,5 +1,4 @@
 from unittest.mock import MagicMock
-import uuid
 
 import click
 from click.testing import CliRunner
@@ -7,7 +6,6 @@ import requests
 
 import prefect
 from prefect.cli.execute import execute
-from prefect.utilities.configuration import set_temporary_config
 
 
 def test_execute_init():
@@ -35,4 +33,3 @@ def test_execute_cloud_flow_fails():
     result = runner.invoke(execute, "cloud-flow")
     assert result.exit_code == 0
     assert "Not currently executing a flow within a cloud context." in result.output
-

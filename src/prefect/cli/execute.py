@@ -5,9 +5,6 @@ from prefect.client import Client
 from prefect.utilities.graphql import with_args
 
 
-# TODO: execute command rename will require change in Cloud
-
-
 @click.group(hidden=True)
 def execute():
     """
