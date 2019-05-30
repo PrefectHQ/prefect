@@ -16,7 +16,6 @@ def execute():
 
     \b
     Arguments:
-        local-flow  Execute a local flow's environment
         cloud-flow  Execute a cloud flow's environment (during deployment)
 
     \b
@@ -25,14 +24,6 @@ def execute():
 
     \b
         $ prefect execute local-flow ~/.prefect/flows/my_flow.prefect
-    """
-    pass
-
-
-@execute.command(hidden=True)
-def local_flow():
-    """
-    Execute a flow's environment locally.
     """
     pass
 

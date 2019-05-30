@@ -25,18 +25,6 @@ def test_run_help():
     assert "Run Prefect flows." in result.output
 
 
-def test_run_local():
-    runner = CliRunner()
-    result = runner.invoke(run, ["local"])
-    assert result.exit_code == 0
-
-
-def test_run_docker():
-    runner = CliRunner()
-    result = runner.invoke(run, ["docker"])
-    assert result.exit_code == 0
-
-
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
 def test_run_cloud(monkeypatch):
     post = MagicMock(
