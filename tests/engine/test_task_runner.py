@@ -1363,18 +1363,26 @@ class TestRunMappedStep:
         assert state.is_mapped()
 
     def test_run_mapped_preserves_result_objects(self):
-        handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
+        @prefect.task(cache_for=timedelta(minutes=10))
+        def tt(foo):
+            pass
 
-        tt = Task(cache_for=timedelta(minutes=10))
-        state = TaskRunner(task=tt).run_mapped_task(
-            state=Pending(),
-            upstream_states={Edge(tt, tt, mapped=True): Success(result=Result([1, 2], result_handler=handler))},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
+        with prefect.context(cloud=True):
+            state = TaskRunner(task=tt).run_mapped_task(
+                state=Pending(),
+                upstream_states={
+                    Edge(Task(), tt, key="foo", mapped=True): Success(
+                        result=Result([1, 2], result_handler=JSONResultHandler())
+                    )
+                },
+                context={},
+                executor=prefect.engine.executors.LocalExecutor(),
+            )
         assert state.is_mapped()
-        from IPython import embed; embed()
-        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+
+        one, two = state.map_states
+        assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
+        assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
 
 
 @pytest.mark.parametrize(
