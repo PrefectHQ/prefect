@@ -88,7 +88,9 @@ def all_inputs(
     """
     if duration_only(state, inputs, parameters) is False:
         return False
-    elif state.cached_inputs == inputs:
+    elif {key: res.value for key, res in state.cached_inputs.items()} == {
+        key: res.value for key, res in inputs.items()
+    }:
         return True
     else:
         return False
