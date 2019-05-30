@@ -63,6 +63,8 @@ def add(token, config_path):
         toml.dump(config, file)
         click.echo("Auth token added to Prefect config")
 
-        result = Client().graphql(query={"query": "hello"})
+        client = Client()
+        client.token = token
+        result = client.graphql(query={"query": "hello"})
         if not result.data.hello:
             click.secho("Error attempting to use Prefect auth token {}".format(result))
