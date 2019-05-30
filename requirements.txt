@@ -5,7 +5,7 @@ cryptography >= 2.2.2, < 3.0
 dask >=0.18,<1.2.3
 distributed >= 1.26.1, < 2.0
 docker >=3.4.1,<5.0
-marshmallow == 3.0.0b19
+marshmallow >= 3.0.0rc6, < 4.0.0
 marshmallow-oneofschema >= 2.0.0b2, < 3.0
 mypy >= 0.600, < 0.800
 mypy_extensions >= 0.4.0, < 0.5
