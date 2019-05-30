@@ -18,8 +18,6 @@ def run():
     \b
     Arguments:
         cloud   Run flows in Prefect Cloud
-        docker  Run flows from Docker storage
-        local   Run flows from Local storage
 
     \b
     Examples:
@@ -121,19 +119,3 @@ def cloud(name, project, version, watch):
                     click.echo(current_state)
                     break
             time.sleep(3)
-
-
-@run.command(hidden=True)
-def local():
-    """
-    Run a local Prefect flow.
-    """
-    pass
-
-
-@run.command(hidden=True)
-def docker():
-    """
-    Run a Prefect flow using a Docker storage
-    """
-    pass
