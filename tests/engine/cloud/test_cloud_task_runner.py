@@ -11,6 +11,7 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
+from prefect.engine.cache_validators import all_inputs
 from prefect.engine.cloud import CloudResultHandler, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
@@ -180,6 +181,28 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 42
+
+
+def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1), cache_validator=all_inputs, result_handler=JSONResultHandler()
+    )
+    def cached_task(x):
+        return 42
+
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=Result(99, JSONResultHandler()),
+        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[state])
+
+    res = CloudTaskRunner(task=cached_task).check_task_is_cached(Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())})
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 99
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
