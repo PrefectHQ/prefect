@@ -192,13 +192,18 @@ def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
     def cached_task(x):
         return 42
 
+    dull_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=Result(-1, JSONResultHandler()),
+    )
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(minutes=2),
         result=Result(99, JSONResultHandler()),
         cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
     )
-    client.get_latest_cached_states = MagicMock(return_value=[state])
+    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
 
     res = CloudTaskRunner(task=cached_task).check_task_is_cached(
         Pending(), inputs={"x": Result(2, result_handler=LocalResultHandler())}
