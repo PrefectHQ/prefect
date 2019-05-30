@@ -1362,6 +1362,28 @@ class TestRunMappedStep:
         )
         assert state.is_mapped()
 
+    def test_run_mapped_preserves_result_objects(self):
+        @prefect.task(cache_for=timedelta(minutes=10))
+        def tt(foo):
+            pass
+
+        with prefect.context(cloud=True):
+            state = TaskRunner(task=tt).run_mapped_task(
+                state=Pending(),
+                upstream_states={
+                    Edge(Task(), tt, key="foo", mapped=True): Success(
+                        result=Result([1, 2], result_handler=JSONResultHandler())
+                    )
+                },
+                context={},
+                executor=prefect.engine.executors.LocalExecutor(),
+            )
+        assert state.is_mapped()
+
+        one, two = state.map_states
+        assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
+        assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
+
 
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -1495,7 +1517,8 @@ def test_failures_arent_checkpointed():
     def fn():
         raise TypeError("Bad types")
 
-    new_state = TaskRunner(task=fn).run()
+    with prefect.context(cloud=True):
+        new_state = TaskRunner(task=fn).run()
     assert new_state.is_failed()
     assert isinstance(new_state.result, TypeError)
 
@@ -1507,9 +1530,10 @@ def test_skips_arent_checkpointed():
     def fn():
         return 2
 
-    new_state = TaskRunner(task=fn).run(
-        upstream_states={Edge(Task(), Task()): Skipped()}
-    )
+    with prefect.context(cloud=True):
+        new_state = TaskRunner(task=fn).run(
+            upstream_states={Edge(Task(), Task()): Skipped()}
+        )
     assert new_state.is_successful()
 
 
