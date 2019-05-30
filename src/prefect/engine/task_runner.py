@@ -575,8 +575,9 @@ class TaskRunner(Runner):
         """
         if state.is_cached():
             assert isinstance(state, Cached)  # mypy assert
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
             if self.task.cache_validator(
-                state, inputs, prefect.context.get("parameters")
+                state, sanitized_inputs, prefect.context.get("parameters")
             ):
                 state._result = state._result.to_result()
                 return state
