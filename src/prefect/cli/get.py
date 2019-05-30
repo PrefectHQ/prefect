@@ -22,6 +22,7 @@ def get():
         flows       Query flows
         projects    Query projects
         tasks       Query tasks
+        logs        Query logs
 
     \b
     Examples:
@@ -357,3 +358,70 @@ def tasks(name, flow_name, flow_version, project, limit):
             stralign="left",
         )
     )
+
+
+@get.command(hidden=True)
+@click.option(
+    "--name", "-n", required=True, help="A flow run name to query", hidden=True
+)
+@click.option(
+    "--info", "-i", is_flag=True, help="Retrieve detailed logging info", hidden=True
+)
+def logs(name, info):
+    """
+    Query logs for a flow run.
+
+    \b
+    Options:
+        --name, -n      TEXT    A flow run name to query        [required]
+        --info, -i              Retrieve detailed logging info
+    """
+    log_query = {
+        with_args("logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}): {
+            "timestamp": True,
+            "message": True,
+            "level": True,
+        }
+    }
+    if info:
+        log_query = {
+            with_args(
+                "logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}
+            ): {"timestamp": True, "info": True}
+        }
+
+    query = {
+        "query": {with_args("flow_run", {"where": {"name": {"_eq": name}}}): log_query}
+    }
+
+    from prefect.utilities.graphql import parse_graphql
+
+    print(parse_graphql(query))
+    return
+
+    result = Client().graphql(query)
+
+    flow_run = result.data.flow_run
+    if not flow_run:
+        click.secho("{} not found".format(name), fg="red")
+
+    logs = flow_run[0].logs
+    output = []
+
+    if not info:
+        for log in logs:
+            output.append([log.timestamp, log.level, log.message])
+
+        click.echo(
+            tabulate(
+                output,
+                headers=["TIMESTAMP", "LEVEL", "MESSAGE"],
+                tablefmt="plain",
+                numalign="left",
+                stralign="left",
+            )
+        )
+        return
+
+    for log in logs:
+        click.echo(log.info)
