@@ -360,3 +360,108 @@ def test_get_tasks_populated(monkeypatch):
 
         assert post.called
         assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+def test_get_logs(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(
+                    data=dict(
+                        flow_run=[
+                            dict(
+                                logs=[
+                                    {
+                                        "timestamp": "timestamp",
+                                        "level": "level",
+                                        "message": "message",
+                                    }
+                                ]
+                            )
+                        ]
+                    )
+                )
+            )
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(get, ["logs", "--name", "flow_run"])
+        assert result.exit_code == 0
+        assert (
+            "TIMESTAMP" in result.output
+            and "LEVEL" in result.output
+            and "MESSAGE" in result.output
+            and "level" in result.output
+        )
+
+        query = """
+        query {
+            flow_run(where: { name: { _eq: "flow_run" } }) {
+                logs(order_by: { timestamp: asc }) {
+                    timestamp
+                    message
+                    level
+                }
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+def test_get_logs_info(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(data=dict(flow_run=[dict(logs=[{"info": "OUTPUT"}])]))
+            )
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(get, ["logs", "--name", "flow_run", "--info"])
+        assert result.exit_code == 0
+        assert "OUTPUT" in result.output
+
+        query = """
+        query {
+            flow_run(where: { name: { _eq: "flow_run" } }) {
+                logs(order_by: { timestamp: asc }) {
+                    timestamp
+                    info
+                }
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_get_logs_fails(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow_run=[])))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(get, ["logs", "--name", "flow_run"])
+        assert result.exit_code == 0
+        assert "flow_run not found" in result.output

@@ -394,16 +394,12 @@ def logs(name, info):
         "query": {with_args("flow_run", {"where": {"name": {"_eq": name}}}): log_query}
     }
 
-    from prefect.utilities.graphql import parse_graphql
-
-    print(parse_graphql(query))
-    return
-
     result = Client().graphql(query)
 
     flow_run = result.data.flow_run
     if not flow_run:
         click.secho("{} not found".format(name), fg="red")
+        return
 
     logs = flow_run[0].logs
     output = []
