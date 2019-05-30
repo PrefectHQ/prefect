@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix issue with mapped caching in Prefect Cloud - [#1096](https://github.com/PrefectHQ/prefect/pull/1096)
 
 ### Breaking Changes
 
