@@ -40,7 +40,7 @@ def test_auth_add(monkeypatch):
         file = "{}/temp_config.toml".format(temp_dir)
 
         # Create file
-        open(file, "w+")
+        open(file, "w+").close()
 
         post = MagicMock(
             return_value=MagicMock(
@@ -66,7 +66,7 @@ def test_auth_add_failes_query(monkeypatch):
         file = "{}/temp_config.toml".format(temp_dir)
 
         # Create file
-        open(file, "w+")
+        open(file, "w+").close()
 
         post = MagicMock(
             return_value=MagicMock(
