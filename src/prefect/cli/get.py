@@ -381,17 +381,27 @@ def logs(name, info):
             "timestamp": True,
             "message": True,
             "level": True,
-        }
+        },
+        "start_time": True,
     }
     if info:
         log_query = {
             with_args(
                 "logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}
-            ): {"timestamp": True, "info": True}
+            ): {"timestamp": True, "info": True},
+            "start_time": True,
         }
 
     query = {
-        "query": {with_args("flow_run", {"where": {"name": {"_eq": name}}}): log_query}
+        "query": {
+            with_args(
+                "flow_run",
+                {
+                    "where": {"name": {"_eq": name}},
+                    "order_by": {EnumValue("start_time"): EnumValue("desc")},
+                },
+            ): log_query
+        }
     }
 
     result = Client().graphql(query)
@@ -401,7 +411,8 @@ def logs(name, info):
         click.secho("{} not found".format(name), fg="red")
         return
 
-    logs = flow_run[0].logs
+    run = flow_run[0]
+    logs = run.logs
     output = []
 
     if not info:

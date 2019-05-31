@@ -31,7 +31,9 @@ def test_describe_help():
     )
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
+)
 def test_describe_flows(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -85,7 +87,9 @@ def test_describe_flows_not_found(monkeypatch):
         assert "flow not found" in result.output
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
+)
 def test_describe_flows_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -126,7 +130,9 @@ def test_describe_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
+)
 def test_describe_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -198,7 +204,9 @@ def test_describe_tasks_not_found(monkeypatch):
         assert "No tasks found for flow flow" in result.output
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
+)
 def test_describe_flow_runs(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -258,7 +266,9 @@ def test_describe_flow_runs_not_found(monkeypatch):
         assert "flow-run not found" in result.output
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="3.6 or higher")
+@pytest.mark.skipif(
+    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
+)
 def test_describe_flow_runs_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
