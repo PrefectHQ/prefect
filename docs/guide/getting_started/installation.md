@@ -23,6 +23,11 @@ or, if you prefer to use `conda`:
 conda install -c conda-forge prefect
 ```
 
+or `pipenv`:
+```
+pipenv install -pre prefect
+```
+
 ## Optional dependencies
 
 Prefect ships with a number of optional dependencies, which can be installed using "extras" syntax:
