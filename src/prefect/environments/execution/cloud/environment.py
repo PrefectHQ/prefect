@@ -1,6 +1,5 @@
 import base64
 import json
-import logging
 import time
 import uuid
 from os import path
@@ -33,13 +32,19 @@ class CloudEnvironment(Environment):
 
     Args:
         - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
-            Docker registry; if so, requires a `DOCKER_REGISTRY_CREDENTIALS` Prefect Secret to be set.
+            Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
+        - docker_secret (str, optional): the name of the Prefect Secret containing your Docker credentials; defaults to
+            `"DOCKER_REGISTRY_CREDENTIALS"`.  This Secret should be a dictionary containing the following keys: `"docker-server"`,
+            `"docker-username"`, `"docker-password"`, and `"docker-email"`.
     """
 
-    def __init__(self, private_registry: bool = False) -> None:
+    def __init__(
+        self, private_registry: bool = False, docker_secret: str = None
+    ) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
+        self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
         self.logger = logging.get_logger("CloudEnvironment")
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
@@ -90,12 +95,14 @@ class CloudEnvironment(Environment):
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
-            'Creating Docker registry kubernetes secret from "DOCKER_REGISTRY_CREDENTIALS" Prefect Secret.'
+            'Creating Docker registry kubernetes secret from "" Prefect Secret.'.format(
+                self.docker_secret
+            )
         )
         try:
             from kubernetes import client
 
-            docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
+            docker_creds = Secret(self.docker_secret).get()
             assert isinstance(docker_creds, dict)
 
             v1 = client.CoreV1Api()
