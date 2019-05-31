@@ -15,6 +15,7 @@ import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
+from prefect.utilities import logging
 
 
 class CloudEnvironment(Environment):
@@ -39,6 +40,7 @@ class CloudEnvironment(Environment):
     def __init__(self, private_registry: bool = False) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
+        self.logger = logging.get_logger("CloudEnvironment")
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
@@ -48,6 +50,7 @@ class CloudEnvironment(Environment):
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
+                self.logger.error("Environment not currently running inside a cluster")
                 raise EnvironmentError("Environment not currently inside a cluster")
 
             v1 = client.CoreV1Api()
@@ -59,6 +62,9 @@ class CloudEnvironment(Environment):
                 for secret in secrets.items
                 if secret.metadata.name == secret_name
             ]:
+                self.logger.debug(
+                    "Docker registry secret does not exist for this tenant."
+                )
                 self._create_namespaced_secret()
 
     def execute(  # type: ignore
@@ -83,36 +89,47 @@ class CloudEnvironment(Environment):
         self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
 
     def _create_namespaced_secret(self) -> None:
-        from kubernetes import client
+        self.logger.debug(
+            'Creating Docker registry kubernetes secret from "DOCKER_REGISTRY_CREDENTIALS" Prefect Secret.'
+        )
+        try:
+            from kubernetes import client
 
-        docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
-        assert isinstance(docker_creds, dict)
+            docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
+            assert isinstance(docker_creds, dict)
 
-        v1 = client.CoreV1Api()
-        cred_payload = {
-            "auths": {
-                docker_creds["docker-server"]: {
-                    "Username": docker_creds["docker-username"],
-                    "Password": docker_creds["docker-password"],
-                    "Email": docker_creds["docker-email"],
+            v1 = client.CoreV1Api()
+            cred_payload = {
+                "auths": {
+                    docker_creds["docker-server"]: {
+                        "Username": docker_creds["docker-username"],
+                        "Password": docker_creds["docker-password"],
+                        "Email": docker_creds["docker-email"],
+                    }
                 }
             }
-        }
-        data = {
-            ".dockerconfigjson": base64.b64encode(
-                json.dumps(cred_payload).encode()
-            ).decode()
-        }
-        namespace = prefect.context.get("namespace", "unknown")
-        name = namespace + "-docker"
-        secret = client.V1Secret(
-            api_version="v1",
-            data=data,
-            kind="Secret",
-            metadata=dict(name=name, namespace=namespace),
-            type="kubernetes.io/dockerconfigjson",
-        )
-        v1.create_namespaced_secret(namespace, body=secret)
+            data = {
+                ".dockerconfigjson": base64.b64encode(
+                    json.dumps(cred_payload).encode()
+                ).decode()
+            }
+            namespace = prefect.context.get("namespace", "unknown")
+            name = namespace + "-docker"
+            secret = client.V1Secret(
+                api_version="v1",
+                data=data,
+                kind="Secret",
+                metadata=dict(name=name, namespace=namespace),
+                type="kubernetes.io/dockerconfigjson",
+            )
+            v1.create_namespaced_secret(namespace, body=secret)
+        except Exception as exc:
+            self.logger.error(
+                "Failed to create Kubernetes secret for private Docker registry: {}".format(
+                    exc
+                )
+            )
+            raise exc
 
     def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
         """
@@ -129,6 +146,7 @@ class CloudEnvironment(Environment):
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
+            self.logger.error("Environment not currently running inside a cluster")
             raise EnvironmentError("Environment not currently inside a cluster")
 
         batch_client = client.BatchV1Api()
@@ -140,9 +158,13 @@ class CloudEnvironment(Environment):
             )
 
             # Create Job
-            batch_client.create_namespaced_job(
-                namespace=prefect.context.get("namespace"), body=job
-            )
+            try:
+                batch_client.create_namespaced_job(
+                    namespace=prefect.context.get("namespace"), body=job
+                )
+            except Exception as exc:
+                self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+                raise exc
 
     def run_flow(self) -> None:
         """
