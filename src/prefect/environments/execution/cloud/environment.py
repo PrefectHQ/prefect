@@ -95,7 +95,7 @@ class CloudEnvironment(Environment):
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
-            'Creating Docker registry kubernetes secret from "" Prefect Secret.'.format(
+            'Creating Docker registry kubernetes secret from "{}" Prefect Secret.'.format(
                 self.docker_secret
             )
         )
