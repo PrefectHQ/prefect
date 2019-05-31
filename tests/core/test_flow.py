@@ -1566,7 +1566,7 @@ class TestFlowRunMethod:
                     self.call_count += 1
                     return [pendulum.now("utc")]
                 else:
-                    raise SyntaxError("Cease scheduling!")
+                    return []
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1600,8 +1600,7 @@ class TestFlowRunMethod:
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x(x=t1, y=t2))
 
-        with pytest.raises(SyntaxError) as exc:
-            f.run()
+        f.run()
 
         assert storage == dict(y=[1, 1, 3])
 
