@@ -245,7 +245,9 @@ class TaskRunner(Runner):
                 )
 
                 # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
+                state = self.check_task_is_cached(
+                    state, inputs=task_inputs, map_index=map_index
+                )
 
                 # check if the task's trigger passes
                 # triggers can raise Pauses, which require task_inputs to be available for caching
@@ -558,7 +560,9 @@ class TaskRunner(Runner):
         return task_inputs
 
     @call_state_handlers
-    def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:
+    def check_task_is_cached(
+        self, state: State, inputs: Dict[str, Result], map_index: int = None
+    ) -> State:
         """
         Checks if task is cached and whether the cache is still valid.
 
@@ -566,6 +570,7 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
             - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+            - map_index (int, optional): if mapped, the map index for this task
 
         Returns:
             - State: the state of the task after running the check
@@ -573,6 +578,15 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
+        if self.task.cache_for and map_index is not None:
+            candidate_states = prefect.context.map_caches.get(self.task.name, [])
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
+            for candidate in candidate_states:
+                if self.task.cache_validator(
+                    candidate, sanitized_inputs, prefect.context.get("parameters")
+                ):
+                    candidate._result = candidate._result.to_result()
+                    return candidate
         if state.is_cached():
             assert isinstance(state, Cached)  # mypy assert
             sanitized_inputs = {key: res.value for key, res in inputs.items()}

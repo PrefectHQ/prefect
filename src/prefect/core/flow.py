@@ -836,6 +836,7 @@ class Flow:
             flow_state.result = {}
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
+        prefect.context.map_caches = {}
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
@@ -892,16 +893,11 @@ class Flow:
                         sub_state.is_cached() for sub_state in s.map_states
                     ):
                         cached_sub_states = [
-                            sub_state if sub_state.is_cached() else None
+                            sub_state
                             for sub_state in s.map_states
+                            if sub_state.is_cached()
                         ]
-                        cached_tasks.update(
-                            {
-                                t: prefect.engine.state.Mapped(
-                                    map_states=cached_sub_states
-                                )
-                            }
-                        )
+                        prefect.context.map_caches.update({t.name: cached_sub_states})
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:

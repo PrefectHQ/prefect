@@ -1676,12 +1676,9 @@ class TestFlowRunMethod:
                 else:
                     return [self.call_count + i for i in range(3)]
 
-        @task(
-            cache_for=datetime.timedelta(minutes=1),
-            cache_validator=partial_inputs_only(validate_on=["x"]),
-        )
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
         def return_x(x, y):
-            return 1 / (y - 1)
+            return 1 / (y - 1) + round(random.random(), 4)
 
         storage = {"y": []}
 
@@ -1702,14 +1699,13 @@ class TestFlowRunMethod:
 
         ## first run: one child fails, the other two succeed
         assert isinstance(first_run[0], ZeroDivisionError)
-        assert first_run[1:] == [1.0, 0.5]
 
-        ## second run: all tasks succeed, the latter two use cached state
-        assert second_run[0] == 1.0
-        assert second_run[1:] == [1.0, 0.5]
+        ## second run: all tasks succeed, the first two use cached state
+        assert second_run[:2] == first_run[1:]
+        assert second_run[-1] not in first_run
 
         ## third run: all tasks succeed, no caching used
-        assert third_run == [1 / 2, 1 / 3, 1 / 4]
+        assert all(x not in first_run + second_run for x in third_run)
 
     def test_scheduled_runs_handle_mapped_retries(self):
         class StatefulTask(Task):
