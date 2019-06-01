@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Refactor mapped caching to be independent of order - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
 
 ### Task Library
 
