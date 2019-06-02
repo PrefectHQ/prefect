@@ -12,6 +12,7 @@ try:
         LambdaInvoke,
         LambdaList,
     )
+    from prefect.tasks.aws.step_function import StepActivate
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
