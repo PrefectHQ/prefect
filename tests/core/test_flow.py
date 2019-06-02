@@ -1651,6 +1651,59 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
+    def test_flow_dot_run_handles_mapped_cached_states_with_differing_lengths(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    return []
+
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+                # returns [2] on the first run, [2, 2] on the second run, and [3, 3, 3] on the third
+                return [max(self.call_count, 2)] * self.call_count
+
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
+        def return_x(x):
+            return 1 / (x - 1) + round(random.random(), 4)
+
+        storage = {"output": []}
+
+        @task(trigger=prefect.triggers.always_run)
+        def store_output(y):
+            storage["output"].append(y)
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_output(return_x.map(x=t))
+
+        f.run()
+
+        first_run = storage["output"][0]
+        second_run = storage["output"][1]
+        third_run = storage["output"][2]
+
+        ## first run: nothing interesting
+        assert first_run[0] > 0
+
+        ## second run: all tasks succeed and use cache
+        assert second_run == [first_run[0], first_run[0]]
+
+        ## third run: all tasks succeed, no caching used
+        assert all(x != first_run[0] for x in third_run)
+
     def test_flow_dot_run_handles_mapped_cached_states_with_non_cached(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
