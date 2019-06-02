@@ -44,3 +44,9 @@ Task for downloading data from an S3 bucket and returning it as a string. Note t
 Task for uploading string data (e.g., a JSON string) to an S3 bucket. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
 [API Reference](/api/unreleased/tasks/aws.html#prefect-tasks-aws-s3-s3uploadtask)
+
+## StepActivate <Badge text="task"/>
+
+Task for triggering the execution of AWS Step Function workflows.
+
+[API Reference](/api/unreleased/tasks/aws.html#stepactivate)
