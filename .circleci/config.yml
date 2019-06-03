@@ -1,4 +1,12 @@
 version: 2
+
+references:
+  workspace_root: &workspace_root
+    /tmp/coverage
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -65,27 +73,11 @@ jobs:
           command: python -c "import prefect"
 
   # utility jobs for code coverage
-  create-codecov-dir:
-    machine: true
-
-    steps:
-      - run:
-          name: Create directory vanilla
-          command: mkdir -p /tmp/coverage/vanilla
-      - run:
-          name: Create directory python 3.5
-          command: mkdir -p /tmp/coverage/py35
-      - run:
-          name: Create directory python 3.6
-          command: mkdir -p /tmp/coverage/py36
-      - run:
-          name: Create directory python 3.7
-          command: mkdir -p /tmp/coverage/py37
-
   upload-coverage:
     machine: true
 
     steps:
+      - *attach_workspace
       - run:
           name: Upload coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
@@ -98,6 +90,7 @@ jobs:
       - image: python:3.6
 
     steps:
+      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
@@ -115,6 +108,12 @@ jobs:
       - run:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect .
+
+      - persist_to_workspace:
+          name: Retain coverage file
+          root: *workspace_root
+          paths:
+            - .coverage
 
       - run:
           name: Upload Coverage
@@ -245,10 +244,6 @@ jobs:
 workflows:
   version: 2
 
-  'Create coverage directory':
-    jobs:
-      - create-codecov-dir
-
   'Run unit tests':
     jobs:
       - test-3.5
@@ -266,6 +261,10 @@ workflows:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
+
+  'Upload coverage':
+    jobs:
+      - upload-coverage
 
   'Build docker images':
     jobs:
