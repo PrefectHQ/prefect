@@ -132,7 +132,7 @@ jobs:
     steps: &run_test_steps
       - checkout
       - setup_remote_docker:
-          - name: app
+
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
