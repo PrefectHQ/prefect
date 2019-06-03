@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Refactor mapped caching to be independent of order - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
+- Refactor caching to allow for caching across multiple runs - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
 
 ### Task Library
 

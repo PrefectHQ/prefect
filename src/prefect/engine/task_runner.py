@@ -578,8 +578,8 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if self.task.cache_for and map_index is not None:
-            candidate_states = prefect.context.map_caches.get(self.task.name, [])
+        if self.task.cache_for is not None:
+            candidate_states = prefect.context.caches.get(self.task.name, [])
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             for candidate in candidate_states:
                 if self.task.cache_validator(
