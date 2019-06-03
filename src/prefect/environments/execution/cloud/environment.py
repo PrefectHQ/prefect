@@ -68,9 +68,15 @@ class CloudEnvironment(Environment):
                 if secret.metadata.name == secret_name
             ]:
                 self.logger.debug(
-                    "Docker registry secret does not exist for this tenant."
+                    "Docker registry secret {} does not exist for this tenant.".format(
+                        secret_name
+                    )
                 )
                 self._create_namespaced_secret()
+            else:
+                self.logger.debug(
+                    "Docker registry secret {} found.".format(secret_name)
+                )
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -130,6 +136,7 @@ class CloudEnvironment(Environment):
                 type="kubernetes.io/dockerconfigjson",
             )
             v1.create_namespaced_secret(namespace, body=secret)
+            self.logger.debug("Created Docker registry secret {}.".format(name))
         except Exception as exc:
             self.logger.error(
                 "Failed to create Kubernetes secret for private Docker registry: {}".format(
@@ -177,31 +184,35 @@ class CloudEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using a Dask executor
         """
-        from prefect.engine import get_default_flow_runner_class
-        from prefect.engine.executors import DaskExecutor
-        from dask_kubernetes import KubeCluster
+        try:
+            from prefect.engine import get_default_flow_runner_class
+            from prefect.engine.executors import DaskExecutor
+            from dask_kubernetes import KubeCluster
 
-        with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-            worker_pod = yaml.safe_load(pod_file)
-            worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
+            with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
+                worker_pod = yaml.safe_load(pod_file)
+                worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-            cluster = KubeCluster.from_dict(
-                worker_pod, namespace=prefect.context.get("namespace")
-            )
-            cluster.adapt(minimum=1, maximum=1)
+                cluster = KubeCluster.from_dict(
+                    worker_pod, namespace=prefect.context.get("namespace")
+                )
+                cluster.adapt(minimum=1, maximum=1)
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
+                # Load serialized flow from file and run it with a DaskExecutor
+                with open(
+                    prefect.context.get(
+                        "flow_file_path", "/root/.prefect/flow_env.prefect"
+                    ),
+                    "rb",
+                ) as f:
+                    flow = cloudpickle.load(f)
 
-                executor = DaskExecutor(address=cluster.scheduler_address)
-                runner_cls = get_default_flow_runner_class()
-                runner_cls(flow=flow).run(executor=executor)
+                    executor = DaskExecutor(address=cluster.scheduler_address)
+                    runner_cls = get_default_flow_runner_class()
+                    runner_cls(flow=flow).run(executor=executor)
+        except Exception as exc:
+            self.logger.error("Unexpected error raised during flow run: {}".format(exc))
+            raise exc
 
     ########################
     # YAML Spec Manipulation
