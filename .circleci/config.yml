@@ -111,7 +111,7 @@ jobs:
 
       - persist_to_workspace:
           name: Retain coverage file
-          root: *workspace_root
+          root: .
           paths:
             - .coverage
 
