@@ -64,6 +64,28 @@ jobs:
           name: Test Prefect imports cleanly
           command: python -c "import prefect"
 
+  # utility jobs for code coverage
+  create-codecov-dir:
+    steps:
+      - run:
+          name: Create directory vanilla
+          command: mkdir /tmp/coverage/vanilla
+      - run:
+          name: Create directory python 3.5
+          command: mkdir /tmp/coverage/py35
+      - run:
+          name: Create directory python 3.6
+          command: mkdir /tmp/coverage/py36
+      - run:
+          name: Create directory python 3.7
+          command: mkdir /tmp/coverage/py37
+
+  upload-coverage:
+    steps:
+      - run:
+          name: Upload coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python
+
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
@@ -105,7 +127,8 @@ jobs:
     # store steps as an alias to reuse them with different python versions
     steps: &run_test_steps
       - checkout
-      - setup_remote_docker
+      - setup_remote_docker:
+          - name: app
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
@@ -123,8 +146,8 @@ jobs:
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          name: Copy coverage reports
+          command: docker cp app:/*coverage /tmp/coverage/py35
 
   test-3.6:
     docker:
@@ -204,6 +227,10 @@ jobs:
 
 workflows:
   version: 2
+
+  'Create coverage directory':
+    jobs:
+      - create-codecov-dir
 
   'Run unit tests':
     jobs:
