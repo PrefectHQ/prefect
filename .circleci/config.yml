@@ -77,7 +77,11 @@ jobs:
     machine: true
 
     steps:
+      - checkout
       - *attach_workspace
+      - run:
+          name: list all files
+          command: ls -a
       - run:
           name: Upload coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
@@ -115,9 +119,9 @@ jobs:
           paths:
             - .coverage
 
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+#      - run:
+#          name: Upload Coverage
+#          command: bash <(curl -s https://codecov.io/bash) -cF python
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
@@ -157,13 +161,13 @@ jobs:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
-      - run:
-          name: List some files
-          command: ls -a
-
-      - run:
-          name: Copy coverage
-          command: docker ps
+#      - run:
+#          name: List some files
+#          command: ls -a
+#
+#      - run:
+#          name: Copy coverage
+#          command: docker ps
 
   test-3.6:
     docker:
@@ -244,11 +248,11 @@ jobs:
 workflows:
   version: 2
 
-  'Run unit tests':
-    jobs:
-      - test-3.5
-      - test-3.6
-      - test-3.7
+#  'Run unit tests':
+#    jobs:
+#      - test-3.5
+#      - test-3.6
+#      - test-3.7
 
   'Check code style and docs':
     jobs:
@@ -260,7 +264,7 @@ workflows:
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
-      - test-airflow
+#      - test-airflow
 
   'Upload coverage':
     jobs:
