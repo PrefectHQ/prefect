@@ -164,7 +164,7 @@ jobs:
 
       - run:
           name: Copy coverage
-          command: docker cp app:/*coverage /tmp/coverage/py35
+          command: docker ps
 
   test-3.6:
     docker:
