@@ -71,16 +71,16 @@ jobs:
     steps:
       - run:
           name: Create directory vanilla
-          command: mkdir /tmp/coverage/vanilla
+          command: mkdir -p /tmp/coverage/vanilla
       - run:
           name: Create directory python 3.5
-          command: mkdir /tmp/coverage/py35
+          command: mkdir -p /tmp/coverage/py35
       - run:
           name: Create directory python 3.6
-          command: mkdir /tmp/coverage/py36
+          command: mkdir -p /tmp/coverage/py36
       - run:
           name: Create directory python 3.7
-          command: mkdir /tmp/coverage/py37
+          command: mkdir -p /tmp/coverage/py37
 
   upload-coverage:
     machine: true
@@ -150,8 +150,8 @@ jobs:
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
-          name: Copy coverage reports
-          command: docker cp app:/*coverage /tmp/coverage/py35
+          name: List some files
+          command: ls
 
   test-3.6:
     docker:
