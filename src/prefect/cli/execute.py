@@ -55,7 +55,7 @@ def cloud_flow():
     if not flow_run:
         raise ValueError("Flow run {} not found".format(flow_run_id))
 
-    flow_data = flow_run.flow
+    flow_data = flow_run[0].flow
     storage_schema = prefect.serialization.storage.StorageSchema()
     storage = storage_schema.load(flow_data.storage)
 
