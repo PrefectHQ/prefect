@@ -151,9 +151,7 @@ class CloudTaskRunner(TaskRunner):
         return super().initialize_run(state=state, context=context)
 
     @call_state_handlers
-    def check_task_is_cached(
-        self, state: State, inputs: Dict[str, Result], map_index: int = None
-    ) -> State:
+    def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks if task is cached in the DB and whether any of the caches are still valid.
 
@@ -161,7 +159,6 @@ class CloudTaskRunner(TaskRunner):
             - state (State): the current state of this task
             - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-            - map_index (int, optional): if mapped, the map index for this task
 
         Returns:
             - State: the state of the task after running the check
