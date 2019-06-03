@@ -66,6 +66,8 @@ jobs:
 
   # utility jobs for code coverage
   create-codecov-dir:
+    machine: true
+
     steps:
       - run:
           name: Create directory vanilla
