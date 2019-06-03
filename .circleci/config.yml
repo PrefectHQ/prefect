@@ -131,7 +131,7 @@ jobs:
     # store steps as an alias to reuse them with different python versions
     steps: &run_test_steps
       - checkout
-      - setup_remote_docker:
+      - setup_remote_docker
 
       - run:
           name: Install zsh for tests
