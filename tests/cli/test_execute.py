@@ -6,6 +6,7 @@ import requests
 
 import prefect
 from prefect.cli.execute import execute
+from prefect.utilities.configuration import set_temporary_config
 
 
 def test_execute_init():
@@ -27,3 +28,23 @@ def test_execute_cloud_flow_fails():
     result = runner.invoke(execute, "cloud-flow")
     assert result.exit_code == 1
     assert "Not currently executing a flow within a cloud context." in result.output
+
+
+def test_execute_cloud_flow_not_found(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow_run=[])))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "context.flow_run_id": "test",
+        }
+    ):
+        runner = CliRunner()
+        result = runner.invoke(execute, "cloud-flow")
+        assert result.exit_code == 1
