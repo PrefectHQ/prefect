@@ -83,6 +83,8 @@ jobs:
           command: mkdir /tmp/coverage/py37
 
   upload-coverage:
+    machine: true
+
     steps:
       - run:
           name: Upload coverage
