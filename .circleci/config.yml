@@ -76,12 +76,10 @@ jobs:
   upload-coverage:
     machine: true
 
-    working_directory: ~/prefect
-
     steps:
       - checkout
       - attach_workspace:
-          - at: ~/prefect
+          - at: /tmp
       - run:
           name: list all files
           command: ls -a
@@ -99,8 +97,6 @@ jobs:
     working_directory: ~/prefect
 
     steps:
-      - attach_workspace:
-          - at: ~/prefect
       - checkout
       - setup_remote_docker
       - run:
