@@ -76,6 +76,8 @@ jobs:
   upload-coverage:
     machine: true
 
+    working_directory: ~/prefect
+
     steps:
       - checkout
       - attach_workspace:
@@ -93,6 +95,8 @@ jobs:
   test-vanilla-prefect:
     docker:
       - image: python:3.6
+
+    working_directory: ~/prefect
 
     steps:
       - attach_workspace:
