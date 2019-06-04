@@ -1,11 +1,11 @@
 version: 2
 
-references:
-  workspace_root: &workspace_root
-    /tmp/coverage
-  attach_workspace: &attach_workspace
-    attach_workspace:
-      at: *workspace_root
+#references:
+#  workspace_root: &workspace_root
+#    /tmp/coverage
+#  attach_workspace: &attach_workspace
+#    attach_workspace:
+#      at: *workspace_root
 
 jobs:
   # ----------------------------------
@@ -78,7 +78,8 @@ jobs:
 
     steps:
       - checkout
-      - *attach_workspace
+      - attach_workspace:
+          - at: ~/prefect
       - run:
           name: list all files
           command: ls -a
@@ -94,7 +95,8 @@ jobs:
       - image: python:3.6
 
     steps:
-      - *attach_workspace
+      - attach_workspace:
+          - at: ~/prefect
       - checkout
       - setup_remote_docker
       - run:
@@ -113,11 +115,15 @@ jobs:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
+      - run:
+          - name: list all the files
+          - command: ls -a
+
       - persist_to_workspace:
           name: Retain coverage file
           root: .
           paths:
-            - .coverage
+            - ./.coverage
 
 #      - run:
 #          name: Upload Coverage
