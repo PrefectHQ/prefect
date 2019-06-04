@@ -836,6 +836,7 @@ class Flow:
             flow_state.result = {}
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
+        prefect.context.caches = {}
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
@@ -883,25 +884,28 @@ class Flow:
 
             ## create next scheduled run
             try:
-                cached_tasks = {}
-
+                # update context cache
                 for t, s in flow_state.result.items():
                     if s.is_cached():
-                        cached_tasks.update({t: s})
+                        cached_sub_states = [s]
                     elif s.is_mapped() and any(
                         sub_state.is_cached() for sub_state in s.map_states
                     ):
                         cached_sub_states = [
-                            sub_state if sub_state.is_cached() else None
+                            sub_state
                             for sub_state in s.map_states
+                            if sub_state.is_cached()
                         ]
-                        cached_tasks.update(
-                            {
-                                t: prefect.engine.state.Mapped(
-                                    map_states=cached_sub_states
-                                )
-                            }
-                        )
+                    else:
+                        cached_sub_states = []
+
+                    fresh_states = [
+                        s
+                        for s in prefect.context.caches.get(t.name, [])
+                        + cached_sub_states
+                        if s.cached_result_expiration > now
+                    ]
+                    prefect.context.caches[t.name] = fresh_states
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:
@@ -909,7 +913,7 @@ class Flow:
             except IndexError:
                 break
             flow_state = prefect.engine.state.Scheduled(
-                start_time=next_run_time, result=cached_tasks
+                start_time=next_run_time, result={}
             )
         return flow_state
 
