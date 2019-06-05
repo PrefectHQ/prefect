@@ -36,3 +36,8 @@ spec:
         value: "true"
       - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
         value: "['feed', 'run_function']"
+    resources:
+      requests:
+        cpu: "500m"
+      limits:
+        cpu: "500m"
