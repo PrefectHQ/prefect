@@ -89,7 +89,7 @@ jobs:
 
       - run:
           name: Upload coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: bash <(curl -s /tmp/coverage/vanilla https://codecov.io/bash) -cF python
 
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
@@ -128,10 +128,17 @@ jobs:
           name: pwd
           command: pwd
 
+      - run:
+          name: Persist coverage files
+          command: |
+            set -exu
+            mkdir -p /tmp/coverage/vanilla
+            mv /root/prefect/.coverage /tmp/coverage/vanilla/
+
       - persist_to_workspace:
           name: Retain coverage file
-          root: .
-          paths: .coverage
+          root: *workspace_root
+          paths: vanilla
 
 #      - run:
 #          name: Upload Coverage
