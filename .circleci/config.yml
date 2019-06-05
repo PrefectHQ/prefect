@@ -116,8 +116,8 @@ jobs:
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
-          - name: list all the files
-          - command: ls -a
+          name: list all the files
+          command: ls -a
 
       - persist_to_workspace:
           name: Retain coverage file
