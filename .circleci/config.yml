@@ -270,13 +270,16 @@ workflows:
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
-#      - test-airflow
-
-  'Upload coverage':
-    jobs:
       - upload-coverage
         requires:
           - test-vanilla-prefect
+#      - test-airflow
+
+#  'Upload coverage':
+#    jobs:
+#      - upload-coverage
+#        requires:
+#          - test-vanilla-prefect
 
   'Build docker images':
     jobs:
