@@ -84,12 +84,16 @@ jobs:
           command: ls -a
 
       - run:
+        name: change working dir
+        command: cd /tmp/coverage/vanilla
+
+      - run:
           name: pwd
           command: pwd
 
       - run:
           name: Upload coverage
-          command: bash <(curl -s /tmp/coverage/vanilla https://codecov.io/bash) -cF python
+          command: bash <(curl -s https://codecov.io/bash) -cF python
 
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
