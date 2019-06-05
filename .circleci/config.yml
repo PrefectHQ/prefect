@@ -270,9 +270,9 @@ workflows:
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
-      - upload-coverage
-        requires:
-          - test-vanilla-prefect
+      - upload-coverage:
+          requires:
+            - test-vanilla-prefect
 #      - test-airflow
 
 #  'Upload coverage':
