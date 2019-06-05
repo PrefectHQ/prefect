@@ -82,6 +82,11 @@ jobs:
       - run:
           name: list all files
           command: ls -a
+
+      - run:
+          name: pwd
+          command: pwd
+
       - run:
           name: Upload coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python
@@ -119,9 +124,13 @@ jobs:
           name: list all the files
           command: ls -a
 
+      - run:
+          name: pwd
+          command: pwd
+
       - persist_to_workspace:
           name: Retain coverage file
-          root: .
+          root: *workspace_root
           paths: .coverage
 
 #      - run:
