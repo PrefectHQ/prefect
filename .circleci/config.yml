@@ -81,7 +81,7 @@ jobs:
       - checkout
       - run:
           name: list all files
-          command: ls -a
+          command: ls /tmp/coverage/vanilla -a
 
       - run:
           name: pwd
