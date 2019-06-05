@@ -122,8 +122,7 @@ jobs:
       - persist_to_workspace:
           name: Retain coverage file
           root: .
-          paths:
-            - .coverage
+          paths: .coverage
 
 #      - run:
 #          name: Upload Coverage
