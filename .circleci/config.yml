@@ -275,6 +275,8 @@ workflows:
   'Upload coverage':
     jobs:
       - upload-coverage
+        requires:
+          - test-vanilla-prefect
 
   'Build docker images':
     jobs:
