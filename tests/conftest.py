@@ -1,7 +1,6 @@
 import sys
 
 import pytest
-from cryptography.fernet import Fernet
 from distributed import Client
 
 import prefect
