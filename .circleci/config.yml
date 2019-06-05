@@ -1,11 +1,11 @@
 version: 2
 
-#references:
-#  workspace_root: &workspace_root
-#    /tmp/coverage
-#  attach_workspace: &attach_workspace
-#    attach_workspace:
-#      at: *workspace_root
+references:
+  workspace_root: &workspace_root
+    /tmp/coverage
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
 
 jobs:
   # ----------------------------------
@@ -77,9 +77,8 @@ jobs:
     machine: true
 
     steps:
+      - *attach_workspace
       - checkout
-      - attach_workspace:
-          - at: /tmp
       - run:
           name: list all files
           command: ls -a
@@ -97,6 +96,7 @@ jobs:
     working_directory: ~/prefect
 
     steps:
+      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
@@ -123,7 +123,7 @@ jobs:
           name: Retain coverage file
           root: .
           paths:
-            - ./.coverage
+            - .coverage
 
 #      - run:
 #          name: Upload Coverage
