@@ -18,13 +18,17 @@ class GCSResultHandler(ResultHandler):
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
+        - credentials_secret (str, optional): the name of the Prefect Secret
+            which stores a JSON representation of your Google Cloud credentials.
+            Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
 
     Note that for this result handler to work properly, your Google Application Credentials
     must be made available.
     """
 
-    def __init__(self, bucket: str = None) -> None:
+    def __init__(self, bucket: str = None, credentials_secret: str = None) -> None:
         self.bucket = bucket
+        self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
         self.initialize_client()
         super().__init__()
 
@@ -35,7 +39,7 @@ class GCSResultHandler(ResultHandler):
         from google.oauth2.service_account import Credentials
         from google.cloud import storage
 
-        creds = Secret("GOOGLE_APPLICATION_CREDENTIALS").get()
+        creds = Secret(self.credentials_secret).get()
         credentials = Credentials.from_service_account_info(creds)
         project = credentials.project_id
         client = storage.Client(project=project, credentials=credentials)
