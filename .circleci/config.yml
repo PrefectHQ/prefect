@@ -1,12 +1,4 @@
 version: 2
-
-references:
-  workspace_root: &workspace_root
-    /tmp/coverage
-  attach_workspace: &attach_workspace
-    attach_workspace:
-      at: *workspace_root
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -72,25 +64,6 @@ jobs:
           name: Test Prefect imports cleanly
           command: python -c "import prefect"
 
-  # utility jobs for code coverage
-  upload-coverage:
-    machine: true
-
-    steps:
-      - *attach_workspace
-      - checkout
-      - run:
-          name: list all files
-          command: ls /tmp/coverage -a
-
-      - run:
-          name: pwd
-          command: pwd
-
-      - run:
-          name: Upload coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python -s /tmp/coverage -f '*.coverage*'
-
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
@@ -98,10 +71,7 @@ jobs:
     docker:
       - image: python:3.6
 
-    working_directory: ~/prefect
-
     steps:
-      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
@@ -121,28 +91,8 @@ jobs:
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
-          name: list all the files
-          command: ls -a
-
-      - run:
-          name: pwd
-          command: pwd
-
-      - run:
-          name: Persist coverage files
-          command: |
-            set -exu
-            mkdir -p /tmp/coverage/vanilla
-            mv /root/prefect/.coverage /tmp/coverage/.coverage_vanilla
-
-      - persist_to_workspace:
-          name: Retain coverage file
-          root: *workspace_root
-          paths: vanilla
-
-#      - run:
-#          name: Upload Coverage
-#          command: bash <(curl -s https://codecov.io/bash) -cF python
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF pythonvanillaprefect
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
@@ -156,16 +106,6 @@ jobs:
     steps: &run_test_steps
       - checkout
       - setup_remote_docker
-
-      - run:
-          name: Install Docker client
-          command: |
-            set -x
-            VER="17.03.0-ce"
-            curl -L -o /tmp/docker-$VER.tgz https://download.docker.com/linux/static/stable/x86_64/docker-$VER.tgz
-            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
-            mv /tmp/docker/* /usr/bin
-
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
@@ -182,13 +122,9 @@ jobs:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
-#      - run:
-#          name: List some files
-#          command: ls -a
-#
-#      - run:
-#          name: Copy coverage
-#          command: docker ps
+      - run:
+          name: Upload Coverage
+          command: bash <(curl -s https://codecov.io/bash) -cF python35
 
   test-3.6:
     docker:
@@ -245,7 +181,7 @@ jobs:
 
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: bash <(curl -s https://codecov.io/bash) -cF pythonairflow
 
   build_image:
     docker:
@@ -269,11 +205,11 @@ jobs:
 workflows:
   version: 2
 
-#  'Run unit tests':
-#    jobs:
-#      - test-3.5
-#      - test-3.6
-#      - test-3.7
+  'Run unit tests':
+    jobs:
+      - test-3.5
+      - test-3.6
+      - test-3.7
 
   'Check code style and docs':
     jobs:
@@ -285,16 +221,7 @@ workflows:
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
-      - upload-coverage:
-          requires:
-            - test-vanilla-prefect
-#      - test-airflow
-
-#  'Upload coverage':
-#    jobs:
-#      - upload-coverage
-#        requires:
-#          - test-vanilla-prefect
+      - test-airflow
 
   'Build docker images':
     jobs:
