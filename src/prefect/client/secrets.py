@@ -52,7 +52,9 @@ class Secret:
             try:
                 value = secrets[self.name]
             except KeyError:
-                raise ValueError("Secret {} was not found.".format(self.name)) from None
+                raise ValueError(
+                    "Local Secret {} was not found.".format(self.name)
+                ) from None
             try:
                 return json.loads(value)
             except (json.JSONDecodeError, TypeError):
