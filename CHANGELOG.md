@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Refactor mapped caching to be independent of order - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
 - Refactor caching to allow for caching across multiple runs - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
+- Allow for custom secret names in Result Handlers - [#1098](https://github.com/PrefectHQ/prefect/issues/1098)
 
 ### Task Library
 
@@ -20,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix issue with mapped caching in Prefect Cloud - [#1096](https://github.com/PrefectHQ/prefect/pull/1096)
+- Fix issue with Result Handlers deserializing incorrectly in Cloud - [#1112](https://github.com/PrefectHQ/prefect/issues/1112)
 
 ### Breaking Changes
 
