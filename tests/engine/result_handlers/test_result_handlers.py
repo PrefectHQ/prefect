@@ -212,6 +212,19 @@ class TestS3ResultHandler:
             "aws_secret_access_key": 42,
         }
 
+    def test_s3_client_init_uses_custom_secrets(self, s3_client):
+        with prefect.context(
+            secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler = S3ResultHandler(bucket="bob", aws_credentials_secret="MY_FOO")
+
+        assert handler.bucket == "bob"
+        assert s3_client.call_args[1] == {
+            "aws_access_key_id": 1,
+            "aws_secret_access_key": 999,
+        }
+
     def test_s3_writes_to_blob_prefixed_by_date_suffixed_by_prefect(self, s3_client):
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
