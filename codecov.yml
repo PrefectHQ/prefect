@@ -21,3 +21,15 @@ coverage:
           - pythonvanillaprefect
           - python35
           - pythonairflow
+
+flags:
+  pythonvanillaprefect:
+    paths:
+      - src/prefect
+  python35:
+    paths:
+      - src/prefect
+  pythonairflow:
+    paths:
+      - src/prefect
+
