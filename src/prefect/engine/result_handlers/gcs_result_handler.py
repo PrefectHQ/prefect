@@ -33,7 +33,6 @@ class GCSResultHandler(ResultHandler):
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
-        self.initialize_client()
         super().__init__()
 
     def initialize_client(self) -> None:

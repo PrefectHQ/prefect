@@ -51,6 +51,7 @@ class GCSResultHandlerSchema(BaseResultHandlerSchema):
         object_class = GCSResultHandler
 
     bucket = fields.String(allow_none=False)
+    credentials_secret = fields.String(allow_none=True)
 
 
 class JSONResultHandlerSchema(BaseResultHandlerSchema):
@@ -70,6 +71,7 @@ class S3ResultHandlerSchema(BaseResultHandlerSchema):
         object_class = S3ResultHandler
 
     bucket = fields.String(allow_none=False)
+    aws_credentials_secret = fields.String(allow_none=True)
 
 
 class ResultHandlerSchema(OneOfSchema):
