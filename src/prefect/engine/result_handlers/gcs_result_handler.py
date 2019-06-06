@@ -26,9 +26,13 @@ class GCSResultHandler(ResultHandler):
     must be made available.
     """
 
-    def __init__(self, bucket: str = None, credentials_secret: str = None) -> None:
+    def __init__(
+        self,
+        bucket: str = None,
+        credentials_secret: str = "GOOGLE_APPLICATION_CREDENTIALS",
+    ) -> None:
         self.bucket = bucket
-        self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
+        self.credentials_secret = credentials_secret
         self.initialize_client()
         super().__init__()
 
