@@ -24,7 +24,6 @@ from typing import (
 )
 
 import pendulum
-import xxhash
 from mypy_extensions import TypedDict
 
 import prefect
