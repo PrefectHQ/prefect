@@ -33,7 +33,6 @@ class S3ResultHandler(ResultHandler):
     ) -> None:
         self.bucket = bucket
         self.aws_credentials_secret = aws_credentials_secret
-        self.initialize_client()
         super().__init__()
 
     def initialize_client(self) -> None:

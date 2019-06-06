@@ -178,10 +178,12 @@ class TestGCSResultHandler:
                 yield
 
     def test_serialize(self, google_client):
-        handler = GCSResultHandler(bucket="my-bucket")
+        with prefect.context(secrets=dict(FOO="")):
+            handler = GCSResultHandler(bucket="my-bucket", credentials_secret="FOO")
         serialized = ResultHandlerSchema().dump(handler)
         assert serialized["type"] == "GCSResultHandler"
         assert serialized["bucket"] == "my-bucket"
+        assert serialized["credentials_secret"] == "FOO"
 
     def test_deserialize_from_dict(self, google_client):
         handler = ResultHandlerSchema().load(
@@ -189,12 +191,30 @@ class TestGCSResultHandler:
         )
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "foo-bar"
+        assert handler.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
 
     def test_roundtrip(self, google_client):
         schema = ResultHandlerSchema()
         handler = schema.load(schema.dump(GCSResultHandler(bucket="bucket3")))
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "bucket3"
+
+    def test_roundtrip_never_loads_client(self, google_client, monkeypatch):
+        schema = ResultHandlerSchema()
+
+        def raise_me(*args, **kwargs):
+            raise SyntaxError("oops")
+
+        monkeypatch.setattr(GCSResultHandler, "initialize_client", raise_me)
+        with prefect.context(secrets=dict(FOO="")):
+            handler = schema.load(
+                schema.dump(
+                    GCSResultHandler(bucket="bucket3", credentials_secret="FOO")
+                )
+            )
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "bucket3"
+        assert handler.credentials_secret == "FOO"
 
 
 class TestJSONResultHandler:
@@ -226,10 +246,14 @@ class TestS3ResultHandler:
                     yield
 
     def test_serialize(self, s3_client):
-        handler = S3ResultHandler(bucket="my-bucket")
+        with prefect.context(
+            secrets=dict(FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+        ):
+            handler = S3ResultHandler(bucket="my-bucket", aws_credentials_secret="FOO")
         serialized = ResultHandlerSchema().dump(handler)
         assert serialized["type"] == "S3ResultHandler"
         assert serialized["bucket"] == "my-bucket"
+        assert serialized["aws_credentials_secret"] == "FOO"
 
     def test_deserialize_from_dict(self, s3_client):
         handler = ResultHandlerSchema().load(
@@ -237,9 +261,29 @@ class TestS3ResultHandler:
         )
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "foo-bar"
+        assert handler.aws_credentials_secret == "AWS_CREDENTIALS"
 
     def test_roundtrip(self, s3_client):
         schema = ResultHandlerSchema()
         handler = schema.load(schema.dump(S3ResultHandler(bucket="bucket3")))
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "bucket3"
+
+    def test_roundtrip_never_loads_client(self, s3_client, monkeypatch):
+        schema = ResultHandlerSchema()
+
+        def raise_me(*args, **kwargs):
+            raise SyntaxError("oops")
+
+        monkeypatch.setattr(S3ResultHandler, "initialize_client", raise_me)
+        with prefect.context(
+            secrets=dict(FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+        ):
+            handler = schema.load(
+                schema.dump(
+                    S3ResultHandler(bucket="bucket3", aws_credentials_secret="FOO")
+                )
+            )
+        assert isinstance(handler, S3ResultHandler)
+        assert handler.bucket == "bucket3"
+        assert handler.aws_credentials_secret == "FOO"
