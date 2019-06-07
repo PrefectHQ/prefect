@@ -4,6 +4,14 @@ from prefect.utilities.tasks import defaults_from_attrs
 import spacy
 
 
+class FakeTask(Task):
+    """
+    Fake task for testing
+    """
+
+    pass
+
+
 class SpacyNLP(Task):
     """
     Task for processing text with a spaCy pipeline.
