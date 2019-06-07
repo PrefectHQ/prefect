@@ -8,6 +8,7 @@ try:
         SpacyParser,
         SpacyNER,
         SpacyComponent,
+        FakeTask,
     )
 except ImportError:
     raise ImportError(

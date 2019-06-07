@@ -9,7 +9,8 @@ class FakeTask(Task):
     Fake task for testing
     """
 
-    pass
+    def __init__(self,):
+        self.fake = "this is a fake test"
 
 
 class SpacyNLP(Task):
