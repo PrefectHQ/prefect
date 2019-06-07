@@ -25,11 +25,11 @@ coverage:
 flags:
   pythonvanillaprefect:
     paths:
-      - src/prefect
+      - prefect
   python35:
     paths:
-      - src/prefect
+      - prefect
   pythonairflow:
     paths:
-      - src/prefect
+      - prefect
 
