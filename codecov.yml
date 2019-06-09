@@ -5,10 +5,7 @@ comment:
   require_base: no        # [yes :: must have a base report to post]
   require_head: yes       # [yes :: must have a head report to post]
   branches: null          # branch names that can post comment
-  flags:
-    - pythonvanillaprefect
-    - python35
-    - pythonairflow
+  require_ci_to_pass: yes # require ci to pass before commenting
 
 coverage:
   status:
@@ -17,19 +14,3 @@ coverage:
       default:
         target: 92%
         threshold: 1%
-        flags:
-          - pythonvanillaprefect
-          - python35
-          - pythonairflow
-
-flags:
-  pythonvanillaprefect:
-    paths:
-      - src/prefect/
-  python35:
-    paths:
-      - src/prefect/
-  pythonairflow:
-    paths:
-      - src/prefect/
-
