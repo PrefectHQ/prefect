@@ -44,23 +44,33 @@ def cloud_flow():
     query = {
         "query": {
             with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                "flow": {"name": True, "storage": True, "environment": True}
+                "flow": {"name": True, "storage": True, "environment": True},
+                "version": True,
             }
         }
     }
 
-    result = Client().graphql(query)
-
+    client = Client()
+    result = client.graphql(query)
     flow_run = result.data.flow_run
+
     if not flow_run:
         raise ValueError("Flow run {} not found".format(flow_run_id))
 
-    flow_data = flow_run[0].flow
-    storage_schema = prefect.serialization.storage.StorageSchema()
-    storage = storage_schema.load(flow_data.storage)
+    try:
+        flow_data = flow_run[0].flow
+        storage_schema = prefect.serialization.storage.StorageSchema()
+        storage = storage_schema.load(flow_data.storage)
 
-    environment_schema = prefect.serialization.environment.EnvironmentSchema()
-    environment = environment_schema.load(flow_data.environment)
+        environment_schema = prefect.serialization.environment.EnvironmentSchema()
+        environment = environment_schema.load(flow_data.environment)
 
-    environment.setup(storage=storage)
-    environment.execute(storage=storage, flow_location=storage.flows[flow_data.name])
+        environment.setup(storage=storage)
+        environment.execute(
+            storage=storage, flow_location=storage.flows[flow_data.name]
+        )
+    except Exception as exc:
+        msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
+        state = prefect.engine.state.Failed(message=msg)
+        version = res.data.flow_run[0].version
+        c.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
