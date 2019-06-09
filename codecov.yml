@@ -25,11 +25,11 @@ coverage:
 flags:
   pythonvanillaprefect:
     paths:
-      - .
+      - ./
   python35:
     paths:
-      - .
+      - ./
   pythonairflow:
     paths:
-      - .
+      - ./
 
