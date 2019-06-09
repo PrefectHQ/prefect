@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Refactor mapped caching to be independent of order - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
 - Refactor caching to allow for caching across multiple runs - [#1082](https://github.com/PrefectHQ/prefect/issues/1082)
 - Allow for custom secret names in Result Handlers - [#1098](https://github.com/PrefectHQ/prefect/issues/1098)
+- Have `execute cloud-flow` CLI immediately set the flow run state to `Failed` if environment fails - [#1122](https://github.com/PrefectHQ/prefect/pull/1122)
 
 ### Task Library
 
