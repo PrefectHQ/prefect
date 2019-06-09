@@ -10,7 +10,7 @@ class FakeTask(Task):
     """
 
     def __init__(self,):
-        self.fake = "this is a fake test"
+        self.fake = "this is a really fake test"
 
 
 class SpacyNLP(Task):
