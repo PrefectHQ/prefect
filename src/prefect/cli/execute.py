@@ -73,4 +73,4 @@ def cloud_flow():
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
         version = result.data.flow_run[0].version
-        c.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
+        client.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
