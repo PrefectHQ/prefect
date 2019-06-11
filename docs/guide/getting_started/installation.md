@@ -47,6 +47,8 @@ The extra packages include:
 - `kubernetes`: tools for interacting with Kubernetes API objects
 - `twitter`: tools for interacting with the Twitter API
 - `airtable`: tools for interacting with the Airtable API
+- `spacy`: tools for building NLP pipelines using Spacy
+- `redis`: tools for interacting with a Redis database
 
 ## Development
 
