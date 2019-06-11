@@ -6,20 +6,20 @@ import psycopg2 as pg
 
 class PostgresExecute(Task):
     """
-        Task for executing a query against a Postgres database.
+    Task for executing a query against a Postgres database.
 
-        Args:
-            - db_name (str): name of Postgres database
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate
-            - host (str): database host address
-            - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
-            - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using placeholder is query string
-            - commit (bool, optional): set to True to commit transaction, defaults to false
-            - **kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor
-        """
+    Args:
+        - db_name (str): name of Postgres database
+        - user (str): user name used to authenticate
+        - password (str): password used to authenticate
+        - host (str): database host address
+        - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
+        - query (str, optional): query to execute against database
+        - data (tuple, optional): values to use in query, must be specified using placeholder is query string
+        - commit (bool, optional): set to True to commit transaction, defaults to false
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
 
     def __init__(
         self,
@@ -94,21 +94,21 @@ class PostgresExecute(Task):
 
 class PostgresFetch(Task):
     """
-        Task for fetching results of query from Postgres database.
+    Task for fetching results of query from Postgres database.
 
-        Args:
-            - db_name (str): name of Postgres database
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate
-            - host (str): database host address
-            - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
-            - fetch (str, optional): one | many | all, used to determine how many results to fetch from executed query
-            - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
-            - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using placeholder is query string
-            - commit (bool, optional): set to True to commit transaction, defaults to false
-            - **kwargs (dict, optional): additional keyword arguments to pass to the
-                Task constructor
+    Args:
+        - db_name (str): name of Postgres database
+        - user (str): user name used to authenticate
+        - password (str): password used to authenticate
+        - host (str): database host address
+        - port (int, optional): port used to connect to Postgres database, defaults to 5432 if not provided
+        - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
+        - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
+        - query (str, optional): query to execute against database
+        - data (tuple, optional): values to use in query, must be specified using placeholder is query string
+        - commit (bool, optional): set to True to commit transaction, defaults to false
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
         """
 
     def __init__(
@@ -150,7 +150,7 @@ class PostgresFetch(Task):
         Task run method. Executes a query against Postgres database and fetches results.
 
         Args:
-            - fetch (str, optional): one | many | all, used to determine how many results to fetch from executed query
+            - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using placeholder is query string
