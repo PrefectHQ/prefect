@@ -39,12 +39,12 @@ def test_execute_cloud_flow_not_found(monkeypatch):
     monkeypatch.setattr("requests.post", post)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "context.flow_run_id": "test",
-        }
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
-        runner = CliRunner()
-        result = runner.invoke(execute, "cloud-flow")
-        assert result.exit_code == 1
+        with prefect.context({"flow_run_id": "test"}):
+            runner = CliRunner()
+            result = runner.invoke(execute, "cloud-flow")
+
+    assert result.exit_code == 1
+    assert result.exc_info[0] == ValueError
+    assert "Flow run test not found" in str(result.exc_info[1])
