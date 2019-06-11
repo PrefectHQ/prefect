@@ -84,7 +84,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install black pytest==3.10.1 pytest-cov pytest-env
+          command: pip install black codecov pytest==3.10.1 pytest-cov pytest-env
 
       - run:
           name: Run tests
@@ -92,7 +92,7 @@ jobs:
 
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: codecov --token=$CODECOV_TOKEN
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
@@ -116,7 +116,7 @@ jobs:
 
       - run:
           name: Install prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[all_extras]" && pip install codecov
 
       - run:
           name: Run tests
@@ -124,7 +124,7 @@ jobs:
 
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: codecov --token=$CODECOV_TOKEN
 
   test-3.6:
     docker:
@@ -173,7 +173,7 @@ jobs:
 
       - run:
           name: Install prefect
-          command: pip install ".[all_extras]"
+          command: pip install ".[all_extras]" && pip install codecov
 
       - run:
           name: Run tests w/ airflow
@@ -181,7 +181,7 @@ jobs:
 
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: codecov --token=$CODECOV_TOKEN
 
   build_image:
     docker:
