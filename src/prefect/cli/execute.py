@@ -38,8 +38,8 @@ def cloud_flow():
     """
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
-        click.echo("Not currently executing a flow within a cloud context.")
-        raise Exception("Not currently executing a flow within a cloud context.")
+        click.echo("Not currently executing a flow within a Cloud context.")
+        raise Exception("Not currently executing a flow within a Cloud context.")
 
     query = {
         "query": {
@@ -55,6 +55,7 @@ def cloud_flow():
     flow_run = result.data.flow_run
 
     if not flow_run:
+        click.echo("Flow run {} not found".format(flow_run_id))
         raise ValueError("Flow run {} not found".format(flow_run_id))
 
     try:
@@ -74,3 +75,5 @@ def cloud_flow():
         state = prefect.engine.state.Failed(message=msg)
         version = result.data.flow_run[0].version
         client.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
+        click.echo(str(exc))
+        raise exc
