@@ -323,10 +323,9 @@ if __name__ == "__main__":
         auto_generated_footer = (
             '<p class="auto-gen">This documentation was auto-generated from commit '
             "<a href='https://github.com/PrefectHQ/prefect/commit/{git_sha}'>{short_sha}</a> "
-            "</br>by Prefect {version} on {timestamp}</p>".format(
+            "</br>on {timestamp}</p>".format(
                 short_sha=SHORT_SHA,
                 git_sha=GIT_SHA,
-                version=prefect.__version__,
                 timestamp=pendulum.now("utc").format("MMMM D, YYYY [at] HH:mm [UTC]"),
             )
         )
