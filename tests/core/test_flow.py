@@ -136,6 +136,18 @@ class TestCreateFlow:
         f2 = Flow(name="test")
         assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
 
+    def test_create_flow_auto_generates_tasks(self):
+        with Flow("auto") as f:
+            res = AddTask()(x=1, y=2)
+
+        assert res.auto_generated is False
+        assert all(
+            [
+                t.auto_generated is True
+                for t in f.get_tasks(task_type=prefect.tasks.core.constants.Constant)
+            ]
+        )
+
 
 def test_add_task_to_flow():
     f = Flow(name="test")

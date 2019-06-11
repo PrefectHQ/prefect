@@ -59,21 +59,26 @@ def as_task(x: Any) -> "prefect.Task":
 
     # collections
     elif isinstance(x, list):
-        return prefect.tasks.core.collections.List().bind(*x)
+        return_task = prefect.tasks.core.collections.List().bind(*x)
     elif isinstance(x, tuple):
-        return prefect.tasks.core.collections.Tuple().bind(*x)
+        return_task = prefect.tasks.core.collections.Tuple().bind(*x)
     elif isinstance(x, set):
-        return prefect.tasks.core.collections.Set().bind(*x)
+        return_task = prefect.tasks.core.collections.Set().bind(*x)
     elif isinstance(x, dict):
         keys, values = [], []
         for k, v in x.items():
             keys.append(k)
             values.append(v)
-        return prefect.tasks.core.collections.Dict().bind(keys=keys, values=values)
+        return_task = prefect.tasks.core.collections.Dict().bind(
+            keys=keys, values=values
+        )
 
     # constants
     else:
-        return prefect.tasks.core.constants.Constant(value=x)
+        return_task = prefect.tasks.core.constants.Constant(value=x)
+
+    return_task.auto_generated = True
+    return return_task
 
 
 def pause_task(message: str = None) -> None:

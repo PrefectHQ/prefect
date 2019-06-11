@@ -223,6 +223,15 @@ class Task(metaclass=SignatureValidator):
             self.state_handlers.append(
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
+        self.auto_generated = False
+
+    @property
+    def auto_generated(self) -> bool:
+        return self._auto_generated
+
+    @auto_generated.setter
+    def auto_generated(self, val: bool) -> None:
+        self._auto_generated = val
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
