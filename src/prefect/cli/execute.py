@@ -38,8 +38,8 @@ def cloud_flow():
     """
     flow_run_id = prefect.context.get("flow_run_id")
     if not flow_run_id:
-        click.echo("Not currently executing a flow within a cloud context.")
-        raise Exception("Not currently executing a flow within a cloud context.")
+        click.echo("Not currently executing a flow within a Cloud context.")
+        raise Exception("Not currently executing a flow within a Cloud context.")
 
     query = {
         "query": {

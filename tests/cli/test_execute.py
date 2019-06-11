@@ -27,8 +27,8 @@ def test_execute_cloud_flow_fails():
     runner = CliRunner()
     result = runner.invoke(execute, "cloud-flow")
     assert result.exit_code == 1
-    assert "Not currently executing a flow within a cloud context." in result.output
-    assert "Not currently executing a flow within a cloud context." in str(
+    assert "Not currently executing a flow within a Cloud context." in result.output
+    assert "Not currently executing a flow within a Cloud context." in str(
         result.exc_info[1]
     )
 
