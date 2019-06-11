@@ -1,5 +1,5 @@
 click >= 7.0, < 8.0
-cloudpickle >=0.6.0, <1.2
+cloudpickle >=0.6.0, <1.3
 croniter >= 0.3, < 0.4
 dask >=0.18, <1.2.3
 distributed >= 1.26.1, < 2.0
