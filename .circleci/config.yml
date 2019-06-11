@@ -88,7 +88,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov-report xml --cov=prefect .
 
       - run:
           name: Upload Coverage
@@ -120,7 +120,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov-report xml --cov=prefect .
 
       - run:
           name: Upload Coverage
@@ -177,7 +177,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect .
+          command: pytest -rfEsx --airflow --cov-report xml --cov=prefect .
 
       - run:
           name: Upload Coverage
