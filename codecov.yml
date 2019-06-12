@@ -1,3 +1,6 @@
+codecov:
+  token: 2102e332-9f60-4005-a845-5e0ac3080e79
+
 comment:
   layout: "header"
   behavior: default
