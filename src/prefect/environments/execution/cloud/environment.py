@@ -44,7 +44,10 @@ class CloudEnvironment(Environment):
     ) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
-        self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
+        if self.private_registry:
+            self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
+        else:
+            self.docker_secret = None
         self.logger = logging.get_logger("CloudEnvironment")
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
