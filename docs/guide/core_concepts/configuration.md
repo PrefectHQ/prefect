@@ -10,6 +10,10 @@ Any Prefect configuration key can be set by environment variable. In order to do
 
 For example, if you set `PREFECT__TASKS__DEFAULTS__MAX_RETRIES=4`, then `prefect.config.tasks.defaults.max_retries == 4`.
 
+::: tip Config keys are lowercase
+Environment variables are always interpreted as lowercase configuration keys.
+:::
+
 ### Automatic type casting
 
 Prefect will do its best to detect the type of your environment variable and cast it appropriately.
@@ -50,6 +54,8 @@ path = "$DIR/file.txt"
 
 In this case, loading `prefect.config.path == "/foo/file.txt"`
 
+Environment variables are always interpreted as lowercase values.
+
 #### Configuration interpolation
 
 If a string value refers to any other configuration key, enclosed in "\${" and "}", then the value of that key will be interpolated at runtime. This process is iterated a few times to resolve multiple references.
@@ -75,14 +81,20 @@ user = "${environments.${environment}}"
 
 [environments]
 
-    [environments.DEV]
+    [environments.dev]
         user = "test"
 
-    [environments.PROD]
+    [environments.prod]
         user = "admin"
 ```
 
 ```python
-assert prefect.config.environment == "PROD"
+assert prefect.config.environment == "prod"
 assert prefect.config.user == "admin"
 ```
+
+#### Validation
+
+Configs are recursively validated when first loaded. `ValueErrors` are raised for invalid config definitions. The checks include:
+    - invalid keys: because `Config` objects have dictionary-like methods, it can create problems if any of their keys shadow one of their methods. For example, `"keys"` is an invalid key because `Config.keys()` is an important method.
+    - uppercase keys: all config keys should be lowercase, because only lowercase keys can be set by environment variables.
