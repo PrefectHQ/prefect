@@ -401,4 +401,3 @@ class TestConfigValidation:
 
             with pytest.raises(ValueError):
                 configuration.load_configuration(test_config.name)
-
