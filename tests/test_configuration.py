@@ -39,10 +39,7 @@ template = b"""
 
     [secrets]
     password = "1234"
-    VERY_PRIVATE = "000"
-
-    [ALL_CAPS]
-    KEY = "value"
+    very_private = "000"
     """
 
 
@@ -144,14 +141,9 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'all_caps', 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets', 'tasks'>"
+        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets', 'tasks'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
-
-
-def test_only_section_titles_get_lowercased(config):
-    assert "KEY" in config.all_caps
-    assert config.all_caps.KEY == "value"
 
 
 def test_getattr_missing(config):
@@ -367,3 +359,46 @@ class TestProcessTaskDefaults:
         config.set_nested("tasks.defaults.timeout", datetime.timedelta(seconds=5))
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout == datetime.timedelta(seconds=5)
+
+
+class TestConfigValidation:
+    def test_invalid_keys_raise_error(self):
+
+        with tempfile.NamedTemporaryFile() as test_config:
+            test_config.write(
+                b"""
+                [outer]
+                x = 1
+
+                    [outer.keys]
+                    a = "b"
+                """
+            )
+            test_config.seek(0)
+
+            with pytest.raises(ValueError):
+                configuration.load_configuration(test_config.name)
+
+    def test_invalid_env_var_raises_error(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_TEST__X__Y__KEYS__Z", "TEST")
+
+        with tempfile.NamedTemporaryFile() as test_config:
+            with pytest.raises(ValueError):
+                configuration.load_configuration(
+                    test_config.name, env_var_prefix="PREFECT_TEST"
+                )
+
+    def test_non_lowercase_keys_raise_error(self):
+
+        with tempfile.NamedTemporaryFile() as test_config:
+            test_config.write(
+                b"""
+                [KEY]
+                x = 1
+                """
+            )
+            test_config.seek(0)
+
+            with pytest.raises(ValueError):
+                configuration.load_configuration(test_config.name)
+
