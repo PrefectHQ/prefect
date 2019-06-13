@@ -401,3 +401,36 @@ class TestConfigValidation:
 
             with pytest.raises(ValueError):
                 configuration.load_configuration(test_config.name)
+
+    def test_non_lowercase_keys_are_ok_in_context(self):
+
+        with tempfile.NamedTemporaryFile() as test_config:
+            test_config.write(
+                b"""
+                [context]
+                KeY = 1
+                """
+            )
+            test_config.seek(0)
+
+            config = configuration.load_configuration(test_config.name)
+
+        assert "KeY" in config.context
+        assert config.context.KeY == 1
+
+    def test_non_lowercase_keys_are_ok_in_context_subsections(self):
+
+        with tempfile.NamedTemporaryFile() as test_config:
+            test_config.write(
+                b"""
+                [context.secrets]
+                API_CREDS = 4
+                """
+            )
+            test_config.seek(0)
+
+            config = configuration.load_configuration(test_config.name)
+
+        assert "secrets" in config.context
+        assert "API_CREDS" in config.context.secrets
+        assert config.context.secrets["API_CREDS"] == 4
