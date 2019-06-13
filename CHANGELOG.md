@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow for custom secret names in Result Handlers - [#1098](https://github.com/PrefectHQ/prefect/issues/1098)
 - Have `execute cloud-flow` CLI immediately set the flow run state to `Failed` if environment fails - [#1122](https://github.com/PrefectHQ/prefect/pull/1122)
 - Validate configuration objects on initial load - [#1136](https://github.com/PrefectHQ/prefect/pull/1136)
+- Add `auto_generated` property to Tasks for convenient filtering - [#1135](https://github.com/PrefectHQ/prefect/pull/1135)
 
 ### Task Library
 
