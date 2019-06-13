@@ -26,6 +26,9 @@ class TestCreateTask:
         """Tasks can be created with no arguments"""
         assert Task()
 
+    def test_create_task_is_not_auto_generated(self):
+        assert Task().auto_generated is False
+
     def test_create_task_with_name(self):
         t1 = Task()
         assert t1.name == "Task"
