@@ -260,7 +260,7 @@ def validate_config(config: Config) -> None:
         for k, v in config.items():
             if k != k.lower():
                 raise ValueError('Config keys must be lowercase: "{}"'.format(k))
-            if isinstance(v, Config):
+            if isinstance(v, Config) and k != "context":
                 check_lowercase_keys(v)
 
     def check_valid_keys(config: Config) -> None:
