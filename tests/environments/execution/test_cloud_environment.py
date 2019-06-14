@@ -17,6 +17,8 @@ from prefect.utilities.configuration import set_temporary_config
 def test_create_cloud_environment():
     environment = CloudEnvironment()
     assert environment
+    assert environment.private_registry is False
+    assert environment.docker_secret is None
 
 
 def test_create_cloud_environment_identifier_label():
@@ -32,6 +34,7 @@ def test_setup_cloud_environment_passes():
 
 def test_setup_doesnt_pass_if_private_registry(monkeypatch):
     environment = CloudEnvironment(private_registry=True)
+    assert environment.docker_secret == "DOCKER_REGISTRY_CREDENTIALS"
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
