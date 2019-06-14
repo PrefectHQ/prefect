@@ -47,7 +47,7 @@ class CloudEnvironment(Environment):
         if self.private_registry:
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
         else:
-            self.docker_secret = None
+            self.docker_secret = None  # type: ignore
         self.logger = logging.get_logger("CloudEnvironment")
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
