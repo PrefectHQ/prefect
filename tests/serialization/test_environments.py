@@ -17,7 +17,8 @@ def test_serialize_base_environment():
 def test_serialize_cloud_environment():
     env = environments.CloudEnvironment()
 
-    serialized = CloudEnvironmentSchema().dump(env)
+    schema = CloudEnvironmentSchema()
+    serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["docker_secret"] is None
