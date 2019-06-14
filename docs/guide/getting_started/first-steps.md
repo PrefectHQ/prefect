@@ -159,7 +159,7 @@ say_hello.set_upstream(second_add, flow=flow)
 # create data bindings
 add.bind(x=1, y=2, flow=flow)
 second_add.bind(x=add, y=100, flow=flow)
-say_hello.bind(name=name, flow=flow)
+say_hello.bind(person=name, flow=flow)
 
 ```
 
