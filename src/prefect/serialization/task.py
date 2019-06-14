@@ -63,10 +63,12 @@ class TaskMethodsMixin:
         cache.
         """
         slug = data.get("slug")
+        auto_generated = data.pop("auto_generated", False)
 
         # if the slug is not in the task cache, create a task object and add it
         if slug not in self.context.setdefault("task_cache", {}):  # type: ignore
             task = super().create_object(data)  # type: ignore
+            task.auto_generated = auto_generated  # type: ignore
             self.context["task_cache"][slug] = task  # type: ignore
 
         # return the task object from the cache
@@ -119,6 +121,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
         reject_invalid=False,
         allow_none=True,
     )
+    auto_generated = fields.Boolean(allow_none=True)
 
 
 class ParameterSchema(TaskMethodsMixin, ObjectSchema):

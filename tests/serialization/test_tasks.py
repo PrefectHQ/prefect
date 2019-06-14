@@ -16,6 +16,7 @@ def test_serialize_empty_dict():
 def test_deserialize_empty_dict():
     t = TaskSchema().load({})
     assert isinstance(t, Task)
+    assert t.auto_generated is False
 
 
 def test_serialize_task():
@@ -46,6 +47,14 @@ def test_deserialize_task():
         "cache_for",
     ]:
         assert getattr(task, key) == getattr(deserialized, key)
+    assert task.auto_generated is False
+
+
+def test_deserialize_auto_generated_task():
+    task = Task(name="hi")
+    task.auto_generated = True
+    deserialized = TaskSchema().load(TaskSchema().dump(task))
+    assert task.auto_generated is True
 
 
 def test_deserialize_task_subclass_is_task_but_not_task_subclass():

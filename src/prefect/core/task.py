@@ -223,6 +223,7 @@ class Task(metaclass=SignatureValidator):
             self.state_handlers.append(
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
+        self.auto_generated = False
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
