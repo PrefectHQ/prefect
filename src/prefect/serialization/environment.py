@@ -19,6 +19,7 @@ class CloudEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = CloudEnvironment
 
+    docker_secret = fields.String(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)
 
 
