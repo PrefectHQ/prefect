@@ -8,7 +8,6 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
-import atexit
 import logging
 import os
 import queue
@@ -79,7 +78,6 @@ def configure_logging(testing: bool = False) -> logging.Logger:
         logging.setLogRecordFactory(cloud_record_factory)
         remote_handler = RemoteHandler()
         logger.addHandler(remote_handler)
-        atexit.register(logger.debug, "System exiting.")
     return logger
 
 
