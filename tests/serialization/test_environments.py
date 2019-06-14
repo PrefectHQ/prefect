@@ -20,7 +20,7 @@ def test_serialize_cloud_environment():
     serialized = CloudEnvironmentSchema().dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert "docker_secret" not in serialized
+    assert serialized["docker_secret"] is None
 
     new = schema.load(serialized)
     assert new.private_registry is False
