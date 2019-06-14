@@ -17,19 +17,27 @@ def test_serialize_base_environment():
 def test_serialize_cloud_environment():
     env = environments.CloudEnvironment()
 
-    serialized = CloudEnvironmentSchema().dump(env)
+    schema = CloudEnvironmentSchema()
+    serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
+    assert serialized["docker_secret"] is None
+
+    new = schema.load(serialized)
+    assert new.private_registry is False
+    assert new.docker_secret is None
 
 
 def test_serialize_cloud_environment_with_private_registry():
-    env = environments.CloudEnvironment(private_registry=True)
+    env = environments.CloudEnvironment(private_registry=True, docker_secret="FOO")
 
     schema = CloudEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["private_registry"] is True
+    assert serialized["docker_secret"] == "FOO"
 
     new = schema.load(serialized)
     assert new.private_registry is True
+    assert new.docker_secret == "FOO"
