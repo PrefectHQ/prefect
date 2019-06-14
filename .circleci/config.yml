@@ -84,7 +84,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install black pytest==3.10.1 pytest-cov pytest-env
+          command: pip install "pytest>=4.3,<5.0" pytest-cov pytest-env
 
       - run:
           name: Run tests
@@ -205,25 +205,25 @@ jobs:
 workflows:
   version: 2
 
-  'Run unit tests':
+  "Run unit tests":
     jobs:
       - test-3.5
       - test-3.6
       - test-3.7
 
-  'Check code style and docs':
+  "Check code style and docs":
     jobs:
       - check_black_formatting
       - check_mypy_typing
       - check_documentation
 
-  'Run compatibility tests':
+  "Run compatibility tests":
     jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
 
-  'Build docker images':
+  "Build docker images":
     jobs:
       - build_image:
           filters:
