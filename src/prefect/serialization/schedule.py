@@ -51,7 +51,9 @@ class UnionScheduleSchema(ObjectSchema):
     )
 
     @post_load
-    def create_object(self, data: dict) -> prefect.schedules.UnionSchedule:
+    def create_object(
+        self, data: dict, **kwargs: Any
+    ) -> prefect.schedules.UnionSchedule:
         schedules = data.pop("schedules", [])
         base_obj = super().create_object({"schedules": schedules})
         return base_obj

@@ -1,6 +1,6 @@
-from typing import Set
+from typing import Any, Set
 
-from marshmallow import fields, post_load, pre_dump, utils
+from marshmallow import fields, post_load, utils
 
 import prefect
 from prefect.serialization.edge import EdgeSchema
@@ -53,7 +53,7 @@ class FlowSchema(ObjectSchema):
     storage = fields.Nested(StorageSchema, allow_none=True)
 
     @post_load
-    def create_object(self, data: dict) -> prefect.core.Flow:
+    def create_object(self, data: dict, **kwargs: Any) -> prefect.core.Flow:
         """
         Flow edges are validated, for example to make sure the keys match Task inputs,
         but because we are deserializing all Tasks as base Tasks, the edge validation will

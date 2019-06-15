@@ -92,7 +92,7 @@ class ObjectSchema(Schema):
         unknown = EXCLUDE
 
     @pre_load
-    def _remove_version(self, data: dict) -> dict:
+    def _remove_version(self, data: dict, **kwargs: Any) -> dict:
         """
         Removes a __version__ field from the data, if present.
 
@@ -106,7 +106,7 @@ class ObjectSchema(Schema):
         return data
 
     @post_dump
-    def _add_version(self, data: dict) -> dict:
+    def _add_version(self, data: dict, **kwargs: Any) -> dict:
         """
         Adds a __version__ field to the data, if not already provided.
 
@@ -137,7 +137,7 @@ class ObjectSchema(Schema):
         return super().load(data, **kwargs)
 
     @post_load
-    def create_object(self, data: dict) -> Any:
+    def create_object(self, data: dict, **kwargs: Any) -> Any:
         """
         By default, returns an instantiated object using the ObjectSchema's `object_class`.
         Otherwise, returns a data dict.
