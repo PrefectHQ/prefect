@@ -37,7 +37,7 @@ class BaseStateSchema(ObjectSchema):
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 
     @post_load
-    def create_object(self, data: dict) -> state.State:
+    def create_object(self, data: dict, **kwargs: Any) -> state.State:
         result_obj = data.pop("_result", result.NoResult)
         data["result"] = result_obj
         base_obj = super().create_object(data)
@@ -135,7 +135,7 @@ class MappedSchema(SuccessSchema):
     n_map_states = fields.Integer()
 
     @post_load
-    def create_object(self, data: dict) -> state.Mapped:
+    def create_object(self, data: dict, **kwargs: Any) -> state.Mapped:
         n_map_states = data.pop("n_map_states", 0)
         data["map_states"] = [None for _ in range(n_map_states)]
         return super().create_object(data)
