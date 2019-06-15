@@ -3,14 +3,7 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Dict
 
 import marshmallow
-from marshmallow import (
-    ValidationError,
-    fields,
-    post_dump,
-    post_load,
-    pre_dump,
-    pre_load,
-)
+from marshmallow import ValidationError, fields, post_load
 
 import prefect
 from prefect.utilities.serialization import (
@@ -55,7 +48,7 @@ class TaskMethodsMixin:
         return str(task.outputs())
 
     @post_load
-    def create_object(self, data: dict) -> prefect.core.Task:
+    def create_object(self, data: dict, **kwargs: Any) -> prefect.core.Task:
         """
         Sometimes we deserialize tasks and edges simultaneously (for example, when a
         Flow is being deserialized), in which case we check slugs to see if we already
