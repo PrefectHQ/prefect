@@ -146,7 +146,7 @@ def test_run_flow(monkeypatch):
         MagicMock(return_value=flow_runner),
     )
     monkeypatch.setattr(
-        "prefect.environments.execution.cloud.environment.sys.exit", MagicMock()
+        "prefect.environments.execution.cloud.environment.os._exit", MagicMock()
     )
 
     kube_cluster = MagicMock()

@@ -1,6 +1,6 @@
 import base64
 import json
-import sys
+import os
 import time
 import uuid
 from os import path
@@ -214,7 +214,7 @@ class CloudEnvironment(Environment):
                     executor = DaskExecutor(address=cluster.scheduler_address)
                     runner_cls = get_default_flow_runner_class()
                     runner_cls(flow=flow).run(executor=executor)
-                    sys.exit(0)  # attempt to force resource cleanup
+                    os._exit(0)  # attempt to force resource cleanup
         except Exception as exc:
             self.logger.error("Unexpected error raised during flow run: {}".format(exc))
             raise exc
