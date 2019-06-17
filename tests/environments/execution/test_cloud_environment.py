@@ -145,6 +145,9 @@ def test_run_flow(monkeypatch):
         "prefect.engine.get_default_flow_runner_class",
         MagicMock(return_value=flow_runner),
     )
+    monkeypatch.setattr(
+        "prefect.environments.execution.cloud.environment.sys.exit", MagicMock()
+    )
 
     kube_cluster = MagicMock()
     monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
