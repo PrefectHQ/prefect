@@ -90,7 +90,7 @@ The colors of all states, along with their inheritance relationships can be foun
 :::
 
 ```python
-flow_state = f.run()
+flow_state = f.run(x=1, y=2)
 f.visualize(flow_state=flow_state)
 ```
 
