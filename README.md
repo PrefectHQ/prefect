@@ -90,7 +90,7 @@ conda install -c conda-forge prefect
 
 or `pipenv`:
 ```
-pipenv install -pre prefect
+pipenv install --pre prefect
 ```
 
 ### Install bleeding edge
