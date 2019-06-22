@@ -23,6 +23,7 @@ def test_heartbeat_calls_function_on_interval():
     timer.start()
     time.sleep(0.2)
     timer.cancel()
+    timer.join()
     assert a.called == 2
 
 
