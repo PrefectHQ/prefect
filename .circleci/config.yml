@@ -225,7 +225,7 @@ jobs:
       - *attach_workspace
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python -f "/tmp/workspace/coverage/*.xml"
+          command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
   build_image:
     docker:
