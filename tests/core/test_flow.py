@@ -697,7 +697,7 @@ class TestEquality:
         assert f1 == f2
 
 
-def test_merge():
+def test_update():
     f1 = Flow(name="test")
     f2 = Flow(name="test")
 
@@ -709,8 +709,25 @@ def test_merge():
     f2.add_edge(t2, t3)
 
     f2.update(f1)
-    assert f2.tasks == set([t1, t2, t3])
+    assert f2.tasks == {t1, t2, t3}
     assert len(f2.edges) == 2
+
+
+def test_update_with_mapped_edges():
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    with Flow(name="test") as f1:
+        m = t2.map(upstream_tasks=[t1])
+
+    f2 = Flow(name="test")
+    f2.add_edge(t2, t3)
+
+    f2.update(f1)
+    assert f2.tasks == {m, t1, t2, t3}
+    assert len(f2.edges) == 2
+    assert len([e for e in f2.edges if e.mapped]) == 1
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
