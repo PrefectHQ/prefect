@@ -1,4 +1,31 @@
 version: 2
+
+references:
+  workspace_root: &workspace_root
+    /tmp/workspace
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+  run_test_steps: &run_test_steps
+     - *attach_workspace
+     - checkout
+     - setup_remote_docker
+     - run:
+         name: Install zsh for tests
+         command: apt-get update && apt-get install -y zsh
+   
+     - run:
+         name: Install graphviz
+         command: apt-get update && apt-get install -y graphviz
+   
+     - run:
+         name: Install prefect
+         command: pip install ".[all_extras]"
+   
+     - run:
+         name: Run tests
+         command: pytest -rfEsx --skip-formatting --cov=prefect .
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -72,6 +99,7 @@ jobs:
       - image: python:3.6
 
     steps:
+      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
@@ -91,8 +119,13 @@ jobs:
           command: pytest -rfEsx --skip-formatting --cov=prefect .
 
       - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          name: Store Coverage
+          command: mv ./coverage.xml /tmp/workspace/coverage/vanilla.coverage
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
@@ -102,34 +135,30 @@ jobs:
     docker:
       - image: python:3.5
 
-    # store steps as an alias to reuse them with different python versions
-    steps: &run_test_steps
-      - checkout
-      - setup_remote_docker
+    steps: 
+      - *run_test_steps
       - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
+          name: Store Coverage
+          command: mv ./coverage.xml /tmp/workspace/coverage/python35.coverage
 
-      - run:
-          name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz
-
-      - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
-
-      - run:
-          name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
-
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   test-3.6:
     docker:
       - image: python:3.6
-    steps: *run_test_steps
+    steps: 
+      - *run_test_steps
+      - run:
+          name: Store Coverage
+          command: mv ./coverage.xml /tmp/workspace/coverage/python36.coverage
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   test-3.7:
     docker:
@@ -180,8 +209,26 @@ jobs:
           command: pytest -rfEsx --airflow --cov=prefect .
 
       - run:
+          name: Store Coverage
+          command: mv ./coverage.xml /tmp/workspace/coverage/airflow.coverage
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
+
+  upload-coverage:
+    docker:
+      - image: python:3.6
+    steps: 
+      - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: bash <(curl -s https://codecov.io/bash) -cF python -f "/tmp/workspace/coverage/*.coverage"
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   build_image:
     docker:
@@ -222,6 +269,15 @@ workflows:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
+
+  "Upload Coverage":
+    jobs:
+      - upload-coverage:
+          requires:
+            - test-3.5
+            - test-3.6
+            - test-vanilla-prefect
+            - test-airflow
 
   "Build docker images":
     jobs:
