@@ -28,6 +28,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with Result Handlers deserializing incorrectly in Cloud - [#1112](https://github.com/PrefectHQ/prefect/issues/1112)
 - Fix issue caused by breaking change in `marshmallow==3.0.0rc7` - [#1151](https://github.com/PrefectHQ/prefect/pull/1151)
 - Fix issue with passing results to Prefect signals - [#1163](https://github.com/PrefectHQ/prefect/issues/1163)
+- Fix issue with `flow.update` not preserving mapped edges - [#1164](https://github.com/PrefectHQ/prefect/issues/1164)
 
 ### Breaking Changes
 
