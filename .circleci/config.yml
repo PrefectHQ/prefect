@@ -222,14 +222,10 @@ jobs:
     docker:
       - image: python:3.6
     steps: 
+      - *attach_workspace
       - run:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -f "/tmp/workspace/coverage/*.coverage"
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
 
   build_image:
     docker:
