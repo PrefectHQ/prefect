@@ -97,11 +97,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
-
-      - run:
-          name: Store Coverage
-          command: mv ./coverage.xml /tmp/workspace/coverage/vanilla.coverage
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla.coverage .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -134,11 +130,7 @@ jobs:
     
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
-
-      - run:
-          name: Store Coverage
-          command: mv ./coverage.xml /tmp/workspace/coverage/python35.coverage
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35.coverage .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -166,11 +158,7 @@ jobs:
     
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
-
-      - run:
-          name: Store Coverage
-          command: mv ./coverage.xml /tmp/workspace/coverage/python36.coverage
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36.coverage .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -223,11 +211,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect .
-
-      - run:
-          name: Store Coverage
-          command: mv ./coverage.xml /tmp/workspace/coverage/airflow.coverage
+          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow.coverage .
 
       - persist_to_workspace:
           root: *workspace_root
