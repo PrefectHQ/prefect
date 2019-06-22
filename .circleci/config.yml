@@ -253,32 +253,26 @@ jobs:
 workflows:
   version: 2
 
-  "Run unit tests":
+  "Run tests":
     jobs:
       - test-3.5
       - test-3.6
       - test-3.7
-
-  "Check code style and docs":
-    jobs:
-      - check_black_formatting
-      - check_mypy_typing
-      - check_documentation
-
-  "Run compatibility tests":
-    jobs:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
-
-  "Upload Coverage":
-    jobs:
       - upload-coverage:
           requires:
             - test-3.5
             - test-3.6
             - test-vanilla-prefect
             - test-airflow
+
+  "Check code style and docs":
+    jobs:
+      - check_black_formatting
+      - check_mypy_typing
+      - check_documentation
 
   "Build docker images":
     jobs:
