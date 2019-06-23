@@ -227,7 +227,7 @@ def slack_notifier(
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-    webhook_url: str = None,
+    webhook_secret: str = None,
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
@@ -243,8 +243,8 @@ def slack_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_url (str, optional): the Prefect slack app webhook URL; if not
-            provided, will attempt to use your `"SLACK_WEBHOOK_URL"` Prefect Secret
+        - webhook_secret (str, optional): the name of the Prefect Secret which stores your slack webhook URL;
+            defaults to `"SLACK_WEBHOOK_URL"`
 
     Returns:
         - State: the `new_state` object which was provided
@@ -263,7 +263,7 @@ def slack_notifier(
         ```
     """
     webhook_url = cast(
-        str, webhook_url or prefect.client.Secret("SLACK_WEBHOOK_URL").get()
+        str, prefect.client.Secret(webhook_secret or "SLACK_WEBHOOK_URL").get()
     )
     ignore_states = ignore_states or []
     only_states = only_states or []

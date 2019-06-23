@@ -23,8 +23,9 @@ class PrefectStateSignal(PrefectError):
 
     def __init__(self, message: str = None, *args, **kwargs):  # type: ignore
         super().__init__(message)  # type: ignore
+        kwargs.setdefault("result", self)
         self.state = self._state_cls(  # type: ignore
-            result=self, message=message, *args, **kwargs
+            message=message, *args, **kwargs
         )
 
 

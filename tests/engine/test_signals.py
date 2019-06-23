@@ -38,6 +38,14 @@ def test_signals_create_states():
     assert exc.value.state.message == "message"
 
 
+def test_signals_create_states_with_results():
+    with pytest.raises(Exception) as exc:
+        raise PrefectStateSignal("message", result=5)
+    assert isinstance(exc.value.state, State)
+    assert exc.value.state.result == 5
+    assert exc.value.state.message == "message"
+
+
 def test_signals_dont_pass_invalid_arguments_to_states():
     with pytest.raises(TypeError):
         raise SUCCESS(bad_result=100)
