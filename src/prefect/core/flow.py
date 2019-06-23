@@ -548,6 +548,7 @@ class Flow:
                     upstream_task=edge.upstream_task,
                     downstream_task=edge.downstream_task,
                     key=edge.key,
+                    mapped=edge.mapped,
                     validate=validate,
                 )
 
