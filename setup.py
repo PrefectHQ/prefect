@@ -16,7 +16,7 @@ extras = {
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",
     ],
-    "kubernetes": ["kubernetes >= 8.0.1, < 9.0", "dask-kubernetes == 0.7.0"],
+    "kubernetes": ["kubernetes >= 9.0.0a1, < 10.0", "dask-kubernetes == 0.7.0"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
     "redis": ["redis >= 3.2.1"],
