@@ -41,10 +41,3 @@ spec:
         cpu: "500m"
       limits:
         cpu: "500m"
-    securityContext:
-      allowPrivilegeEscalation: true
-      readOnlyRootFilesystem: false
-      privileged: true
-      capabilities:
-        add:
-          - SYS_PTRACE
