@@ -56,11 +56,4 @@ spec:
               cpu: "100m"
             limits:
               cpu: "100m"
-          securityContext:
-            allowPrivilegeEscalation: true
-            readOnlyRootFilesystem: false
-            privileged: true
-            capabilities:
-              add:
-                - SYS_PTRACE
       restartPolicy: Never
