@@ -15,6 +15,7 @@ try:
     from generate_docs import (
         load_outline,
         create_absolute_path,
+        format_code,
         format_doc,
         format_lists,
         format_signature,
@@ -143,6 +144,29 @@ class MyTask(Task):
     @defaults_from_attrs("y", "z")
     def run(self, x, y=None, z=None):
         return x, y, z
+
+
+code = """
+from prefect import task, Task, Flow
+import random
+
+@task
+def random_number():
+    return random.randint(0, 100)
+
+@task
+def plus_one(x):
+    return x + 1
+
+with Flow('My Functional Flow') as flow:
+    r = random_number()
+    y = plus_one(x=r)
+"""
+
+
+def test_tokenizer():
+    tokenized = format_code(code)
+    assert '<span class="token decorator">@task</span>' in tokenized
 
 
 @pytest.mark.parametrize(
