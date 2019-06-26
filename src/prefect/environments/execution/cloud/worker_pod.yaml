@@ -7,7 +7,7 @@ spec:
   containers:
   - image: gcr.io/prefect-dev/prefect
     imagePullPolicy: IfNotPresent
-    args: [dask-worker, --no-bokeh, --death-timeout, '600']
+    args: [dask-worker, --no-bokeh, --death-timeout, '60']
     name: dask-worker
     env:
       - name: PREFECT__CLOUD__GRAPHQL
@@ -36,3 +36,8 @@ spec:
         value: "true"
       - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
         value: "['feed', 'run_function']"
+    resources:
+      requests:
+        cpu: "500m"
+      limits:
+        cpu: "500m"

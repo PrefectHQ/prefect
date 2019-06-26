@@ -20,14 +20,19 @@ class S3ResultHandler(ResultHandler):
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
+        - aws_credentials_secret (str, optional): the name of the Prefect Secret
+            which stores your AWS credentials; this Secret must be a JSON string
+            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
     Note that for this result handler to work properly, your AWS Credentials must
     be made available in the `"AWS_CREDENTIALS"` Prefect Secret.
     """
 
-    def __init__(self, bucket: str = None) -> None:
+    def __init__(
+        self, bucket: str = None, aws_credentials_secret: str = "AWS_CREDENTIALS"
+    ) -> None:
         self.bucket = bucket
-        self.initialize_client()
+        self.aws_credentials_secret = aws_credentials_secret
         super().__init__()
 
     def initialize_client(self) -> None:
@@ -36,7 +41,7 @@ class S3ResultHandler(ResultHandler):
         """
         import boto3
 
-        aws_credentials = Secret("AWS_CREDENTIALS").get()
+        aws_credentials = Secret(self.aws_credentials_secret).get()
         if isinstance(aws_credentials, str):
             aws_credentials = json.loads(aws_credentials)
 

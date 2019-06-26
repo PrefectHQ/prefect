@@ -50,6 +50,7 @@ def run_with_heartbeat(
             return runner_method(self, *args, **kwargs)
         finally:
             timer.cancel()
+            timer.join()
 
     return inner
 

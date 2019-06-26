@@ -1,4 +1,12 @@
 version: 2
+
+references:
+  workspace_root: &workspace_root
+    /tmp/workspace
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -72,6 +80,7 @@ jobs:
       - image: python:3.6
 
     steps:
+      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
@@ -84,15 +93,16 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install black pytest==3.10.1 pytest-cov pytest-env
+          command: pip install "pytest>=4.3,<5.0" pytest-cov pytest-env
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
 
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   # ----------------------------------
   # Run unit tests in Python 3.5-3.7
@@ -102,34 +112,58 @@ jobs:
     docker:
       - image: python:3.5
 
-    # store steps as an alias to reuse them with different python versions
-    steps: &run_test_steps
+    steps: 
+      - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
-
+    
       - run:
           name: Install graphviz
           command: apt-get update && apt-get install -y graphviz
-
+    
       - run:
           name: Install prefect
           command: pip install ".[all_extras]"
-
+    
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
 
-      - run:
-          name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   test-3.6:
     docker:
       - image: python:3.6
-    steps: *run_test_steps
+    steps: 
+      - *attach_workspace
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+    
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+    
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+    
+      - run:
+          name: Run tests
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
 
   test-3.7:
     docker:
@@ -177,11 +211,21 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect .
+          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
 
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
+
+  upload-coverage:
+    docker:
+      - image: python:3.6
+    steps: 
+      - *attach_workspace
       - run:
           name: Upload Coverage
-          command: bash <(curl -s https://codecov.io/bash) -cF python
+          command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
   build_image:
     docker:
@@ -205,25 +249,28 @@ jobs:
 workflows:
   version: 2
 
-  'Run unit tests':
+  "Run tests":
     jobs:
       - test-3.5
       - test-3.6
       - test-3.7
+      - test-vanilla-prefect
+      - test-py352-import-prefect
+      - test-airflow
+      - upload-coverage:
+          requires:
+            - test-3.5
+            - test-3.6
+            - test-vanilla-prefect
+            - test-airflow
 
-  'Check code style and docs':
+  "Check code style and docs":
     jobs:
       - check_black_formatting
       - check_mypy_typing
       - check_documentation
 
-  'Run compatibility tests':
-    jobs:
-      - test-vanilla-prefect
-      - test-py352-import-prefect
-      - test-airflow
-
-  'Build docker images':
+  "Build docker images":
     jobs:
       - build_image:
           filters:

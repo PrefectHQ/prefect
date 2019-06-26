@@ -132,6 +132,9 @@ class TestGCSResultHandler:
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
         assert handler.bucket == "bob"
+        assert handler.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert google_client.called is False
+        handler.initialize_client()
         assert google_client.return_value.bucket.call_args[0][0] == "bob"
 
     def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
@@ -146,6 +149,23 @@ class TestGCSResultHandler:
             pendulum.now("utc").format("Y/M/D")
         )
         assert bucket.blob.call_args[0][0].endswith("prefect_result")
+
+    def test_gcs_uses_custom_secret_name(self):
+        auth = MagicMock()
+        handler = GCSResultHandler(bucket="foo", credentials_secret="TEST_SECRET")
+
+        with prefect.context(secrets=dict(TEST_SECRET=94611)):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                with patch.dict(
+                    "sys.modules",
+                    {
+                        "google.cloud": MagicMock(),
+                        "google.oauth2.service_account": auth,
+                    },
+                ):
+                    handler.initialize_client()
+
+        assert auth.Credentials.from_service_account_info.call_args[0][0] == 94611
 
     def test_gcs_writes_binary_string(self, google_client):
         blob = MagicMock()
@@ -181,26 +201,45 @@ class TestS3ResultHandler:
             yield client
 
     def test_s3_client_init_uses_secrets(self, s3_client):
+        handler = S3ResultHandler(bucket="bob")
+        assert handler.bucket == "bob"
+        assert s3_client.called is False
+
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                handler = S3ResultHandler(bucket="bob")
+                handler.initialize_client()
 
-        assert handler.bucket == "bob"
         assert s3_client.call_args[1] == {
             "aws_access_key_id": 1,
             "aws_secret_access_key": 42,
         }
 
+    def test_s3_client_init_uses_custom_secrets(self, s3_client):
+        handler = S3ResultHandler(bucket="bob", aws_credentials_secret="MY_FOO")
+
+        with prefect.context(
+            secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        assert s3_client.call_args[1] == {
+            "aws_access_key_id": 1,
+            "aws_secret_access_key": 999,
+        }
+
     def test_s3_writes_to_blob_prefixed_by_date_suffixed_by_prefect(self, s3_client):
+        handler = S3ResultHandler(bucket="foo")
+
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                handler = S3ResultHandler(bucket="foo")
+                uri = handler.write("so-much-data")
 
-        uri = handler.write("so-much-data")
         used_uri = s3_client.return_value.upload_fileobj.call_args[1]["Key"]
 
         assert used_uri == uri

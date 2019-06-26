@@ -1,5 +1,6 @@
 import marshmallow
 from marshmallow import fields, post_load
+from typing import Any
 
 import prefect
 from prefect.environments.storage import Bytes, Memory, Docker, LocalStorage, Storage
@@ -22,7 +23,7 @@ class BytesSchema(ObjectSchema):
     flows = fields.Dict(key=fields.Str(), values=BytesField())
 
     @post_load
-    def create_object(self, data: dict) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Docker:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
@@ -37,7 +38,7 @@ class LocalSchema(ObjectSchema):
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
 
     @post_load
-    def create_object(self, data: dict) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Docker:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
@@ -55,7 +56,7 @@ class DockerSchema(ObjectSchema):
     prefect_version = fields.String(allow_none=False)
 
     @post_load
-    def create_object(self, data: dict) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Docker:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows

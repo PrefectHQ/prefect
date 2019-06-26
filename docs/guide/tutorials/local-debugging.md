@@ -201,9 +201,9 @@ Using our silly flow from above, let's define a new task and swap it out using t
 ```python
 @task
 def fixed():
-    tup = ('a', ('b'))
+    tup = ('a', ('b',))
     try:
-        tup[1] += ('c')
+        tup[1] += ('c',)
     except TypeError:
         assert len(tup[1]) == 1
 
@@ -227,6 +227,7 @@ Another reason a Flow might unexpectedly break in production (or fail to run at 
 ```python
 from prefect import task, Flow
 from prefect.environments.storage import Docker
+
 
 # import a non-prefect package used for scraping reddit
 import praw

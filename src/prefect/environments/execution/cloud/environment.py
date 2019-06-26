@@ -1,6 +1,6 @@
 import base64
 import json
-import logging
+import sys
 import time
 import uuid
 from os import path
@@ -15,6 +15,7 @@ import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
+from prefect.utilities import logging
 
 
 class CloudEnvironment(Environment):
@@ -32,13 +33,23 @@ class CloudEnvironment(Environment):
 
     Args:
         - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
-            Docker registry; if so, requires a `DOCKER_REGISTRY_CREDENTIALS` Prefect Secret to be set.
+            Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
+        - docker_secret (str, optional): the name of the Prefect Secret containing your Docker credentials; defaults to
+            `"DOCKER_REGISTRY_CREDENTIALS"`.  This Secret should be a dictionary containing the following keys: `"docker-server"`,
+            `"docker-username"`, `"docker-password"`, and `"docker-email"`.
     """
 
-    def __init__(self, private_registry: bool = False) -> None:
+    def __init__(
+        self, private_registry: bool = False, docker_secret: str = None
+    ) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
+        if self.private_registry:
+            self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
+        else:
+            self.docker_secret = None  # type: ignore
+        self.logger = logging.get_logger("CloudEnvironment")
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
@@ -48,6 +59,7 @@ class CloudEnvironment(Environment):
             try:
                 config.load_incluster_config()
             except config.config_exception.ConfigException:
+                self.logger.error("Environment not currently running inside a cluster")
                 raise EnvironmentError("Environment not currently inside a cluster")
 
             v1 = client.CoreV1Api()
@@ -59,7 +71,16 @@ class CloudEnvironment(Environment):
                 for secret in secrets.items
                 if secret.metadata.name == secret_name
             ]:
+                self.logger.debug(
+                    "Docker registry secret {} does not exist for this tenant.".format(
+                        secret_name
+                    )
+                )
                 self._create_namespaced_secret()
+            else:
+                self.logger.debug(
+                    "Docker registry secret {} found.".format(secret_name)
+                )
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -83,36 +104,50 @@ class CloudEnvironment(Environment):
         self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
 
     def _create_namespaced_secret(self) -> None:
-        from kubernetes import client
+        self.logger.debug(
+            'Creating Docker registry kubernetes secret from "{}" Prefect Secret.'.format(
+                self.docker_secret
+            )
+        )
+        try:
+            from kubernetes import client
 
-        docker_creds = Secret("DOCKER_REGISTRY_CREDENTIALS").get()
-        assert isinstance(docker_creds, dict)
+            docker_creds = Secret(self.docker_secret).get()
+            assert isinstance(docker_creds, dict)
 
-        v1 = client.CoreV1Api()
-        cred_payload = {
-            "auths": {
-                docker_creds["docker-server"]: {
-                    "Username": docker_creds["docker-username"],
-                    "Password": docker_creds["docker-password"],
-                    "Email": docker_creds["docker-email"],
+            v1 = client.CoreV1Api()
+            cred_payload = {
+                "auths": {
+                    docker_creds["docker-server"]: {
+                        "Username": docker_creds["docker-username"],
+                        "Password": docker_creds["docker-password"],
+                        "Email": docker_creds["docker-email"],
+                    }
                 }
             }
-        }
-        data = {
-            ".dockerconfigjson": base64.b64encode(
-                json.dumps(cred_payload).encode()
-            ).decode()
-        }
-        namespace = prefect.context.get("namespace", "unknown")
-        name = namespace + "-docker"
-        secret = client.V1Secret(
-            api_version="v1",
-            data=data,
-            kind="Secret",
-            metadata=dict(name=name, namespace=namespace),
-            type="kubernetes.io/dockerconfigjson",
-        )
-        v1.create_namespaced_secret(namespace, body=secret)
+            data = {
+                ".dockerconfigjson": base64.b64encode(
+                    json.dumps(cred_payload).encode()
+                ).decode()
+            }
+            namespace = prefect.context.get("namespace", "unknown")
+            name = namespace + "-docker"
+            secret = client.V1Secret(
+                api_version="v1",
+                data=data,
+                kind="Secret",
+                metadata=dict(name=name, namespace=namespace),
+                type="kubernetes.io/dockerconfigjson",
+            )
+            v1.create_namespaced_secret(namespace, body=secret)
+            self.logger.debug("Created Docker registry secret {}.".format(name))
+        except Exception as exc:
+            self.logger.error(
+                "Failed to create Kubernetes secret for private Docker registry: {}".format(
+                    exc
+                )
+            )
+            raise exc
 
     def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
         """
@@ -129,6 +164,7 @@ class CloudEnvironment(Environment):
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException:
+            self.logger.error("Environment not currently running inside a cluster")
             raise EnvironmentError("Environment not currently inside a cluster")
 
         batch_client = client.BatchV1Api()
@@ -140,39 +176,48 @@ class CloudEnvironment(Environment):
             )
 
             # Create Job
-            batch_client.create_namespaced_job(
-                namespace=prefect.context.get("namespace"), body=job
-            )
+            try:
+                batch_client.create_namespaced_job(
+                    namespace=prefect.context.get("namespace"), body=job
+                )
+            except Exception as exc:
+                self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+                raise exc
 
     def run_flow(self) -> None:
         """
         Run the flow from specified flow_file_path location using a Dask executor
         """
-        from prefect.engine import get_default_flow_runner_class
-        from prefect.engine.executors import DaskExecutor
-        from dask_kubernetes import KubeCluster
+        try:
+            from prefect.engine import get_default_flow_runner_class
+            from prefect.engine.executors import DaskExecutor
+            from dask_kubernetes import KubeCluster
 
-        with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-            worker_pod = yaml.safe_load(pod_file)
-            worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
+            with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
+                worker_pod = yaml.safe_load(pod_file)
+                worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-            cluster = KubeCluster.from_dict(
-                worker_pod, namespace=prefect.context.get("namespace")
-            )
-            cluster.adapt(minimum=1, maximum=1)
+                cluster = KubeCluster.from_dict(
+                    worker_pod, namespace=prefect.context.get("namespace")
+                )
+                cluster.adapt(minimum=1, maximum=1)
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
+                # Load serialized flow from file and run it with a DaskExecutor
+                with open(
+                    prefect.context.get(
+                        "flow_file_path", "/root/.prefect/flow_env.prefect"
+                    ),
+                    "rb",
+                ) as f:
+                    flow = cloudpickle.load(f)
 
-                executor = DaskExecutor(address=cluster.scheduler_address)
-                runner_cls = get_default_flow_runner_class()
-                runner_cls(flow=flow).run(executor=executor)
+                    executor = DaskExecutor(address=cluster.scheduler_address)
+                    runner_cls = get_default_flow_runner_class()
+                    runner_cls(flow=flow).run(executor=executor)
+                    sys.exit(0)  # attempt to force resource cleanup
+        except Exception as exc:
+            self.logger.error("Unexpected error raised during flow run: {}".format(exc))
+            raise exc
 
     ########################
     # YAML Spec Manipulation

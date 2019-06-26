@@ -114,10 +114,16 @@ class TestAsTask:
             val = return_val(t)
 
         assert isinstance(t, Task)
+        assert t.auto_generated is True
         res = FlowRunner(f).run(return_tasks=[val])
 
         assert res.is_successful()
         assert res.result[val].result == obj
+
+    def test_as_task_doesnt_label_tasks_as_auto_generated(self):
+        t = Task()
+        assert t.auto_generated is False
+        assert tasks.as_task(t).auto_generated is False
 
 
 def test_tag_contextmanager_works_with_task_decorator():
@@ -192,6 +198,7 @@ class TestUnmappedContainer:
         t1 = Task()
         unmapped_t1 = tasks.unmapped(t1)
         assert tasks.as_task(t1) is t1
+        assert tasks.as_task(t1).auto_generated is False
 
 
 class TestPauseTask:
