@@ -162,6 +162,27 @@ def test_slack_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
             assert slack_notifier(Task(), "", new_state) is new_state
 
 
+def test_slack_notifier_pulls_url_from_secret(monkeypatch):
+    post = MagicMock(ok=True)
+    monkeypatch.setattr("prefect.utilities.notifications.requests.post", post)
+    state = Failed(message="1", result=0)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with pytest.raises(ValueError) as exc:
+            slack_notifier(Task(), "", state)
+
+        assert "SLACK_WEBHOOK_URL" in str(exc.value)
+
+        with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="https://foo/bar")):
+            slack_notifier(Task(), "", state)
+
+        assert post.call_args[0][0] == "https://foo/bar"
+
+        with prefect.context(secrets=dict(TOP_SECRET='"42"')):
+            slack_notifier(Task(), "", state, webhook_secret="TOP_SECRET")
+
+        assert post.call_args[0][0] == "42"
+
+
 def test_slack_notifier_ignores_ignore_states(monkeypatch):
     all_states = [
         Running,

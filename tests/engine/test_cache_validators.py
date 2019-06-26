@@ -11,6 +11,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
+from prefect.engine.result import Result
 from prefect.engine.state import Cached
 
 all_validators = [all_inputs, all_parameters, never_use, duration_only]
@@ -45,15 +46,15 @@ class TestDurationOnly:
 
 class TestAllInputs:
     def test_inputs_invalidate(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert all_inputs(state, dict(x=1, s="strs"), None) is False
 
     def test_inputs_validate(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert all_inputs(state, dict(x=1, s="str"), None) is True
 
     def test_additional_inputs_invalidate(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert all_inputs(state, dict(x=1, s="str", noise="e"), None) is False
 
 
@@ -73,18 +74,18 @@ class TestAllParameters:
 
 class TestPartialInputsOnly:
     def test_inputs_validate_with_defaults(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert partial_inputs_only(None)(state, dict(x=1, s="str"), None) is True
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert partial_inputs_only(None)(state, dict(x=1, s="strs"), None) is True
 
     def test_validate_on_kwarg(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert (
             partial_inputs_only(validate_on=["x", "s"])(state, dict(x=1, s="str"), None)
             is True
         )
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert (
             partial_inputs_only(validate_on=["x", "s"])(
                 state, dict(x=1, s="strs"), None
@@ -103,11 +104,11 @@ class TestPartialInputsOnly:
     def test_handles_none(self):
         state = Cached(cached_parameters=dict(x=5))
         assert partial_inputs_only(validate_on=["x"])(state, dict(x=5), None) is False
-        state = Cached(cached_inputs=dict(x=5))
+        state = Cached(cached_inputs=dict(x=Result(5)))
         assert partial_inputs_only(validate_on=["x"])(state, None, None) is False
 
     def test_curried(self):
-        state = Cached(cached_inputs=dict(x=1, s="str"))
+        state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         validator = partial_inputs_only(validate_on=["x"])
         assert validator(state, dict(x=1), None) is True
         assert validator(state, dict(x=2, s="str"), None) is False
@@ -145,7 +146,7 @@ class TestPartialParametersOnly:
         )
 
     def test_handles_none(self):
-        state = Cached(cached_inputs=dict(x=5))
+        state = Cached(cached_inputs=dict(x=Result(5)))
         assert (
             partial_parameters_only(validate_on=["x"])(state, None, dict(x=5)) is False
         )

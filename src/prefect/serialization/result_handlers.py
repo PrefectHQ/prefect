@@ -34,7 +34,7 @@ class CustomResultHandlerSchema(ObjectSchema):
     )
 
     @post_load
-    def create_object(self, data: dict) -> None:
+    def create_object(self, data: dict, **kwargs: Any) -> None:
         """Because we cannot deserialize a custom class, just return `None`"""
         return None
 
@@ -51,6 +51,7 @@ class GCSResultHandlerSchema(BaseResultHandlerSchema):
         object_class = GCSResultHandler
 
     bucket = fields.String(allow_none=False)
+    credentials_secret = fields.String(allow_none=True)
 
 
 class JSONResultHandlerSchema(BaseResultHandlerSchema):
@@ -70,6 +71,7 @@ class S3ResultHandlerSchema(BaseResultHandlerSchema):
         object_class = S3ResultHandler
 
     bucket = fields.String(allow_none=False)
+    aws_credentials_secret = fields.String(allow_none=True)
 
 
 class ResultHandlerSchema(OneOfSchema):

@@ -136,6 +136,18 @@ class TestCreateFlow:
         f2 = Flow(name="test")
         assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
 
+    def test_create_flow_auto_generates_tasks(self):
+        with Flow("auto") as f:
+            res = AddTask()(x=1, y=2)
+
+        assert res.auto_generated is False
+        assert all(
+            [
+                t.auto_generated is True
+                for t in f.get_tasks(task_type=prefect.tasks.core.constants.Constant)
+            ]
+        )
+
 
 def test_add_task_to_flow():
     f = Flow(name="test")
@@ -685,7 +697,7 @@ class TestEquality:
         assert f1 == f2
 
 
-def test_merge():
+def test_update():
     f1 = Flow(name="test")
     f2 = Flow(name="test")
 
@@ -697,8 +709,25 @@ def test_merge():
     f2.add_edge(t2, t3)
 
     f2.update(f1)
-    assert f2.tasks == set([t1, t2, t3])
+    assert f2.tasks == {t1, t2, t3}
     assert len(f2.edges) == 2
+
+
+def test_update_with_mapped_edges():
+    t1 = Task()
+    t2 = Task()
+    t3 = Task()
+
+    with Flow(name="test") as f1:
+        m = t2.map(upstream_tasks=[t1])
+
+    f2 = Flow(name="test")
+    f2.add_edge(t2, t3)
+
+    f2.update(f1)
+    assert f2.tasks == {m, t1, t2, t3}
+    assert len(f2.edges) == 2
+    assert len([e for e in f2.edges if e.mapped]) == 1
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
@@ -1566,7 +1595,7 @@ class TestFlowRunMethod:
                     self.call_count += 1
                     return [pendulum.now("utc")]
                 else:
-                    raise SyntaxError("Cease scheduling!")
+                    return []
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1600,8 +1629,7 @@ class TestFlowRunMethod:
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x(x=t1, y=t2))
 
-        with pytest.raises(SyntaxError) as exc:
-            f.run()
+        f.run()
 
         assert storage == dict(y=[1, 1, 3])
 
@@ -1652,6 +1680,169 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
+    def test_flow_dot_run_handles_cached_states_across_runs(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    return []
+
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                # returns 1 on the first run, 2 on the second run, and 1 on the third
+                self.call_count += 1
+                return self.call_count if self.call_count < 3 else 1
+
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
+        def return_x(x):
+            return round(random.random(), 4)
+
+        storage = {"output": []}
+
+        @task(trigger=prefect.triggers.always_run)
+        def store_output(y):
+            storage["output"].append(y)
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_output(return_x(x=t))
+
+        f.run()
+
+        first_run = storage["output"][0]
+        second_run = storage["output"][1]
+        third_run = storage["output"][2]
+
+        ## first run: nothing interesting
+        assert first_run > 0
+
+        ## second run: all tasks succeed, no cache used
+        assert first_run != second_run
+
+        ## third run: all tasks succeed, caching from previous runs used
+        assert third_run == first_run
+
+    def test_flow_dot_run_handles_mapped_cached_states_across_runs(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    return []
+
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+            return_vals = {1: [1], 2: [2, 2], 3: [1, 2, 3]}
+
+            def run(self):
+                # returns [1] on the first run, [2, 2] on the second run, and [1, 2, 3] on the third
+                self.call_count += 1
+                return self.return_vals[self.call_count]
+
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
+        def return_x(x):
+            return round(random.random(), 4)
+
+        storage = {"output": []}
+
+        @task(trigger=prefect.triggers.always_run)
+        def store_output(y):
+            storage["output"].append(y)
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_output(return_x.map(x=t))
+
+        f.run()
+
+        first_run = storage["output"][0]
+        second_run = storage["output"][1]
+        third_run = storage["output"][2]
+
+        ## first run: nothing interesting
+        assert first_run[0] > 0
+
+        ## second run: all tasks succeed, no cache used
+        assert first_run[0] not in second_run
+
+        ## third run: all tasks succeed, caching from previous runs used
+        assert third_run[0] == first_run[0]
+        assert third_run[1] == second_run[0]
+        assert third_run[2] not in first_run
+        assert third_run[2] not in second_run
+
+    def test_flow_dot_run_handles_mapped_cached_states_with_differing_lengths(self):
+        class MockSchedule(prefect.schedules.Schedule):
+            call_count = 0
+
+            def next(self, n):
+                if self.call_count < 3:
+                    self.call_count += 1
+                    return [pendulum.now("utc")]
+                else:
+                    return []
+
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+                # returns [2] on the first run, [2, 2] on the second run, and [3, 3, 3] on the third
+                return [max(self.call_count, 2)] * self.call_count
+
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
+        def return_x(x):
+            return 1 / (x - 1) + round(random.random(), 4)
+
+        storage = {"output": []}
+
+        @task(trigger=prefect.triggers.always_run)
+        def store_output(y):
+            storage["output"].append(y)
+
+        t = StatefulTask()
+        schedule = MockSchedule()
+        with Flow(name="test", schedule=schedule) as f:
+            res = store_output(return_x.map(x=t))
+
+        f.run()
+
+        first_run = storage["output"][0]
+        second_run = storage["output"][1]
+        third_run = storage["output"][2]
+
+        ## first run: nothing interesting
+        assert first_run[0] > 0
+
+        ## second run: all tasks succeed and use cache
+        assert second_run == [first_run[0], first_run[0]]
+
+        ## third run: all tasks succeed, no caching used
+        assert all(x != first_run[0] for x in third_run)
+
     def test_flow_dot_run_handles_mapped_cached_states_with_non_cached(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
@@ -1677,12 +1868,9 @@ class TestFlowRunMethod:
                 else:
                     return [self.call_count + i for i in range(3)]
 
-        @task(
-            cache_for=datetime.timedelta(minutes=1),
-            cache_validator=partial_inputs_only(validate_on=["x"]),
-        )
+        @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
         def return_x(x, y):
-            return 1 / (y - 1)
+            return 1 / (y - 1) + round(random.random(), 4)
 
         storage = {"y": []}
 
@@ -1703,14 +1891,13 @@ class TestFlowRunMethod:
 
         ## first run: one child fails, the other two succeed
         assert isinstance(first_run[0], ZeroDivisionError)
-        assert first_run[1:] == [1.0, 0.5]
 
-        ## second run: all tasks succeed, the latter two use cached state
-        assert second_run[0] == 1.0
-        assert second_run[1:] == [1.0, 0.5]
+        ## second run: all tasks succeed, the first two use cached state
+        assert second_run[:2] == first_run[1:]
+        assert second_run[-1] not in first_run
 
         ## third run: all tasks succeed, no caching used
-        assert third_run == [1 / 2, 1 / 3, 1 / 4]
+        assert all(x not in first_run + second_run for x in third_run)
 
     def test_scheduled_runs_handle_mapped_retries(self):
         class StatefulTask(Task):
