@@ -177,7 +177,7 @@ def test_dask_processes_executor_handles_timeouts(mproc):
     with mproc.start():
         with pytest.raises(TimeoutError) as exc:
             res = mproc.wait(mproc.submit(mproc.timeout_handler, slow_fn, timeout=1))
-    assert "Execution timed out" in str(exc)
+    assert "Execution timed out" in str(exc.value)
 
 
 class TestDaskExecutor:
