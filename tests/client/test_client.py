@@ -419,7 +419,70 @@ def test_get_flow_run_info(monkeypatch):
     assert result.state.result == "42"
     assert result.state.message is None
     assert result.version == 0
-    assert result.parameters == dict()
+    assert isinstance(result.parameters, dict)
+    assert result.context is None
+
+
+def test_get_flow_run_info_with_nontrivial_payloads(monkeypatch):
+    response = """
+{
+    "flow_run_by_pk": {
+        "version": 0,
+        "parameters": {"x": {"deep": {"nested": 5}}},
+        "context": {"my_val": "test"},
+        "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
+        "serialized_state": {
+            "type": "Pending",
+            "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
+            "message": null,
+            "__version__": "0.3.3+309.gf1db024",
+            "cached_inputs": null
+        },
+        "task_runs":[
+            {
+                "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                "task": {
+                    "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    },
+                "version": 0,
+                "serialized_state": {
+                    "type": "Pending",
+                    "result": null,
+                    "message": null,
+                    "__version__": "0.3.3+309.gf1db024",
+                    "cached_inputs": null
+                }
+            }
+        ]
+    }
+}
+    """
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=json.loads(response)))
+        )
+    )
+    monkeypatch.setattr("requests.post", post)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    result = client.get_flow_run_info(flow_run_id="74-salt")
+    assert isinstance(result, FlowRunInfoResult)
+    assert isinstance(result.scheduled_start_time, datetime.datetime)
+    assert result.scheduled_start_time.minute == 15
+    assert result.scheduled_start_time.year == 2019
+    assert isinstance(result.state, Pending)
+    assert result.state.result == "42"
+    assert result.state.message is None
+    assert result.version == 0
+    assert isinstance(result.parameters, dict)
+    assert result.parameters["x"]["deep"]["nested"] == 5
+    # ensures all sub-dictionaries are actually dictionaries
+    assert json.loads(json.dumps(result.parameters)) == result.parameters
+    assert isinstance(result.context, dict)
+    assert result.context["my_val"] == "test"
 
 
 def test_get_flow_run_info_raises_informative_error(monkeypatch):
