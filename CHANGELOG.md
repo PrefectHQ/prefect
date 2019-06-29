@@ -17,6 +17,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Validate configuration objects on initial load - [#1136](https://github.com/PrefectHQ/prefect/pull/1136)
 - Add `auto_generated` property to Tasks for convenient filtering - [#1135](https://github.com/PrefectHQ/prefect/pull/1135)
 - Disable dask work-stealing in kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
+- Implement backoff retry settings on Client calls - [#1187](https://github.com/PrefectHQ/prefect/pull/1187)
 
 ### Task Library
 
