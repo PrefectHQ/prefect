@@ -29,6 +29,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue caused by breaking change in `marshmallow==3.0.0rc7` - [#1151](https://github.com/PrefectHQ/prefect/pull/1151)
 - Fix issue with passing results to Prefect signals - [#1163](https://github.com/PrefectHQ/prefect/issues/1163)
 - Fix issue with `flow.update` not preserving mapped edges - [#1164](https://github.com/PrefectHQ/prefect/issues/1164)
+- Fix issue with Parameters and Context not being raw dictionaries - [#1186](https://github.com/PrefectHQ/prefect/issues/1186)
 
 ### Breaking Changes
 
