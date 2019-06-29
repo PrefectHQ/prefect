@@ -508,6 +508,12 @@ class Client:
             task_runs.append(TaskRunInfoResult(**tr))
 
         result.task_runs = task_runs
+        result.context = (
+            result.context.to_dict() if result.context is not None else None
+        )
+        result.parameters = (
+            result.parameters.to_dict() if result.parameters is not None else None
+        )
         return FlowRunInfoResult(**result)
 
     def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
