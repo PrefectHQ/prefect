@@ -3,6 +3,9 @@ import datetime
 import json
 import logging
 import os
+
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
@@ -209,12 +212,20 @@ class Client:
         # write this as a function to allow reuse in next try/except block
         def request_fn() -> "requests.models.Response":
             headers = {"Authorization": "Bearer {}".format(self.token)}
+            session = requests.Session()
+            retries = Retry(
+                total=6,
+                backoff_factor=1,
+                status_forcelist=[500, 502, 503, 504],
+                method_whitelist=["DELETE", "GET", "POST"],
+            )
+            session.mount("https://", HTTPAdapter(max_retries=retries))
             if method == "GET":
-                response = requests.get(url, headers=headers, params=params)
+                response = session.get(url, headers=headers, params=params)
             elif method == "POST":
-                response = requests.post(url, headers=headers, json=params)
+                response = session.post(url, headers=headers, json=params)
             elif method == "DELETE":
-                response = requests.delete(url, headers=headers)
+                response = session.delete(url, headers=headers)
             else:
                 raise ValueError("Invalid method: {}".format(method))
 
