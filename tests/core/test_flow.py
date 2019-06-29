@@ -1409,7 +1409,7 @@ class TestSerialize:
 
         with pytest.raises(ValueError) as exc:
             f.serialize()
-        assert "cycle found" in str(exc).lower()
+        assert "cycle found" in str(exc.value).lower()
 
     def test_default_environment_is_cloud_environment(self):
         f = Flow(name="test")
