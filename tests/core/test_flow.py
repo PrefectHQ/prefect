@@ -1656,6 +1656,9 @@ class TestFlowRunMethod:
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
 
+            def __init__(self):
+                super().__init__(clocks=[])
+
             def next(self, n):
                 if self.call_count < 3:
                     self.call_count += 1
@@ -1702,6 +1705,9 @@ class TestFlowRunMethod:
     def test_flow_dot_run_handles_cached_states_across_runs(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
+
+            def __init__(self):
+                super().__init__(clocks=[])
 
             def next(self, n):
                 if self.call_count < 3:
@@ -1755,6 +1761,9 @@ class TestFlowRunMethod:
     def test_flow_dot_run_handles_mapped_cached_states_across_runs(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
+
+            def __init__(self):
+                super().__init__(clocks=[])
 
             def next(self, n):
                 if self.call_count < 3:
@@ -1813,6 +1822,9 @@ class TestFlowRunMethod:
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
 
+            def __init__(self):
+                super().__init__(clocks=[])
+
             def next(self, n):
                 if self.call_count < 3:
                     self.call_count += 1
@@ -1865,6 +1877,9 @@ class TestFlowRunMethod:
     def test_flow_dot_run_handles_mapped_cached_states_with_non_cached(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
+
+            def __init__(self):
+                super().__init__(clocks=[])
 
             def next(self, n):
                 if self.call_count < 3:
