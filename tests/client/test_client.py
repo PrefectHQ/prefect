@@ -489,7 +489,9 @@ def test_get_flow_run_info_with_nontrivial_payloads(monkeypatch):
             json=MagicMock(return_value=dict(data=json.loads(response)))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
