@@ -7,6 +7,21 @@ from prefect.engine import state
 from prefect.utilities.exceptions import PrefectError
 
 
+class ENDRUN(Exception):
+    """
+    An ENDRUN exception is used by Runner steps to indicate that state processing should
+    stop. The pipeline result should be the state contained in the exception.
+    """
+
+    def __init__(self, state: state.State):
+        """
+        Args
+            - state (State): the state that should be used as the result of the Runner's run
+        """
+        self.state = state
+        super().__init__()
+
+
 class PrefectStateSignal(PrefectError):
     """
     Create a new PrefectStateSignal object.
