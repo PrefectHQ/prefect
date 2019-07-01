@@ -86,6 +86,7 @@ classes = [
 module = "prefect.engine.signals"
 title = "Signals"
 classes = [
+            "ENDRUN",
             "FAIL",
             "TRIGGERFAIL",
             "SUCCESS",
