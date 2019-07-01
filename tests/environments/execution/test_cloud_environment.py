@@ -182,7 +182,6 @@ def test_populate_job_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.log": "log_test",
-            "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
     ):
@@ -205,12 +204,11 @@ def test_populate_job_yaml():
 
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "log_test"
-    assert env[2]["value"] == "rh_test"
-    assert env[3]["value"] == "auth_test"
-    assert env[4]["value"] == "id_test"
-    assert env[5]["value"] == "namespace_test"
-    assert env[6]["value"] == "test1/test2:test3"
-    assert env[7]["value"] == "test4"
+    assert env[2]["value"] == "auth_test"
+    assert env[3]["value"] == "id_test"
+    assert env[4]["value"] == "namespace_test"
+    assert env[5]["value"] == "test1/test2:test3"
+    assert env[6]["value"] == "test4"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -232,7 +230,6 @@ def test_populate_worker_pod_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.log": "log_test",
-            "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
     ):
@@ -246,9 +243,8 @@ def test_populate_worker_pod_yaml():
 
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "log_test"
-    assert env[2]["value"] == "rh_test"
-    assert env[3]["value"] == "auth_test"
-    assert env[4]["value"] == "id_test"
+    assert env[2]["value"] == "auth_test"
+    assert env[3]["value"] == "id_test"
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -267,7 +263,6 @@ def test_populate_worker_pod_yaml_with_private_registry():
         {
             "cloud.graphql": "gql_test",
             "cloud.log": "log_test",
-            "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
     ):
