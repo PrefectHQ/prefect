@@ -181,7 +181,7 @@ def test_populate_job_yaml():
     with set_temporary_config(
         {
             "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
+
             "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
@@ -231,7 +231,7 @@ def test_populate_worker_pod_yaml():
     with set_temporary_config(
         {
             "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
+
             "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
@@ -266,7 +266,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
     with set_temporary_config(
         {
             "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
+
             "cloud.result_handler": "rh_test",
             "cloud.auth_token": "auth_test",
         }
