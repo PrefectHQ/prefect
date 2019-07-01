@@ -70,7 +70,7 @@ run_on_schedule = true
 
     [engine.result_handler]
     # the default task runner, specified using a full path
-    default_class = "prefect.engine.cloud.CloudResultHandler"
+    default_class = ""
 
     [engine.task_runner]
     # the default task runner, specified using a full path
