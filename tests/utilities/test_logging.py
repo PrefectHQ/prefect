@@ -25,11 +25,10 @@ def test_root_logger_level_responds_to_config():
 def test_remote_handler_is_configured_for_cloud():
     try:
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+            {"logging.log_to_cloud": True}
         ):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
-            assert logger.handlers[-1].logger_server == "http://foo.bar:1800/log"
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
@@ -39,7 +38,7 @@ def test_remote_handler_is_configured_for_cloud():
 def test_remote_handler_captures_errors_then_passes():
     try:
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "cloud.log": "http://foo.bar:1800/log"}
+            {"logging.log_to_cloud": True}
         ):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
