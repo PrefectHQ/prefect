@@ -149,7 +149,7 @@ def test_repr(config):
 def test_getattr_missing(config):
     with pytest.raises(AttributeError) as exc:
         config.hello
-    assert "Config has no key 'hello'" in str(exc)
+    assert "Config has no key 'hello'" in str(exc.value)
 
 
 def test_debug(config):

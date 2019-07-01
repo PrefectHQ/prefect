@@ -62,7 +62,7 @@ def test_raise_on_exception_raises_basic_prefect_signal():
     with pytest.raises(prefect.engine.signals.FAIL) as error:
         with raise_on_exception():
             flow.run()
-    assert "needs more blockchain!" in str(error)
+    assert "needs more blockchain!" in str(error.value)
 
 
 def test_raise_on_exception_works_at_the_task_level_with_error():
@@ -77,7 +77,7 @@ def test_raise_on_exception_works_at_the_task_level_with_signal():
     with pytest.raises(prefect.engine.signals.FAIL) as error:
         with raise_on_exception():
             taskrunner.run()
-    assert "needs more blockchain!" in str(error)
+    assert "needs more blockchain!" in str(error.value)
 
 
 def test_that_bad_code_in_flow_runner_is_caught():
