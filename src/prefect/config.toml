@@ -7,7 +7,6 @@ debug = false
 api = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 log = "${cloud.api}/log"
-result_handler = "${cloud.api}/result-handler"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
