@@ -12,7 +12,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs
-from prefect.engine.cloud import CloudResultHandler, CloudTaskRunner
+from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
