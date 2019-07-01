@@ -58,7 +58,7 @@ A proposal for event-driven or long-running flows that run in response to events
 
 A proposal for a flexible and live-updating Prefect Cloud command line client.
 
-**Status:** Proposed
+**Status:** Approved
 
 ## [PIN-10: Flexible Schedules](PIN-10-Schedules.md)
 
