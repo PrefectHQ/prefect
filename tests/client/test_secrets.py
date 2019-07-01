@@ -47,7 +47,9 @@ def test_secret_value_depends_on_use_local_secrets():
 def test_secrets_use_client(monkeypatch):
     response = {"data": {"secretValue": "1234"}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
         {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
     ):
