@@ -38,10 +38,10 @@ class CloudHandler(logging.StreamHandler):
             record_dict = record.__dict__.copy()
             flow_run_id = prefect.context.get("flow_run_id", None)
             task_run_id = prefect.context.get("task_run_id", None)
-            timestamp = record_dict.pop("timestamp", pendulum.now("UTC"))
-            name = record_dict.pop("name", None)
-            message = record_dict.pop("message", None)
-            level = record_dict.pop("level", None)
+            timestamp = pendulum.from_timestamp(record_dict.get("created", time.time()))
+            name = record_dict.get("name", None)
+            message = record_dict.get("message", None)
+            level = record_dict.get("level", None)
 
             self.client.write_run_log(
                 flow_run_id=flow_run_id,
