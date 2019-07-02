@@ -38,7 +38,7 @@ jobs:
 
       - run:
           name: Run Flake8
-          command: flake8 . --count --max-line-length=88 --show-source --statistics
+          command: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
   check_mypy_typing:
     docker:
