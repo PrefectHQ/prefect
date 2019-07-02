@@ -547,7 +547,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     assert t3_0.state.is_failed()
 
 
-@pytest.mark.xfail(reason="Sometimes fails due to some shared-state error")
+# @pytest.mark.xfail(reason="Sometimes fails due to some shared-state error")
 def test_deep_map_with_a_retry(monkeypatch):
     """
     Creates a situation in which a deeply-mapped Flow encounters a one-time error in one
