@@ -127,7 +127,7 @@ classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3Res
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
-classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
+classes = ["CloudFlowRunner", "CloudTaskRunner"]
 
 [pages.environments.storage]
 title = "Storage"
