@@ -12,6 +12,7 @@ extras = {
     "airtable": ["airtable-python-wrapper >= 0.11, < 0.12"],
     "aws": ["boto3 >= 1.9, < 2.0"],
     "dev": dev_requires,
+    "dropbox": ["dropbox ~= 9.0"],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",
