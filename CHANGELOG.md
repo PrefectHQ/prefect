@@ -22,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Add task to trigger AWS Step function workflow [#1012](https://github.com/PrefectHQ/prefect/issues/1012)
+- Add task to copy files within Google Cloud Storage - [#1206](https://github.com/PrefectHQ/prefect/pull/1206)
 
 ### Fixes
 
