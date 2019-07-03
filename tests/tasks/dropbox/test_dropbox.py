@@ -21,8 +21,7 @@ class TestInitialization:
 
     @pytest.mark.parametrize("attr", ["path", "access_token_secret"])
     def test_download_initializes_attr_from_kwargs(self, attr):
-        task = DropboxDownload(path="path", **{attr: "my-value"})
-        assert task.path == "path"
+        task = DropboxDownload(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
 
 
