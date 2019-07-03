@@ -28,19 +28,19 @@ def callback_factory(
     check: Callable[["prefect.engine.state.State"], bool],
 ) -> Callable:
     """
-    Utility for generating state handlers which serve as callbacks, under arbitrary
+    Utility for generating state handlers that serve as callbacks, under arbitrary
     state-based checks.
 
     Args:
         - fn (Callable): a function with signature `fn(obj, state: State) -> None`
-            which will be called anytime the associated state-check passes; in general,
+            that will be called anytime the associated state-check passes; in general,
             it is expected that this function will have side effects (e.g., sends an email).  The first
             argument to this function is the `Task` or `Flow` it is attached to.
         - check (Callable): a function with signature `check(state: State) -> bool`
-            which is used for determining when the callback function should be called
+            that is used for determining when the callback function should be called
 
     Returns:
-        - state_handler (Callable): a state handler function which can be attached to both Tasks and Flows
+        - state_handler (Callable): a state handler function that can be attached to both Tasks and Flows
 
     Example:
         ```python
@@ -178,7 +178,7 @@ def gmail_notifier(
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
 
     Returns:
-        - State: the `new_state` object which was provided
+        - State: the `new_state` object that was provided
 
     Raises:
         - ValueError: if the email notification fails for any reason
@@ -243,11 +243,11 @@ def slack_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_secret (str, optional): the name of the Prefect Secret which stores your slack webhook URL;
+        - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack webhook URL;
             defaults to `"SLACK_WEBHOOK_URL"`
 
     Returns:
-        - State: the `new_state` object which was provided
+        - State: the `new_state` object that was provided
 
     Raises:
         - ValueError: if the slack notification fails for any reason

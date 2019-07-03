@@ -17,7 +17,7 @@ class StepActivate(Task):
         - execution_input (str, optional): string that contains the JSON input data for
             the execution
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -44,7 +44,7 @@ class StepActivate(Task):
 
         Args:
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
         Returns:

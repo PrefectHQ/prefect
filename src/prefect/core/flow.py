@@ -111,7 +111,7 @@ class Flow:
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
-        - reference_tasks ([Task], optional): A list of tasks which determine the final
+        - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
@@ -237,7 +237,7 @@ class Flow:
             - task_type (type, optional): a possible task class type
 
         Returns:
-            - [Task]: a list of tasks which meet the required conditions
+            - [Task]: a list of tasks that meet the required conditions
         """
 
         def sieve(t: Task) -> bool:
@@ -328,7 +328,7 @@ class Flow:
     def root_tasks(self) -> Set[Task]:
         """
         Get the tasks in the flow that have no upstream dependencies; these are
-        the tasks which, by default, flow execution begins with.
+        the tasks that, by default, flow execution begins with.
 
         Returns:
             - set of Task objects that have no upstream dependencies
@@ -363,7 +363,7 @@ class Flow:
         of what is considered failure, success, etc.)
 
         By default, a flow's reference tasks are its terminal tasks. This means the state of a
-        flow is determined by those tasks which have no downstream dependencies.
+        flow is determined by those tasks that have no downstream dependencies.
 
         In some situations, users may want to customize this behavior; for example, if a
         flow's terminal tasks are "clean up" tasks for the rest of the flow that only run
