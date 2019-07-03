@@ -135,4 +135,3 @@ class TestCredentialsandProjects:
         assert x[1]["project"] == "default"  ## pulled from credentials
         assert y[1]["project"] == "test-init"  ## pulled from init
         assert z[1]["project"] == "run-time"  ## pulled from run kwarg
-
