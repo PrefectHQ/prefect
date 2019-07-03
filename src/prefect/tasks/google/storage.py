@@ -71,16 +71,15 @@ class GCSDownload(GCSBaseTask):
     Task template for downloading data from Google Cloud Storage as a string.
 
     Args:
-        - bucket (str): default bucket name to download from; can be overwritten at runtime
-        - blob (str, optional): default blob name to download; can be
-            overwritten at runtime.  Required prior to running the task.
-        - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
+        - bucket (str): default bucket name to download from
+        - blob (str, optional): default blob name to download.
+        - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
         - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a JSON representation of your Google Cloud credentials; can be overwritten at runtime.
+            which stores a JSON representation of your Google Cloud credentials.
             Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - encryption_key_secret (str, optional): the name of the Prefect Secret
-            storing an optional `encryption_key` to be used when downloading the Blob; can be overwritten at runtime
+            storing an optional `encryption_key` to be used when downloading the Blob
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default settings.  Each inidividual
@@ -118,24 +117,26 @@ class GCSDownload(GCSBaseTask):
         encryption_key_secret: str = None,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task after initialization within a Flow context.
+        Run method for this Task.  Invoked by _calling_ this Task after initialization
+        within a Flow context.
+
+        Note that some arguments are required for the task to run, and must be provided
+        _either_ at initialization _or_ as arguments.
 
         Args:
-            - bucket (str, optional): the bucket name to upload to; if not provided,
-                will default to the one provided at initialization
-            - blob (str, optional): blob name to download from; if not provided here or at initialization,
-                a `ValueError` will be raised
+            - bucket (str, optional): the bucket name to upload to
+            - blob (str, optional): blob name to download from
             - project (str, optional): Google Cloud project to work within.
                 If not provided here or at initialization, will be inferred from your Google Cloud credentials
             - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a JSON represenation of your Google Cloud credentials; if not provided here or at initialization,
+                that stores a JSON represenation of your Google Cloud credentials
                 `GOOGLE_APPLICATION_CREDENTIALS` will be used.
             - encryption_key_secret (str, optional): the name of the Prefect Secret
-                storing an optional `encryption_key` to be used when uploading the Blob; if not provided here, will default to the
-                one provided at initilization
+                storing an optional `encryption_key` to be used when uploading the Blob
 
         Raises:
-            - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket name is not found
+            - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket
+                name is not found
             - ValueError: if `blob` name hasn't been provided
 
         Returns:
@@ -157,25 +158,27 @@ class GCSDownload(GCSBaseTask):
 
 class GCSUpload(GCSBaseTask):
     """
-    Task template for uploading data to Google Cloud Storage.  Requires the data already be a string.
+    Task template for uploading data to Google Cloud Storage.  Requires the data already
+    be a string.
 
     Args:
-        - bucket (str): default bucket name to upload to; can be overwritten at runtime
-        - blob (str, optional): default blob name to upload to; can be overwritten at runtime,
-            else a random string beginning with `prefect-` and containing the Task Run ID will be used
-        - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
+        - bucket (str): default bucket name to upload to
+        - blob (str, optional): default blob name to upload to; otherwise a random string
+            beginning with `prefect-` and containing the Task Run ID will be used
+        - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
         - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a JSON represenation of your Google Cloud credentials; can be overwritten at runtime.
+            which stores a JSON represenation of your Google Cloud credentials.
             Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - create_bucket (bool, optional): boolean specifying whether to create the bucket if it does not exist,
-            otherwise an Exception is raised; can be overwritten at runtime. Defaults to `False`.
+            otherwise an Exception is raised. Defaults to `False`.
         - encryption_key_secret (str, optional): the name of the Prefect Secret
-            storing an optional `encryption_key` to be used when uploading the Blob; can be overwritten at runtime
+            storing an optional `encryption_key` to be used when uploading the Blob
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
-    Note that the design of this task allows you to initialize a _template_ with default settings.  Each inidividual
-    occurence of the task in a Flow can overwrite any of these default settings for custom use (for example, if you want to pull different
+    Note that the design of this task allows you to initialize a _template_ with default
+    settings.  Each inidividual occurence of the task in a Flow can overwrite any of
+    these default settings for custom use (for example, if you want to pull different
     credentials for a given Task, or specify the Blob name at runtime).
     """
 
@@ -218,25 +221,26 @@ class GCSUpload(GCSBaseTask):
         encryption_key_secret: str = None,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task after initialization within a Flow context.
+        Run method for this Task.  Invoked by _calling_ this Task after initialization
+        within a Flow context.
+
+        Note that some arguments are required for the task to run, and must be
+        provided _either_ at initialization _or_ as arguments.
 
         Args:
             - data (str): the data to upload; must already be represented as a string
-            - bucket (str, optional): the bucket name to upload to; if not provided,
-                will default to the one provided at initialization
-            - blob (str, optional): blob name to upload to; if not provided here or at initialization,
+            - bucket (str, optional): the bucket name to upload to
+            - blob (str, optional): blob name to upload to
                 a string beginning with `prefect-` and containing the Task Run ID will be used
-            - project (str, optional): Google Cloud project to work within.
-                If not provided here or at initialization, will be inferred from your Google Cloud credentials
+            - project (str, optional): Google Cloud project to work within. Can be inferred
+                from credentials if not provided.
             - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a JSON represenation of your Google Cloud credentials; if not provided here or at initialization,
-                `GOOGLE_APPLICATION_CREDENTIALS` will be used.
-            - create_bucket (bool, optional): boolean specifying whether to create the bucket if it does not exist,
-                otherwise an Exception is raised; if not provided here, will default to the value provided at initialization.
-                Defaults to `False`.
+                which stores a JSON represenation of your Google Cloud credentials.
+                Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
+            - create_bucket (bool, optional): boolean specifying whether to create the bucket
+                if it does not exist, otherwise an Exception is raised. Defaults to `False`.
             - encryption_key_secret (str, optional): the name of the Prefect Secret
-                storing an optional `encryption_key` to be used when uploading the Blob; if not provided here, will default to the
-                one provided at initilization
+                storing an optional `encryption_key` to be used when uploading the Blob.
 
         Raises:
             - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket name is not found
@@ -263,21 +267,21 @@ class GCSCopy(Task):
     Task template for copying data from one Google Cloud Storage bucket to another, without
     downloading it locally.
 
+    Note that some arguments are required for the task to run, and must be
+    provided _either_ at initialization _or_ as arguments.
+
     Args:
-        - source_bucket (str, optional): default source bucket name; can be overwritten at
-            runtime. Required prior to running the task.
-        - source_blob (str, optional): default source blob name; can be
-            overwritten at runtime.  Required prior to running the task.
-        - dest_bucket (str, optional): default destination bucket name; can be overwritten at
-            runtime. Required prior to running the task.
-        - dest_blob (str, optional): default destination blob name; can be
-            overwritten at runtime.  Required prior to running the task.
-        - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
+        - source_bucket (str, optional): default source bucket name.
+        - source_blob (str, optional): default source blob name.
+        - dest_bucket (str, optional): default destination bucket name.
+        - dest_blob (str, optional): default destination blob name.
+        - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
         - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a JSON representation of your Google Cloud credentials; can be overwritten at runtime.
+            which stores a JSON representation of your Google Cloud credentials.
             Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default settings.  Each inidividual
     occurence of the task in a Flow can overwrite any of these default settings for custom use (for example, if you want to pull different
@@ -324,21 +328,21 @@ class GCSCopy(Task):
         credentials_secret: str = None,
     ) -> None:
         """
-        Run method for this Task.  Invoked by _calling_ this Task after initialization within a Flow context.
+        Run method for this Task. Invoked by _calling_ this Task after initialization
+        within a Flow context.
+
+        Note that some arguments are required for the task to run, and must be
+        provided _either_ at initialization _or_ as arguments.
 
         Args:
-            - source_bucket (str, optional): default source bucket name; can be overwritten at
-                runtime. Required prior to running the task.
-            - source_blob (str, optional): default source blob name; can be
-                overwritten at runtime.  Required prior to running the task.
-            - dest_bucket (str, optional): default destination bucket name; can be overwritten at
-                runtime. Required prior to running the task.
-            - dest_blob (str, optional): default destination blob name; can be
-                overwritten at runtime.  Required prior to running the task.
-            - project (str, optional): default Google Cloud project to work within; can be overwritten at runtime.
+            - source_bucket (str, optional): default source bucket name.
+            - source_blob (str, optional): default source blob name.
+            - dest_bucket (str, optional): default destination bucket name.
+            - dest_blob (str, optional): default destination blob name.
+            - project (str, optional): default Google Cloud project to work within.
                 If not provided, will be inferred from your Google Cloud credentials
             - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a JSON representation of your Google Cloud credentials; can be overwritten at runtime.
+                which stores a JSON representation of your Google Cloud credentials.
                 Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
 
         Raises:
