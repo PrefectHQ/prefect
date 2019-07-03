@@ -1,5 +1,5 @@
 """
-A simple example Flow which logs the duration of task runs
+A simple example Flow that logs the duration of task runs
 by using a task state handler.
 """
 import time
@@ -11,7 +11,7 @@ from prefect import Flow, task
 
 def timestamper(task, old_state, new_state):
     """
-    Task state handler which timestamps new states
+    Task state handler that timestamps new states
     and logs the duration between state changes using
     the task's logger.
     """

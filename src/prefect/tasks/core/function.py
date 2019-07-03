@@ -19,7 +19,7 @@ class FunctionTask(prefect.Task):
     Args:
         - fn (callable): the function to be the task's `run` method
         - name (str, optional): the name of this task
-        - **kwargs: keyword arguments which will be passed to the Task
+        - **kwargs: keyword arguments that will be passed to the Task
             constructor
 
     Raises:

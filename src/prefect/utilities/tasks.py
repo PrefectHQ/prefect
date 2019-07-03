@@ -206,7 +206,7 @@ class unmapped:
 
 def defaults_from_attrs(*attr_args: str) -> Callable:
     """
-    Helper decorator for dealing with Task classes with attributes which serve
+    Helper decorator for dealing with Task classes with attributes that serve
     as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
     to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
     if not explicitly provided to `self.run`.  This pattern allows users to create a Task "template",
