@@ -260,7 +260,7 @@ class GCSUpload(GCSBaseTask):
 
 class GCSCopy(Task):
     """
-    Task template for copying data from one Google Cloud Storage blob to another, without
+    Task template for copying data from one Google Cloud Storage bucket to another, without
     downloading it locally.
 
     Args:
