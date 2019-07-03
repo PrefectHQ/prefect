@@ -340,7 +340,6 @@ class GCSCopy(Task):
             - credentials_secret (str, optional): the name of the Prefect Secret
                 which stores a JSON representation of your Google Cloud credentials; can be overwritten at runtime.
                 Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
         Raises:
             - ValueError: if `source_bucket`, `source_blob`, `dest_bucket`, or `dest_blob`
