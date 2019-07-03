@@ -53,7 +53,7 @@ class Secret:
                 value = secrets[self.name]
             except KeyError:
                 raise ValueError(
-                    "Local Secret {} was not found.".format(self.name)
+                    'Local Secret "{}" was not found.'.format(self.name)
                 ) from None
             try:
                 return json.loads(value)
