@@ -115,7 +115,7 @@ class GCSDownload(GCSBaseTask):
         project: str = None,
         credentials_secret: str = None,
         encryption_key_secret: str = None,
-    ):
+    ) -> str:
         """
         Run method for this Task.  Invoked by _calling_ this Task after initialization
         within a Flow context.
@@ -134,13 +134,14 @@ class GCSDownload(GCSBaseTask):
             - encryption_key_secret (str, optional): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob
 
+        Returns:
+            - str: the data from the blob, as a string
+
         Raises:
             - google.cloud.exception.NotFound: if `create_bucket=False` and the bucket
                 name is not found
             - ValueError: if `blob` name hasn't been provided
 
-        Returns:
-            - str: the data from the blob, as a string
         """
         ## create client
         client = self._load_client(project, credentials_secret)
@@ -219,7 +220,7 @@ class GCSUpload(GCSBaseTask):
         credentials_secret: str = None,
         create_bucket: bool = False,
         encryption_key_secret: str = None,
-    ):
+    ) -> str:
         """
         Run method for this Task.  Invoked by _calling_ this Task after initialization
         within a Flow context.
@@ -326,7 +327,7 @@ class GCSCopy(Task):
         dest_blob: str = None,
         project: str = None,
         credentials_secret: str = None,
-    ) -> None:
+    ) -> str:
         """
         Run method for this Task. Invoked by _calling_ this Task after initialization
         within a Flow context.
@@ -344,6 +345,9 @@ class GCSCopy(Task):
             - credentials_secret (str, optional): the name of the Prefect Secret
                 which stores a JSON representation of your Google Cloud credentials.
                 Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
+
+        Returns:
+            - str: the name of the destination blob
 
         Raises:
             - ValueError: if `source_bucket`, `source_blob`, `dest_bucket`, or `dest_blob`
@@ -370,3 +374,5 @@ class GCSCopy(Task):
         source_bucket_obj.copy_blob(
             blob=source_blob_obj, destination_bucket=dest_bucket_obj, new_name=dest_blob
         )
+
+        return dest_blob
