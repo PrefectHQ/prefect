@@ -8,9 +8,9 @@ from prefect.utilities.configuration import set_temporary_config
 
 
 class TestInitialization:
-    def test_initializes_with_path_and_sets_defaults(self):
-        task = DropboxDownload(path="")
-        assert task.path == ""
+    def test_initializes_with_defaults(self):
+        task = DropboxDownload()
+        assert task.path == None
         assert task.access_token_secret == "DROPBOX_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
@@ -19,13 +19,7 @@ class TestInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    def test_path_is_required(self):
-        with pytest.raises(TypeError) as exc:
-            DropboxDownload()
-
-        assert "path" in str(exc.value)
-
-    @pytest.mark.parametrize("attr", ["access_token_secret"])
+    @pytest.mark.parametrize("attr", ["path", "access_token_secret"])
     def test_download_initializes_attr_from_kwargs(self, attr):
         task = DropboxDownload(path="path", **{attr: "my-value"})
         assert task.path == "path"
