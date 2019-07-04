@@ -1355,7 +1355,7 @@ class TestRunMappedStep:
     @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
     def test_run_mapped_returns_mapped(self, state):
         state = TaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
+            state=state,
             upstream_states={},
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
