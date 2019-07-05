@@ -202,7 +202,7 @@ class ListContainers(Task):
 
 class StartContainer(Task):
     """
-    Task for starting a Docker container which runs the (optional) command it was created with.
+    Task for starting a Docker container that runs the (optional) command it was created with.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:

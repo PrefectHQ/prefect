@@ -602,7 +602,7 @@ class Client:
         self, task_id: str, created_after: datetime.datetime
     ) -> List["prefect.engine.state.State"]:
         """
-        Pulls all Cached states for the given task which were created after the provided date.
+        Pulls all Cached states for the given task that were created after the provided date.
 
         Args:
             - task_id (str): the task id for this task run

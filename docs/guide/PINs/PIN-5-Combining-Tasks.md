@@ -15,7 +15,7 @@ Declined (_see bottom of page for reason_)
 
 ## Context
 
-Imagine the following typical scenario: a data engineer wants to create a Prefect Flow which routinely migrates some data from S3 to Google Cloud Storage (along with other things). In our current framework, we implicitly recommend the user do something like (pseudo-code):
+Imagine the following typical scenario: a data engineer wants to create a Prefect Flow that routinely migrates some data from S3 to Google Cloud Storage (along with other things). In our current framework, we implicitly recommend the user do something like (pseudo-code):
 
 ```python
 s3_task = S3Task(..)
@@ -33,7 +33,7 @@ Additionally, it would be nice if users could specify that two tasks should run 
 
 ## Proposal
 
-We will implement some sugar which allows users to combine two tasks into a single `Task`. For example, the imperative version of this might look like (pseudo-code):
+We will implement some sugar that allows users to combine two tasks into a single `Task`. For example, the imperative version of this might look like (pseudo-code):
 
 ```python
 class CombinedTask(Task):
@@ -61,7 +61,7 @@ Of course, there is some work that needs to be done under the hood to match inpu
 second_task.combine(first_task(config="some_setting"), parameter="another_input")
 ```
 
-But ultimately, these two tasks would be combined into a _single task_ which is submitted to a _single worker_.
+But ultimately, these two tasks would be combined into a _single task_ that is submitted to a _single worker_.
 
 ### How many tasks?
 

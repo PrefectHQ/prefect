@@ -6,8 +6,8 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "classes" -> (list, optional): list of classes to document
     - "functions" -> (list, optional): list of standalone functions to document
     - "title" -> (str, optional): title of page
-    - "top-level-doc" -> (object, optional): module object which contains the
-        docstring which will be displayed at the top of the generated page
+    - "top-level-doc" -> (object, optional): module object that contains the
+        docstring that will be displayed at the top of the generated page
 
 On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
 """
@@ -282,7 +282,7 @@ def get_class_methods(obj):
 
 def create_tutorial_notebooks(tutorial):
     """
-    Utility which automagically creates an .ipynb notebook file from a markdown file consisting
+    Utility that automagically creates an .ipynb notebook file from a markdown file consisting
     of all python code blocks contained within the markdown file.
 
     Args:

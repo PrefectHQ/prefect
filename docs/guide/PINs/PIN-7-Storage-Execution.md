@@ -24,7 +24,7 @@ The core of the proposal is to create two separate interfaces: one called `Stora
 
 The proposed Prefect Storage interface encapsulates logic for storing, serializing and even running Flows.  Each storage unit will be able to store _multiple_ flows (possibly with the constraint of name uniqueness within a given unit), and will expose the following methods and attributes:
 - a name attribute
-- a `flows` attribute which is a dictionary of flow name -> location
+- a `flows` attribute that is a dictionary of flow name -> location
 - an `add_flow(flow: Flow) -> str` method for adding flows to Storage, and which will return the location of the given flow in the Storage unit
 - the `__contains__(self, obj) -> bool` special method for determining whether the Storage contains a given Flow
 - one of `get_runner(flow_location: str)` or `get_env_runner(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a `FlowRunner` for the flow; `get_env_runner` is intended for situations where flow execution can only be interacted with via environment variables
@@ -35,7 +35,7 @@ The proposed Prefect Storage interface encapsulates logic for storing, serializi
 
 The proposed Execution Environment interface encapsulates logic for setting up and executing a flow run on various infrastructure.  The interface for an `Environment` is simple:
 - a `setup(storage: Storage) -> None` method for setting up any required infrastructure for the execution environment (e.g., spinning up resources)
-- an `execute(storage: Storage, flow_location: str) -> None` method which serves as an entrypoint for individual Flow execution
+- an `execute(storage: Storage, flow_location: str) -> None` method that serves as an entrypoint for individual Flow execution
 - a `serialize() -> dict` method for serializing the relevant information about this environment
 
 An environment can require certain types of Storage, but should be able to do all its work via interacting with the Storage interface above.  Note that all of environment, storage and flow_location can be serialized within a given Flow.
