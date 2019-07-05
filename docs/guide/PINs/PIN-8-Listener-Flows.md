@@ -64,7 +64,7 @@ In that vein, it's important to note that Prefect is not a stream processor. It'
 - A `Listener` class whose `listen()` method is a generator that emits `Events`. It is attached to the `ListenerFlowRunner` as the `listener` attribute
 - The `ListenerFlowRunner` designates one of the flow's `Parameters` as the `event_parameter`. When an event is emitted by the `listener`, the flow will be executed with the event passed to that `event_parameter`.
 - A new `Listening` state that subclasses `Running`
-- A new schedule called `AlwaysRunning` which attempts to immediately restart a flow if it stops
+- A new schedule called `AlwaysRunning` that attempts to immediately restart a flow if it stops
 
 ### Process
 
