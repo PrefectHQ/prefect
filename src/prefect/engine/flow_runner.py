@@ -492,6 +492,7 @@ class FlowRunner(Runner):
         # check that the flow is finished
         if not all(s.is_finished() for s in terminal_states):
             self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
+            state.result = return_states
 
         # check if any key task failed
         elif any(s.is_failed() for s in key_states):
