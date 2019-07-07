@@ -713,6 +713,9 @@ class TaskRunner(Runner):
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
 
+        self.logger.debug(
+            "{} mapped tasks submitted for execution.".format(len(map_states))
+        )
         new_state = Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
