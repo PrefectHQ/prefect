@@ -10,6 +10,8 @@ import prefect
 __all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
 if TYPE_CHECKING:
+    import prefect.tasks.core.constants
+    import prefect.tasks.core.collections
     import prefect.tasks.core.function
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
