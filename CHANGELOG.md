@@ -43,6 +43,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Kwangyoun Jung](https://github.com/initialkommit)
+- [Anes Benmerzoug](https://github.com/AnesBenmerzoug)
 
 ## 0.5.4 <Badge text="beta" type="success"/>
 
