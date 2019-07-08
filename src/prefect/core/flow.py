@@ -777,7 +777,7 @@ class Flow:
             - None
         """
 
-        task = as_task(task)
+        task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert
 
         # add the main task (in case it was called with no arguments)
@@ -786,7 +786,7 @@ class Flow:
         # add upstream tasks
         for t in upstream_tasks or []:
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
                 upstream_task=t,
@@ -797,14 +797,14 @@ class Flow:
 
         # add downstream tasks
         for t in downstream_tasks or []:
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
                 upstream_task=t,
