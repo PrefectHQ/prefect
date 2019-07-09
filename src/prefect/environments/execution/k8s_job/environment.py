@@ -2,7 +2,6 @@ from typing import Any
 
 import cloudpickle
 
-import prefect
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
 from prefect.utilities import logging
@@ -62,12 +61,7 @@ class KubernetesJobEnvironment(Environment):
             )
 
             # Load serialized flow from file and run it with a DaskExecutor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
+            with open(flow_location, "rb") as f:
                 flow = cloudpickle.load(f)
 
                 with set_temporary_config(
