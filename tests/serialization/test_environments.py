@@ -3,7 +3,7 @@ from prefect import environments
 from prefect.serialization.environment import (
     BaseEnvironmentSchema,
     CloudEnvironmentSchema,
-    KubernetesJobEnvironmentSchema,
+    RemoteEnvironmentSchema,
 )
 
 
@@ -44,10 +44,10 @@ def test_serialize_cloud_environment_with_private_registry():
     assert new.docker_secret == "FOO"
 
 
-def test_serialize_kubernetes_job_environment():
-    env = environments.KubernetesJobEnvironment()
+def test_serialize_remote_environment():
+    env = environments.RemoteEnvironment()
 
-    schema = KubernetesJobEnvironmentSchema()
+    schema = RemoteEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__

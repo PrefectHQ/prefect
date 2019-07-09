@@ -5,19 +5,19 @@ import cloudpickle
 import pytest
 
 import prefect
-from prefect.environments import KubernetesJobEnvironment
+from prefect.environments import RemoteEnvironment
 from prefect.environments.storage import Memory, Docker
 
 
-def test_create_kubernetes_job_environment():
-    environment = KubernetesJobEnvironment()
+def test_create_remote_environment():
+    environment = RemoteEnvironment()
     assert environment
     assert environment.executor == "prefect.engine.executors.SynchronousExecutor"
     assert environment.executor_kwargs == {}
 
 
-def test_create_kubernetes_job_environment_populated():
-    environment = KubernetesJobEnvironment(
+def test_create_remote_environment_populated():
+    environment = RemoteEnvironment(
         executor="prefect.engine.executors.DaskExecutor",
         executor_kwargs={"address": "test"},
     )
@@ -40,7 +40,7 @@ def test_environment_execute():
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
 
-        environment = KubernetesJobEnvironment()
+        environment = RemoteEnvironment()
         storage = Docker(registry_url="test")
 
         environment.execute(storage, flow_path)
@@ -50,6 +50,6 @@ def test_environment_execute():
 
 
 def test_execute_wrong_storage():
-    environment = KubernetesJobEnvironment()
+    environment = RemoteEnvironment()
     with pytest.raises(TypeError):
         environment.execute(storage=Memory(), flow_location="test")
