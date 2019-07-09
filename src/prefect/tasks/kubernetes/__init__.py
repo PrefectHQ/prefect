@@ -2,7 +2,7 @@
 Tasks for interacting with various Kubernetes API objects.
 
 Note that depending on how you choose to authenticate, tasks in this collection might require
-a Prefect Secret called `"KUBERNETES_API_KEY"` which stores your Kubernetes API Key;
+a Prefect Secret called `"KUBERNETES_API_KEY"` that stores your Kubernetes API Key;
 this Secret must be a string and in BearerToken format.
 """
 try:

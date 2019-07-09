@@ -600,7 +600,6 @@ class TaskRunner(Runner):
                 return Pending("Cache was invalid; ready to run.")
         return state
 
-    @call_state_handlers
     def run_mapped_task(
         self,
         state: State,
@@ -701,14 +700,26 @@ class TaskRunner(Runner):
             initial_states = []
         initial_states.extend([None] * (len(map_upstream_states) - len(initial_states)))
 
+        current_state = Mapped(  # type: ignore
+            message="Preparing to submit {} mapped tasks.".format(len(initial_states)),
+            map_states=initial_states,
+        )
+        state = self.handle_state_change(old_state=state, new_state=current_state)
+        if state is not current_state:
+            return state
+
         # map over the initial states, a counter representing the map_index, and also the mapped upstream states
         map_states = executor.map(
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
 
-        return Mapped(
+        self.logger.debug(
+            "{} mapped tasks submitted for execution.".format(len(map_states))
+        )
+        new_state = Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
+        return self.handle_state_change(old_state=state, new_state=new_state)
 
     @call_state_handlers
     def wait_for_mapped_task(

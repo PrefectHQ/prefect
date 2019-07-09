@@ -11,12 +11,8 @@
   <img src="https://codecov.io/gh/PrefectHQ/prefect/branch/master/graph/badge.svg" />
 </a>
 
-<a href=https://github.com/ambv/black style="margin-left: 10px">
+<a href=https://github.com/ambv/black>
     <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
-</a>
-
-<a href="https://gitter.im/prefectio/prefect?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-    <img src="https://badges.gitter.im/prefectio/prefect.svg">
 </a>
 
 <a href="https://pypi.org/project/prefect/">
@@ -26,6 +22,11 @@
 <a href="https://hub.docker.com/r/prefecthq/prefect">
     <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
 </a>
+
+<a href=https://join.slack.com/t/prefect-public/shared_invite/enQtNjgwMzI5MjgwNTc2LWUzOGVkZTVkODcwNWNhZTNmMzM0YWMzZjBmZGI4YTNhMzUyM2E0YTIyZDE3NDI1YTYyMTQ1NGM0ZmFjNmRjNDQ>
+    <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
+</a>
+
 </p>
 
 ## Hello, world! 👋
@@ -59,6 +60,8 @@ Prefect's documentation -- including concepts, tutorials, and a full API referen
 ## Contributing
 
 Read about Prefect's [community](https://docs.prefect.io/guide/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/guide/development/overview.html) for information about contributions, documentation, code style, and testing.
+
+Join our [Slack](https://join.slack.com/t/prefect-public/shared_invite/enQtNjgwMzI5MjgwNTc2LWUzOGVkZTVkODcwNWNhZTNmMzM0YWMzZjBmZGI4YTNhMzUyM2E0YTIyZDE3NDI1YTYyMTQ1NGM0ZmFjNmRjNDQ) to chat about Prefect, ask questions, and share tips.
 
 Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
 
