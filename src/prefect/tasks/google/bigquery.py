@@ -25,7 +25,7 @@ class BigQueryTask(Task):
             for more details on how both the query and the query parameters should be formatted
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
-        - location (str, optional): location of the dataset which will be queried; defaults to "US"
+        - location (str, optional): location of the dataset that will be queried; defaults to "US"
         - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
             to process; this will be determined by executing a dry run and raising a `ValueError` if the
             maximum is exceeded
@@ -100,7 +100,7 @@ class BigQueryTask(Task):
                 for more details on how both the query and the query parameters should be formatted
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
-            - location (str, optional): location of the dataset which will be queried; defaults to "US"
+            - location (str, optional): location of the dataset that will be queried; defaults to "US"
             - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
                 to process; this will be determined by executing a dry run and raising a `ValueError` if the
                 maximum is exceeded
@@ -184,7 +184,7 @@ class BigQueryStreamingInsert(Task):
             records to
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
-        - location (str, optional): location of the dataset which will be queried; defaults to "US"
+        - location (str, optional): location of the dataset that will be queried; defaults to "US"
         - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
             of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
@@ -232,7 +232,7 @@ class BigQueryStreamingInsert(Task):
                 records to; if not provided here, will default to the one provided at initialization
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
-            - location (str, optional): location of the dataset which will be queried; defaults to "US"
+            - location (str, optional): location of the dataset that will be queried; defaults to "US"
             - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
                 of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
             - **kwargs (optional): additional kwargs to pass to the
@@ -285,7 +285,7 @@ class CreateBigQueryTable(Task):
             will default to the one inferred from your credentials
         - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
             of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
-        - dataset (str, optional): the name of a dataset in which the table will be created
+        - dataset (str, optional): the name of a dataset in that the table will be created
         - table (str, optional): the name of a table to create
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - clustering_fields (List[str], optional): a list of fields to cluster the table by
@@ -331,7 +331,7 @@ class CreateBigQueryTable(Task):
                 will default to the one inferred from your credentials
             - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
                 of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
-            - dataset (str, optional): the name of a dataset in which the table will be created
+            - dataset (str, optional): the name of a dataset in that the table will be created
             - table (str, optional): the name of a table to create
             - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
 

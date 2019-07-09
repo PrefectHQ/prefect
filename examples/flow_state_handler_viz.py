@@ -1,5 +1,5 @@
 """
-A simple example Flow which stores the current flow visualization to a file
+A simple example Flow that stores the current flow visualization to a file
 each time the flow changes state, using a Flow-level state handler.
 
 Uses the same flow from "Retries w/ Mapping" on a minute schedule.
@@ -13,7 +13,7 @@ from prefect.schedules import IntervalSchedule
 
 def visualize(flow, old_state, new_state):
     """
-    Flow state handler which stores the current flow
+    Flow state handler that stores the current flow
     visualization to a known file location, for live viewing.
     """
     if isinstance(new_state.result, dict):

@@ -569,6 +569,9 @@ def test_deep_map_with_a_retry(monkeypatch):
     t2.max_retries = 1
     t2.retry_delay = datetime.timedelta(seconds=0)
 
+    monkeypatch.setattr("requests.Session", MagicMock())
+    monkeypatch.setattr("requests.post", MagicMock())
+
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
