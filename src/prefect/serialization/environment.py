@@ -1,7 +1,12 @@
 from marshmallow import fields
 
 import prefect
-from prefect.environments import CloudEnvironment, Environment, LocalEnvironment
+from prefect.environments import (
+    CloudEnvironment,
+    Environment,
+    KubernetesJobEnvironment,
+    LocalEnvironment,
+)
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
@@ -23,6 +28,14 @@ class CloudEnvironmentSchema(ObjectSchema):
     private_registry = fields.Boolean(allow_none=False)
 
 
+class KubernetesJobEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = KubernetesJobEnvironment
+
+    executor = fields.String(allow_none=True)
+    executor_kwargs = fields.Dict(allow_none=True)
+
+
 class EnvironmentSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -32,5 +45,6 @@ class EnvironmentSchema(OneOfSchema):
     type_schemas = {
         "CloudEnvironment": CloudEnvironmentSchema,
         "Environment": BaseEnvironmentSchema,
+        "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
     }
