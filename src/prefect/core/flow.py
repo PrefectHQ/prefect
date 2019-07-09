@@ -272,7 +272,7 @@ class Flow:
         if old not in self.tasks:
             raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
 
-        new = as_task(new)
+        new = as_task(new, flow=self)
 
         # update tasks
         self.tasks.remove(old)
