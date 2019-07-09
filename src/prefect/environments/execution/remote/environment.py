@@ -8,15 +8,14 @@ from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 
 
-class KubernetesJobEnvironment(Environment):
+class RemoteEnvironment(Environment):
     """
-    KubernetesJobEnvironment is an environment which takes in information around an executor
-    and runs the flow in place using that executor. This environment is intended to run
-    inside of a container on Kubernetes.
+    RemoteEnvironment is an environment which takes in information around an executor
+    and runs the flow in place using that executor.
 
-    Example using a KubernetesJobEnvironment w/ an existing Dask cluster:
+    Example using a RemoteEnvironment w/ an existing Dask cluster:
     ```
-    KubernetesJobEnvironment(
+    RemoteEnvironment(
         executor="prefect.engine.executors.DaskExecutor",
         executor_kwargs={"address": "tcp://dask_scheduler_address"}
     )
@@ -36,7 +35,7 @@ class KubernetesJobEnvironment(Environment):
     ) -> None:
         self.executor = executor
         self.executor_kwargs = executor_kwargs
-        self.logger = logging.get_logger("KubernetesJobEnvironment")
+        self.logger = logging.get_logger("RemoteEnvironment")
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -52,7 +51,7 @@ class KubernetesJobEnvironment(Environment):
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
         if not isinstance(storage, Docker):
-            raise TypeError("KubernetesJobEnvironment requires a Docker storage option")
+            raise TypeError("RemoteEnvironment requires a Docker storage option")
 
         try:
             from prefect.engine import (
