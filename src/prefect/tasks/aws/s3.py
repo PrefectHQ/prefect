@@ -15,7 +15,7 @@ class S3Download(Task):
 
     Args:
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - bucket (str, optional): the name of the S3 Bucket to download from
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -45,7 +45,7 @@ class S3Download(Task):
         Args:
             - key (str): the name of the Key within this bucket to retrieve
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
             - bucket (str, optional): the name of the S3 Bucket to download from
 
@@ -83,7 +83,7 @@ class S3Upload(Task):
 
     Args:
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - bucket (str, optional): the name of the S3 Bucket to upload to
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -116,7 +116,7 @@ class S3Upload(Task):
             - key (str, optional): the Key to upload the data under; if not
                 provided, a random `uuid` will be created
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
             - bucket (str, optional): the name of the S3 Bucket to upload to
 

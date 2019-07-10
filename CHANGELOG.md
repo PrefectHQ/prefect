@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Add the Prefect CLI for working with core objects both locally and in cloud - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
+- Add RemoteEnvironment for simple executor based executions - [#1215](https://github.com/PrefectHQ/prefect/pull/1215)
 
 ### Enhancements
 
@@ -23,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add task to trigger AWS Step function workflow [#1012](https://github.com/PrefectHQ/prefect/issues/1012)
 - Add task to copy files within Google Cloud Storage - [#1206](https://github.com/PrefectHQ/prefect/pull/1206)
+- Add task for downloading files from Dropbox - [#1205](https://github.com/PrefectHQ/prefect/pull/1205)
 
 ### Fixes
 
@@ -32,6 +34,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with passing results to Prefect signals - [#1163](https://github.com/PrefectHQ/prefect/issues/1163)
 - Fix issue with `flow.update` not preserving mapped edges - [#1164](https://github.com/PrefectHQ/prefect/issues/1164)
 - Fix issue with Parameters and Context not being raw dictionaries - [#1186](https://github.com/PrefectHQ/prefect/issues/1186)
+- Fix issue with asynchronous, long-running mapped retries in Prefect Cloud - [#1208](https://github.com/PrefectHQ/prefect/pull/1208) 
+- Fix issue with automatically applied collections to task call arguments when using the imperative API - [#1211](https://github.com/PrefectHQ/prefect/issues/1211)
 
 ### Breaking Changes
 
@@ -42,6 +46,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Kwangyoun Jung](https://github.com/initialkommit)
+- [Anes Benmerzoug](https://github.com/AnesBenmerzoug)
 
 ## 0.5.4 <Badge text="beta" type="success"/>
 

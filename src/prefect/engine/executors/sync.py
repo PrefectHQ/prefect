@@ -39,7 +39,7 @@ class SynchronousExecutor(Executor):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - dask.delayed: a `dask.delayed` object which represents the computation of `fn(*args, **kwargs)`
+            - dask.delayed: a `dask.delayed` object that represents the computation of `fn(*args, **kwargs)`
         """
         return dask.delayed(fn)(*args, **kwargs)
 

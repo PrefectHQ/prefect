@@ -9,10 +9,10 @@ An instantiated Result object has the following attributes:
 - a `safe_value`: this attribute maintains a reference to a `SafeResult` object
     which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
     might be a URI or filename pointing to where the raw data lives
-- a `result_handler` which holds onto the `ResultHandler` used to read /
+- a `result_handler` that holds onto the `ResultHandler` used to read /
     write the value to / from its handled representation
 
-To distinguish between a Task which runs but does not return output from a Task which has yet to run, Prefect
+To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
 whose value is `None`.
 """

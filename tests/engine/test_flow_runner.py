@@ -506,6 +506,22 @@ class TestRunFlowStep:
         assert new_state.is_failed()
         assert new_state.message == "Very specific error message"
 
+    def test_determine_final_state_preserves_running_states_when_tasks_still_running(
+        self
+    ):
+        task = Task()
+        flow = Flow(name="test", tasks=[task])
+        old_state = Running()
+        new_state = FlowRunner(flow=flow).get_flow_run_state(
+            state=old_state,
+            task_states={task: Retrying(start_time=pendulum.now("utc").add(days=1))},
+            task_contexts={},
+            return_tasks=set(),
+            task_runner_state_handlers=[],
+            executor=LocalExecutor(),
+        )
+        assert new_state is old_state
+
 
 class TestInputCaching:
     @pytest.mark.parametrize(

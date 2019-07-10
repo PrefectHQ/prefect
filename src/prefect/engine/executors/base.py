@@ -9,7 +9,7 @@ from prefect.utilities.executors import timeout_handler
 
 class Executor:
     """
-    Base Executor class which all other executors inherit from.
+    Base Executor class that all other executors inherit from.
     """
 
     timeout_handler = staticmethod(timeout_handler)
@@ -72,12 +72,12 @@ class Executor:
 
     def queue(self, maxsize: int = 0) -> Any:
         """
-        Creates an executor-compatible Queue object which can share state across tasks.
+        Creates an executor-compatible Queue object that can share state across tasks.
 
         Args:
             - maxsize (int): maxsize of the queue; defaults to 0 (infinite)
 
         Returns:
-            - Queue: an executor compatible queue which can be shared among tasks
+            - Queue: an executor compatible queue that can be shared among tasks
         """
         raise NotImplementedError()
