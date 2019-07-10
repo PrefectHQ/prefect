@@ -11,9 +11,8 @@ Note that these tasks allow for a wide range of custom usage patterns, such as:
 - Create a custom Task that inherits from a Prefect Task and utilizes the Prefect boilerplate
 """
 try:
-    import prefect.tasks.google.storage
 
-    from prefect.tasks.google.storage import GCSDownload, GCSUpload
+    from prefect.tasks.google.storage import GCSDownload, GCSUpload, GCSCopy
     from prefect.tasks.google.bigquery import (
         BigQueryTask,
         BigQueryStreamingInsert,
