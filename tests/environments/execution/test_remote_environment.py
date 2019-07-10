@@ -47,9 +47,3 @@ def test_environment_execute():
 
         with open(path.join(directory, "output"), "r") as file:
             assert file.read() == "success"
-
-
-def test_execute_wrong_storage():
-    environment = RemoteEnvironment()
-    with pytest.raises(TypeError):
-        environment.execute(storage=Memory(), flow_location="test")
