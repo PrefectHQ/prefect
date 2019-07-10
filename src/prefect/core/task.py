@@ -111,6 +111,8 @@ class Task(metaclass=SignatureValidator):
         - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - cache_key (str, optional): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
+            be shared across both Tasks _and_ Flows
         - checkpoint (bool, optional): if this Task is successful, whether to
             store its result using the `result_handler` available during the run; defaults to the value of
             `tasks.defaults.checkpoint` in your user config
