@@ -3,22 +3,24 @@ from typing import Any
 import cloudpickle
 
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
+from prefect.environments.storage import Storage
 from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 
 
 class RemoteEnvironment(Environment):
     """
-    RemoteEnvironment is an environment which takes in information around an executor
+    RemoteEnvironment is an environment which takes in information about an executor
     and runs the flow in place using that executor.
 
     Example using a RemoteEnvironment w/ an existing Dask cluster:
-    ```
-    RemoteEnvironment(
+    ```python
+    env = RemoteEnvironment(
         executor="prefect.engine.executors.DaskExecutor",
         executor_kwargs={"address": "tcp://dask_scheduler_address"}
     )
+
+    f = Flow("dummy flow", environment=env)
     ```
 
     Args:
@@ -31,28 +33,25 @@ class RemoteEnvironment(Environment):
     def __init__(
         self,
         executor: str = "prefect.engine.executors.SynchronousExecutor",
-        executor_kwargs: dict = dict(),
+        executor_kwargs: dict = None,
     ) -> None:
         self.executor = executor
-        self.executor_kwargs = executor_kwargs
+        self.executor_kwargs = executor_kwargs or dict()
         self.logger = logging.get_logger("RemoteEnvironment")
 
     def execute(  # type: ignore
-        self, storage: "Docker", flow_location: str, **kwargs: Any
+        self, storage: "Storage", flow_location: str, **kwargs: Any
     ) -> None:
         """
         Run a flow from the `flow_location` here using the specified executor and
         executor kwargs.
 
         Args:
-            - storage (Docker): the Docker storage object that contains information relating
-                to the image which houses the flow
+            - storage (Storage): the storage object that contains information relating
+                to where and how the flow is stored
             - flow_location (str): the location of the Flow to execute
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
-        if not isinstance(storage, Docker):
-            raise TypeError("RemoteEnvironment requires a Docker storage option")
-
         try:
             from prefect.engine import (
                 get_default_executor_class,
