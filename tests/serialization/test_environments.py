@@ -51,9 +51,9 @@ def test_serialize_remote_environment():
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["executor"] == "prefect.engine.executors.SynchronousExecutor"
+    assert serialized["executor"] == prefect.config.engine.executor.default_class
     assert serialized["executor_kwargs"] == {}
 
     new = schema.load(serialized)
-    assert new.executor == "prefect.engine.executors.SynchronousExecutor"
+    assert new.executor == prefect.config.engine.executor.default_class
     assert new.executor_kwargs == {}

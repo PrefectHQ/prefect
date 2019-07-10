@@ -2,6 +2,7 @@ from typing import Any
 
 import cloudpickle
 
+from prefect import config
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Storage
 from prefect.utilities import logging
@@ -27,17 +28,13 @@ class RemoteEnvironment(Environment):
 
     Args:
         - executor (str, optional): an importable string to an executor class; defaults
-            to `prefect.engine.executors.SynchronousExecutor`
+            to `prefect.config.engine.executor.default_class`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
     """
 
-    def __init__(
-        self,
-        executor: str = "prefect.engine.executors.SynchronousExecutor",
-        executor_kwargs: dict = None,
-    ) -> None:
-        self.executor = executor
+    def __init__(self, executor: str = None, executor_kwargs: dict = None) -> None:
+        self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
         self.logger = logging.get_logger("RemoteEnvironment")
 
