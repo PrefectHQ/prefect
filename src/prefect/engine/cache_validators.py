@@ -5,7 +5,7 @@ Task creation via the `cache_validator` keyword argument (for more information
 on instantiating Tasks see the [Task documentation](../core/task.html)).
 
 Task caches are created at Task runtime if and only if the `cache_for` keyword
-argument is provided to the Task, which specifies how long the output cache will be valid for
+argument is provided to the Task, that specifies how long the output cache will be valid for
 after its creation.  Cache validators come into play when a cached Task is re-run,
 and are used to determine whether to re-run the Task or use the cache.
 
@@ -29,10 +29,10 @@ def never_use(
     Never uses the cache.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
+        - state (State): a `Success` state from the last successful Task run that contains the cache
+        - inputs (dict): a `dict` of inputs that were available on the last
             successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
+        - parameters (dict): a `dict` of parameters that were available on the
             last successful run of the cached Task
 
     Returns:
@@ -50,10 +50,10 @@ def duration_only(
     Validates the cache based only on cache expiration.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
+        - state (State): a `Success` state from the last successful Task run that contains the cache
+        - inputs (dict): a `dict` of inputs that were available on the last
             successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
+        - parameters (dict): a `dict` of parameters that were available on the
             last successful run of the cached Task
 
     Returns:
@@ -73,14 +73,14 @@ def all_inputs(
     parameters: Dict[str, Any],
 ) -> bool:
     """
-    Validates the cache based on cache expiration _and_ all inputs which were provided
+    Validates the cache based on cache expiration _and_ all inputs that were provided
     on the last successful run.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
+        - state (State): a `Success` state from the last successful Task run that contains the cache
+        - inputs (dict): a `dict` of inputs that were available on the last
             successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
+        - parameters (dict): a `dict` of parameters that were available on the
             last successful run of the cached Task
 
     Returns:
@@ -100,14 +100,14 @@ def all_parameters(
     parameters: Dict[str, Any],
 ) -> bool:
     """
-    Validates the cache based on cache expiration _and_ all parameters which were provided
+    Validates the cache based on cache expiration _and_ all parameters that were provided
     on the last successful run.
 
     Args:
-        - state (State): a `Success` state from the last successful Task run which contains the cache
-        - inputs (dict): a `dict` of inputs which were available on the last
+        - state (State): a `Success` state from the last successful Task run that contains the cache
+        - inputs (dict): a `dict` of inputs that were available on the last
             successful run of the cached Task
-        - parameters (dict): a `dict` of parameters which were available on the
+        - parameters (dict): a `dict` of parameters that were available on the
             last successful run of the cached Task
 
     Returns:
@@ -124,7 +124,7 @@ def all_parameters(
 def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of parameters (determined by the
-    `validate_on` keyword) which were provided on the last successful run.
+    `validate_on` keyword) that were provided on the last successful run.
 
     Args:
         - validate_on (list): a `list` of strings specifying the parameter names
@@ -165,13 +165,13 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
         parameters: Dict[str, Any],
     ) -> bool:
         """
-        The actual cache validation function which will be used.
+        The actual cache validation function that will be used.
 
         Args:
-            - state (State): a `Success` state from the last successful Task run which contains the cache
-            - inputs (dict): a `dict` of inputs which were available on the last
+            - state (State): a `Success` state from the last successful Task run that contains the cache
+            - inputs (dict): a `dict` of inputs that were available on the last
                 successful run of the cached Task
-            - parameters (dict): a `dict` of parameters which were available on the
+            - parameters (dict): a `dict` of parameters that were available on the
                 last successful run of the cached Task
 
         Returns:
@@ -200,7 +200,7 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
 def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
     """
     Validates the cache based on cache expiration _and_ a subset of inputs (determined by the
-    `validate_on` keyword) which were provided on the last successful run.
+    `validate_on` keyword) that were provided on the last successful run.
 
     Args:
         - validate_on (list): a `list` of strings specifying the input names
@@ -243,13 +243,13 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         parameters: Dict[str, Any],
     ) -> bool:
         """
-        The actual cache validation function which will be used.
+        The actual cache validation function that will be used.
 
         Args:
-            - state (State): a `Success` state from the last successful Task run which contains the cache
-            - inputs (dict): a `dict` of inputs which were available on the last
+            - state (State): a `Success` state from the last successful Task run that contains the cache
+            - inputs (dict): a `dict` of inputs that were available on the last
                 successful run of the cached Task
-            - parameters (dict): a `dict` of parameters which were available on the
+            - parameters (dict): a `dict` of parameters that were available on the
                 last successful run of the cached Task
 
         Returns:
