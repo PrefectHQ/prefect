@@ -1,9 +1,10 @@
-"""
+# Functional API: Docker Pipeline 
+
 This Prefect Flow creates a Container based on the latest prefect image, and
 executes an empty Flow inside that container.  Make sure to pull `prefecthq/prefect` prior
 to running this Flow.
-"""
 
+```python
 from prefect import Flow
 from prefect.tasks.docker import (
     CreateContainer,
@@ -14,6 +15,7 @@ from prefect.tasks.docker import (
 from prefect.triggers import always_run
 
 
+## initialize tasks
 container = CreateContainer(
     image_name="prefecthq/prefect",
     command='''python -c "from prefect import Flow; f = Flow('empty'); f.run()"''',
@@ -23,19 +25,18 @@ logs = GetContainerLogs(trigger=always_run)
 status_code = WaitOnContainer()
 
 
-flow = Flow("Run a Prefect Flow in Docker")
+## set task dependencies via functional API
 
-## set individual task dependencies using imperative API
-start.set_upstream(container, flow=flow, key="container_id")
-logs.set_upstream(container, flow=flow, key="container_id")
-status_code.set_upstream(container, flow=flow, key="container_id")
-
-status_code.set_upstream(start, flow=flow)
-logs.set_upstream(status_code, flow=flow)
+with Flow("Run a Prefect Flow in Docker") as flow:
+    start_container = start(container_id=container)
+    code = status_code(container_id=container, upstream_tasks=[start_container])
+    collect_logs = logs(container_id=container, upstream_tasks=[code])
 
 ## run flow and print logs
 flow_state = flow.run()
+
 print("=" * 30)
 print("Container Logs")
 print("=" * 30)
-print(flow_state.result[logs].result)
+print(flow_state.result[collect_logs].result)
+```
