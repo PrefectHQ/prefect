@@ -12,7 +12,7 @@ from prefect.environments.storage import Memory, Docker
 def test_create_remote_environment():
     environment = RemoteEnvironment()
     assert environment
-    assert environment.executor == "prefect.engine.executors.SynchronousExecutor"
+    assert environment.executor == prefect.config.engine.executor.default_class
     assert environment.executor_kwargs == {}
 
 
