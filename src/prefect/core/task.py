@@ -148,6 +148,7 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
+        cache_key: str = None,
         checkpoint: bool = None,
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
@@ -203,6 +204,7 @@ class Task(metaclass=SignatureValidator):
             )
 
         self.cache_for = cache_for
+        self.cache_key = cache_key
         default_validator = (
             prefect.engine.cache_validators.never_use
             if cache_for is None
