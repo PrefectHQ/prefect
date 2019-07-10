@@ -24,7 +24,7 @@ class Docker(Storage):
     and optionally pushing them to a registry.
 
     A user specifies a `base_image` and other optional dependencies (e.g., `python_dependencies`)
-    and `build()` will create a temporary Dockerfile which is used to build the image.
+    and `build()` will create a temporary Dockerfile that is used to build the image.
 
     Note that the `base_image` must be capable of `pip` installing.
 

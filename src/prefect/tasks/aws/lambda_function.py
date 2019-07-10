@@ -49,7 +49,7 @@ class LambdaCreate(Task):
         - layers (List[str], optional): a list of function layers to add to
             the function's execution environment, specify each layer by its ARN
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -121,7 +121,7 @@ class LambdaCreate(Task):
 
         Args:
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
         Returns:
@@ -170,7 +170,7 @@ class LambdaDelete(Task):
         - qualifier (str, optional): specify a version to delete, if not
             provided, the function will be deleted entirely
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -195,7 +195,7 @@ class LambdaDelete(Task):
 
         Args:
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
         Returns:
@@ -242,7 +242,7 @@ class LambdaInvoke(Task):
         - qualifier (str, optional): specify a version or alias to invoke a
             published version of the function, defaults to $LATEST
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -304,7 +304,7 @@ class LambdaInvoke(Task):
             - payload (bytes or seekable file-like object): the JSON provided to
                 Lambda function as input
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
         Returns:
@@ -348,7 +348,7 @@ class LambdaList(Task):
         - max_items (int, optional): specify a value between 1 and 50 to limit
             the number of functions in the response
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
+            that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -377,7 +377,7 @@ class LambdaList(Task):
 
         Args:
             - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                which stores your AWS credentials; this Secret must be a JSON string
+                that stores your AWS credentials; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
 
         Returns:
