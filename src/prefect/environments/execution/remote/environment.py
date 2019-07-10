@@ -13,8 +13,10 @@ class RemoteEnvironment(Environment):
     RemoteEnvironment is an environment which takes in information about an executor
     and runs the flow in place using that executor.
 
-    Example using a RemoteEnvironment w/ an existing Dask cluster:
+    Example:
     ```python
+    # using a RemoteEnvironment w/ an existing Dask cluster
+
     env = RemoteEnvironment(
         executor="prefect.engine.executors.DaskExecutor",
         executor_kwargs={"address": "tcp://dask_scheduler_address"}
