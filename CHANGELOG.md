@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Add the Prefect CLI for working with core objects both locally and in cloud - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
+- Add RemoteEnvironment for simple executor based executions - [#1215](https://github.com/PrefectHQ/prefect/pull/1215)
 
 ### Enhancements
 
