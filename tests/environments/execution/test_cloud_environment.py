@@ -179,10 +179,7 @@ def test_populate_job_yaml():
         job = yaml.safe_load(job_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
@@ -225,10 +222,7 @@ def test_populate_worker_pod_yaml():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
@@ -256,10 +250,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(
             flow_run_id="id_test", image="my_image", namespace="foo-man"

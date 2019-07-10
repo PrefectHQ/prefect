@@ -696,8 +696,10 @@ def test_set_task_run_state_with_error(monkeypatch):
 def test_write_log_successfully(monkeypatch):
     response = {"data": {"writeRunLog": {"success": True}}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
-    monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
@@ -712,8 +714,10 @@ def test_write_log_with_error(monkeypatch):
         "errors": [{"message": "something went wrong"}],
     }
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
-    monkeypatch.setattr("requests.post", post)
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
