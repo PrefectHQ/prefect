@@ -203,7 +203,7 @@ jobs:
 
       - run:
           name: Install Airflow
-          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow && source deactivate
+          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow flask==1.0.4 && source deactivate
 
       - run:
           name: Install prefect

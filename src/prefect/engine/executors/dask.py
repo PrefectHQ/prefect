@@ -76,7 +76,7 @@ class DaskExecutor(Executor):
 
     def queue(self, maxsize: int = 0, client: Client = None) -> Queue:
         """
-        Creates an executor-compatible Queue object which can share state
+        Creates an executor-compatible Queue object that can share state
         across tasks.
 
         Args:
@@ -107,7 +107,7 @@ class DaskExecutor(Executor):
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - Future: a Future-like object which represents the computation of `fn(*args, **kwargs)`
+            - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
         if self.is_started and hasattr(self, "client"):
 

@@ -136,8 +136,8 @@ classes = ["Storage", "Docker", "LocalStorage", "Memory", "Bytes"]
 
 [pages.environments.execution]
 title = "Execution Environments"
-module = "prefect.environments.execution"
-classes = ["LocalEnvironment"]
+module = "prefect.environments"
+classes = ["LocalEnvironment", "RemoteEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

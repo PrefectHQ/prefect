@@ -245,7 +245,7 @@ class Pending(State):
 
 class Paused(Pending):
     """
-    Paused state for tasks which require manual execution.
+    Paused state for tasks that require manual execution.
 
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
@@ -262,7 +262,7 @@ class Scheduled(Pending):
     """
     Pending state indicating the object has been scheduled to run.
 
-    Scheduled states have a `start_time` which indicates when they are scheduled to run.
+    Scheduled states have a `start_time` that indicates when they are scheduled to run.
     Only scheduled states have this property; this is important because non-Python systems
     identify scheduled states by the presence of this property.
 

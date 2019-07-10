@@ -10,7 +10,7 @@ Airflow is a historically important tool in the data engineering ecosystem. It i
 
 Today, many data engineers are working more directly with their analytical counterparts. Compute and storage are cheap, so friction is low and experimentation prevails. Processes are fast, dynamic, and unpredictable. Airflow got many things right, but its core assumptions never anticipated the rich variety of data applications that has emerged. It simply does not have the requisite vocabulary to describe many of those activities.
 
-The seed that would grow into Prefect was first planted all the way back in 2016, in a series of discussions about how Airflow would need to change to support what were rapidly becoming standard data practices. Disappointingly, those observations remain valid today. 
+The seed that would grow into Prefect was first planted all the way back in 2016, in a series of discussions about how Airflow would need to change to support what were rapidly becoming standard data practices. Disappointingly, those observations remain valid today.
 
 We know that questions about how Prefect compares to Airflow are paramount to our users, especially given Prefect’s lineage. We prepared this document to highlight common Airflow issues that the Prefect engine takes specific steps to address. This post is not intended to be an exhaustive tour of Prefect’s features, but rather a guide for users familiar with Airflow that explains Prefect’s analogous approach. We have tried to be balanced and limit discussion of anything not currently available in our open-source repo, and we hope this serves as a helpful overview for the community.
 
@@ -34,7 +34,7 @@ If your use case resembles any of these, you will need to work _around_ Airflow�
 Prefect is the result of years of experience working on Airflow and related projects. Our research, spanning hundreds of users and companies, has allowed us to discover the hidden pain points that current tools fail to address. It has culminated in an incredibly user-friendly, lightweight API backed by a powerful set of abstractions that fit most data-related use cases.
 
 ## API
-> When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative. 
+> When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 >
 > — Airflow documentation
 
@@ -138,7 +138,7 @@ Furthermore, when running a flow on Prefect Cloud or with a custom database, Tas
 - the centralized Airflow scheduler loop introduces non-trivial latency between when a Task’s dependencies are met and when that Task begins running. If your use case involves few long-running Tasks, this is completely fine — but if you want to execute a DAG with many tasks or where time is of the essence, this could quickly lead to a bottleneck.
 - Airflow’s tight coupling of time and schedules with workflows also means that you need to instantiate both a database and a scheduler service in order to run your DAGs locally. These are clearly necessary features of a production environment, but can be burdensome when trying to test and iterate quickly.
 - the centralized nature of the Airflow scheduler provides a single point of failure for the system
-- reparsing the DAG with every single loop can lead to major inconsistencies (it’s possible for the scheduler to run a task which, when it reinstantiates itself, discovers it doesn’t even exist!)
+- reparsing the DAG with every single loop can lead to major inconsistencies (it’s possible for the scheduler to run a task that, when it reinstantiates itself, discovers it doesn’t even exist!)
 - central scheduling typically means tasks can’t communicate with each other (no dependency resolution)
 
 ## Dataflow
@@ -155,7 +155,7 @@ XComs use admin access to write executable pickles into the Airflow metadata dat
 ```python
 def puller(**kwargs):
     ti = kwargs['ti']
-    
+
     # get value_1
     v1 = ti.xcom_pull(key=None, task_ids='push')
 ```
@@ -220,7 +220,7 @@ However, with first-class parametrization, it’s quite easy to understand why I
 >
 > — Jaws
 
-In addition to parametrized _workflows_, it is often the case that within a workflow there is some Task that needs to be repeated an _unknown_ number of times. For example, imagine a setup wherein Task A queries a database for a list of all new customers. From here, each customer ID needs to be fed into a Task which “processes” this ID somehow. Within Airflow, there is only one option: implement a downstream Task B which accepts a _list of IDs_, and loops over them to perform some action. There are major drawbacks to this implementation:
+In addition to parametrized _workflows_, it is often the case that within a workflow there is some Task that needs to be repeated an _unknown_ number of times. For example, imagine a setup wherein Task A queries a database for a list of all new customers. From here, each customer ID needs to be fed into a Task that “processes” this ID somehow. Within Airflow, there is only one option: implement a downstream Task B which accepts a _list of IDs_, and loops over them to perform some action. There are major drawbacks to this implementation:
 
 - the UI has no knowledge of this dynamic workload, making it harder to monitor during execution
 - if any individual record’s execution fails, the entire task fails
@@ -233,23 +233,23 @@ from prefect import task, Flow
 
 
 @task
-def create_list():    
-    return [1, 1, 2, 3]    
-                    
-@task                
-def add_one(x):     
-    return x + 1    
+def create_list():
+    return [1, 1, 2, 3]
+
+@task
+def add_one(x):
+    return x + 1
 
 @task
 def get_sum(x):
     return sum(x)
-                    
-with Flow("simple-map") as f:    
+
+with Flow("simple-map") as f:
     plus_one = add_one.map(create_list)
     plus_two = add_one.map(plus_one)
     result = get_sum(plus_two)
-                    
-f.run()           
+
+f.run()
 ```
 
 This workflow execution contains 10 true Prefect Tasks: 1 for the list creation, 4 for each of the two add_one maps, and 1 for the get_sum reduction. Task mapping provides many benefits:
@@ -282,7 +282,7 @@ Both of these settings can be customized if you have more complicated versioning
 
 ## Local Testing
 > The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong it usually turns out to be impossible to get at or repair.
-> 
+>
 > — Mostly Harmless
 
 Because both Airflow and Prefect are written in Python, it is possible to unit test your individual task / operator logic using standard Python patterns. For example, in Airflow you can import the `DagBag`, extract your individual DAG and make various assertions about its structure or the tasks contained within. Similarly, in Prefect, you can easily import and inspect your `Flow`. Additionally, in both Airflow and Prefect you can unit test each individual Task in much the same way you would unit test any other Python class.
@@ -316,7 +316,7 @@ Prefect’s UI is not yet available to the public, so we will refrain from makin
 
 ## Conclusions
 > If I have seen further than others, it is by standing upon the shoulders of giants.
-> 
+>
 > — Isaac Newton
 
 Airflow popularized many of the workflow semantics that data engineers take for granted today. Unfortunately, it fails to meet companies’ more dynamic needs as the data engineering discipline matures.

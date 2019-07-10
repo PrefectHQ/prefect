@@ -23,7 +23,7 @@ This will execute your flow immediately, regardless of its schedule.  Note that 
 
 #### `LocalExecutor`
 
-Your choice of executor is very important for how easily it will be to debug your flow. The `DaskExecutor` relies on multiprocessing and multithreading, which can be tricky to navigate. Things like shared state and print statements that disappear into the void can be a real nuisance when trying to figure out what's wrong. Luckily, Prefect provides a `LocalExecutor` which is the most stripped down executor possible - all tasks are executed immediately (in the appropriate order of course) and in your main process.
+Your choice of executor is very important for how easily it will be to debug your flow. The `DaskExecutor` relies on multiprocessing and multithreading, which can be tricky to navigate. Things like shared state and print statements that disappear into the void can be a real nuisance when trying to figure out what's wrong. Luckily, Prefect provides a `LocalExecutor` that is the most stripped down executor possible - all tasks are executed immediately (in the appropriate order of course) and in your main process.
 
 To swap out executors, simply follow the schematic:
 

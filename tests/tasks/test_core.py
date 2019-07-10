@@ -131,6 +131,19 @@ class TestCollections:
         assert sum(isinstance(t, collections.List) for t in f.tasks) == 1
         assert state.result[identity].result == [1, 2]
 
+    def test_list_automatically_applied_to_callargs_imperative(self):
+        x = Parameter("x")
+        y = Parameter("y")
+        identity = IdentityTask()
+        f = Flow(name="test")
+        f.add_task(identity)
+        identity.bind(x=[x, y], flow=f)
+        state = f.run(parameters=dict(x=1, y=2))
+
+        assert len(f.tasks) == 4
+        assert sum(isinstance(t, collections.List) for t in f.tasks) == 1
+        assert state.result[identity].result == [1, 2]
+
     def test_tuple_automatically_applied_to_callargs(self):
         x = Parameter("x")
         y = Parameter("y")
@@ -143,12 +156,38 @@ class TestCollections:
         assert sum(isinstance(t, collections.Tuple) for t in f.tasks) == 1
         assert state.result[identity].result == (1, 2)
 
+    def test_tuple_automatically_applied_to_callargs_imperative(self):
+        x = Parameter("x")
+        y = Parameter("y")
+        identity = IdentityTask()
+        f = Flow(name="test")
+        f.add_task(identity)
+        identity.bind(x=(x, y), flow=f)
+        state = f.run(parameters=dict(x=1, y=2))
+
+        assert len(f.tasks) == 4
+        assert sum(isinstance(t, collections.Tuple) for t in f.tasks) == 1
+        assert state.result[identity].result == (1, 2)
+
     def test_set_automatically_applied_to_callargs(self):
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
         with Flow(name="test") as f:
             identity.bind(x=set([x, y]))
+        state = f.run(parameters=dict(x=1, y=2))
+
+        assert len(f.tasks) == 4
+        assert sum(isinstance(t, collections.Set) for t in f.tasks) == 1
+        assert state.result[identity].result == set([1, 2])
+
+    def test_set_automatically_applied_to_callargs_imperative(self):
+        x = Parameter("x")
+        y = Parameter("y")
+        identity = IdentityTask()
+        f = Flow(name="test")
+        f.add_task(identity)
+        identity.bind(x=set([x, y]), flow=f)
         state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 4
@@ -169,12 +208,39 @@ class TestCollections:
         assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
         assert state.result[identity].result == dict(a=1, b=2)
 
+    def test_dict_automatically_applied_to_callargs_imperative(self):
+        x = Parameter("x")
+        y = Parameter("y")
+        identity = IdentityTask()
+        f = Flow(name="test")
+        f.add_task(identity)
+        identity.bind(x=dict(a=x, b=y), flow=f)
+        state = f.run(parameters=dict(x=1, y=2))
+
+        assert (
+            len(f.tasks) == 8
+        )  # 2 params, identity, Dict, 2 Lists for Dict, "a" and "b"
+        assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
+        assert state.result[identity].result == dict(a=1, b=2)
+
     def test_nested_collection_automatically_applied_to_callargs(self):
         x = Parameter("x")
         y = Parameter("y")
         identity = IdentityTask()
         with Flow(name="test") as f:
             identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))))
+        state = f.run(parameters=dict(x=1, y=2))
+
+        assert len(f.tasks) == 15
+        assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))
+
+    def test_nested_collection_automatically_applied_to_callargs_imperative(self):
+        x = Parameter("x")
+        y = Parameter("y")
+        identity = IdentityTask()
+        f = Flow(name="test")
+        f.add_task(identity)
+        identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))), flow=f)
         state = f.run(parameters=dict(x=1, y=2))
 
         assert len(f.tasks) == 15

@@ -1334,6 +1334,18 @@ class TestReplace:
         assert state.is_successful()
         assert state.result[res].result == 61
 
+    def test_replace_converts_new_collections_to_tasks(self):
+        add = AddTask()
+        with Flow(name="test") as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+        f.replace(x, [55, 56])
+        f.replace(y, [1, 2])
+        assert len(f.tasks) == 7
+        state = f.run()
+        assert state.is_successful()
+        assert state.result[res].result == [55, 56, 1, 2]
+
 
 class TestGetTasks:
     def test_get_tasks_defaults_to_return_everything(self):
@@ -1926,7 +1938,7 @@ class TestFlowRunMethod:
         assert flow_state.is_successful()
         assert all([s.is_successful() for s in flow_state.result[res].map_states])
         assert res.call_count == 4
-        assert len(state_history) == 11
+        assert len(state_history) == 13
 
     def test_flow_run_accepts_state_kwarg(self):
         f = Flow(name="test")

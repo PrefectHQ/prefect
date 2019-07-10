@@ -1289,10 +1289,10 @@ class TestTaskRunnerStateHandlers:
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
         )
-        # the parent task changed state one time: Pending -> Mapped
+        # the parent task changed state two times: Pending -> Mapped -> Mapped
         # the child task changed state one time: Pending -> Running -> Success
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 3
+        assert task_runner_handler.call_count == 4
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1355,7 +1355,7 @@ class TestRunMappedStep:
     @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
     def test_run_mapped_returns_mapped(self, state):
         state = TaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
+            state=state,
             upstream_states={},
             context={},
             executor=prefect.engine.executors.LocalExecutor(),
@@ -1367,7 +1367,7 @@ class TestRunMappedStep:
         def tt(foo):
             pass
 
-        with prefect.context(cloud=True):
+        with prefect.context(cloud=True, caches={}):
             state = TaskRunner(task=tt).run_mapped_task(
                 state=Pending(),
                 upstream_states={
@@ -1474,10 +1474,10 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
     state = runner.run(
         upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
     )
-    # the parent task changed state one time: Pending -> Mapped
+    # the parent task changed state two times: Pending -> Mapped -> Mapped
     # the child task changed state one time: Pending -> TriggerFailed
     assert isinstance(state, Mapped)
-    assert task_runner_handler.call_count == 2
+    assert task_runner_handler.call_count == 3
     assert isinstance(state.map_states[0], TriggerFailed)
 
 

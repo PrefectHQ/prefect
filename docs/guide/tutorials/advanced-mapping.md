@@ -39,8 +39,8 @@ Using this as our source of transcripts, let's scrape a single episode of "The X
 
 We begin by setting up two Prefect tasks:
 
-- `retrieve_url`: a task which simply pulls the raw HTML to our local machine
-- `scrape_dialogue`: a task which takes that HTML, and processes it to extract the relevant dialogue by character
+- `retrieve_url`: a task that simply pulls the raw HTML to our local machine
+- `scrape_dialogue`: a task that takes that HTML, and processes it to extract the relevant dialogue by character
 
 To ease in, let's import everything we need and create the `retrieve_url` task:
 
@@ -89,7 +89,7 @@ def scrape_dialogue(episode_html):
     return (title, dialogue)
 ```
 
-Now that we have our tasks, all that's left is to put them together into a flow; because we want to re-use these tasks for other episodes, we will leave the URL as a `Parameter` which should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of `Parameters`](calculator.html).
+Now that we have our tasks, all that's left is to put them together into a flow; because we want to re-use these tasks for other episodes, we will leave the URL as a `Parameter` that should be provided at runtime. We assume you have familiarized yourself with [the basics](etl.html) of constructing a Prefect flow and the [use of `Parameters`](calculator.html).
 
 ```python
 with Flow("xfiles") as flow:
