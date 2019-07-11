@@ -8,6 +8,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add the Prefect CLI for working with core objects both locally and in cloud - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
 - Add RemoteEnvironment for simple executor based executions - [#1215](https://github.com/PrefectHQ/prefect/pull/1215)
+- Add the ability to share caches across Tasks and Flows - [#1222](https://github.com/PrefectHQ/prefect/pull/1222)
 
 ### Enhancements
 
@@ -19,10 +20,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `auto_generated` property to Tasks for convenient filtering - [#1135](https://github.com/PrefectHQ/prefect/pull/1135)
 - Disable dask work-stealing in kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
 - Implement backoff retry settings on Client calls - [#1187](https://github.com/PrefectHQ/prefect/pull/1187)
+- Explicitly set Dask keys for a better Dask visualization experience - [#1218](https://github.com/PrefectHQ/prefect/issues/1218)
 
 ### Task Library
 
 - Add task to trigger AWS Step function workflow [#1012](https://github.com/PrefectHQ/prefect/issues/1012)
+- Add task to copy files within Google Cloud Storage - [#1206](https://github.com/PrefectHQ/prefect/pull/1206)
+- Add task for downloading files from Dropbox - [#1205](https://github.com/PrefectHQ/prefect/pull/1205)
 
 ### Fixes
 
