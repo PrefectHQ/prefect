@@ -1,4 +1,4 @@
-# Functional API: Docker Pipeline 
+# Docker Pipeline: Functional API
 
 This Prefect Flow creates a Container based on the latest prefect image, and
 executes an empty Flow inside that container.  Make sure to pull `prefecthq/prefect` prior
