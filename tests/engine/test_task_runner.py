@@ -820,6 +820,43 @@ class TestCheckTaskCached:
         assert new is state
         assert new.result == 2
 
+    def test_reads_result_from_context_if_cached_valid(self):
+        task = Task(
+            cache_for=timedelta(minutes=1),
+            cache_validator=cache_validators.duration_only,
+        )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        with prefect.context(caches={"Task": [state]}):
+            new = TaskRunner(task).check_task_is_cached(
+                state=Pending(), inputs={"a": Result(1)}
+            )
+        assert new is state
+        assert new.result == 2
+
+    def test_reads_result_from_context_with_cache_key_if_cached_valid(self):
+        task = Task(
+            cache_for=timedelta(minutes=1),
+            cache_validator=cache_validators.duration_only,
+            cache_key="FOO",
+        )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        with prefect.context(caches={"FOO": [state]}):
+            new = TaskRunner(task).check_task_is_cached(
+                state=Pending(), inputs={"a": Result(1)}
+            )
+        assert new is state
+        assert new.result == 2
+
 
 class TestSetTaskRunning:
     @pytest.mark.parametrize("state", [Pending()])
