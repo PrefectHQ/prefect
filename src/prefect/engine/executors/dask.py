@@ -125,13 +125,14 @@ class DaskExecutor(Executor):
         fire_and_forget(future)
         return future
 
-    def map(self, fn: Callable, *args: Any) -> List[Future]:
+    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> List[Future]:
         """
         Submit a function to be mapped over its iterable arguments.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments that the function will be mapped over
+            - **kwargs (Any): additional keyword arguments that will be passed to the Dask Client
 
         Returns:
             - List[Future]: a list of Future-like objects that represent each computation of
@@ -141,11 +142,16 @@ class DaskExecutor(Executor):
         if not args:
             return []
 
+        if context.get("task_full_name"):
+            key = context.get("task_full_name", "") + "-" + str(uuid.uuid4())
+        else:
+            key = None
+
         if self.is_started and hasattr(self, "client"):
-            futures = self.client.map(fn, *args, pure=False)
+            futures = self.client.map(fn, *args, pure=False, key=key)
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
-                futures = client.map(fn, *args, pure=False)
+                futures = client.map(fn, *args, pure=False, key=key)
                 return client.gather(futures)
         else:
             raise ValueError("This executor has not been started.")
