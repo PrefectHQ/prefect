@@ -574,7 +574,9 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
         if self.task.cache_for is not None:
-            candidate_states = prefect.context.caches.get(self.task.name, [])
+            candidate_states = prefect.context.caches.get(
+                self.task.cache_key or self.task.name, []
+            )
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             for candidate in candidate_states:
                 if self.task.cache_validator(
