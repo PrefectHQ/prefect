@@ -573,6 +573,17 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
+        if state.is_cached():
+            assert isinstance(state, Cached)  # mypy assert
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
+            if self.task.cache_validator(
+                state, sanitized_inputs, prefect.context.get("parameters")
+            ):
+                state._result = state._result.to_result()
+                return state
+            else:
+                state = Pending("Cache was invalid; ready to run.")
+
         if self.task.cache_for is not None:
             candidate_states = prefect.context.caches.get(
                 self.task.cache_key or self.task.name, []
@@ -584,23 +595,14 @@ class TaskRunner(Runner):
                 ):
                     candidate._result = candidate._result.to_result()
                     return candidate
-        if state.is_cached():
-            assert isinstance(state, Cached)  # mypy assert
-            sanitized_inputs = {key: res.value for key, res in inputs.items()}
-            if self.task.cache_validator(
-                state, sanitized_inputs, prefect.context.get("parameters")
-            ):
-                state._result = state._result.to_result()
-                return state
-            else:
-                self.logger.warning(
-                    "Task '{name}': can't use cache because it "
-                    "is now invalid".format(
-                        name=prefect.context.get("task_full_name", self.task.name)
-                    )
-                )
-                return Pending("Cache was invalid; ready to run.")
-        return state
+
+        self.logger.warning(
+            "Task '{name}': can't use cache because it "
+            "is now invalid".format(
+                name=prefect.context.get("task_full_name", self.task.name)
+            )
+        )
+        return state or Pending("Cache was invalid; ready to run.")
 
     def run_mapped_task(
         self,

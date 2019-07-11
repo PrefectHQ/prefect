@@ -838,6 +838,27 @@ class TestCheckTaskCached:
         assert new is state
         assert new.result == 2
 
+    def test_state_kwarg_is_prioritized_over_context_caches(self):
+        task = Task(
+            cache_for=timedelta(minutes=1),
+            cache_validator=cache_validators.duration_only,
+        )
+        state_a = Cached(
+            result=SafeResult("2", result_handler=JSONResultHandler()),
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+        state_b = Cached(
+            result=SafeResult("99", result_handler=JSONResultHandler()),
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        with prefect.context(caches={"Task": [state_a]}):
+            new = TaskRunner(task).check_task_is_cached(
+                state=state_b, inputs={"a": Result(1)}
+            )
+        assert new is state_b
+        assert new.result == 99
+
     def test_reads_result_from_context_with_cache_key_if_cached_valid(self):
         task = Task(
             cache_for=timedelta(minutes=1),
