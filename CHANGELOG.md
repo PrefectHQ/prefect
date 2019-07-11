@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Disable dask work-stealing in kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
 - Implement backoff retry settings on Client calls - [#1187](https://github.com/PrefectHQ/prefect/pull/1187)
 - Explicitly set Dask keys for a better Dask visualization experience - [#1218](https://github.com/PrefectHQ/prefect/issues/1218)
+- Implement a local cache which persists for the duration of a Python session - [#1221](https://github.com/PrefectHQ/prefect/issues/1221)
 
 ### Task Library
 

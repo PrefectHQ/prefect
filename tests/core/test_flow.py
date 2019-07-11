@@ -47,6 +47,11 @@ def add_flow():
     return f
 
 
+@pytest.fixture
+def clear_context_cache():
+    prefect.context["caches"] = {}
+
+
 class TestCreateFlow:
     """ Test various Flow constructors """
 
@@ -1461,6 +1466,7 @@ class TestSerialize:
             s_build = f.serialize(build=True)
 
 
+@pytest.mark.usefixtures("clear_context_cache")
 class TestFlowRunMethod:
     def test_flow_dot_run_runs_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
@@ -1641,6 +1647,44 @@ class TestFlowRunMethod:
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x(x=t1, y=t2))
 
+        f.run()
+
+        assert storage == dict(y=[1, 1, 3])
+
+    def test_flow_dot_run_handles_cached_states_across_runs(self):
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+                if self.maxit:
+                    return max(self.call_count, 2)
+                else:
+                    return self.call_count
+
+        @task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=partial_inputs_only(validate_on=["x"]),
+        )
+        def return_x(x, y):
+            return y
+
+        storage = {"y": []}
+
+        @task
+        def store_y(y):
+            storage["y"].append(y)
+
+        t1, t2 = StatefulTask(maxit=True), StatefulTask()
+        with Flow(name="test") as f:
+            res = store_y(return_x(x=t1, y=t2))
+
+        f.run()
+        f.run()
         f.run()
 
         assert storage == dict(y=[1, 1, 3])
