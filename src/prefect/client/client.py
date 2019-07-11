@@ -599,13 +599,14 @@ class Client:
         self.graphql(mutation, state=serialized_state)  # type: Any
 
     def get_latest_cached_states(
-        self, task_id: str, created_after: datetime.datetime
+        self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime
     ) -> List["prefect.engine.state.State"]:
         """
         Pulls all Cached states for the given task that were created after the provided date.
 
         Args:
             - task_id (str): the task id for this task run
+            - cache_key (Optional[str]): the cache key for this Task's cache; if `None`, the task id alone will be used
             - created_after (datetime.datetime): the earliest date the state should have been created at
 
         Returns:
@@ -614,7 +615,10 @@ class Client:
         where_clause = {
             "where": {
                 "state": {"_eq": "Cached"},
-                "task_id": {"_eq": task_id},
+                "_or": [
+                    {"cache_key": {"_eq": cache_key}},
+                    {"task_id": {"_eq": task_id}},
+                ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
             },
             "order_by": {"state_timestamp": EnumValue("desc")},
