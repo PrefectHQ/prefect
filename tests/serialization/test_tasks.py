@@ -17,6 +17,7 @@ def test_deserialize_empty_dict():
     t = TaskSchema().load({})
     assert isinstance(t, Task)
     assert t.auto_generated is False
+    assert t.cache_key is None
 
 
 def test_serialize_task():
@@ -33,6 +34,7 @@ def test_deserialize_task():
         trigger=prefect.triggers.all_failed,
         skip_on_upstream_skip=False,
         cache_for=datetime.timedelta(hours=1),
+        cache_key="test",
     )
     deserialized = TaskSchema().load(TaskSchema().dump(task))
     assert isinstance(deserialized, Task)
@@ -45,6 +47,7 @@ def test_deserialize_task():
         "trigger",
         "skip_on_upstream_skip",
         "cache_for",
+        "cache_key",
     ]:
         assert getattr(task, key) == getattr(deserialized, key)
     assert task.auto_generated is False
