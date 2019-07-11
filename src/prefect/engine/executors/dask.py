@@ -1,13 +1,14 @@
 import datetime
 import logging
 import queue
+import uuid
 import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
 
 from distributed import Client, Future, Queue, fire_and_forget, worker_client
 
-from prefect import config
+from prefect import config, context
 from prefect.engine.executors.base import Executor
 
 
@@ -109,12 +110,15 @@ class DaskExecutor(Executor):
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
+        if context.get("task_full_name"):
+            key = context.get("task_full_name", "") + "-" + str(uuid.uuid4())
+        else:
+            key = None
         if self.is_started and hasattr(self, "client"):
-
-            future = self.client.submit(fn, *args, pure=False, **kwargs)
+            future = self.client.submit(fn, *args, pure=False, key=key, **kwargs)
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
-                future = client.submit(fn, *args, pure=False, **kwargs)
+                future = client.submit(fn, *args, pure=False, key=key, **kwargs)
         else:
             raise ValueError("This executor has not been started.")
 
