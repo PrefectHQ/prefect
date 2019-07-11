@@ -148,10 +148,10 @@ class DaskExecutor(Executor):
             key = None
 
         if self.is_started and hasattr(self, "client"):
-            futures = self.client.map(fn, *args, pure=False, key=key)
+            futures = self.client.map(fn, *args, pure=False, key=key, **kwargs)
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
-                futures = client.map(fn, *args, pure=False, key=key)
+                futures = client.map(fn, *args, pure=False, key=key, **kwargs)
                 return client.gather(futures)
         else:
             raise ValueError("This executor has not been started.")
