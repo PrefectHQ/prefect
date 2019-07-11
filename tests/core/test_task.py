@@ -36,6 +36,13 @@ class TestCreateTask:
         t2 = Task(name="test")
         assert t2.name == "test"
 
+    def test_create_task_with_cache_key(self):
+        t1 = Task()
+        assert t1.cache_key is None
+
+        t2 = Task(cache_key="test")
+        assert t2.cache_key == "test"
+
     def test_create_task_with_slug(self):
         t1 = Task()
         assert t1.slug
