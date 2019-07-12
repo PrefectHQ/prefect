@@ -179,11 +179,7 @@ def test_populate_job_yaml():
         job = yaml.safe_load(job_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
@@ -203,12 +199,11 @@ def test_populate_job_yaml():
     env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
     assert env[0]["value"] == "gql_test"
-    assert env[1]["value"] == "log_test"
-    assert env[2]["value"] == "auth_test"
-    assert env[3]["value"] == "id_test"
-    assert env[4]["value"] == "namespace_test"
-    assert env[5]["value"] == "test1/test2:test3"
-    assert env[6]["value"] == "test4"
+    assert env[1]["value"] == "auth_test"
+    assert env[2]["value"] == "id_test"
+    assert env[3]["value"] == "namespace_test"
+    assert env[4]["value"] == "test1/test2:test3"
+    assert env[5]["value"] == "test4"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -227,11 +222,7 @@ def test_populate_worker_pod_yaml():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
@@ -242,9 +233,8 @@ def test_populate_worker_pod_yaml():
     env = yaml_obj["spec"]["containers"][0]["env"]
 
     assert env[0]["value"] == "gql_test"
-    assert env[1]["value"] == "log_test"
-    assert env[2]["value"] == "auth_test"
-    assert env[3]["value"] == "id_test"
+    assert env[1]["value"] == "auth_test"
+    assert env[2]["value"] == "id_test"
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -260,11 +250,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {
-            "cloud.graphql": "gql_test",
-            "cloud.log": "log_test",
-            "cloud.auth_token": "auth_test",
-        }
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
         with prefect.context(
             flow_run_id="id_test", image="my_image", namespace="foo-man"

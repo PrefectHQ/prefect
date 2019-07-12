@@ -691,3 +691,38 @@ def test_set_task_run_state_with_error(monkeypatch):
     with pytest.raises(ClientError) as exc:
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
     assert "something went wrong" in str(exc.value)
+
+
+def test_write_log_successfully(monkeypatch):
+    response = {"data": {"writeRunLog": {"success": True}}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    assert client.write_run_log(flow_run_id="1") is None
+
+
+def test_write_log_with_error(monkeypatch):
+    response = {
+        "data": {"writeRunLog": None},
+        "errors": [{"message": "something went wrong"}],
+    }
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    with pytest.raises(ClientError) as exc:
+        client.write_run_log(flow_run_id="1")
+    assert "something went wrong" in str(exc.value)
