@@ -10,7 +10,7 @@ import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.executors import LocalExecutor
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -76,6 +76,7 @@ def cloud_settings():
             "cloud.auth_token": "token",
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
+            "logging.level": "DEBUG",
         }
     ):
         yield
@@ -365,7 +366,7 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     because they won't pass their upstream checks
     """
 
-    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=1))
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=2))
     def error():
         1 / 0
 
@@ -547,7 +548,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     assert t3_0.state.is_failed()
 
 
-@pytest.mark.xfail(reason="Sometimes fails due to some shared-state error")
+# @pytest.mark.xfail(reason="Sometimes fails due to some shared-state error")
 def test_deep_map_with_a_retry(monkeypatch):
     """
     Creates a situation in which a deeply-mapped Flow encounters a one-time error in one
@@ -561,13 +562,13 @@ def test_deep_map_with_a_retry(monkeypatch):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test") as flow:
+    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)
 
     t2.max_retries = 1
-    t2.retry_delay = datetime.timedelta(seconds=0)
+    t2.retry_delay = datetime.timedelta(seconds=100)
 
     monkeypatch.setattr("requests.Session", MagicMock())
     monkeypatch.setattr("requests.post", MagicMock())
@@ -617,7 +618,14 @@ def test_deep_map_with_a_retry(monkeypatch):
     )
     assert t3_0.state.is_pending()
 
-    # RUN A SECOND TIME
+    # RUN A SECOND TIME with an artificially updated start time
+    failed_id = [
+        t_id
+        for t_id, tr in client.task_runs.items()
+        if tr.task_slug == t2.slug and tr.map_index == 0
+    ].pop()
+    client.task_runs[failed_id].state.start_time = pendulum.now("UTC")
+
     with prefect.context(flow_run_id=flow_run_id):
         CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
 
