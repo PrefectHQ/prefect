@@ -9,20 +9,18 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
 import logging
-import os
-import queue
 import time
-from logging.handlers import QueueHandler, QueueListener
 from typing import Any
+
+import pendulum
 
 import prefect
 from prefect.configuration import config
 
 
-class RemoteHandler(logging.StreamHandler):
+class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__()
-        self.logger_server = config.cloud.log
         self.client = None
         self.errored_out = False
 
@@ -35,20 +33,27 @@ class RemoteHandler(logging.StreamHandler):
             if self.client is None:
                 self.client = Client()  # type: ignore
 
-            assert isinstance(self.client, Client)  # mypy assert
-            r = self.client.post(path="", server=self.logger_server, **record.__dict__)
+            assert isinstance(self.client, Client)  # mypy asser
+
+            record_dict = record.__dict__.copy()
+            flow_run_id = prefect.context.get("flow_run_id", None)
+            task_run_id = prefect.context.get("task_run_id", None)
+            timestamp = pendulum.from_timestamp(record_dict.get("created", time.time()))
+            name = record_dict.get("name", None)
+            message = record_dict.get("message", None)
+            level = record_dict.get("level", None)
+
+            self.client.write_run_log(
+                flow_run_id=flow_run_id,
+                task_run_id=task_run_id,
+                timestamp=timestamp,
+                name=name,
+                message=message,
+                level=level,
+                info=record_dict,
+            )
         except:
             self.errored_out = True
-
-
-old_factory = logging.getLogRecordFactory()
-
-
-def cloud_record_factory(*args: Any, **kwargs: Any) -> Any:
-    record = old_factory(*args, **kwargs)
-    record.flow_run_id = prefect.context.get("flow_run_id", "")  # type: ignore
-    record.task_run_id = prefect.context.get("task_run_id", "")  # type: ignore
-    return record
 
 
 def configure_logging(testing: bool = False) -> logging.Logger:
@@ -75,9 +80,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
 
     # send logs to server
     if config.logging.log_to_cloud:
-        logging.setLogRecordFactory(cloud_record_factory)
-        remote_handler = RemoteHandler()
-        logger.addHandler(remote_handler)
+        logger.addHandler(CloudHandler())
     return logger
 
 

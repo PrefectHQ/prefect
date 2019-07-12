@@ -745,3 +745,54 @@ class Client:
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
+
+    def write_run_log(
+        self,
+        flow_run_id: str,
+        task_run_id: str = None,
+        timestamp: datetime.datetime = None,
+        name: str = None,
+        message: str = None,
+        level: str = None,
+        info: Any = None,
+    ) -> None:
+        """
+        Writes a log to Cloud
+
+        Args:
+            - flow_run_id (str): the flow run id
+            - task_run_id (str, optional): the task run id
+            - timestamp (datetime, optional): the timestamp; defaults to now
+            - name (str, optional): the name of the logger
+            - message (str, optional): the log message
+            - level (str, optional): the log level as a string. Defaults to INFO, should be one of
+                DEBUG, INFO, WARNING, ERROR, or CRITICAL.
+            - info (Any, optional): a JSON payload of additional information
+
+        Raises:
+            - ValueError: if writing the log fails
+        """
+        mutation = {
+            "mutation($input: writeRunLogInput!)": {
+                "writeRunLog(input: $input)": {"success"}
+            }
+        }
+
+        if timestamp is None:
+            timestamp = pendulum.now("UTC")
+        timestamp_str = pendulum.instance(timestamp).isoformat()
+        result = self.graphql(
+            mutation,
+            input=dict(
+                flowRunId=flow_run_id,
+                taskRunId=task_run_id,
+                timestamp=timestamp_str,
+                name=name,
+                message=message,
+                level=level,
+                info=info,
+            ),
+        )  # type: Any
+
+        if not result.data.writeRunLog.success:
+            raise ValueError("Writing log failed.")
