@@ -12,7 +12,7 @@ from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, State
+from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -245,8 +245,9 @@ class CloudTaskRunner(TaskRunner):
             executor=executor,
         )
         if end_state.is_retrying() and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=1)
+            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
         ):
+            assert isinstance(end_state, Retrying)
             naptime = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
