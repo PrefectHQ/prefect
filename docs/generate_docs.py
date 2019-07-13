@@ -69,12 +69,32 @@ def load_outline(
                 classes=[],
                 functions=[],
             )
+
             module = importlib.import_module(data["module"])
             page["top-level-doc"] = module
+
             for fun in data.get("functions", []):
-                page["functions"].append(getattr(module, fun))
+                # see if the function is in a nested module
+                if "." in fun:
+                    fun_module, fun = fun.rsplit(".", 1)
+                    fun_module = importlib.import_module(
+                        ".".join([data["module"], fun_module])
+                    )
+                else:
+                    fun_module = module
+                page["functions"].append(getattr(fun_module, fun))
+
             for clss in data.get("classes", []):
-                page["classes"].append(getattr(module, clss))
+                # see if the class is in a nested module
+                if "." in clss:
+                    clss_module, clss = clss.rsplit(".", 1)
+                    clss_module = importlib.import_module(
+                        ".".join([data["module"], clss_module])
+                    )
+                else:
+                    clss_module = module
+                page["classes"].append(getattr(clss_module, clss))
+
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))

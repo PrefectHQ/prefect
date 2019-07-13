@@ -122,7 +122,12 @@ classes = ["Result", "SafeResult", "NoResultType"]
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler"]
+classes = [
+    "LocalResultHandler",
+    "JSONResultHandler",
+    "gcs_result_handler.GCSResultHandler",
+    "s3_result_handler.S3ResultHandler"
+    ]
 
 [pages.engine.cloud]
 title = "Cloud"
@@ -132,12 +137,18 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "LocalStorage", "Memory", "Bytes"]
+classes = [
+    "Storage",
+    "LocalStorage",
+    "Memory",
+    "Bytes",
+    "docker.Docker"
+    ]
 
 [pages.environments.execution]
-title = "Execution Environments"
-module = "prefect.environments"
-classes = ["LocalEnvironment", "RemoteEnvironment"]
+title = "Execution"
+module = "prefect.environments.execution"
+classes = ["LocalEnvironment", "remote.RemoteEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
