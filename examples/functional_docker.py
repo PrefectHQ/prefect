@@ -7,12 +7,11 @@ to running this Flow.
 from prefect import Flow
 from prefect.tasks.docker import (
     CreateContainer,
-    StartContainer,
     GetContainerLogs,
+    StartContainer,
     WaitOnContainer,
 )
 from prefect.triggers import always_run
-
 
 ## initialize tasks
 container = CreateContainer(

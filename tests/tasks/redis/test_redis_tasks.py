@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock
 
-import prefect
-from prefect.tasks.redis import RedisSet, RedisGet, RedisExecute
-from prefect.utilities.configuration import set_temporary_config
-
 import pytest
+
+import prefect
+from prefect.tasks.redis import RedisExecute, RedisGet, RedisSet
+from prefect.utilities.configuration import set_temporary_config
 
 
 class TestRedisSet:

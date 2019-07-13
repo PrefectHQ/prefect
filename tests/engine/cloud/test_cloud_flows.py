@@ -11,7 +11,7 @@ import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.executors import LocalExecutor
-from prefect.engine.result_handlers import ResultHandler, JSONResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.state import (
     Failed,
     Finished,

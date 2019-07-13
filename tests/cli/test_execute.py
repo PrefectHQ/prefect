@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, PropertyMock
 
 import click
-from click.testing import CliRunner
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.execute import execute

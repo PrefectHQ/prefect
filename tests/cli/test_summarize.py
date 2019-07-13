@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.summarize import summarize
