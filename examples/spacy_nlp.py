@@ -2,17 +2,16 @@
 This example walks through the basics of using Prefect tasks to run spaCy pipelines and interact with components.
 """
 
-from prefect import Flow
-from prefect.tasks.spacy.spacy_tasks import (
-    SpacyNLP,
-    SpacyTagger,
-    SpacyParser,
-    SpacyNER,
-    SpacyComponent,
-)
-
 import spacy
 
+from prefect import Flow
+from prefect.tasks.spacy.spacy_tasks import (
+    SpacyComponent,
+    SpacyNER,
+    SpacyNLP,
+    SpacyParser,
+    SpacyTagger,
+)
 
 # load a spacy language model
 nlp = spacy.load("en_core_web_sm")
