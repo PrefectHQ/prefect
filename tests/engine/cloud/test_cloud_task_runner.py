@@ -603,3 +603,28 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert states[0].is_running()
     assert states[1].is_failed()
     assert isinstance(states[1].result, SyntaxError)
+
+
+def test_task_runner_performs_retries_for_short_delays(client):
+    global_list = []
+
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(seconds=0))
+    def noop():
+        if global_list:
+            return
+        else:
+            global_list.append(0)
+            raise ValueError("oops")
+
+    res = CloudTaskRunner(task=noop).run(
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 0  # never called
+    assert (
+        client.set_task_run_state.call_count == 5
+    )  # Pending -> Running -> Failed -> Retrying -> Running -> Success
