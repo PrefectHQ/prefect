@@ -1,5 +1,7 @@
 import copy
 import datetime
+import pendulum
+import time
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -10,7 +12,7 @@ from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, State
+from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -209,3 +211,52 @@ class CloudTaskRunner(TaskRunner):
                 )
 
         return state
+
+    def run(
+        self,
+        state: State = None,
+        upstream_states: Dict[Edge, State] = None,
+        context: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+    ) -> State:
+        """
+        The main endpoint for TaskRunners.  Calling this method will conditionally execute
+        `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
+        state which allow this Task to run.  Additionally, this method will wait and perform Task retries
+        which are scheduled for <= 1 minute in the future.
+
+        Args:
+            - state (State, optional): initial `State` to begin task run from;
+                defaults to `Pending()`
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - context (dict, optional): prefect Context to use for execution
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
+
+        Returns:
+            - `State` object representing the final post-run state of the Task
+        """
+        end_state = super().run(
+            state=state,
+            upstream_states=upstream_states,
+            context=context,
+            executor=executor,
+        )
+        if end_state.is_retrying() and (
+            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
+        ):
+            assert isinstance(end_state, Retrying)
+            naptime = max(
+                (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
+            )
+            time.sleep(naptime)
+            return self.run(
+                state=end_state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )
+        else:
+            return end_state

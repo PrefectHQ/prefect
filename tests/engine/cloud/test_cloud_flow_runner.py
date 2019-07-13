@@ -359,7 +359,7 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=10))
+    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
