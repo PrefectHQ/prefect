@@ -1,7 +1,7 @@
 import inspect
 from contextlib import contextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 from toolz import curry
 

@@ -1,16 +1,15 @@
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
+import spacy
 
 from prefect.tasks.spacy.spacy_tasks import (
-    SpacyNLP,
-    SpacyTagger,
-    SpacyParser,
-    SpacyNER,
     SpacyComponent,
+    SpacyNER,
+    SpacyNLP,
+    SpacyParser,
+    SpacyTagger,
 )
-
-import spacy
 
 
 class TestSpacyNLP:
