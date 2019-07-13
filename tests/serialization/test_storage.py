@@ -1,14 +1,15 @@
-import pytest
 import tempfile
+
+import pytest
 
 import prefect
 from prefect.environments import storage
 from prefect.serialization.storage import (
     BaseStorageSchema,
+    BytesSchema,
     DockerSchema,
     LocalSchema,
     MemorySchema,
-    BytesSchema,
 )
 
 

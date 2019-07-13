@@ -9,9 +9,9 @@ import prefect
 from prefect.utilities.serialization import (
     UUID,
     FunctionReference,
-    StatefulFunctionReference,
     JSONCompatible,
     ObjectSchema,
+    StatefulFunctionReference,
     from_qualified_name,
     to_qualified_name,
 )

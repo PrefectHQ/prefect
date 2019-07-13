@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
-from prefect.tasks.github import GetRepoInfo, CreateBranch
+from prefect.tasks.github import CreateBranch, GetRepoInfo
 from prefect.utilities.configuration import set_temporary_config
 
 
