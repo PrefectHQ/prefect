@@ -363,6 +363,19 @@ class TestInitializeRun:
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
 
+    def test_task_runner_puts_tags_in_context(self):
+        with prefect.context() as ctx:
+            assert "task_tags" not in ctx
+            result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
+            assert result.context.task_tags == set()
+
+        with prefect.context() as ctx:
+            assert "task_tags" not in ctx
+            result = TaskRunner(Task(tags=["foo", "bar"])).initialize_run(
+                state=None, context=ctx
+            )
+            assert result.context.task_tags == {"foo", "bar"}
+
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
     )

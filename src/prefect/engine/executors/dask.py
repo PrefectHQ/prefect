@@ -110,10 +110,25 @@ class DaskExecutor(Executor):
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
+        ## set a key for the dask scheduler UI
         if context.get("task_full_name"):
             key = context.get("task_full_name", "") + "-" + str(uuid.uuid4())
         else:
             key = None
+
+        ## infer from context if dask resources are being utilized
+        dask_resource_tags = [
+            tag
+            for tag in context.get("task_tags", [])
+            if tag.lower().startswith("dask-resource")
+        ]
+        if dask_resource_tags:
+            resources = {}
+            for tag in dask_resource_tags:
+                prefix, val = tag.split("=")
+                resources.update({prefix.split(":")[1]: float(val)})
+            kwargs.update(resources=resources)
+
         if self.is_started and hasattr(self, "client"):
             future = self.client.submit(fn, *args, pure=False, key=key, **kwargs)
         elif self.is_started:
