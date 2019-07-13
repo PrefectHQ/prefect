@@ -19,6 +19,10 @@ class DaskExecutor(Executor):
     address of the scheduler upon initialization; otherwise, one will be created
     (and subsequently torn down) within the `start()` contextmanager.
 
+    Note that if you have tasks with tags of the form `"dask-resource:KEY=NUM"` they will be parsed
+    and passed as [Worker Resources](https://distributed.dask.org/en/latest/resources.html) of the form
+    `{"KEY": float(NUM)}` to the Dask Scheduler.
+
     Args:
         - address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a `distributed.LocalCluster()` will be created in `executor.start()`.
