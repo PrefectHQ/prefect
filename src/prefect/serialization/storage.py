@@ -1,14 +1,12 @@
-import marshmallow
-from marshmallow import fields, post_load
 from typing import Any
 
+import marshmallow
+from marshmallow import fields, post_load
+
 import prefect
-from prefect.environments.storage import Bytes, Memory, Docker, LocalStorage, Storage
-from prefect.utilities.serialization import (
-    ObjectSchema,
-    OneOfSchema,
-    Bytes as BytesField,
-)
+from prefect.environments.storage import Bytes, Docker, LocalStorage, Memory, Storage
+from prefect.utilities.serialization import Bytes as BytesField
+from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
 class BaseStorageSchema(ObjectSchema):

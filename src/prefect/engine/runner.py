@@ -7,7 +7,6 @@ from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, State
 from prefect.utilities import logging
 
-
 # for backwards compatibility
 ENDRUN = signals.ENDRUN
 

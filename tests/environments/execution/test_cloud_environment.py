@@ -10,7 +10,7 @@ import yaml
 
 import prefect
 from prefect.environments import CloudEnvironment
-from prefect.environments.storage import Memory, Docker
+from prefect.environments.storage import Docker, Memory
 from prefect.utilities.configuration import set_temporary_config
 
 

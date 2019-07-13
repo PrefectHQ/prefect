@@ -3,12 +3,11 @@ import datetime
 import json
 import logging
 import os
-
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 import prefect
 from prefect.utilities.exceptions import AuthorizationError, ClientError
@@ -16,9 +15,9 @@ from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
     as_nested_dict,
+    compress,
     parse_graphql,
     with_args,
-    compress,
 )
 
 if TYPE_CHECKING:

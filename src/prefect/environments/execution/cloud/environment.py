@@ -4,12 +4,12 @@ import sys
 import time
 import uuid
 from os import path
-from slugify import slugify
 from typing import Any, List
 
 import cloudpickle
 import docker
 import yaml
+from slugify import slugify
 
 import prefect
 from prefect.client import Secret

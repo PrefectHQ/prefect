@@ -2,7 +2,7 @@ import click
 from click.testing import CliRunner
 
 import prefect
-from prefect.cli import cli, version, config
+from prefect.cli import cli, config, version
 
 
 def test_init():

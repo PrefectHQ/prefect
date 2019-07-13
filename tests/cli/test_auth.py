@@ -2,9 +2,9 @@ import tempfile
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import requests
 import toml
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.auth import auth
