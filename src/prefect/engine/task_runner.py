@@ -146,7 +146,9 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        context.update(task_run_count=run_count, task_name=self.task.name)
+        context.update(
+            task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
+        )
 
         return TaskRunnerInitializeResult(state=state, context=context)
 

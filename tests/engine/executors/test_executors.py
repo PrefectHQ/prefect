@@ -237,6 +237,46 @@ class TestDaskExecutor:
         assert client.called
         assert client.call_args[-1]["test_kwarg"] == "test_value"
 
+    def test_task_names_are_passed_to_submit(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        executor = DaskExecutor()
+        with executor.start():
+            with prefect.context(task_full_name="FISH!"):
+                executor.submit(lambda: None)
+        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
+        assert kwargs["key"].startswith("FISH!")
+
+    def test_task_names_are_passed_to_map(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        executor = DaskExecutor()
+        with executor.start():
+            with prefect.context(task_full_name="FISH![0]"):
+                executor.map(lambda: None, [1, 2])
+        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
+        assert kwargs["key"].startswith("FISH![0]")
+
+    def test_context_tags_are_passed_to_submit(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        executor = DaskExecutor()
+        with executor.start():
+            with prefect.context(task_tags=["dask-resource:GPU=1"]):
+                executor.submit(lambda: None)
+        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
+        assert kwargs["resources"] == {"GPU": 1.0}
+
+    def test_context_tags_are_passed_to_map(self, monkeypatch):
+        client = MagicMock()
+        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        executor = DaskExecutor()
+        with executor.start():
+            with prefect.context(task_tags=["dask-resource:GPU=1"]):
+                executor.map(lambda: None, [1, 2])
+        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
+        assert kwargs["resources"] == {"GPU": 1.0}
+
     def test_debug_is_converted_to_silence_logs(self, monkeypatch):
         client = MagicMock()
         monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
