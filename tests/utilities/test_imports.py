@@ -26,5 +26,6 @@ def test_lazy_import_with_bad_module():
     module = lazy_import("abcdefghijklmnop", globals())
 
     # error is not raised until we try to access module
-    with pytest.raises(ModuleNotFoundError):
+    # use ImportError instead of ModuleNotFoundError for python 3.5 compat
+    with pytest.raises(ImportError):
         dir(module)
