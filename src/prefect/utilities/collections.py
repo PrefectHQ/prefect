@@ -217,7 +217,7 @@ def flatdict_to_dict(dct: dict, dct_class: type = None) -> MutableMapping:
         - MutableMapping: A `MutableMapping` used to represent a nested dictionary
     """
 
-    result = (dct_class or dict)()
+    result = (dct_class or dict)()  # type: MutableMapping
     for k, v in dct.items():
         if isinstance(k, CompoundKey):
             current_dict = result
