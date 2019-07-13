@@ -7,7 +7,6 @@ import prefect.engine.result
 import prefect.engine.result_handlers
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.task_runner import TaskRunner
-import prefect.engine.cloud
 
 
 def get_default_executor_class() -> type:

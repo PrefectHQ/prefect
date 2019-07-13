@@ -1,5 +1,6 @@
 import prefect
 from prefect import environments
+import prefect.environments.execution.cloud
 from prefect.serialization.environment import (
     BaseEnvironmentSchema,
     CloudEnvironmentSchema,
@@ -16,7 +17,7 @@ def test_serialize_base_environment():
 
 
 def test_serialize_cloud_environment():
-    env = environments.CloudEnvironment()
+    env = environments.execution.cloud.CloudEnvironment()
 
     schema = CloudEnvironmentSchema()
     serialized = schema.dump(env)
@@ -30,7 +31,9 @@ def test_serialize_cloud_environment():
 
 
 def test_serialize_cloud_environment_with_private_registry():
-    env = environments.CloudEnvironment(private_registry=True, docker_secret="FOO")
+    env = environments.execution.cloud.CloudEnvironment(
+        private_registry=True, docker_secret="FOO"
+    )
 
     schema = CloudEnvironmentSchema()
     serialized = schema.dump(env)

@@ -134,12 +134,17 @@ class TestCreateFlow:
         assert isinstance(f2.storage, prefect.environments.storage.Memory)
 
     def test_create_flow_with_environment(self):
-        f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        f2 = Flow(
+            name="test",
+            environment=prefect.environments.execution.cloud.CloudEnvironment(),
+        )
+        assert isinstance(
+            f2.environment, prefect.environments.execution.cloud.CloudEnvironment
+        )
 
-    def test_create_flow_has_default_environment(self):
+    def test_create_flow_has_no_default_environment(self):
         f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        assert f2.environment is None
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -1427,10 +1432,6 @@ class TestSerialize:
         with pytest.raises(ValueError) as exc:
             f.serialize()
         assert "cycle found" in str(exc.value).lower()
-
-    def test_default_environment_is_cloud_environment(self):
-        f = Flow(name="test")
-        assert isinstance(f.environment, prefect.environments.CloudEnvironment)
 
     def test_serialize_includes_storage(self):
         f = Flow(name="test", storage=prefect.environments.storage.Memory())

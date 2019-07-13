@@ -5,12 +5,12 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import (
-    GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
-    S3ResultHandler,
 )
+from prefect.engine.result_handlers.gcs_result_handler import GCSResultHandler
+from prefect.engine.result_handlers.s3_result_handler import S3ResultHandler
 from prefect.serialization.result_handlers import (
     ResultHandlerSchema,
     CustomResultHandlerSchema,

@@ -344,6 +344,11 @@ module = "prefect.utilities.graphql"
 classes = ["GraphQLResult", "EnumValue"]
 functions = ["parse_graphql", "parse_graphql_arguments", "with_args", "compress", "decompress"]
 
+[pages.utilities.imports]
+title = "Imports"
+module = "prefect.utilities.imports"
+functions = ["lazy_import"]
+
 [pages.utilities.logging]
 title = "Logging"
 module = "prefect.utilities.logging"

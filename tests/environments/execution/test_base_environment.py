@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.environments import Environment
-from prefect.environments.storage import Docker
+from prefect.environments.storage.docker import Docker
 
 
 def test_create_environment():

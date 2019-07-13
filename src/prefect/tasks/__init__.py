@@ -5,7 +5,11 @@ from prefect.core.task import Task
 import prefect.tasks.core
 import prefect.tasks.control_flow
 import prefect.tasks.database
-import prefect.tasks.docker
 import prefect.tasks.github
 import prefect.tasks.notifications
 import prefect.tasks.shell
+
+from prefect.utilities.imports import lazy_import
+
+# lazy imports due to optional dependencies
+docker = lazy_import("prefect.tasks.docker", globals(), import_as="docker")

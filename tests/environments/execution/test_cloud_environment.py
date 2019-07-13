@@ -9,8 +9,9 @@ import pytest
 import yaml
 
 import prefect
-from prefect.environments import CloudEnvironment
-from prefect.environments.storage import Memory, Docker
+from prefect.environments.execution.cloud import CloudEnvironment
+from prefect.environments.storage import Memory
+from prefect.environments.storage.docker import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -47,7 +48,8 @@ def test_setup_doesnt_pass_if_private_registry(monkeypatch):
 
     create_secret = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+        "prefect.environments.execution.cloud.CloudEnvironment._create_namespaced_secret",
+        create_secret,
     )
     with set_temporary_config({"cloud.auth_token": "test"}):
         environment.setup(storage=Docker())
@@ -71,7 +73,8 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 
     create_secret = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+        "prefect.environments.execution.cloud.CloudEnvironment._create_namespaced_secret",
+        create_secret,
     )
     with set_temporary_config({"cloud.auth_token": "test"}):
         with prefect.context(namespace="foo"):
@@ -98,7 +101,8 @@ def test_execute(monkeypatch):
 
     create_flow_run = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment.create_flow_run_job", create_flow_run
+        "prefect.environments.execution.cloud.CloudEnvironment.create_flow_run_job",
+        create_flow_run,
     )
 
     environment.execute(storage=storage, flow_location="")

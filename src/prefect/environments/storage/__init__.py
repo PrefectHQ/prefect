@@ -11,7 +11,11 @@ The Prefect Storage interface encapsulates logic for storing, serializing and ev
 """
 
 from prefect.environments.storage.base import Storage
-from prefect.environments.storage.docker import Docker
 from prefect.environments.storage.bytes import Bytes
 from prefect.environments.storage.local import LocalStorage
 from prefect.environments.storage.memory import Memory
+
+# lazy imports
+from prefect.utilities.imports import lazy_import
+
+docker = lazy_import("prefect.environments.storage.docker", globals(), "docker")

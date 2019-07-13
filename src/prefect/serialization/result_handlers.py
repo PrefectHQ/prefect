@@ -4,17 +4,31 @@ from typing import Any, Dict, Optional
 from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine.result_handlers import (
-    GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
-    S3ResultHandler,
 )
+
+
 from prefect.utilities.serialization import (
     JSONCompatible,
     ObjectSchema,
     OneOfSchema,
     to_qualified_name,
+)
+
+
+from prefect.utilities.imports import lazy_import
+
+lazy_gcs_result_handler = lazy_import(
+    "prefect.engine.result_handlers.gcs_result_handler",
+    globals(),
+    "lazy_gcs_result_handler",
+)
+lazy_s3_result_handler = lazy_import(
+    "prefect.engine.result_handlers.s3_result_handler",
+    globals(),
+    "lazy_s3_result_handler",
 )
 
 
@@ -40,7 +54,7 @@ class CustomResultHandlerSchema(ObjectSchema):
 
 class GCSResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
-        object_class = GCSResultHandler
+        object_class = lambda: lazy_gcs_result_handler.GCSResultHandler
 
     bucket = fields.String(allow_none=False)
     credentials_secret = fields.String(allow_none=True)
@@ -60,7 +74,7 @@ class LocalResultHandlerSchema(BaseResultHandlerSchema):
 
 class S3ResultHandlerSchema(BaseResultHandlerSchema):
     class Meta:
-        object_class = S3ResultHandler
+        object_class = lambda: lazy_s3_result_handler.S3ResultHandler
 
     bucket = fields.String(allow_none=False)
     aws_credentials_secret = fields.String(allow_none=True)

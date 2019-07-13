@@ -3,11 +3,19 @@ from marshmallow import fields, post_load
 from typing import Any
 
 import prefect
-from prefect.environments.storage import Bytes, Memory, Docker, LocalStorage, Storage
+from prefect.environments.storage import Bytes, Memory, LocalStorage, Storage
+
+from prefect.utilities.imports import lazy_import
+
 from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
     Bytes as BytesField,
+)
+
+
+lazy_docker = lazy_import(
+    "prefect.environments.storage.docker", globals(), "lazy_docker"
 )
 
 
@@ -23,7 +31,7 @@ class BytesSchema(ObjectSchema):
     flows = fields.Dict(key=fields.Str(), values=BytesField())
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Storage:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
@@ -38,7 +46,7 @@ class LocalSchema(ObjectSchema):
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Storage:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows
@@ -47,7 +55,7 @@ class LocalSchema(ObjectSchema):
 
 class DockerSchema(ObjectSchema):
     class Meta:
-        object_class = Docker
+        object_class = lambda: lazy_docker.Docker
 
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)
@@ -56,7 +64,7 @@ class DockerSchema(ObjectSchema):
     prefect_version = fields.String(allow_none=False)
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
+    def create_object(self, data: dict, **kwargs: Any) -> Storage:
         flows = data.pop("flows", dict())
         base_obj = super().create_object(data)
         base_obj.flows = flows

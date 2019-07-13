@@ -1,12 +1,12 @@
 from marshmallow import fields
 
-from prefect.environments import (
-    CloudEnvironment,
-    Environment,
-    LocalEnvironment,
-    RemoteEnvironment,
-)
+from prefect.environments import Environment, LocalEnvironment, RemoteEnvironment
+from prefect.utilities.imports import lazy_import
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
+
+lazy_cloud = lazy_import(
+    "prefect.environments.execution.cloud", globals(), "lazy_cloud"
+)
 
 
 class BaseEnvironmentSchema(ObjectSchema):
@@ -21,7 +21,7 @@ class LocalEnvironmentSchema(ObjectSchema):
 
 class CloudEnvironmentSchema(ObjectSchema):
     class Meta:
-        object_class = CloudEnvironment
+        object_class = lambda: lazy_cloud.CloudEnvironment
 
     docker_secret = fields.String(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)

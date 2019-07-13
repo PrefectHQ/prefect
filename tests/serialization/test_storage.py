@@ -10,6 +10,7 @@ from prefect.serialization.storage import (
     MemorySchema,
     BytesSchema,
 )
+from prefect.environments.storage.docker import Docker
 
 
 @pytest.mark.parametrize("cls", storage.Storage.__subclasses__())
@@ -20,7 +21,7 @@ def test_serialization_on_all_subclasses(cls):
 
 
 def test_docker_empty_serialize():
-    docker = storage.Docker()
+    docker = Docker()
     serialized = DockerSchema().dump(docker)
 
     assert serialized
@@ -49,7 +50,7 @@ def test_memory_roundtrip():
 
 
 def test_docker_full_serialize():
-    docker = storage.Docker(
+    docker = Docker(
         registry_url="url", image_name="name", image_tag="tag", prefect_version="0.5.2"
     )
     serialized = DockerSchema().dump(docker)
@@ -64,7 +65,7 @@ def test_docker_full_serialize():
 
 
 def test_docker_serialize_with_flows():
-    docker = storage.Docker(registry_url="url", image_name="name", image_tag="tag")
+    docker = Docker(registry_url="url", image_name="name", image_tag="tag")
     f = prefect.Flow("test")
     docker.add_flow(f)
     serialized = DockerSchema().dump(docker)

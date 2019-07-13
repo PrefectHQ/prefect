@@ -14,7 +14,7 @@ import yaml
 import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
+from prefect.environments.storage.docker import Docker
 from prefect.utilities import logging
 
 

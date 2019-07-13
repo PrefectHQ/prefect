@@ -5,8 +5,9 @@ import cloudpickle
 import pytest
 
 import prefect
-from prefect.environments import RemoteEnvironment
-from prefect.environments.storage import Memory, Docker
+from prefect.environments.execution.remote import RemoteEnvironment
+from prefect.environments.storage import Memory
+from prefect.environments.storage.docker import Docker
 
 
 def test_create_remote_environment():

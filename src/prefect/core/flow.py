@@ -32,11 +32,10 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.environments import CloudEnvironment, Environment
+from prefect.environments import Environment
 from prefect.environments.storage import Storage
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
-from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
 
 ParameterDetails = TypedDict("ParameterDetails", {"default": Any, "required": bool})
@@ -156,7 +155,7 @@ class Flow:
 
         self.name = name
         self.schedule = schedule
-        self.environment = environment or prefect.environments.CloudEnvironment()
+        self.environment = environment
         self.storage = storage
         self.result_handler = (
             result_handler or prefect.engine.get_default_result_handler_class()()

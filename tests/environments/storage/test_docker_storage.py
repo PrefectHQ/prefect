@@ -7,7 +7,7 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.environments.storage import Docker
+from prefect.environments.storage.docker import Docker
 from prefect.utilities.exceptions import SerializationError
 
 
@@ -102,7 +102,9 @@ def test_build_base_image(monkeypatch):
     storage = Docker(registry_url="reg", base_image="test")
 
     build_image = MagicMock(return_value=("1", "2"))
-    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
+    monkeypatch.setattr(
+        "prefect.environments.storage.docker.Docker.build_image", build_image
+    )
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -114,7 +116,9 @@ def test_build_no_default(monkeypatch):
     storage = Docker(registry_url="reg")
 
     build_image = MagicMock(return_value=("1", "2"))
-    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
+    monkeypatch.setattr(
+        "prefect.environments.storage.docker.Docker.build_image", build_image
+    )
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
@@ -149,7 +153,9 @@ def test_build_image_passes(monkeypatch):
     storage = Docker(registry_url="reg", base_image="python:3.6")
 
     pull_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+    monkeypatch.setattr(
+        "prefect.environments.storage.docker.Docker.pull_image", pull_image
+    )
 
     build = MagicMock()
     monkeypatch.setattr("docker.APIClient.build", build)
@@ -169,10 +175,14 @@ def test_build_image_passes_and_pushes(monkeypatch):
     storage = Docker(registry_url="reg", base_image="python:3.6")
 
     pull_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
+    monkeypatch.setattr(
+        "prefect.environments.storage.docker.Docker.pull_image", pull_image
+    )
 
     push_image = MagicMock()
-    monkeypatch.setattr("prefect.environments.storage.Docker.push_image", push_image)
+    monkeypatch.setattr(
+        "prefect.environments.storage.docker.Docker.push_image", push_image
+    )
 
     build = MagicMock()
     monkeypatch.setattr("docker.APIClient.build", build)
