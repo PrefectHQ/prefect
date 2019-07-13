@@ -8,7 +8,7 @@ from slugify import slugify
 from typing import Any, List
 
 import cloudpickle
-import docker
+
 import yaml
 
 import prefect

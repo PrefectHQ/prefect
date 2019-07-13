@@ -6,8 +6,7 @@ import pytest
 
 import prefect
 from prefect.environments.execution.remote import RemoteEnvironment
-from prefect.environments.storage import Memory
-from prefect.environments.storage.docker import Docker
+from prefect.environments.storage import Memory, Docker
 
 
 def test_create_remote_environment():

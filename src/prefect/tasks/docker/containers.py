@@ -1,10 +1,12 @@
 from typing import Any, Union
-
-import docker
-
 from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
+
+from prefect.utilities.imports import lazy_import
+
+# lazy import docker
+docker = lazy_import("docker", globals())
 
 
 class CreateContainer(Task):

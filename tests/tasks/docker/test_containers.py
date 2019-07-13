@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import docker
 import pytest
 
 from prefect.engine.signals import FAIL
@@ -54,7 +55,7 @@ class TestCreateContainerTask:
         task = CreateContainer(image_name="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -63,7 +64,7 @@ class TestCreateContainerTask:
         task = CreateContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(image_name="test")
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -72,7 +73,7 @@ class TestCreateContainerTask:
         task = CreateContainer(image_name="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(image_name="test")
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -103,7 +104,7 @@ class TestGetContainerLogsTask:
         task = GetContainerLogs(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -112,7 +113,7 @@ class TestGetContainerLogsTask:
         task = GetContainerLogs()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -121,7 +122,7 @@ class TestGetContainerLogsTask:
         task = GetContainerLogs(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -142,7 +143,7 @@ class TestListContainersTask:
         task = ListContainers(all_containers=True)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.containers.call_args[1]["all"]
@@ -151,7 +152,7 @@ class TestListContainersTask:
         task = ListContainers()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(all_containers=True)
         assert api.return_value.containers.call_args[1]["all"]
@@ -160,7 +161,7 @@ class TestListContainersTask:
         task = ListContainers(all_containers=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(all_containers=True)
         assert api.return_value.containers.call_args[1]["all"]
@@ -191,7 +192,7 @@ class TestStartContainerTask:
         task = StartContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -200,7 +201,7 @@ class TestStartContainerTask:
         task = StartContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -209,7 +210,7 @@ class TestStartContainerTask:
         task = StartContainer(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -240,7 +241,7 @@ class TestStopContainerTask:
         task = StopContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -249,7 +250,7 @@ class TestStopContainerTask:
         task = StopContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -258,7 +259,7 @@ class TestStopContainerTask:
         task = StopContainer(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -293,7 +294,7 @@ class TestWaitOnContainerTask:
         task = WaitOnContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {}
 
         task.run()
@@ -303,7 +304,7 @@ class TestWaitOnContainerTask:
         task = WaitOnContainer(container_id="init")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {}
 
         task.run(container_id="test")
@@ -313,7 +314,7 @@ class TestWaitOnContainerTask:
         task = WaitOnContainer(container_id="noise")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"StatusCode": 1}
 
         with pytest.raises(FAIL):
@@ -323,7 +324,7 @@ class TestWaitOnContainerTask:
         task = WaitOnContainer(container_id="noise")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"Error": "oops!"}
 
         with pytest.raises(FAIL):
@@ -333,7 +334,7 @@ class TestWaitOnContainerTask:
         task = WaitOnContainer(container_id="noise", raise_on_exit_code=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"StatusCode": 1, "Error": "oops!"}
 
         task.run()

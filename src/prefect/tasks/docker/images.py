@@ -1,9 +1,12 @@
 from typing import Any
 
-import docker
-
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
+
+from prefect.utilities.imports import lazy_import
+
+# lazy import docker
+docker = lazy_import("docker", globals())
 
 
 class ListImages(Task):

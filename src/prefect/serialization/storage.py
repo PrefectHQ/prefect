@@ -3,19 +3,12 @@ from marshmallow import fields, post_load
 from typing import Any
 
 import prefect
-from prefect.environments.storage import Bytes, Memory, LocalStorage, Storage
-
-from prefect.utilities.imports import lazy_import
+from prefect.environments.storage import Bytes, Memory, LocalStorage, Storage, Docker
 
 from prefect.utilities.serialization import (
     ObjectSchema,
     OneOfSchema,
     Bytes as BytesField,
-)
-
-
-lazy_docker = lazy_import(
-    "prefect.environments.storage.docker", globals(), "lazy_docker"
 )
 
 
@@ -55,7 +48,7 @@ class LocalSchema(ObjectSchema):
 
 class DockerSchema(ObjectSchema):
     class Meta:
-        object_class = lambda: lazy_docker.Docker
+        object_class = Docker
 
     registry_url = fields.String(allow_none=True)
     image_name = fields.String(allow_none=True)

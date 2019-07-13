@@ -11,11 +11,13 @@ import uuid
 from slugify import slugify
 from typing import Any, Callable, Dict, Iterable, List
 
-import docker
-
 import prefect
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import SerializationError
+from prefect.utilities.imports import lazy_import
+
+# lazy import docker
+docker = lazy_import("docker", globals())
 
 
 class Docker(Storage):
