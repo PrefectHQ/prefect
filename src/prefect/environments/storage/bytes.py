@@ -1,5 +1,6 @@
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+
 import cloudpickle
-from typing import Any, Dict, Iterable, List, TYPE_CHECKING, Union
 
 import prefect
 from prefect.environments.storage import Storage

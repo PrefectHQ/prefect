@@ -10,11 +10,11 @@ from prefect.utilities.collections import DotDict
 from prefect.utilities.graphql import (
     EnumValue,
     GQLObject,
+    compress,
+    decompress,
     parse_graphql,
     parse_graphql_arguments,
     with_args,
-    compress,
-    decompress,
 )
 
 

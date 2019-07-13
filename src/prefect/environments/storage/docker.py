@@ -1,4 +1,3 @@
-import cloudpickle
 import filecmp
 import json
 import logging
@@ -8,10 +7,11 @@ import sys
 import tempfile
 import textwrap
 import uuid
-from slugify import slugify
 from typing import Any, Callable, Dict, Iterable, List
 
+import cloudpickle
 import docker
+from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage

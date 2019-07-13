@@ -5,8 +5,9 @@ Each task is instantiated as a template in order to demonstrate how arguments ca
 passed either at initialization or when building the flow.
 """
 import json
+
 from prefect import Flow
-from prefect.tasks.google.storage import GCSDownload, GCSUpload, GCSCopy
+from prefect.tasks.google.storage import GCSCopy, GCSDownload, GCSUpload
 
 BUCKET = "gcs-bucket"
 BLOB = "path/to/blob"

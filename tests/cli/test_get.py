@@ -2,9 +2,9 @@ import sys
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import pytest
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.get import get

@@ -12,8 +12,8 @@ from prefect.engine.result_handlers import (
     S3ResultHandler,
 )
 from prefect.serialization.result_handlers import (
-    ResultHandlerSchema,
     CustomResultHandlerSchema,
+    ResultHandlerSchema,
 )
 from prefect.utilities.configuration import set_temporary_config
 
