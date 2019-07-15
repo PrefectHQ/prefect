@@ -6,25 +6,25 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.environments.storage import LocalStorage
+from prefect.environments.storage import Local
 from prefect.utilities.configuration import set_temporary_config
 
 
 def test_create_local_storage():
-    storage = LocalStorage()
+    storage = Local()
     assert storage
     assert storage.directory.endswith(".prefect/flows")
 
 
 def test_create_local_storage_with_custom_dir():
-    storage = LocalStorage(directory=".")
+    storage = Local(directory=".")
     assert storage
     assert os.path.isabs(storage.directory)
 
 
 def test_add_flow_to_storage():
     with tempfile.TemporaryDirectory() as tmpdir:
-        storage = LocalStorage(directory=tmpdir)
+        storage = Local(directory=tmpdir)
         f = Flow("test")
         assert f.name not in storage
 
@@ -41,7 +41,7 @@ def test_add_flow_to_storage():
 
 def test_add_flow_raises_if_name_conflict():
     with tempfile.TemporaryDirectory() as tmpdir:
-        storage = LocalStorage(directory=tmpdir)
+        storage = Local(directory=tmpdir)
         f = Flow("test")
         res = storage.add_flow(f)
         g = Flow("test")
@@ -51,20 +51,20 @@ def test_add_flow_raises_if_name_conflict():
 
 
 def test_get_env_runner_raises():
-    s = LocalStorage()
+    s = Local()
     with pytest.raises(NotImplementedError):
         s.get_env_runner("")
 
 
 def test_get_flow_raises_if_flow_not_present():
-    s = LocalStorage()
+    s = Local()
     with pytest.raises(ValueError):
         s.get_flow("test")
 
 
 def test_get_flow_returns_flow():
     with tempfile.TemporaryDirectory() as tmpdir:
-        storage = LocalStorage(directory=tmpdir)
+        storage = Local(directory=tmpdir)
         f = Flow("test")
         loc = storage.add_flow(f)
         runner = storage.get_flow(loc)
@@ -73,7 +73,7 @@ def test_get_flow_returns_flow():
 
 def test_containment():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = LocalStorage(directory=tmpdir)
+        s = Local(directory=tmpdir)
         f = Flow("test")
         s.add_flow(f)
 
@@ -86,7 +86,7 @@ def test_containment():
 
 def test_build_returns_self():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = LocalStorage(directory=tmpdir)
+        s = Local(directory=tmpdir)
         assert s.build() is s
 
         f = Flow("test")
@@ -96,7 +96,7 @@ def test_build_returns_self():
 
 def test_multiple_flows_in_storage():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = LocalStorage(directory=tmpdir)
+        s = Local(directory=tmpdir)
         f = Flow("test")
         g = Flow("other")
         z = Flow("not")
@@ -116,7 +116,7 @@ def test_multiple_flows_in_storage():
 
 def test_add_flow_with_weird_name_is_cleaned():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = LocalStorage(directory=tmpdir)
+        s = Local(directory=tmpdir)
         flow = Flow("WELL what do you know?!~? looks like a test!!!!")
         loc = s.add_flow(flow)
         assert "?" not in loc

@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow
 
 
-class LocalStorage(Storage):
+class Local(Storage):
     """
-    Local Storage class.  This class represents the Storage
+    Local storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
 
     Args:
