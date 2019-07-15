@@ -48,6 +48,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - The `slack_notifier` state handler now uses a `webhook_secret` kwarg to pull the URL from a Secret - [#1075](https://github.com/PrefectHQ/prefect/issues/1075)
 - Use GraphQL for Cloud logging - [#1193](https://github.com/PrefectHQ/prefect/pull/1193)
 - Remove the `CloudResultHandler` default result handler - [#1198](https://github.com/PrefectHQ/prefect/pull/1198)
+- Rename `LocalStorage` to `Local` - [#1236](https://github.com/PrefectHQ/prefect/pull/1236)
 
 ### Contributors
 
