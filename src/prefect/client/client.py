@@ -64,18 +64,7 @@ class Client:
             to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
-    def _initialize_logger(self) -> None:
-        # The Client requires its own logging setup because the RemoteLogger actually
-        # uses a Client to ship its logs; we currently don't send Client logs to Cloud.
-        self.logger = logging.getLogger("Client")
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(prefect.config.logging.format)
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(prefect.config.logging.level)
-
     def __init__(self, graphql_server: str = None):
-        self._initialize_logger()
 
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql")
@@ -83,17 +72,22 @@ class Client:
 
         token = prefect.config.cloud.get("auth_token", None)
 
+        self.token_is_local = False
         if token is None:
-            token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-            if os.path.exists(token_path):
-                with open(token_path, "r") as f:
+            if os.path.exists(self.local_token_path):
+                with open(self.local_token_path, "r") as f:
                     token = f.read() or None
-            if token is not None:
-                # this is a rare event and we don't expect it to happen
-                # leaving this log in case it ever happens we'll know
-                self.logger.debug("Client token set from file {}".format(token_path))
+                    self.token_is_local = True
 
         self.token = token
+
+    @property
+    def local_token_path(self) -> str:
+        """
+        Returns the local token path corresponding to the provided graphql_server
+        """
+        graphql_server = (self.graphql_server or "").replace("/", "_")
+        return os.path.expanduser("~/.prefect/tokens/{}".format(graphql_server))
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -202,114 +196,66 @@ class Client:
         assert isinstance(server, str)  # mypy assert
 
         if self.token is None:
-            raise AuthorizationError("Call Client.login() to set the client token.")
+            raise AuthorizationError("No token found; call Client.login() to set one.")
 
         url = os.path.join(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 
-        # write this as a function to allow reuse in next try/except block
-        def request_fn() -> "requests.models.Response":
-            headers = {"Authorization": "Bearer {}".format(self.token)}
-            session = requests.Session()
-            retries = Retry(
-                total=6,
-                backoff_factor=1,
-                status_forcelist=[500, 502, 503, 504],
-                method_whitelist=["DELETE", "GET", "POST"],
-            )
-            session.mount("https://", HTTPAdapter(max_retries=retries))
-            if method == "GET":
-                response = session.get(url, headers=headers, params=params)
-            elif method == "POST":
-                response = session.post(url, headers=headers, json=params)
-            elif method == "DELETE":
-                response = session.delete(url, headers=headers)
-            else:
-                raise ValueError("Invalid method: {}".format(method))
+        headers = {"Authorization": "Bearer {}".format(self.token)}
+        session = requests.Session()
+        retries = Retry(
+            total=6,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+            method_whitelist=["DELETE", "GET", "POST"],
+        )
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        if method == "GET":
+            response = session.get(url, headers=headers, params=params)
+        elif method == "POST":
+            response = session.post(url, headers=headers, json=params)
+        elif method == "DELETE":
+            response = session.delete(url, headers=headers)
+        else:
+            raise ValueError("Invalid method: {}".format(method))
 
-            # Check if request returned a successful status
-            response.raise_for_status()
+        # Check if request returned a successful status
+        response.raise_for_status()
 
-            return response
-
-        # If a 401 status code is returned, refresh the login token
-        try:
-            return request_fn()
-        except requests.HTTPError as err:
-            if err.response.status_code == 401:
-                self.refresh_token()
-                return request_fn()
-            raise
+        return response
 
     # -------------------------------------------------------------------------
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(
-        self,
-        email: str,
-        password: str,
-        account_slug: str = None,
-        account_id: str = None,
-    ) -> None:
+    def login(self, api_token: str) -> None:
         """
-        Login to the server in order to gain access
+        Logs in to Prefect Cloud with an API token. The token is written to local storage
+        so it persists across Prefect sessions.
 
         Args:
-            - email (str): User's email on the platform
-            - password (str): User's password on the platform
-            - account_slug (str, optional): Slug that is unique to the user
-            - account_id (str, optional): Specific Account ID for this user to use
+            - api_token (str): a Prefect Cloud API token
 
         Raises:
             - AuthorizationError if unable to login to the server (request does not return `200`)
         """
-
-        # lazy import for performance
-        import requests
-
-        # TODO: This needs to call the main graphql server and be adjusted for auth0
-        url = os.path.join(self.graphql_server, "login_email")  # type: ignore
-        response = requests.post(
-            url,
-            auth=(email, password),
-            json=dict(account_id=account_id, account_slug=account_slug),
-        )
-
-        # Load the current auth token if able to login
-        if not response.ok:
-            raise AuthorizationError("Could not log in.")
-        self.token = response.json().get("token")
-        if self.token:
-            creds_path = os.path.expanduser("~/.prefect/.credentials")
-            if not os.path.exists(creds_path):
-                os.makedirs(creds_path)
-            with open(os.path.join(creds_path, "auth_token"), "w+") as f:
-                f.write(self.token)
+        if not os.path.exists(os.path.dirname(self.local_token_path)):
+            os.makedirs(os.path.dirname(self.local_token_path))
+        with open(self.local_token_path, "w+") as f:
+            f.write(api_token)
+        self.token = api_token
+        self.token_is_local = True
 
     def logout(self) -> None:
         """
-        Logs out by clearing all tokens, including deleting `~/.prefect/credentials/auth_token`
+        Deletes the token from this client, and removes it from local storage.
         """
-        token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-        if os.path.exists(token_path):
-            os.remove(token_path)
-        del self.token
-
-    def refresh_token(self) -> None:
-        """
-        Refresh the auth token for this user on the server. It is only valid for fifteen minutes.
-        """
-        # lazy import for performance
-        import requests
-
-        # TODO: This needs to call the main graphql server
-        url = os.path.join(self.graphql_server, "refresh_token")  # type: ignore
-        response = requests.post(
-            url, headers={"Authorization": "Bearer {}".format(self.token)}
-        )
-        self.token = response.json().get("token")
+        self.token = None
+        if self.token_is_local:
+            if os.path.exists(self.local_token_path):
+                os.remove(self.local_token_path)
+            self.token_is_local = False
 
     def deploy(
         self,
