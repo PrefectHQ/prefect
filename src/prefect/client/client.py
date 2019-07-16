@@ -82,7 +82,7 @@ class Client:
         self.token = token
 
     @property
-    def local_token_path(self):
+    def local_token_path(self) -> str:
         """
         Returns the local token path corresponding to the provided graphql_server
         """
