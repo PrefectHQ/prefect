@@ -1,8 +1,7 @@
-import base64
+import tempfile
 import datetime
 import json
 import os
-import uuid
 from unittest.mock import MagicMock, mock_open
 
 import marshmallow
@@ -13,22 +12,7 @@ import requests
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.state import (
-    Cached,
-    Failed,
-    Finished,
-    Mapped,
-    Paused,
-    Pending,
-    Retrying,
-    Running,
-    Scheduled,
-    Skipped,
-    State,
-    Success,
-    TimedOut,
-    TriggerFailed,
-)
+from prefect.engine.state import Pending
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult, decompress
@@ -56,93 +40,79 @@ def test_client_initializes_and_prioritizes_kwargs():
     assert client.token == "token"
 
 
+def test_client_token_path_depends_on_graphql_server():
+    assert Client(graphql_server="a").local_token_path == os.path.expanduser(
+        "~/.prefect/tokens/a"
+    )
+
+    assert Client(graphql_server="b").local_token_path == os.path.expanduser(
+        "~/.prefect/tokens/b"
+    )
+
+
 def test_client_token_initializes_from_file(monkeypatch):
-    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
-    monkeypatch.setattr("builtins.open", mock_open(read_data="TOKEN"))
-    with set_temporary_config({"cloud.auth_token": None}):
+
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(b"TOKEN")
+        f.seek(0)
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
+
         client = Client()
     assert client.token == "TOKEN"
 
 
 def test_client_token_priotizes_config_over_file(monkeypatch):
-    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
-    monkeypatch.setattr("builtins.open", mock_open(read_data="file-token"))
-    with set_temporary_config({"cloud.auth_token": "config-token"}):
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(b"TOKEN")
+        f.seek(0)
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
+
+        with set_temporary_config({"cloud.auth_token": "CONFIG-TOKEN"}):
+            client = Client()
+    assert client.token == "CONFIG-TOKEN"
+
+
+def test_login_writes_token(monkeypatch):
+    with tempfile.NamedTemporaryFile() as f:
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
+
         client = Client()
-    assert client.token == "config-token"
+
+        client.login(api_token="a")
+        assert f.read() == b"a"
+
+        f.seek(0)
+
+        client.login(api_token="b")
+        assert f.read() == b"b"
 
 
-def test_client_doesnt_write_to_file_if_token_provided_from_config(monkeypatch):
-    monkeypatch.setattr("os.path.exists", MagicMock(return_value=True))
-    mock_file = mock_open()
-    monkeypatch.setattr("builtins.open", mock_file)
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "token"}
-    ):
+def test_login_creates_directories(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmp:
+
+        f_path = os.path.join(tmp, "a", "b", "c")
+
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f_path)
+
         client = Client()
-    assert not mock_file.called
+
+        client.login(api_token="a")
+
+        with open(f_path) as f:
+            assert f.read() == "a"
 
 
-@pytest.mark.parametrize("cloud", [True, False])
-def test_client_doesnt_login_if_no_tokens_available(monkeypatch, cloud):
-    post = MagicMock(
-        return_value=MagicMock(
-            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
-        )
-    )
-    mock_file = mock_open()
-    monkeypatch.setattr("builtins.open", mock_file)
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
+def test_logout_removes_token(monkeypatch):
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
 
-    config = {
-        "cloud.graphql": "http://my-cloud.foo",
-        "cloud.auth_token": None,
-        "cloud.email": "test@example.com",
-        "cloud.password": "1234",
-    }
-
-    if cloud:
-        config.update(
-            {
-                "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
-                "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
-            }
-        )
-    with set_temporary_config(config):
         client = Client()
-    assert not post.called
-    assert client.token is None
 
+        client.login(api_token="a")
+        assert f.read() == b"a"
 
-def test_client_logs_out_and_deletes_auth_token(monkeypatch):
-    post = MagicMock(
-        return_value=MagicMock(
-            ok=True, json=MagicMock(return_value=dict(token="secrettoken"))
-        )
-    )
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
-        client = Client()
-    client.login("test@example.com", "1234")
-    token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-    assert os.path.exists(token_path)
-    with open(token_path, "r") as f:
-        assert f.read() == "secrettoken"
     client.logout()
-    assert not os.path.exists(token_path)
-
-
-def test_client_raises_if_login_fails(monkeypatch):
-    post = MagicMock(return_value=MagicMock(ok=False))
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
-        client = Client()
-    with pytest.raises(AuthorizationError):
-        client.login("test@example.com", "1234")
-    assert post.called
-    assert post.call_args[0][0] == "http://my-cloud.foo/login_email"
+    assert not os.path.exists(f.name)
 
 
 def test_client_posts_raises_with_no_token(monkeypatch):
@@ -176,31 +146,6 @@ def test_client_posts_to_graphql_server(monkeypatch):
     assert post.call_args[0][0] == "http://my-cloud.foo/foo/bar"
 
 
-def test_client_posts_retries_if_token_needs_refreshing(monkeypatch):
-    error = requests.HTTPError()
-    error.response = MagicMock(status_code=401)  # unauthorized
-    post = MagicMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(side_effect=error),
-            json=MagicMock(return_value=dict(token="new-token")),
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-    monkeypatch.setattr("requests.post", post)
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-    with pytest.raises(requests.HTTPError) as exc:
-        result = client.post("/foo/bar")
-    assert exc.value is error
-    assert post.call_count == 3  # first call -> refresh token -> last call
-    assert post.call_args[0][0] == "http://my-cloud.foo/foo/bar"
-    assert client.token == "new-token"
-
-
 def test_client_posts_graphql_to_graphql_server(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -218,31 +163,6 @@ def test_client_posts_graphql_to_graphql_server(monkeypatch):
     assert result.data == {"success": True}
     assert post.called
     assert post.call_args[0][0] == "http://my-cloud.foo"
-
-
-def test_client_graphql_retries_if_token_needs_refreshing(monkeypatch):
-    error = requests.HTTPError()
-    error.response = MagicMock(status_code=401)  # unauthorized
-    post = MagicMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(side_effect=error),
-            json=MagicMock(return_value=dict(token="new-token")),
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.post", post)
-    monkeypatch.setattr("requests.Session", session)
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-    with pytest.raises(requests.HTTPError) as exc:
-        result = client.graphql("{}")
-    assert exc.value is error
-    assert post.call_count == 3  # first call -> refresh token -> last call
-    assert post.call_args[0][0] == "http://my-cloud.foo"
-    assert client.token == "new-token"
 
 
 ## test actual mutation and query handling
