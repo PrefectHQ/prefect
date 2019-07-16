@@ -86,9 +86,8 @@ class Client:
         """
         Returns the local token path corresponding to the provided graphql_server
         """
-        return os.path.expanduser(
-            "~/.prefect/tokens/{}".format(self.graphql_server.replace("/", "_"))
-        )
+        graphql_server = (self.graphql_server or "").replace("/", "_")
+        return os.path.expanduser("~/.prefect/tokens/{}".format(graphql_server))
 
     # -------------------------------------------------------------------------
     # Utilities
