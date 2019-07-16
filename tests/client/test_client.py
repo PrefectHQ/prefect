@@ -87,6 +87,21 @@ def test_login_writes_token(monkeypatch):
         assert f.read() == b"b"
 
 
+def test_login_creates_directories(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmp:
+
+        f_path = os.path.join(tmp, "a", "b", "c")
+
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f_path)
+
+        client = Client()
+
+        client.login(api_token="a")
+
+        with open(f_path) as f:
+            assert f.read() == "a"
+
+
 def test_logout_removes_token(monkeypatch):
     with tempfile.NamedTemporaryFile(delete=False) as f:
         monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)

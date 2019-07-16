@@ -240,8 +240,8 @@ class Client:
         Raises:
             - AuthorizationError if unable to login to the server (request does not return `200`)
         """
-        if not os.path.exists(self.local_token_path):
-            os.makedirs(self.local_token_path)
+        if not os.path.exists(os.path.dirname(self.local_token_path)):
+            os.makedirs(os.path.dirname(self.local_token_path))
         with open(self.local_token_path, "w+") as f:
             f.write(api_token)
         self.token = api_token
