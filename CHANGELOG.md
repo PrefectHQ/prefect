@@ -25,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Implement a local cache which persists for the duration of a Python session - [#1221](https://github.com/PrefectHQ/prefect/issues/1221)
 - Implement in-process retries for Cloud Tasks which request retry in less than one minute - [#1228](https://github.com/PrefectHQ/prefect/pull/1228)
 - Support `Client.login()` with API tokens - [#1240](https://github.com/PrefectHQ/prefect/pull/1240)
+- Add live log streaming for `prefect run cloud` command - [#1241](https://github.com/PrefectHQ/prefect/pull/1241)
 
 ### Task Library
 
