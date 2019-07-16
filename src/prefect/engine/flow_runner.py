@@ -415,15 +415,16 @@ class FlowRunner(Runner):
 
                 # -- run the task
 
-                task_states[task] = executor.submit(
-                    self.run_task,
-                    task=task,
-                    state=task_state,
-                    upstream_states=upstream_states,
-                    context=dict(prefect.context, **task_contexts.get(task, {})),
-                    task_runner_state_handlers=task_runner_state_handlers,
-                    executor=executor,
-                )
+                with prefect.context(task_full_name=task.name, task_tags=task.tags):
+                    task_states[task] = executor.submit(
+                        self.run_task,
+                        task=task,
+                        state=task_state,
+                        upstream_states=upstream_states,
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        task_runner_state_handlers=task_runner_state_handlers,
+                        executor=executor,
+                    )
 
             # ---------------------------------------------
             # Collect results
