@@ -32,7 +32,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.environments import CloudEnvironment, Environment
+from prefect.environments import RemoteEnvironment, Environment
 from prefect.environments.storage import Storage
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
@@ -106,7 +106,7 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `CloudEnvironment` will be created.
+           that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
@@ -156,7 +156,7 @@ class Flow:
 
         self.name = name
         self.schedule = schedule
-        self.environment = environment or prefect.environments.CloudEnvironment()
+        self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
         self.result_handler = (
             result_handler or prefect.engine.get_default_result_handler_class()()
