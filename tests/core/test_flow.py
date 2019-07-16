@@ -134,12 +134,12 @@ class TestCreateFlow:
         assert isinstance(f2.storage, prefect.environments.storage.Memory)
 
     def test_create_flow_with_environment(self):
-        f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        f2 = Flow(name="test", environment=prefect.environments.RemoteEnvironment())
+        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
 
     def test_create_flow_has_default_environment(self):
         f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -1430,7 +1430,7 @@ class TestSerialize:
 
     def test_default_environment_is_cloud_environment(self):
         f = Flow(name="test")
-        assert isinstance(f.environment, prefect.environments.CloudEnvironment)
+        assert isinstance(f.environment, prefect.environments.RemoteEnvironment)
 
     def test_serialize_includes_storage(self):
         f = Flow(name="test", storage=prefect.environments.storage.Memory())
