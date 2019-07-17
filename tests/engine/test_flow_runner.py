@@ -1332,7 +1332,7 @@ class TestContext:
         assert "chris" not in runner.context
 
         with prefect.context(chris="foo"):
-            runner2 = TaskRunner(Task())
+            runner2 = prefect.engine.task_runner.TaskRunner(Task())
             assert "chris" in runner2.context
 
         assert "chris" not in prefect.context
