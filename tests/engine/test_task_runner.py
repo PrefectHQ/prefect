@@ -1469,6 +1469,23 @@ class TestRunMappedStep:
         assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
         assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
 
+    def test_run_mapped_preserves_context(self):
+        @prefect.task
+        def ctx():
+            return prefect.context.get("special_thing")
+
+        with prefect.context(special_thing="FOOBARRR"):
+            runner = TaskRunner(task=ctx)
+
+        state = runner.run_mapped_task(
+            state=Pending(),
+            upstream_states={Edge(Task(), ctx, mapped=True): Success(result=[1, 2])},
+            context={},
+            executor=prefect.engine.executors.LocalExecutor(),
+        )
+        assert state.is_mapped()
+        assert [s.result for s in state.map_states] == ["FOOBARRR"] * 2
+
 
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
