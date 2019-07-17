@@ -545,25 +545,28 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
-        default_handler = task.result_handler or self.flow.result_handler
-        task_runner = self.task_runner_cls(
-            task=task,
-            state_handlers=task_runner_state_handlers,
-            result_handler=default_handler,
-        )
+        with prefect.context(self.context):
+            default_handler = task.result_handler or self.flow.result_handler
+            task_runner = self.task_runner_cls(
+                task=task,
+                state_handlers=task_runner_state_handlers,
+                result_handler=default_handler,
+            )
 
-        # if this task reduces over a mapped state, make sure its children have finished
-        for edge, upstream_state in upstream_states.items():
+            # if this task reduces over a mapped state, make sure its children have finished
+            for edge, upstream_state in upstream_states.items():
 
-            # if the upstream state is Mapped, wait until its results are all available
-            if not edge.mapped and upstream_state.is_mapped():
-                assert isinstance(upstream_state, Mapped)  # mypy assert
-                upstream_state.map_states = executor.wait(upstream_state.map_states)
-                upstream_state.result = [s.result for s in upstream_state.map_states]
+                # if the upstream state is Mapped, wait until its results are all available
+                if not edge.mapped and upstream_state.is_mapped():
+                    assert isinstance(upstream_state, Mapped)  # mypy assert
+                    upstream_state.map_states = executor.wait(upstream_state.map_states)
+                    upstream_state.result = [
+                        s.result for s in upstream_state.map_states
+                    ]
 
-        return task_runner.run(
-            state=state,
-            upstream_states=upstream_states,
-            context=context,
-            executor=executor,
-        )
+            return task_runner.run(
+                state=state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )
