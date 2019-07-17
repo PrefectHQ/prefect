@@ -22,7 +22,7 @@ class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__()
         self.client = None
-        self.logger = logger = logging.getLogger("CloudHandler")
+        self.logger = logging.getLogger("CloudHandler")
         handler = logging.StreamHandler()
         formatter = logging.Formatter(config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
