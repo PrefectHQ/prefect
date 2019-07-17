@@ -88,6 +88,7 @@ class FlowRunner(Runner):
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
     ):
+        self.context = prefect.context.to_dict()
         self.flow = flow
         if task_runner_cls is None:
             task_runner_cls = prefect.engine.get_default_task_runner_class()

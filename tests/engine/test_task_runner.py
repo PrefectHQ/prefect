@@ -330,6 +330,20 @@ def test_runner_checks_cached_inputs_correctly():
     assert post.result == 99
 
 
+class TestContext:
+    def test_task_runner_inits_with_current_context(self):
+        runner = TaskRunner(Task())
+        assert isinstance(runner.context, dict)
+        assert "chris" not in runner.context
+
+        with prefect.context(chris="foo"):
+            runner2 = TaskRunner(Task())
+            assert "chris" in runner2.context
+
+        assert "chris" not in prefect.context
+        assert runner2.context["chris"] == "foo"
+
+
 class TestInitializeRun:
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
