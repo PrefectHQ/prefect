@@ -384,6 +384,20 @@ def test_flow_runner_makes_copy_of_task_results_dict():
     assert task_states == {t1: Pending()}
 
 
+class TestContext:
+    def test_flow_runner_inits_with_current_context(self):
+        runner = FlowRunner(Flow(name="test"))
+        assert isinstance(runner.context, dict)
+        assert "chris" not in runner.context
+
+        with prefect.context(chris="foo"):
+            runner2 = TaskRunner(Task())
+            assert "chris" in runner2.context
+
+        assert "chris" not in prefect.context
+        assert runner2.context["chris"] == "foo"
+
+
 class TestCheckFlowPendingOrRunning:
     @pytest.mark.parametrize("state", [Pending(), Running(), Retrying(), Scheduled()])
     def test_pending_or_running_are_ok(self, state):

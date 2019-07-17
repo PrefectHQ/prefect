@@ -82,6 +82,7 @@ class TaskRunner(Runner):
         state_handlers: Iterable[Callable] = None,
         result_handler: "ResultHandler" = None,
     ):
+        self.context = prefect.context.to_dict()
         self.task = task
         self.result_handler = (
             task.result_handler
