@@ -82,6 +82,7 @@ class TaskRunner(Runner):
         state_handlers: Iterable[Callable] = None,
         result_handler: "ResultHandler" = None,
     ):
+        self.context = prefect.context.to_dict()
         self.task = task
         self.result_handler = (
             task.result_handler
@@ -598,12 +599,13 @@ class TaskRunner(Runner):
                     candidate._result = candidate._result.to_result()
                     return candidate
 
-        self.logger.warning(
-            "Task '{name}': can't use cache because it "
-            "is now invalid".format(
-                name=prefect.context.get("task_full_name", self.task.name)
+        if self.task.cache_for is not None:
+            self.logger.warning(
+                "Task '{name}': can't use cache because it "
+                "is now invalid".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
             )
-        )
         return state or Pending("Cache was invalid; ready to run.")
 
     def run_mapped_task(
@@ -691,13 +693,14 @@ class TaskRunner(Runner):
         ) -> State:
             map_context = context.copy()
             map_context.update(map_index=map_index)
-            return self.run(
-                upstream_states=upstream_states,
-                # if we set the state here, then it will not be processed by `initialize_run()`
-                state=state,
-                context=map_context,
-                executor=executor,
-            )
+            with prefect.context(self.context):
+                return self.run(
+                    upstream_states=upstream_states,
+                    # if we set the state here, then it will not be processed by `initialize_run()`
+                    state=state,
+                    context=map_context,
+                    executor=executor,
+                )
 
         # generate initial states, if available
         if isinstance(state, Mapped):
