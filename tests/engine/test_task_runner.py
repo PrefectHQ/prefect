@@ -330,6 +330,20 @@ def test_runner_checks_cached_inputs_correctly():
     assert post.result == 99
 
 
+class TestContext:
+    def test_task_runner_inits_with_current_context(self):
+        runner = TaskRunner(Task())
+        assert isinstance(runner.context, dict)
+        assert "chris" not in runner.context
+
+        with prefect.context(chris="foo"):
+            runner2 = TaskRunner(Task())
+            assert "chris" in runner2.context
+
+        assert "chris" not in prefect.context
+        assert runner2.context["chris"] == "foo"
+
+
 class TestInitializeRun:
     @pytest.mark.parametrize(
         "state", [Success(), Failed(), Pending(), Scheduled(), Skipped(), Cached()]
@@ -1454,6 +1468,23 @@ class TestRunMappedStep:
         one, two = state.map_states
         assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
         assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
+
+    def test_run_mapped_preserves_context(self):
+        @prefect.task
+        def ctx():
+            return prefect.context.get("special_thing")
+
+        with prefect.context(special_thing="FOOBARRR"):
+            runner = TaskRunner(task=ctx)
+
+        state = runner.run_mapped_task(
+            state=Pending(),
+            upstream_states={Edge(Task(), ctx, mapped=True): Success(result=[1, 2])},
+            context={},
+            executor=prefect.engine.executors.LocalExecutor(),
+        )
+        assert state.is_mapped()
+        assert [s.result for s in state.map_states] == ["FOOBARRR"] * 2
 
 
 @pytest.mark.parametrize(

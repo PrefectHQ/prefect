@@ -22,14 +22,18 @@ class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__()
         self.client = None
-        self.errored_out = False
+        self.logger = logging.getLogger("CloudHandler")
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(config.logging.format)
+        formatter.converter = time.gmtime  # type: ignore
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(config.logging.level)
 
     def emit(self, record) -> None:  # type: ignore
         try:
             from prefect.client import Client
 
-            if self.errored_out is True:
-                return
             if self.client is None:
                 self.client = Client()  # type: ignore
 
@@ -52,8 +56,8 @@ class CloudHandler(logging.StreamHandler):
                 level=level,
                 info=record_dict,
             )
-        except:
-            self.errored_out = True
+        except Exception as exc:
+            self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
 
 def configure_logging(testing: bool = False) -> logging.Logger:

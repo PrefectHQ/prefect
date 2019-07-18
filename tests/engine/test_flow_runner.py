@@ -1,3 +1,4 @@
+import cloudpickle
 import collections
 import datetime
 import queue
@@ -1325,6 +1326,46 @@ def test_paused_tasks_stay_paused_when_run():
 
 
 class TestContext:
+    def test_flow_runner_inits_with_current_context(self):
+        runner = FlowRunner(Flow(name="test"))
+        assert isinstance(runner.context, dict)
+        assert "chris" not in runner.context
+
+        with prefect.context(chris="foo"):
+            runner2 = prefect.engine.task_runner.TaskRunner(Task())
+            assert "chris" in runner2.context
+
+        assert "chris" not in prefect.context
+        assert runner2.context["chris"] == "foo"
+
+    def test_flow_runner_passes_along_its_init_context_to_tasks(self):
+        @prefect.task
+        def grab_key():
+            return prefect.context["THE_ANSWER"]
+
+        with prefect.context(THE_ANSWER=42):
+            runner = FlowRunner(Flow(name="test", tasks=[grab_key]))
+
+        flow_state = runner.run(return_tasks=[grab_key])
+        assert flow_state.is_successful()
+        assert flow_state.result[grab_key].result == 42
+
+    def test_flow_runner_passes_along_its_init_context_to_tasks_after_serialization(
+        self
+    ):
+        @prefect.task
+        def grab_key():
+            return prefect.context["THE_ANSWER"]
+
+        with prefect.context(THE_ANSWER=42):
+            prerunner = FlowRunner(Flow(name="test", tasks=[grab_key]))
+
+        runner = cloudpickle.loads(cloudpickle.dumps(prerunner))
+
+        flow_state = runner.run(return_tasks=list(runner.flow.tasks))
+        assert flow_state.is_successful()
+        assert flow_state.result[runner.flow.tasks.pop()].result == 42
+
     def test_flow_runner_provides_scheduled_start_time(self):
         @prefect.task
         def return_scheduled_start_time():
