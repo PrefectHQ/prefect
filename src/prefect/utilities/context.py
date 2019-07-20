@@ -27,7 +27,14 @@ Prefect provides various key / value pairs in context that are always available 
 | `yesterday_nodash` | yesterday's date formatted as `YYYYMMDD`|
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
+| `logger` | the logger for the current task |
+| `flow_name` | the name of the current flow |
+| `parameters` | a dictionary of parameter values for the current flow run |
+| `map_index` | the map index of the current task (if mapped, otherwise `None`) |
 | `task_name` | the name of the current task |
+| `task_full_name` | the name of the current task, including map index |
+| `task_tags` | the tags on the current task |
+| `task_run_count` | the run count of the task run - typically only interesting for retrying tasks |
 
 Users can also provide values to context at runtime.
 """
