@@ -483,7 +483,7 @@ with Flow("add-with-default") as f:
     result_two = add_task(x=0, y=10)
 ```
 
-We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/unreleased/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs).
+We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/unreleased/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs).  In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
 Anytime you subclass `Task`, _make sure to call the parent initialization method_!  This ensures Prefect will recognize your custom Task as an actual Task.  In addition, we highly recommend always allowing for arbitrary keyword arguments which are passed to the Task `__init__` method.  This ensures that you can still set things such as Task tags, custom names, result handlers, etc.
