@@ -103,5 +103,13 @@ Notice that we didn't specify an executor in our call to `flow.run()`. This is b
 
 This flow will now run every minute on your local Dask cluster until you kill this process.
 
+::: warning Work Stealing
+We highly recommend turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) in your Dask Cluster when executing Prefect Flows.  This can be done via a simple environment variable in your Dask Cluster:
+```
+DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive
+```
+On rare occasions, work stealing can result in tasks attempting to run twice.  (Note that in Prefect Cloud, our state-version locking mechanism will prevent duplicate runs).
+:::
+
 ## Further steps
 Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project! Details are left as an exercise to the reader. ;)
