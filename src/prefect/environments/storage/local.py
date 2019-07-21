@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Union
 
 import cloudpickle
 from slugify import slugify
@@ -7,7 +7,8 @@ from slugify import slugify
 import prefect
 from prefect.environments.storage import Storage
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     from prefect.core.flow import Flow
 
 

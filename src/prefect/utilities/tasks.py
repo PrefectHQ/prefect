@@ -1,7 +1,7 @@
 import inspect
 from contextlib import contextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 from toolz import curry
 
@@ -9,7 +9,8 @@ import prefect
 
 __all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.tasks.core.constants
     import prefect.tasks.core.collections
     import prefect.tasks.core.function

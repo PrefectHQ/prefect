@@ -3,7 +3,7 @@ import datetime
 import json
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
 from requests.adapters import HTTPAdapter
@@ -20,7 +20,8 @@ from prefect.utilities.graphql import (
     with_args,
 )
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import requests
     from prefect.core import Flow
 BuiltIn = Union[bool, dict, list, str, set, tuple]

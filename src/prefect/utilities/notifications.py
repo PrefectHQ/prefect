@@ -7,14 +7,15 @@ import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import Any, Callable, Union, cast
 
 import requests
 from toolz import curry
 
 import prefect
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.engine.state
     import prefect.client
     from prefect import Flow, Task

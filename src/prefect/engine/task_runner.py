@@ -4,7 +4,6 @@ import itertools
 import threading
 from functools import partial, wraps
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -45,7 +44,8 @@ from prefect.engine.state import (
 )
 from prefect.utilities.executors import run_with_heartbeat
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     from prefect.engine.result_handlers import ResultHandler
 
 

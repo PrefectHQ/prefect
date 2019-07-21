@@ -1,6 +1,6 @@
 import uuid
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict
+from typing import Any, Callable, Dict
 
 import marshmallow
 from marshmallow import ValidationError, fields, post_load
@@ -16,7 +16,8 @@ from prefect.utilities.serialization import (
     to_qualified_name,
 )
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.engine
     import prefect.engine.cache_validators
     import prefect.triggers

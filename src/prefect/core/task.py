@@ -4,7 +4,7 @@ import inspect
 import uuid
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Tuple, Union
 
 import prefect
 import prefect.engine.cache_validators
@@ -13,7 +13,8 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     from prefect.core.flow import Flow  # pylint: disable=W0611
     from prefect.engine.result_handlers import ResultHandler
     from prefect.engine.state import State
