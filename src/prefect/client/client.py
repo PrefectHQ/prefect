@@ -147,7 +147,7 @@ class Client:
         query: Any,
         raise_on_error: bool = True,
         headers: dict = None,
-        **variables: Union[bool, dict, str, int],
+        **variables: Union[bool, dict, str, int]
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
