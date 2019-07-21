@@ -12,7 +12,8 @@ from prefect.engine.executors.base import Executor
 
 class SynchronousExecutor(Executor):
     """
-    An executor that runs all functions synchronously using `dask`.
+    An executor that runs all functions synchronously using `dask`.  Note that
+    this executor is known to occasionally run tasks twice when using multi-level mapping.
     """
 
     @contextmanager
