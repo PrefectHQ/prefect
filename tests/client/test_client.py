@@ -129,6 +129,57 @@ def test_client_posts_raises_with_no_token(monkeypatch):
     assert "Client.login" in str(exc.value)
 
 
+def test_headers_are_passed_to_get(monkeypatch):
+    get = MagicMock()
+    session = MagicMock()
+    session.return_value.get = get
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    client.get("/foo/bar", headers={"x": "y", "Authorization": "z"})
+    assert get.called
+    assert get.call_args[1]["headers"] == {
+        "x": "y",
+        "Authorization": "Bearer secret_token",
+    }
+
+
+def test_headers_are_passed_to_post(monkeypatch):
+    post = MagicMock()
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    client.post("/foo/bar", headers={"x": "y", "Authorization": "z"})
+    assert post.called
+    assert post.call_args[1]["headers"] == {
+        "x": "y",
+        "Authorization": "Bearer secret_token",
+    }
+
+
+def test_headers_are_passed_to_graphql(monkeypatch):
+    post = MagicMock()
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    client.graphql("query {}", headers={"x": "y", "Authorization": "z"})
+    assert post.called
+    assert post.call_args[1]["headers"] == {
+        "x": "y",
+        "Authorization": "Bearer secret_token",
+    }
+
+
 def test_client_posts_to_graphql_server(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(success=True)))
