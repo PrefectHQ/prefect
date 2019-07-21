@@ -45,7 +45,7 @@ class CloudHandler(logging.StreamHandler):
             timestamp = pendulum.from_timestamp(record_dict.get("created", time.time()))
             name = record_dict.get("name", None)
             message = record_dict.get("message", None)
-            level = record_dict.get("level", None)
+            level = record_dict.get("levelname", None)
 
             self.client.write_run_log(
                 flow_run_id=flow_run_id,
