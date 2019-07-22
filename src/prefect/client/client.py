@@ -93,7 +93,9 @@ class Client:
     # -------------------------------------------------------------------------
     # Utilities
 
-    def get(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+    def get(
+        self, path: str, server: str = None, headers: dict = None, **params: BuiltIn
+    ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
 
@@ -102,18 +104,23 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the GET request to;
                 defaults to `self.graphql_server`
+            - headers (dict, optional): Headers to pass with the request
             - **params (dict): GET parameters
 
         Returns:
             - dict: Dictionary representation of the request made
         """
-        response = self._request(method="GET", path=path, params=params, server=server)
+        response = self._request(
+            method="GET", path=path, params=params, server=server, headers=headers
+        )
         if response.text:
             return response.json()
         else:
             return {}
 
-    def post(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+    def post(
+        self, path: str, server: str = None, headers: dict = None, **params: BuiltIn
+    ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
 
@@ -122,12 +129,15 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the POST request to;
                 defaults to `self.graphql_server`
+            - headers(dict): headers to pass with the request
             - **params (dict): POST parameters
 
         Returns:
             - dict: Dictionary representation of the request made
         """
-        response = self._request(method="POST", path=path, params=params, server=server)
+        response = self._request(
+            method="POST", path=path, params=params, server=server, headers=headers
+        )
         if response.text:
             return response.json()
         else:
@@ -137,6 +147,7 @@ class Client:
         self,
         query: Any,
         raise_on_error: bool = True,
+        headers: dict = None,
         **variables: Union[bool, dict, str, int]
     ) -> GraphQLResult:
         """
@@ -147,6 +158,8 @@ class Client:
                 parsed by prefect.utilities.graphql.parse_graphql().
             - raise_on_error (bool): if True, a `ClientError` will be raised if the GraphQL
                 returns any `errors`.
+            - headers (dict): any additional headers that should be passed as part of the
+                request
             - **variables (kwarg): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
@@ -161,6 +174,7 @@ class Client:
             query=parse_graphql(query),
             variables=json.dumps(variables),
             server=self.graphql_server,
+            headers=headers,
         )
 
         if raise_on_error and "errors" in result:
@@ -169,7 +183,12 @@ class Client:
             return as_nested_dict(result, GraphQLResult)  # type: ignore
 
     def _request(
-        self, method: str, path: str, params: dict = None, server: str = None
+        self,
+        method: str,
+        path: str,
+        params: dict = None,
+        server: str = None,
+        headers: dict = None,
     ) -> "requests.models.Response":
         """
         Runs any specified request (GET, POST, DELETE) against the server
@@ -180,6 +199,7 @@ class Client:
             - params (dict, optional): Parameters used for the request
             - server (str, optional): The server to make requests against, base API
                 server is used if not specified
+            - headers (dict, optional): Headers to pass with the request
 
         Returns:
             - requests.models.Response: The response returned from the request
@@ -203,7 +223,8 @@ class Client:
 
         params = params or {}
 
-        headers = {"Authorization": "Bearer {}".format(self.token)}
+        headers = headers or {}
+        headers.update({"Authorization": "Bearer {}".format(self.token)})
         session = requests.Session()
         retries = Retry(
             total=6,

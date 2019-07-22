@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Allow passing of custom headers in `Client` calls - [#1255](https://github.com/PrefectHQ/prefect/pull/1255)
 
 ### Task Library
 
