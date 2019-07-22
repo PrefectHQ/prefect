@@ -23,7 +23,7 @@ from prefect.utilities.graphql import (
 
 if TYPE_CHECKING:
     from prefect.core import Flow
-BuiltIn = Union[bool, dict, list, str, set, tuple]
+JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
 
@@ -97,7 +97,7 @@ class Client:
         path: str,
         server: str = None,
         headers: dict = None,
-        params: BuiltIn = None,
+        params: Dict[str, JSONLike] = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
@@ -126,7 +126,7 @@ class Client:
         path: str,
         server: str = None,
         headers: dict = None,
-        params: BuiltIn = None,
+        params: Dict[str, JSONLike] = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
@@ -155,7 +155,7 @@ class Client:
         query: Any,
         raise_on_error: bool = True,
         headers: Dict[str, str] = None,
-        variables: Dict[str, Union[bool, dict, str, int]] = None,
+        variables: Dict[str, JSONLike] = None,
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -192,7 +192,7 @@ class Client:
         self,
         method: str,
         path: str,
-        params: dict = None,
+        params: Dict[str, JSONLike] = None,
         server: str = None,
         headers: dict = None,
     ) -> "requests.models.Response":
