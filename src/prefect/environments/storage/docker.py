@@ -23,7 +23,7 @@ class Docker(Storage):
     Docker storage provides a mechanism for storing Prefect flows in Docker images
     and optionally pushing them to a registry.
 
-    A user specifies a `base_image` and other optional dependencies (e.g., `python_dependencies`)
+    A user specifies a `registry_url`, `base_image` and other optional dependencies (e.g., `python_dependencies`)
     and `build()` will create a temporary Dockerfile that is used to build the image.
 
     Note that the `base_image` must be capable of `pip` installing.

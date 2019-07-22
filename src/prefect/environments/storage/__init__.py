@@ -8,6 +8,10 @@ The Prefect Storage interface encapsulates logic for storing, serializing and ev
 - one of `get_flow(flow_location: str)` or `get_env_runner(flow_location: str)` for retrieving a way of interfacing with either `flow.run` or a `FlowRunner` for the flow; `get_env_runner` is intended for situations where flow execution can only be interacted with via environment variables
 - a `build() -> Storage` method for "building" the storage
 - a `serialize() -> dict` method for serializing the relevant information about this Storage for later re-use.
+
+::: warning Docker storage
+Note that currently all environments that are compatible with Prefect Cloud require your Flow to use [Docker storage](#docker).
+:::
 """
 
 from prefect.environments.storage.base import Storage
