@@ -132,11 +132,11 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "Local", "Memory", "Bytes"]
+classes = ["Docker", "Local", "Memory", "Bytes"]
 
 [pages.environments.execution]
 title = "Execution Environments"
-module = "prefect.environments"
+module = "prefect.environments.execution"
 classes = ["LocalEnvironment", "RemoteEnvironment"]
 
 [pages.tasks.control_flow]
