@@ -99,7 +99,8 @@ def log_hello():
     logger = prefect.context["logger"]
     logger.info("Hello!")
 ```
-Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/guide/core_concepts/execution.html#context).
+Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/guide/core_concepts/execution.html#context).  Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
+
 ## Running Tasks
 
 Most users want to run their tasks outside of a Flow to test that their logic is sound.  There are a few different ways of running your Task locally, with varying complexity:
@@ -220,8 +221,8 @@ f.add_task(number_task)
 print(f.tasks) # {<Task: number_task>}
 ```
 
-So far, so good - our Flow now consists of a single task. How might we add a single task to a Flow using the Functional API?  In this instance, we have to perform some _action_ on the Task to "register" it with the Flow.  In general, Tasks will be auto-added to a Flow in the functional API if and only if:
-- the task is _called_ within a Flow context
+So far, so good - our Flow now consists of a single task. How might we add a single task to a Flow using the Functional API?  In this instance, we have to perform some _action_ on the Task to "register" it with the Flow.  In general, Tasks will be auto-added to a Flow in the functional API if one of the following is true:
+- the task is _called_ within a Flow context _or_
 - the task is called as a dependency of another task
 
 In this case, because we have a single Task and no dependencies, we must resort to _calling_ the instantiatied Task:
@@ -402,7 +403,7 @@ def print_hello():
 with Flow("print-example") as flow:
     result = print_hello.map(upstream_tasks=[return_list])
 ```
-When this flow runs, we will see _four_ print statements, one corresponding to each value of the `return_list` output.  This pattern (combined with the `unmapped` container) is sometimes useful when you have multiple mapping layers and complicated dependency structures.
+When this flow runs, we will see _four_ print statements, one corresponding to each value of the `return_list` output.  This pattern (combined with the `unmapped` container) is sometimes useful when you have multiple mapping layers and complicated dependency structures.  Additionally, it is worth noting that if `return_list` returned an empty list, no child tasks would be created and the `print_hello` task would succeed gracefully.
 
 ::: warning Order Matters
 Note that order matters in Prefect mapping.  Internally, Prefect tracks your mapped child tasks via a "map index" which describes its position in the mapping.  For this reason we don't recommend mapping over dictionaries, sets, or anything else without a natural of ordering.
@@ -486,7 +487,7 @@ with Flow("add-with-default") as f:
 We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/unreleased/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs).  In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
-Anytime you subclass `Task`, _make sure to call the parent initialization method_!  This ensures Prefect will recognize your custom Task as an actual Task.  In addition, we highly recommend always allowing for arbitrary keyword arguments which are passed to the Task `__init__` method.  This ensures that you can still set things such as Task tags, custom names, result handlers, etc.
+Anytime you subclass `Task`, _make sure to call the parent initialization method_!  This ensures Prefect will recognize your custom Task as an actual Task.  In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method.  This ensures that you can still set things such as Task tags, custom names, result handlers, etc.
 :::
 
 
