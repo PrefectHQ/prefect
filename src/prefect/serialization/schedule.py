@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import marshmallow
 from marshmallow import fields, post_load
@@ -11,7 +11,8 @@ from prefect.utilities.serialization import (
     to_qualified_name,
 )
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.schedules
 
 

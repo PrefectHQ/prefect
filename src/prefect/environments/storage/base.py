@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import prefect
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.core.flow
 
 

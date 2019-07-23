@@ -4,7 +4,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 
 import dask
 import dask.bag
@@ -12,7 +12,8 @@ import dask.bag
 import prefect
 from prefect.core.edge import Edge
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import prefect.engine.runner
     import prefect.engine.state
     from prefect.engine.state import State

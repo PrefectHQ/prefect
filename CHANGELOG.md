@@ -20,6 +20,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with logs not always arriving in long-standing Dask clusters - [#1244](https://github.com/PrefectHQ/prefect/pull/1244)
 
+- Fix TYPE_CHECKING with MYPY to support python prior 3.5.2 - [#1247](https://github.com/PrefectHQ/prefect/issues/1247)
+
 ### Breaking Changes
 
 - None

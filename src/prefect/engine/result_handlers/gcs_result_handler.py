@@ -1,6 +1,6 @@
 import base64
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import cloudpickle
 import pendulum
@@ -8,7 +8,8 @@ import pendulum
 from prefect.client import Secret
 from prefect.engine.result_handlers import ResultHandler
 
-if TYPE_CHECKING:
+MYPY = False
+if MYPY:
     import google.cloud
 
 
