@@ -22,7 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
 
 ### Contributors
 
@@ -48,7 +48,7 @@ Released July 16, 2019
 - Have `execute cloud-flow` CLI immediately set the flow run state to `Failed` if environment fails - [#1122](https://github.com/PrefectHQ/prefect/pull/1122)
 - Validate configuration objects on initial load - [#1136](https://github.com/PrefectHQ/prefect/pull/1136)
 - Add `auto_generated` property to Tasks for convenient filtering - [#1135](https://github.com/PrefectHQ/prefect/pull/1135)
-- Disable dask work-stealing in kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
+- Disable dask work-stealing in Kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
 - Implement backoff retry settings on Client calls - [#1187](https://github.com/PrefectHQ/prefect/pull/1187)
 - Explicitly set Dask keys for a better Dask visualization experience - [#1218](https://github.com/PrefectHQ/prefect/issues/1218)
 - Implement a local cache which persists for the duration of a Python session - [#1221](https://github.com/PrefectHQ/prefect/issues/1221)
@@ -103,7 +103,7 @@ Released May 28, 2019
 - Allow for `SlackTask` to pull the Slack webhook URL from a custom named Secret - [#1023](https://github.com/PrefectHQ/prefect/pull/1023)
 - Raise informative errors when Docker storage push / pull fails - [#1029](https://github.com/PrefectHQ/prefect/issues/1029)
 - Standardized `__repr__`s for various classes, to remove inconsistencies - [#617](https://github.com/PrefectHQ/prefect/issues/617)
-- Allow for use of local images in Docekr storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
+- Allow for use of local images in Docker storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
 - Allow for doc tests and doc generation to run without installing `all_extras` - [#1057](https://github.com/PrefectHQ/prefect/issues/1057)
 
 ### Task Library
