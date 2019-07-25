@@ -106,7 +106,7 @@ def test_build_base_image(monkeypatch):
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
-    #    assert output.image_name == "1"
+    assert output.image_name
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
@@ -117,7 +117,31 @@ def test_build_no_default(monkeypatch):
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
-    # assert output.image_name == "1"
+    assert output.image_name
+    assert output.image_tag.startswith(str(pendulum.now("utc").year))
+
+
+def test_build_sets_informative_image_name(monkeypatch):
+    storage = Docker(registry_url="reg")
+    storage.add_flow(Flow("test"))
+
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    output = storage.build()
+    assert output.registry_url == storage.registry_url
+    assert output.image_name == "test"
+    assert output.image_tag.startswith(str(pendulum.now("utc").year))
+
+
+def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
+    storage = Docker(registry_url="reg")
+    storage.add_flow(Flow("!&& ~~ cool flow :shades:"))
+
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    output = storage.build()
+    assert output.registry_url == storage.registry_url
+    assert output.image_name == "cool-flow-shades"
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 

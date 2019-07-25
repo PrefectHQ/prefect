@@ -192,7 +192,11 @@ class Docker(Storage):
         Raises:
             - InterruptedError: if either pushing or pulling the image fails
         """
-        self.image_name = self.image_name or str(uuid.uuid4())
+        if len(self.flows) != 1:
+            self.image_name = self.image_name or str(uuid.uuid4())
+        else:
+            self.image_name = slugify(list(self.flows.keys())[0])
+
         self.image_tag = self.image_tag or slugify(pendulum.now("utc").isoformat())
         self._build_image(push=push)
         return self
