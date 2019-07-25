@@ -57,7 +57,8 @@ def test_client_token_initializes_from_file(monkeypatch):
         f.seek(0)
         monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
 
-        client = Client()
+        with set_temporary_config({"cloud.auth_token": None}):
+            client = Client()
     assert client.token == "TOKEN"
 
 
