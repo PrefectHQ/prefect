@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
+import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -21,9 +22,8 @@ from prefect.utilities.graphql import (
 )
 
 if TYPE_CHECKING:
-    import requests
     from prefect.core import Flow
-BuiltIn = Union[bool, dict, list, str, set, tuple]
+JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
 
@@ -93,7 +93,11 @@ class Client:
     # Utilities
 
     def get(
-        self, path: str, server: str = None, headers: dict = None, **params: BuiltIn
+        self,
+        path: str,
+        server: str = None,
+        headers: dict = None,
+        params: Dict[str, JSONLike] = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
@@ -104,7 +108,7 @@ class Client:
             - server (str, optional): the server to send the GET request to;
                 defaults to `self.graphql_server`
             - headers (dict, optional): Headers to pass with the request
-            - **params (dict): GET parameters
+            - params (dict): GET parameters
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -118,7 +122,11 @@ class Client:
             return {}
 
     def post(
-        self, path: str, server: str = None, headers: dict = None, **params: BuiltIn
+        self,
+        path: str,
+        server: str = None,
+        headers: dict = None,
+        params: Dict[str, JSONLike] = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
@@ -129,7 +137,7 @@ class Client:
             - server (str, optional): the server to send the POST request to;
                 defaults to `self.graphql_server`
             - headers(dict): headers to pass with the request
-            - **params (dict): POST parameters
+            - params (dict): POST parameters
 
         Returns:
             - dict: Dictionary representation of the request made
@@ -146,8 +154,8 @@ class Client:
         self,
         query: Any,
         raise_on_error: bool = True,
-        headers: dict = None,
-        **variables: Union[bool, dict, str, int]
+        headers: Dict[str, str] = None,
+        variables: Dict[str, JSONLike] = None,
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -159,7 +167,7 @@ class Client:
                 returns any `errors`.
             - headers (dict): any additional headers that should be passed as part of the
                 request
-            - **variables (kwarg): Variables to be filled into a query with the key being
+            - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
         Returns:
@@ -170,10 +178,9 @@ class Client:
         """
         result = self.post(
             path="",
-            query=parse_graphql(query),
-            variables=json.dumps(variables),
             server=self.graphql_server,
             headers=headers,
+            params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
         )
 
         if raise_on_error and "errors" in result:
@@ -185,7 +192,7 @@ class Client:
         self,
         method: str,
         path: str,
-        params: dict = None,
+        params: Dict[str, JSONLike] = None,
         server: str = None,
         headers: dict = None,
     ) -> "requests.models.Response":
@@ -208,9 +215,6 @@ class Client:
             - ValueError: if a method is specified outside of the accepted GET, POST, DELETE
             - requests.HTTPError: if a status code is returned that is not `200` or `401`
         """
-        # lazy import for performance
-        import requests
-
         if server is None:
             server = self.graphql_server
         assert isinstance(server, str)  # mypy assert
@@ -346,10 +350,12 @@ class Client:
             serialized_flow = compress(serialized_flow)
         res = self.graphql(
             create_mutation,
-            input=dict(
-                projectId=project[0].id,
-                serializedFlow=serialized_flow,
-                setScheduleActive=set_schedule_active,
+            variables=dict(
+                input=dict(
+                    projectId=project[0].id,
+                    serializedFlow=serialized_flow,
+                    setScheduleActive=set_schedule_active,
+                )
             ),
         )  # type: Any
 
@@ -379,7 +385,9 @@ class Client:
             }
         }
 
-        res = self.graphql(project_mutation, input=dict(name=project_name))  # type: Any
+        res = self.graphql(
+            project_mutation, variables=dict(input=dict(name=project_name))
+        )  # type: Any
 
         return res.data.createProject.id
 
@@ -427,7 +435,7 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
-        res = self.graphql(create_mutation, input=inputs)
+        res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
@@ -562,7 +570,7 @@ class Client:
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, state=serialized_state)  # type: Any
+        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
 
     def get_latest_cached_states(
         self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime
@@ -686,7 +694,7 @@ class Client:
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, state=serialized_state)  # type: Any
+        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
 
     def set_secret(self, name: str, value: Any) -> None:
         """
@@ -707,7 +715,9 @@ class Client:
             }
         }
 
-        result = self.graphql(mutation, input=dict(name=name, value=value))  # type: Any
+        result = self.graphql(
+            mutation, variables=dict(input=dict(name=name, value=value))
+        )  # type: Any
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
@@ -749,14 +759,16 @@ class Client:
         timestamp_str = pendulum.instance(timestamp).isoformat()
         result = self.graphql(
             mutation,
-            input=dict(
-                flowRunId=flow_run_id,
-                taskRunId=task_run_id,
-                timestamp=timestamp_str,
-                name=name,
-                message=message,
-                level=level,
-                info=info,
+            variables=dict(
+                input=dict(
+                    flowRunId=flow_run_id,
+                    taskRunId=task_run_id,
+                    timestamp=timestamp_str,
+                    name=name,
+                    message=message,
+                    level=level,
+                    info=info,
+                )
             ),
         )  # type: Any
 
