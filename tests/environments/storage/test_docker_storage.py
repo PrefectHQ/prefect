@@ -1,4 +1,5 @@
 import os
+import pendulum
 import sys
 import tempfile
 from unittest.mock import MagicMock
@@ -101,52 +102,60 @@ def test_files_not_absolute_path():
 def test_build_base_image(monkeypatch):
     storage = Docker(registry_url="reg", base_image="test")
 
-    build_image = MagicMock(return_value=("1", "2"))
-    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
-    assert output.image_name == "1"
-    assert output.image_tag == "2"
+    #    assert output.image_name == "1"
+    assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
 def test_build_no_default(monkeypatch):
     storage = Docker(registry_url="reg")
 
-    build_image = MagicMock(return_value=("1", "2"))
-    monkeypatch.setattr("prefect.environments.storage.Docker.build_image", build_image)
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
 
     output = storage.build()
     assert output.registry_url == storage.registry_url
-    assert output.image_name == "1"
-    assert output.image_tag == "2"
+    # assert output.image_name == "1"
+    assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
 def test_build_image_fails_deserialization(monkeypatch):
     flow = Flow("test")
-    storage = Docker(registry_url="reg", base_image="python:3.6")
+    storage = Docker(
+        registry_url="reg",
+        base_image="python:3.6",
+        image_name="test",
+        image_tag="latest",
+    )
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
     with pytest.raises(SerializationError):
-        image_name, image_tag = storage.build_image(flow)
+        image_name, image_tag = storage._build_image(flow)
 
 
 def test_build_image_fails_deserialization_no_registry(monkeypatch):
-    storage = Docker(base_image="python:3.6")
+    storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
     with pytest.raises(SerializationError):
-        image_name, image_tag = storage.build_image(push=False)
+        image_name, image_tag = storage._build_image(push=False)
 
 
 @pytest.mark.skip(reason="Needs to be mocked so it can work on CircleCI")
 def test_build_image_passes(monkeypatch):
     flow = Flow("test")
-    storage = Docker(registry_url="reg", base_image="python:3.6")
+    storage = Docker(
+        registry_url="reg",
+        base_image="python:3.6",
+        image_name="test",
+        image_tag="latest",
+    )
 
     pull_image = MagicMock()
     monkeypatch.setattr("prefect.environments.storage.Docker.pull_image", pull_image)
@@ -157,7 +166,7 @@ def test_build_image_passes(monkeypatch):
     images = MagicMock(return_value=["test"])
     monkeypatch.setattr("docker.APIClient.images", images)
 
-    image_name, image_tag = storage.build_image(flow, push=False)
+    image_name, image_tag = storage._build_image(flow, push=False)
 
     assert image_name
     assert image_tag
@@ -183,7 +192,7 @@ def test_build_image_passes_and_pushes(monkeypatch):
     remove = MagicMock()
     monkeypatch.setattr("docker.APIClient.remove_image", remove)
 
-    image_name, image_tag = storage.build_image(flow)
+    image_name, image_tag = storage._build_image(flow)
 
     assert image_name
     assert image_tag
@@ -193,13 +202,13 @@ def test_build_image_passes_and_pushes(monkeypatch):
 
 
 def test_build_image_fails_no_registry(monkeypatch):
-    storage = Docker(base_image="python:3.6")
+    storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
     with pytest.raises(ValueError):
-        image_name, image_tag = storage.build_image()
+        image_name, image_tag = storage._build_image()
 
 
 def test_create_dockerfile_from_base_image():
