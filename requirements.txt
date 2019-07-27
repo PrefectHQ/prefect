@@ -14,6 +14,6 @@ python-slugify >= 1.2.6, <4.0
 pytz >= 2018.7
 requests ~= 2.20
 tabulate ~= 0.8.0
-toml ~= 0.9.4
+toml ~= 0.10.0
 typing ~= 3.6
 typing_extensions ~= 3.6
