@@ -1,6 +1,6 @@
 black
 graphviz ~= 0.8
-jinja2 ~= 2.0
+jinja2 ~= 2.10
 mypy >= 0.600, < 0.800
 pre-commit ~= 1.12
 pytest ~= 5.0
