@@ -74,6 +74,7 @@ jobs:
 
   # test a standard install of prefect
   # with all requriements pinned to their lowest allowed versions
+  # to ensure our requirements.txt file is accurate
   test-lower-prefect:
     docker:
       - image: python:3.5.2
@@ -104,13 +105,13 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
           paths:
             - coverage
-              #
+              
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
