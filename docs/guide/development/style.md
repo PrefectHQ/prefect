@@ -125,4 +125,4 @@ pytest -k "mypy"
 
 As a general rule, mypy typing requires all function arguments and return values to be annotated.
 
-Prefect is compatible with Python 3.5+, so users should *not* use attribute annotations to indicate types, as those were introduced in Python 3.6. Inline comments should be used instead (`x = []  # type: List[int]`, for example).
+Prefect is compatible with Python 3.5.2+, so users should *not* use attribute annotations to indicate types, as those were introduced in Python 3.6. Inline comments should be used instead (`x = []  # type: List[int]`, for example).
