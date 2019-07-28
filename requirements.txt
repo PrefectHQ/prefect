@@ -15,5 +15,5 @@ pytz >= 2018.7
 requests ~= 2.20
 tabulate ~= 0.8.0
 toml ~= 0.9.4
-typing ~= 3.6
+typing ~= 3.6.1
 typing_extensions ~= 3.6
