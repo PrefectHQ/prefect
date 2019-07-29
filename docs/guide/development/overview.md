@@ -14,7 +14,7 @@ cd prefect
 pip install -e ".[dev]"
 ```
 
-We also recommend developing under Python 3.6+ because Prefect's [style checks](style.md) can only be run on more recent versions of Python, but please note that Prefect maintains compatibility with Python 3.5+.
+We also recommend developing under Python 3.6+ because Prefect's [style checks](style.md) can only be run on more recent versions of Python, but please note that Prefect maintains compatibility with Python 3.5.2+.
 
 In order to submit code changes to Prefect, please:
 - [Fork the Prefect repository](https://help.github.com/en/articles/fork-a-repo)
