@@ -65,3 +65,9 @@ A proposal for a flexible and live-updating Prefect Cloud command line client.
 A proposal for a new way of building schedules that captures a wider variety of use cases.
 
 **Status:** Proposed
+
+## [PIN-11: Single-Task Loops](PIN-11-Task-Loops.md)
+
+A proposal for a way to loop over single tasks with arbitrary control logic and all Prefect semantics intact
+
+**Status:** Proposed
