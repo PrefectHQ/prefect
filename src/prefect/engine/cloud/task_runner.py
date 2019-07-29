@@ -149,7 +149,7 @@ class CloudTaskRunner(TaskRunner):
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id")  # type: ignore
-        context.update(cloud=True)
+        context.update(checkpointing=True)
 
         return super().initialize_run(state=state, context=context)
 

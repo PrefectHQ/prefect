@@ -30,7 +30,8 @@ eager_edge_validation = false
 # If true, `flow.run` will run on schedule by default.
 # If false, only a single execution will occur (no retries, etc.)
 run_on_schedule = true
-
+# If true, tasks which set `checkpoint=True` will have their result handlers called
+checkpointing = false
 
 [tasks]
 
