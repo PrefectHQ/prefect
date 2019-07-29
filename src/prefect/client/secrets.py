@@ -67,6 +67,6 @@ class Secret:
                     secretValue(name: $name)
                 }
                 """,
-                name=self.name,
+                variables=dict(name=self.name),
             )  # type: Any
             return as_nested_dict(result.data.secretValue, dict)

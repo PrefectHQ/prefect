@@ -55,7 +55,7 @@ When running on Prefect Cloud, the output of a Result Handler's `write` method i
 ### How to specify a `ResultHandler`
 
 There is a hierarchy to determining what `ResultHandler` to use for a given piece of data:
-1. First, users can set a global default in their Prefect user config; if you never mention or think about Result Handlers again, this is the handler that will always be used.  As of this writing, the default handler that ships with a standard install of Prefect is the `CloudResultHandler` that writes data to a Prefect-managed Google Cloud Storage bucket.
+1. First, users can set a global default in their Prefect user config; if you never mention or think about Result Handlers again, this is the handler that will always be used.
 1. Next, you can specify a Flow-level result handler at Flow-initialization using the `result_handler` keyword argument.  Once again, if you never specify another result handler, this is the one that will be used for all your tasks in this particular Flow.
 1. Lastly, you can set a Task-level result handler.  This is achieved using the `result_handler` keyword argument at Task initialization (or in the `@task` decorator).  If you provide a result handler here, it will _always_ be used if the _output_ of this Task needs to be cached for any reason whatsoever.
 
