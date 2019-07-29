@@ -1,10 +1,10 @@
 """
-This helper script compiles all of our lowest specified bounds
+This helper script compiles all of our lower version bounds
 on all base dependencies from our `requirements.txt` file into a new
 `lower_requirements.txt` file.  In this new requirements file all dependencies
 are pinned to their lowest allowed versions.  We use this
 new requirements file to test that we still support all of our
-lower bounds.
+specified versions.
 """
 import re
 
