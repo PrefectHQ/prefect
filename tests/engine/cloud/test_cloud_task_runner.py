@@ -74,7 +74,7 @@ def client(monkeypatch):
 def test_task_runner_puts_cloud_in_context(client):
     @prefect.task
     def whats_in_ctx():
-        return prefect.context.get("cloud")
+        return prefect.context.get("checkpointing")
 
     res = CloudTaskRunner(task=whats_in_ctx).run()
 

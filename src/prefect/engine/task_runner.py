@@ -150,6 +150,7 @@ class TaskRunner(Runner):
         context.update(
             task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
         )
+        context.setdefault("checkpointing", config.flows.checkpointing)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -838,10 +839,10 @@ class TaskRunner(Runner):
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
-        ## only checkpoint tasks if running in cloud
+        ## only checkpoint tasks if checkpointing is turned on
         if (
             state.is_successful()
-            and prefect.context.get("cloud") is True
+            and prefect.context.get("checkpointing") is True
             and self.task.checkpoint is True
         ):
             state._result.store_safe_value()
