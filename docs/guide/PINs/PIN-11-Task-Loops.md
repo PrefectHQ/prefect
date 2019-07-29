@@ -35,7 +35,7 @@ If the task does not raise a state, and simply returns as normal, the loop ends.
 def accumulate(x, iterations):
     result = x + prefect.context.get("loop_result", 0)
 	if prefect.context.loop_index < iterations:
-        raise Loop(result=result)
+        raise LOOP(result=result)
     return result
 
 with Flow("looping accumulator") as flow:
