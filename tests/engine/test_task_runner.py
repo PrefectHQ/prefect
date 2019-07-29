@@ -377,6 +377,13 @@ class TestInitializeRun:
             result = TaskRunner(Task()).initialize_run(state=Resume(), context=ctx)
             assert result.context.resume is True
 
+    def test_task_runner_puts_checkpointing_in_context(self):
+        with prefect.context() as ctx:
+            assert "task_tags" not in ctx
+            with set_temporary_config({"flows.checkpointing": "FOO"}):
+                result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
+            assert result.context.checkpointing == "FOO"
+
     def test_task_runner_puts_tags_in_context(self):
         with prefect.context() as ctx:
             assert "task_tags" not in ctx
@@ -1035,21 +1042,36 @@ class TestRunTaskStep:
         def fn(x):
             return x + 1
 
-        with prefect.context(cloud=True):
+        with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)}, timeout_handler=None
             )
         assert new_state.is_successful()
         assert new_state._result.safe_value is NoResult
 
-    def test_success_state_with_checkpoint(self):
+    def test_success_state_with_checkpointing_in_config(self):
         handler = JSONResultHandler()
 
         @prefect.task(checkpoint=True, result_handler=handler)
         def fn(x):
             return x + 1
 
-        with prefect.context(cloud=True):
+        edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+
+    def test_success_state_with_checkpointing_in_context(self):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=True, result_handler=handler)
+        def fn(x):
+            return x + 1
+
+        with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={"x": Result(2)}, timeout_handler=None
             )
@@ -1059,7 +1081,7 @@ class TestRunTaskStep:
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)
-        with prefect.context(cloud=True):
+        with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
@@ -1078,7 +1100,7 @@ class TestRunTaskStep:
         def fn(x):
             return x + 1
 
-        with prefect.context(cloud=True):
+        with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)}, timeout_handler=None
             )
@@ -1452,7 +1474,7 @@ class TestRunMappedStep:
         def tt(foo):
             pass
 
-        with prefect.context(cloud=True, caches={}):
+        with prefect.context(checkpointing=True, caches={}):
             state = TaskRunner(task=tt).run_mapped_task(
                 state=Pending(),
                 upstream_states={
@@ -1619,7 +1641,7 @@ def test_failures_arent_checkpointed():
     def fn():
         raise TypeError("Bad types")
 
-    with prefect.context(cloud=True):
+    with prefect.context(checkpointing=True):
         new_state = TaskRunner(task=fn).run()
     assert new_state.is_failed()
     assert isinstance(new_state.result, TypeError)
@@ -1632,7 +1654,7 @@ def test_skips_arent_checkpointed():
     def fn():
         return 2
 
-    with prefect.context(cloud=True):
+    with prefect.context(checkpointing=True):
         new_state = TaskRunner(task=fn).run(
             upstream_states={Edge(Task(), Task()): Skipped()}
         )

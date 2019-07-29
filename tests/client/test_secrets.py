@@ -37,7 +37,9 @@ def test_secret_value_pulled_from_context():
 
 def test_secret_value_depends_on_use_local_secrets():
     secret = Secret(name="test")
-    with set_temporary_config({"cloud.use_local_secrets": False}):
+    with set_temporary_config(
+        {"cloud.use_local_secrets": False, "cloud.auth_token": None}
+    ):
         with prefect.context(secrets=dict(test=42)):
             with pytest.raises(AuthorizationError) as exc:
                 secret.get()
