@@ -4,10 +4,13 @@ import random
 import sys
 import tempfile
 import time
+import operator
 from unittest.mock import MagicMock
 
 import cloudpickle
 import dask
+import redis
+import rq
 import pytest
 
 import prefect
@@ -16,6 +19,7 @@ from prefect.engine.executors import (
     Executor,
     LocalExecutor,
     SynchronousExecutor,
+    RQExecutor,
 )
 
 
@@ -321,4 +325,32 @@ class TestDaskExecutor:
 
         with executor.start():
             res = executor.wait(executor.map(map_fn))
+        assert res == []
+
+class TestRQExecutor:
+    @pytest.fixture(scope="class")
+    def executor(self):
+        instance = RQExecutor(redis.Redis())
+        q = instance.queue()
+        q.empty()
+        yield instance
+        q.delete(delete_jobs=True)
+    
+    def work(self, executor):
+        q = executor.queue()
+        worker = rq.SimpleWorker([q], connection=q.connection)
+        worker.work(burst=True)
+
+    def test_map_iterates_over_multiple_args(self, executor):
+        futures = executor.map(operator.add, [1, 2], [1, 3], [3, 3])
+        self.work(executor)
+        res = executor.wait(futures)
+        assert res == [3, 4, 6]
+    
+    def test_map_doesnt_do_anything_for_empty_list_input(self, executor):
+        def map_fn(*args):
+            raise ValueError("map_fn was called")
+        futures = executor.map(map_fn)
+        self.work(executor)
+        res = executor.wait(futures)
         assert res == []
