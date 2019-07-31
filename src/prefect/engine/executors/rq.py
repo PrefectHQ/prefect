@@ -18,7 +18,14 @@ class RQExecutor(Executor):
     
     def submit(self, fn, *args, **kwargs):
         q = self.queue()
-        future = q.enqueue(fn, args, kwargs)
+        if args and kwargs:
+            future = q.enqueue(fn, args, kwargs)
+        elif args:
+            future = q.enqueue(fn, args=args)
+        elif kwargs:
+            future = q.enqueue(fn, kwargs=kwargs)
+        else:
+            future = q.enqueue(fn)
         return future
     
     def map(self, fn, *args):
