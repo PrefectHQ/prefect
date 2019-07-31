@@ -341,6 +341,10 @@ class TestRQExecutor:
         worker = rq.SimpleWorker([q], connection=q.connection)
         worker.work(burst=True)
 
+    def do_long_work(self):
+        time.sleep(2)
+        return 0
+
     def test_map_iterates_over_multiple_args(self, executor):
         futures = executor.map(operator.add, [1, 2], [1, 3], [3, 3])
         self.work(executor)
@@ -354,3 +358,9 @@ class TestRQExecutor:
         self.work(executor)
         res = executor.wait(futures)
         assert res == []
+    
+    def test_submit_no_args_no_kwargs(self, executor):
+        future = executor.submit(self.do_long_work)
+        self.work(executor)
+        res = executor.wait([future])
+        assert res == [0]
