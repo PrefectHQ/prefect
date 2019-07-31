@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add rq-based backend, [issue](https://github.com/PrefectHQ/prefect/issues/1258)
 
 ### Enhancements
 
