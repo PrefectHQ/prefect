@@ -58,7 +58,7 @@ class Task(metaclass=SignatureValidator):
     The Task class which is used as the full representation of a unit of work.
 
     This Task class can be used directly as a first class object where it must
-    be inherited from by a class which implements the `run` method.  For a more
+    be inherited from by a class that implements the `run` method.  For a more
     functional way of generating Tasks, see [the task decorator](../utilities/tasks.html).
 
     Inheritance example:
@@ -108,9 +108,12 @@ class Task(metaclass=SignatureValidator):
         - cache_for (timedelta, optional): The amount of time to maintain a cache
             of the outputs of this task.  Useful for situations where the containing Flow
             will be rerun multiple times, but this task doesn't need to be.
-        - cache_validator (Callable, optional): Validator which will determine
+        - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - cache_key (str, optional): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
+            be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
+            Task's database ID if running in Cloud
         - checkpoint (bool, optional): if this Task is successful, whether to
             store its result using the `result_handler` available during the run; defaults to the value of
             `tasks.defaults.checkpoint` in your user config
@@ -148,6 +151,7 @@ class Task(metaclass=SignatureValidator):
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
+        cache_key: str = None,
         checkpoint: bool = None,
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
@@ -203,6 +207,7 @@ class Task(metaclass=SignatureValidator):
             )
 
         self.cache_for = cache_for
+        self.cache_key = cache_key
         default_validator = (
             prefect.engine.cache_validators.never_use
             if cache_for is None
@@ -359,7 +364,7 @@ class Task(metaclass=SignatureValidator):
     ) -> "Task":
         """
         Binding a task to (keyword) arguments creates a _keyed_ edge in the active Flow
-        which will pass data from the arguments (whether Tasks or constants) to the
+        that will pass data from the arguments (whether Tasks or constants) to the
         Task's `run` method under the appropriate key. Once a Task is bound in this
         manner, the same task instance cannot be bound a second time in the same Flow.
 
@@ -419,7 +424,7 @@ class Task(metaclass=SignatureValidator):
         **kwargs: Any
     ) -> "Task":
         """
-        Map the Task elementwise across one or more Tasks. Arguments which should _not_ be mapped over
+        Map the Task elementwise across one or more Tasks. Arguments that should _not_ be mapped over
         should be placed in the `prefect.utilities.tasks.unmapped` container.
 
         For example:

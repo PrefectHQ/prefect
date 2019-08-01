@@ -1,7 +1,7 @@
 import inspect
 from contextlib import contextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 from toolz import curry
 
@@ -10,7 +10,10 @@ import prefect
 __all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
 
 if TYPE_CHECKING:
+    import prefect.tasks.core.constants
+    import prefect.tasks.core.collections
     import prefect.tasks.core.function
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 @contextmanager
@@ -41,12 +44,13 @@ def tags(*tags: str) -> Iterator[None]:
         yield
 
 
-def as_task(x: Any) -> "prefect.Task":
+def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
 
     Args:
         - x (object): any Python object to convert to a prefect Task
+        - flow (Flow, optional): Flow to which the prefect Task will be bound
 
     Returns:
         - a prefect Task representing the passed object
@@ -59,18 +63,18 @@ def as_task(x: Any) -> "prefect.Task":
 
     # collections
     elif isinstance(x, list):
-        return_task = prefect.tasks.core.collections.List().bind(*x)
+        return_task = prefect.tasks.core.collections.List().bind(*x, flow=flow)
     elif isinstance(x, tuple):
-        return_task = prefect.tasks.core.collections.Tuple().bind(*x)
+        return_task = prefect.tasks.core.collections.Tuple().bind(*x, flow=flow)
     elif isinstance(x, set):
-        return_task = prefect.tasks.core.collections.Set().bind(*x)
+        return_task = prefect.tasks.core.collections.Set().bind(*x, flow=flow)
     elif isinstance(x, dict):
         keys, values = [], []
         for k, v in x.items():
             keys.append(k)
             values.append(v)
         return_task = prefect.tasks.core.collections.Dict().bind(
-            keys=keys, values=values
+            keys=keys, values=values, flow=flow
         )
 
     # constants
@@ -206,7 +210,7 @@ class unmapped:
 
 def defaults_from_attrs(*attr_args: str) -> Callable:
     """
-    Helper decorator for dealing with Task classes with attributes which serve
+    Helper decorator for dealing with Task classes with attributes that serve
     as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
     to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
     if not explicitly provided to `self.run`.  This pattern allows users to create a Task "template",

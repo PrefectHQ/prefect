@@ -4,7 +4,7 @@ sidebarDepth: 0
 
 # Logging with a State Handler
 
-A simple Flow which logs the duration of task runs
+A simple Flow that logs the duration of task runs
 by using a task state handler.
 
 ```python
@@ -16,7 +16,7 @@ from prefect import task, Flow
 
 def timestamper(task, old_state, new_state):
     """
-    Task state handler which timestamps new states
+    Task state handler that timestamps new states
     and logs the duration between state changes using
     the task's logger.
     """

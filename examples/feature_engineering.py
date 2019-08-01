@@ -17,10 +17,10 @@ from typing import Any, Dict, List
 from urllib.request import urlretrieve
 
 import numpy as np
-
 import pandas as pd
-from prefect import Flow, Parameter, Task, task, unmapped
 from sklearn.decomposition import PCA
+
+from prefect import Flow, Parameter, Task, task, unmapped
 
 
 # tasks to fetch and prepare data

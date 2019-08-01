@@ -3,14 +3,14 @@ title: 'PIN-9: Prefect CLI'
 sidebarDepth: 0
 ---
 
-# PIN 8: Prefect CLI
+# PIN 9: Prefect CLI
 
 Date: May 20, 2019
 Author: Josh Meek
 
 ## Status
 
-Proposed
+Approved
 
 ## Context
 

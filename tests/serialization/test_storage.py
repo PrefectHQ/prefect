@@ -1,14 +1,15 @@
-import pytest
 import tempfile
+
+import pytest
 
 import prefect
 from prefect.environments import storage
 from prefect.serialization.storage import (
     BaseStorageSchema,
+    BytesSchema,
     DockerSchema,
     LocalSchema,
     MemorySchema,
-    BytesSchema,
 )
 
 
@@ -101,7 +102,7 @@ def test_bytes_roundtrip():
 
 
 def test_local_empty_serialize():
-    b = storage.LocalStorage()
+    b = storage.Local()
     serialized = LocalSchema().dump(b)
 
     assert serialized
@@ -112,7 +113,7 @@ def test_local_empty_serialize():
 
 def test_local_roundtrip():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = storage.LocalStorage(directory=tmpdir)
+        s = storage.Local(directory=tmpdir)
         flow_loc = s.add_flow(prefect.Flow("test"))
         serialized = LocalSchema().dump(s)
         deserialized = LocalSchema().load(serialized)

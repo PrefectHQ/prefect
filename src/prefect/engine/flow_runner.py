@@ -88,6 +88,7 @@ class FlowRunner(Runner):
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
     ):
+        self.context = prefect.context.to_dict()
         self.flow = flow
         if task_runner_cls is None:
             task_runner_cls = prefect.engine.get_default_task_runner_class()
@@ -415,15 +416,16 @@ class FlowRunner(Runner):
 
                 # -- run the task
 
-                task_states[task] = executor.submit(
-                    self.run_task,
-                    task=task,
-                    state=task_state,
-                    upstream_states=upstream_states,
-                    context=dict(prefect.context, **task_contexts.get(task, {})),
-                    task_runner_state_handlers=task_runner_state_handlers,
-                    executor=executor,
-                )
+                with prefect.context(task_full_name=task.name, task_tags=task.tags):
+                    task_states[task] = executor.submit(
+                        self.run_task,
+                        task=task,
+                        state=task_state,
+                        upstream_states=upstream_states,
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
+                        task_runner_state_handlers=task_runner_state_handlers,
+                        executor=executor,
+                    )
 
             # ---------------------------------------------
             # Collect results
@@ -462,6 +464,7 @@ class FlowRunner(Runner):
         return_states = {t: final_states[t] for t in return_tasks}
 
         state = self.determine_final_state(
+            state=state,
             key_states=key_states,
             return_states=return_states,
             terminal_states=terminal_states,
@@ -471,6 +474,7 @@ class FlowRunner(Runner):
 
     def determine_final_state(
         self,
+        state: State,
         key_states: Set[State],
         return_states: Dict[Task, State],
         terminal_states: Set[State],
@@ -479,6 +483,7 @@ class FlowRunner(Runner):
         Implements the logic for determining the final state of the flow run.
 
         Args:
+            - state (State): the current state of the Flow
             - key_states (Set[State]): the states which will determine the success / failure of the flow run
             - return_states (Dict[Task, State]): states to return as results
             - terminal_states (Set[State]): the states of the terminal tasks for this flow
@@ -486,12 +491,10 @@ class FlowRunner(Runner):
         Returns:
             - State: the final state of the flow run
         """
-        state = State()  # mypy initialization
-
         # check that the flow is finished
         if not all(s.is_finished() for s in terminal_states):
             self.logger.info("Flow run RUNNING: terminal tasks are incomplete.")
-            state = Running(message="Flow run in progress.", result=return_states)
+            state.result = return_states
 
         # check if any key task failed
         elif any(s.is_failed() for s in key_states):
@@ -542,25 +545,28 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
-        default_handler = task.result_handler or self.flow.result_handler
-        task_runner = self.task_runner_cls(
-            task=task,
-            state_handlers=task_runner_state_handlers,
-            result_handler=default_handler,
-        )
+        with prefect.context(self.context):
+            default_handler = task.result_handler or self.flow.result_handler
+            task_runner = self.task_runner_cls(
+                task=task,
+                state_handlers=task_runner_state_handlers,
+                result_handler=default_handler,
+            )
 
-        # if this task reduces over a mapped state, make sure its children have finished
-        for edge, upstream_state in upstream_states.items():
+            # if this task reduces over a mapped state, make sure its children have finished
+            for edge, upstream_state in upstream_states.items():
 
-            # if the upstream state is Mapped, wait until its results are all available
-            if not edge.mapped and upstream_state.is_mapped():
-                assert isinstance(upstream_state, Mapped)  # mypy assert
-                upstream_state.map_states = executor.wait(upstream_state.map_states)
-                upstream_state.result = [s.result for s in upstream_state.map_states]
+                # if the upstream state is Mapped, wait until its results are all available
+                if not edge.mapped and upstream_state.is_mapped():
+                    assert isinstance(upstream_state, Mapped)  # mypy assert
+                    upstream_state.map_states = executor.wait(upstream_state.map_states)
+                    upstream_state.result = [
+                        s.result for s in upstream_state.map_states
+                    ]
 
-        return task_runner.run(
-            state=state,
-            upstream_states=upstream_states,
-            context=context,
-            executor=executor,
-        )
+            return task_runner.run(
+                state=state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )

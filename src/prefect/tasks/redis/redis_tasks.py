@@ -1,8 +1,8 @@
+import redis
+
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
-
-import redis
 
 
 class RedisSet(Task):
@@ -14,7 +14,7 @@ class RedisSet(Task):
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
-            which stores your Redis credentials
+            that stores your Redis credentials
         - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
         - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
             Redis native types include strings, dictionaries, lists, sets, and sorted sets
@@ -118,7 +118,7 @@ class RedisGet(Task):
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
-            which stores your Redis password
+            that stores your Redis password
         - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
             initializer
         - redis_key (str, optional): Redis key to get value, can be provided at initialization or runtime
@@ -186,7 +186,7 @@ class RedisExecute(Task):
         - port (int, optional): Redis port, defaults to 6379
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
-            which stores your Redis credentials
+            that stores your Redis credentials
         - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
             initializer
         - redis_cmd (str, optional): Redis command to execute, must be provided at initialization or

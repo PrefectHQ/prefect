@@ -6,7 +6,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- Introduce new `flows.checkpointing` configuration setting for checkpointing Tasks in local execution - [#1283](https://github.com/PrefectHQ/prefect/pull/1283)
+
+### Enhancements
+
+- Allow passing of custom headers in `Client` calls - [#1255](https://github.com/PrefectHQ/prefect/pull/1255)
+- Autogenerate informative names and tags for Docker images built for Flow storage - [#1237](https://github.com/PrefectHQ/prefect/issues/1237)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with logs not always arriving in long-standing Dask clusters - [#1244](https://github.com/PrefectHQ/prefect/pull/1244)
+
+### Breaking Changes
+
+- `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
+
+### Contributors
+
+- None
+
+
+## 0.6.0 <Badge text="beta" type="success"/>
+
+Released July 16, 2019
+
+### Features
+
 - Add the Prefect CLI for working with core objects both locally and in cloud - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
+- Add RemoteEnvironment for simple executor based executions - [#1215](https://github.com/PrefectHQ/prefect/pull/1215)
+- Add the ability to share caches across Tasks and Flows - [#1222](https://github.com/PrefectHQ/prefect/pull/1222)
+- Add the ability to submit tasks to specific dask workers for task / worker affinity - [#1229](https://github.com/PrefectHQ/prefect/pull/1229)
 
 ### Enhancements
 
@@ -16,11 +49,19 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Have `execute cloud-flow` CLI immediately set the flow run state to `Failed` if environment fails - [#1122](https://github.com/PrefectHQ/prefect/pull/1122)
 - Validate configuration objects on initial load - [#1136](https://github.com/PrefectHQ/prefect/pull/1136)
 - Add `auto_generated` property to Tasks for convenient filtering - [#1135](https://github.com/PrefectHQ/prefect/pull/1135)
-- Disable dask work-stealing in kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
+- Disable dask work-stealing in Kubernetes via scheduler config - [#1166](https://github.com/PrefectHQ/prefect/pull/1166)
+- Implement backoff retry settings on Client calls - [#1187](https://github.com/PrefectHQ/prefect/pull/1187)
+- Explicitly set Dask keys for a better Dask visualization experience - [#1218](https://github.com/PrefectHQ/prefect/issues/1218)
+- Implement a local cache which persists for the duration of a Python session - [#1221](https://github.com/PrefectHQ/prefect/issues/1221)
+- Implement in-process retries for Cloud Tasks which request retry in less than one minute - [#1228](https://github.com/PrefectHQ/prefect/pull/1228)
+- Support `Client.login()` with API tokens - [#1240](https://github.com/PrefectHQ/prefect/pull/1240)
+- Add live log streaming for `prefect run cloud` command - [#1241](https://github.com/PrefectHQ/prefect/pull/1241)
 
 ### Task Library
 
 - Add task to trigger AWS Step function workflow [#1012](https://github.com/PrefectHQ/prefect/issues/1012)
+- Add task to copy files within Google Cloud Storage - [#1206](https://github.com/PrefectHQ/prefect/pull/1206)
+- Add task for downloading files from Dropbox - [#1205](https://github.com/PrefectHQ/prefect/pull/1205)
 
 ### Fixes
 
@@ -30,15 +71,21 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with passing results to Prefect signals - [#1163](https://github.com/PrefectHQ/prefect/issues/1163)
 - Fix issue with `flow.update` not preserving mapped edges - [#1164](https://github.com/PrefectHQ/prefect/issues/1164)
 - Fix issue with Parameters and Context not being raw dictionaries - [#1186](https://github.com/PrefectHQ/prefect/issues/1186)
+- Fix issue with asynchronous, long-running mapped retries in Prefect Cloud - [#1208](https://github.com/PrefectHQ/prefect/pull/1208)
+- Fix issue with automatically applied collections to task call arguments when using the imperative API - [#1211](https://github.com/PrefectHQ/prefect/issues/1211)
 
 ### Breaking Changes
 
 - The CLI command `prefect execute-flow` and `prefect execute-cloud-flow` no longer exist - [#1059](https://github.com/PrefectHQ/prefect/pull/1059)
 - The `slack_notifier` state handler now uses a `webhook_secret` kwarg to pull the URL from a Secret - [#1075](https://github.com/PrefectHQ/prefect/issues/1075)
+- Use GraphQL for Cloud logging - [#1193](https://github.com/PrefectHQ/prefect/pull/1193)
+- Remove the `CloudResultHandler` default result handler - [#1198](https://github.com/PrefectHQ/prefect/pull/1198)
+- Rename `LocalStorage` to `Local` - [#1236](https://github.com/PrefectHQ/prefect/pull/1236)
 
 ### Contributors
 
 - [Kwangyoun Jung](https://github.com/initialkommit)
+- [Anes Benmerzoug](https://github.com/AnesBenmerzoug)
 
 ## 0.5.4 <Badge text="beta" type="success"/>
 
@@ -59,7 +106,7 @@ Released May 28, 2019
 - Allow for `SlackTask` to pull the Slack webhook URL from a custom named Secret - [#1023](https://github.com/PrefectHQ/prefect/pull/1023)
 - Raise informative errors when Docker storage push / pull fails - [#1029](https://github.com/PrefectHQ/prefect/issues/1029)
 - Standardized `__repr__`s for various classes, to remove inconsistencies - [#617](https://github.com/PrefectHQ/prefect/issues/617)
-- Allow for use of local images in Docekr storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
+- Allow for use of local images in Docker storage - [#1052](https://github.com/PrefectHQ/prefect/pull/1052)
 - Allow for doc tests and doc generation to run without installing `all_extras` - [#1057](https://github.com/PrefectHQ/prefect/issues/1057)
 
 ### Task Library

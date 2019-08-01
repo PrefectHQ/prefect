@@ -25,11 +25,11 @@ An instantiated Result object has the following attributes:
 - a `safe_value`: this attribute maintains a reference to a `SafeResult` object
     which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
     might be a URI or filename pointing to where the raw data lives
-- a `result_handler` which holds onto the `ResultHandler` used to read /
+- a `result_handler` that holds onto the `ResultHandler` used to read /
     write the value to / from its handled representation
 
 ::: tip NoResult vs. a None Result
-To distinguish between a Task which runs but does not return output from a Task which has yet to run, Prefect
+To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
 whose value is `None`.  The `to_result` / `store_safe_value` methods, along with the `value` and `safe_value` attributes of `NoResult` all return the same `NoResult` object.
 :::
@@ -44,9 +44,9 @@ All Results come equipped with `to_result` / `store_safe_value` methods which re
 
 Result Handlers are a more public entity than the `Result` class.  A Result handler is simply a specific implementation of a `read` / `write` interface for handling data.  The only requirement for a Result handler implementation is that the `write` method returns a JSON-compatible object.  For example, we can easily imagine different kinds of Result Handlers:
 - an Google Cloud Storage handler which writes a given piece of data to a Google Cloud Storage bucket, and reads data from that bucket; the `write` method in this instance returns a URI
-- a `LocalResultHandler` which reads / writes data from local file storage; the `write` method in this instance returns an absolute file path
+- a `LocalResultHandler` that reads / writes data from local file storage; the `write` method in this instance returns an absolute file path
 
-However, we can be more creative with Result Handlers.  For example, if you have a task which returns a small piece of data such as a string, or a short list of numbers, and you are comfortable with this data living in Prefect Cloud's database, then a simple `JSONResultHandler` which dumps your data to a JSON string will suffice!
+However, we can be more creative with Result Handlers.  For example, if you have a task which returns a small piece of data such as a string, or a short list of numbers, and you are comfortable with this data living in Prefect Cloud's database, then a simple `JSONResultHandler` that dumps your data to a JSON string will suffice!
 
 ::: warning Handle your data carefully
 When running on Prefect Cloud, the output of a Result Handler's `write` method is what is stored in the Cloud database.
@@ -55,7 +55,7 @@ When running on Prefect Cloud, the output of a Result Handler's `write` method i
 ### How to specify a `ResultHandler`
 
 There is a hierarchy to determining what `ResultHandler` to use for a given piece of data:
-1. First, users can set a global default in their Prefect user config; if you never mention or think about Result Handlers again, this is the handler that will always be used.  As of this writing, the default handler that ships with a standard install of Prefect is the `CloudResultHandler` which writes data to a Prefect-managed Google Cloud Storage bucket.
+1. First, users can set a global default in their Prefect user config; if you never mention or think about Result Handlers again, this is the handler that will always be used.
 1. Next, you can specify a Flow-level result handler at Flow-initialization using the `result_handler` keyword argument.  Once again, if you never specify another result handler, this is the one that will be used for all your tasks in this particular Flow.
 1. Lastly, you can set a Task-level result handler.  This is achieved using the `result_handler` keyword argument at Task initialization (or in the `@task` decorator).  If you provide a result handler here, it will _always_ be used if the _output_ of this Task needs to be cached for any reason whatsoever.
 

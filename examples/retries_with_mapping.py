@@ -2,11 +2,11 @@
 This example showcases a few basic Prefect concepts:
     - the ability to "map" tasks across the dynamic output of upstream tasks; additionally, it is not required that the
         upstream task actually passes data to the downstream task, as this example demonstrates
-    - task retries: `flow.run()` will perform retries, on schedule, for all tasks which require it,
+    - task retries: `flow.run()` will perform retries, on schedule, for all tasks that require it,
         including individual mapped tasks
 
 This flow first generates a list of random length, and them maps over that list to spawn a dynamic number of
-downstream tasks which randomly fail.  The takeaway here is that we don't have to know a-priori how many mapped tasks
+downstream tasks that randomly fail.  The takeaway here is that we don't have to know a-priori how many mapped tasks
 will be created prior to execution!  Additionally, each failed mapped task will retry on its own.
 """
 import random

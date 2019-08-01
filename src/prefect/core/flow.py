@@ -32,7 +32,7 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.environments import CloudEnvironment, Environment
+from prefect.environments import RemoteEnvironment, Environment
 from prefect.environments.storage import Storage
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
@@ -106,12 +106,12 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `CloudEnvironment` will be created.
+           that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
         - edges ([Edge], optional): A list of edges between tasks
-        - reference_tasks ([Task], optional): A list of tasks which determine the final
+        - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
@@ -156,7 +156,7 @@ class Flow:
 
         self.name = name
         self.schedule = schedule
-        self.environment = environment or prefect.environments.CloudEnvironment()
+        self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
         self.result_handler = (
             result_handler or prefect.engine.get_default_result_handler_class()()
@@ -237,7 +237,7 @@ class Flow:
             - task_type (type, optional): a possible task class type
 
         Returns:
-            - [Task]: a list of tasks which meet the required conditions
+            - [Task]: a list of tasks that meet the required conditions
         """
 
         def sieve(t: Task) -> bool:
@@ -272,7 +272,7 @@ class Flow:
         if old not in self.tasks:
             raise ValueError("Task {t} was not found in Flow {f}".format(t=old, f=self))
 
-        new = as_task(new)
+        new = as_task(new, flow=self)
 
         # update tasks
         self.tasks.remove(old)
@@ -328,7 +328,7 @@ class Flow:
     def root_tasks(self) -> Set[Task]:
         """
         Get the tasks in the flow that have no upstream dependencies; these are
-        the tasks which, by default, flow execution begins with.
+        the tasks that, by default, flow execution begins with.
 
         Returns:
             - set of Task objects that have no upstream dependencies
@@ -363,7 +363,7 @@ class Flow:
         of what is considered failure, success, etc.)
 
         By default, a flow's reference tasks are its terminal tasks. This means the state of a
-        flow is determined by those tasks which have no downstream dependencies.
+        flow is determined by those tasks that have no downstream dependencies.
 
         In some situations, users may want to customize this behavior; for example, if a
         flow's terminal tasks are "clean up" tasks for the rest of the flow that only run
@@ -777,7 +777,7 @@ class Flow:
             - None
         """
 
-        task = as_task(task)
+        task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert
 
         # add the main task (in case it was called with no arguments)
@@ -786,7 +786,7 @@ class Flow:
         # add upstream tasks
         for t in upstream_tasks or []:
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
                 upstream_task=t,
@@ -797,14 +797,14 @@ class Flow:
 
         # add downstream tasks
         for t in downstream_tasks or []:
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(upstream_task=task, downstream_task=t, validate=validate)
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t)
+            t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
                 upstream_task=t,
@@ -836,7 +836,7 @@ class Flow:
             flow_state.result = {}
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
-        prefect.context.caches = {}
+        prefect.context.setdefault("caches", {})
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
@@ -901,11 +901,11 @@ class Flow:
 
                     fresh_states = [
                         s
-                        for s in prefect.context.caches.get(t.name, [])
+                        for s in prefect.context.caches.get(t.cache_key or t.name, [])
                         + cached_sub_states
                         if s.cached_result_expiration > now
                     ]
-                    prefect.context.caches[t.name] = fresh_states
+                    prefect.context.caches[t.cache_key or t.name] = fresh_states
                 if self.schedule is not None:
                     next_run_time = self.schedule.next(1)[0]
                 else:

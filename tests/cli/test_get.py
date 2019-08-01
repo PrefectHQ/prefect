@@ -2,9 +2,9 @@ import sys
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import pytest
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.get import get
@@ -36,7 +36,9 @@ def test_get_flows(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -75,7 +77,9 @@ def test_get_flows_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -122,7 +126,9 @@ def test_get_projects(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -163,7 +169,9 @@ def test_get_projects_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -200,7 +208,9 @@ def test_get_flow_runs(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -245,7 +255,9 @@ def test_get_flow_runs_populated(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -292,7 +304,9 @@ def test_get_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -335,7 +349,9 @@ def test_get_tasks_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -403,7 +419,9 @@ def test_get_logs(monkeypatch):
             )
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -446,7 +464,9 @@ def test_get_logs_info(monkeypatch):
             )
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -478,7 +498,9 @@ def test_get_logs_fails(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}

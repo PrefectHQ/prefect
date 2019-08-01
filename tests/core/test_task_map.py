@@ -440,6 +440,25 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_map_preserves_flowrunners_initial_context(executor):
+    @task
+    def whats_id():
+        return prefect.context.get("special_id")
+
+    with Flow(name="test-context-preservation") as flow:
+        result = whats_id.map(upstream_tasks=[list(range(10))])
+
+    with prefect.context(special_id="FOOBAR"):
+        runner = FlowRunner(flow=flow)
+
+    flow_state = runner.run(return_tasks=[result])
+    assert flow_state.is_successful()
+    assert flow_state.result[result].result == ["FOOBAR"] * 10
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_map_allows_for_retries(executor):
     ii = IdTask()
     ll = ListTask()

@@ -2,9 +2,9 @@ import sys
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import pytest
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.describe import describe
@@ -40,7 +40,9 @@ def test_describe_flows(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow=[{"name": "flow"}])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -76,7 +78,9 @@ def test_describe_flows_not_found(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -96,7 +100,9 @@ def test_describe_flows_populated(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow=[{"name": "flow"}])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -141,7 +147,9 @@ def test_describe_tasks(monkeypatch):
             )
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -176,7 +184,9 @@ def test_describe_tasks_flow_not_found(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -193,7 +203,9 @@ def test_describe_tasks_not_found(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow=[{"tasks": []}])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -215,7 +227,9 @@ def test_describe_flow_runs(monkeypatch):
             )
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -255,7 +269,9 @@ def test_describe_flow_runs_not_found(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -277,7 +293,9 @@ def test_describe_flow_runs_populated(monkeypatch):
             )
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}

@@ -6,6 +6,9 @@ import os
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 import prefect
 from prefect.utilities.exceptions import AuthorizationError, ClientError
@@ -13,15 +16,14 @@ from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
     as_nested_dict,
+    compress,
     parse_graphql,
     with_args,
-    compress,
 )
 
 if TYPE_CHECKING:
-    import requests
     from prefect.core import Flow
-BuiltIn = Union[bool, dict, list, str, set, tuple]
+JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
 
@@ -62,18 +64,7 @@ class Client:
             to; if not provided, will be pulled from `cloud.graphql` config var
     """
 
-    def _initialize_logger(self) -> None:
-        # The Client requires its own logging setup because the RemoteLogger actually
-        # uses a Client to ship its logs; we currently don't send Client logs to Cloud.
-        self.logger = logging.getLogger("Client")
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(prefect.config.logging.format)
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(prefect.config.logging.level)
-
     def __init__(self, graphql_server: str = None):
-        self._initialize_logger()
 
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql")
@@ -81,22 +72,33 @@ class Client:
 
         token = prefect.config.cloud.get("auth_token", None)
 
+        self.token_is_local = False
         if token is None:
-            token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-            if os.path.exists(token_path):
-                with open(token_path, "r") as f:
+            if os.path.exists(self.local_token_path):
+                with open(self.local_token_path, "r") as f:
                     token = f.read() or None
-            if token is not None:
-                # this is a rare event and we don't expect it to happen
-                # leaving this log in case it ever happens we'll know
-                self.logger.debug("Client token set from file {}".format(token_path))
+                    self.token_is_local = True
 
         self.token = token
+
+    @property
+    def local_token_path(self) -> str:
+        """
+        Returns the local token path corresponding to the provided graphql_server
+        """
+        graphql_server = (self.graphql_server or "").replace("/", "_")
+        return os.path.expanduser("~/.prefect/tokens/{}".format(graphql_server))
 
     # -------------------------------------------------------------------------
     # Utilities
 
-    def get(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+    def get(
+        self,
+        path: str,
+        server: str = None,
+        headers: dict = None,
+        params: Dict[str, JSONLike] = None,
+    ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
 
@@ -105,18 +107,27 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the GET request to;
                 defaults to `self.graphql_server`
-            - **params (dict): GET parameters
+            - headers (dict, optional): Headers to pass with the request
+            - params (dict): GET parameters
 
         Returns:
             - dict: Dictionary representation of the request made
         """
-        response = self._request(method="GET", path=path, params=params, server=server)
+        response = self._request(
+            method="GET", path=path, params=params, server=server, headers=headers
+        )
         if response.text:
             return response.json()
         else:
             return {}
 
-    def post(self, path: str, server: str = None, **params: BuiltIn) -> dict:
+    def post(
+        self,
+        path: str,
+        server: str = None,
+        headers: dict = None,
+        params: Dict[str, JSONLike] = None,
+    ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
 
@@ -125,12 +136,15 @@ class Client:
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the POST request to;
                 defaults to `self.graphql_server`
-            - **params (dict): POST parameters
+            - headers(dict): headers to pass with the request
+            - params (dict): POST parameters
 
         Returns:
             - dict: Dictionary representation of the request made
         """
-        response = self._request(method="POST", path=path, params=params, server=server)
+        response = self._request(
+            method="POST", path=path, params=params, server=server, headers=headers
+        )
         if response.text:
             return response.json()
         else:
@@ -140,7 +154,8 @@ class Client:
         self,
         query: Any,
         raise_on_error: bool = True,
-        **variables: Union[bool, dict, str, int]
+        headers: Dict[str, str] = None,
+        variables: Dict[str, JSONLike] = None,
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -150,7 +165,9 @@ class Client:
                 parsed by prefect.utilities.graphql.parse_graphql().
             - raise_on_error (bool): if True, a `ClientError` will be raised if the GraphQL
                 returns any `errors`.
-            - **variables (kwarg): Variables to be filled into a query with the key being
+            - headers (dict): any additional headers that should be passed as part of the
+                request
+            - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
 
         Returns:
@@ -161,9 +178,9 @@ class Client:
         """
         result = self.post(
             path="",
-            query=parse_graphql(query),
-            variables=json.dumps(variables),
             server=self.graphql_server,
+            headers=headers,
+            params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
         )
 
         if raise_on_error and "errors" in result:
@@ -172,7 +189,12 @@ class Client:
             return as_nested_dict(result, GraphQLResult)  # type: ignore
 
     def _request(
-        self, method: str, path: str, params: dict = None, server: str = None
+        self,
+        method: str,
+        path: str,
+        params: Dict[str, JSONLike] = None,
+        server: str = None,
+        headers: dict = None,
     ) -> "requests.models.Response":
         """
         Runs any specified request (GET, POST, DELETE) against the server
@@ -183,6 +205,7 @@ class Client:
             - params (dict, optional): Parameters used for the request
             - server (str, optional): The server to make requests against, base API
                 server is used if not specified
+            - headers (dict, optional): Headers to pass with the request
 
         Returns:
             - requests.models.Response: The response returned from the request
@@ -192,114 +215,72 @@ class Client:
             - ValueError: if a method is specified outside of the accepted GET, POST, DELETE
             - requests.HTTPError: if a status code is returned that is not `200` or `401`
         """
-        # lazy import for performance
-        import requests
-
         if server is None:
             server = self.graphql_server
         assert isinstance(server, str)  # mypy assert
 
         if self.token is None:
-            raise AuthorizationError("Call Client.login() to set the client token.")
+            raise AuthorizationError("No token found; call Client.login() to set one.")
 
         url = os.path.join(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 
-        # write this as a function to allow reuse in next try/except block
-        def request_fn() -> "requests.models.Response":
-            headers = {"Authorization": "Bearer {}".format(self.token)}
-            if method == "GET":
-                response = requests.get(url, headers=headers, params=params)
-            elif method == "POST":
-                response = requests.post(url, headers=headers, json=params)
-            elif method == "DELETE":
-                response = requests.delete(url, headers=headers)
-            else:
-                raise ValueError("Invalid method: {}".format(method))
+        headers = headers or {}
+        headers.update({"Authorization": "Bearer {}".format(self.token)})
+        session = requests.Session()
+        retries = Retry(
+            total=6,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+            method_whitelist=["DELETE", "GET", "POST"],
+        )
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        if method == "GET":
+            response = session.get(url, headers=headers, params=params)
+        elif method == "POST":
+            response = session.post(url, headers=headers, json=params)
+        elif method == "DELETE":
+            response = session.delete(url, headers=headers)
+        else:
+            raise ValueError("Invalid method: {}".format(method))
 
-            # Check if request returned a successful status
-            response.raise_for_status()
+        # Check if request returned a successful status
+        response.raise_for_status()
 
-            return response
-
-        # If a 401 status code is returned, refresh the login token
-        try:
-            return request_fn()
-        except requests.HTTPError as err:
-            if err.response.status_code == 401:
-                self.refresh_token()
-                return request_fn()
-            raise
+        return response
 
     # -------------------------------------------------------------------------
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(
-        self,
-        email: str,
-        password: str,
-        account_slug: str = None,
-        account_id: str = None,
-    ) -> None:
+    def login(self, api_token: str) -> None:
         """
-        Login to the server in order to gain access
+        Logs in to Prefect Cloud with an API token. The token is written to local storage
+        so it persists across Prefect sessions.
 
         Args:
-            - email (str): User's email on the platform
-            - password (str): User's password on the platform
-            - account_slug (str, optional): Slug that is unique to the user
-            - account_id (str, optional): Specific Account ID for this user to use
+            - api_token (str): a Prefect Cloud API token
 
         Raises:
             - AuthorizationError if unable to login to the server (request does not return `200`)
         """
-
-        # lazy import for performance
-        import requests
-
-        # TODO: This needs to call the main graphql server and be adjusted for auth0
-        url = os.path.join(self.graphql_server, "login_email")  # type: ignore
-        response = requests.post(
-            url,
-            auth=(email, password),
-            json=dict(account_id=account_id, account_slug=account_slug),
-        )
-
-        # Load the current auth token if able to login
-        if not response.ok:
-            raise AuthorizationError("Could not log in.")
-        self.token = response.json().get("token")
-        if self.token:
-            creds_path = os.path.expanduser("~/.prefect/.credentials")
-            if not os.path.exists(creds_path):
-                os.makedirs(creds_path)
-            with open(os.path.join(creds_path, "auth_token"), "w+") as f:
-                f.write(self.token)
+        if not os.path.exists(os.path.dirname(self.local_token_path)):
+            os.makedirs(os.path.dirname(self.local_token_path))
+        with open(self.local_token_path, "w+") as f:
+            f.write(api_token)
+        self.token = api_token
+        self.token_is_local = True
 
     def logout(self) -> None:
         """
-        Logs out by clearing all tokens, including deleting `~/.prefect/credentials/auth_token`
+        Deletes the token from this client, and removes it from local storage.
         """
-        token_path = os.path.expanduser("~/.prefect/.credentials/auth_token")
-        if os.path.exists(token_path):
-            os.remove(token_path)
-        del self.token
-
-    def refresh_token(self) -> None:
-        """
-        Refresh the auth token for this user on the server. It is only valid for fifteen minutes.
-        """
-        # lazy import for performance
-        import requests
-
-        # TODO: This needs to call the main graphql server
-        url = os.path.join(self.graphql_server, "refresh_token")  # type: ignore
-        response = requests.post(
-            url, headers={"Authorization": "Bearer {}".format(self.token)}
-        )
-        self.token = response.json().get("token")
+        self.token = None
+        if self.token_is_local:
+            if os.path.exists(self.local_token_path):
+                os.remove(self.local_token_path)
+            self.token_is_local = False
 
     def deploy(
         self,
@@ -369,10 +350,12 @@ class Client:
             serialized_flow = compress(serialized_flow)
         res = self.graphql(
             create_mutation,
-            input=dict(
-                projectId=project[0].id,
-                serializedFlow=serialized_flow,
-                setScheduleActive=set_schedule_active,
+            variables=dict(
+                input=dict(
+                    projectId=project[0].id,
+                    serializedFlow=serialized_flow,
+                    setScheduleActive=set_schedule_active,
+                )
             ),
         )  # type: Any
 
@@ -402,7 +385,9 @@ class Client:
             }
         }
 
-        res = self.graphql(project_mutation, input=dict(name=project_name))  # type: Any
+        res = self.graphql(
+            project_mutation, variables=dict(input=dict(name=project_name))
+        )  # type: Any
 
         return res.data.createProject.id
 
@@ -450,7 +435,7 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
-        res = self.graphql(create_mutation, input=inputs)
+        res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
@@ -585,16 +570,17 @@ class Client:
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, state=serialized_state)  # type: Any
+        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
 
     def get_latest_cached_states(
-        self, task_id: str, created_after: datetime.datetime
+        self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime
     ) -> List["prefect.engine.state.State"]:
         """
-        Pulls all Cached states for the given task which were created after the provided date.
+        Pulls all Cached states for the given task that were created after the provided date.
 
         Args:
             - task_id (str): the task id for this task run
+            - cache_key (Optional[str]): the cache key for this Task's cache; if `None`, the task id alone will be used
             - created_after (datetime.datetime): the earliest date the state should have been created at
 
         Returns:
@@ -603,7 +589,10 @@ class Client:
         where_clause = {
             "where": {
                 "state": {"_eq": "Cached"},
-                "task_id": {"_eq": task_id},
+                "_or": [
+                    {"cache_key": {"_eq": cache_key}},
+                    {"task_id": {"_eq": task_id}},
+                ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
             },
             "order_by": {"state_timestamp": EnumValue("desc")},
@@ -705,7 +694,7 @@ class Client:
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, state=serialized_state)  # type: Any
+        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
 
     def set_secret(self, name: str, value: Any) -> None:
         """
@@ -726,7 +715,62 @@ class Client:
             }
         }
 
-        result = self.graphql(mutation, input=dict(name=name, value=value))  # type: Any
+        result = self.graphql(
+            mutation, variables=dict(input=dict(name=name, value=value))
+        )  # type: Any
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
+
+    def write_run_log(
+        self,
+        flow_run_id: str,
+        task_run_id: str = None,
+        timestamp: datetime.datetime = None,
+        name: str = None,
+        message: str = None,
+        level: str = None,
+        info: Any = None,
+    ) -> None:
+        """
+        Writes a log to Cloud
+
+        Args:
+            - flow_run_id (str): the flow run id
+            - task_run_id (str, optional): the task run id
+            - timestamp (datetime, optional): the timestamp; defaults to now
+            - name (str, optional): the name of the logger
+            - message (str, optional): the log message
+            - level (str, optional): the log level as a string. Defaults to INFO, should be one of
+                DEBUG, INFO, WARNING, ERROR, or CRITICAL.
+            - info (Any, optional): a JSON payload of additional information
+
+        Raises:
+            - ValueError: if writing the log fails
+        """
+        mutation = {
+            "mutation($input: writeRunLogInput!)": {
+                "writeRunLog(input: $input)": {"success"}
+            }
+        }
+
+        if timestamp is None:
+            timestamp = pendulum.now("UTC")
+        timestamp_str = pendulum.instance(timestamp).isoformat()
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    flowRunId=flow_run_id,
+                    taskRunId=task_run_id,
+                    timestamp=timestamp_str,
+                    name=name,
+                    message=message,
+                    level=level,
+                    info=info,
+                )
+            ),
+        )  # type: Any
+
+        if not result.data.writeRunLog.success:
+            raise ValueError("Writing log failed.")

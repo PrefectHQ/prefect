@@ -47,6 +47,11 @@ def add_flow():
     return f
 
 
+@pytest.fixture
+def clear_context_cache():
+    prefect.context["caches"] = {}
+
+
 class TestCreateFlow:
     """ Test various Flow constructors """
 
@@ -129,12 +134,12 @@ class TestCreateFlow:
         assert isinstance(f2.storage, prefect.environments.storage.Memory)
 
     def test_create_flow_with_environment(self):
-        f2 = Flow(name="test", environment=prefect.environments.CloudEnvironment())
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        f2 = Flow(name="test", environment=prefect.environments.RemoteEnvironment())
+        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
 
     def test_create_flow_has_default_environment(self):
         f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.CloudEnvironment)
+        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -1334,6 +1339,18 @@ class TestReplace:
         assert state.is_successful()
         assert state.result[res].result == 61
 
+    def test_replace_converts_new_collections_to_tasks(self):
+        add = AddTask()
+        with Flow(name="test") as f:
+            x, y = Parameter("x"), Parameter("y")
+            res = add(x, y)
+        f.replace(x, [55, 56])
+        f.replace(y, [1, 2])
+        assert len(f.tasks) == 7
+        state = f.run()
+        assert state.is_successful()
+        assert state.result[res].result == [55, 56, 1, 2]
+
 
 class TestGetTasks:
     def test_get_tasks_defaults_to_return_everything(self):
@@ -1414,7 +1431,7 @@ class TestSerialize:
 
     def test_default_environment_is_cloud_environment(self):
         f = Flow(name="test")
-        assert isinstance(f.environment, prefect.environments.CloudEnvironment)
+        assert isinstance(f.environment, prefect.environments.RemoteEnvironment)
 
     def test_serialize_includes_storage(self):
         f = Flow(name="test", storage=prefect.environments.storage.Memory())
@@ -1450,6 +1467,7 @@ class TestSerialize:
             s_build = f.serialize(build=True)
 
 
+@pytest.mark.usefixtures("clear_context_cache")
 class TestFlowRunMethod:
     def test_flow_dot_run_runs_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
@@ -1648,6 +1666,44 @@ class TestFlowRunMethod:
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x(x=t1, y=t2))
 
+        f.run()
+
+        assert storage == dict(y=[1, 1, 3])
+
+    def test_flow_dot_run_handles_cached_states_across_runs(self):
+        class StatefulTask(Task):
+            def __init__(self, maxit=False, **kwargs):
+                self.maxit = maxit
+                super().__init__(**kwargs)
+
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+                if self.maxit:
+                    return max(self.call_count, 2)
+                else:
+                    return self.call_count
+
+        @task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=partial_inputs_only(validate_on=["x"]),
+        )
+        def return_x(x, y):
+            return y
+
+        storage = {"y": []}
+
+        @task
+        def store_y(y):
+            storage["y"].append(y)
+
+        t1, t2 = StatefulTask(maxit=True), StatefulTask()
+        with Flow(name="test") as f:
+            res = store_y(return_x(x=t1, y=t2))
+
+        f.run()
+        f.run()
         f.run()
 
         assert storage == dict(y=[1, 1, 3])
@@ -1960,7 +2016,7 @@ class TestFlowRunMethod:
         assert flow_state.is_successful()
         assert all([s.is_successful() for s in flow_state.result[res].map_states])
         assert res.call_count == 4
-        assert len(state_history) == 11
+        assert len(state_history) == 13
 
     def test_flow_run_accepts_state_kwarg(self):
         f = Flow(name="test")

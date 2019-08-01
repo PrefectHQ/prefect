@@ -1,7 +1,7 @@
+import spacy
+
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
-
-import spacy
 
 
 class SpacyNLP(Task):

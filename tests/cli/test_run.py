@@ -2,9 +2,9 @@ import sys
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import pytest
 import requests
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.run import run
@@ -34,7 +34,9 @@ def test_run_cloud(monkeypatch):
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
         )
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     create_flow_run = MagicMock(resurn_value="id")
     monkeypatch.setattr(
@@ -67,7 +69,9 @@ def test_run_cloud_fails(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
-    monkeypatch.setattr("requests.post", post)
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}

@@ -3,6 +3,7 @@ from prefect import environments
 from prefect.serialization.environment import (
     BaseEnvironmentSchema,
     CloudEnvironmentSchema,
+    RemoteEnvironmentSchema,
 )
 
 
@@ -41,3 +42,18 @@ def test_serialize_cloud_environment_with_private_registry():
     new = schema.load(serialized)
     assert new.private_registry is True
     assert new.docker_secret == "FOO"
+
+
+def test_serialize_remote_environment():
+    env = environments.RemoteEnvironment()
+
+    schema = RemoteEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["executor"] == prefect.config.engine.executor.default_class
+    assert serialized["executor_kwargs"] == {}
+
+    new = schema.load(serialized)
+    assert new.executor == prefect.config.engine.executor.default_class
+    assert new.executor_kwargs == {}

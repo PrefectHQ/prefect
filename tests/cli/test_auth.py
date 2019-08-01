@@ -2,9 +2,9 @@ import tempfile
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import requests
 import toml
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.auth import auth
@@ -47,7 +47,9 @@ def test_auth_add(monkeypatch):
                 json=MagicMock(return_value=dict(data=dict(hello="hi")))
             )
         )
-        monkeypatch.setattr("requests.post", post)
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
             {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -60,7 +62,7 @@ def test_auth_add(monkeypatch):
             assert "Auth token added to Prefect config" in result.output
 
 
-def test_auth_add_failes_query(monkeypatch):
+def test_auth_add_failed_query(monkeypatch):
     with tempfile.TemporaryDirectory() as temp_dir:
 
         file = "{}/temp_config.toml".format(temp_dir)
@@ -73,7 +75,9 @@ def test_auth_add_failes_query(monkeypatch):
                 json=MagicMock(return_value=dict(data=dict(hello=None)))
             )
         )
-        monkeypatch.setattr("requests.post", post)
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
             {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}

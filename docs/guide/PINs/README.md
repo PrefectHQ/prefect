@@ -53,3 +53,21 @@ A proposal for refactoring environments into `Storage` classes and execution `En
 A proposal for event-driven or long-running flows that run in response to events that arrive in an irregular stream.
 
 **Status:** Proposed
+
+## [PIN-9: Prefect CLI](PIN-9-CLI.md)
+
+A proposal for a flexible and live-updating Prefect Cloud command line client.
+
+**Status:** Approved
+
+## [PIN-10: Flexible Schedules](PIN-10-Schedules.md)
+
+A proposal for a new way of building schedules that captures a wider variety of use cases.
+
+**Status:** Proposed
+
+## [PIN-11: Single-Task Loops](PIN-11-Task-Loops.md)
+
+A proposal for a way to loop over single tasks with arbitrary control logic and all Prefect semantics intact
+
+**Status:** Proposed

@@ -82,6 +82,7 @@ class TaskRunner(Runner):
         state_handlers: Iterable[Callable] = None,
         result_handler: "ResultHandler" = None,
     ):
+        self.context = prefect.context.to_dict()
         self.task = task
         self.result_handler = (
             task.result_handler
@@ -146,7 +147,10 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        context.update(task_run_count=run_count, task_name=self.task.name)
+        context.update(
+            task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
+        )
+        context.setdefault("checkpointing", config.flows.checkpointing)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -573,15 +577,6 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if self.task.cache_for is not None:
-            candidate_states = prefect.context.caches.get(self.task.name, [])
-            sanitized_inputs = {key: res.value for key, res in inputs.items()}
-            for candidate in candidate_states:
-                if self.task.cache_validator(
-                    candidate, sanitized_inputs, prefect.context.get("parameters")
-                ):
-                    candidate._result = candidate._result.to_result()
-                    return candidate
         if state.is_cached():
             assert isinstance(state, Cached)  # mypy assert
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
@@ -591,16 +586,29 @@ class TaskRunner(Runner):
                 state._result = state._result.to_result()
                 return state
             else:
-                self.logger.warning(
-                    "Task '{name}': can't use cache because it "
-                    "is now invalid".format(
-                        name=prefect.context.get("task_full_name", self.task.name)
-                    )
-                )
-                return Pending("Cache was invalid; ready to run.")
-        return state
+                state = Pending("Cache was invalid; ready to run.")
 
-    @call_state_handlers
+        if self.task.cache_for is not None:
+            candidate_states = prefect.context.caches.get(
+                self.task.cache_key or self.task.name, []
+            )
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
+            for candidate in candidate_states:
+                if self.task.cache_validator(
+                    candidate, sanitized_inputs, prefect.context.get("parameters")
+                ):
+                    candidate._result = candidate._result.to_result()
+                    return candidate
+
+        if self.task.cache_for is not None:
+            self.logger.warning(
+                "Task '{name}': can't use cache because it "
+                "is now invalid".format(
+                    name=prefect.context.get("task_full_name", self.task.name)
+                )
+            )
+        return state or Pending("Cache was invalid; ready to run.")
+
     def run_mapped_task(
         self,
         state: State,
@@ -686,13 +694,14 @@ class TaskRunner(Runner):
         ) -> State:
             map_context = context.copy()
             map_context.update(map_index=map_index)
-            return self.run(
-                upstream_states=upstream_states,
-                # if we set the state here, then it will not be processed by `initialize_run()`
-                state=state,
-                context=map_context,
-                executor=executor,
-            )
+            with prefect.context(self.context):
+                return self.run(
+                    upstream_states=upstream_states,
+                    # if we set the state here, then it will not be processed by `initialize_run()`
+                    state=state,
+                    context=map_context,
+                    executor=executor,
+                )
 
         # generate initial states, if available
         if isinstance(state, Mapped):
@@ -701,14 +710,26 @@ class TaskRunner(Runner):
             initial_states = []
         initial_states.extend([None] * (len(map_upstream_states) - len(initial_states)))
 
+        current_state = Mapped(  # type: ignore
+            message="Preparing to submit {} mapped tasks.".format(len(initial_states)),
+            map_states=initial_states,
+        )
+        state = self.handle_state_change(old_state=state, new_state=current_state)
+        if state is not current_state:
+            return state
+
         # map over the initial states, a counter representing the map_index, and also the mapped upstream states
         map_states = executor.map(
             run_fn, initial_states, range(len(map_upstream_states)), map_upstream_states
         )
 
-        return Mapped(
+        self.logger.debug(
+            "{} mapped tasks submitted for execution.".format(len(map_states))
+        )
+        new_state = Mapped(
             message="Mapped tasks submitted for execution.", map_states=map_states
         )
+        return self.handle_state_change(old_state=state, new_state=new_state)
 
     @call_state_handlers
     def wait_for_mapped_task(
@@ -818,10 +839,10 @@ class TaskRunner(Runner):
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
-        ## only checkpoint tasks if running in cloud
+        ## only checkpoint tasks if checkpointing is turned on
         if (
             state.is_successful()
-            and prefect.context.get("cloud") is True
+            and prefect.context.get("checkpointing") is True
             and self.task.checkpoint is True
         ):
             state._result.store_safe_value()

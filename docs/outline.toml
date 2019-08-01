@@ -117,6 +117,7 @@ classes = [
 module = "prefect.engine.signals"
 title = "Signals"
 classes = [
+            "ENDRUN",
             "FAIL",
             "TRIGGERFAIL",
             "SUCCESS",
@@ -157,17 +158,17 @@ classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3Res
 [pages.engine.cloud]
 title = "Cloud"
 module = "prefect.engine.cloud"
-classes = ["CloudFlowRunner", "CloudTaskRunner", "CloudResultHandler"]
+classes = ["CloudFlowRunner", "CloudTaskRunner"]
 
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Storage", "Docker", "LocalStorage", "Memory", "Bytes"]
+classes = ["Docker", "Local", "Memory", "Bytes"]
 
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["LocalEnvironment"]
+classes = ["LocalEnvironment", "RemoteEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -243,10 +244,22 @@ classes = [
         "WaitOnContainer"
         ]
 
+[pages.tasks.dropbox]
+title = "Dropbox Tasks"
+module = "prefect.tasks.dropbox"
+classes = ["DropboxDownload"]
+
 [pages.tasks.google]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.google"
-classes = ["GCSDownload", "GCSUpload", "BigQueryTask", "BigQueryStreamingInsert", "CreateBigQueryTable"]
+classes = [
+        "GCSDownload",
+        "GCSUpload",
+        "GCSCopy",
+        "BigQueryTask",
+        "BigQueryStreamingInsert",
+        "CreateBigQueryTable"
+        ]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"
@@ -381,4 +394,5 @@ functions = ["to_qualified_name", "from_qualified_name"]
 [pages.utilities.tasks]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
-functions = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
+classes = ["unmapped"]
+functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs"]

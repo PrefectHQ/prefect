@@ -24,6 +24,14 @@ In case you aren't familiar with Dask and would like to kick the tires, after [i
 > dask-worker tcp://10.0.0.41:8786
 ```
 
+::: warning Work Stealing
+We highly recommend turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) in your Dask Cluster when executing Prefect Flows.  This can be done via a simple environment variable in your Dask Cluster:
+```
+DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive
+```
+On rare occasions, work stealing can result in tasks attempting to run twice.  (Note that in Prefect Cloud, our state-version locking mechanism will prevent duplicate runs).
+:::
+
 Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example was repurposed from the [distributed documentation](https://distributed.readthedocs.io/en/latest/web.html#example-computation):
 
 ```python

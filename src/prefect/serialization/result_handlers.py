@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 
 from marshmallow import ValidationError, fields, post_load
 
-from prefect.engine.cloud.result_handler import CloudResultHandler
 from prefect.engine.result_handlers import (
     GCSResultHandler,
     JSONResultHandler,
@@ -37,13 +36,6 @@ class CustomResultHandlerSchema(ObjectSchema):
     def create_object(self, data: dict, **kwargs: Any) -> None:
         """Because we cannot deserialize a custom class, just return `None`"""
         return None
-
-
-class CloudResultHandlerSchema(BaseResultHandlerSchema):
-    class Meta:
-        object_class = CloudResultHandler
-
-    result_handler_service = fields.String(allow_none=True)
 
 
 class GCSResultHandlerSchema(BaseResultHandlerSchema):
@@ -84,7 +76,6 @@ class ResultHandlerSchema(OneOfSchema):
         "ResultHandler": BaseResultHandlerSchema,
         "GCSResultHandler": GCSResultHandlerSchema,
         "S3ResultHandler": S3ResultHandlerSchema,
-        "CloudResultHandler": CloudResultHandlerSchema,
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
     }
