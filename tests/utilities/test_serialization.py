@@ -14,11 +14,11 @@ from prefect.utilities.serialization import (
     Bytes,
     DateTimeTZ,
     FunctionReference,
-    StatefulFunctionReference,
     JSONCompatible,
     Nested,
     ObjectSchema,
     OneOfSchema,
+    StatefulFunctionReference,
 )
 
 json_test_values = [

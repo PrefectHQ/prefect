@@ -12,7 +12,7 @@ import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs
-from prefect.engine.cloud import CloudResultHandler, CloudTaskRunner
+from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -74,7 +74,7 @@ def client(monkeypatch):
 def test_task_runner_puts_cloud_in_context(client):
     @prefect.task
     def whats_in_ctx():
-        return prefect.context.get("cloud")
+        return prefect.context.get("checkpointing")
 
     res = CloudTaskRunner(task=whats_in_ctx).run()
 
@@ -108,6 +108,34 @@ def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
+
+
+def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
+    upstream_states = {
+        Edge(Task(), Task(), key="foo", mapped=True): Success(result=[1, 2])
+    }
+
+    class MyExecutor(prefect.engine.executors.LocalExecutor):
+        def map(self, *args, **kwargs):
+            raise SyntaxError("oops")
+
+    with pytest.raises(SyntaxError):
+        CloudTaskRunner(task=Task()).run_mapped_task(
+            state=Pending(),
+            upstream_states=upstream_states,
+            context={},
+            executor=MyExecutor(),
+        )
+
+    ## assertions
+    assert client.get_task_run_info.call_count == 0  # never called
+    assert client.set_task_run_state.call_count == 1  # Pending -> Mapped
+    assert client.get_latest_cached_states.call_count == 0
+
+    last_set_state = client.set_task_run_state.call_args_list[-1][1]["state"]
+    assert last_set_state.map_states == [None, None]
+    assert last_set_state.is_mapped()
+    assert "Preparing to submit 2" in last_set_state.message
 
 
 def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(
@@ -575,3 +603,28 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert states[0].is_running()
     assert states[1].is_failed()
     assert isinstance(states[1].result, SyntaxError)
+
+
+def test_task_runner_performs_retries_for_short_delays(client):
+    global_list = []
+
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(seconds=0))
+    def noop():
+        if global_list:
+            return
+        else:
+            global_list.append(0)
+            raise ValueError("oops")
+
+    res = CloudTaskRunner(task=noop).run(
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 0  # never called
+    assert (
+        client.set_task_run_state.call_count == 5
+    )  # Pending -> Running -> Failed -> Retrying -> Running -> Success

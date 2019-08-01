@@ -1,7 +1,7 @@
+import psycopg2 as pg
+
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
-
-import psycopg2 as pg
 
 
 class PostgresExecute(Task):

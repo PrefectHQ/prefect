@@ -79,6 +79,19 @@ def test_flow_runner_calls_client_the_approriate_number_of_times(client):
     assert states == [Running(), Success(result={})]
 
 
+def test_flow_runner_doesnt_set_running_states_twice(client):
+    task = prefect.Task()
+    flow = prefect.Flow(name="test", tasks=[task])
+
+    res = CloudFlowRunner(flow=flow).run(
+        task_states={task: Retrying(start_time=pendulum.now("utc").add(days=1))}
+    )
+
+    ## assertions
+    assert client.get_flow_run_info.call_count == 1  # one time to pull latest state
+    assert client.set_flow_run_state.call_count == 1  # Pending -> Running
+
+
 def test_flow_runner_raises_endrun_if_client_cant_update_state(monkeypatch):
     flow = prefect.Flow(name="test")
     get_flow_run_info = MagicMock(return_value=MagicMock(state=None))
@@ -346,7 +359,7 @@ def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=10))
+    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")

@@ -1,9 +1,10 @@
 import time
 
 import click
+from tabulate import tabulate
 
 from prefect.client import Client
-from prefect.utilities.graphql import with_args, EnumValue
+from prefect.utilities.graphql import EnumValue, with_args
 
 
 @click.group(hidden=True)
@@ -51,7 +52,10 @@ def run():
     help="Watch current state of the flow run.",
     hidden=True,
 )
-def cloud(name, project, version, watch):
+@click.option(
+    "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
+)
+def cloud(name, project, version, watch, logs):
     """
     Run a deployed flow in Prefect Cloud.
 
@@ -61,7 +65,14 @@ def cloud(name, project, version, watch):
         --project, -p   TEXT    The name of a project that contains the flow                    [required]
         --version, -v   INTEGER A flow version to run
         --watch, -w             Watch current state of the flow run, stream output to stdout
+        --logs, -l              Get logs of the flow run, stream output to stdout
     """
+
+    if watch and logs:
+        click.secho(
+            "Streaming state and logs not currently supported together.", fg="red"
+        )
+        return
 
     query = {
         "query": {
@@ -99,7 +110,6 @@ def cloud(name, project, version, watch):
     flow_run_id = client.create_flow_run(flow_id=flow_id)
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
-    # TODO: Convert to using a subscription and make output prettier
     if watch:
         current_state = ""
         while True:
@@ -118,4 +128,64 @@ def cloud(name, project, version, watch):
                 else:
                     click.echo(current_state)
                     break
+            time.sleep(3)
+
+    if logs:
+        all_logs = []
+
+        log_query = {
+            with_args(
+                "logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}
+            ): {"timestamp": True, "message": True, "level": True},
+            "start_time": True,
+        }
+
+        query = {
+            "query": {
+                with_args(
+                    "flow_run",
+                    {
+                        "where": {"id": {"_eq": flow_run_id}},
+                        "order_by": {EnumValue("start_time"): EnumValue("desc")},
+                    },
+                ): log_query
+            }
+        }
+
+        while True:
+            result = Client().graphql(query)
+
+            flow_run = result.data.flow_run
+            if not flow_run:
+                click.secho("{} not found".format(flow_run_id), fg="red")
+                return
+
+            new_run = flow_run[0]
+            logs = new_run.logs
+            output = []
+
+            for i in logs:
+                if [i.timestamp, i.level, i.message] not in all_logs:
+
+                    if not len(all_logs):
+                        click.echo(
+                            tabulate(
+                                [[i.timestamp, i.level, i.message]],
+                                headers=["TIMESTAMP", "LEVEL", "MESSAGE"],
+                                tablefmt="plain",
+                                numalign="left",
+                                stralign="left",
+                            )
+                        )
+                        all_logs.append([i.timestamp, i.level, i.message])
+                        continue
+
+                    output.append([i.timestamp, i.level, i.message])
+                    all_logs.append([i.timestamp, i.level, i.message])
+
+            if output:
+                click.echo(
+                    tabulate(output, tablefmt="plain", numalign="left", stralign="left")
+                )
+
             time.sleep(3)

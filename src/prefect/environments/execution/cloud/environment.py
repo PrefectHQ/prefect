@@ -4,12 +4,12 @@ import sys
 import time
 import uuid
 from os import path
-from slugify import slugify
 from typing import Any, List
 
 import cloudpickle
 import docker
 import yaml
+from slugify import slugify
 
 import prefect
 from prefect.client import Secret
@@ -258,13 +258,11 @@ class CloudEnvironment(Environment):
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
         env[0]["value"] = prefect.config.cloud.graphql
-        env[1]["value"] = prefect.config.cloud.log
-        env[2]["value"] = prefect.config.cloud.result_handler
-        env[3]["value"] = prefect.config.cloud.auth_token
-        env[4]["value"] = flow_run_id
-        env[5]["value"] = prefect.context.get("namespace", "")
-        env[6]["value"] = docker_name
-        env[7]["value"] = flow_file_path
+        env[1]["value"] = prefect.config.cloud.auth_token
+        env[2]["value"] = flow_run_id
+        env[3]["value"] = prefect.context.get("namespace", "")
+        env[4]["value"] = docker_name
+        env[5]["value"] = flow_file_path
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -291,10 +289,8 @@ class CloudEnvironment(Environment):
         env = yaml_obj["spec"]["containers"][0]["env"]
 
         env[0]["value"] = prefect.config.cloud.graphql
-        env[1]["value"] = prefect.config.cloud.log
-        env[2]["value"] = prefect.config.cloud.result_handler
-        env[3]["value"] = prefect.config.cloud.auth_token
-        env[4]["value"] = prefect.context.get("flow_run_id", "")
+        env[1]["value"] = prefect.config.cloud.auth_token
+        env[2]["value"] = prefect.context.get("flow_run_id", "")
 
         if self.private_registry:
             namespace = prefect.context.get("namespace", "")

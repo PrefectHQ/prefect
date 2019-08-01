@@ -7,20 +7,8 @@ from prefect.engine import signals
 from prefect.engine.state import Failed, Pending, State
 from prefect.utilities import logging
 
-
-class ENDRUN(Exception):
-    """
-    An ENDRUN exception is used by Runner steps to indicate that state processing should
-    stop. The pipeline result should be the state contained in the exception.
-    """
-
-    def __init__(self, state: State):
-        """
-        Args
-            - state (State): the state that should be used as the result of the Runner's run
-        """
-        self.state = state
-        super().__init__()
+# for backwards compatibility
+ENDRUN = signals.ENDRUN
 
 
 def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:

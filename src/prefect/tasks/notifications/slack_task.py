@@ -1,5 +1,6 @@
-import requests
 from typing import Any, cast
+
+import requests
 
 from prefect import Task
 from prefect.client import Secret

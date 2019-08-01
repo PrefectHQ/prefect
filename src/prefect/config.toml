@@ -6,8 +6,6 @@ debug = false
 # the Prefect Server address
 api = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
-log = "${cloud.api}/log"
-result_handler = "${cloud.api}/result-handler"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
@@ -32,7 +30,8 @@ eager_edge_validation = false
 # If true, `flow.run` will run on schedule by default.
 # If false, only a single execution will occur (no retries, etc.)
 run_on_schedule = true
-
+# If true, tasks which set `checkpoint=True` will have their result handlers called
+checkpointing = false
 
 [tasks]
 
@@ -69,8 +68,8 @@ run_on_schedule = true
     default_class = "prefect.engine.flow_runner.FlowRunner"
 
     [engine.result_handler]
-    # the default task runner, specified using a full path
-    default_class = "prefect.engine.cloud.CloudResultHandler"
+    # the default result handler, specified using a full path
+    default_class = ""
 
     [engine.task_runner]
     # the default task runner, specified using a full path

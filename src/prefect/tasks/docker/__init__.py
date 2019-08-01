@@ -5,7 +5,7 @@ Collection of tasks for orchestrating Docker images and containers.
 requirements needed for that to work. The container needs to be able to talk to a Docker
 server. There are a few ways to accomplish this:
 
-1. Use a base image which has Docker installed and running
+1. Use a base image that has Docker installed and running
     (e.g. https://hub.docker.com/_/docker)
 2. Installing the Docker CLI in the base image
 3. Talking to an outside (but accessible) Docker API and providing it to the tasks'

@@ -73,6 +73,46 @@ jobs:
           command: python -c "import prefect"
 
   # test a standard install of prefect
+  # with all requriements pinned to their lowest allowed versions
+  # to ensure our requirements.txt file is accurate
+  test-lower-prefect:
+    docker:
+      - image: python:3.5.2
+
+    steps:
+      - *attach_workspace
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Create lower bound requirements file
+          command: python lower_bounds.py
+
+      - run:
+          name: Install lower bounds
+          command: pip install -r lower_requirements.txt
+
+      - run:
+          name: Install vanilla prefect
+          command: pip install . --no-deps
+
+      - run:
+          name: Install testing packages
+          command: pip install "pytest==5.0" pytest-cov pytest-env
+
+      - run:
+          name: Run tests
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - coverage
+              
+  # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
   test-vanilla-prefect:
@@ -203,7 +243,7 @@ jobs:
 
       - run:
           name: Install Airflow
-          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow && source deactivate
+          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow flask==1.0.4 && source deactivate
 
       - run:
           name: Install prefect
@@ -254,6 +294,7 @@ workflows:
       - test-3.5
       - test-3.6
       - test-3.7
+      - test-lower-prefect
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
