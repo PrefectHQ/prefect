@@ -8,6 +8,12 @@ from typing import Callable, Iterable, List, Optional
 import prefect.schedules.adjustments
 import prefect.schedules.clocks
 import prefect.schedules.filters
+from prefect.schedules.old_schedules import (
+    IntervalSchedule,
+    CronSchedule,
+    UnionSchedule,
+    OneTimeSchedule,
+)
 
 
 class Schedule:
@@ -172,87 +178,3 @@ class Schedule:
         for adjust_fn in self.adjustments:
             dt = adjust_fn(dt)
         return dt
-
-
-def IntervalSchedule(
-    interval: timedelta, start_date: datetime = None, end_date: datetime = None
-) -> Schedule:
-    """
-    A schedule formed by adding `timedelta` increments to a start_date.
-
-    IntervalSchedules only support intervals of one minute or greater.
-
-    NOTE: If the `IntervalSchedule` start time is provided with a DST-observing timezone,
-    then the clock will adjust itself appropriately. Intervals greater than 24
-    hours will follow DST conventions, while intervals of less than 24 hours will
-    follow UTC intervals. For example, an hourly clock will fire every UTC hour,
-    even across DST boundaries. When clocks are set back, this will result in two
-    runs that *appear* to both be scheduled for 1am local time, even though they are
-    an hour apart in UTC time. For longer intervals, like a daily clock, the
-    interval clock will adjust for DST boundaries so that the clock-hour remains
-    constant. This means that a daily clock that always fires at 9am will observe
-    DST and continue to fire at 9am in the local time zone.
-
-    Note that this behavior is different from the `CronSchedule`.
-
-    Args:
-        - interval (timedelta): interval on which this clock occurs
-        - start_date (datetime, optional): first date of clock. If None, will be set to
-            "2019-01-01 00:00:00 UTC"
-        - end_date (datetime, optional): an optional end date for the clock
-
-    Raises:
-        - TypeError: if start_date is not a datetime
-        - ValueError: if provided interval is less than one minute
-    """
-    warnings.warn(
-        "The IntervalSchedule is deprecated and will be removed from "
-        "Prefect. Use an IntervalClock instead.",
-        DeprecationWarning,
-    )
-    return Schedule(
-        clocks=[
-            prefect.schedules.clocks.IntervalClock(
-                interval=interval, start_date=start_date, end_date=end_date
-            )
-        ]
-    )
-
-
-def CronSchedule(
-    cron: str, start_date: datetime = None, end_date: datetime = None
-) -> Schedule:
-    """
-    Cron clock.
-
-    NOTE: If the `CronSchedule's` start time is provided with a DST-observing timezone,
-    then the clock will adjust itself. Cron's rules for DST are based on clock times,
-    not intervals. This means that an hourly cron clock will fire on every new clock
-    hour, not every elapsed hour; for example, when clocks are set back this will result
-    in a two-hour pause as the clock will fire *the first time* 1am is reached and
-    *the first time* 2am is reached, 120 minutes later. Longer clocks, such as one
-    that fires at 9am every morning, will automatically adjust for DST.
-
-    Note that this behavior is different from the `IntervalSchedule`.
-
-    Args:
-        - cron (str): a valid cron string
-        - start_date (datetime, optional): an optional start date for the clock
-        - end_date (datetime, optional): an optional end date for the clock
-
-    Raises:
-        - ValueError: if the cron string is invalid
-    """
-
-    warnings.warn(
-        "The CronSchedule is deprecated and will be removed from "
-        "Prefect. Use a CronClock instead.",
-        DeprecationWarning,
-    )
-    return Schedule(
-        clocks=[
-            prefect.schedules.clocks.CronClock(
-                cron=cron, start_date=start_date, end_date=end_date
-            )
-        ]
-    )

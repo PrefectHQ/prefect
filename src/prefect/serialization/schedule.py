@@ -1,9 +1,12 @@
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import marshmallow
 from marshmallow import fields, post_load
 
-import prefect.schedules
+import prefect
+from prefect.schedules import schedules, old_schedules
+from prefect.serialization import old_schedule
 from prefect.utilities.serialization import (
     DateTimeTZ,
     ObjectSchema,
@@ -68,7 +71,11 @@ class ClockSchema(OneOfSchema):
     }
 
 
-class ScheduleSchema(ObjectSchema):
+class NewScheduleSchema(ObjectSchema):
+    """
+    Once pre-0.6.0 schedules are deprecated, this will become the main serialization class
+    """
+
     class Meta:
         object_class = prefect.schedules.Schedule
 
@@ -93,3 +100,30 @@ class ScheduleSchema(ObjectSchema):
             valid_functions=ADJUSTMENTS, reject_invalid=True, allow_none=True
         )
     )
+
+
+class ScheduleSchema(OneOfSchema):
+    """
+    NOTE: this schedule is DEPRECATED. In the future, the `NewScheduleSchema` will
+    become the default.
+    """
+
+    # map class name to schema
+    type_schemas = {
+        "Schedule": NewScheduleSchema,
+        "IntervalSchedule": old_schedule.IntervalScheduleSchema,
+        "CronSchedule": old_schedule.CronScheduleSchema,
+        "OneTimeSchedule": old_schedule.OneTimeScheduleSchema,
+        "UnionSchedule": old_schedule.UnionScheduleSchema,
+    }
+
+    def get_obj_type(self, obj: Any) -> str:
+        """Returns name of object schema"""
+        name = obj.__class__.__name__
+        if name != "Schedule":
+            warnings.warn(
+                "This type of Schedule is deprecated and will be removed from "
+                "Prefect. Use a prefect.schedules.Schedule instead.",
+                UserWarning,
+            )
+        return name

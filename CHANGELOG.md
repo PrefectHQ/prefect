@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Introduce new `flows.checkpointing` configuration setting for checkpointing Tasks in local execution - [#1283](https://github.com/PrefectHQ/prefect/pull/1283)
+- Introduce new, flexible `Schedule` classes - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Enhancements
 
@@ -24,6 +25,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
+
+### Deprecations
+- `CronSchedule`, `IntervalSchedule`, `OneTimeSchedule`, `UnionSchedule` and the old `Schedule` base class are all deprecated in favor of new Schedule classes - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Contributors
 
@@ -94,7 +98,6 @@ Released May 28, 2019
 ### Features
 
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
-- Introduce new, flexible `Schedule` objects - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Enhancements
 

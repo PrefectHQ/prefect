@@ -1402,7 +1402,9 @@ class TestSerialize:
         f = Flow(
             name="hi",
             tasks=[p1, t2, t3],
-            schedule=prefect.schedules.CronSchedule("0 0 * * *"),
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.CronClock("0 0 * * *")]
+            ),
         )
         f.add_edge(p1, t2)
         f.add_edge(p1, t3)

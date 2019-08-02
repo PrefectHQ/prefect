@@ -1,10 +1,12 @@
+import itertools
 from datetime import time, timedelta
 
 import pendulum
 import pytest
-import itertools
+
+import prefect
 from prefect import __version__
-from prefect.schedules import schedules, clocks, filters, adjustments
+from prefect.schedules import adjustments, clocks, filters, schedules
 
 
 def test_create_schedule_requires_clock():
@@ -239,3 +241,21 @@ def test_with_clocks_with_different_timezones():
     ]
 
     assert s.next(6, after) == expected
+
+
+class TestDeprecatedSchedules:
+    """
+    Test that old schedules still work
+    """
+
+    def test_base_schedule_warns(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            assert prefect.schedules.old_schedules.Schedule(pendulum.now())
+
+    def test_interval_schedule_warns(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            assert schedules.IntervalSchedule(pendulum.now(), timedelta(days=1))
+
+    def test_cron_schedule_warns(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            assert schedules.CronSchedule("* * * * *")
