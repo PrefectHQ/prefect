@@ -326,6 +326,23 @@ class TestBuildImageTask:
         task.run(path="test")
         assert api.return_value.build.call_args[1]["path"] == "test"
 
+    def test_image_cleans_docker_output(self, monkeypatch):
+        task = BuildImage()
+
+        output = [
+            b'{"stream":"Step 1/2 : FROM busybox"}\r\n{"stream":"\\n"}\r\n',
+            b'{"stream":" ---\\u003e db8ee88ad75f\\n"}\r\n{"stream":"Step 2/2 : CMD [\\"echo\\", \\"foo\\"]"}\r\n{"stream":"\\n"}\r\n',
+            b'{"stream":" ---\\u003e Using cache\\n"}\r\n{"stream":" ---\\u003e 0be8805a7d08\\n"}\r\n{"aux":{"ID":"sha256:0be8805a7d0828bbfcd876e8aa65cf6ee1ee016117a2d3f3aa4f21835ee1c69f"}}\r\n{"stream":"Successfully built 0be8805a7d08\\n"}\r\n',
+        ]
+        api = MagicMock()
+        api.return_value.build.return_value = output
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        return_value = task.run(path="test")
+        assert all([isinstance(value, dict) for value in return_value])
+        assert all([len(value) >= 1 for value in return_value])
+        assert all([key for value in return_value for key in value])
+
     def test_image_is_replaced(self, monkeypatch):
         task = BuildImage(path="original")
 
