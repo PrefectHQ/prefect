@@ -1,6 +1,7 @@
 from typing import Any
 
 import docker
+import json
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -370,6 +371,9 @@ class BuildImage(Task):
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
 
+        Returns:
+            - List[dict]: a cleaned dictionary of the output of `client.build`
+
         Raises:
             - ValueError: if either `path` is `None`
         """
@@ -380,4 +384,13 @@ class BuildImage(Task):
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        return client.build(path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm)
+        payload = [
+            line
+            for line in client.build(
+                path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm
+            )
+        ]
+        output = [
+            json.loads(line) for resp in payload for line in resp.split(b"\r\n") if line
+        ]
+        return output
