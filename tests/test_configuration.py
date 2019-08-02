@@ -388,26 +388,11 @@ class TestConfigValidation:
                     test_config.name, env_var_prefix="PREFECT_TEST"
                 )
 
-    def test_non_lowercase_keys_raise_error(self):
-
+    def test_mixed_case_keys_are_ok(self):
         with tempfile.NamedTemporaryFile() as test_config:
             test_config.write(
                 b"""
-                [KEY]
-                x = 1
-                """
-            )
-            test_config.seek(0)
-
-            with pytest.raises(ValueError):
-                configuration.load_configuration(test_config.name)
-
-    def test_non_lowercase_keys_are_ok_in_context(self):
-
-        with tempfile.NamedTemporaryFile() as test_config:
-            test_config.write(
-                b"""
-                [context]
+                [SeCtIoN]
                 KeY = 1
                 """
             )
@@ -415,22 +400,26 @@ class TestConfigValidation:
 
             config = configuration.load_configuration(test_config.name)
 
-        assert "KeY" in config.context
-        assert config.context.KeY == 1
+        assert "KeY" in config.SeCtIoN
+        assert config.SeCtIoN.KeY == 1
 
-    def test_non_lowercase_keys_are_ok_in_context_subsections(self):
+    def test_env_vars_are_interpolated_as_lower_case(self, monkeypatch):
+
+        monkeypatch.setenv("PREFECT_TEST__SECTION__KEY", "2")
 
         with tempfile.NamedTemporaryFile() as test_config:
             test_config.write(
                 b"""
-                [context.secrets]
-                API_CREDS = 4
+                [SeCtIoN]
+                KeY = 1
                 """
             )
             test_config.seek(0)
 
-            config = configuration.load_configuration(test_config.name)
+            config = configuration.load_configuration(
+                test_config.name, env_var_prefix="PREFECT_TEST"
+            )
 
-        assert "secrets" in config.context
-        assert "API_CREDS" in config.context.secrets
-        assert config.context.secrets["API_CREDS"] == 4
+        assert "KeY" in config.SeCtIoN
+        assert config.SeCtIoN.KeY == 1
+        assert config.section.key == 2
