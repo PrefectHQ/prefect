@@ -391,6 +391,9 @@ class BuildImage(Task):
             )
         ]
         output = [
-            json.loads(line) for resp in payload for line in resp.split(b"\r\n") if line
+            json.loads(line.decode("utf-8"))
+            for resp in payload
+            for line in resp.split(b"\r\n")
+            if line
         ]
         return output
