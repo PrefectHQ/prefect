@@ -247,21 +247,10 @@ def process_task_defaults(config: Config) -> Config:
 def validate_config(config: Config) -> None:
     """
     Validates that the configuration file is valid.
-        - keys are lowercase
         - keys do not shadow Config methods
 
     Note that this is performed when the config is first loaded, but not after.
     """
-
-    def check_lowercase_keys(config: Config) -> None:
-        """
-        Recursively check that keys are lowercase
-        """
-        for k, v in config.items():
-            if k != k.lower():
-                raise ValueError('Config keys must be lowercase: "{}"'.format(k))
-            if isinstance(v, Config) and k != "context":
-                check_lowercase_keys(v)
 
     def check_valid_keys(config: Config) -> None:
         """
@@ -274,7 +263,6 @@ def validate_config(config: Config) -> None:
             if isinstance(v, Config):
                 check_valid_keys(v)
 
-    check_lowercase_keys(config)
     check_valid_keys(config)
 
 

@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Allow passing of custom headers in `Client` calls - [#1255](https://github.com/PrefectHQ/prefect/pull/1255)
 - Autogenerate informative names and tags for Docker images built for Flow storage - [#1237](https://github.com/PrefectHQ/prefect/issues/1237)
+- Allow mixed-case configuration keys (environment variables are interpolated as lowercase) - [#1288](https://github.com/PrefectHQ/prefect/issues/1288)
 
 ### Task Library
 
