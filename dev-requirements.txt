@@ -5,6 +5,6 @@ mypy >= 0.600, < 0.800
 pre-commit ~= 1.12
 pytest ~= 5.0
 pytest-cov ~= 2.6
-pytest-env ~= 0.6.0
+pytest-env ~= 0.6.2
 pytest-xdist ~= 1.23
 Pygments ~= 2.2
