@@ -98,12 +98,11 @@ Released May 28, 2019
 
 ### Features
 
+- Add new `UnionSchedule` for combining multiple schedules, allowing for complex schedule specifications - [#428](https://github.com/PrefectHQ/prefect/issues/428)
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
 
 ### Enhancements
 
-
-- Add new `UnionSchedule` for combining multiple schedules, allowing for complex schedule specifications - [#428](https://github.com/PrefectHQ/prefect/issues/428)
 - Add `prefect_version` kwarg to `Docker` storage for controlling the version of prefect installed into your containers - [#1010](https://github.com/PrefectHQ/prefect/pull/1010), [#533](https://github.com/PrefectHQ/prefect/issues/533)
 - Warn users if their Docker storage base image uses a different python version than their local machine - [#999](https://github.com/PrefectHQ/prefect/issues/999)
 - Add flow run id to k8s labels on Cloud Environment jobs / pods for easier filtering in deployment - [#1016](https://github.com/PrefectHQ/prefect/pull/1016)
