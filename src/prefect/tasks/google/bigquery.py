@@ -366,7 +366,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
         table_ref = client.dataset(dataset_id).table(table)
 
         ## load data
-        autodetect = kwargs.pop('autodetect', True)
+        autodetect = kwargs.pop("autodetect", True)
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema

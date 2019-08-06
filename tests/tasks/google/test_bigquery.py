@@ -107,7 +107,9 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         assert task.uri is None
 
     def test_additional_kwargs_passed_upstream(self):
-        task = BigQueryLoadGoogleCloudStorage(name="test-task", checkpoint=True, tags=["bob"])
+        task = BigQueryLoadGoogleCloudStorage(
+            name="test-task", checkpoint=True, tags=["bob"]
+        )
         assert task.name == "test-task"
         assert task.checkpoint is True
         assert task.tags == {"bob"}
