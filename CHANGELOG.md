@@ -22,10 +22,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with logs not always arriving in long-standing Dask clusters - [#1244](https://github.com/PrefectHQ/prefect/pull/1244)
 - Fix issue with `BuildImage` docker task not actually running to completion - [#1243](https://github.com/PrefectHQ/prefect/issues/1243)
+- Fix `run --logs` CLI command not exiting on flow run finished state - [#1319](https://github.com/PrefectHQ/prefect/pull/1319)
 
 ### Breaking Changes
 
 - `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
+- `auth add` CLI command replaced with `auth login` - [#1319](https://github.com/PrefectHQ/prefect/pull/1319)
 
 ### Contributors
 
