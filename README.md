@@ -23,7 +23,7 @@
     <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
 </a>
 
-<a href=https://join.slack.com/t/prefect-public/shared_invite/enQtNjgwMzI5MjgwNTc2LWUzOGVkZTVkODcwNWNhZTNmMzM0YWMzZjBmZGI4YTNhMzUyM2E0YTIyZDE3NDI1YTYyMTQ1NGM0ZmFjNmRjNDQ>
+<a href="https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU">
     <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
 </a>
 
