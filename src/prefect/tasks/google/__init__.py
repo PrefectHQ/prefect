@@ -15,6 +15,7 @@ try:
     from prefect.tasks.google.storage import GCSDownload, GCSUpload, GCSCopy
     from prefect.tasks.google.bigquery import (
         BigQueryTask,
+        BigQueryLoadGoogleCloudStorage,
         BigQueryStreamingInsert,
         CreateBigQueryTable,
     )
