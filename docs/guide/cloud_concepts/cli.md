@@ -58,7 +58,7 @@ Test-Flow   2         New-Proj       22 hours ago
 my-flow     1         Demo           2 weeks ago
 ```
 
-To get more specific flow information you can optionally provide values for `--name`, `--version`, `--project` which will filter the table that is shown.
+To get more specific flow information you can optionally provide values for `--name`, `--version`, `--project` that will filter the table that is shown.
 
 ```
 $ prefect get flows --name my-flow
@@ -112,7 +112,7 @@ In each output the `DURATION` column timestamp was trimmed in order to make the 
 
 To increase the amount retrieved you can specify a `--limit` integer. Similar to other get commands `get flow-runs` supports filtering of `--flow` and `--project` where a certain flow name or project name can be provided to filter the table.
 
-There is an extra argument to filter only for flow runs which have started (either are currently running or have entered a finished state) by using the `--started` flag. In the output below notice that the flow run with the name `archetypal-terrier` is missing because it has not started.
+There is an extra argument to filter only for flow runs that have started (either are currently running or have entered a finished state) by using the `--started` flag. In the output below notice that the flow run with the name `archetypal-terrier` is missing because it has not started.
 
 ```
 $ prefect get flow-runs --started
@@ -289,6 +289,52 @@ $ prefect describe tasks --name my-flow
 This defaults to the most recent version of a flow and to describe tasks for past versions use the `--version` option. You can also specify the project name that a flow belongs to with `--project` (often used if you have multiple flows with the same name in various projects).
 
 ## Execution Commands
+
+### execute
+
+#### execute cloud-flow
+
+::: warning Not Useful for Local Execution
+This command executes a flow's environment in the context of Prefect Cloud and runs during Cloud execution so it is not meant for local use. Other `execute` commands may be added in the future.
+:::
+
+### run
+
+#### run cloud
+
+Running this command requires that a flow name (`--name`) and project (`--project`) is specified in order to create a flow run for that particular flow in Prefect Cloud.
+```
+$ prefect run cloud --name my-flow --project Demo
+Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+```
+
+There is an optional `--version` argument that can be passed in with the command to run any version of a flow that exists in Prefect Cloud.
+
+This command also supports two live output options, `--watch` and `--logs`. Using `--watch` will live update the command line with the flow run's current state until it reaches a finished state and `--logs` will update the command line with live logs from the flow run. These two flags currently cannot be used at the same time in a single call.
+
+Live updating output with `--watch`:
+```
+$ prefect run cloud --name my-flow --project Demo --watch
+Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+Scheduled -> Submitted -> Running -> Success
+```
+
+Live updating output with `--logs`:
+```
+$ prefect run cloud --name my-flow --project Demo --logs
+Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+TIMESTAMP                         LEVEL    MESSAGE
+2019-07-17T23:37:22.816988+00:00  INFO     Beginning Flow run for 'my-flow'
+2019-07-17T23:37:23.214365+00:00  INFO     Starting flow run.
+2019-07-17T23:37:23.365119+00:00  INFO     Flow 'my-flow': Handling state change from Scheduled to Running
+2019-07-17T23:37:23.915298+00:00  INFO     Task 'my_task': Starting task run...
+2019-07-17T23:37:24.113271+00:00  INFO     Task 'my_task': Handling state change from Pending to Running
+2019-07-17T23:37:24.666+00:00     INFO     Task 'my_task': Calling task.run() method...
+2019-07-17T23:37:24.813664+00:00  INFO     Task 'my_task': Handling state change from Running to Success
+2019-07-17T23:37:25.15329+00:00   INFO     Task 'my_task': finished task run for task with final state: 'Success'
+2019-07-17T23:37:25.351535+00:00  INFO     Flow run SUCCESS: all reference tasks succeeded
+2019-07-17T23:37:25.514397+00:00  INFO     Flow 'my-flow': Handling state change from Running to Success
+```
 
 ## Setup Commands
 
