@@ -112,7 +112,7 @@ In each output the `DURATION` column timestamp was trimmed in order to make the 
 
 To increase the amount retrieved you can specify a `--limit` integer. Similar to other get commands `get flow-runs` supports filtering of `--flow` and `--project` where a certain flow name or project name can be provided to filter the table.
 
-There is an extra argument to filter only for flow runs which have started (either are currently running or have entered a finished state) by using the `--started` flag. In the output below notice that the flow run with the name `archetypal-terrier ` is missing because it has not started.
+There is an extra argument to filter only for flow runs which have started (either are currently running or have entered a finished state) by using the `--started` flag. In the output below notice that the flow run with the name `archetypal-terrier` is missing because it has not started.
 
 ```
 $ prefect get flow-runs --started
@@ -130,14 +130,196 @@ rapid-gibbon        my-flow      Success    2 weeks ago     2019-07-25 14:36:25 
 
 #### get projects
 
+Running `prefect get projects` without any extra arguments will output a table of your projects. Optionally you can specify `--name` to retrieve a specific project.
+```
+$ prefect get projects
+NAME                   FLOW COUNT    AGE          DESCRIPTION
+Demo                   1             2 weeks ago
+```
+
 #### get tasks
+
+Running `prefect get tasks` without any extra arguments will output a table of your current tasks (default is the 10 most recent).
+```
+$ prefect get tasks
+NAME          FLOW NAME   FLOW VERSION   AGE          MAPPED   TYPE
+first_task    Test-Flow   1              5 days ago   False    prefect.tasks.core.function.FunctionTask
+second_task   Test-Flow   1              5 days ago   True     prefect.tasks.core.function.FunctionTask
+my_task       my-flow     1              2 weeks ago  False    prefect.tasks.core.function.FunctionTask
+```
+
+To increase the amount retrieved you can specify a `--limit` integer. Similar to other get commands `get tasks` supports filtering with `--name` for the name of a task, `--flow-name` for the name of a flow, `--flow-version` for the version of a flow, and `--project` for a project name.
 
 #### get logs
 
+Running `prefect get logs` requires that a flow run name is provided through `--name`. It outputs a table of logs from that flow run.
+```
+$ prefect get logs --name fearless-hyrax
+TIMESTAMP                         LEVEL    MESSAGE
+2019-07-17T23:37:22.816988+00:00  INFO     Beginning Flow run for 'my-flow'
+2019-07-17T23:37:23.214365+00:00  INFO     Starting flow run.
+2019-07-17T23:37:23.365119+00:00  INFO     Flow 'my-flow': Handling state change from Scheduled to Running
+2019-07-17T23:37:23.915298+00:00  INFO     Task 'my_task': Starting task run...
+2019-07-17T23:37:24.113271+00:00  INFO     Task 'my_task': Handling state change from Pending to Running
+2019-07-17T23:37:24.666+00:00     INFO     Task 'my_task': Calling task.run() method...
+2019-07-17T23:37:24.813664+00:00  INFO     Task 'my_task': Handling state change from Running to Success
+2019-07-17T23:37:25.15329+00:00   INFO     Task 'my_task': finished task run for task with final state: 'Success'
+2019-07-17T23:37:25.351535+00:00  INFO     Flow run SUCCESS: all reference tasks succeeded
+2019-07-17T23:37:25.514397+00:00  INFO     Flow 'my-flow': Handling state change from Running to Success
+```
+
+To retrieve more information about each of the logs in JSON pass the `--info` flag to the command.
+```
+$ prefect get logs --name fearless-hyrax --info
+{
+    "msg": "Beginning Flow run for 'my-flow'",
+    "args": [],
+    "name": "prefect.CloudFlowRunner",
+    "msecs": 816.9882297515869,
+    "lineno": 224,
+    "module": "flow_runner",
+    "thread": 140362462062400,
+    "asctime": "2019-07-17 23:37:22,816",
+    "created": 1563406642.8169882,
+    "levelno": 20,
+    "message": "Beginning Flow run for 'my-flow'",
+    "process": 6,
+    "exc_info": null,
+    "exc_text": null,
+    "filename": "flow_runner.py",
+    "funcName": "run",
+    "pathname": "/usr/local/lib/python3.6/site-packages/prefect/engine/flow_runner.py",
+    "levelname": "INFO",
+    "stack_info": null,
+    "threadName": "MainThread",
+    "processName": "MainProcess",
+    "relativeCreated": 7002.268075942993
+}
+etc...
+```
+
 ### describe
+
+`describe` is used to retrieve descriptive metadata information about Prefect Cloud objects. Currently CLI users can describe flows, flow-runs, and tasks.
+
+#### describe flows
+
+Running `prefect describe flows` requires that a flow name be provided through the `--name` option. This outputs flow descriptive metadata.
+```
+$ prefect describe flows --name my-flow
+{
+    "name": "my-flow",
+    "version": 1,
+    "project": {
+        "name": "Demo"
+    },
+    "created": "2019-07-25T14:23:21.704585+00:00",
+    "description": null,
+    "parameters": [],
+    "archived": false,
+    "storage": {
+        "type": "Docker",
+        "flows": {
+            "my-flow": "/root/.prefect/my-flow.prefect"
+        },
+        "image_tag": "9b444406-355b-4d32-832e-77ddc21d2073",
+        "image_name": "my-flow",
+        "__version__": "0.6.0",
+        "registry_url": "gcr.io/my-registry/",
+        "prefect_version": "master"
+    },
+    "environment": {
+        "type": "RemoteEnvironment",
+        "executor": "prefect.engine.executors.SynchronousExecutor",
+        "__version__": "0.6.1",
+        "executor_kwargs": {}
+    }
+}
+```
+
+This defaults to the most recent version of a flow and to describe past versions use the `--version` option. You can also specify the project name that a flow belongs to with `--project` (often used if you have multiple flows with the same name in various projects).
+
+#### describe flow-runs
+
+Running `prefect describe flow-runs` requires that a flow run name be provided through the `--name` option. This outputs flow run descriptive metadata.
+```
+$ prefect describe flow-runs --name turquoise-gazelle
+{
+    "name": "turquoise-gazelle",
+    "flow": {
+        "name": "my-flow"
+    },
+    "created": "2019-07-25T18:29:49.926177+00:00",
+    "parameters": {},
+    "auto_scheduled": false,
+    "scheduled_start_time": "2019-07-25T18:29:49.908098+00:00",
+    "start_time": "2019-07-25T18:30:04.201221+00:00",
+    "end_time": "2019-07-25T18:30:06.603138+00:00",
+    "duration": "00:00:02.401917",
+    "heartbeat": "2019-07-25T18:30:06.603138+00:00",
+    "serialized_state": {
+        "type": "Success",
+        "_result": {
+            "type": "NoResultType",
+            "__version__": "0.6.0"
+        },
+        "message": "All reference tasks succeeded.",
+        "__version__": "0.6.1"
+    }
+}
+```
+
+#### describe tasks
+
+Running `prefect describe tasks` requires that a flow name be provided through the `--name` option. This outputs task descriptive metadata that correspond to a flow.
+```
+$ prefect describe tasks --name my-flow
+{
+    "name": "my_task",
+    "created": "2019-07-25T14:23:21.704585+00:00",
+    "slug": "2fe4be08-5ac6-4aea-953b-cb9394596145",
+    "description": null,
+    "type": "prefect.tasks.core.function.FunctionTask",
+    "max_retries": 0,
+    "retry_delay": null,
+    "mapped": false
+}
+```
+
+This defaults to the most recent version of a flow and to describe tasks for past versions use the `--version` option. You can also specify the project name that a flow belongs to with `--project` (often used if you have multiple flows with the same name in various projects).
 
 ## Execution Commands
 
 ## Setup Commands
 
+### auth
+
+`auth` is a group of commands that handle authentication related configuration with Prefect Cloud.
+
+#### auth login
+
+Running `prefect auth login` requires that a Prefect Cloud API token be provided and when executed the API token is used to login to Prefect Cloud.
+```
+$ prefect auth login --token $MY_TOKEN
+Login successful
+```
+
+If the API token is not valid then you should see:
+```
+$ prefect auth login --token BAD_TOKEN
+Error attempting to use Prefect API token BAD_TOKEN
+```
+
 ## Miscellaneous Commands
+
+`prefect version` outputs the current version of Prefect you are using:
+```
+$ prefect version
+0.6.1
+```
+
+`prefect config` outputs your current Prefect config that will be loaded:
+```
+$ prefect config
+...config output...
+```
