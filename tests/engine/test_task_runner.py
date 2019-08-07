@@ -1357,6 +1357,21 @@ class TestTaskStateHandlers:
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
+    def test_task_handler_errors_are_logged(self, caplog):
+        def handler(*args, **kwargs):
+            raise SyntaxError("oops")
+
+        task = Task(state_handlers=[handler])
+        state = TaskRunner(task=task).run()
+
+        assert state.is_failed()
+
+        error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
+        assert len(error_logs) == 1
+        assert "SyntaxError" in error_logs[0]
+        assert "oops" in error_logs[0]
+        assert "state handler" in error_logs[0]
+
 
 class TestTaskRunnerStateHandlers:
     def test_task_runner_handlers_are_called(self):
