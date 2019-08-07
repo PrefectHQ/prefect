@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Introduce new `flows.checkpointing` configuration setting for checkpointing Tasks in local execution - [#1283](https://github.com/PrefectHQ/prefect/pull/1283)
+- Introduce new, flexible `Schedule` objects - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
 
 ### Enhancements
 
@@ -23,6 +24,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with logs not always arriving in long-standing Dask clusters - [#1244](https://github.com/PrefectHQ/prefect/pull/1244)
 - Fix issue with `BuildImage` docker task not actually running to completion - [#1243](https://github.com/PrefectHQ/prefect/issues/1243)
 - Fix `run --logs` CLI command not exiting on flow run finished state - [#1319](https://github.com/PrefectHQ/prefect/pull/1319)
+
+### Deprecations
+
+- `OneTimeSchedule` and `UnionSchedule` are deprecated, but remain callable as convenience functions - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
+- Old-style schedules can be deserialized as new-style schedules, but support will eventually be dropped - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
 
 ### Breaking Changes
 
@@ -101,6 +107,7 @@ Released May 28, 2019
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
 
 ### Enhancements
+
 
 - Add `prefect_version` kwarg to `Docker` storage for controlling the version of prefect installed into your containers - [#1010](https://github.com/PrefectHQ/prefect/pull/1010), [#533](https://github.com/PrefectHQ/prefect/issues/533)
 - Warn users if their Docker storage base image uses a different python version than their local machine - [#999](https://github.com/PrefectHQ/prefect/issues/999)

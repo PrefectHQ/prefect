@@ -7,6 +7,7 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.serialization.task import ParameterSchema, TaskSchema
+from prefect.utilities.serialization import to_qualified_name
 
 
 def test_serialize_empty_dict():
@@ -142,14 +143,17 @@ def test_trigger(trigger):
     "bounds", [(1, 5), (0.1, 0.9), (1, None), (0.1, None), (None, 42), (None, 0.5)]
 )
 def test_stateful_trigger(trigger, bounds):
+
     kwargs = dict(zip(("at_least", "at_most"), bounds))
     t = Task(trigger=trigger(**kwargs))
     serialized = TaskSchema().dump(t)
-    call_sig = ", ".join(["{k}={v}".format(k=k, v=v) for k, v in kwargs.items()])
-    assert serialized["trigger"].endswith("({})".format(call_sig))
+
+    assert serialized["trigger"]["fn"] == to_qualified_name(trigger)
+    assert set(serialized["trigger"]["kwargs"].values()) == set(bounds)
 
     t2 = TaskSchema().load(serialized)
-    assert t2.trigger is trigger  # no state
+    assert t2.trigger is not trigger  # the trigger is not the factory function
+    assert to_qualified_name(t2.trigger) == to_qualified_name(trigger(*bounds))
 
 
 def test_unknown_trigger():
@@ -197,12 +201,19 @@ def test_stateful_validators(validator, validate_on):
     with pytest.warns(UserWarning):
         t = Task(cache_validator=validator(validate_on))
     serialized = TaskSchema().dump(t)
-    call_sig = "validate_on={}".format(validate_on)
-    assert serialized["cache_validator"].endswith("({})".format(call_sig))
 
-    with pytest.warns(UserWarning):
-        t2 = TaskSchema().load(serialized)
-    assert t2.cache_validator is validator  # no state
+    assert serialized["cache_validator"]["fn"] == to_qualified_name(validator)
+    assert set(serialized["cache_validator"]["kwargs"]["validate_on"]) == set(
+        validate_on
+    )
+
+    t2 = TaskSchema().load(serialized)
+    assert (
+        t2.cache_validator is not validator
+    )  # the validator is not the factory function
+    assert to_qualified_name(t2.cache_validator) == to_qualified_name(
+        validator(validate_on)
+    )
 
 
 def test_unknown_cache_validator():
