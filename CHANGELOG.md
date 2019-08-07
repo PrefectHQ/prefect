@@ -17,7 +17,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add `BigQueryLoadGoogleCloudStorage` task for loading data into BigQuery from Google Cloud Storage [#1317](https://github.com/PrefectHQ/prefect/pull/1317)
 
 ### Fixes
 
