@@ -18,11 +18,10 @@ class TestSpacyNLP:
         assert task.text == "This is some text"
 
     def test_bad_model_raises_error(self):
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="not_a_spacy_model"):
             task = SpacyNLP(
                 text="This is some text", spacy_model_name="not_a_spacy_model"
             )
-        assert "not_a_spacy_model" in str(exc.value)
 
     def test_text_passed_to_run(self):
         nlp = MagicMock()
@@ -45,10 +44,8 @@ class TestSpacyTagger:
 
     def test_nlp_model_provided(self):
         task = SpacyTagger()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="A spaCy pipeline must be provided"):
             task.run()
-
-        assert "A spaCy pipeline must be provided" == str(exc.value)
 
 
 class TestSpacyParser:
@@ -65,10 +62,8 @@ class TestSpacyParser:
 
     def test_nlp_model_provided(self):
         task = SpacyParser()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="A spaCy pipeline must be provided"):
             task.run()
-
-        assert "A spaCy pipeline must be provided" == str(exc.value)
 
 
 class TestSpacyNER:
@@ -85,10 +80,8 @@ class TestSpacyNER:
 
     def test_nlp_model_provided(self):
         task = SpacyNER()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="A spaCy pipeline must be provided"):
             task.run()
-
-        assert "A spaCy pipeline must be provided" == str(exc.value)
 
 
 class TestSpacyComponent:
@@ -105,7 +98,5 @@ class TestSpacyComponent:
 
     def test_nlp_model_provided(self):
         task = SpacyComponent()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="A spaCy pipeline must be provided"):
             task.run()
-
-        assert "A spaCy pipeline must be provided" == str(exc.value)

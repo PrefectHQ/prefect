@@ -125,9 +125,8 @@ def test_client_posts_raises_with_no_token(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": None}
     ):
         client = Client()
-    with pytest.raises(AuthorizationError) as exc:
+    with pytest.raises(AuthorizationError, match="Client.login"):
         result = client.post("/foo/bar")
-    assert "Client.login" in str(exc.value)
 
 
 def test_headers_are_passed_to_get(monkeypatch):
@@ -231,9 +230,8 @@ def test_graphql_errors_get_raised(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    with pytest.raises(ClientError) as exc:
-        res = client.graphql("query: {}")
-    assert "GraphQL issue!" in str(exc.value)
+    with pytest.raises(ClientError, match="GraphQL issue!"):
+        client.graphql("query: {}")
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -503,9 +501,8 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    with pytest.raises(ClientError) as exc:
-        result = client.get_flow_run_info(flow_run_id="74-salt")
-    assert "not found" in str(exc.value)
+    with pytest.raises(ClientError, match="not found"):
+        client.get_flow_run_info(flow_run_id="74-salt")
 
 
 def test_set_flow_run_state(monkeypatch):
@@ -537,9 +534,8 @@ def test_set_flow_run_state_with_error(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    with pytest.raises(ClientError) as exc:
+    with pytest.raises(ClientError, match="something went wrong"):
         client.set_flow_run_state(flow_run_id="74-salt", version=0, state=Pending())
-    assert "something went wrong" in str(exc.value)
 
 
 def test_get_task_run_info(monkeypatch):
@@ -600,12 +596,10 @@ def test_get_task_run_info_with_error(monkeypatch):
     ):
         client = Client()
 
-    with pytest.raises(ClientError) as exc:
+    with pytest.raises(ClientError, match="something went wrong"):
         client.get_task_run_info(
             flow_run_id="74-salt", task_id="72-salt", map_index=None
         )
-
-    assert "something went wrong" in str(exc.value)
 
 
 def test_set_task_run_state(monkeypatch):
@@ -639,8 +633,8 @@ def test_set_task_run_state_serializes(monkeypatch):
         client = Client()
 
     res = SafeResult(lambda: None, result_handler=None)
-    with pytest.raises(marshmallow.exceptions.ValidationError) as exc:
-        result = client.set_task_run_state(
+    with pytest.raises(marshmallow.exceptions.ValidationError):
+        client.set_task_run_state(
             task_run_id="76-salt", version=0, state=Pending(result=res)
         )
 
@@ -660,9 +654,8 @@ def test_set_task_run_state_with_error(monkeypatch):
     ):
         client = Client()
 
-    with pytest.raises(ClientError) as exc:
+    with pytest.raises(ClientError, match="something went wrong"):
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
-    assert "something went wrong" in str(exc.value)
 
 
 def test_write_log_successfully(monkeypatch):
@@ -695,6 +688,5 @@ def test_write_log_with_error(monkeypatch):
     ):
         client = Client()
 
-    with pytest.raises(ClientError) as exc:
+    with pytest.raises(ClientError, match="something went wrong"):
         client.write_run_log(flow_run_id="1")
-    assert "something went wrong" in str(exc.value)

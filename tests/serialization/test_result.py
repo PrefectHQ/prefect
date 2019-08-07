@@ -72,7 +72,7 @@ def test_safe_result_disallows_none_result_handler_at_deserialization_time():
     schema = SafeResultSchema()
     r = SafeResult(value=None, result_handler=None)
     serialized = schema.dump(r)
-    with pytest.raises(marshmallow.exceptions.ValidationError) as exc:
+    with pytest.raises(marshmallow.exceptions.ValidationError):
         schema.load(serialized)
 
 
