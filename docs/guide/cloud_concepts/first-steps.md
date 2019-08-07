@@ -8,7 +8,9 @@ _Documentation Coming Soon!_
 
 ## Create a Project
 
-Before deploying your first Flow, you should create a Project in Prefect Cloud.  Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
+Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](http://localhost:8081/guide/cloud_concepts/cli.html#auth) to persist your token locally.
+
+Prior to deploying your first Flow you should create a Project in Prefect Cloud.  Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
 
 There are two simple ways of creating projects, depending on your personal preference:
 
@@ -33,8 +35,6 @@ mutation {
 ```
 
 ## Deployment
-
-First and foremost, you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](http://localhost:8081/guide/cloud_concepts/cli.html#auth) to persist your token locally.
 
 To deploy your Flow to Cloud requires that you have [Docker](https://www.docker.com/) running locally and that you have have access to a Docker registry that you are comfortable pushing your code to.  Additionally, note that your Prefect Agent (which runs within your infrastructure and _not_ within Prefect Cloud) will require access to this registry as well.
 
