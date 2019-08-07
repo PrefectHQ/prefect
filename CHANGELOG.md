@@ -24,12 +24,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- `OneTimeSchedule` and `UnionSchedule` are deprecated - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+- `OneTimeSchedule` and `UnionSchedule` are deprecated, but remain callable as convenience functions - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+- Old-style schedules can be deserialized as new-style schedules, but support will eventually be dropped - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Breaking Changes
 
 - `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
-- `prefect.schedules.OneTimeSchedule` and `prefect.schedules.UnionSchedule` have been removed from the library - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Contributors
 
