@@ -16,17 +16,20 @@ class TestRedisSet:
         task = RedisSet()
 
         ## raises if neither provided
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(
+            ValueError, match="redis_key and redis_val must be provided"
+        ):
             task.run()
-        assert "redis_key and redis_val must be provided" == str(exc.value)
 
         ## raises if only one arg is missing
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(
+            ValueError, match="redis_key and redis_val must be provided"
+        ):
             task.run(redis_key="foo")
-        assert "redis_key and redis_val must be provided" == str(exc.value)
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(
+            ValueError, match="redis_key and redis_val must be provided"
+        ):
             task.run(redis_val="bar")
-        assert "redis_key and redis_val must be provided" == str(exc.value)
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
         task = RedisSet()
@@ -55,9 +58,8 @@ class TestRedisGet:
 
     def test_raises_key_val_not_provided(self):
         task = RedisGet()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="redis_key must be provided"):
             task.run()
-        assert "redis_key must be provided" == str(exc.value)
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
         task = RedisGet()
@@ -86,9 +88,8 @@ class TestRedisExecute:
 
     def test_raises_if_command_not_provided(self):
         task = RedisExecute()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="A redis command must be specified"):
             task.run()
-        assert "A redis command must be specified" == str(exc.value)
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
         task = RedisExecute()

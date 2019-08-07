@@ -13,9 +13,8 @@ def test_serialize_empty_dict():
 
 
 def test_deserialize_empty_dict_fails():
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(TypeError, match="required positional arguments"):
         EdgeSchema().load({})
-    assert "required positional arguments" in str(exc.value).lower()
 
 
 def test_deserialize_empty_dict_without_create_object():

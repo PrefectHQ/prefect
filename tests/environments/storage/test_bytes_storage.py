@@ -28,9 +28,8 @@ def test_add_flow_raises_if_name_conflict():
     f = Flow("test")
     res = storage.add_flow(f)
     g = Flow("test")
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match='name "test"'):
         storage.add_flow(g)
-    assert 'name "test"' in str(exc.value)
 
 
 def test_get_env_runner_raises():
