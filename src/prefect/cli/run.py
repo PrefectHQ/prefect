@@ -188,4 +188,18 @@ def cloud(name, project, version, watch, logs):
                     tabulate(output, tablefmt="plain", numalign="left", stralign="left")
                 )
 
+            # Check if state is either Success or Failed, exit if it is
+            query = {
+                "query": {
+                    with_args("flow_run_by_pk", {"id": flow_run_id}): {"state": True}
+                }
+            }
+            result = client.graphql(query)
+
+            if (
+                result.data.flow_run_by_pk.state == "Success"
+                or result.data.flow_run_by_pk.state == "Failed"
+            ):
+                return
+
             time.sleep(3)

@@ -17,9 +17,8 @@ class TestInitialization:
             n()
 
     def test_result_requires_value(self):
-        with pytest.raises(TypeError) as exc:
+        with pytest.raises(TypeError, match="value"):
             r = Result()
-        assert "value" in str(exc.value)
 
     def test_result_inits_with_value(self):
         r = Result(3)
@@ -40,17 +39,14 @@ class TestInitialization:
         assert r.result_handler == handler
 
     def test_safe_result_requires_both_init_args(self):
-        with pytest.raises(TypeError) as exc:
-            res = SafeResult()
-        assert "2 required positional arguments" in str(exc.value)
+        with pytest.raises(TypeError, match="2 required positional arguments"):
+            SafeResult()
 
-        with pytest.raises(TypeError) as exc:
-            res = SafeResult(value="3")
-        assert "1 required positional argument" in str(exc.value)
+        with pytest.raises(TypeError, match="1 required positional argument"):
+            SafeResult(value="3")
 
-        with pytest.raises(TypeError) as exc:
-            res = SafeResult(result_handler=JSONResultHandler())
-        assert "1 required positional argument" in str(exc.value)
+        with pytest.raises(TypeError, match="1 required positional argument"):
+            SafeResult(result_handler=JSONResultHandler())
 
     def test_safe_result_inits_with_both_args(self):
         res = SafeResult(value="3", result_handler=JSONResultHandler())

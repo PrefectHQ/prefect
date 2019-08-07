@@ -52,9 +52,8 @@ class TestBigQueryInitialization:
 
     def test_query_is_required_eventually(self):
         task = BigQueryTask()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="query"):
             task.run()
-        assert "query" in str(exc.value)
 
     @pytest.mark.parametrize("attr", ["dataset_dest", "table_dest"])
     def test_dataset_dest_and_table_dest_are_required_together_eventually(self, attr):
@@ -289,13 +288,11 @@ class TestDryRuns:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                with pytest.raises(ValueError) as exc:
+                with pytest.raises(
+                    ValueError,
+                    match="Query will process 21836427 bytes which is above the set maximum of 1200 for this task",
+                ):
                     task.run(query="SELECT *")
-
-        assert (
-            "Query will process 21836427 bytes which is above the set maximum of 1200 for this task"
-            in str(exc.value)
-        )
 
 
 class TestCreateBigQueryTableInitialization:
