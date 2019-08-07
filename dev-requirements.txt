@@ -1,10 +1,9 @@
 black
-graphviz ~= 0.8
-jinja2 ~= 2.0
+graphviz >= 0.8, <0.9
+jinja2 >= 2.0, < 3.0
 mypy >= 0.600, < 0.800
-pre-commit ~= 1.12
-pytest ~= 5.0
-pytest-cov ~= 2.6
-pytest-env ~= 0.6.0
-pytest-xdist ~= 1.23
-Pygments ~= 2.2
+pytest >= 5.0, < 6.0
+pytest-cov >= 2.6, < 3.0
+pytest-env >= 0.6.0, < 0.7.0
+pytest-xdist >= 1.23, < 2.0
+Pygments >= 2.2, < 3.0
