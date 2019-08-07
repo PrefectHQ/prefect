@@ -78,7 +78,7 @@ class CloudTaskRunner(TaskRunner):
             )
         except Exception as exc:
             msg = "Exception raised while calling state handlers: {}".format(repr(exc))
-            self.logger.debug(msg)
+            self.logger.error(msg)
             if raise_on_exception:
                 raise exc
             new_state = Failed(msg, result=exc)

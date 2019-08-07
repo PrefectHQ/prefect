@@ -585,7 +585,7 @@ class TestStateResultHandling:
         assert states[2].cached_inputs == dict(x=x, y=y)
 
 
-def test_state_handler_failures_are_handled_appropriately(client):
+def test_state_handler_failures_are_handled_appropriately(client, caplog):
     def bad(*args, **kwargs):
         raise SyntaxError("Syntax Errors are nice because they're so unique")
 
@@ -603,6 +603,12 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert states[0].is_running()
     assert states[1].is_failed()
     assert isinstance(states[1].result, SyntaxError)
+
+    error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
+    assert len(error_logs) == 1
+    assert "SyntaxError" in error_logs[0]
+    assert "unique" in error_logs[0]
+    assert "state handler" in error_logs[0]
 
 
 def test_task_runner_performs_retries_for_short_delays(client):
