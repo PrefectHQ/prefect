@@ -16,7 +16,7 @@ def test_create_base_clock():
     assert clocks.Clock()
 
 
-def test_base_clock_eventso_implemented():
+def test_base_clock_events_not_implemented():
     c = clocks.Clock()
     with pytest.raises(NotImplementedError):
         next(c.events())
