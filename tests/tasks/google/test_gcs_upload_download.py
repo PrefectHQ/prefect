@@ -31,10 +31,8 @@ class TestInitialization:
         assert task.tags == {"bob"}
 
     def test_default_bucket_name_is_required(self, klass):
-        with pytest.raises(TypeError) as exc:
+        with pytest.raises(TypeError, match="bucket"):
             task = klass()
-
-        assert "bucket" in str(exc.value)
 
     @pytest.mark.parametrize(
         "attr", ["blob", "encryption_key_secret", "credentials_secret", "project"]
@@ -154,10 +152,8 @@ class TestBuckets:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                with pytest.raises(NotFound) as exc:
+                with pytest.raises(NotFound, match="no bucket"):
                     task.run(**{run_arg: "empty"})
-
-        assert "no bucket" in str(exc.value)
 
     def test_bucket_doesnt_exist_can_be_created_on_upload(self, monkeypatch):
         task = GCSUpload(bucket="test", create_bucket=True)
