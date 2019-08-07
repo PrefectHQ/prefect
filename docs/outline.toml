@@ -226,6 +226,7 @@ classes = [
         "GCSUpload",
         "GCSCopy",
         "BigQueryTask",
+        "BigQueryLoadGoogleCloudStorage",
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
         ]
