@@ -178,7 +178,7 @@ class Runner:
         except Exception as exc:
             if raise_on_exception:
                 raise
-            raise ENDRUN(
-                Failed("Exception raised while calling state handlers.", result=exc)
-            )
+            msg = "Exception raised while calling state handlers: {}".format(repr(exc))
+            self.logger.error(msg)
+            raise ENDRUN(Failed(msg, result=exc))
         return new_state
