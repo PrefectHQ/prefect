@@ -200,7 +200,7 @@ etc...
 
 ### describe
 
-`describe` is used to retrieve descriptive metadata information about Prefect Cloud objects. Currently CLI users can describe flows, flow-runs, and tasks.
+`describe` is used to retrieve descriptive metadata information about Prefect Cloud objects. Currently CLI users can describe `flows`, `flow-runs`, and `tasks`.
 
 #### describe flows
 
