@@ -299,7 +299,7 @@ def tasks(name, flow_name, flow_version, project, limit):
     Options:
         --name, -n          TEXT    A task name to query
         --flow-name, -fn    TEXT    A flow name to query
-        --flow-version, -fx INTEGER A flow version to query
+        --flow-version, -fv INTEGER A flow version to query
         --project, -p       TEXT    The name of a project to query
         --limit, -l         INTEGER A limit amount of tasks to query, defaults to 10
     """
