@@ -100,4 +100,3 @@ class TestSpacyComponent:
         task = SpacyComponent()
         with pytest.raises(ValueError, match="A spaCy pipeline must be provided"):
             task.run()
-

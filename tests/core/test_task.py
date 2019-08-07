@@ -516,7 +516,7 @@ class TestTaskArgs:
     def test_task_args_raises_for_non_attrs(self):
         t = Task()
         with Flow(name="test") as f:
-            with pytest.raises(AttributeError, match='foo'):
+            with pytest.raises(AttributeError, match="foo"):
                 res = t(task_args={"foo": "bar"})
 
     @pytest.mark.parametrize(
