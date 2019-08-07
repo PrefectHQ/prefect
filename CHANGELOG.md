@@ -7,7 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Introduce new `flows.checkpointing` configuration setting for checkpointing Tasks in local execution - [#1283](https://github.com/PrefectHQ/prefect/pull/1283)
-- Introduce new, flexible `Schedule` objects - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+- Introduce new, flexible `Schedule` objects - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
 
 ### Enhancements
 
@@ -24,8 +24,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- `OneTimeSchedule` and `UnionSchedule` are deprecated, but remain callable as convenience functions - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
-- Old-style schedules can be deserialized as new-style schedules, but support will eventually be dropped - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+- `OneTimeSchedule` and `UnionSchedule` are deprecated, but remain callable as convenience functions - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
+- Old-style schedules can be deserialized as new-style schedules, but support will eventually be dropped - [#1320](https://github.com/PrefectHQ/prefect/pull/1320)
 
 ### Breaking Changes
 
