@@ -71,7 +71,7 @@ module.exports = {
         {
           title: 'prefect',
           collapsable: true,
-          children: ['triggers', 'schedules']
+          children: ['triggers']
         },
         {
           title: 'prefect.client',
@@ -97,6 +97,11 @@ module.exports = {
           title: 'prefect.tasks',
           collapsable: true,
           children: getChildren('docs/api/unreleased', 'tasks')
+        },
+        {
+          title: 'prefect.schedules',
+          collapsable: true,
+          children: getChildren('docs/api/unreleased', 'schedules')
         },
         {
           title: 'prefect.utilities',
