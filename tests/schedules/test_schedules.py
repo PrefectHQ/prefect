@@ -239,3 +239,27 @@ def test_with_clocks_with_different_timezones():
     ]
 
     assert s.next(6, after) == expected
+
+
+def test_interval_schedule_requires_interval_even_though_none_default():
+    """
+    IntervalSchedule requires an interval, but in order to maintain the pre-0.6.1 signature,
+    it has an unusual call signature.
+    """
+    with pytest.raises(TypeError):
+        schedules.IntervalSchedule()
+
+
+class TestDeprecated:
+    def test_one_time_schedule(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            schedules.OneTimeSchedule(pendulum.now())
+
+    def test_union_schedule(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            schedules.UnionSchedule(
+                [
+                    schedules.CronSchedule("0 0 * * *"),
+                    schedules.OneTimeSchedule(pendulum.now()),
+                ]
+            )

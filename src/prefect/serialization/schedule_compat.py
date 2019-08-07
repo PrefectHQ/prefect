@@ -40,18 +40,10 @@ class OneTimeScheduleSchema(ObjectSchema):
 
     start_date = DateTimeTZ(required=True)
 
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> prefect.schedules.Schedule:
-        return prefect.schedules.Schedule(
-            clocks=[
-                prefect.schedules.clocks.DatesClock(
-                    dates=[data.pop("start_date", None)]
-                )
-            ]
-        )
-
 
 class UnionScheduleSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: prefect.schedules.UnionSchedule
 
     start_date = DateTimeTZ(required=True)
     end_date = DateTimeTZ(allow_none=True)
@@ -61,7 +53,4 @@ class UnionScheduleSchema(ObjectSchema):
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> prefect.schedules.Schedule:
-        return prefect.schedules.Schedule(
-            clocks=[s.clocks[0] for s in data.pop("schedules", [])]
-        )
-
+        return super().create_object({"schedules": data.pop("schedules", [])})
