@@ -1,11 +1,9 @@
-import uuid
 from typing import List
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from google.oauth2.service_account import Credentials
 
-from prefect import context
 from prefect.client import Secret
 from prefect.core import Task
 from prefect.engine.signals import SUCCESS
@@ -184,7 +182,7 @@ class BigQueryStreamingInsert(Task):
             records to
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
-        - location (str, optional): location of the dataset that will be queried; defaults to "US"
+        - location (str, optional): location of the dataset that will be written to; defaults to "US"
         - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
             of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
@@ -232,7 +230,7 @@ class BigQueryStreamingInsert(Task):
                 records to; if not provided here, will default to the one provided at initialization
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
-            - location (str, optional): location of the dataset that will be queried; defaults to "US"
+            - location (str, optional): location of the dataset that will be written to; defaults to "US"
             - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
                 of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
             - **kwargs (optional): additional kwargs to pass to the
@@ -273,6 +271,107 @@ class BigQueryStreamingInsert(Task):
             raise ValueError(errors)
 
         return output
+
+
+class BigQueryLoadGoogleCloudStorage(Task):
+    """
+    Task for insert records in a Google BigQuery table via a [load job](https://cloud.google.com/bigquery/docs/loading-data).
+    Note that all of these settings can optionally be provided or overwritten at runtime.
+
+    Args:
+        - uri (str, optional): GCS path to load data from
+        - dataset_id (str, optional): the id of a destination dataset to write the
+            records to
+        - table (str, optional): the name of a destination table to write the
+            records to
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+            will default to the one inferred from your credentials
+        - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+        - location (str, optional): location of the dataset that will be queried; defaults to "US"
+        - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+            of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
+    """
+
+    def __init__(
+        self,
+        uri: str = None,
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        schema: List[bigquery.SchemaField] = None,
+        location: str = "US",
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        self.uri = uri
+        self.dataset_id = dataset_id
+        self.table = table
+        self.project = project
+        self.schema = schema
+        self.location = location
+        self.credentials_secret = credentials_secret or "GOOGLE_APPLICATION_CREDENTIALS"
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "uri", "dataset_id", "table", "project", "location", "credentials_secret"
+    )
+    def run(
+        self,
+        uri: str = None,
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        schema: List[bigquery.SchemaField] = None,
+        location: str = "US",
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        """
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+
+        Args:
+            - uri (str, optional): GCS path to load data from
+            - dataset_id (str, optional): the id of a destination dataset to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - table (str, optional): the name of a destination table to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+                will default to the one inferred from your credentials
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+            - location (str, optional): location of the dataset that will be written to; defaults to "US"
+            - credentials_secret (str, optional): the name of the Prefect Secret containing a JSON representation
+                of your Google Application credentials; defaults to `"GOOGLE_APPLICATION_CREDENTIALS"`
+            - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
+                see the documentation here:
+                https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
+
+        Raises:
+            - ValueError: if all required arguments haven't been provided
+            - ValueError: if the load job results in an error
+
+        Returns:
+            - the response from `load_table_from_uri`
+        """
+        ## check for any argument inconsistencies
+        if dataset_id is None or table is None:
+            raise ValueError("Both dataset_id and table must be provided.")
+
+        ## create client
+        creds = Secret(credentials_secret).get()
+        project = project or credentials.project_id
+        client = bigquery.Client(project=project, credentials=credentials)
+
+        ## get table reference
+        table_ref = client.dataset(dataset_id).table(table)
+
+        ## load data
+        autodetect = kwargs.pop("autodetect", True)
+        job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
+        if schema:
+            job_config.schema = schema
+        load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
+        result = load_job.result()  # block until job is finished
 
 
 class CreateBigQueryTable(Task):
