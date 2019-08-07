@@ -174,8 +174,12 @@ class Schedule:
         return dt
 
 
+# FIXME the proper signature for this function should be:
+# interval (required), start_date (optional), end_date (optional)
+# but start_date is currently first to maintain compatibility with an older version of
+# Prefect
 def IntervalSchedule(
-    interval: timedelta, start_date: datetime = None, end_date: datetime = None
+    start_date: datetime = None, interval: timedelta = None, end_date: datetime = None
 ) -> Schedule:
     """
     A schedule formed by adding `timedelta` increments to a start_date.
@@ -202,14 +206,8 @@ def IntervalSchedule(
         - end_date (datetime, optional): an optional end date for the clock
 
     Raises:
-        - TypeError: if start_date is not a datetime
         - ValueError: if provided interval is less than one minute
     """
-    warnings.warn(
-        "The IntervalSchedule is deprecated and will be removed from "
-        "Prefect. Use an IntervalClock instead.",
-        DeprecationWarning,
-    )
     return Schedule(
         clocks=[
             prefect.schedules.clocks.IntervalClock(
@@ -243,12 +241,6 @@ def CronSchedule(
     Raises:
         - ValueError: if the cron string is invalid
     """
-
-    warnings.warn(
-        "The CronSchedule is deprecated and will be removed from "
-        "Prefect. Use a CronClock instead.",
-        DeprecationWarning,
-    )
     return Schedule(
         clocks=[
             prefect.schedules.clocks.CronClock(

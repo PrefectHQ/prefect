@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Introduce new `flows.checkpointing` configuration setting for checkpointing Tasks in local execution - [#1283](https://github.com/PrefectHQ/prefect/pull/1283)
+- Introduce new, flexible `Schedule` objects - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Enhancements
 
@@ -21,9 +22,14 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with logs not always arriving in long-standing Dask clusters - [#1244](https://github.com/PrefectHQ/prefect/pull/1244)
 
+### Deprecations
+
+- Old-style schedules can be deserialized as new-style schedules, but support will be dropped in future versions of Prefect - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+
 ### Breaking Changes
 
 - `prefect.Client.graphql()` and `prefect.Client.post()` now use an explicit keyword, not `**kwargs`, for variables or parameters - [#1259](https://github.com/PrefectHQ/prefect/pull/1259)
+- `prefect.schedules.OneTimeSchedule` and `prefect.schedules.UnionSchedule` have been removed from the library - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Contributors
 
@@ -93,13 +99,12 @@ Released May 28, 2019
 
 ### Features
 
+- Add new `UnionSchedule` for combining multiple schedules, allowing for complex schedule specifications - [#428](https://github.com/PrefectHQ/prefect/issues/428)
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
-- Introduce new, flexible `Schedule` objects - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Enhancements
 
 
-- Add new `UnionSchedule` for combining multiple schedules, allowing for complex schedule specifications - [#428](https://github.com/PrefectHQ/prefect/issues/428)
 - Add `prefect_version` kwarg to `Docker` storage for controlling the version of prefect installed into your containers - [#1010](https://github.com/PrefectHQ/prefect/pull/1010), [#533](https://github.com/PrefectHQ/prefect/issues/533)
 - Warn users if their Docker storage base image uses a different python version than their local machine - [#999](https://github.com/PrefectHQ/prefect/issues/999)
 - Add flow run id to k8s labels on Cloud Environment jobs / pods for easier filtering in deployment - [#1016](https://github.com/PrefectHQ/prefect/pull/1016)
