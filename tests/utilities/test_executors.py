@@ -58,9 +58,8 @@ def test_timeout_handler_reraises():
     def do_something():
         raise ValueError("test")
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="test"):
         timeout_handler(do_something, timeout=1)
-        assert "test" in exc
 
 
 def test_timeout_handler_allows_function_to_spawn_new_process():

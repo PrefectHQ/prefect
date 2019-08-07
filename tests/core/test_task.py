@@ -413,9 +413,8 @@ class TestDependencies:
         f = Flow(name="test")
         t1 = Task()
         t2 = Task()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="No Flow was passed"):
             t1.set_downstream(t2)
-        assert "No Flow was passed" in str(exc.value)
 
     @pytest.mark.parametrize(
         "props", [{"mapped": True}, {"key": "x"}, {"key": "x", "mapped": True}]
@@ -445,9 +444,8 @@ class TestDependencies:
         f = Flow(name="test")
         t1 = Task()
         t2 = Task()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="No Flow was passed"):
             t2.set_upstream(t1)
-        assert "No Flow was passed" in str(exc.value)
 
     @pytest.mark.parametrize(
         "props", [{"mapped": True}, {"key": "x"}, {"key": "x", "mapped": True}]
@@ -518,10 +516,8 @@ class TestTaskArgs:
     def test_task_args_raises_for_non_attrs(self):
         t = Task()
         with Flow(name="test") as f:
-            with pytest.raises(AttributeError) as exc:
+            with pytest.raises(AttributeError, match='foo'):
                 res = t(task_args={"foo": "bar"})
-
-        assert "foo" in str(exc.value)
 
     @pytest.mark.parametrize(
         "attr,val",

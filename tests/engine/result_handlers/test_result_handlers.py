@@ -86,28 +86,22 @@ def test_result_handlers_must_implement_read_and_write_to_work():
     class MyHandler(ResultHandler):
         pass
 
-    with pytest.raises(TypeError) as exc:
-        m = MyHandler()
-
-    assert "abstract methods read, write" in str(exc.value)
+    with pytest.raises(TypeError, match="abstract methods read, write"):
+        MyHandler()
 
     class WriteHandler(ResultHandler):
         def write(self, val):
             pass
 
-    with pytest.raises(TypeError) as exc:
-        m = WriteHandler()
-
-    assert "abstract methods read" in str(exc.value)
+    with pytest.raises(TypeError, match="abstract methods read"):
+        WriteHandler()
 
     class ReadHandler(ResultHandler):
         def read(self, val):
             pass
 
-    with pytest.raises(TypeError) as exc:
-        m = ReadHandler()
-
-    assert "abstract methods write" in str(exc.value)
+    with pytest.raises(TypeError, match="abstract methods write"):
+        ReadHandler()
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")

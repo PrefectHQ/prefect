@@ -19,9 +19,8 @@ class TestS3Download:
 
     def test_raises_if_bucket_not_eventually_provided(self):
         task = S3Download()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="bucket"):
             task.run(key="")
-        assert "bucket" in str(exc.value)
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
         task = S3Download(bucket="bob")
@@ -51,9 +50,8 @@ class TestS3Upload:
 
     def test_raises_if_bucket_not_eventually_provided(self):
         task = S3Upload()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="bucket"):
             task.run(data="")
-        assert "bucket" in str(exc.value)
 
     def test_generated_key_is_str(self, monkeypatch):
         task = S3Upload(bucket="test")
