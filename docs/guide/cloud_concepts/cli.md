@@ -10,7 +10,7 @@ The CLI is being built to comply with Cloud user demands on what is deemed usefu
 
 ## Interacting with the CLI
 
-Once you have Prefect installed (either through pip or conda) you may begin working with the CLI directly in your terminal. To see the CLI simply run `prefect` from the command line and you should see an output similar to the one below:
+Once you have Prefect installed (either through `pip` or `conda`) you may begin working with the CLI directly in your terminal. To see the CLI simply run `prefect` from the command line and you should see an output similar to the one below:
 
 ```
 $ prefect
