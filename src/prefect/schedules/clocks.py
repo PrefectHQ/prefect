@@ -71,7 +71,9 @@ class IntervalClock(Clock):
         start_date: datetime = None,
         end_date: datetime = None,
     ):
-        if interval.total_seconds() < 60:
+        if not isinstance(interval, timedelta):
+            raise TypeError("Interval must be a timedelta.")
+        elif interval.total_seconds() < 60:
             raise ValueError("Interval can not be less than one minute.")
 
         self.interval = interval

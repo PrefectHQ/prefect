@@ -213,4 +213,3 @@ class TestBackwardsCompatibility:
             pendulum.datetime(2019, 1, 2, 11, 16, 0),
             pendulum.datetime(2019, 1, 2, 12, 18, 0),
         ]
-

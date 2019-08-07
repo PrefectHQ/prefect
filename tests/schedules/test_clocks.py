@@ -28,6 +28,10 @@ class TestIntervalClock:
             start_date=pendulum.now("UTC"), interval=timedelta(days=1)
         )
 
+    def test_create_interval_clock_without_interval(self):
+        with pytest.raises(TypeError):
+            clocks.IntervalClock(interval=None)
+
     def test_start_date_can_be_none(self):
         c = clocks.IntervalClock(timedelta(hours=1))
         assert c.start_date is None

@@ -24,7 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- Old-style schedules can be deserialized as new-style schedules, but support will be dropped in future versions of Prefect - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
+- `OneTimeSchedule` and `UnionSchedule` are deprecated - [#1058](https://github.com/PrefectHQ/prefect/pull/1058)
 
 ### Breaking Changes
 
