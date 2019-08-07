@@ -46,7 +46,7 @@ From this help output you can see that the commands are broken into the categori
 
 ### get
 
-`get` is used to retrieve high level information about Prefect Cloud objects. Currently CLI users can get flows, flow-runs, projects, tasks, ang logs.
+`get` is used to retrieve high level information about Prefect Cloud objects. Currently CLI users can get `flows`, `flow-runs`, `projects`, `tasks`, and `logs`.
 
 #### get flows
 
