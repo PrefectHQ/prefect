@@ -393,7 +393,7 @@ def test_add_edge_raise_error_for_duplicate_key_if_validate():
     a = AddTask()
 
     f.add_edge(upstream_task=t, downstream_task=a, key="x")
-    with pytest.raises(ValueError, match='already been assigned'):
+    with pytest.raises(ValueError, match="already been assigned"):
         f.add_edge(upstream_task=t, downstream_task=a, key="x", validate=True)
 
 
@@ -899,7 +899,7 @@ def test_validate_missing_edge_downstream_tasks():
     t2 = Task()
     f.add_edge(t1, t2)
     f.tasks.remove(t2)
-    with pytest.raises(ValueError,match="edges refer to tasks"):
+    with pytest.raises(ValueError, match="edges refer to tasks"):
         f.validate()
 
 
@@ -909,7 +909,7 @@ def test_validate_missing_edge_upstream_tasks():
     t2 = Task()
     f.add_edge(t1, t2)
     f.tasks.remove(t1)
-    with pytest.raises(ValueError,match="edges refer to tasks"):
+    with pytest.raises(ValueError, match="edges refer to tasks"):
         f.validate()
 
 
@@ -966,9 +966,8 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
-            with pytest.raises(ImportError,match="pip install prefect\[viz\]"):
+            with pytest.raises(ImportError, match="pip install prefect\[viz\]"):
                 f.visualize()
-
 
     def test_viz_returns_graph_object_if_in_ipython(self):
         import graphviz
@@ -1410,7 +1409,7 @@ class TestSerialize:
         # default settings should allow this even though it's illegal
         f.add_edge(t2, t1)
 
-        with pytest.raises(ValueError, match='Cycle found'):
+        with pytest.raises(ValueError, match="Cycle found"):
             f.serialize()
 
     def test_default_environment_is_cloud_environment(self):
@@ -1477,7 +1476,7 @@ class TestFlowRunMethod:
         t = StatefulTask()
         schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError, match='Cease'):
+        with pytest.raises(SyntaxError, match="Cease"):
             f.run()
         assert t.call_count == 2
 
@@ -1597,7 +1596,7 @@ class TestFlowRunMethod:
         )
         schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError, match='Cease'):
+        with pytest.raises(SyntaxError, match="Cease"):
             f.run()
         assert t.call_count == 2
         assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
@@ -2033,8 +2032,9 @@ def test_flow_run_raises_if_no_more_scheduled_runs():
         ]
     )
     f = Flow(name="test", schedule=schedule)
-    with pytest.raises(ValueError, match='no more scheduled runs'):
+    with pytest.raises(ValueError, match="no more scheduled runs"):
         f.run()
+
 
 def test_flow_run_respects_state_kwarg():
     f = Flow(name="test")

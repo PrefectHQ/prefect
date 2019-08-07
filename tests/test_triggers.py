@@ -255,7 +255,7 @@ def test_some_successful_with_no_args(states):
 
 def test_some_successful_error_msg():
     trigger = triggers.some_successful(at_least=23)
-    with pytest.raises(signals.TRIGGERFAIL, match='some_successful') :
+    with pytest.raises(signals.TRIGGERFAIL, match="some_successful"):
         trigger(generate_states(success=1))
 
 
