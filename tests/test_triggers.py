@@ -187,10 +187,8 @@ def test_some_failed_with_no_args(states):
 
 def test_some_failed_error_msg():
     trigger = triggers.some_failed(at_least=23)
-    with pytest.raises(signals.TRIGGERFAIL) as exc:
+    with pytest.raises(signals.TRIGGERFAIL, match="some_failed"):
         trigger(generate_states(success=1))
-
-    assert "some_failed" in str(exc.value)
 
 
 def test_some_failed_with_one_arg():
@@ -257,10 +255,8 @@ def test_some_successful_with_no_args(states):
 
 def test_some_successful_error_msg():
     trigger = triggers.some_successful(at_least=23)
-    with pytest.raises(signals.TRIGGERFAIL) as exc:
+    with pytest.raises(signals.TRIGGERFAIL, match='some_successful') :
         trigger(generate_states(success=1))
-
-    assert "some_successful" in str(exc.value)
 
 
 def test_some_successful_with_one_arg():

@@ -131,9 +131,8 @@ def test_list_of_tasks():
 
 
 def test_merge_with_upstream_skip_arg_raises_error():
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="skip_on_upstream_skip=False") :
         prefect.tasks.control_flow.conditional.Merge(skip_on_upstream_skip=True)
-    assert "skip_on_upstream_skip=False" in str(exc.value)
 
 
 def test_merge_diamond_flow_with_results():
