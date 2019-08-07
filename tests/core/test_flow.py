@@ -383,10 +383,8 @@ def test_add_edge_raise_error_for_downstream_parameter():
     t = Task()
     p = Parameter("p")
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="can not have upstream dependencies"):
         f.add_edge(upstream_task=t, downstream_task=p)
-
-    assert "can not have upstream dependencies" in str(exc.value)
 
 
 def test_add_edge_raise_error_for_duplicate_key_if_validate():
@@ -395,10 +393,8 @@ def test_add_edge_raise_error_for_duplicate_key_if_validate():
     a = AddTask()
 
     f.add_edge(upstream_task=t, downstream_task=a, key="x")
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="already been assigned"):
         f.add_edge(upstream_task=t, downstream_task=a, key="x", validate=True)
-
-    assert "already been assigned" in str(exc.value)
 
 
 def test_add_edge_returns_edge():
@@ -597,9 +593,8 @@ def test_set_reference_tasks():
 
 def test_set_reference_tasks_at_init_with_empty_flow_raises_error():
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="must be part of the flow"):
         Flow(name="test", reference_tasks=[Task()])
-    assert "must be part of the flow" in str(exc.value)
 
 
 def test_set_reference_tasks_at_init():
@@ -739,21 +734,17 @@ def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
     f = Flow(name="test")
     t = Task()
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was not found in Flow"):
         f.edges_to(t)
-        assert "was not found in Flow" in e
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was not found in Flow"):
         f.edges_from(t)
-        assert "was not found in Flow" in e
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was not found in Flow"):
         f.upstream_tasks(t)
-        assert "was not found in Flow" in e
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was not found in Flow"):
         f.downstream_tasks(t)
-        assert "was not found in Flow" in e
 
 
 def test_sorted_tasks():
@@ -832,9 +823,8 @@ def test_sorted_tasks_with_invalid_start_task():
     t3 = Task("3")
     f.add_edge(t1, t2)
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="not found in Flow"):
         f.sorted_tasks(root_tasks=[t3])
-    assert "not found in Flow" in str(exc.value)
 
 
 def test_flow_raises_for_irrelevant_user_provided_parameters():
@@ -899,9 +889,8 @@ def test_validate_cycles():
     t2 = Task()
     f.add_edge(t1, t2)
     f.add_edge(t2, t1)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="Cycle found"):
         f.validate()
-    assert "cycle found" in str(exc.value).lower()
 
 
 def test_validate_missing_edge_downstream_tasks():
@@ -910,9 +899,8 @@ def test_validate_missing_edge_downstream_tasks():
     t2 = Task()
     f.add_edge(t1, t2)
     f.tasks.remove(t2)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="edges refer to tasks"):
         f.validate()
-    assert "edges refer to tasks" in str(exc.value).lower()
 
 
 def test_validate_missing_edge_upstream_tasks():
@@ -921,9 +909,8 @@ def test_validate_missing_edge_upstream_tasks():
     t2 = Task()
     f.add_edge(t1, t2)
     f.tasks.remove(t1)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="edges refer to tasks"):
         f.validate()
-    assert "edges refer to tasks" in str(exc.value).lower()
 
 
 def test_validate_missing_reference_tasks():
@@ -934,9 +921,8 @@ def test_validate_missing_reference_tasks():
     f.add_task(t2)
     f.set_reference_tasks([t1])
     f.tasks.remove(t1)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="reference tasks are not contained"):
         f.validate()
-    assert "reference tasks are not contained" in str(exc.value).lower()
 
 
 def test_validate_edges_kwarg():
@@ -980,10 +966,8 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
-            with pytest.raises(ImportError) as exc:
+            with pytest.raises(ImportError, match="pip install prefect\[viz\]"):
                 f.visualize()
-
-        assert "pip install prefect[viz]" in repr(exc.value)
 
     def test_viz_returns_graph_object_if_in_ipython(self):
         import graphviz
@@ -1425,9 +1409,8 @@ class TestSerialize:
         # default settings should allow this even though it's illegal
         f.add_edge(t2, t1)
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="Cycle found"):
             f.serialize()
-        assert "cycle found" in str(exc.value).lower()
 
     def test_default_environment_is_cloud_environment(self):
         f = Flow(name="test")
@@ -1493,9 +1476,8 @@ class TestFlowRunMethod:
         t = StatefulTask()
         schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError) as exc:
+        with pytest.raises(SyntaxError, match="Cease"):
             f.run()
-        assert "Cease" in str(exc.value)
         assert t.call_count == 2
 
     def test_flow_dot_run_doesnt_run_on_schedule(self):
@@ -1614,9 +1596,8 @@ class TestFlowRunMethod:
         )
         schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError) as exc:
+        with pytest.raises(SyntaxError, match="Cease"):
             f.run()
-        assert "Cease" in str(exc.value)
         assert t.call_count == 2
         assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
@@ -2038,9 +2019,8 @@ def test_bad_flow_runner_code_still_returns_state_obj():
 
 def test_flow_run_raises_informative_error_for_certain_kwargs():
     f = Flow(name="test")
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="`return_tasks` keyword cannot be provided"):
         f.run(return_tasks=f.tasks)
-    assert "`return_tasks` keyword cannot be provided" in str(exc.value)
 
 
 def test_flow_run_raises_if_no_more_scheduled_runs():
@@ -2052,9 +2032,8 @@ def test_flow_run_raises_if_no_more_scheduled_runs():
         ]
     )
     f = Flow(name="test", schedule=schedule)
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="no more scheduled runs"):
         f.run()
-    assert "no more scheduled runs" in str(exc.value)
 
 
 def test_flow_run_respects_state_kwarg():

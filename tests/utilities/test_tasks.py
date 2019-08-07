@@ -32,9 +32,8 @@ class TestTaskDecorator:
         def fn(x):
             return x
 
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="Could not infer an active Flow context"):
             fn(1)
-        assert "Could not infer an active Flow context" in str(exc.value)
 
     def test_task_decorator_with_no_args_must_be_called_inside_flow_context(self):
         @tasks.task
@@ -321,7 +320,5 @@ class TestDefaultFromAttrs:
                 return x
 
         t = Forgot()
-        with pytest.raises(AttributeError) as exc:
+        with pytest.raises(AttributeError, match="no attribute 'x'"):
             t.run()
-
-        assert "no attribute 'x'" in str(exc.value)

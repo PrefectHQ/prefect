@@ -32,9 +32,8 @@ class TestCreateGitHubPRInitialization:
 
     def test_repo_is_required_eventually(self):
         task = CreateGitHubPR()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="repo"):
             task.run()
-        assert "repo" in str(exc.value)
 
 
 class TestCredentialsandProjects:

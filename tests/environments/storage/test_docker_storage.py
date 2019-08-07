@@ -340,9 +340,8 @@ def test_pull_image_raises_if_error_encountered(monkeypatch):
     ]
     monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
-    with pytest.raises(InterruptedError) as exc:
+    with pytest.raises(InterruptedError, match="you know nothing jon snow"):
         storage.pull_image()
-    assert "you know nothing jon snow" in str(exc.value)
 
 
 def test_push_image(capsys, monkeypatch):
@@ -370,9 +369,8 @@ def test_push_image_raises_if_error_encountered(monkeypatch):
     ]
     monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
-    with pytest.raises(InterruptedError) as exc:
+    with pytest.raises(InterruptedError, match="you know nothing jon snow"):
         storage.push_image(image_name="test", image_tag="test")
-    assert "you know nothing jon snow" in str(exc.value)
 
 
 def test_parse_output():

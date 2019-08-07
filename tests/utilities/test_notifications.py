@@ -167,10 +167,8 @@ def test_slack_notifier_pulls_url_from_secret(monkeypatch):
     monkeypatch.setattr("prefect.utilities.notifications.requests.post", post)
     state = Failed(message="1", result=0)
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="SLACK_WEBHOOK_URL"):
             slack_notifier(Task(), "", state)
-
-        assert "SLACK_WEBHOOK_URL" in str(exc.value)
 
         with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="https://foo/bar")):
             slack_notifier(Task(), "", state)
