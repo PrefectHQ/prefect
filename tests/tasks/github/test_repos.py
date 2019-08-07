@@ -27,9 +27,8 @@ class TestGetRepoInfoInitialization:
 
     def test_repo_is_required_eventually(self):
         task = GetRepoInfo()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="repo"):
             task.run()
-        assert "repo" in str(exc.value)
 
 
 class TestCreateBranchInitialization:
@@ -53,15 +52,13 @@ class TestCreateBranchInitialization:
 
     def test_repo_is_required_eventually(self):
         task = CreateBranch(branch_name="bob")
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="repo"):
             task.run()
-        assert "repo" in str(exc.value)
 
     def test_branch_name_is_required_eventually(self):
         task = CreateBranch(repo="org/bob")
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="branch name"):
             task.run()
-        assert "branch name" in str(exc.value)
 
 
 class TestCredentials:
@@ -85,11 +82,10 @@ class TestCredentials:
 
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-                with pytest.raises(ValueError) as exc:
+                with pytest.raises(ValueError, match="not found"):
                     task.run(repo="org/repo", branch_name="new")
 
         assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-        assert "not found" in str(exc.value)
 
     def test_creds_secret_can_be_overwritten_repo_info(self, monkeypatch):
         task = GetRepoInfo(token_secret="MY_SECRET")

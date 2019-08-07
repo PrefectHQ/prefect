@@ -1,9 +1,7 @@
-import os
-
 import click
-import toml
 
 from prefect import Client
+from prefect.utilities.exceptions import AuthorizationError, ClientError
 
 
 @click.group(hidden=True)
@@ -17,54 +15,44 @@ def auth():
 
     \b
     Arguments:
-        add     Add a Cloud auth token to your Prefect config
+        login       Login to Prefect Cloud
 
     \b
     Examples:
-        $ prefect auth add --token MY_TOKEN
+        $ prefect auth login --token MY_TOKEN
 
     \b
-        $ prefect auth add --token MY_TOKEN --config-path ~/.prefect/new-config.toml
+        $ prefect auth login --token MY_TOKEN
     """
     pass
 
 
 @auth.command(hidden=True)
 @click.option(
-    "--token", "-t", required=True, help="A Prefect Cloud auth token.", hidden=True
+    "--token", "-t", required=True, help="A Prefect Cloud API token.", hidden=True
 )
-@click.option(
-    "--config-path",
-    "-c",
-    default="~/.prefect/config.toml",
-    help="Path to your Prefect config.toml",
-    hidden=True,
-)
-def add(token, config_path):
+def login(token):
     """
-    Add a new Prefect Cloud auth token to use for Cloud communication.
+    Login to Prefect Cloud with an api token to use for Cloud communication.
 
     \b
     Options:
-        --token, -t         TEXT    A Prefect Cloud auth token                                          [required]
-        --config-path, -c   TEXT    Path to a Prefect config.toml, defaults to `~/.prefect/config.toml`
+        --token, -t         TEXT    A Prefect Cloud api token  [required]
     """
-    abs_directory = os.path.abspath(os.path.expanduser(config_path))
-    if not os.path.exists(abs_directory):
-        click.secho("{} does not exist".format(config_path), fg="red")
+
+    client = Client()
+    client.login(api_token=token)
+
+    # Verify login obtained a valid api token
+    try:
+        client.graphql(query={"query": "hello"})
+    except AuthorizationError:
+        click.secho(
+            "Error attempting to use Prefect API token {}".format(token), color="RED"
+        )
+        return
+    except ClientError:
+        click.secho("Error attempting to communicate with Prefect Cloud", color="RED")
         return
 
-    config = toml.load(abs_directory)
-    if not config.get("cloud"):
-        config["cloud"] = {}
-    config["cloud"]["auth_token"] = token
-
-    with open(abs_directory, "w") as file:
-        toml.dump(config, file)
-        click.echo("Auth token added to Prefect config")
-
-        client = Client()
-        client.token = token
-        result = client.graphql(query={"query": "hello"})
-        if not result.data.hello:
-            click.secho("Error attempting to use Prefect auth token {}".format(result))
+    click.echo("Login successful")

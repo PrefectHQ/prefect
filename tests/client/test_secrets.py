@@ -21,9 +21,8 @@ def test_create_secret():
 def test_secret_raises_if_doesnt_exist():
     secret = Secret(name="test")
     with set_temporary_config({"cloud.use_local_secrets": True}):
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="not found"):
             secret.get()
-    assert "not found" in str(exc.value)
 
 
 def test_secret_value_pulled_from_context():
@@ -41,9 +40,8 @@ def test_secret_value_depends_on_use_local_secrets():
         {"cloud.use_local_secrets": False, "cloud.auth_token": None}
     ):
         with prefect.context(secrets=dict(test=42)):
-            with pytest.raises(AuthorizationError) as exc:
+            with pytest.raises(AuthorizationError, match="Client.login"):
                 secret.get()
-    assert "Client.login" in str(exc.value)
 
 
 def test_secrets_use_client(monkeypatch):
@@ -74,7 +72,7 @@ def test_secrets_raise_if_in_flow_context():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(test=42)):
             with prefect.Flow("test"):
-                with pytest.raises(ValueError) as exc:
+                with pytest.raises(ValueError):
                     secret.get()
 
 
