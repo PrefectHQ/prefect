@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING, Any
 import marshmallow
 from marshmallow import fields, post_load
 
-import prefect.schedules
+import prefect
+from prefect.serialization import schedule_compat
 from prefect.utilities.serialization import (
     DateTimeTZ,
     ObjectSchema,
@@ -68,7 +69,12 @@ class ClockSchema(OneOfSchema):
     }
 
 
-class ScheduleSchema(ObjectSchema):
+class NewScheduleSchema(ObjectSchema):
+    """
+    This schedule schema is the "true" schedule schema; however we use a
+    backwards-compatible one to support old-style schedules.
+    """
+
     class Meta:
         object_class = prefect.schedules.Schedule
 
@@ -93,3 +99,19 @@ class ScheduleSchema(ObjectSchema):
             valid_functions=ADJUSTMENTS, reject_invalid=True, allow_none=True
         )
     )
+
+
+class ScheduleSchema(OneOfSchema):
+    """
+    Field that chooses between several nested schemas. This class is preserved for pre-0.6.1
+    compatibility, and is deprecated in favor of NewScheduleSchema.
+    """
+
+    # map class name to schema
+    type_schemas = {
+        "Schedule": NewScheduleSchema,
+        "IntervalSchedule": schedule_compat.IntervalScheduleSchema,
+        "CronSchedule": schedule_compat.CronScheduleSchema,
+        "OneTimeSchedule": schedule_compat.OneTimeScheduleSchema,
+        "UnionSchedule": schedule_compat.UnionScheduleSchema,
+    }

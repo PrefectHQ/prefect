@@ -109,7 +109,7 @@ schedules.Schedule(
 
 ### Adjustments
 
-Adjustments allow schedules to modify dates that are emitted by clocks and pass a filter bank:
+Adjustments allow schedules to modify dates that are emitted by clocks and pass a collection of filters:
 
 - `add` (adds an interval to the date)
 - `next_weekday` (advances the date to the next weekday)
