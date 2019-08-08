@@ -1,7 +1,7 @@
 # Secrets
 
 Secrets represent sensitive key / value pairs that might be required during execution of your Flow. As an example,
-the [ability to receive slack notifications from Prefect](../tutorials/slack-notifications.html#using-your-url-to-get-notifications) relies on a secret
+the [ability to receive slack notifications from Prefect](../../guide/tutorials/slack-notifications.html#using-your-url-to-get-notifications) relies on a secret
 URL. It is easy to imagine other examples of Secrets that might be relevant, such as API credentials.
 
 ## Setting a Secret
