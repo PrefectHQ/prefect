@@ -109,7 +109,7 @@ module.exports = {
         },
         {
           title: 'Cloud Concepts',
-          collapsable: true,
+          collapsable: false,
           children: getChildren('docs/cloud', 'cloud_concepts')
         },
       ],
