@@ -33,6 +33,12 @@ run_on_schedule = true
 # If true, tasks which set `checkpoint=True` will have their result handlers called
 checkpointing = false
 
+    [flows.defaults]
+        [flows.defaults.storage]
+
+        # the default storage class, specified using a full path
+        default_class = "prefect.environments.storage.Docker"
+
 [tasks]
 
     [tasks.defaults]
