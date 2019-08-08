@@ -37,7 +37,7 @@ module.exports = {
     nav: [
       {
         text: 'Cloud',
-        link: '/cloud/'
+        link: '/cloud/first-steps'
       },
       {
         text: 'Core',
@@ -99,7 +99,6 @@ module.exports = {
         }
       ],
       '/cloud/': [
-        '/cloud/',
         {
           title: 'Welcome',
           collapsable: false,
