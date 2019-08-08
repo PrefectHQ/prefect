@@ -14,8 +14,34 @@ Note that currently all environments that are compatible with Prefect Cloud requ
 :::
 """
 
+from warnings import warn
+
+import prefect
+from prefect import config
 from prefect.environments.storage.base import Storage
 from prefect.environments.storage.docker import Docker
 from prefect.environments.storage.bytes import Bytes
 from prefect.environments.storage.local import Local
 from prefect.environments.storage.memory import Memory
+
+
+def get_default_storage_class() -> type:
+    """
+    Returns the `Storage` class specified in
+    `prefect.config.flows.defaults.storage.default_class`. If the value is a string, it will
+    attempt to load the already-imported object. Otherwise, the value is returned.
+
+    Defaults to `Docker` if the string config value can not be loaded
+    """
+    config_value = config.get_nested("flows.defaults.storage.default_class")
+    if isinstance(config_value, str):
+        try:
+            return prefect.utilities.serialization.from_qualified_name(config_value)
+        except ValueError:
+            warn(
+                "Could not import {}; using "
+                "prefect.environments.storage.Storage instead.".format(config_value)
+            )
+            return Storage
+    else:
+        return config_value
