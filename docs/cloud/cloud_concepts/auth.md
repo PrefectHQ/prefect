@@ -14,7 +14,7 @@ mutation {
 
 ## Prefect Core client
 
-This token can either be added to your Prefect [user configuration file](../core_concepts/configuration.html):
+This token can either be added to your Prefect [user configuration file](../../guide/core_concepts/configuration.html):
 
 ```
 [cloud]
