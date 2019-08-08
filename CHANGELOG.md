@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fixes issue with Docker storage not respecting user-provided image names - [#1335](https://github.com/PrefectHQ/prefect/pull/1335)
 
 ### Deprecations
 
