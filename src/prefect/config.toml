@@ -14,6 +14,10 @@ heartbeat_interval = 30.0
     auth_token = ""
     loop_interval = 5
 
+        [cloud.agent.resource_manager]
+        # Separate loop interval for resource managers
+        loop_interval = 60
+
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
 level = "INFO"
