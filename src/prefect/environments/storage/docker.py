@@ -27,7 +27,9 @@ class Docker(Storage):
     A user specifies a `registry_url`, `base_image` and other optional dependencies (e.g., `python_dependencies`)
     and `build()` will create a temporary Dockerfile that is used to build the image.
 
-    Note that the `base_image` must be capable of `pip` installing.
+    Note that the `base_image` must be capable of `pip` installing.  Note that registry behavior with respect to
+    image names can differ between providers - for example, Google's GCR registry allows for registry URLs of the form
+    `gcr.io/my-registry/subdir/my-image-name` whereas DockerHub requires the registry URL to be separate from the image name.
 
     Args:
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
@@ -195,7 +197,7 @@ class Docker(Storage):
         if len(self.flows) != 1:
             self.image_name = self.image_name or str(uuid.uuid4())
         else:
-            self.image_name = slugify(list(self.flows.keys())[0])
+            self.image_name = self.image_name or slugify(list(self.flows.keys())[0])
 
         self.image_tag = self.image_tag or slugify(pendulum.now("utc").isoformat())
         self._build_image(push=push)

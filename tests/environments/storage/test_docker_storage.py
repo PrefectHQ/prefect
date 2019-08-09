@@ -133,6 +133,46 @@ def test_build_sets_informative_image_name(monkeypatch):
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
+def test_build_sets_image_name_for_multiple_flows(monkeypatch):
+    storage = Docker(registry_url="reg")
+    storage.add_flow(Flow("test"))
+    storage.add_flow(Flow("test2"))
+
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    output = storage.build()
+    assert output.registry_url == storage.registry_url
+    assert isinstance(output.image_name, str)
+    assert output.image_tag.startswith(str(pendulum.now("utc").year))
+
+
+def test_build_respects_user_provided_image_name_and_tag(monkeypatch):
+    storage = Docker(registry_url="reg", image_name="CUSTOM", image_tag="TAG")
+    storage.add_flow(Flow("test"))
+
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    output = storage.build()
+    assert output.registry_url == storage.registry_url
+    assert output.image_name == "CUSTOM"
+    assert output.image_tag == "TAG"
+
+
+def test_build_respects_user_provided_image_name_and_tag_for_multiple_flows(
+    monkeypatch
+):
+    storage = Docker(registry_url="reg", image_name="CUSTOM", image_tag="TAG")
+    storage.add_flow(Flow("test"))
+    storage.add_flow(Flow("test2"))
+
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    output = storage.build()
+    assert output.registry_url == storage.registry_url
+    assert output.image_name == "CUSTOM"
+    assert output.image_tag == "TAG"
+
+
 def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
     storage = Docker(registry_url="reg")
     storage.add_flow(Flow("!&& ~~ cool flow :shades:"))
