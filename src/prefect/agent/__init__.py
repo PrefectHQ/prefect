@@ -7,4 +7,5 @@ except ImportError:
         'Using `prefect.agent.kubernetes` requires Prefect to be installed with the "kubernetes" extra.'
     )
 
-import prefect_agent.nomad
+import prefect.agent.local
+import prefect.agent.nomad
