@@ -44,7 +44,7 @@ class LocalAgent(Agent):
             storage = StorageSchema().load(flow_run.flow.storage)
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
                 self.logger.error(
-                    f"Storage for flow run {flow_run.id} is not of type Docker."
+                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
                 )
                 continue
 
