@@ -34,7 +34,7 @@ class LocalAgent(Agent):
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
-        Deploy flow runs on to a k8s cluster as jobs
+        Deploy flow runs on your local machine as Docker containers
 
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
