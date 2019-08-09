@@ -4,7 +4,7 @@ The Prefect Kubernetes agent that turns a cluster into a workflow execution plat
 
 If running on GKE you may need to execute: `kubectl create clusterrolebinding default-admin --clusterrole cluster-admin --serviceaccount=default:default`
 
-The agent needs to be able to read, list, and create both pods and jobs. The resource manager aspect needs the same permissions with the added role of being able to delete jobs and pods. A more specific set of permissions will be added in a later PR.
+The agent needs to be able to read, list, and create both pods and jobs. The resource manager aspect needs the same permissions with the added role of being able to delete jobs and pods. 
 
 Quick Start:
 
