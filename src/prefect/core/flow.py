@@ -1043,7 +1043,7 @@ class Flow:
         except ImportError:
             msg = (
                 "This feature requires graphviz.\n"
-                "Try re-installing prefect with `pip install prefect[viz]`"
+                "Try re-installing prefect with `pip install 'prefect[viz]'`"
             )
             raise ImportError(msg)
 
