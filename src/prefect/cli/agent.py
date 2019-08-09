@@ -2,11 +2,12 @@ import click
 
 from prefect import config
 from prefect import agent as prefect_agent
+from prefect.agent.kubernetes import KubernetesAgent
 from prefect.utilities.configuration import set_temporary_config
 
 _agents = {
     "local": prefect_agent.local.LocalAgent,
-    "kubernetes": prefect_agent.kubernetes.KubernetesAgent,
+    "kubernetes": KubernetesAgent,
     "nomad": prefect_agent.nomad.NomadAgent,
 }
 
