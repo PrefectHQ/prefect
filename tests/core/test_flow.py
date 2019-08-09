@@ -967,7 +967,7 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
-            with pytest.raises(ImportError, match="pip install prefect\[viz\]"):
+            with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
