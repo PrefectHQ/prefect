@@ -42,7 +42,9 @@ class ResourceManager:
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
-            self.logger.warning(f"{exc} Using out of cluster configuration option.")
+            self.logger.warning(
+                "{} Using out of cluster configuration option.".format(exc)
+            )
             config.load_kube_config()
 
         self.k8s_client = client
@@ -51,7 +53,7 @@ class ResourceManager:
         """
         Main loop which waits on a `LOOP_INTERVAL` and looks for finished jobs to clean
         """
-        self.logger.info(f"Starting {type(self).__name__}")
+        self.logger.info("Starting {}".format(type(self).__name__))
         while True:
             try:
                 self.clean_resources()
@@ -71,7 +73,7 @@ class ResourceManager:
             jobs = batch_client.list_namespaced_job(namespace=self.namespace)
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to list jobs in namespace {self.namespace}"
+                "Error attempting to list jobs in namespace {}".format(self.namespace)
             )
             return
 
@@ -83,7 +85,9 @@ class ResourceManager:
 
                 if job.status.failed:
                     self.logger.info(
-                        f"Found failed job {name} in namespace {self.namespace}"
+                        "Found failed job {} in namespace {}".format(
+                            name, self.namespace
+                        )
                     )
                     self.report_failed_job(identifier=identifier)
 
@@ -104,7 +108,7 @@ class ResourceManager:
             pods = core_client.list_namespaced_pod(namespace=self.namespace)
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to list pods in namespace {self.namespace}"
+                "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
 
@@ -133,7 +137,7 @@ class ResourceManager:
         Delete a job based on the name
         """
         batch_client = self.k8s_client.BatchV1Api()
-        self.logger.info(f"Deleting job {name} in namespace {self.namespace}")
+        self.logger.info("Deleting job {} in namespace {}".format(name, self.namespace))
 
         try:
             batch_client.delete_namespaced_job(
@@ -143,7 +147,9 @@ class ResourceManager:
             )
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to delete job {name} in namespace {self.namespace}"
+                "Error attempting to delete job {} in namespace {}".format(
+                    name, self.namespace
+                )
             )
 
     def delete_pods(self, job_name: str, identifier: str) -> None:
@@ -158,13 +164,15 @@ class ResourceManager:
             )
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to list pods in namespace {self.namespace}"
+                "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
 
         if pods:
             self.logger.info(
-                f"Deleting {len(pods.items)} pods for job {job_name} in namespace {self.namespace}"
+                "Deleting {} pods for job {} in namespace {}".format(
+                    len(pods.items), job_name, self.namespace
+                )
             )
         for pod in pods.items:
             name = pod.metadata.name
@@ -177,7 +185,9 @@ class ResourceManager:
                 )
             except self.k8s_client.rest.ApiException:
                 self.logger.error(
-                    f"Error attempting to delete pod {name} in namespace {self.namespace}"
+                    "Error attempting to delete pod {} in namespace {}".format(
+                        name, self.namespace
+                    )
                 )
 
     def delete_extra_pod(self, name: str) -> None:
@@ -185,7 +195,9 @@ class ResourceManager:
         Delete a pod based on the name
         """
         core_client = self.k8s_client.CoreV1Api()
-        self.logger.info(f"Deleting extra pod {name} in namespace {self.namespace}")
+        self.logger.info(
+            "Deleting extra pod {} in namespace {}".format(name, self.namespace)
+        )
 
         try:
             core_client.delete_namespaced_pod(
@@ -195,7 +207,9 @@ class ResourceManager:
             )
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to delete pod {name} in namespace {self.namespace}"
+                "Error attempting to delete pod {} in namespace {}".format(
+                    name, self.namespace
+                )
             )
 
     # REPORTING
@@ -212,7 +226,7 @@ class ResourceManager:
             )
         except self.k8s_client.rest.ApiException:
             self.logger.error(
-                f"Error attempting to list pods in namespace {self.namespace}"
+                "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
 
@@ -237,11 +251,15 @@ class ResourceManager:
                 )
             except self.k8s_client.rest.ApiException:
                 self.logger.error(
-                    f"Error attempting to read pod logs for {name} in namespace {self.namespace}"
+                    "Error attempting to read pod logs for {} in namespace {}".format(
+                        name, self.namespace
+                    )
                 )
                 return
 
-        self.logger.info(f"Reporting failed pod {name} in namespace {self.namespace}")
+        self.logger.info(
+            "Reporting failed pod {} in namespace {}".format(name, self.namespace)
+        )
 
         self.client.write_run_log(
             flow_run_id=pod.metadata.labels.get("flow_run_id"),
@@ -258,14 +276,18 @@ class ResourceManager:
         Write cloud log of pods that entered unknonw states
         """
         name = pod.metadata.name
-        self.logger.info(f"Reporting unknown pod {name} in namespace {self.namespace}")
+        self.logger.info(
+            "Reporting unknown pod {} in namespace {}".format(name, self.namespace)
+        )
 
         self.client.write_run_log(
             flow_run_id=pod.metadata.labels.get("flow_run_id"),
             task_run_id="",
             timestamp=pendulum.now(),
             name="resource-manager",
-            message=f"Flow run pod {name} entered an unknown state in namespace {self.namespace}",
+            message="Flow run pod {} entered an unknown state in namespace {}".format(
+                name, self.namespace
+            ),
             level="ERROR",
             info={},
         )
@@ -279,7 +301,9 @@ class ResourceManager:
 
             if waiting and waiting.reason == "ImagePullBackoff":
                 self.logger.info(
-                    f"Reporting image pull error for pod {pod.metadata.name} in namespace {self.namespace}"
+                    "Reporting image pull error for pod {} in namespace {}".format(
+                        pod.metadata.name, self.namespace
+                    )
                 )
 
                 self.client.write_run_log(
@@ -287,7 +311,9 @@ class ResourceManager:
                     task_run_id="",
                     timestamp=pendulum.now(),
                     name="resource-manager",
-                    message=f"Flow run image pull error for pod {pod.metadata.name} in namespace {self.namespace}",
+                    message="Flow run image pull error for pod {} in namespace {}".format(
+                        pod.metadata.name, self.namespace
+                    ),
                     level="ERROR",
                     info={},
                 )

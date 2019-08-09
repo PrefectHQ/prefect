@@ -25,7 +25,9 @@ class KubernetesAgent(Agent):
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
-            self.logger.warning(f"{exc} Using out of cluster configuration option.")
+            self.logger.warning(
+                "{} Using out of cluster configuration option.".format(exc)
+            )
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
@@ -42,7 +44,7 @@ class KubernetesAgent(Agent):
             # Require Docker storage
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
                 self.logger.error(
-                    f"Storage for flow run {flow_run.id} is not of type Docker."
+                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
                 )
                 continue
 
