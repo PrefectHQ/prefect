@@ -16,7 +16,7 @@ class Agent:
 
     This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant
     to have subclasses which inherit functionality from this class. The only piece that
-    the subclasses should implement is the `deploy_flows` function. It is built in this
+    the subclasses should implement is the `deploy_flows` function, which specifies how to run a Flow on the given platform. It is built in this
     way to keep Prefect Cloud logic standard but allows for platform specific
     customizability.
 
