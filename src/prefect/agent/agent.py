@@ -47,20 +47,22 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
-        self.logger.info(f"Starting {type(self).__name__}")
+        self.logger.info("Starting {}".format(type(self).__name__))
         tenant_id = self.query_tenant_id()
 
         while True:
             try:
                 flow_runs = self.query_flow_runs(tenant_id=tenant_id)
                 self.logger.info(
-                    f"Found {len(flow_runs)} flow run(s) to submit for execution."
+                    "Found {} flow run(s) to submit for execution.".format(
+                        len(flow_runs)
+                    )
                 )
 
                 self.update_states(flow_runs)
                 self.deploy_flows(flow_runs)
                 self.logger.info(
-                    f"Submitted {len(flow_runs)} flow run(s) for execution."
+                    "Submitted {} flow run(s) for execution.".format(len(flow_runs))
                 )
             except Exception as exc:
                 self.logger.error(exc)
