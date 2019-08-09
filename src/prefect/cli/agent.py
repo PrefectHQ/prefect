@@ -1,14 +1,13 @@
 import click
 
 from prefect import config
-from prefect import agent as prefect_agent
-from prefect.agent.kubernetes import KubernetesAgent
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.serialization import from_qualified_name
 
 _agents = {
-    "local": prefect_agent.local.LocalAgent,
-    "kubernetes": KubernetesAgent,
-    "nomad": prefect_agent.nomad.NomadAgent,
+    "local": "prefect.agent.local.LocalAgent",
+    "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+    "nomad": "prefect.agent.nomad.NomadAgent",
 }
 
 
@@ -62,4 +61,4 @@ def start(name, token):
             click.secho(f"{name} is not a valid agent", color="red")
             return
 
-        retrieved_agent().start()
+        from_qualified_name(retrieved_agent)().start()
