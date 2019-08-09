@@ -21,7 +21,7 @@ from prefect.utilities import logging
 class DaskKubernetesEnvironment(Environment):
     """
     DaskKubernetesEnvironment is an environment which deploys your flow (stored in a Docker image)
-    on Kubernetes and it uses the Prefect `DaskExecutor` by dynamically spawning workers as pods.
+    on Kubernetes by spinning up a temporary Dask Cluster and using the Prefect `DaskExecutor` on this cluster.
 
     If pulling from a private docker registry, `setup` will ensure the appropriate
     kubernetes secret exists; `execute` creates a single job that has the role
