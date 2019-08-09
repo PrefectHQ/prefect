@@ -2,7 +2,6 @@ import os
 from os import path
 import uuid
 
-from kubernetes import client, config
 import yaml
 
 from prefect.agent import Agent
@@ -21,11 +20,15 @@ class KubernetesAgent(Agent):
     def __init__(self) -> None:
         super().__init__()
 
+        from kubernetes import client, config
+
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
             self.logger.warning(f"{exc} Using out of cluster configuration option.")
             config.load_kube_config()
+
+        self.batch_client = client.BatchV1Api()
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
@@ -34,8 +37,6 @@ class KubernetesAgent(Agent):
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
-        batch_client = client.BatchV1Api()
-
         for flow_run in flow_runs:
 
             # Require Docker storage
@@ -47,7 +48,7 @@ class KubernetesAgent(Agent):
 
             job_spec = self.replace_job_spec_yaml(flow_run)
 
-            batch_client.create_namespaced_job(
+            self.batch_client.create_namespaced_job(
                 namespace=os.getenv("NAMESPACE", "default"), body=job_spec
             )
 

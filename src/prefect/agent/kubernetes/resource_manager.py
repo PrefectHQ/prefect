@@ -2,10 +2,15 @@ import logging
 import os
 import time
 
-from kubernetes import client, config
 import pendulum
 
 from prefect import Client
+from prefect import config
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import kubernetes
 
 
 class ResourceManager:
@@ -32,11 +37,15 @@ class ResourceManager:
 
         self.logger = logger
 
+        from kubernetes import client, config
+
         try:
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
             self.logger.warning(f"{exc} Using out of cluster configuration option.")
             config.load_kube_config()
+
+        self.k8s_client = client
 
     def start(self) -> None:
         """
@@ -56,11 +65,11 @@ class ResourceManager:
         """
         Find jobs that are either completed or failed to delete from the cluster
         """
-        batch_client = client.BatchV1Api()
+        batch_client = self.k8s_client.BatchV1Api()
 
         try:
             jobs = batch_client.list_namespaced_job(namespace=self.namespace)
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to list jobs in namespace {self.namespace}"
             )
@@ -89,11 +98,11 @@ class ResourceManager:
         Any runaway pods which failed due to unexpected reasons will be cleaned up here.
         ImagePullBackoffs, Evictions, etc...
         """
-        core_client = client.CoreV1Api()
+        core_client = self.k8s_client.CoreV1Api()
 
         try:
             pods = core_client.list_namespaced_pod(namespace=self.namespace)
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to list pods in namespace {self.namespace}"
             )
@@ -123,14 +132,16 @@ class ResourceManager:
         """
         Delete a job based on the name
         """
-        batch_client = client.BatchV1Api()
+        batch_client = self.k8s_client.BatchV1Api()
         self.logger.info(f"Deleting job {name} in namespace {self.namespace}")
 
         try:
             batch_client.delete_namespaced_job(
-                name=name, namespace=self.namespace, body=client.V1DeleteOptions()
+                name=name,
+                namespace=self.namespace,
+                body=self.k8s_client.V1DeleteOptions(),
             )
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to delete job {name} in namespace {self.namespace}"
             )
@@ -139,13 +150,13 @@ class ResourceManager:
         """
         Delete a pod based on the job name and identifier
         """
-        core_client = client.CoreV1Api()
+        core_client = self.k8s_client.CoreV1Api()
         try:
             pods = core_client.list_namespaced_pod(
                 namespace=self.namespace,
                 label_selector="identifier={}".format(identifier),
             )
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to list pods in namespace {self.namespace}"
             )
@@ -160,9 +171,11 @@ class ResourceManager:
 
             try:
                 core_client.delete_namespaced_pod(
-                    name=name, namespace=self.namespace, body=client.V1DeleteOptions()
+                    name=name,
+                    namespace=self.namespace,
+                    body=self.k8s_client.V1DeleteOptions(),
                 )
-            except client.rest.ApiException:
+            except self.k8s_client.rest.ApiException:
                 self.logger.error(
                     f"Error attempting to delete pod {name} in namespace {self.namespace}"
                 )
@@ -171,14 +184,16 @@ class ResourceManager:
         """
         Delete a pod based on the name
         """
-        core_client = client.CoreV1Api()
+        core_client = self.k8s_client.CoreV1Api()
         self.logger.info(f"Deleting extra pod {name} in namespace {self.namespace}")
 
         try:
             core_client.delete_namespaced_pod(
-                name=name, namespace=self.namespace, body=client.V1DeleteOptions()
+                name=name,
+                namespace=self.namespace,
+                body=self.k8s_client.V1DeleteOptions(),
             )
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to delete pod {name} in namespace {self.namespace}"
             )
@@ -189,13 +204,13 @@ class ResourceManager:
         """
         Report jobs that failed for reasons outside of a flow run
         """
-        core_client = client.CoreV1Api()
+        core_client = self.k8s_client.CoreV1Api()
         try:
             pods = core_client.list_namespaced_pod(
                 namespace=self.namespace,
                 label_selector="identifier={}".format(identifier),
             )
-        except client.rest.ApiException:
+        except self.k8s_client.rest.ApiException:
             self.logger.error(
                 f"Error attempting to list pods in namespace {self.namespace}"
             )
@@ -206,11 +221,11 @@ class ResourceManager:
             if phase == "Failed":
                 self.report_failed_pod(pod)
 
-    def report_failed_pod(self, pod: client.V1Pod) -> None:
+    def report_failed_pod(self, pod: "kubernetes.client.V1Pod") -> None:
         """
         Report pods that failed for reasons outside of a flow run. Write cloud log
         """
-        core_client = client.CoreV1Api()
+        core_client = self.k8s_client.CoreV1Api()
         name = pod.metadata.name
 
         if pod.status.reason == "Evicted":
@@ -220,7 +235,7 @@ class ResourceManager:
                 logs = core_client.read_namespaced_pod_log(
                     namespace=self.namespace, name=name
                 )
-            except client.rest.ApiException:
+            except self.k8s_client.rest.ApiException:
                 self.logger.error(
                     f"Error attempting to read pod logs for {name} in namespace {self.namespace}"
                 )
@@ -238,7 +253,7 @@ class ResourceManager:
             info={},
         )
 
-    def report_unknown_pod(self, pod: client.V1Pod) -> None:
+    def report_unknown_pod(self, pod: "kubernetes.client.V1Pod") -> None:
         """
         Write cloud log of pods that entered unknonw states
         """
@@ -255,7 +270,7 @@ class ResourceManager:
             info={},
         )
 
-    def report_pod_image_pull_error(self, pod: client.V1Pod) -> None:
+    def report_pod_image_pull_error(self, pod: "kubernetes.client.V1Pod") -> None:
         """
         Write cloud log of pods that ahd image pull errors
         """
