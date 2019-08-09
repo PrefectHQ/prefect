@@ -1,7 +1,7 @@
 from marshmallow import fields
 
 from prefect.environments import (
-    CloudEnvironment,
+    DaskKubernetesEnvironment,
     Environment,
     LocalEnvironment,
     RemoteEnvironment,
@@ -19,9 +19,9 @@ class LocalEnvironmentSchema(ObjectSchema):
         object_class = LocalEnvironment
 
 
-class CloudEnvironmentSchema(ObjectSchema):
+class DaskKubernetesEnvironmentSchema(ObjectSchema):
     class Meta:
-        object_class = CloudEnvironment
+        object_class = DaskKubernetesEnvironment
 
     docker_secret = fields.String(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)
@@ -42,7 +42,7 @@ class EnvironmentSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
-        "CloudEnvironment": CloudEnvironmentSchema,
+        "DaskKubernetesEnvironment": DaskKubernetesEnvironmentSchema,
         "Environment": BaseEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
