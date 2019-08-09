@@ -62,15 +62,17 @@ class Client:
     Args:
         - graphql_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
+        - token (str, optional): a Prefect Cloud auth token for communication; if not
+            provided, will be pulled from `cloud.auth_token` config var
     """
 
-    def __init__(self, graphql_server: str = None):
+    def __init__(self, graphql_server: str = None, token: str = None):
 
         if not graphql_server:
             graphql_server = prefect.config.cloud.get("graphql")
         self.graphql_server = graphql_server
 
-        token = prefect.config.cloud.get("auth_token", None)
+        token = token or prefect.config.cloud.get("auth_token", None)
 
         self.token_is_local = False
         if token is None:

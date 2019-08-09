@@ -16,6 +16,8 @@ from prefect.utilities.tasks import task, tags, unmapped
 
 import prefect.serialization
 
+import prefect.agent
+
 from ._version import get_versions
 
 __version__ = get_versions()["version"]  # type: ignore

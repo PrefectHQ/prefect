@@ -9,6 +9,14 @@ graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
+    [cloud.agent]
+    # Agents require different API tokens
+    auth_token = ""
+    loop_interval = 5
+
+        [cloud.agent.resource_manager]
+        # Separate loop interval for resource managers
+        loop_interval = 60
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
