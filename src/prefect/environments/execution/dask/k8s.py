@@ -18,12 +18,11 @@ from prefect.environments.storage import Docker
 from prefect.utilities import logging
 
 
-class CloudEnvironment(Environment):
+class DaskKubernetesEnvironment(Environment):
     """
-    CloudEnvironment is an environment which deploys your flow (stored in a Docker image)
-    on Kubernetes and it uses the Prefect dask executor by dynamically spawning workers as pods.
-
-    *Note*: This environment is not currently customizable. This may be subject to change.
+    DaskKubernetesEnvironment is an environment which deploys your flow (stored in a Docker image)
+    on Kubernetes by spinning up a temporary Dask Cluster (using [dask-kubernetes](https://kubernetes.dask.org/en/latest/))
+    and running the Prefect `DaskExecutor` on this cluster.
 
     If pulling from a private docker registry, `setup` will ensure the appropriate
     kubernetes secret exists; `execute` creates a single job that has the role
@@ -32,6 +31,8 @@ class CloudEnvironment(Environment):
     set with a UUID so resources can be cleaned up independently of other deployments.
 
     Args:
+        - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
+        - max_workers (int, optional): the maximum allowed number of Dask worker pods; defaults to 1
         - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
@@ -41,8 +42,14 @@ class CloudEnvironment(Environment):
     """
 
     def __init__(
-        self, private_registry: bool = False, docker_secret: str = None
+        self,
+        min_workers: int = 1,
+        max_workers: int = 2,
+        private_registry: bool = False,
+        docker_secret: str = None,
     ) -> None:
+        self.min_workers = min_workers
+        self.max_workers = max_workers
         self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
         if self.private_registry:
@@ -200,7 +207,7 @@ class CloudEnvironment(Environment):
                 cluster = KubeCluster.from_dict(
                     worker_pod, namespace=prefect.context.get("namespace")
                 )
-                cluster.adapt(minimum=1, maximum=1)
+                cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
 
                 # Load serialized flow from file and run it with a DaskExecutor
                 with open(
@@ -214,7 +221,6 @@ class CloudEnvironment(Environment):
                     executor = DaskExecutor(address=cluster.scheduler_address)
                     runner_cls = get_default_flow_runner_class()
                     runner_cls(flow=flow).run(executor=executor)
-                    sys.exit(0)  # attempt to force resource cleanup
         except Exception as exc:
             self.logger.error("Unexpected error raised during flow run: {}".format(exc))
             raise exc

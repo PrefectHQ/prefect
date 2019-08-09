@@ -1,6 +1,6 @@
 from prefect.environments.execution import (
     Environment,
+    DaskKubernetesEnvironment,
     LocalEnvironment,
     RemoteEnvironment,
 )
-from prefect.environments.execution.cloud import CloudEnvironment

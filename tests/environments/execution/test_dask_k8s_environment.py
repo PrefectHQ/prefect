@@ -9,31 +9,31 @@ import pytest
 import yaml
 
 import prefect
-from prefect.environments import CloudEnvironment
+from prefect.environments import DaskKubernetesEnvironment
 from prefect.environments.storage import Docker, Memory
 from prefect.utilities.configuration import set_temporary_config
 
 
-def test_create_cloud_environment():
-    environment = CloudEnvironment()
+def test_create_dask_environment():
+    environment = DaskKubernetesEnvironment()
     assert environment
     assert environment.private_registry is False
     assert environment.docker_secret is None
 
 
-def test_create_cloud_environment_identifier_label():
-    environment = CloudEnvironment()
+def test_create_dask_environment_identifier_label():
+    environment = DaskKubernetesEnvironment()
     assert environment.identifier_label
 
 
-def test_setup_cloud_environment_passes():
-    environment = CloudEnvironment()
+def test_setup_dask_environment_passes():
+    environment = DaskKubernetesEnvironment()
     environment.setup(storage=Docker())
     assert environment
 
 
 def test_setup_doesnt_pass_if_private_registry(monkeypatch):
-    environment = CloudEnvironment(private_registry=True)
+    environment = DaskKubernetesEnvironment(private_registry=True)
     assert environment.docker_secret == "DOCKER_REGISTRY_CREDENTIALS"
 
     config = MagicMock()
@@ -47,7 +47,8 @@ def test_setup_doesnt_pass_if_private_registry(monkeypatch):
 
     create_secret = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+        "prefect.environments.DaskKubernetesEnvironment._create_namespaced_secret",
+        create_secret,
     )
     with set_temporary_config({"cloud.auth_token": "test"}):
         environment.setup(storage=Docker())
@@ -56,7 +57,7 @@ def test_setup_doesnt_pass_if_private_registry(monkeypatch):
 
 
 def test_create_secret_isnt_called_if_exists(monkeypatch):
-    environment = CloudEnvironment(private_registry=True)
+    environment = DaskKubernetesEnvironment(private_registry=True)
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
@@ -71,7 +72,8 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 
     create_secret = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment._create_namespaced_secret", create_secret
+        "prefect.environments.DaskKubernetesEnvironment._create_namespaced_secret",
+        create_secret,
     )
     with set_temporary_config({"cloud.auth_token": "test"}):
         with prefect.context(namespace="foo"):
@@ -81,24 +83,25 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 
 
 def test_execute_improper_storage():
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
     with pytest.raises(TypeError):
         environment.execute(storage=Memory(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
     with pytest.raises(ValueError):
         environment.execute(storage=Docker(), flow_location="")
 
 
 def test_execute(monkeypatch):
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
     storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
     create_flow_run = MagicMock()
     monkeypatch.setattr(
-        "prefect.environments.CloudEnvironment.create_flow_run_job", create_flow_run
+        "prefect.environments.DaskKubernetesEnvironment.create_flow_run_job",
+        create_flow_run,
     )
 
     environment.execute(storage=storage, flow_location="")
@@ -107,7 +110,7 @@ def test_execute(monkeypatch):
 
 
 def test_create_flow_run_job(monkeypatch):
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
@@ -128,7 +131,7 @@ def test_create_flow_run_job(monkeypatch):
 
 
 def test_create_flow_run_job_fails_outside_cluster():
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
 
     with pytest.raises(EnvironmentError):
         with set_temporary_config({"cloud.auth_token": "test"}):
@@ -138,15 +141,12 @@ def test_create_flow_run_job_fails_outside_cluster():
 
 
 def test_run_flow(monkeypatch):
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
 
     flow_runner = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.get_default_flow_runner_class",
         MagicMock(return_value=flow_runner),
-    )
-    monkeypatch.setattr(
-        "prefect.environments.execution.cloud.environment.sys.exit", MagicMock()
     )
 
     kube_cluster = MagicMock()
@@ -169,11 +169,9 @@ def test_run_flow(monkeypatch):
 
 
 def test_populate_job_yaml():
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
 
-    file_path = os.path.dirname(
-        prefect.environments.execution.cloud.environment.__file__
-    )
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
     with open(path.join(file_path, "job.yaml")) as job_file:
         job = yaml.safe_load(job_file)
@@ -212,11 +210,9 @@ def test_populate_job_yaml():
 
 
 def test_populate_worker_pod_yaml():
-    environment = CloudEnvironment()
+    environment = DaskKubernetesEnvironment()
 
-    file_path = os.path.dirname(
-        prefect.environments.execution.cloud.environment.__file__
-    )
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
     with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
         pod = yaml.safe_load(pod_file)
@@ -240,11 +236,9 @@ def test_populate_worker_pod_yaml():
 
 
 def test_populate_worker_pod_yaml_with_private_registry():
-    environment = CloudEnvironment(private_registry=True)
+    environment = DaskKubernetesEnvironment(private_registry=True)
 
-    file_path = os.path.dirname(
-        prefect.environments.execution.cloud.environment.__file__
-    )
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
     with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
         pod = yaml.safe_load(pod_file)
