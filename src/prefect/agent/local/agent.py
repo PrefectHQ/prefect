@@ -21,7 +21,7 @@ class LocalAgent(Agent):
         super().__init__()
 
         base_url = base_url or "unix://var/run/docker.sock"
-        self.docker_client = docker.APIClient(base_url=base_url)
+        self.docker_client = docker.APIClient(base_url=base_url, version="auto")
 
         # Ping Docker daemon for connection issues
         try:
