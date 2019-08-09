@@ -231,7 +231,7 @@ class ResourceManager:
         self.client.write_run_log(
             flow_run_id=pod.metadata.labels.get("flow_run_id"),
             task_run_id="",
-            timestamp=str(pendulum.now()),
+            timestamp=pendulum.now(),
             name="resource-manager",
             message=logs,
             level="ERROR",
@@ -248,7 +248,7 @@ class ResourceManager:
         self.client.write_run_log(
             flow_run_id=pod.metadata.labels.get("flow_run_id"),
             task_run_id="",
-            timestamp=str(pendulum.now()),
+            timestamp=pendulum.now(),
             name="resource-manager",
             message=f"Flow run pod {name} entered an unknown state in namespace {self.namespace}",
             level="ERROR",
@@ -270,7 +270,7 @@ class ResourceManager:
                 self.client.write_run_log(
                     flow_run_id=pod.metadata.labels.get("flow_run_id"),
                     task_run_id="",
-                    timestamp=str(pendulum.now()),
+                    timestamp=pendulum.now(),
                     name="resource-manager",
                     message=f"Flow run image pull error for pod {pod.metadata.name} in namespace {self.namespace}",
                     level="ERROR",
