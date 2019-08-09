@@ -1,3 +1,7 @@
+---
+sidebarDepth: 0
+---
+
 # Prefect Cloud: First Steps
 
 Welcome to Prefect Cloud! Now that you have an account, this guide will help you orient yourself and understand the minor adjustments required to deploy your Flows to Cloud.
@@ -77,6 +81,17 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
+For added convenience, `flow.deploy` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Docker` by default).  Consequently, the following code will actually create a `Docker` object for you at deploy-time:
+
+```python
+from prefect import Flow
+
+f = Flow("example-easy-storage")
+
+# all other init kwargs to `Docker` are accepted here
+f.deploy("My First Project", registry_url="prefecthq/storage-example")
+```
+
 ::: warning Serialization
 A common issue when first onboarding to Cloud is understanding how Flow serialization into your Docker image works.  Two common issues are:
 - ensuring all Python package dependences are provided (this is usually fixed via a judicious choice of `base_image` or the `python_dependencies` kwarg)
@@ -91,7 +106,7 @@ Now that your Flow has all the required attributes, it's time to deploy to Cloud
 ```python
 flow.deploy(project="My Prefect Cloud Project Name")
 ```
-[This convenience method](https://docs.prefect.io/api/unreleased/core/flow.html#prefect-core-flow-flow-deploy) will proceed to build your Docker image, layer Prefect on top, serialize your Flow into the image, perform a "health check" that your Flow can be properly deserialized within the image and finally push the image to your registry of choice.  It will then send the corresponding _metadata_ to Prefect Cloud.
+[This convenience method](https://docs.prefect.io/api/unreleased/core/flow.html#prefect-core-flow-flow-deploy) will proceed to build your Docker image, layer Prefect on top, serialize your Flow into the image, perform a "health check" that your Flow can be properly deserialized within the image and finally push the image to your registry of choice.  It will then send the corresponding _metadata_ to Prefect Cloud.  As above, note that `flow.deploy` also accepts initialization keyword arguments for `Docker` storage if you want to avoid creating that object yourself.
 
 ::: tip GraphQL
 Advanced users who manually build their own images and perform their own serialization can actually deploy Flows via pure GraphQL (assuming they have pushed their image already).  Most people will never do this, but it highlights the minimal amount of information that Cloud requires to function.  Using our storage example above, the corresponding GraphQL call is simply:
