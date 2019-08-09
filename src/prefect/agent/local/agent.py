@@ -1,10 +1,4 @@
-import os
-from os import path
-import uuid
-import sys
-
 import docker
-import yaml
 
 from prefect import config
 from prefect.agent import Agent
@@ -16,12 +10,20 @@ from prefect.utilities.graphql import GraphQLResult
 class LocalAgent(Agent):
     """
     Agent which deploys flow runs locally as Docker containers.
+
+    Args:
+        - base_url (str, optional): URL for a Docker daemon server. Defaults to
+            `unix:///var/run/docker.sock` however other hosts such as
+            `tcp://0.0.0.0:2375` can be provided
     """
 
-    def __init__(self) -> None:
+    def __init__(self, base_url: str = None) -> None:
         super().__init__()
 
-        self.docker_client = docker.APIClient(base_url="unix://var/run/docker.sock")
+        base_url = base_url or "unix://var/run/docker.sock"
+        self.docker_client = docker.APIClient(base_url=base_url)
+
+        # Ping Docker daemon for connection issues
         try:
             self.docker_client.ping()
         except Exception as exc:
@@ -60,6 +62,15 @@ class LocalAgent(Agent):
             self.docker_client.start(container=container.get("Id"))
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
+        """
+        Populate metadata and variables in the environment variables for a flow run
+
+        Args:
+            - flow_run (GraphQLResult): A flow run object
+
+        Returns:
+            - dict: a dictionary representing the populated environment variables
+        """
         return {
             "PREFECT__CLOUD__API": config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
