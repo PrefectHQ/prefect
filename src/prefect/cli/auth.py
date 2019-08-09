@@ -20,9 +20,6 @@ def auth():
     \b
     Examples:
         $ prefect auth login --token MY_TOKEN
-
-    \b
-        $ prefect auth login --token MY_TOKEN
     """
     pass
 

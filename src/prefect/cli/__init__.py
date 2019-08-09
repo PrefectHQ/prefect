@@ -5,6 +5,7 @@ import click
 
 import prefect
 
+from .agent import agent as _agent
 from .auth import auth as _auth
 from .describe import describe as _describe
 from .execute import execute as _execute
@@ -33,6 +34,7 @@ def cli():
     Execution Commands:
         execute     Execute a flow's environment
         run         Run a flow
+        agent       Manage agents
 
     \b
     Setup Commands:
@@ -46,6 +48,7 @@ def cli():
     pass
 
 
+cli.add_command(_agent)
 cli.add_command(_auth)
 cli.add_command(_describe)
 cli.add_command(_execute)
