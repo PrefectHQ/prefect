@@ -1166,7 +1166,11 @@ class Flow:
     # Deployment ------------------------------------------------------------------
 
     def deploy(
-        self, project_name: str, build: bool = True, set_schedule_active: bool = True, **kwargs: Any
+        self,
+        project_name: str,
+        build: bool = True,
+        set_schedule_active: bool = True,
+        **kwargs: Any
     ) -> str:
         """
         Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
@@ -1185,8 +1189,8 @@ class Flow:
         Returns:
             - str: the ID of the flow that was deployed
         """
-        if flow.storage is None:
-            flow.storage = get_default_storage_class(**kwargs)
+        if self.storage is None:
+            self.storage = get_default_storage_class()(**kwargs)
 
         client = prefect.Client()
         deployed_flow = client.deploy(

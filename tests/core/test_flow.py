@@ -29,6 +29,7 @@ from prefect.engine.state import (
 )
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task, unmapped
 
 
@@ -2003,6 +2004,41 @@ class TestFlowRunMethod:
         f = Flow(name="test")
         state = f.run(state=Finished())
         assert state.is_finished()
+
+
+class TestFlowDeploy:
+    @pytest.mark.parametrize(
+        "storage",
+        ["prefect.environments.storage.Docker", "prefect.environments.storage.Memory"],
+    )
+    def test_flow_deploy_uses_default_storage(self, monkeypatch, storage):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="test")
+
+        assert f.storage is None
+        with set_temporary_config({"flows.defaults.storage.default_class": storage}):
+            f.deploy("My-project")
+
+        assert isinstance(f.storage, from_qualified_name(storage))
+
+    def test_flow_deploy_passes_kwargs_to_storage(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="test")
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
+            }
+        ):
+            f.deploy(
+                "My-project", registry_url="FOO", image_name="BAR", image_tag="BIG"
+            )
+
+        assert isinstance(f.storage, prefect.environments.storage.Docker)
+        assert f.storage.registry_url == "FOO"
+        assert f.storage.image_name == "BAR"
+        assert f.storage.image_tag == "BIG"
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

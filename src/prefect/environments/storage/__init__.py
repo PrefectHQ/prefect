@@ -40,8 +40,8 @@ def get_default_storage_class() -> type:
         except ValueError:
             warn(
                 "Could not import {}; using "
-                "prefect.environments.storage.Storage instead.".format(config_value)
+                "prefect.environments.storage.Docker instead.".format(config_value)
             )
-            return Storage
+            return Docker
     else:
         return config_value
