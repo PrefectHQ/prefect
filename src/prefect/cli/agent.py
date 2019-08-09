@@ -55,4 +55,10 @@ def start(name, token):
     with set_temporary_config(
         {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
     ):
-        _agents.get(name, ValueError())().start()
+        retrieved_agent = _agents.get(name, None)
+
+        if not retrieved_agent:
+            click.secho(f"{name} is not a valid agent", color="red")
+            return
+
+        retrieved_agent().start()
