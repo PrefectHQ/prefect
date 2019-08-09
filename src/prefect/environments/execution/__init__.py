@@ -5,5 +5,6 @@ Currently, we recommend all users deploy their Flow using the `RemoteEnvironment
 appropriate choice of executor.
 """
 from prefect.environments.execution.base import Environment
+from prefect.environments.execution.dask import DaskKubernetesEnvironment
 from prefect.environments.execution.local import LocalEnvironment
 from prefect.environments.execution.remote import RemoteEnvironment

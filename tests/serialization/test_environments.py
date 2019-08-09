@@ -2,7 +2,7 @@ import prefect
 from prefect import environments
 from prefect.serialization.environment import (
     BaseEnvironmentSchema,
-    CloudEnvironmentSchema,
+    DaskKubernetesEnvironmentSchema,
     RemoteEnvironmentSchema,
 )
 
@@ -15,10 +15,10 @@ def test_serialize_base_environment():
     assert serialized["__version__"] == prefect.__version__
 
 
-def test_serialize_cloud_environment():
-    env = environments.CloudEnvironment()
+def test_serialize_dask_environment():
+    env = environments.DaskKubernetesEnvironment()
 
-    schema = CloudEnvironmentSchema()
+    schema = DaskKubernetesEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
@@ -29,10 +29,12 @@ def test_serialize_cloud_environment():
     assert new.docker_secret is None
 
 
-def test_serialize_cloud_environment_with_private_registry():
-    env = environments.CloudEnvironment(private_registry=True, docker_secret="FOO")
+def test_serialize_dask_environment_with_private_registry():
+    env = environments.DaskKubernetesEnvironment(
+        private_registry=True, docker_secret="FOO"
+    )
 
-    schema = CloudEnvironmentSchema()
+    schema = DaskKubernetesEnvironmentSchema()
     serialized = schema.dump(env)
     assert serialized
     assert serialized["__version__"] == prefect.__version__
