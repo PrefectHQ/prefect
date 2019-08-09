@@ -72,14 +72,14 @@ class KubernetesAgent(Agent):
         job["metadata"]["name"] = job_name
         job["metadata"]["labels"]["app"] = job_name
         job["metadata"]["labels"]["identifier"] = identifier
-        job["metadata"]["labels"]["flow_run_id"] = flow_run.id
-        job["metadata"]["labels"]["flow_id"] = flow_run.flow.id
+        job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
+        job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
         job["spec"]["template"]["metadata"]["labels"]["identifier"] = identifier
 
         # Use flow storage image for job
         job["spec"]["template"]["spec"]["containers"][0]["image"] = (
-            StorageSchema().load(flow_run.flow.storage).name
+            StorageSchema().load(flow_run.flow.storage).name  # type: ignore
         )
 
         # Populate environment variables for flow run execution
@@ -87,7 +87,7 @@ class KubernetesAgent(Agent):
 
         env[0]["value"] = os.getenv("PREFECT__CLOUD__API", "https://api.prefect.io")
         env[1]["value"] = os.environ["PREFECT__CLOUD__AGENT__AUTH_TOKEN"]
-        env[2]["value"] = flow_run.id
+        env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
 
         return job
