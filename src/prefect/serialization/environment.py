@@ -25,6 +25,8 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
 
     docker_secret = fields.String(allow_none=True)
     private_registry = fields.Boolean(allow_none=False)
+    min_workers = fields.Int()
+    max_workers = fields.Int()
 
 
 class RemoteEnvironmentSchema(ObjectSchema):

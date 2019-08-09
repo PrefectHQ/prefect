@@ -23,10 +23,29 @@ def test_serialize_dask_environment():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["docker_secret"] is None
+    assert serialized["min_workers"] == 1
+    assert serialized["max_workers"] == 2
 
     new = schema.load(serialized)
     assert new.private_registry is False
     assert new.docker_secret is None
+    assert new.min_workers == 1
+    assert new.max_workers == 2
+
+
+def test_serialize_dask_environment_with_customized_workers():
+    env = environments.DaskKubernetesEnvironment(min_workers=10, max_workers=60)
+
+    schema = DaskKubernetesEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["min_workers"] == 10
+    assert serialized["max_workers"] == 60
+
+    new = schema.load(serialized)
+    assert new.min_workers == 10
+    assert new.max_workers == 60
 
 
 def test_serialize_dask_environment_with_private_registry():
