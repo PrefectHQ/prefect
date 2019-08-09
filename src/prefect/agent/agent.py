@@ -21,7 +21,7 @@ class Agent:
     customizability.
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
-    environment variable.
+    environment variable or in your user configuration file.
     """
 
     def __init__(self) -> None:
