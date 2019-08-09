@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Introduce configurable default for storage class on Flows - [#1044](https://github.com/PrefectHQ/prefect/issues/1044)
 - Allow for min and max workers to be specified in `DaskKubernetesEnvironment` - [#1338](https://github.com/PrefectHQ/prefect/pulls/1338)
 
 ### Task Library
