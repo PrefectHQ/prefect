@@ -168,7 +168,7 @@ classes = ["Docker", "Local", "Memory", "Bytes"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["LocalEnvironment", "RemoteEnvironment"]
+classes = ["DaskKubernetesEnvironment", "LocalEnvironment", "RemoteEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
