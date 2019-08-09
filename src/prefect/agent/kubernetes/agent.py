@@ -57,7 +57,7 @@ class KubernetesAgent(Agent):
         Populate metadata and variables in the job_spec.yaml file for flow runs
 
         Args:
-            - flow_run (GraphQLResult): A flow run objects
+            - flow_run (GraphQLResult): A flow run object
 
         Returns:
             - dict: a dictionary representing the populated yaml object
