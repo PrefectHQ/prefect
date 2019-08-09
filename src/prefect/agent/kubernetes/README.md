@@ -1,6 +1,6 @@
 # k8s-agent
 
-The Prefect Kubernetes agent that turns a cluster into a workflow orchestration system.
+The Prefect Kubernetes agent that turns a cluster into a workflow execution platform, orchestrated by Prefect Cloud.
 
 If running on GKE you may need to execute: `kubectl create clusterrolebinding default-admin --clusterrole cluster-admin --serviceaccount=default:default`
 
