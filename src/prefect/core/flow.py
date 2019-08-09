@@ -33,7 +33,7 @@ from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import RemoteEnvironment, Environment
-from prefect.environments.storage import Storage
+from prefect.environments.storage import get_default_storage_class, Storage
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
@@ -1166,10 +1166,15 @@ class Flow:
     # Deployment ------------------------------------------------------------------
 
     def deploy(
-        self, project_name: str, build: bool = True, set_schedule_active: bool = True
+        self,
+        project_name: str,
+        build: bool = True,
+        set_schedule_active: bool = True,
+        **kwargs: Any
     ) -> str:
         """
-        Deploy the flow to Prefect Cloud
+        Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        will be used and initialized with `**kwargs`.
 
         Args:
             - project_name (str): the project that should contain this flow.
@@ -1178,10 +1183,15 @@ class Flow:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
+                will be passed to the initialization method of the default Storage class
 
         Returns:
             - str: the ID of the flow that was deployed
         """
+        if self.storage is None:
+            self.storage = get_default_storage_class()(**kwargs)
+
         client = prefect.Client()
         deployed_flow = client.deploy(
             flow=self,
