@@ -161,7 +161,8 @@ class TestBackwardsCompatibility:
             "type": "OneTimeSchedule",
         }
         schema = ScheduleSchema()
-        schedule = schema.load(serialized)
+        with pytest.warns(UserWarning):
+            schedule = schema.load(serialized)
         assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
             pendulum.datetime(2019, 1, 2, 3, 0, 0)
         ]
@@ -173,7 +174,8 @@ class TestBackwardsCompatibility:
             "type": "OneTimeSchedule",
         }
         schema = ScheduleSchema()
-        schedule = schema.load(serialized)
+        with pytest.warns(UserWarning):
+            schedule = schema.load(serialized)
         assert schedule.next(10, after=pendulum.datetime(2020, 1, 1)) == []
 
     def test_union_schedule(self):
@@ -200,7 +202,8 @@ class TestBackwardsCompatibility:
             "type": "UnionSchedule",
         }
         schema = ScheduleSchema()
-        schedule = schema.load(serialized)
+        with pytest.warns(UserWarning):
+            schedule = schema.load(serialized)
         assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
             pendulum.datetime(2019, 1, 2, 3, 0, 0),
             pendulum.datetime(2019, 1, 2, 4, 2, 0),
