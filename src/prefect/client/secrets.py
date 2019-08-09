@@ -1,3 +1,36 @@
+"""
+A Secret is a serializable object used to represent a secret key & value.
+
+The value of the `Secret` is not set upon initialization and instead is set
+either in `prefect.context` or on the server, with behavior dependent on the value
+of the `use_local_secrets` flag in your Prefect configuration file.
+
+To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or set it directly via GraphQL:
+
+```graphql
+mutation {
+  setSecret(input: { name: "KEY", value: "VALUE" }) {
+    success
+  }
+}
+```
+
+To set a _local_ Secret, either place the value in your user configuration file (located at `~/.prefect/config.toml`):
+
+```
+[context.secrets]
+MY_KEY = "MY_VALUE"
+```
+
+or directly in context:
+
+```python
+import prefect
+
+prefect.context.secrets["MY_KEY"] = "MY_VALUE"
+```
+"""
+
 import json
 import os
 from typing import Any, Optional
