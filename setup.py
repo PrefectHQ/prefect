@@ -20,6 +20,7 @@ extras = {
     "kubernetes": ["kubernetes >= 9.0.0a1, < 10.0", "dask-kubernetes >= 0.8.0"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
+    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
     "redis": ["redis >= 3.2.1"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
