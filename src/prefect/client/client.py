@@ -391,6 +391,11 @@ class Client:
             project_mutation, variables=dict(input=dict(name=project_name))
         )  # type: Any
 
+        print(
+            'Project "{}" created with ID: {}'.format(
+                project_name, res.data.createProject.id
+            )
+        )
         return res.data.createProject.id
 
     def create_flow_run(
