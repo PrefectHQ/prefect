@@ -15,7 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add new `SnowflakeQuery` task for using snowflake data warehouse - [#1113](https://github.com/PrefectHQ/prefect/issues/1113)
 
 ### Fixes
 
@@ -31,7 +31,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Alex Kravetz](http://github.com/akravetz)
 
 
 ## 0.6.1 <Badge text="beta" type="success"/>
