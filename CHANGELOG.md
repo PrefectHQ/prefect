@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Alex Kravetz](http://github.com/akravetz)
 
 
 ## 0.6.1 <Badge text="beta" type="success"/>

@@ -282,6 +282,11 @@ title = "RSS Tasks"
 module = "prefect.tasks.rss"
 classes = ["ParseRSSFeed"]
 
+[pages.tasks.snowflake]
+title = "Snowflake Tasks"
+module = "prefect.tasks.snowflake"
+classes = ["SnowflakeQuery"]
+
 [pages.tasks.spacy]
 title = "spaCy Tasks"
 module = "prefect.tasks.spacy"
