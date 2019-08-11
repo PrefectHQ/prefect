@@ -239,6 +239,7 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
+        context = context or {}
         end_state = super().run(
             state=state,
             upstream_states=upstream_states,
@@ -253,6 +254,14 @@ class CloudTaskRunner(TaskRunner):
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
             time.sleep(naptime)
+
+            # currently required as context has reset to its original state
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id=context.get("flow_run_id", ""),
+                task_id=context.get("task_id", ""),
+                map_index=context.get("map_index"),
+            )
+            context.update(task_run_version=task_run_info.version)  # type: ignore
             return self.run(
                 state=end_state,
                 upstream_states=upstream_states,
