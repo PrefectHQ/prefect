@@ -29,7 +29,7 @@ KEY = VALUE
 with however many key / value pairs you'd like.
 
 ::: tip You don't have to store raw values in your config
-Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`.
+Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`.  Note that secrets set this way will always result in lowercase names.
 :::
 
 ### Cloud Execution

@@ -207,7 +207,8 @@ def test_stateful_validators(validator, validate_on):
         validate_on
     )
 
-    t2 = TaskSchema().load(serialized)
+    with pytest.warns(UserWarning):
+        t2 = TaskSchema().load(serialized)
     assert (
         t2.cache_validator is not validator
     )  # the validator is not the factory function
