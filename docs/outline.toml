@@ -24,7 +24,7 @@ classes = ["Client"]
 
 [pages.client.secrets]
 title = "Secrets"
-module = "prefect.client"
+module = "prefect.client.secrets"
 classes = ["Secret"]
 
 [pages.schedules.schedules]
@@ -168,7 +168,7 @@ classes = ["Docker", "Local", "Memory", "Bytes"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["LocalEnvironment", "RemoteEnvironment"]
+classes = ["DaskKubernetesEnvironment", "LocalEnvironment", "RemoteEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

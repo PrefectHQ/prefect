@@ -9,6 +9,14 @@ graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
+    [cloud.agent]
+    # Agents require different API tokens
+    auth_token = ""
+    loop_interval = 5
+
+        [cloud.agent.resource_manager]
+        # Separate loop interval for resource managers
+        loop_interval = 60
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
@@ -32,6 +40,12 @@ eager_edge_validation = false
 run_on_schedule = true
 # If true, tasks which set `checkpoint=True` will have their result handlers called
 checkpointing = false
+
+    [flows.defaults]
+        [flows.defaults.storage]
+
+        # the default storage class, specified using a full path
+        default_class = "prefect.environments.storage.Docker"
 
 [tasks]
 
