@@ -622,7 +622,9 @@ def test_task_runner_performs_retries_for_short_delays(client):
             global_list.append(0)
             raise ValueError("oops")
 
+    client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(4, 7)]
     res = CloudTaskRunner(task=noop).run(
+        context={"task_run_version": 1},
         state=None,
         upstream_states={},
         executor=prefect.engine.executors.LocalExecutor(),
@@ -630,7 +632,9 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
     ## assertions
     assert res.is_successful()
-    assert client.get_task_run_info.call_count == 0  # never called
+    assert client.get_task_run_info.call_count == 1  # called once on the retry
     assert (
         client.set_task_run_state.call_count == 5
     )  # Pending -> Running -> Failed -> Retrying -> Running -> Success
+    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
+    assert versions == [1, 2, 3, 4, 5]
