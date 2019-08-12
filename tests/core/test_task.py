@@ -260,6 +260,12 @@ def test_task_has_logger():
     assert t.logger.name == "prefect.Task"
 
 
+def test_task_has_logger_with_informative_name():
+    t = Task(name="foo")
+    assert isinstance(t.logger, logging.Logger)
+    assert t.logger.name == "prefect.foo"
+
+
 def test_task_produces_no_result():
     t = Task()
     assert t.run() is None
