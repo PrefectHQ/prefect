@@ -125,6 +125,15 @@ class State:
         """
         return isinstance(self, Finished)
 
+    def is_looped(self) -> bool:
+        """
+        Checks if the state is currently in a looped state
+
+        Returns:
+            - bool: `True` if the state is looped, `False` otherwise
+        """
+        return isinstance(self, Looped)
+
     def is_scheduled(self) -> bool:
         """
         Checks if the state is currently in a scheduled state, which includes retrying.

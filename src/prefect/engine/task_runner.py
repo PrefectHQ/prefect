@@ -25,6 +25,7 @@ from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult, Result
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -836,6 +837,28 @@ class TaskRunner(Runner):
             )
             return state
 
+        except signals.LOOP as exc:
+            new_state = exc.state
+            new_state.result = Result(
+                value=new_state.result, result_handler=self.result_handler
+            )
+            return new_state
+
+            # we don't want to use a context manager for context so that
+            # task run version information is preserved for the final "Success" state
+            prefect.context.update(
+                task_loop_count=new_state.loop_count + 1  # type: ignore
+            )
+            prefect.context.update(loop_result=new_state.result)
+            # we don't want new heartbeat timers to spawn
+            # we also want to avoid calling state handlers within the recursion -
+            # all state handling will be carried out manually + within the current
+            # top call
+            state = self.handle_state_change(old_state=state, new_state=new_state)
+            return self.get_task_run_state.__func__.__wrapped__.__wrapped__(  # type: ignore
+                self=self, state=state, inputs=inputs, timeout_handler=timeout_handler
+            )
+
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
@@ -900,6 +923,40 @@ class TaskRunner(Runner):
         """
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
+            if run_count <= self.task.max_retries:
+                start_time = pendulum.now("utc") + self.task.retry_delay
+                msg = "Retrying Task (after attempt {n} of {m})".format(
+                    n=run_count, m=self.task.max_retries + 1
+                )
+                retry_state = Retrying(
+                    start_time=start_time,
+                    cached_inputs=inputs,
+                    message=msg,
+                    run_count=run_count,
+                )
+                return retry_state
+
+        return state
+
+    def check_for_looped_task(self, state: State, inputs: Dict[str, Result]) -> State:
+        """
+        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_index`.
+
+        Args:
+            - state (State): the current state of this task
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        Returns:
+            - State: the state of the task after running the check
+        """
+        if state.is_looped():
+            state = self.handle_state_change(old_state=state, new_state=new_state)
+            msg = "Looping task"
+            context_inputs = {"loop_result": state._result,
+                              "loop_index": Result(value=state.loop_index + 1, result_handler=JSONResultHandler()}
+            new_state = Scheduled(message=msg)
+
             if run_count <= self.task.max_retries:
                 start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
