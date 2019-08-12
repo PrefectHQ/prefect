@@ -148,6 +148,18 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
+        if isinstance(state, Pending):
+            if "_loop_index" in (state.cached_inputs or {}):
+                loop_context = {
+                    "loop_index": state.cached_inputs.pop("_loop_index")
+                    .to_result()
+                    .value,
+                    "loop_result": state.cached_inputs.pop("_loop_result")
+                    .to_result()
+                    .value,
+                }
+                contextx.update(loop_context)
+
         context.update(
             task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
         )
@@ -270,6 +282,14 @@ class TaskRunner(Runner):
 
                 # check if the task needs to be retried
                 state = self.check_for_retry(state, inputs=task_inputs)
+
+                state = self.check_task_is_looping(
+                    state,
+                    inputs=task_inputs,
+                    upstream_states=upstream_states,
+                    context=context,
+                    executor=executor,
+                )
 
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
@@ -844,21 +864,6 @@ class TaskRunner(Runner):
             )
             return new_state
 
-            # we don't want to use a context manager for context so that
-            # task run version information is preserved for the final "Success" state
-            prefect.context.update(
-                task_loop_count=new_state.loop_count + 1  # type: ignore
-            )
-            prefect.context.update(loop_result=new_state.result)
-            # we don't want new heartbeat timers to spawn
-            # we also want to avoid calling state handlers within the recursion -
-            # all state handling will be carried out manually + within the current
-            # top call
-            state = self.handle_state_change(old_state=state, new_state=new_state)
-            return self.get_task_run_state.__func__.__wrapped__.__wrapped__(  # type: ignore
-                self=self, state=state, inputs=inputs, timeout_handler=timeout_handler
-            )
-
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
@@ -938,36 +943,46 @@ class TaskRunner(Runner):
 
         return state
 
-    def check_for_looped_task(self, state: State, inputs: Dict[str, Result]) -> State:
+    def check_task_is_looping(
+        self,
+        state: State = None,
+        inputs: Dict[str, Result] = None,
+        upstream_states: Dict[Edge, State] = None,
+        context: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+    ) -> State:
         """
         Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_index`.
 
         Args:
-            - state (State): the current state of this task
+            - state (State, optional): initial `State` to begin task run from;
+                defaults to `Pending()`
             - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - context (dict, optional): prefect Context to use for execution
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
 
         Returns:
-            - State: the state of the task after running the check
+            - `State` object representing the final post-run state of the Task
         """
         if state.is_looped():
-            state = self.handle_state_change(old_state=state, new_state=new_state)
-            msg = "Looping task"
-            context_inputs = {"loop_result": state._result,
-                              "loop_index": Result(value=state.loop_index + 1, result_handler=JSONResultHandler()}
-            new_state = Scheduled(message=msg)
-
-            if run_count <= self.task.max_retries:
-                start_time = pendulum.now("utc") + self.task.retry_delay
-                msg = "Retrying Task (after attempt {n} of {m})".format(
-                    n=run_count, m=self.task.max_retries + 1
-                )
-                retry_state = Retrying(
-                    start_time=start_time,
-                    cached_inputs=inputs,
-                    message=msg,
-                    run_count=run_count,
-                )
-                return retry_state
+            msg = "Looping task (on loop index {})".format(state.loop_index)
+            context.update(
+                {
+                    "task_loop_result": state.result,
+                    "task_loop_index": state.loop_index + 1,
+                }
+            )
+            new_state = Pending(message=msg)
+            return self.run(
+                new_state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )
 
         return state
