@@ -962,6 +962,19 @@ class TestRunTaskStep:
         )
         assert new_state.is_failed()
 
+    def test_raise_loop_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.LOOP(result=1)
+
+        state = Running()
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_looped()
+        assert new_state.result == 1
+        assert new_state.loop_index == 1
+
     def test_raise_skip_signal(self):
         @prefect.task
         def fn():

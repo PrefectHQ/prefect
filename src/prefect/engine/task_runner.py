@@ -311,11 +311,15 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
-        self.logger.info(
-            "Task '{name}': finished task run for task with final state: '{state}'".format(
-                name=context["task_full_name"], state=type(state).__name__
+        if prefect.context.get("task_loop_index") is None:
+            # to prevent excessive repetition of this log
+            # since looping relies on recursively calling self.run
+            # TODO: figure out a way to only log this one single time instead of twice
+            self.logger.info(
+                "Task '{name}': finished task run for task with final state: '{state}'".format(
+                    name=context["task_full_name"], state=type(state).__name__
+                )
             )
-        )
 
         return state
 
