@@ -16,6 +16,7 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Finished,
+    Looped,
     Mapped,
     Paused,
     Pending,
@@ -135,6 +136,22 @@ def test_only_scheduled_and_queued_states_have_start_times(cls):
     else:
         assert not isinstance(state, Scheduled)
         assert not state.is_scheduled()
+
+
+def test_retry_stores_loop_index():
+    state = Looped(loop_index=2)
+    assert state.loop_index == 2
+
+
+def test_looped_stores_default_loop_index():
+    state = Looped()
+    assert state.loop_index == 1
+
+
+def test_looped_stores_default_loop_index_in_context():
+    with prefect.context(task_loop_index=5):
+        state = Looped()
+    assert state.loop_index == 5
 
 
 def test_retry_stores_run_count():
@@ -276,6 +293,9 @@ class TestStateHierarchy:
     def test_retrying_is_scheduled(self):
         assert issubclass(Retrying, Scheduled)
 
+    def test_looped_is_finished(self):
+        assert issubclass(Looped, Finished)
+
     def test_success_is_finished(self):
         assert issubclass(Success, Finished)
 
@@ -312,6 +332,7 @@ class TestStateHierarchy:
         dict(state=ClientFailed(), assert_true={"is_meta_state"}),
         dict(state=Failed(), assert_true={"is_finished", "is_failed"}),
         dict(state=Finished(), assert_true={"is_finished"}),
+        dict(state=Looped(), assert_true={"is_finished"}),
         dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
         dict(state=Paused(), assert_true={"is_pending"}),
         dict(state=Pending(), assert_true={"is_pending"}),

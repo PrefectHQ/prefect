@@ -105,6 +105,11 @@ class FinishedSchema(BaseStateSchema):
         object_class = state.Finished
 
 
+class LoopedSchema(BaseStateSchema):
+    class Meta:
+        object_class = state.Looped
+
+
 class SuccessSchema(FinishedSchema):
     class Meta:
         object_class = state.Success
@@ -192,6 +197,7 @@ class StateSchema(OneOfSchema):
         "ClientFailed": ClientFailedSchema,
         "Failed": FailedSchema,
         "Finished": FinishedSchema,
+        "Looped": LoopedSchema,
         "Mapped": MappedSchema,
         "Paused": PausedSchema,
         "Pending": PendingSchema,

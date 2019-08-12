@@ -56,6 +56,21 @@ class FAIL(PrefectStateSignal):
     _state_cls = state.Failed
 
 
+class LOOP(PrefectStateSignal):
+    """
+    Indicates that a task should loop.
+
+    Args:
+        - message (Any, optional): Defaults to `None`. A message about the signal.
+        - *args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
+    """
+
+    _state_cls = state.Looped
+
+
 class TRIGGERFAIL(FAIL):
     """
     Indicates that a task trigger failed.

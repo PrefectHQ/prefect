@@ -6,6 +6,7 @@ import pytest
 import prefect
 from prefect.engine.signals import (
     FAIL,
+    LOOP,
     PAUSE,
     RETRY,
     SKIP,
@@ -15,6 +16,7 @@ from prefect.engine.signals import (
 )
 from prefect.engine.state import (
     Failed,
+    Looped,
     Paused,
     Retrying,
     Skipped,
@@ -82,6 +84,7 @@ def test_retry_signals_prefer_supplied_run_count_to_context():
     "signal,state",
     [
         (FAIL, Failed),
+        (LOOP, Looped),
         (TRIGGERFAIL, TriggerFailed),
         (SUCCESS, Success),
         (PAUSE, Paused),

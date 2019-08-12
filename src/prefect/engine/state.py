@@ -467,6 +467,32 @@ class Finished(State):
     color = "#003ccb"
 
 
+class Looped(Finished):
+    """
+    Finished state indicating one successful run of a looped task - if a Task is in this state, it will
+    run the next iteration of the loop immediately after.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - loop_index (int): The iteration number of the looping task.
+            Defaults to the value stored in context under "task_loop_index" or 1,
+            if that value isn't found.
+    """
+
+    color = "#003ccb"
+
+    def __init__(
+        self, message: str = None, result: Any = NoResult, loop_index: int = None
+    ):
+        super().__init__(result=result, message=message)
+        if loop_index is None:
+            loop_index = prefect.context.get("task_loop_index", 1)
+        assert loop_index is not None  # mypy assert
+        self.loop_index = loop_index  # type: int
+
+
 class Success(Finished):
     """
     Finished state indicating success.
