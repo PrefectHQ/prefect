@@ -109,6 +109,8 @@ class LoopedSchema(BaseStateSchema):
     class Meta:
         object_class = state.Looped
 
+    loop_count = fields.Int(allow_none=False)
+
 
 class SuccessSchema(FinishedSchema):
     class Meta:
