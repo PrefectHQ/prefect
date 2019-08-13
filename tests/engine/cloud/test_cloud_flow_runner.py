@@ -402,7 +402,7 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert isinstance(states[1].result, SyntaxError)
 
 
-def test_starting_at_arbitrary_loop_index_from_cloud_context(monkeypatch):
+def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     @prefect.task
     def looper(x):
         if prefect.context.get("task_loop_count", 1) < 20:
@@ -417,16 +417,10 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(monkeypatch):
         inter = looper(10)
         final = downstream(inter)
 
-    get_flow_run_info = MagicMock(
+    client.get_flow_run_info = MagicMock(
         return_value=MagicMock(context={"task_loop_count": 20})
     )
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
-    monkeypatch.setattr(
-        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
-    )
+    client.set_flow_run_state = MagicMock()
 
     flow_state = CloudFlowRunner(flow=f).run(return_tasks=[inter, final])
 
