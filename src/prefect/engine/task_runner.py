@@ -868,11 +868,12 @@ class TaskRunner(Runner):
 
         except signals.LOOP as exc:
             new_state = exc.state
+            assert isinstance(new_state, Looped)
             new_state.result = Result(
                 value=new_state.result, result_handler=self.result_handler
             )
             new_state.message = exc.state.message or "Task is looping ({})".format(
-                exc.state.loop_count
+                new_state.loop_count
             )
             return new_state
 

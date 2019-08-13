@@ -70,6 +70,12 @@ class LOOP(PrefectStateSignal):
 
     _state_cls = state.Looped
 
+    def __init__(self, message: str = None, *args, **kwargs):  # type: ignore
+        kwargs.setdefault(
+            "result", repr(self)
+        )  # looped results are always result handled
+        super().__init__(message, *args, **kwargs)  # type: ignore
+
 
 class TRIGGERFAIL(FAIL):
     """
