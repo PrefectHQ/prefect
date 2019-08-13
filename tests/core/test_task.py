@@ -257,13 +257,13 @@ class TestCreateTask:
 def test_task_has_logger():
     t = Task()
     assert isinstance(t.logger, logging.Logger)
-    assert t.logger.name == "prefect.Task"
+    assert t.logger.name == "prefect.Task: Task"
 
 
 def test_task_has_logger_with_informative_name():
     t = Task(name="foo")
     assert isinstance(t.logger, logging.Logger)
-    assert t.logger.name == "prefect.foo"
+    assert t.logger.name == "prefect.Task: foo"
 
 
 def test_task_produces_no_result():
