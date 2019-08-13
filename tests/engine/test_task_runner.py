@@ -1713,6 +1713,23 @@ class TestLooping:
         assert state.is_successful()
         assert state.result == 42
 
+    def test_looping_doesnt_aggressively_log(self, caplog):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 10:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        logs = [
+            log
+            for log in caplog.records
+            if "TaskRunner" in log.name and "finished" in log.message
+        ]
+        assert len(logs) >= 1  # a finished log was in fact created
+        assert len(logs) <= 2  # but not too many were issued
+
     def test_looping_accumulates(self):
         @prefect.task
         def my_task():
@@ -1725,3 +1742,40 @@ class TestLooping:
         state = TaskRunner(my_task).run()
         assert state.is_successful()
         assert state.result == 3
+
+    def test_looping_works_with_retries(self):
+        @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) == 2:
+                if prefect.context.get("task_run_count", 1) > 1:
+                    return 42
+                raise SyntaxError("failure")
+            elif prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+
+        runner = TaskRunner(my_task)
+        state = runner.run()
+        assert state.is_retrying()
+
+        state = runner.run(state=state)
+        assert state.is_successful()
+
+    def test_loop_results_work_with_retries(self):
+        @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) == 3:
+                if prefect.context.get("task_run_count", 1) > 1:
+                    return prefect.context.get("task_loop_result")
+                raise SyntaxError("failure")
+            elif prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", 0) + 1
+                )
+
+        runner = TaskRunner(my_task)
+        state = runner.run()
+        assert state.is_retrying()
+
+        state = runner.run(state=state)
+        assert state.is_successful()
+        assert state.result == 2
