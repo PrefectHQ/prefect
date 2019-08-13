@@ -6,6 +6,7 @@ import pytest
 import prefect
 from prefect.engine.signals import (
     FAIL,
+    LOOP,
     PAUSE,
     RETRY,
     SKIP,
@@ -15,6 +16,7 @@ from prefect.engine.signals import (
 )
 from prefect.engine.state import (
     Failed,
+    Looped,
     Paused,
     Retrying,
     Skipped,
@@ -96,6 +98,15 @@ def test_signals_creates_correct_states(signal, state):
     assert type(exc.value.state) is state
     assert exc.value.state.result is exc.value
     assert exc.value.state.message == state.__name__
+
+
+def test_signals_creates_correct_states_for_looped():
+    with pytest.raises(Exception) as exc:
+        raise LOOP("signal")
+    assert isinstance(exc.value, LOOP)
+    assert type(exc.value.state) is Looped
+    assert exc.value.state.result == repr(exc.value)
+    assert exc.value.state.message == "signal"
 
 
 def test_retry_signals_carry_default_retry_time_on_state():

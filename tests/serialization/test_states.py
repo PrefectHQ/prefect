@@ -46,6 +46,7 @@ def complex_states():
         cached_result_expiration=naive_dt,
     )
     test_states = [
+        state.Looped(loop_count=45),
         state.Pending(cached_inputs=complex_result),
         state.Paused(cached_inputs=complex_result),
         state.Retrying(start_time=utc_dt, run_count=3),
