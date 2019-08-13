@@ -25,10 +25,12 @@ from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult, Result
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
     Failed,
+    Looped,
     Mapped,
     Paused,
     Pending,
@@ -147,6 +149,22 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
+        if hasattr(state, "cached_inputs"):
+            if "_loop_count" in (state.cached_inputs or {}):  # type: ignore
+                loop_context = {
+                    "task_loop_count": state.cached_inputs.pop(  # type: ignore
+                        "_loop_count"
+                    )  # type: ignore
+                    .to_result()
+                    .value,
+                    "task_loop_result": state.cached_inputs.pop(  # type: ignore
+                        "_loop_result"
+                    )  # type: ignore
+                    .to_result()
+                    .value,
+                }
+                context.update(loop_context)
+
         context.update(
             task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
         )
@@ -198,9 +216,12 @@ class TaskRunner(Runner):
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
-        self.logger.info(
-            "Task '{name}': Starting task run...".format(name=context["task_full_name"])
-        )
+        if context.get("task_loop_count") is None:
+            self.logger.info(
+                "Task '{name}': Starting task run...".format(
+                    name=context["task_full_name"]
+                )
+            )
 
         try:
             # initialize the run
@@ -270,6 +291,14 @@ class TaskRunner(Runner):
                 # check if the task needs to be retried
                 state = self.check_for_retry(state, inputs=task_inputs)
 
+                state = self.check_task_is_looping(
+                    state,
+                    inputs=task_inputs,
+                    upstream_states=upstream_states,
+                    context=context,
+                    executor=executor,
+                )
+
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
@@ -290,11 +319,15 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
-        self.logger.info(
-            "Task '{name}': finished task run for task with final state: '{state}'".format(
-                name=context["task_full_name"], state=type(state).__name__
+        if prefect.context.get("task_loop_count") is None:
+            # to prevent excessive repetition of this log
+            # since looping relies on recursively calling self.run
+            # TODO: figure out a way to only log this one single time instead of twice
+            self.logger.info(
+                "Task '{name}': finished task run for task with final state: '{state}'".format(
+                    name=context["task_full_name"], state=type(state).__name__
+                )
             )
-        )
 
         return state
 
@@ -836,6 +869,17 @@ class TaskRunner(Runner):
             )
             return state
 
+        except signals.LOOP as exc:
+            new_state = exc.state
+            assert isinstance(new_state, Looped)
+            new_state.result = Result(
+                value=new_state.result, result_handler=self.result_handler
+            )
+            new_state.message = exc.state.message or "Task is looping ({})".format(
+                new_state.loop_count
+            )
+            return new_state
+
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(result=result, message="Task run succeeded.")
 
@@ -900,6 +944,18 @@ class TaskRunner(Runner):
         """
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
+            if prefect.context.get("task_loop_count") is not None:
+                loop_context = {
+                    "_loop_count": Result(
+                        value=prefect.context["task_loop_count"],
+                        result_handler=JSONResultHandler(),
+                    ),
+                    "_loop_result": Result(
+                        value=prefect.context.get("task_loop_result"),
+                        result_handler=self.result_handler,
+                    ),
+                }
+                inputs.update(loop_context)
             if run_count <= self.task.max_retries:
                 start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
@@ -912,5 +968,52 @@ class TaskRunner(Runner):
                     run_count=run_count,
                 )
                 return retry_state
+
+        return state
+
+    def check_task_is_looping(
+        self,
+        state: State,
+        inputs: Dict[str, Result] = None,
+        upstream_states: Dict[Edge, State] = None,
+        context: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+    ) -> State:
+        """
+        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_count`.
+
+        Args:
+            - state (State, optional): initial `State` to begin task run from;
+                defaults to `Pending()`
+            - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - context (dict, optional): prefect Context to use for execution
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
+
+        Returns:
+            - `State` object representing the final post-run state of the Task
+        """
+        if state.is_looped():
+            assert isinstance(state, Looped)  # mypy assert
+            assert isinstance(context, dict)  # mypy assert
+            msg = "Looping task (on loop index {})".format(state.loop_count)
+            context.update(
+                {
+                    "task_loop_result": state.result,
+                    "task_loop_count": state.loop_count + 1,
+                }
+            )
+            context.update(task_run_version=prefect.context.get("task_run_version"))
+            new_state = Pending(message=msg)
+            return self.run(
+                new_state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )
 
         return state

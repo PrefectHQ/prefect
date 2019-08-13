@@ -95,7 +95,7 @@ class CloudTaskRunner(TaskRunner):
                 cache_for=self.task.cache_for,
             )
         except Exception as exc:
-            self.logger.debug(
+            self.logger.error(
                 "Failed to set task state with error: {}".format(repr(exc))
             )
             raise ENDRUN(state=ClientFailed(state=new_state))

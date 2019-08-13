@@ -125,6 +125,15 @@ class State:
         """
         return isinstance(self, Finished)
 
+    def is_looped(self) -> bool:
+        """
+        Checks if the state is currently in a looped state
+
+        Returns:
+            - bool: `True` if the state is looped, `False` otherwise
+        """
+        return isinstance(self, Looped)
+
     def is_scheduled(self) -> bool:
         """
         Checks if the state is currently in a scheduled state, which includes retrying.
@@ -465,6 +474,32 @@ class Finished(State):
     """
 
     color = "#003ccb"
+
+
+class Looped(Finished):
+    """
+    Finished state indicating one successful run of a looped task - if a Task is in this state, it will
+    run the next iteration of the loop immediately after.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - loop_count (int): The iteration number of the looping task.
+            Defaults to the value stored in context under "task_loop_count" or 1,
+            if that value isn't found.
+    """
+
+    color = "#003ccb"
+
+    def __init__(
+        self, message: str = None, result: Any = NoResult, loop_count: int = None
+    ):
+        super().__init__(result=result, message=message)
+        if loop_count is None:
+            loop_count = prefect.context.get("task_loop_count", 1)
+        assert loop_count is not None  # mypy assert
+        self.loop_count = loop_count  # type: int
 
 
 class Success(Finished):

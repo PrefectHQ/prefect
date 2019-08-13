@@ -962,6 +962,34 @@ class TestRunTaskStep:
         )
         assert new_state.is_failed()
 
+    def test_raise_loop_signal(self):
+        @prefect.task
+        def fn():
+            raise signals.LOOP(result=1)
+
+        state = Running()
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_looped()
+        assert new_state.result == 1
+        assert new_state.loop_count == 1
+        assert "looping" in new_state.message
+
+    def test_raise_loop_signal_with_custom_message(self):
+        @prefect.task
+        def fn():
+            raise signals.LOOP(message="My message")
+
+        state = Running()
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_looped()
+        assert "LOOP" in new_state.result
+        assert new_state.loop_count == 1
+        assert new_state.message == "My message"
+
     def test_raise_skip_signal(self):
         @prefect.task
         def fn():
@@ -1685,3 +1713,185 @@ def test_task_runner_provides_logger():
     state = TaskRunner(my_task).run()
     assert state.is_successful()
     assert state.result is my_task.logger
+
+
+class TestLooping:
+    def test_looping_works(self):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 42
+
+    def test_looping_calls_state_handlers_appropriately(self):
+        glob = []
+
+        def sh(obj, old, new):
+            glob.append(new)
+
+        @prefect.task(state_handlers=[sh])
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 42
+
+        assert len(glob) == 6
+        assert len([s for s in glob if s.is_looped()]) == 2
+        assert len([s for s in glob if s.is_running()]) == 3
+        assert len([s for s in glob if s.is_successful()]) == 1
+
+    def test_looping_doesnt_aggressively_log_task_starting(self, caplog):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 10:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        logs = [
+            log
+            for log in caplog.records
+            if "TaskRunner" in log.name and "Starting" in log.message
+        ]
+        assert len(logs) == 1
+
+    def test_looping_doesnt_aggressively_log_task_finished(self, caplog):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 10:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        logs = [
+            log
+            for log in caplog.records
+            if "TaskRunner" in log.name and "finished" in log.message
+        ]
+        assert len(logs) >= 1  # a finished log was in fact created
+        assert len(logs) <= 2  # but not too many were issued
+
+    def test_looping_accumulates(self):
+        @prefect.task
+        def my_task():
+            curr = prefect.context.get("task_loop_result", 0)
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(result=curr + 1)
+            else:
+                return curr + 1
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 3
+
+    def test_looping_only_checkpoints_the_final_result(self):
+        class Handler(ResultHandler):
+            data = []
+
+            def write(self, obj):
+                self.data.append(obj)
+                return self.data.index(obj)
+
+            def read(self, idx):
+                return self.data[idx]
+
+        handler = Handler()
+
+        @prefect.task(checkpoint=True, result_handler=handler)
+        def my_task():
+            curr = prefect.context.get("task_loop_result", 0)
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(result=curr + 1)
+            else:
+                return curr + 1
+
+        state = TaskRunner(my_task).run(context={"checkpointing": True})
+        assert state.is_successful()
+        assert state.result == 3
+        assert handler.data == [3]
+
+    def test_looping_works_with_retries(self):
+        @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) == 2:
+                if prefect.context.get("task_run_count", 1) > 1:
+                    return 42
+                raise SyntaxError("failure")
+            elif prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+
+        runner = TaskRunner(my_task)
+        state = runner.run()
+        assert state.is_retrying()
+
+        state = runner.run(state=state)
+        assert state.is_successful()
+
+    def test_loop_results_work_with_retries(self):
+        @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) == 3:
+                if prefect.context.get("task_run_count", 1) > 1:
+                    return prefect.context.get("task_loop_result")
+                raise SyntaxError("failure")
+            elif prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", 0) + 1
+                )
+
+        runner = TaskRunner(my_task)
+        state = runner.run()
+        assert state.is_retrying()
+
+        state = runner.run(state=state)
+        assert state.is_successful()
+        assert state.result == 2
+
+    def test_looping_works_with_mapping(self):
+        @prefect.task
+        def my_task(i):
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            return prefect.context.get("task_loop_result")
+
+        runner = TaskRunner(my_task)
+        state = runner.run(
+            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
+        )
+
+        assert state.is_mapped()
+        assert [s.result for s in state.map_states] == [7, 26]
+
+    def test_looping_works_with_mapping_and_individual_retries(self):
+        @prefect.task(max_retries=1, retry_delay=timedelta(seconds=0))
+        def my_task(i):
+            if prefect.context.get("task_loop_result") == 4:
+                raise ValueError("Can't do 4")
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            return prefect.context.get("task_loop_result")
+
+        runner = TaskRunner(my_task)
+        state = runner.run(
+            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
+        )
+
+        assert state.is_mapped()
+        state.map_states[0].is_retrying()
+        state.map_states[1].is_successful()
