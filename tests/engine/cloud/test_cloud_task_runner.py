@@ -690,7 +690,7 @@ def test_task_runner_handles_looping_with_no_result(client):
 
 
 def test_task_runner_handles_looping_with_retries_with_no_result(client):
-    # note that looping _requires_ a result handler in Cloud
+    # note that looping with retries _requires_ a result handler in Cloud
     @prefect.task(
         max_retries=1,
         retry_delay=datetime.timedelta(seconds=0),
