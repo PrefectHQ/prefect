@@ -153,7 +153,7 @@ class Flow:
             raise ValueError("A name must be provided for the flow.")
 
         self.name = name
-        self.logger = logging.get_logger(self.name)
+        self.logger = logging.get_logger("Flow: {}".format(self.name))
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage

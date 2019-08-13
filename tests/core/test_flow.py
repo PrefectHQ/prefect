@@ -115,12 +115,12 @@ class TestCreateFlow:
     def test_flow_has_logger(self):
         f = Flow(name="test")
         assert isinstance(f.logger, logging.Logger)
-        assert f.logger.name == "prefect.test"
+        assert f.logger.name == "prefect.Flow: test"
 
     def test_flow_has_logger_with_informative_name(self):
         f = Flow(name="foo")
         assert isinstance(f.logger, logging.Logger)
-        assert f.logger.name == "prefect.foo"
+        assert f.logger.name == "prefect.Flow: foo"
 
     def test_create_flow_with_result_handler(self):
         f = Flow(name="test", result_handler=LocalResultHandler())
