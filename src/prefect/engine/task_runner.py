@@ -216,9 +216,12 @@ class TaskRunner(Runner):
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
-        self.logger.info(
-            "Task '{name}': Starting task run...".format(name=context["task_full_name"])
-        )
+        if context.get("task_loop_count") is None:
+            self.logger.info(
+                "Task '{name}': Starting task run...".format(
+                    name=context["task_full_name"]
+                )
+            )
 
         try:
             # initialize the run
