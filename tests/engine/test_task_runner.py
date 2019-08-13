@@ -974,6 +974,21 @@ class TestRunTaskStep:
         assert new_state.is_looped()
         assert new_state.result == 1
         assert new_state.loop_count == 1
+        assert "looping" in new_state.message
+
+    def test_raise_loop_signal_with_custom_message(self):
+        @prefect.task
+        def fn():
+            raise signals.LOOP(message="My message")
+
+        state = Running()
+        new_state = TaskRunner(task=fn).get_task_run_state(
+            state=state, inputs={}, timeout_handler=None
+        )
+        assert new_state.is_looped()
+        assert isinstance(new_state.result, signals.LOOP)
+        assert new_state.loop_count == 1
+        assert new_state.message == "My message"
 
     def test_raise_skip_signal(self):
         @prefect.task
@@ -1779,3 +1794,40 @@ class TestLooping:
         state = runner.run(state=state)
         assert state.is_successful()
         assert state.result == 2
+
+    def test_looping_works_with_mapping(self):
+        @prefect.task
+        def my_task(i):
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            return prefect.context.get("task_loop_result")
+
+        runner = TaskRunner(my_task)
+        state = runner.run(
+            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
+        )
+
+        assert state.is_mapped()
+        assert [s.result for s in state.map_states] == [7, 26]
+
+    def test_looping_works_with_mapping_and_individual_retries(self):
+        @prefect.task(max_retries=1, retry_delay=timedelta(seconds=0))
+        def my_task(i):
+            if prefect.context.get("task_loop_result") == 4:
+                raise ValueError("Can't do 4")
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            return prefect.context.get("task_loop_result")
+
+        runner = TaskRunner(my_task)
+        state = runner.run(
+            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
+        )
+
+        assert state.is_mapped()
+        state.map_states[0].is_retrying()
+        state.map_states[1].is_successful()
