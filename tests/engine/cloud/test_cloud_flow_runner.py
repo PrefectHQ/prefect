@@ -400,3 +400,30 @@ def test_state_handler_failures_are_handled_appropriately(client):
     assert states[0].is_running()
     assert states[1].is_failed()
     assert isinstance(states[1].result, SyntaxError)
+
+
+def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
+    @prefect.task
+    def looper(x):
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result", 0) + x
+
+    @prefect.task
+    def downstream(l):
+        return l ** 2
+
+    with prefect.Flow(name="looping") as f:
+        inter = looper(10)
+        final = downstream(inter)
+
+    client.get_flow_run_info = MagicMock(
+        return_value=MagicMock(context={"task_loop_count": 20})
+    )
+    client.set_flow_run_state = MagicMock()
+
+    flow_state = CloudFlowRunner(flow=f).run(return_tasks=[inter, final])
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 10
+    assert flow_state.result[final].result == 100
