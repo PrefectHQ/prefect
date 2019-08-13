@@ -1000,6 +1000,8 @@ class TaskRunner(Runner):
                     "task_loop_count": state.loop_count + 1,
                 }
             )
+            if "task_run_version" in prefect.context:
+                context.update(task_run_version=prefect.context["task_run_version"])
             new_state = Pending(message=msg)
             return self.run(
                 new_state,
