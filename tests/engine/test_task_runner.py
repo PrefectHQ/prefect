@@ -1728,7 +1728,45 @@ class TestLooping:
         assert state.is_successful()
         assert state.result == 42
 
-    def test_looping_doesnt_aggressively_log(self, caplog):
+    def test_looping_calls_state_handlers_appropriately(self):
+        glob = []
+
+        def sh(obj, old, new):
+            glob.append(new)
+
+        @prefect.task(state_handlers=[sh])
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 42
+
+        assert len(glob) == 6
+        assert len([s for s in glob if s.is_looped()]) == 2
+        assert len([s for s in glob if s.is_running()]) == 3
+        assert len([s for s in glob if s.is_successful()]) == 1
+
+    def test_looping_doesnt_aggressively_log_task_starting(self, caplog):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 10:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        logs = [
+            log
+            for log in caplog.records
+            if "TaskRunner" in log.name and "Starting" in log.message
+        ]
+        assert len(logs) == 1
+
+    def test_looping_doesnt_aggressively_log_task_finished(self, caplog):
         @prefect.task
         def my_task():
             if prefect.context.get("task_loop_count", 1) < 10:
