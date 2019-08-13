@@ -20,6 +20,7 @@ from prefect.engine.result_handlers import (
     ResultHandler,
 )
 from prefect.engine.runner import ENDRUN
+from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cached,
     ClientFailed,
@@ -638,3 +639,121 @@ def test_task_runner_performs_retries_for_short_delays(client):
     )  # Pending -> Running -> Failed -> Retrying -> Running -> Success
     versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
     assert versions == [1, 2, 3, 4, 5]
+
+
+def test_task_runner_handles_looping(client):
+    @prefect.task
+    def looper():
+        if prefect.context.get("task_loop_count", 1) < 3:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + 10)
+        return prefect.context.get("task_loop_result")
+
+    res = CloudTaskRunner(task=looper).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 0
+    assert (
+        client.set_task_run_state.call_count == 6
+    )  # Pending -> Running -> Looped (1) -> Running -> Looped (2) -> Running -> Success
+    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
+    assert versions == [1, 2, 3, 4, 5, 6]
+
+
+def test_task_runner_handles_looping_with_no_result(client):
+    @prefect.task
+    def looper():
+        if prefect.context.get("task_loop_count", 1) < 3:
+            raise LOOP()
+        return 42
+
+    res = CloudTaskRunner(task=looper).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 0
+    assert (
+        client.set_task_run_state.call_count == 6
+    )  # Pending -> Running -> Looped (1) -> Running -> Looped (2) -> Running -> Success
+    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
+    assert versions == [1, 2, 3, 4, 5, 6]
+
+
+def test_task_runner_handles_looping_with_retries_with_no_result(client):
+    # note that looping with retries _requires_ a result handler in Cloud
+    @prefect.task(
+        max_retries=1,
+        retry_delay=datetime.timedelta(seconds=0),
+        result_handler=JSONResultHandler(),
+    )
+    def looper():
+        if (
+            prefect.context.get("task_loop_count") == 2
+            and prefect.context.get("task_run_count", 1) == 1
+        ):
+            raise ValueError("Stop")
+        if prefect.context.get("task_loop_count", 1) < 3:
+            raise LOOP()
+        return 42
+
+    client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
+    res = CloudTaskRunner(task=looper).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 1  # called once for retry
+    assert (
+        client.set_task_run_state.call_count == 9
+    )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
+    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_task_runner_handles_looping_with_retries(client):
+    # note that looping _requires_ a result handler in Cloud
+    @prefect.task(
+        max_retries=1,
+        retry_delay=datetime.timedelta(seconds=0),
+        result_handler=JSONResultHandler(),
+    )
+    def looper():
+        if (
+            prefect.context.get("task_loop_count") == 2
+            and prefect.context.get("task_run_count", 1) == 1
+        ):
+            raise ValueError("Stop")
+        if prefect.context.get("task_loop_count", 1) < 3:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + 10)
+        return prefect.context.get("task_loop_result")
+
+    client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
+    res = CloudTaskRunner(task=looper).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    ## assertions
+    assert res.is_successful()
+    assert client.get_task_run_info.call_count == 1  # called once for retry
+    assert (
+        client.set_task_run_state.call_count == 9
+    )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
+    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]

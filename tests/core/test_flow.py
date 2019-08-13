@@ -16,7 +16,7 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
-from prefect.engine.signals import PrefectError
+from prefect.engine.signals import PrefectError, LOOP
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -2100,3 +2100,75 @@ def test_flow_run_handles_error_states_when_initial_state_is_provided():
         res = AddTask()("5", 5)
     state = f.run(state=Pending())
     assert state.is_failed()
+
+
+def test_looping_works_in_a_flow():
+    @task
+    def looper(x):
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result") + x
+
+    @task
+    def downstream(l):
+        return l ** 2
+
+    with Flow(name="looping") as f:
+        inter = looper(10)
+        final = downstream(inter)
+
+    flow_state = f.run()
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 200
+    assert flow_state.result[final].result == 200 ** 2
+
+
+def test_looping_with_retries_works_in_a_flow():
+    @task(max_retries=1, retry_delay=datetime.timedelta(seconds=0))
+    def looper(x):
+        if (
+            prefect.context.get("task_loop_count") == 2
+            and prefect.context.get("task_run_count", 1) == 1
+        ):
+            raise ValueError("err")
+
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result") + x
+
+    @task
+    def downstream(l):
+        return l ** 2
+
+    with Flow(name="looping") as f:
+        inter = looper(10)
+        final = downstream(inter)
+
+    flow_state = f.run()
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 200
+    assert flow_state.result[final].result == 200 ** 2
+
+
+def test_starting_at_arbitrary_loop_index():
+    @task
+    def looper(x):
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result", 0) + x
+
+    @task
+    def downstream(l):
+        return l ** 2
+
+    with Flow(name="looping") as f:
+        inter = looper(10)
+        final = downstream(inter)
+
+    flow_state = f.run(context={"task_loop_count": 20})
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 10
+    assert flow_state.result[final].result == 100
