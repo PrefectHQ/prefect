@@ -986,7 +986,7 @@ class TestRunTaskStep:
             state=state, inputs={}, timeout_handler=None
         )
         assert new_state.is_looped()
-        assert isinstance(new_state.result, signals.LOOP)
+        assert "LOOP" in new_state.result
         assert new_state.loop_count == 1
         assert new_state.message == "My message"
 
