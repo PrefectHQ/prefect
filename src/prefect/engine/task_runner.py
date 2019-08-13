@@ -30,6 +30,7 @@ from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
     Failed,
+    Looped,
     Mapped,
     Paused,
     Pending,
@@ -148,17 +149,21 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        if isinstance(state, Pending):
-            if "_loop_count" in (state.cached_inputs or {}):
+        if hasattr(state, "cached_inputs"):
+            if "_loop_count" in (state.cached_inputs or {}):  # type: ignore
                 loop_context = {
-                    "loop_count": state.cached_inputs.pop("_loop_count")
+                    "task_loop_count": state.cached_inputs.pop(  # type: ignore
+                        "_loop_count"
+                    )  # type: ignore
                     .to_result()
                     .value,
-                    "loop_result": state.cached_inputs.pop("_loop_result")
+                    "task_loop_result": state.cached_inputs.pop(  # type: ignore
+                        "_loop_result"
+                    )  # type: ignore
                     .to_result()
                     .value,
                 }
-                contextx.update(loop_context)
+                context.update(loop_context)
 
         context.update(
             task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
@@ -932,6 +937,18 @@ class TaskRunner(Runner):
         """
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
+            if prefect.context.get("task_loop_count") is not None:
+                loop_context = {
+                    "_loop_count": Result(
+                        value=prefect.context["task_loop_count"],
+                        result_handler=JSONResultHandler(),
+                    ),
+                    "_loop_result": Result(
+                        value=prefect.context.get("task_loop_result"),
+                        result_handler=self.result_handler,
+                    ),
+                }
+                inputs.update(loop_context)
             if run_count <= self.task.max_retries:
                 start_time = pendulum.now("utc") + self.task.retry_delay
                 msg = "Retrying Task (after attempt {n} of {m})".format(
@@ -949,7 +966,7 @@ class TaskRunner(Runner):
 
     def check_task_is_looping(
         self,
-        state: State = None,
+        state: State,
         inputs: Dict[str, Result] = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
@@ -974,6 +991,8 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
         if state.is_looped():
+            assert isinstance(state, Looped)  # mypy assert
+            assert isinstance(context, dict)  # mypy assert
             msg = "Looping task (on loop index {})".format(state.loop_count)
             context.update(
                 {
