@@ -973,7 +973,7 @@ class TestRunTaskStep:
         )
         assert new_state.is_looped()
         assert new_state.result == 1
-        assert new_state.loop_index == 1
+        assert new_state.loop_count == 1
 
     def test_raise_skip_signal(self):
         @prefect.task
@@ -1698,3 +1698,30 @@ def test_task_runner_provides_logger():
     state = TaskRunner(my_task).run()
     assert state.is_successful()
     assert state.result is my_task.logger
+
+
+class TestLooping:
+    def test_looping_works(self):
+        @prefect.task
+        def my_task():
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP()
+            else:
+                return 42
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 42
+
+    def test_looping_accumulates(self):
+        @prefect.task
+        def my_task():
+            curr = prefect.context.get("task_loop_result", 0)
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(result=curr + 1)
+            else:
+                return curr + 1
+
+        state = TaskRunner(my_task).run()
+        assert state.is_successful()
+        assert state.result == 3

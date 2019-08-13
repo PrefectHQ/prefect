@@ -138,20 +138,20 @@ def test_only_scheduled_and_queued_states_have_start_times(cls):
         assert not state.is_scheduled()
 
 
-def test_retry_stores_loop_index():
-    state = Looped(loop_index=2)
-    assert state.loop_index == 2
+def test_retry_stores_loop_count():
+    state = Looped(loop_count=2)
+    assert state.loop_count == 2
 
 
-def test_looped_stores_default_loop_index():
+def test_looped_stores_default_loop_count():
     state = Looped()
-    assert state.loop_index == 1
+    assert state.loop_count == 1
 
 
-def test_looped_stores_default_loop_index_in_context():
-    with prefect.context(task_loop_index=5):
+def test_looped_stores_default_loop_count_in_context():
+    with prefect.context(task_loop_count=5):
         state = Looped()
-    assert state.loop_index == 5
+    assert state.loop_count == 5
 
 
 def test_retry_stores_run_count():

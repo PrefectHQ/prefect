@@ -149,9 +149,9 @@ class TaskRunner(Runner):
             context.update(resume=True)
 
         if isinstance(state, Pending):
-            if "_loop_index" in (state.cached_inputs or {}):
+            if "_loop_count" in (state.cached_inputs or {}):
                 loop_context = {
-                    "loop_index": state.cached_inputs.pop("_loop_index")
+                    "loop_count": state.cached_inputs.pop("_loop_count")
                     .to_result()
                     .value,
                     "loop_result": state.cached_inputs.pop("_loop_result")
@@ -311,7 +311,7 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
-        if prefect.context.get("task_loop_index") is None:
+        if prefect.context.get("task_loop_count") is None:
             # to prevent excessive repetition of this log
             # since looping relies on recursively calling self.run
             # TODO: figure out a way to only log this one single time instead of twice
@@ -956,7 +956,7 @@ class TaskRunner(Runner):
         executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
-        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_index`.
+        Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_count`.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -974,11 +974,11 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
         if state.is_looped():
-            msg = "Looping task (on loop index {})".format(state.loop_index)
+            msg = "Looping task (on loop index {})".format(state.loop_count)
             context.update(
                 {
                     "task_loop_result": state.result,
-                    "task_loop_index": state.loop_index + 1,
+                    "task_loop_count": state.loop_count + 1,
                 }
             )
             new_state = Pending(message=msg)

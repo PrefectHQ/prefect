@@ -485,21 +485,21 @@ class Looped(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - loop_index (int): The iteration number of the looping task.
-            Defaults to the value stored in context under "task_loop_index" or 1,
+        - loop_count (int): The iteration number of the looping task.
+            Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
     """
 
     color = "#003ccb"
 
     def __init__(
-        self, message: str = None, result: Any = NoResult, loop_index: int = None
+        self, message: str = None, result: Any = NoResult, loop_count: int = None
     ):
         super().__init__(result=result, message=message)
-        if loop_index is None:
-            loop_index = prefect.context.get("task_loop_index", 1)
-        assert loop_index is not None  # mypy assert
-        self.loop_index = loop_index  # type: int
+        if loop_count is None:
+            loop_count = prefect.context.get("task_loop_count", 1)
+        assert loop_count is not None  # mypy assert
+        self.loop_count = loop_count  # type: int
 
 
 class Success(Finished):
