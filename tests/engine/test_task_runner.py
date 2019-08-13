@@ -1758,6 +1758,32 @@ class TestLooping:
         assert state.is_successful()
         assert state.result == 3
 
+    def test_looping_only_checkpoints_the_final_result(self):
+        class Handler(ResultHandler):
+            data = []
+
+            def write(self, obj):
+                self.data.append(obj)
+                return self.data.index(obj)
+
+            def read(self, idx):
+                return self.data[idx]
+
+        handler = Handler()
+
+        @prefect.task(checkpoint=True, result_handler=handler)
+        def my_task():
+            curr = prefect.context.get("task_loop_result", 0)
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise signals.LOOP(result=curr + 1)
+            else:
+                return curr + 1
+
+        state = TaskRunner(my_task).run(context={"checkpointing": True})
+        assert state.is_successful()
+        assert state.result == 3
+        assert handler.data == [3]
+
     def test_looping_works_with_retries(self):
         @prefect.task(max_retries=2, retry_delay=timedelta(seconds=0))
         def my_task():
