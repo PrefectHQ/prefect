@@ -58,7 +58,7 @@ def start(name, token):
         retrieved_agent = _agents.get(name, None)
 
         if not retrieved_agent:
-            click.secho("{} is not a valid agent".format(name), color="red")
+            click.secho("{} is not a valid agent".format(name), fg="red")
             return
 
         from_qualified_name(retrieved_agent)().start()
