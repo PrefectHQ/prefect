@@ -10,7 +10,7 @@ Please consider [Chris White](https://github.com/cicdw) the main point of contac
 
 ## Discussion
 
-- We have a public [Slack](https://join.slack.com/t/prefect-public/shared_invite/enQtNjgwMzI5MjgwNTc2LWUzOGVkZTVkODcwNWNhZTNmMzM0YWMzZjBmZGI4YTNhMzUyM2E0YTIyZDE3NDI1YTYyMTQ1NGM0ZmFjNmRjNDQ) for chatting about Prefect, asking questions, and sharing tips.
+- We have a public [Slack](https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU) for chatting about Prefect, asking questions, and sharing tips.
 - For feature requests or bug reports, please open a [new GitHub issue](https://github.com/PrefectHQ/prefect/issues/new).
 - Important architectural and design decisions are memorialized in [Prefect Improvement Notices (PINs)](../PINs/PIN-1-Introduce-PINs.html).
 
