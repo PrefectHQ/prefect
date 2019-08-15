@@ -5,7 +5,7 @@ import time
 import pendulum
 
 from prefect import Client
-from prefect import config
+from prefect import config as prefect_config
 
 from typing import TYPE_CHECKING
 
@@ -21,8 +21,10 @@ class ResourceManager:
     """
 
     def __init__(self) -> None:
-        self.loop_interval = config.cloud.agent.resource_manager.get("loop_interval")
-        self.client = Client(token=config.cloud.agent.get("auth_token"))
+        self.loop_interval = prefect_config.cloud.agent.resource_manager.get(
+            "loop_interval"
+        )
+        self.client = Client(token=prefect_config.cloud.agent.get("auth_token"))
         self.namespace = os.getenv("NAMESPACE", "default")
 
         logger = logging.getLogger("resource-manager")
