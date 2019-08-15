@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Introduce configurable default for storage class on Flows - [#1044](https://github.com/PrefectHQ/prefect/issues/1044)
 - Allow for min and max workers to be specified in `DaskKubernetesEnvironment` - [#1338](https://github.com/PrefectHQ/prefect/pulls/1338)
+- Use task and flow names for corresponding logger names for better organization - [#1355](https://github.com/PrefectHQ/prefect/pull/1355)
 
 ### Task Library
 
