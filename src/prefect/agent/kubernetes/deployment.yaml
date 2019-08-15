@@ -37,7 +37,7 @@ spec:
           image: prefecthq/prefect:latest
           imagePullPolicy: IfNotPresent
           command: ["/bin/bash", "-c"]
-          args: ["python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager()'"]
+          args: ["python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'"]
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""
