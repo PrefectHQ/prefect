@@ -50,8 +50,16 @@ class LocalAgent(Agent):
 
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
-            # Pull image if it doesn't exist locally
-            self.docker_client.pull(storage.name)
+            # Check if image exists locally
+            try:
+                self.docker_client.inspect_image(storage.name)
+            except docker.errors.ImageNotFound:
+                self.logger.info(
+                    "{} not found locally. Pulling image...".format(storage.name)
+                )
+
+                # Pull image if it doesn't exist locally
+                self.docker_client.pull(storage.name)
 
             # Create a container
             container = self.docker_client.create_container(
