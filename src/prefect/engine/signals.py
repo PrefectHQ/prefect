@@ -58,7 +58,9 @@ class FAIL(PrefectStateSignal):
 
 class LOOP(PrefectStateSignal):
     """
-    Indicates that a task should loop with the provided result.
+    Indicates that a task should loop with the provided result.  Note that the result
+    included in the `LOOP` signal will be available in Prefect context during the next iteration
+    under the key `"task_loop_result"`.
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
