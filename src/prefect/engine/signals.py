@@ -58,7 +58,7 @@ class FAIL(PrefectStateSignal):
 
 class LOOP(PrefectStateSignal):
     """
-    Indicates that a task should loop.
+    Indicates that a task should loop with the provided result.
 
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
@@ -66,6 +66,28 @@ class LOOP(PrefectStateSignal):
             associated state constructor
         - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
             associated state constructor
+
+    Example:
+    ```python
+    import prefect
+    from prefect import task, Flow
+    from prefect.engine.signals import LOOP
+
+    @task
+    def accumulate(x: int) -> int:
+        current = prefect.context.get("task_loop_result", x)
+        if current < 100:
+            # if current < 100, rerun this task with the task's loop result incremented
+            # by 5
+            raise LOOP(result=current + 5)
+        return current
+
+    with Flow("Looper") as flow:
+        output = accumulate(5)
+
+    flow_state = flow.run()
+    print(flow_state.result[output].result) # '100'
+    ```
     """
 
     _state_cls = state.Looped
