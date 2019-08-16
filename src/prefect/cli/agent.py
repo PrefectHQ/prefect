@@ -51,7 +51,7 @@ def start(name, token, no_pull):
 
     \b
     Options:
-        --token, -t     TEXT    A Prefect Cloud api token
+        --token, -t     TEXT    A Prefect Cloud API token
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
     """
@@ -66,3 +66,51 @@ def start(name, token, no_pull):
 
         with context(no_pull=no_pull):
             from_qualified_name(retrieved_agent)().start()
+
+
+@agent.command(hidden=True)
+@click.argument("name", default="kubernetes")
+@click.option(
+    "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
+)
+@click.option(
+    "--api", "-a", required=False, help="A Prefect Cloud API URL.", hidden=True
+)
+@click.option("--loop", "-l", required=False, help="Agent loop interval.", hidden=True)
+@click.option(
+    "--namespace",
+    "-n",
+    required=False,
+    help="Agent namespace to launch workloads.",
+    hidden=True,
+)
+def install(name, token, api, loop, namespace):
+    """
+    Install an agent. Outputs configuration text which can be used to install on various
+    platforms.
+
+    \b
+    Arguments:
+        name            TEXT    The name of an agent to start (e.g. kubernetes`)
+                                Defaults to `kubernetes`
+
+    \b
+    Options:
+        --token, -t         TEXT    A Prefect Cloud API token
+        --api, -a           TEXT    A Prefect Cloud API URL
+        --loop, -l          TEXT    Agent loop interval
+        --namespace, -n     TEXT    Agent namespace to launch workloads
+    """
+
+    supported_agents = {"kubernetes": "prefect.agent.kubernetes.KubernetesAgent"}
+
+    retrieved_agent = supported_agents.get(name, None)
+
+    if not retrieved_agent:
+        click.secho("{} is not a supported agent for `install`".format(name), fg="red")
+        return
+
+    deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
+        token=token, api=api, loop=loop, namespace=namespace
+    )
+    click.echo(deployment)

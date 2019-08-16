@@ -17,7 +17,7 @@ spec:
       containers:
         - name: agent
           image: prefecthq/prefect:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args: ["prefect agent start kubernetes"]
           env:
@@ -35,7 +35,7 @@ spec:
               cpu: "100m"
         - name: resource-manager
           image: prefecthq/prefect:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args: ["python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'"]
           env:
