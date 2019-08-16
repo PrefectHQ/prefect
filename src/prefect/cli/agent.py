@@ -61,7 +61,7 @@ def start(name, token, no_pull):
         retrieved_agent = _agents.get(name, None)
 
         if not retrieved_agent:
-            click.secho("{} is not a valid agent".format(name), color="red")
+            click.secho("{} is not a valid agent".format(name), fg="red")
             return
 
         with context(no_pull=no_pull):
