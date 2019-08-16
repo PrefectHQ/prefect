@@ -111,23 +111,33 @@ def cloud(name, project, version, watch, logs):
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
     if watch:
-        current_state = ""
+        current_states = []
         while True:
             query = {
                 "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {"state": True}
+                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                        with_args(
+                            "states",
+                            {"order_by": {EnumValue("timestamp"): EnumValue("asc")}},
+                        ): {"state": True, "timestamp": True}
+                    }
                 }
             }
 
             result = client.graphql(query)
 
-            if result.data.flow_run_by_pk.state != current_state:
-                current_state = result.data.flow_run_by_pk.state
-                if current_state != "Success" and current_state != "Failed":
-                    click.echo("{} -> ".format(current_state), nl=False)
-                else:
-                    click.echo(current_state)
-                    break
+            # Filter through retrieved states and output in order
+            for state_index in result.data.flow_run_by_pk.states:
+                state = state_index.state
+                if state not in current_states:
+                    if state != "Success" and state != "Failed":
+                        click.echo("{} -> ".format(state), nl=False)
+                    else:
+                        click.echo(state)
+                        return
+
+                    current_states.append(state)
+
             time.sleep(3)
 
     if logs:
