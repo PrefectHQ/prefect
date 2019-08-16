@@ -105,6 +105,7 @@ classes = [
             "Finished",
             "Success",
             "Cached",
+            "Looped",
             "Mapped",
             "Skipped",
             "Failed",
@@ -119,6 +120,7 @@ title = "Signals"
 classes = [
             "ENDRUN",
             "FAIL",
+            "LOOP",
             "TRIGGERFAIL",
             "SUCCESS",
             "RETRY",
