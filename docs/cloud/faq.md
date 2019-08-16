@@ -43,6 +43,8 @@ There are two distinct "implementations" of the scheduler:
     - anytime a user creates a Flow Run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](cloud_concepts/flow_runs.html#creating-a-flow-run)
     - the scheduler is constantly scanning the database looking for Flows with active schedules; anytime one is found that hasn't been processed recently, the next 10 runs are scheduled via the creation of `Scheduled` states
 
+Note that regardless of which scheduler is being used, dependencies between Prefect Tasks typically _do not involve a scheduler_; rather, the executor being used for the flow run handles when each dependency is finished and the next can begin.
+
 ::: tip In Cloud, flow.run() is never called
 As previously stated, `flow.run` is purely a convenience method for running your Flows on schedule locally and testing your Flow execution locally.  When the Prefect Agent submits a Flow for execution, a `CloudFlowRunner` is created and interacted with directly.
 :::
