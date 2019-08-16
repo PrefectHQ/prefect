@@ -3,6 +3,7 @@ import os
 import time
 
 import pendulum
+from requests.exceptions import HTTPError
 
 from prefect import Client
 from prefect import config as prefect_config
@@ -263,15 +264,18 @@ class ResourceManager:
             "Reporting failed pod {} in namespace {}".format(name, self.namespace)
         )
 
-        self.client.write_run_log(
-            flow_run_id=pod.metadata.labels.get("flow_run_id"),
-            task_run_id="",
-            timestamp=pendulum.now(),
-            name="resource-manager",
-            message=logs,
-            level="ERROR",
-            info={},
-        )
+        try:
+            self.client.write_run_log(
+                flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                task_run_id="",
+                timestamp=pendulum.now(),
+                name="resource-manager",
+                message=logs,
+                level="ERROR",
+                info={},
+            )
+        except HTTPError as exc:
+            self.logger.error(exc)
 
     def report_unknown_pod(self, pod: "kubernetes.client.V1Pod") -> None:
         """
@@ -282,17 +286,20 @@ class ResourceManager:
             "Reporting unknown pod {} in namespace {}".format(name, self.namespace)
         )
 
-        self.client.write_run_log(
-            flow_run_id=pod.metadata.labels.get("flow_run_id"),
-            task_run_id="",
-            timestamp=pendulum.now(),
-            name="resource-manager",
-            message="Flow run pod {} entered an unknown state in namespace {}".format(
-                name, self.namespace
-            ),
-            level="ERROR",
-            info={},
-        )
+        try:
+            self.client.write_run_log(
+                flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                task_run_id="",
+                timestamp=pendulum.now(),
+                name="resource-manager",
+                message="Flow run pod {} entered an unknown state in namespace {}".format(
+                    name, self.namespace
+                ),
+                level="ERROR",
+                info={},
+            )
+        except HTTPError as exc:
+            self.logger.error(exc)
 
     def report_pod_image_pull_error(self, pod: "kubernetes.client.V1Pod") -> None:
         """
@@ -308,17 +315,20 @@ class ResourceManager:
                     )
                 )
 
-                self.client.write_run_log(
-                    flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                    task_run_id="",
-                    timestamp=pendulum.now(),
-                    name="resource-manager",
-                    message="Flow run image pull error for pod {} in namespace {}".format(
-                        pod.metadata.name, self.namespace
-                    ),
-                    level="ERROR",
-                    info={},
-                )
+                try:
+                    self.client.write_run_log(
+                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                        task_run_id="",
+                        timestamp=pendulum.now(),
+                        name="resource-manager",
+                        message="Flow run image pull error for pod {} in namespace {}".format(
+                            pod.metadata.name, self.namespace
+                        ),
+                        level="ERROR",
+                        info={},
+                    )
+                except HTTPError as exc:
+                    self.logger.error(exc)
 
 
 if __name__ == "__main__":
