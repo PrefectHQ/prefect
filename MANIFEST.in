@@ -7,3 +7,4 @@ include src/prefect/_version.py
 include src/prefect/_siginfo.py
 include src/prefect/_sig29/*.txt
 graft src/prefect/environments
+graft src/prefect/agent
