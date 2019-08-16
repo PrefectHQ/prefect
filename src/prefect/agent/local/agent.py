@@ -1,6 +1,6 @@
 import docker
 
-from prefect import config
+from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
@@ -15,9 +15,11 @@ class LocalAgent(Agent):
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
+        - no_pull (bool, optional): Flag on whether or not to pull flow images.
+            Defaults to `False` if not provided here or in context.
     """
 
-    def __init__(self, base_url: str = None) -> None:
+    def __init__(self, base_url: str = None, no_pull: bool = None) -> None:
         super().__init__()
 
         base_url = base_url or "unix://var/run/docker.sock"
@@ -31,6 +33,10 @@ class LocalAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
+
+        self.no_pull = no_pull or context.get("no_pull")
+        if self.no_pull is None:
+            self.no_pull = False
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
@@ -50,15 +56,7 @@ class LocalAgent(Agent):
 
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
-            # Check if image exists locally
-            try:
-                self.docker_client.inspect_image(storage.name)
-            except docker.errors.ImageNotFound:
-                self.logger.info(
-                    "{} not found locally. Pulling image...".format(storage.name)
-                )
-
-                # Pull image if it doesn't exist locally
+            if not self.no_pull:
                 self.docker_client.pull(storage.name)
 
             # Create a container
