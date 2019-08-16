@@ -45,11 +45,11 @@ def login(token):
         client.graphql(query={"query": "hello"})
     except AuthorizationError:
         click.secho(
-            "Error attempting to use Prefect API token {}".format(token), color="RED"
+            "Error attempting to use Prefect API token {}".format(token), fg="red"
         )
         return
     except ClientError:
-        click.secho("Error attempting to communicate with Prefect Cloud", color="RED")
+        click.secho("Error attempting to communicate with Prefect Cloud", fg="red")
         return
 
-    click.echo("Login successful")
+    click.secho("Login successful", fg="green")
