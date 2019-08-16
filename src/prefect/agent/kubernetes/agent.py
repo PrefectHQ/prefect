@@ -77,6 +77,9 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
         job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
+        job["spec"]["template"]["metadata"]["labels"][
+            "flow_run_id"
+        ] = flow_run.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["identifier"] = identifier
 
         # Use flow storage image for job
