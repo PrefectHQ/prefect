@@ -1,6 +1,6 @@
 import click
 
-from prefect import config
+from prefect import config, context
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
 
@@ -39,7 +39,8 @@ def agent():
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
-def start(name, token):
+@click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
+def start(name, token, no_pull):
     """
     Start an agent.
 
@@ -51,6 +52,8 @@ def start(name, token):
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud api token
+        --no-pull               Pull images for a LocalAgent
+                                Defaults to pulling if not provided
     """
     with set_temporary_config(
         {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
@@ -61,4 +64,5 @@ def start(name, token):
             click.secho("{} is not a valid agent".format(name), color="red")
             return
 
-        from_qualified_name(retrieved_agent)().start()
+        with context(no_pull=no_pull):
+            from_qualified_name(retrieved_agent)().start()
