@@ -189,12 +189,12 @@ def cloud(name, project, version, watch, logs):
                 )
 
             # Check if state is either Success or Failed, exit if it is
-            query = {
+            pk_query = {
                 "query": {
                     with_args("flow_run_by_pk", {"id": flow_run_id}): {"state": True}
                 }
             }
-            result = client.graphql(query)
+            result = client.graphql(pk_query)
 
             if (
                 result.data.flow_run_by_pk.state == "Success"
