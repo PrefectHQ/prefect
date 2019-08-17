@@ -681,14 +681,15 @@ class TestCheckTaskTrigger:
 
 
 class TestCheckTaskReady:
-    @pytest.mark.parametrize("state", [Cached(), Pending(), Mapped()])
+    @pytest.mark.parametrize(
+        "state", [Cached(), Pending(), Mapped(), Paused(), Scheduled()]
+    )
     def test_ready_states(self, state):
         new_state = TaskRunner(task=Task()).check_task_is_ready(state=state)
         assert new_state is state
 
     @pytest.mark.parametrize(
-        "state",
-        [Running(), Finished(), TriggerFailed(), Skipped(), Success(), Paused()],
+        "state", [Running(), Finished(), TriggerFailed(), Skipped(), Success()]
     )
     def test_not_ready_doesnt_run(self, state):
 
@@ -1269,8 +1270,11 @@ class TestCheckScheduledStep:
     @pytest.mark.parametrize(
         "state",
         [
-            Scheduled(start_time=pendulum.now("utc") + timedelta(minutes=10)),
-            Retrying(start_time=pendulum.now("utc") + timedelta(minutes=10)),
+            Scheduled(start_time=pendulum.now("utc").add(minutes=10)),
+            Retrying(start_time=pendulum.now("utc").add(minutes=10)),
+            Paused(),
+            Paused(start_time=None),
+            Paused(start_time=pendulum.now('utc').add(minutes=10))
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
