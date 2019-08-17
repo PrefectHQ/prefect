@@ -182,7 +182,7 @@ class SkippedSchema(SuccessSchema):
         exclude_fields = ["cached"]
 
 
-class PausedSchema(PendingSchema):
+class PausedSchema(ScheduledSchema):
     class Meta:
         object_class = state.Paused
 
