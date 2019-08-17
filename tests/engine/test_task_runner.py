@@ -1274,7 +1274,7 @@ class TestCheckScheduledStep:
             Retrying(start_time=pendulum.now("utc").add(minutes=10)),
             Paused(),
             Paused(start_time=None),
-            Paused(start_time=pendulum.now('utc').add(minutes=10))
+            Paused(start_time=pendulum.now("utc").add(minutes=10)),
         ],
     )
     def test_scheduled_states_with_future_start_time(self, state):
