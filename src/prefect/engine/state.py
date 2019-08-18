@@ -252,21 +252,6 @@ class Pending(State):
         self.cached_inputs = cached_inputs
 
 
-class Paused(Pending):
-    """
-    Paused state for tasks that require manual execution.
-
-    Args:
-        - message (str or Exception, optional): Defaults to `None`. A message about the
-            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-    """
-
-    color = "#cfd8dc"
-
-
 class Scheduled(Pending):
     """
     Pending state indicating the object has been scheduled to run.
@@ -295,6 +280,41 @@ class Scheduled(Pending):
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
+
+
+class Paused(Scheduled):
+    """
+    Paused state for tasks. This allows manual intervention or pausing for a set amount of
+    time.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - start_time (datetime): time at which the task is scheduled to resume; defaults
+            to 10 years from now if not provided.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+    """
+
+    color = "#cfd8dc"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        start_time: datetime.datetime = None,
+        cached_inputs: Dict[str, Result] = None,
+    ):
+        if start_time is None:
+            start_time = pendulum.now().add(years=10)
+
+        super().__init__(
+            message=message,
+            result=result,
+            start_time=start_time,
+            cached_inputs=cached_inputs,
+        )
 
 
 class _MetaState(State):
