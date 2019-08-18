@@ -1,0 +1,151 @@
+import cloudpickle
+import datetime
+import os
+import pytest
+import sys
+import tempfile
+
+from prefect import task, Flow, Task
+from prefect.environments.storage import _healthcheck as healthchecks
+
+
+class TestSerialization:
+    def test_serialization_check_raises_on_bad_imports(self):
+        bad_bytes = b"\x80\x04\x95\x18\x00\x00\x00\x00\x00\x00\x00\x8c\x0bfoo_machine\x94\x8c\x04func\x94\x93\x94."
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(bad_bytes)
+            f.seek(0)
+            with pytest.raises(ModuleNotFoundError, match="foo_machine"):
+                objs = healthchecks.serialization_check("['{}']".format(f.name))
+
+    def test_serialization_check_passes_and_returns_objs(self):
+        good_bytes = cloudpickle.dumps(Flow("empty"))
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(good_bytes)
+            f.seek(0)
+            objs = healthchecks.serialization_check("['{}']".format(f.name))
+
+        assert len(objs) == 1
+
+        flow = objs.pop()
+        assert isinstance(flow, Flow)
+        assert flow.name == "empty"
+        assert flow.tasks == set()
+
+    def test_serialization_check_passes_and_returns_multiple_objs(self):
+        flow_one = cloudpickle.dumps(Flow("one"))
+        flow_two = cloudpickle.dumps(Flow("two"))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_one = os.path.join(tmpdir, "one.flow")
+            with open(file_one, "wb") as f:
+                f.write(flow_one)
+
+            file_two = os.path.join(tmpdir, "two.flow")
+            with open(file_two, "wb") as f:
+                f.write(flow_two)
+
+            paths = "['{0}', '{1}']".format(file_one, file_two)
+            objs = healthchecks.serialization_check(paths)
+
+        assert len(objs) == 2
+
+
+class TestSystemCheck:
+    def test_system_check_just_warns(self):
+        with pytest.warns(UserWarning, match="unexpected errors"):
+            healthchecks.system_check("(3, 4)")
+
+    def test_system_check_doesnt_warn(self):
+        sys_info = "({0}, {1})".format(sys.version_info.major, sys.version_info.minor)
+        with pytest.warns(None) as records:
+            healthchecks.system_check(sys_info)
+        assert len(records) == 0
+
+
+class TestResultHandlerCheck:
+    def test_no_raise_on_normal_flow(self):
+        @task
+        def up():
+            pass
+
+        @task
+        def down(x):
+            pass
+
+        with Flow("THIS IS A TEST") as flow:
+            result = down(x=up, upstream_tasks=[Task(), Task()])
+
+        assert healthchecks.result_handler_check([flow]) is None
+
+    @pytest.mark.parametrize(
+        "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
+    )
+    def test_raises_for_checkpointed_tasks(self, kwargs):
+        @task(**kwargs)
+        def up():
+            pass
+
+        f = Flow("foo-test", tasks=[up])
+
+        with pytest.raises(ValueError, match="have a result handler."):
+            healthchecks.result_handler_check([f])
+
+    @pytest.mark.parametrize(
+        "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
+    )
+    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result_handler(
+        self, kwargs
+    ):
+        @task(**kwargs)
+        def up():
+            pass
+
+        f = Flow("foo-test", tasks=[up], result_handler=42)
+        assert healthchecks.result_handler_check([f]) is None
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            dict(max_retries=2, retry_delay=datetime.timedelta(minutes=1)),
+            dict(cache_for=datetime.timedelta(minutes=1)),
+        ],
+    )
+    def test_raises_for_tasks_with_upstream_dependencies_with_no_result_handlers(
+        self, kwargs
+    ):
+        @task
+        def up():
+            pass
+
+        @task(**kwargs, result_handler=42)
+        def down(x):
+            pass
+
+        with Flow("upstream-test") as f:
+            result = down(x=up)
+
+        with pytest.raises(
+            ValueError, match="upstream dependencies do not have result handlers."
+        ):
+            healthchecks.result_handler_check([f])
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            dict(max_retries=2, retry_delay=datetime.timedelta(minutes=1)),
+            dict(cache_for=datetime.timedelta(minutes=1)),
+        ],
+    )
+    def test_doesnt_raise_for_tasks_with_non_keyed_edges(self, kwargs):
+        @task
+        def up():
+            pass
+
+        @task(**kwargs, result_handler=42)
+        def down():
+            pass
+
+        with Flow("non-keyed-test") as f:
+            result = down(upstream_tasks=[up])
+
+        assert healthchecks.result_handler_check([f]) is None
