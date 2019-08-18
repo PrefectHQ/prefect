@@ -15,7 +15,7 @@ class TestSerialization:
         with tempfile.NamedTemporaryFile() as f:
             f.write(bad_bytes)
             f.seek(0)
-            with pytest.raises((ImportError, ModuleNotFoundError), match="foo_machine"):
+            with pytest.raises(ImportError, match="foo_machine"):
                 objs = healthchecks.serialization_check("['{}']".format(f.name))
 
     def test_serialization_check_passes_and_returns_objs(self):
