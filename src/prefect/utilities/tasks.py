@@ -1,4 +1,5 @@
-import inspect
+import pendulum
+from datetime import timedelta
 from contextlib import contextmanager
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
@@ -85,7 +86,7 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
     return return_task
 
 
-def pause_task(message: str = None) -> None:
+def pause_task(message: str = None, duration: timedelta = None) -> None:
     """
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
@@ -94,6 +95,7 @@ def pause_task(message: str = None) -> None:
 
     Args:
         - message (str): an optional message for the Pause state.
+        - duration (timedelta): an optional pause duration; otherwise infinite (well, 10 years)
 
     Example:
         ```python
@@ -117,9 +119,14 @@ def pause_task(message: str = None) -> None:
         state.result[res] # a Success state
         ```
     """
+    if duration is not None:
+        start_time = pendulum.now("utc") + duration
+    else:
+        start_time = None
     if prefect.context.get("resume", False) is False:
         raise prefect.engine.signals.PAUSE(  # type: ignore
-            message or "Pause signal raised during task execution."
+            message=message or "Pause signal raised during task execution.",
+            start_time=start_time,
         )
 
 
