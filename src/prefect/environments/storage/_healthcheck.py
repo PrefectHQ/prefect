@@ -85,6 +85,7 @@ def result_handler_check(flows: list):
                         task
                     )
                 )
+    print("Result Handler check: OK")
 
 
 if __name__ == "__main__":
@@ -94,3 +95,4 @@ if __name__ == "__main__":
     system_check(python_version)
     flows = serialization_check(flow_file_path)
     result_handler_check(flows)
+    print("All health checks passed.")
