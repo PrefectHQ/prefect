@@ -10,6 +10,16 @@ from prefect.engine.state import Submitted
 from prefect.utilities.graphql import with_args
 
 
+ascii_name = r"""
+ ____            __           _        _                    _
+|  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
+| |_) | '__/ _ \ |_ / _ \/ __| __|   / _ \ / _` |/ _ \ '_ \| __|
+|  __/| | |  __/  _|  __/ (__| |_   / ___ \ (_| |  __/ | | | |_
+|_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
+                                           |___/
+"""
+
+
 class Agent:
     """
     Base class for Agents.
@@ -47,23 +57,33 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
+        print(ascii_name)
         self.logger.info("Starting {}".format(type(self).__name__))
+        self.logger.info(
+            "Agent documentation can be found at https://docs.prefect.io/cloud/agent"
+        )
         tenant_id = self.query_tenant_id()
+
+        if tenant_id:
+            self.logger.info("Agent successfully connected to Prefect Cloud")
+            self.logger.info("Waiting for flow runs...")
 
         while True:
             try:
                 flow_runs = self.query_flow_runs(tenant_id=tenant_id)
-                self.logger.info(
-                    "Found {} flow run(s) to submit for execution.".format(
-                        len(flow_runs)
-                    )
-                )
 
-                self.update_states(flow_runs)
-                self.deploy_flows(flow_runs)
-                self.logger.info(
-                    "Submitted {} flow run(s) for execution.".format(len(flow_runs))
-                )
+                if len(flow_runs):
+                    self.logger.info(
+                        "Found {} flow run(s) to submit for execution.".format(
+                            len(flow_runs)
+                        )
+                    )
+
+                    self.update_states(flow_runs)
+                    self.deploy_flows(flow_runs)
+                    self.logger.info(
+                        "Submitted {} flow run(s) for execution.".format(len(flow_runs))
+                    )
             except Exception as exc:
                 self.logger.error(exc)
             time.sleep(self.loop_interval)
