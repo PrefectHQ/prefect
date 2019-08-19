@@ -63,7 +63,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
         except Exception as exc:
             formatted = "Unexpected error: {}".format(repr(exc))
-            self.logger.info(formatted)
+            self.logger.exception(formatted)
             if raise_on_exception:
                 raise exc
             new_state = Failed(formatted, result=exc)
@@ -178,7 +178,7 @@ class Runner:
         except Exception as exc:
             if raise_on_exception:
                 raise
-            msg = "Exception raised while calling state handlers: {}".format(repr(exc))
-            self.logger.error(msg)
+            msg = "Unexpected error while calling state handlers: {}".format(repr(exc))
+            self.logger.exception(msg)
             raise ENDRUN(Failed(msg, result=exc))
         return new_state

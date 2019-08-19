@@ -105,6 +105,10 @@ class GCSResultHandler(ResultHandler):
                 return_val = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
         except Exception as exc:
-            self.logger.error(exc)
+            self.logger.exception(
+                "Unexpected error while reading from result handler: {}".format(
+                    repr(exc)
+                )
+            )
             return_val = None
         return return_val
