@@ -37,7 +37,7 @@ class CloudHandler(logging.StreamHandler):
             if self.client is None:
                 self.client = Client()  # type: ignore
 
-            assert isinstance(self.client, Client)  # mypy asser
+            assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
             flow_run_id = prefect.context.get("flow_run_id", None)
@@ -46,6 +46,9 @@ class CloudHandler(logging.StreamHandler):
             name = record_dict.get("name", None)
             message = record_dict.get("message", None)
             level = record_dict.get("levelname", None)
+
+            if record_dict.get("exc_text") is not None:
+                message += "\n" + record_dict["exc_text"]
 
             self.client.write_run_log(
                 flow_run_id=flow_run_id,
