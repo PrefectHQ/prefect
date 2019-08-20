@@ -259,7 +259,7 @@ class FlowRunner(Runner):
 
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
-            self.logger.error(
+            self.logger.exception(
                 "Unexpected error while running flow: {}".format(repr(exc))
             )
             if prefect.context.get("raise_on_exception"):

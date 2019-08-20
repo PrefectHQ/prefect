@@ -111,6 +111,7 @@ module.exports = {
           children: [
             'first-steps',
             'dataflow',
+            'faq',
           ]
         },
         {
