@@ -1,6 +1,6 @@
 import click
 
-from prefect import Client
+from prefect import Client, config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 
 
@@ -36,6 +36,12 @@ def login(token):
     Options:
         --token, -t         TEXT    A Prefect Cloud api token  [required]
     """
+
+    if config.cloud.auth_token:
+        click.confirm(
+            "Prefect Cloud API token already set in config. Do you want to override?",
+            default=True,
+        )
 
     client = Client()
     client.login(api_token=token)

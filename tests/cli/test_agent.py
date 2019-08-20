@@ -54,3 +54,47 @@ def test_agent_start_fails(monkeypatch):
     result = runner.invoke(agent, ["start", "TEST"])
     assert result.exit_code == 0
     assert "TEST is not a valid agent" in result.output
+
+
+def test_agent_install():
+    runner = CliRunner()
+    result = runner.invoke(agent, ["install"])
+    assert result.exit_code == 0
+    assert "apiVersion" in result.output
+
+
+def test_agent_install_kubernetes():
+    runner = CliRunner()
+    result = runner.invoke(agent, ["install", "kubernetes"])
+    assert result.exit_code == 0
+    assert "apiVersion" in result.output
+
+
+def test_agent_install_fails_non_valid_agent():
+    runner = CliRunner()
+    result = runner.invoke(agent, ["install", "fake_agent"])
+    assert result.exit_code == 0
+    assert "fake_agent is not a supported agent for `install`" in result.output
+
+
+def test_agent_install_passes_args():
+    runner = CliRunner()
+    result = runner.invoke(
+        agent,
+        [
+            "install",
+            "--token",
+            "TEST_TOKEN",
+            "--api",
+            "TEST_API",
+            "--loop",
+            "TEST_LOOP",
+            "--namespace",
+            "TEST_NAMESPACE",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "TEST_TOKEN" in result.output
+    assert "TEST_API" in result.output
+    assert "TEST_LOOP" in result.output
+    assert "TEST_NAMESPACE" in result.output
