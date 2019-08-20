@@ -61,7 +61,7 @@ class ResourceManager:
             try:
                 self.clean_resources()
             except Exception as exc:
-                self.logger.error(exc)
+                self.logger.exception(exc)
             time.sleep(self.loop_interval)
 
     # IDENTIFICATION
@@ -75,7 +75,7 @@ class ResourceManager:
         try:
             jobs = batch_client.list_namespaced_job(namespace=self.namespace)
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to list jobs in namespace {}".format(self.namespace)
             )
             return
@@ -110,7 +110,7 @@ class ResourceManager:
         try:
             pods = core_client.list_namespaced_pod(namespace=self.namespace)
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
@@ -149,7 +149,7 @@ class ResourceManager:
                 body=self.k8s_client.V1DeleteOptions(),
             )
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to delete job {} in namespace {}".format(
                     name, self.namespace
                 )
@@ -166,7 +166,7 @@ class ResourceManager:
                 label_selector="identifier={}".format(identifier),
             )
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
@@ -187,7 +187,7 @@ class ResourceManager:
                     body=self.k8s_client.V1DeleteOptions(),
                 )
             except self.k8s_client.rest.ApiException:
-                self.logger.error(
+                self.logger.exception(
                     "Error attempting to delete pod {} in namespace {}".format(
                         name, self.namespace
                     )
@@ -209,7 +209,7 @@ class ResourceManager:
                 body=self.k8s_client.V1DeleteOptions(),
             )
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to delete pod {} in namespace {}".format(
                     name, self.namespace
                 )
@@ -228,7 +228,7 @@ class ResourceManager:
                 label_selector="identifier={}".format(identifier),
             )
         except self.k8s_client.rest.ApiException:
-            self.logger.error(
+            self.logger.exception(
                 "Error attempting to list pods in namespace {}".format(self.namespace)
             )
             return
@@ -253,7 +253,7 @@ class ResourceManager:
                     namespace=self.namespace, name=name
                 )
             except self.k8s_client.rest.ApiException:
-                self.logger.error(
+                self.logger.exception(
                     "Error attempting to read pod logs for {} in namespace {}".format(
                         name, self.namespace
                     )
@@ -275,7 +275,7 @@ class ResourceManager:
                 info={},
             )
         except HTTPError as exc:
-            self.logger.error(exc)
+            self.logger.exception(exc)
 
     def report_unknown_pod(self, pod: "kubernetes.client.V1Pod") -> None:
         """
@@ -299,7 +299,7 @@ class ResourceManager:
                 info={},
             )
         except HTTPError as exc:
-            self.logger.error(exc)
+            self.logger.exception(exc)
 
     def report_pod_image_pull_error(self, pod: "kubernetes.client.V1Pod") -> None:
         """
@@ -328,7 +328,7 @@ class ResourceManager:
                         info={},
                     )
                 except HTTPError as exc:
-                    self.logger.error(exc)
+                    self.logger.exception(exc)
 
 
 if __name__ == "__main__":
