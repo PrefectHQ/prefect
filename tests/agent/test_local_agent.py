@@ -179,7 +179,7 @@ def test_local_agent_deploy_flows_storage_continues(monkeypatch):
             ]
         )
 
-        assert not api.pull.call_args
+        assert not api.pull.called
 
 
 def test_local_agent_deploy_flows_no_pull(monkeypatch):
