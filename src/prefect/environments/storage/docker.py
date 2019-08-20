@@ -251,7 +251,7 @@ class Docker(Storage):
 
             if len(client.images(name=full_name)) == 0:
                 raise SerializationError(
-                    "Your flow failed to deserialize in the container; please ensure that all necessary files and dependencies have been included."
+                    "Your flow failed one of its deployment health checks! Please ensure that all necessary files and dependencies have been included."
                 )
 
             # Push the image if requested
@@ -333,29 +333,10 @@ class Docker(Storage):
                 )
 
             # Write a healthcheck script into the image
-            healthcheck = textwrap.dedent(
-                """\
-            print('Beginning health check...')
-            import cloudpickle
-            import sys
-            import warnings
-
-            for flow_file in [{flow_file_paths}]:
-                with open(flow_file, 'rb') as f:
-                    flow = cloudpickle.load(f)
-
-            if sys.version_info.minor < {python_version}[1] or sys.version_info.minor > {python_version}[1]:
-                msg = "Your Docker container is using python version {{sys_ver}}, but your Flow was serialized using {{user_ver}}; this could lead to unexpected errors in deployment.".format(sys_ver=(sys.version_info.major, sys.version_info.minor), user_ver={python_version})
-                warnings.warn(msg)
-
-            print('Healthcheck: OK')
-            """.format(
-                    flow_file_paths=", ".join(
-                        ["'{}'".format(k) for k in self.flows.values()]
-                    ),
-                    python_version=(sys.version_info.major, sys.version_info.minor),
-                )
-            )
+            with open(
+                os.path.join(os.path.dirname(__file__), "_healthcheck.py"), "r"
+            ) as healthscript:
+                healthcheck = healthscript.read()
 
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
                 health_file.write(healthcheck)
@@ -379,7 +360,7 @@ class Docker(Storage):
                 RUN pip install git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
                 # RUN pip install prefect
 
-                RUN python /root/.prefect/healthcheck.py
+                RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     base_image=self.base_image,
                     pip_installs=pip_installs,
@@ -387,6 +368,10 @@ class Docker(Storage):
                     copy_files=copy_files,
                     env_vars=env_vars,
                     version=self.prefect_version,
+                    flow_file_paths=", ".join(
+                        ['"{}"'.format(k) for k in self.flows.values()]
+                    ),
+                    python_version=(sys.version_info.major, sys.version_info.minor),
                 )
             )
 

@@ -314,7 +314,7 @@ class TaskRunner(Runner):
             msg = "Task '{name}': unexpected error while running task: {exc}".format(
                 name=context["task_full_name"], exc=repr(exc)
             )
-            self.logger.error(msg)
+            self.logger.exception(msg)
             state = Failed(message=msg, result=exc)
             if prefect.context.get("raise_on_exception"):
                 raise exc
@@ -443,7 +443,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.error(
+            self.logger.exception(
                 "Task '{name}': unexpected error while evaluating task trigger: {exc}".format(
                     exc=repr(exc),
                     name=prefect.context.get("task_full_name", self.task.name),
@@ -467,8 +467,6 @@ class TaskRunner(Runner):
         """
         Checks to make sure the task is ready to run (Pending or Mapped).
 
-        If the state is Paused, an ENDRUN is raised.
-
         Args:
             - state (State): the current state of this task
 
@@ -479,17 +477,8 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is not ready to run
         """
 
-        # the task is paused
-        if isinstance(state, Paused):
-            self.logger.debug(
-                "Task '{name}': task is paused; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
-            )
-            raise ENDRUN(state)
-
         # the task is ready
-        elif state.is_pending():
+        if state.is_pending():
             return state
 
         # the task is mapped, in which case we still proceed so that the children tasks

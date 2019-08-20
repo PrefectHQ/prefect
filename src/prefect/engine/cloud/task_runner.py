@@ -78,7 +78,7 @@ class CloudTaskRunner(TaskRunner):
             )
         except Exception as exc:
             msg = "Exception raised while calling state handlers: {}".format(repr(exc))
-            self.logger.error(msg)
+            self.logger.exception(msg)
             if raise_on_exception:
                 raise exc
             new_state = Failed(msg, result=exc)
@@ -95,7 +95,7 @@ class CloudTaskRunner(TaskRunner):
                 cache_for=self.task.cache_for,
             )
         except Exception as exc:
-            self.logger.error(
+            self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
             )
             raise ENDRUN(state=ClientFailed(state=new_state))
@@ -137,7 +137,7 @@ class CloudTaskRunner(TaskRunner):
                     task_run_version=task_run_info.version,  # type: ignore
                 )
             except Exception as exc:
-                self.logger.debug(
+                self.logger.exception(
                     "Failed to retrieve task state with error: {}".format(repr(exc))
                 )
                 if state is None:

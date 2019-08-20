@@ -34,8 +34,11 @@ def test_secret_value_pulled_from_context():
             secret.get()
 
 
-def test_secret_value_depends_on_use_local_secrets():
+def test_secret_value_depends_on_use_local_secrets(monkeypatch):
     secret = Secret(name="test")
+    monkeypatch.setattr(
+        "prefect.client.secrets.os.path.exists", MagicMock(return_value=False)
+    )
     with set_temporary_config(
         {"cloud.use_local_secrets": False, "cloud.auth_token": None}
     ):
