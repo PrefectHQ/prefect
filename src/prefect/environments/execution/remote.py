@@ -70,5 +70,7 @@ class RemoteEnvironment(Environment):
                 runner_cls = get_default_flow_runner_class()
                 runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
-            self.logger.error("Unexpected error raised during flow run: {}".format(exc))
+            self.logger.exception(
+                "Unexpected error raised during flow run: {}".format(exc)
+            )
             raise exc
