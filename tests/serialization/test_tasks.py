@@ -111,6 +111,15 @@ def test_deserialize_parameter():
     assert isinstance(p2, Parameter)
 
 
+def test_deserialize_parameter_with_cast():
+    p = Parameter(name="p", cast=lambda x: x + 1)
+    dumped = ParameterSchema().dump(p)
+    assert "lambda" in dumped["cast"]
+    p2 = ParameterSchema().load(dumped)
+    assert isinstance(p2, Parameter)
+    assert p2.cast is None
+
+
 def test_deserialize_parameter_requires_name():
     with pytest.raises(marshmallow.ValidationError):
         ParameterSchema().load({})

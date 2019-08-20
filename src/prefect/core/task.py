@@ -996,6 +996,8 @@ class Parameter(Task):
             value is ignored.
         - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
+        - cast (Callable[[Any], Any]): A function that will be called on the Parameter
+            value to coerce it to a type.
         - tags ([str], optional): A list of tags for this parameter
 
     """
@@ -1006,12 +1008,14 @@ class Parameter(Task):
         default: Any = None,
         required: bool = True,
         tags: Iterable[str] = None,
+        cast: Callable[[Any], Any] = None,
     ):
         if default is not None:
             required = False
 
         self.required = required
         self.default = default
+        self.cast = cast
 
         from prefect.engine.result_handlers import JSONResultHandler
 
@@ -1024,7 +1028,10 @@ class Parameter(Task):
         )
 
     def __repr__(self) -> str:
-        return "<Parameter: {self.name}>".format(self=self)
+        if self.cast is not None:
+            return "<Parameter[{self.cast}]: {self.name}>".format(self=self)
+        else:
+            return "<Parameter: {self.name}>".format(self=self)
 
     def __call__(self, flow: "Flow" = None) -> "Parameter":  # type: ignore
         """
@@ -1069,7 +1076,10 @@ class Parameter(Task):
             raise prefect.engine.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)
             )
-        return params.get(self.name, self.default)
+        value = params.get(self.name, self.default)
+        if self.cast is not None:
+            value = self.cast(value)
+        return value
 
     # Serialization ------------------------------------------------------------
 

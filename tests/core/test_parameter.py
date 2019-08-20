@@ -1,5 +1,9 @@
+import datetime
+
+import pendulum
 import pytest
 
+import prefect
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.tasks.core.function import FunctionTask
@@ -89,3 +93,37 @@ def test_copy_requires_name():
     x = Parameter("x")
     with pytest.raises(TypeError, match="required positional argument"):
         x.copy()
+
+
+def test_run():
+    x = Parameter("x")
+    with prefect.context(parameters=dict(x="abc")):
+        assert x.run() == "abc"
+
+
+def test_cast_int():
+    x = Parameter("x", cast=int)
+    with prefect.context(parameters=dict(x="1")):
+        assert x.run() == 1
+
+
+def test_cast_invalid_raises_error():
+    x = Parameter("x", cast=int)
+    with prefect.context(parameters=dict(x="abc")):
+        with pytest.raises(ValueError, match="invalid literal for int()"):
+            x.run()
+
+
+def test_cast_datetime():
+    x = Parameter("x", cast=pendulum.parse)
+    with prefect.context(parameters=dict(x="1990-01-01")):
+        value = x.run()
+        assert value == pendulum.datetime(1990, 1, 1)
+        assert isinstance(value, datetime.datetime)
+
+
+def test_cast_lambda():
+    x = Parameter("x", cast=lambda x: x + 1)
+    with prefect.context(parameters=dict(x=1)):
+        value = x.run()
+        assert value == 2

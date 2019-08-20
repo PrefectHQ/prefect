@@ -129,5 +129,8 @@ class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     default = JSONCompatible(allow_none=True)
     required = fields.Boolean(allow_none=True)
     description = fields.String(allow_none=True)
+    cast = fields.Function(
+        lambda task: repr(task.cast) if task.cast is not None else None, allow_none=True
+    )
     tags = fields.List(fields.String())
     outputs = fields.Method("load_outputs", allow_none=True)
