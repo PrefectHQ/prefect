@@ -4,6 +4,7 @@ import uuid
 
 import yaml
 
+from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
@@ -90,8 +91,8 @@ class KubernetesAgent(Agent):
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        env[0]["value"] = os.getenv("PREFECT__CLOUD__API", "https://api.prefect.io")
-        env[1]["value"] = os.environ["PREFECT__CLOUD__AGENT__AUTH_TOKEN"]
+        env[0]["value"] = config.cloud.api or "https://api.prefect.io"
+        env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
 
