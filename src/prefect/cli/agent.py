@@ -51,7 +51,7 @@ def start(name, token, no_pull):
 
     \b
     Options:
-        --token, -t     TEXT    A Prefect Cloud API token
+        --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
     """
