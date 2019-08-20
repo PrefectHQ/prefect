@@ -47,6 +47,22 @@ def test_query_tenant_id(monkeypatch):
         assert tenant_id == "id"
 
 
+def test_query_tenant_id_not_found(monkeypatch):
+    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=dict(tenant=[])))
+            )
+        )
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+
+        agent = Agent()
+        tenant_id = agent.query_tenant_id()
+        assert not tenant_id
+
+
 def test_query_flow_runs(monkeypatch):
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         gql_return = MagicMock(
