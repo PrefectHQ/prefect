@@ -65,7 +65,7 @@ class Agent:
                     "Submitted {} flow run(s) for execution.".format(len(flow_runs))
                 )
             except Exception as exc:
-                self.logger.error(exc)
+                self.logger.exception(exc)
             time.sleep(self.loop_interval)
 
     def query_tenant_id(self) -> str:

@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Use task and flow names for corresponding logger names for better organization - [#1355](https://github.com/PrefectHQ/prefect/pull/1355)
 - `Paused` states subclass `Scheduled` and can have predefined expirations - [#1375](https://github.com/PrefectHQ/prefect/pull/1375)
 - Introduce new Flow health checks prior to Cloud deployment - [#1372](https://github.com/PrefectHQ/prefect/issues/1372)
+- Improve logging functionality to include tracebacks - [#1374](https://github.com/PrefectHQ/prefect/issues/1374)
 
 ### Task Library
 
