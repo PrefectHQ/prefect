@@ -369,7 +369,7 @@ class WaitOnContainer(Task):
                 logs = client.logs(container_id)
                 self.logger.error(logs.decode())
             except Exception as exc:
-                self.logger.error(exc)
+                self.logger.exception(exc)
             raise FAIL(
                 "{id} failed with exit code {code}: {msg}".format(
                     id=container_id,

@@ -29,7 +29,7 @@ class LocalAgent(Agent):
         try:
             self.docker_client.ping()
         except Exception as exc:
-            self.logger.error(
+            self.logger.exception(
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc

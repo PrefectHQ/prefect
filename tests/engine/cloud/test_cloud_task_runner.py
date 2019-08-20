@@ -606,10 +606,11 @@ def test_state_handler_failures_are_handled_appropriately(client, caplog):
     assert isinstance(states[1].result, SyntaxError)
 
     error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
-    assert len(error_logs) == 1
-    assert "SyntaxError" in error_logs[0]
-    assert "unique" in error_logs[0]
-    assert "state handler" in error_logs[0]
+    assert len(error_logs) == 2
+    assert "This task failed somehow" in error_logs[0]
+    assert "SyntaxError" in error_logs[-1]
+    assert "unique" in error_logs[-1]
+    assert "state handler" in error_logs[-1]
 
 
 def test_task_runner_performs_retries_for_short_delays(client):

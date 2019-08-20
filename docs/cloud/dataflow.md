@@ -35,5 +35,5 @@ All task execution, including the invokation of Result Handlers takes place on _
 Here is an exhaustive list of places data might land in the Prefect Cloud database:
 - **Parameters**: all Parameters are "checkpointed" using a `JSONResultHandler` and consequently arrive in Cloud
 - **Logs**: all logs which are shipped through the Prefect Logger are placed in the Cloud database; toggling this behavior is a simple environment variable on your Prefect Agent.  Otherwise, you are always welcome to add custom formatters and handlers to the Prefect Logger which can filter out log messages based on regexes for sensitive information.
-- **Exceptions**: When unexpected errors are caught, their string representation is used as the "message" of the corresponding `Failed` Prefect State and arrives in Cloud; note that this does _not_ include the full error traceback
+- **Exceptions**: When unexpected errors are caught, the string representation of the exception and the corresponding traceback is used as the "message" of the corresponding `Failed` Prefect State and arrives in Cloud
 - **`ResultHandler.write`**: the output JSON objects from `ResultHandler.write` across all result handlers that are actually called during execution; as stated previously, this is easily configurable to mask sensitive URIs, etc.

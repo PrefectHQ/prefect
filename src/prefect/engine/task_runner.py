@@ -314,7 +314,7 @@ class TaskRunner(Runner):
             msg = "Task '{name}': unexpected error while running task: {exc}".format(
                 name=context["task_full_name"], exc=repr(exc)
             )
-            self.logger.error(msg)
+            self.logger.exception(msg)
             state = Failed(message=msg, result=exc)
             if prefect.context.get("raise_on_exception"):
                 raise exc
@@ -443,7 +443,7 @@ class TaskRunner(Runner):
 
         # Exceptions are trapped and turned into TriggerFailed states
         except Exception as exc:
-            self.logger.error(
+            self.logger.exception(
                 "Task '{name}': unexpected error while evaluating task trigger: {exc}".format(
                     exc=repr(exc),
                     name=prefect.context.get("task_full_name", self.task.name),
