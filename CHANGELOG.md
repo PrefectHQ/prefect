@@ -17,6 +17,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `Paused` states subclass `Scheduled` and can have predefined expirations - [#1375](https://github.com/PrefectHQ/prefect/pull/1375)
 - Introduce new Flow health checks prior to Cloud deployment - [#1372](https://github.com/PrefectHQ/prefect/issues/1372)
 - Improve logging functionality to include tracebacks - [#1374](https://github.com/PrefectHQ/prefect/issues/1374)
+- Improve CLI user experience while working with Cloud - [#1384](https://github.com/PrefectHQ/prefect/pull/1384/)
 
 ### Task Library
 

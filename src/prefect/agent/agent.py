@@ -1,5 +1,6 @@
 import logging
-import os
+from typing import Union
+
 import pendulum
 import time
 
@@ -8,6 +9,16 @@ from prefect.client import Client
 from prefect.serialization import state
 from prefect.engine.state import Submitted
 from prefect.utilities.graphql import with_args
+
+
+ascii_name = r"""
+ ____            __           _        _                    _
+|  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
+| |_) | '__/ _ \ |_ / _ \/ __| __|   / _ \ / _` |/ _ \ '_ \| __|
+|  __/| | |  __/  _|  __/ (__| |_   / ___ \ (_| |  __/ | | | |_
+|_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
+                                           |___/
+"""
 
 
 class Agent:
@@ -25,7 +36,6 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        #  self.auth_token = config.cloud.agent.get("auth_token")
         self.loop_interval = config.cloud.agent.get("loop_interval")
 
         self.client = Client(token=config.cloud.agent.get("auth_token"))
@@ -47,12 +57,46 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
+        tenant_id = self.agent_connect()
+        while True:
+            self.agent_process(tenant_id)
+            time.sleep(self.loop_interval)
+
+    def agent_connect(self) -> str:
+        """
+        Verify agent connection to Prefect Cloud by finding and returning a tenant id
+
+        Returns:
+            - str: The current tenant id
+        """
+        print(ascii_name)
         self.logger.info("Starting {}".format(type(self).__name__))
+        self.logger.info(
+            "Agent documentation can be found at https://docs.prefect.io/cloud/agent"
+        )
         tenant_id = self.query_tenant_id()
 
-        while True:
-            try:
-                flow_runs = self.query_flow_runs(tenant_id=tenant_id)
+        if not tenant_id:
+            raise ConnectionError(
+                "Tenant ID not found. Verify that you are using the proper API token."
+            )
+
+        self.logger.info("Agent successfully connected to Prefect Cloud")
+        self.logger.info("Waiting for flow runs...")
+
+        return tenant_id
+
+    def agent_process(self, tenant_id: str) -> None:
+        """
+        Full process for finding flow runs, updating states, and deploying.
+
+        Args:
+            - tenant_id (str): The tenant id to use in the query
+        """
+        try:
+            flow_runs = self.query_flow_runs(tenant_id=tenant_id)
+
+            if flow_runs:
                 self.logger.info(
                     "Found {} flow run(s) to submit for execution.".format(
                         len(flow_runs)
@@ -64,20 +108,23 @@ class Agent:
                 self.logger.info(
                     "Submitted {} flow run(s) for execution.".format(len(flow_runs))
                 )
-            except Exception as exc:
-                self.logger.exception(exc)
-            time.sleep(self.loop_interval)
+        except Exception as exc:
+            self.logger.error(exc)
 
-    def query_tenant_id(self) -> str:
+    def query_tenant_id(self) -> Union[str, None]:
         """
         Query Prefect Cloud for the tenant id that corresponds to the agent's auth token
 
         Returns:
-            - str: The current tenant id
+            - Union[str, None]: The current tenant id if found, None otherwise
         """
         query = {"query": {"tenant": {"id"}}}
         result = self.client.graphql(query)
-        return result.data.tenant[0].id  # type: ignore
+
+        if result.data.tenant:  # type: ignore
+            return result.data.tenant[0].id  # type: ignore
+
+        return None
 
     def query_flow_runs(self, tenant_id: str) -> list:
         """

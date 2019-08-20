@@ -4,6 +4,7 @@ import uuid
 
 import yaml
 
+from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
@@ -90,12 +91,44 @@ class KubernetesAgent(Agent):
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        env[0]["value"] = os.getenv("PREFECT__CLOUD__API", "https://api.prefect.io")
-        env[1]["value"] = os.environ["PREFECT__CLOUD__AGENT__AUTH_TOKEN"]
+        env[0]["value"] = config.cloud.api or "https://api.prefect.io"
+        env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
 
         return job
+
+    @staticmethod
+    def generate_deployment_yaml(
+        token: str = None, api: str = None, loop: str = None, namespace: str = None
+    ) -> str:
+
+        # Use defaults if not provided
+        token = token or ""
+        api = api or "https://api.prefect.io"
+        loop = loop or "5"
+        namespace = namespace or "default"
+
+        with open(
+            path.join(path.dirname(__file__), "deployment.yaml"), "r"
+        ) as deployment_file:
+            deployment = yaml.safe_load(deployment_file)
+
+        agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+        resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][1][
+            "env"
+        ]
+
+        agent_env[0]["value"] = token
+        agent_env[1]["value"] = api
+        agent_env[2]["value"] = loop
+        agent_env[3]["value"] = namespace
+
+        resource_manager_env[0]["value"] = token
+        resource_manager_env[1]["value"] = api
+        resource_manager_env[3]["value"] = namespace
+
+        return yaml.safe_dump(deployment)
 
 
 if __name__ == "__main__":

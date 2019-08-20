@@ -5,6 +5,7 @@ import uuid
 
 import requests
 
+from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
@@ -65,12 +66,8 @@ class NomadAgent(Agent):
         )
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
-        env["PREFECT__CLOUD__API"] = os.getenv(
-            "PREFECT__CLOUD__API", "https://api.prefect.io"
-        )
-        env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = os.environ[
-            "PREFECT__CLOUD__AGENT__AUTH_TOKEN"
-        ]
+        env["PREFECT__CLOUD__API"] = config.cloud.api or "https://api.prefect.io"
+        env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = config.cloud.agent.auth_token
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
 
