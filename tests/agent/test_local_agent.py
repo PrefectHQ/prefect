@@ -97,6 +97,8 @@ def test_local_agent_ping_exception(monkeypatch):
 
 
 def test_populate_env_vars():
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
     with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
         agent = LocalAgent()
