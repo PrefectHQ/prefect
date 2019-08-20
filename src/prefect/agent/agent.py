@@ -108,7 +108,6 @@ class Agent:
                 )
         except Exception as exc:
             self.logger.error(exc)
-            time.sleep(self.loop_interval)
 
     def query_tenant_id(self) -> str:
         """
