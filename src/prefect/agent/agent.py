@@ -118,12 +118,11 @@ class Agent:
         """
         query = {"query": {"tenant": {"id"}}}
         result = self.client.graphql(query)
-        try:
-            tenant_id = result.data.tenant[0].id  # type: ignore
-        except IndexError:
-            tenant_id = None
 
-        return tenant_id
+        if result.data.tenant:  # type: ignore
+            return result.data.tenant[0].id  # type: ignore
+
+        return None
 
     def query_flow_runs(self, tenant_id: str) -> list:
         """
