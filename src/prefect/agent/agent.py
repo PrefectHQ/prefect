@@ -94,7 +94,7 @@ class Agent:
         try:
             flow_runs = self.query_flow_runs(tenant_id=tenant_id)
 
-            if len(flow_runs):
+            if flow_runs:
                 self.logger.info(
                     "Found {} flow run(s) to submit for execution.".format(
                         len(flow_runs)
