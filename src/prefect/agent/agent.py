@@ -1,5 +1,4 @@
 import logging
-import os
 import pendulum
 import time
 
@@ -35,7 +34,6 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        #  self.auth_token = config.cloud.agent.get("auth_token")
         self.loop_interval = config.cloud.agent.get("loop_interval")
 
         self.client = Client(token=config.cloud.agent.get("auth_token"))
@@ -57,6 +55,18 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
+        tenant_id = self.agent_connect()
+        while True:
+            self.agent_process(tenant_id)
+            time.sleep(self.loop_interval)
+
+    def agent_connect(self) -> str:
+        """
+        Verify agent connection to Prefect Cloud by finding and returning a tenant id
+
+        Returns:
+            - str: The current tenant id
+        """
         print(ascii_name)
         self.logger.info("Starting {}".format(type(self).__name__))
         self.logger.info(
@@ -64,29 +74,40 @@ class Agent:
         )
         tenant_id = self.query_tenant_id()
 
-        if tenant_id:
-            self.logger.info("Agent successfully connected to Prefect Cloud")
-            self.logger.info("Waiting for flow runs...")
+        if not tenant_id:
+            raise ConnectionError(
+                "Tenant ID not found. Verify that you are using the proper API token."
+            )
 
-        while True:
-            try:
-                flow_runs = self.query_flow_runs(tenant_id=tenant_id)
+        self.logger.info("Agent successfully connected to Prefect Cloud")
+        self.logger.info("Waiting for flow runs...")
 
-                if len(flow_runs):
-                    self.logger.info(
-                        "Found {} flow run(s) to submit for execution.".format(
-                            len(flow_runs)
-                        )
+        return tenant_id
+
+    def agent_process(self, tenant_id: str) -> None:
+        """
+        Full process for finding flow runs, updating states, and deploying.
+
+        Args:
+            - tenant_id (str): The tenant id to use in the query
+        """
+        try:
+            flow_runs = self.query_flow_runs(tenant_id=tenant_id)
+
+            if len(flow_runs):
+                self.logger.info(
+                    "Found {} flow run(s) to submit for execution.".format(
+                        len(flow_runs)
                     )
+                )
 
-                    self.update_states(flow_runs)
-                    self.deploy_flows(flow_runs)
-                    self.logger.info(
-                        "Submitted {} flow run(s) for execution.".format(len(flow_runs))
-                    )
-            except Exception as exc:
-                self.logger.error(exc)
-            time.sleep(self.loop_interval)
+                self.update_states(flow_runs)
+                self.deploy_flows(flow_runs)
+                self.logger.info(
+                    "Submitted {} flow run(s) for execution.".format(len(flow_runs))
+                )
+        except Exception as exc:
+            self.logger.error(exc)
 
     def query_tenant_id(self) -> str:
         """
