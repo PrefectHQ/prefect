@@ -1,4 +1,6 @@
 import logging
+from typing import Union
+
 import pendulum
 import time
 
@@ -109,12 +111,12 @@ class Agent:
         except Exception as exc:
             self.logger.error(exc)
 
-    def query_tenant_id(self) -> str:
+    def query_tenant_id(self) -> Union[str, None]:
         """
         Query Prefect Cloud for the tenant id that corresponds to the agent's auth token
 
         Returns:
-            - str: The current tenant id
+            - Union[str, None]: The current tenant id if found, None otherwise
         """
         query = {"query": {"tenant": {"id"}}}
         result = self.client.graphql(query)
