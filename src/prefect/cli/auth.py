@@ -41,6 +41,7 @@ def login(token):
         click.confirm(
             "Prefect Cloud API token already set in config. Do you want to override?",
             default=True,
+            abort=True,
         )
 
     client = Client()
@@ -48,7 +49,7 @@ def login(token):
 
     # Verify login obtained a valid api token
     try:
-        client.graphql(query={"query": "hello"})
+        client.graphql(query={"query": {"tenant": "id"}})
     except AuthorizationError:
         click.secho(
             "Error attempting to use Prefect API token {}".format(token), fg="red"
