@@ -1,8 +1,7 @@
 version: 2
 
 references:
-  workspace_root: &workspace_root
-    /tmp/workspace
+  workspace_root: &workspace_root /tmp/workspace
   attach_workspace: &attach_workspace
     attach_workspace:
       at: *workspace_root
@@ -111,7 +110,7 @@ jobs:
           root: *workspace_root
           paths:
             - coverage
-              
+
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
@@ -152,22 +151,22 @@ jobs:
     docker:
       - image: python:3.5
 
-    steps: 
+    steps:
       - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
-    
+
       - run:
           name: Install graphviz
           command: apt-get update && apt-get install -y graphviz
-    
+
       - run:
           name: Install prefect
           command: pip install ".[all_extras]"
-    
+
       - run:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
@@ -180,22 +179,22 @@ jobs:
   test-3.6:
     docker:
       - image: python:3.6
-    steps: 
+    steps:
       - *attach_workspace
       - checkout
       - setup_remote_docker
       - run:
           name: Install zsh for tests
           command: apt-get update && apt-get install -y zsh
-    
+
       - run:
           name: Install graphviz
           command: apt-get update && apt-get install -y graphviz
-    
+
       - run:
           name: Install prefect
           command: pip install ".[all_extras]"
-    
+
       - run:
           name: Run tests
           command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
@@ -229,7 +228,7 @@ jobs:
 
   test-airflow:
     docker:
-      - image: continuumio/miniconda3
+      - image: continuumio/miniconda3:4.7.10
     steps:
       - checkout
       - setup_remote_docker
@@ -261,7 +260,7 @@ jobs:
   upload-coverage:
     docker:
       - image: python:3.6
-    steps: 
+    steps:
       - *attach_workspace
       - run:
           name: Upload Coverage
