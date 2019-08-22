@@ -23,13 +23,20 @@ def agent():
     \b
     Arguments:
         start       Start a Prefect agent
+        install     Output platform-specific agent installation configs
 
     \b
     Examples:
         $ prefect agent start
+        ...agent begins running in process...
 
     \b
         $ prefect agent start kubernetes --token MY_TOKEN
+        ...agent begins running in process...
+
+    \b
+        $ prefect agent install --token MY_TOKEN --namespace metrics
+        ...k8s yaml output...
     """
     pass
 
@@ -91,7 +98,7 @@ def install(name, token, api, loop, namespace):
 
     \b
     Arguments:
-        name            TEXT    The name of an agent to start (e.g. kubernetes`)
+        name            TEXT    The name of an agent to start (e.g. `kubernetes`)
                                 Defaults to `kubernetes`
 
     \b
