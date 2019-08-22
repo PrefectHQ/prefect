@@ -58,9 +58,27 @@ class Agent:
         new flow runs to deploy
         """
         tenant_id = self.agent_connect()
+
+        # Loop intervals for query sleep backoff
+        loop_intervals = {
+            0: 0,
+            1: 0.25,
+            2: 0.5,
+            3: 1.0,
+            4: 2.0,
+            5: 4.0,
+            6: 8.0,
+            7: 15.0,
+        }
+
+        index = 0
         while True:
-            self.agent_process(tenant_id)
-            time.sleep(self.loop_interval)
+            runs = self.agent_process(tenant_id)
+            if runs:
+                index = 0
+            elif index < max(loop_intervals.keys()):
+                index += 1
+            time.sleep(loop_intervals[index])
 
     def agent_connect(self) -> str:
         """
@@ -86,13 +104,17 @@ class Agent:
 
         return tenant_id
 
-    def agent_process(self, tenant_id: str) -> None:
+    def agent_process(self, tenant_id: str) -> bool:
         """
         Full process for finding flow runs, updating states, and deploying.
 
         Args:
             - tenant_id (str): The tenant id to use in the query
+
+        Returns:
+            - bool: whether or not flow runs were found
         """
+        flow_runs = None
         try:
             flow_runs = self.query_flow_runs(tenant_id=tenant_id)
 
@@ -110,6 +132,8 @@ class Agent:
                 )
         except Exception as exc:
             self.logger.error(exc)
+
+        return bool(flow_runs)
 
     def query_tenant_id(self) -> Union[str, None]:
         """
