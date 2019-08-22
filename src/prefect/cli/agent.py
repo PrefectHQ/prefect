@@ -97,8 +97,8 @@ def install(name, token, api, namespace):
 
     \b
     Arguments:
-        name            TEXT    The name of an agent to start (e.g. `kubernetes`)
-                                Defaults to `kubernetes`
+        name                TEXT    The name of an agent to start (e.g. `kubernetes`)
+                                    Defaults to `kubernetes`
 
     \b
     Options:
