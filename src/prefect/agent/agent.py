@@ -58,16 +58,7 @@ class Agent:
         tenant_id = self.agent_connect()
 
         # Loop intervals for query sleep backoff
-        loop_intervals = {
-            0: 0.25,
-            1: 0.5,
-            2: 1.0,
-            3: 2.0,
-            4: 4.0,
-            5: 8.0,
-            6: 10.0,
-            7: 15.0,
-        }
+        loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
 
         index = 0
         while True:
