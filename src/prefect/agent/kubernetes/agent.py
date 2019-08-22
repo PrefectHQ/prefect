@@ -100,13 +100,12 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
-        token: str = None, api: str = None, loop: str = None, namespace: str = None
+        token: str = None, api: str = None, namespace: str = None
     ) -> str:
 
         # Use defaults if not provided
         token = token or ""
         api = api or "https://api.prefect.io"
-        loop = loop or "5"
         namespace = namespace or "default"
 
         with open(
@@ -121,8 +120,7 @@ class KubernetesAgent(Agent):
 
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
-        agent_env[2]["value"] = loop
-        agent_env[3]["value"] = namespace
+        agent_env[2]["value"] = namespace
 
         resource_manager_env[0]["value"] = token
         resource_manager_env[1]["value"] = api

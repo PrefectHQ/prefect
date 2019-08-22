@@ -25,12 +25,9 @@ def test_k8s_agent_config_options(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
-    ):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = KubernetesAgent()
         assert agent
-        assert agent.loop_interval == 10
         assert agent.client.token == "TEST_TOKEN"
         assert agent.logger
         assert agent.batch_client
@@ -150,10 +147,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch):
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         agent = KubernetesAgent()
         deployment = agent.generate_deployment_yaml(
-            token="test_token",
-            api="test_api",
-            loop="test_loop",
-            namespace="test_namespace",
+            token="test_token", api="test_api", namespace="test_namespace"
         )
 
         deployment = yaml.safe_load(deployment)
@@ -165,8 +159,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch):
 
         assert agent_env[0]["value"] == "test_token"
         assert agent_env[1]["value"] == "test_api"
-        assert agent_env[2]["value"] == "test_loop"
-        assert agent_env[3]["value"] == "test_namespace"
+        assert agent_env[2]["value"] == "test_namespace"
 
         assert resource_manager_env[0]["value"] == "test_token"
         assert resource_manager_env[1]["value"] == "test_api"
