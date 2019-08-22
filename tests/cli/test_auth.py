@@ -31,7 +31,7 @@ def test_auth_login(monkeypatch):
         monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
         post = MagicMock(
             return_value=MagicMock(
-                json=MagicMock(return_value=dict(data=dict(hello="hi")))
+                json=MagicMock(return_value=dict(data=dict(tenant="id")))
             )
         )
         session = MagicMock()
@@ -67,3 +67,46 @@ def test_auth_login_client_error(monkeypatch):
             result = runner.invoke(auth, ["login", "--token", "test"])
             assert result.exit_code == 0
             assert "Error attempting to communicate with Prefect Cloud" in result.output
+
+
+def test_auth_login_confirm(monkeypatch):
+
+    with tempfile.NamedTemporaryFile() as f:
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=dict(hello="hi")))
+            )
+        )
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+
+        with set_temporary_config(
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        ):
+            runner = CliRunner()
+            result = runner.invoke(auth, ["login", "--token", "test"], input="Y")
+            assert result.exit_code == 0
+            assert "Login successful" in result.output
+
+
+def test_auth_login_not_confirm(monkeypatch):
+
+    with tempfile.NamedTemporaryFile() as f:
+        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
+        post = MagicMock(
+            return_value=MagicMock(
+                json=MagicMock(return_value=dict(data=dict(hello="hi")))
+            )
+        )
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+
+        with set_temporary_config(
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        ):
+            runner = CliRunner()
+            result = runner.invoke(auth, ["login", "--token", "test"], input="N")
+            assert result.exit_code == 1
