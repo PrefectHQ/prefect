@@ -41,7 +41,7 @@ def test_create_project(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(create, ["project", "--name", "test"])
+        result = runner.invoke(create, ["project", "test"])
         assert result.exit_code == 0
         assert "test created" in result.output
 
@@ -61,6 +61,26 @@ def test_create_project_error(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(create, ["project", "--name", "test"])
+        result = runner.invoke(create, ["project", "test"])
         assert result.exit_code == 0
         assert "Error creating project" in result.output
+
+
+def test_create_project_description(monkeypatch):
+
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(createProject=dict(id="id"))))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(create, ["project", "test", "-d", "description"])
+        assert result.exit_code == 0
+        assert "test created" in result.output

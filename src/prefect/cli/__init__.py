@@ -32,14 +32,11 @@ def cli():
         describe    Retrieve detailed object descriptions
 
     \b
-    Mutation Commands:
+    Action Commands:
+        agent       Manage agents
         create      Create objects
-
-    \b
-    Execution Commands:
         execute     Execute a flow's environment
         run         Run a flow
-        agent       Manage agents
 
     \b
     Setup Commands:

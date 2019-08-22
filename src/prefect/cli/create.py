@@ -19,28 +19,29 @@ def create():
 
     \b
     Examples:
-        $ prefect create project -n My-Project
+        $ prefect create project "My Project"
         My-Project created
 
     \b
-        $ prefect create project -n My-Project --description "My description"
+        $ prefect create project My-Project --description "My description"
         My-Project created
     """
     pass
 
 
 @create.command(hidden=True)
-@click.option(
-    "--name", "-n", help="Project name to create.", required=True, hidden=True
-)
+@click.argument("name", required=True)
 @click.option("--description", "-d", help="Project description to create", hidden=True)
 def project(name, description):
     """
     Create projects in Prefect Cloud that organize flows.
 
     \b
+    Arguments:
+        name                TEXT    The name of a project to create     [required]
+
+    \b
     Options:
-        --name, -n          TEXT    A project name to create    [required]
         --description, -d   TEXT    A project description
 
     """
