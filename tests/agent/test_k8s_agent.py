@@ -26,7 +26,7 @@ def test_k8s_agent_config_options(monkeypatch):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
+        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
     ):
         agent = KubernetesAgent()
         assert agent
@@ -46,7 +46,7 @@ def test_k8s_agent_deploy_flows(monkeypatch):
         "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = KubernetesAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -88,7 +88,7 @@ def test_k8s_agent_deploy_flows_continues(monkeypatch):
         "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = KubernetesAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -110,7 +110,7 @@ def test_k8s_agent_replace_yaml(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -147,7 +147,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = KubernetesAgent()
         deployment = agent.generate_deployment_yaml(
             token="test_token",

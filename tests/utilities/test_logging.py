@@ -38,7 +38,7 @@ def test_remote_handler_is_configured_for_cloud():
 def test_remote_handler_captures_errors_and_logs_them(caplog):
     try:
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "cloud.auth_token": None}
+            {"logging.log_to_cloud": True, "cloud.api_token": None}
         ):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")

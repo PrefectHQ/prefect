@@ -40,7 +40,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
         "prefect.client.secrets.os.path.exists", MagicMock(return_value=False)
     )
     with set_temporary_config(
-        {"cloud.use_local_secrets": False, "cloud.auth_token": None}
+        {"cloud.use_local_secrets": False, "cloud.api_token": None}
     ):
         with prefect.context(secrets=dict(test=42)):
             with pytest.raises(AuthorizationError, match="Client.login"):
@@ -54,7 +54,7 @@ def test_secrets_use_client(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_token": "secret_token", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()

@@ -31,14 +31,14 @@ class Agent:
     way to keep Prefect Cloud logic standard but allows for platform specific
     customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
+    In order for this to operate `PREFECT__CLOUD__AGENT__API_TOKEN` must be set as an
     environment variable or in your user configuration file.
     """
 
     def __init__(self) -> None:
         self.loop_interval = config.cloud.agent.get("loop_interval")
 
-        self.client = Client(token=config.cloud.agent.get("auth_token"))
+        self.client = Client(token=config.cloud.agent.get("api_token"))
 
         logger = logging.getLogger("agent")
         logger.setLevel(logging.DEBUG)

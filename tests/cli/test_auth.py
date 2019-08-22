@@ -39,7 +39,7 @@ def test_auth_login(monkeypatch):
         monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(auth, ["login", "--token", "test"])
@@ -61,7 +61,7 @@ def test_auth_login_client_error(monkeypatch):
         monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(auth, ["login", "--token", "test"])
@@ -83,7 +83,7 @@ def test_auth_login_confirm(monkeypatch):
         monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(auth, ["login", "--token", "test"], input="Y")
@@ -105,7 +105,7 @@ def test_auth_login_not_confirm(monkeypatch):
         monkeypatch.setattr("requests.Session", session)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(auth, ["login", "--token", "test"], input="N")

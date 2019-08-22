@@ -38,7 +38,7 @@ def test_create_project(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test"])
@@ -58,7 +58,7 @@ def test_create_project_error(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test"])
@@ -78,7 +78,7 @@ def test_create_project_description(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test", "-d", "description"])

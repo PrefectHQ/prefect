@@ -16,7 +16,7 @@ def test_agent_init():
 
 def test_agent_config_options():
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
+        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
     ):
         agent = Agent()
         assert agent.loop_interval == 10
@@ -24,15 +24,15 @@ def test_agent_config_options():
         assert agent.logger
 
 
-def test_agent_fails_no_auth_token():
-    with set_temporary_config({"cloud.agent.auth_token": None}):
+def test_agent_fails_no_api_token():
+    with set_temporary_config({"cloud.agent.api_token": None}):
         with pytest.raises(AuthorizationError):
             agent = Agent()
             agent.query_tenant_id()
 
 
 def test_query_tenant_id(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         post = MagicMock(
             return_value=MagicMock(
                 json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
@@ -48,7 +48,7 @@ def test_query_tenant_id(monkeypatch):
 
 
 def test_query_tenant_id_not_found(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         post = MagicMock(
             return_value=MagicMock(
                 json=MagicMock(return_value=dict(data=dict(tenant=[])))
@@ -64,7 +64,7 @@ def test_query_tenant_id_not_found(monkeypatch):
 
 
 def test_query_flow_runs(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         gql_return = MagicMock(
             return_value=MagicMock(
                 data=MagicMock(
@@ -83,7 +83,7 @@ def test_query_flow_runs(monkeypatch):
 
 
 def test_update_states_passes_empty(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         gql_return = MagicMock(
             return_value=MagicMock(
                 data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -98,7 +98,7 @@ def test_update_states_passes_empty(monkeypatch):
 
 
 def test_update_states_passes_no_task_runs(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         gql_return = MagicMock(
             return_value=MagicMock(
                 data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -124,7 +124,7 @@ def test_update_states_passes_no_task_runs(monkeypatch):
 
 
 def test_update_states_passes_task_runs(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         gql_return = MagicMock(
             return_value=MagicMock(
                 data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -158,13 +158,13 @@ def test_update_states_passes_task_runs(monkeypatch):
 
 
 def test_deploy_flows_passes_base_agent():
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = Agent()
         assert not agent.deploy_flows([])
 
 
 def test_agent_connect(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         post = MagicMock(
             return_value=MagicMock(
                 json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
@@ -179,7 +179,7 @@ def test_agent_connect(monkeypatch):
 
 
 def test_agent_connect_no_tenant_id(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         post = MagicMock(
             return_value=MagicMock(
                 json=MagicMock(return_value=dict(data=dict(tenant=[dict(id=None)])))
@@ -195,7 +195,7 @@ def test_agent_connect_no_tenant_id(monkeypatch):
 
 
 def test_agent_process(monkeypatch):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         gql_return = MagicMock(
             return_value=MagicMock(
                 data=MagicMock(

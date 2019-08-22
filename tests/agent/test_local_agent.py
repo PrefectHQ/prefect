@@ -22,7 +22,7 @@ def test_local_agent_config_options(monkeypatch):
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
+        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
     ):
         agent = LocalAgent()
         assert agent.loop_interval == 10
@@ -37,7 +37,7 @@ def test_local_agent_config_options_populated(monkeypatch):
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
+        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
     ):
         agent = LocalAgent(base_url="url", no_pull=True)
         assert agent.loop_interval == 10
@@ -51,7 +51,7 @@ def test_local_agent_no_pull(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = LocalAgent()
         assert not agent.no_pull
 
@@ -78,7 +78,7 @@ def test_local_agent_ping(monkeypatch):
         "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = LocalAgent()
         assert api.ping.called
 
@@ -91,7 +91,7 @@ def test_local_agent_ping_exception(monkeypatch):
         "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         with pytest.raises(Exception):
             agent = LocalAgent()
 
@@ -100,14 +100,14 @@ def test_populate_env_vars(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config({"cloud.agent.api_token": "token", "cloud.api": "api"}):
         agent = LocalAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
-            "PREFECT__CLOUD__AUTH_TOKEN": "token",
+            "PREFECT__CLOUD__API_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
@@ -128,7 +128,7 @@ def test_local_agent_deploy_flows(monkeypatch):
         "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = LocalAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -168,7 +168,7 @@ def test_local_agent_deploy_flows_storage_continues(monkeypatch):
         "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = LocalAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -193,7 +193,7 @@ def test_local_agent_deploy_flows_no_pull(monkeypatch):
         "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = LocalAgent(no_pull=True)
         agent.deploy_flows(
             flow_runs=[

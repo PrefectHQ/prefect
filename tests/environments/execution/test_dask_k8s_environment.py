@@ -50,7 +50,7 @@ def test_setup_doesnt_pass_if_private_registry(monkeypatch):
         "prefect.environments.DaskKubernetesEnvironment._create_namespaced_secret",
         create_secret,
     )
-    with set_temporary_config({"cloud.auth_token": "test"}):
+    with set_temporary_config({"cloud.api_token": "test"}):
         environment.setup(storage=Docker())
 
     assert create_secret.called
@@ -75,7 +75,7 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
         "prefect.environments.DaskKubernetesEnvironment._create_namespaced_secret",
         create_secret,
     )
-    with set_temporary_config({"cloud.auth_token": "test"}):
+    with set_temporary_config({"cloud.api_token": "test"}):
         with prefect.context(namespace="foo"):
             environment.setup(storage=Docker())
 
@@ -120,7 +120,7 @@ def test_create_flow_run_job(monkeypatch):
         "kubernetes.client", MagicMock(BatchV1Api=MagicMock(return_value=batchv1))
     )
 
-    with set_temporary_config({"cloud.auth_token": "test"}):
+    with set_temporary_config({"cloud.api_token": "test"}):
         environment.create_flow_run_job(
             docker_name="test1/test2:test3", flow_file_path="test4"
         )
@@ -134,7 +134,7 @@ def test_create_flow_run_job_fails_outside_cluster():
     environment = DaskKubernetesEnvironment()
 
     with pytest.raises(EnvironmentError):
-        with set_temporary_config({"cloud.auth_token": "test"}):
+        with set_temporary_config({"cloud.api_token": "test"}):
             environment.create_flow_run_job(
                 docker_name="test1/test2:test3", flow_file_path="test4"
             )
@@ -159,7 +159,7 @@ def test_run_flow(monkeypatch):
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
 
-        with set_temporary_config({"cloud.auth_token": "test"}):
+        with set_temporary_config({"cloud.api_token": "test"}):
             with prefect.context(
                 flow_file_path=os.path.join(directory, "flow_env.prefect")
             ):
@@ -177,7 +177,7 @@ def test_populate_job_yaml():
         job = yaml.safe_load(job_file)
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {"cloud.graphql": "gql_test", "cloud.api_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
@@ -218,7 +218,7 @@ def test_populate_worker_pod_yaml():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {"cloud.graphql": "gql_test", "cloud.api_token": "auth_test"}
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
@@ -244,7 +244,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {"cloud.graphql": "gql_test", "cloud.api_token": "auth_test"}
     ):
         with prefect.context(
             flow_run_id="id_test", image="my_image", namespace="foo-man"

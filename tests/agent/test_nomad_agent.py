@@ -15,7 +15,7 @@ def test_nomad_agent_init():
 
 def test_nomad_agent_config_options():
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
+        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
     ):
         agent = NomadAgent()
         assert agent
@@ -28,7 +28,7 @@ def test_nomad_agent_deploy_flows(monkeypatch):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = NomadAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -58,7 +58,7 @@ def test_nomad_agent_deploy_flows_continues(monkeypatch):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         agent = NomadAgent()
         agent.deploy_flows(
             flow_runs=[
@@ -77,7 +77,7 @@ def test_nomad_agent_deploy_flows_continues(monkeypatch):
 
 
 def test_nomad_agent_replace_yaml():
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"cloud.agent.api_token": "token"}):
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -103,6 +103,6 @@ def test_nomad_agent_replace_yaml():
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
         assert env["PREFECT__CLOUD__API"] == "https://api.prefect.io"
-        assert env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] == "token"
+        assert env["PREFECT__CLOUD__AGENT__API_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"

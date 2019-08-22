@@ -24,7 +24,7 @@ from prefect.utilities.graphql import GraphQLResult, decompress
 
 def test_client_initializes_from_config():
     with set_temporary_config(
-        {"cloud.graphql": "graphql_server", "cloud.auth_token": "token"}
+        {"cloud.graphql": "graphql_server", "cloud.api_token": "token"}
     ):
         client = Client()
     assert client.graphql_server == "graphql_server"
@@ -33,7 +33,7 @@ def test_client_initializes_from_config():
 
 def test_client_initializes_and_prioritizes_kwargs():
     with set_temporary_config(
-        {"cloud.graphql": "graphql_server", "cloud.auth_token": "token"}
+        {"cloud.graphql": "graphql_server", "cloud.api_token": "token"}
     ):
         client = Client(graphql_server="my-graphql")
     assert client.graphql_server == "my-graphql"
@@ -57,7 +57,7 @@ def test_client_token_initializes_from_file(monkeypatch):
         f.seek(0)
         monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
 
-        with set_temporary_config({"cloud.auth_token": None}):
+        with set_temporary_config({"cloud.api_token": None}):
             client = Client()
     assert client.token == "TOKEN"
 
@@ -68,7 +68,7 @@ def test_client_token_priotizes_config_over_file(monkeypatch):
         f.seek(0)
         monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
 
-        with set_temporary_config({"cloud.auth_token": "CONFIG-TOKEN"}):
+        with set_temporary_config({"cloud.api_token": "CONFIG-TOKEN"}):
             client = Client()
     assert client.token == "CONFIG-TOKEN"
 
@@ -122,7 +122,7 @@ def test_client_posts_raises_with_no_token(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": None}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": None}
     ):
         client = Client()
     with pytest.raises(AuthorizationError, match="Client.login"):
@@ -135,7 +135,7 @@ def test_headers_are_passed_to_get(monkeypatch):
     session.return_value.get = get
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     client.get("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -152,7 +152,7 @@ def test_headers_are_passed_to_post(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     client.post("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -169,7 +169,7 @@ def test_headers_are_passed_to_graphql(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     client.graphql("query {}", headers={"x": "y", "Authorization": "z"})
@@ -188,7 +188,7 @@ def test_client_posts_to_graphql_server(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.post("/foo/bar")
@@ -207,7 +207,7 @@ def test_client_posts_graphql_to_graphql_server(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
@@ -227,7 +227,7 @@ def test_graphql_errors_get_raised(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="GraphQL issue!"):
@@ -252,7 +252,7 @@ def test_client_deploy(monkeypatch, compressed):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
@@ -280,7 +280,7 @@ def test_client_deploy_builds_flow(monkeypatch, compressed):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
@@ -320,7 +320,7 @@ def test_client_deploy_optionally_avoids_building_flow(monkeypatch, compressed):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test")
@@ -349,7 +349,7 @@ def test_client_deploy_with_bad_proj_name(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test")
@@ -403,7 +403,7 @@ def test_get_flow_run_info(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -463,7 +463,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -498,7 +498,7 @@ def test_get_flow_run_info_raises_informative_error(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="not found"):
@@ -512,7 +512,7 @@ def test_set_flow_run_state(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.set_flow_run_state(
@@ -531,7 +531,7 @@ def test_set_flow_run_state_with_error(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="something went wrong"):
@@ -568,7 +568,7 @@ def test_get_task_run_info(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.get_task_run_info(
@@ -592,7 +592,7 @@ def test_get_task_run_info_with_error(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
 
@@ -610,7 +610,7 @@ def test_set_task_run_state(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
     result = client.set_task_run_state(
@@ -628,7 +628,7 @@ def test_set_task_run_state_serializes(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
 
@@ -650,7 +650,7 @@ def test_set_task_run_state_with_error(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
 
@@ -666,7 +666,7 @@ def test_write_log_successfully(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
 
@@ -684,7 +684,7 @@ def test_write_log_with_error(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         client = Client()
 
