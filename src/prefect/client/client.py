@@ -368,12 +368,13 @@ class Client:
         )
         return flow_id
 
-    def create_project(self, project_name: str) -> str:
+    def create_project(self, project_name: str, project_description: str = None) -> str:
         """
         Create a new Project
 
         Args:
-            - project_name (str): the project that should contain this flow.
+            - project_name (str): the project that should contain this flow
+            - project_description (str, optional): the project description
 
         Returns:
             - str: the ID of the newly-created project
@@ -388,7 +389,10 @@ class Client:
         }
 
         res = self.graphql(
-            project_mutation, variables=dict(input=dict(name=project_name))
+            project_mutation,
+            variables=dict(
+                input=dict(name=project_name, description=project_description)
+            ),
         )  # type: Any
 
         return res.data.createProject.id
