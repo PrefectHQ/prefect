@@ -59,7 +59,7 @@ class Agent:
 
         # Loop intervals for query sleep backoff
         loop_intervals = {
-            0: 0,
+            0: 0.1,
             1: 0.25,
             2: 0.5,
             3: 1.0,
