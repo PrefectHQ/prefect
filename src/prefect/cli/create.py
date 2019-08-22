@@ -20,7 +20,7 @@ def create():
     \b
     Examples:
         $ prefect create project "My Project"
-        My-Project created
+        My Project created
 
     \b
         $ prefect create project My-Project --description "My description"
