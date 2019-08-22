@@ -87,8 +87,6 @@ def test_agent_install_passes_args():
             "TEST_TOKEN",
             "--api",
             "TEST_API",
-            "--loop",
-            "TEST_LOOP",
             "--namespace",
             "TEST_NAMESPACE",
         ],
@@ -96,5 +94,4 @@ def test_agent_install_passes_args():
     assert result.exit_code == 0
     assert "TEST_TOKEN" in result.output
     assert "TEST_API" in result.output
-    assert "TEST_LOOP" in result.output
     assert "TEST_NAMESPACE" in result.output
