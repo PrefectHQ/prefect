@@ -229,4 +229,25 @@ def test_agent_process(monkeypatch):
 
         # Assert it doesn't return everything but all functions are called properly
         agent = Agent()
+        assert agent.agent_process("id")
+
+
+def test_agent_process_no_runs_found(monkeypatch):
+    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+        gql_return = MagicMock(
+            return_value=MagicMock(
+                data=MagicMock(
+                    set_flow_run_state=None,
+                    set_task_run_state=None,
+                    getRunsInQueue=MagicMock(flow_run_ids=["id"]),
+                    flow_run=[],
+                )
+            )
+        )
+        client = MagicMock()
+        client.return_value.graphql = gql_return
+        monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+        # Assert it doesn't return everything but all functions are called properly
+        agent = Agent()
         assert not agent.agent_process("id")
