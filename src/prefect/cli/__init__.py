@@ -7,6 +7,7 @@ import prefect
 
 from .agent import agent as _agent
 from .auth import auth as _auth
+from .create import create as _create
 from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
@@ -31,6 +32,10 @@ def cli():
         describe    Retrieve detailed object descriptions
 
     \b
+    Mutation Commands:
+        create      Create objects
+
+    \b
     Execution Commands:
         execute     Execute a flow's environment
         run         Run a flow
@@ -50,6 +55,7 @@ def cli():
 
 cli.add_command(_agent)
 cli.add_command(_auth)
+cli.add_command(_create)
 cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
