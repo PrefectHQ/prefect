@@ -83,7 +83,6 @@ def start(name, token, no_pull):
 @click.option(
     "--api", "-a", required=False, help="A Prefect Cloud API URL.", hidden=True
 )
-@click.option("--loop", "-l", required=False, help="Agent loop interval.", hidden=True)
 @click.option(
     "--namespace",
     "-n",
@@ -91,7 +90,7 @@ def start(name, token, no_pull):
     help="Agent namespace to launch workloads.",
     hidden=True,
 )
-def install(name, token, api, loop, namespace):
+def install(name, token, api, namespace):
     """
     Install an agent. Outputs configuration text which can be used to install on various
     platforms.
@@ -105,7 +104,6 @@ def install(name, token, api, loop, namespace):
     Options:
         --token, -t         TEXT    A Prefect Cloud API token
         --api, -a           TEXT    A Prefect Cloud API URL
-        --loop, -l          TEXT    Agent loop interval
         --namespace, -n     TEXT    Agent namespace to launch workloads
     """
 
@@ -118,6 +116,6 @@ def install(name, token, api, loop, namespace):
         return
 
     deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
-        token=token, api=api, loop=loop, namespace=namespace
+        token=token, api=api, namespace=namespace
     )
     click.echo(deployment)

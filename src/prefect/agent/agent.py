@@ -36,8 +36,6 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        self.loop_interval = config.cloud.agent.get("loop_interval")
-
         self.client = Client(token=config.cloud.agent.get("auth_token"))
 
         logger = logging.getLogger("agent")

@@ -21,11 +21,8 @@ def test_local_agent_config_options(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
-    ):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent()
-        assert agent.loop_interval == 10
         assert agent.client.token == "TEST_TOKEN"
         assert agent.logger
         assert not agent.no_pull
@@ -36,11 +33,8 @@ def test_local_agent_config_options_populated(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
-    ):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent(base_url="url", no_pull=True)
-        assert agent.loop_interval == 10
         assert agent.client.token == "TEST_TOKEN"
         assert agent.logger
         assert agent.no_pull
