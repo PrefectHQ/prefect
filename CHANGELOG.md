@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Improve logging functionality to include tracebacks - [#1374](https://github.com/PrefectHQ/prefect/issues/1374)
 - Improve CLI user experience while working with Cloud - [#1384](https://github.com/PrefectHQ/prefect/pull/1384/)
 - Users can now create projects from the CLI - [#1388](https://github.com/PrefectHQ/prefect/pull/1388)
+- Add a health check to confirm that serialized flows are valid prior to Cloud deploy - [#1397](https://github.com/PrefectHQ/prefect/pull/1397)
 
 ### Task Library
 
