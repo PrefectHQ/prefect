@@ -348,6 +348,17 @@ class Client:
             )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
+
+        # verify that the serialized flow can be deserialized
+        try:
+            prefect.serialization.flow.FlowSchema().load(serialized_flow)
+        except Exception as exc:
+            raise ValueError(
+                "Flow could not be deserialized successfully. Error was: {}".format(
+                    repr(exc)
+                )
+            )
+
         if compressed:
             serialized_flow = compress(serialized_flow)
         res = self.graphql(
