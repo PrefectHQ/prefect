@@ -10,20 +10,24 @@ from prefect.environments.storage import _healthcheck as healthchecks
 
 
 class TestSerialization:
-    def test_serialization_check_raises_on_bad_imports(self):
+    def test_cloudpickle_deserialization_check_raises_on_bad_imports(self):
         bad_bytes = b"\x80\x04\x95\x18\x00\x00\x00\x00\x00\x00\x00\x8c\x0bfoo_machine\x94\x8c\x04func\x94\x93\x94."
         with tempfile.NamedTemporaryFile() as f:
             f.write(bad_bytes)
             f.seek(0)
             with pytest.raises(ImportError, match="foo_machine"):
-                objs = healthchecks.serialization_check("['{}']".format(f.name))
+                objs = healthchecks.cloudpickle_deserialization_check(
+                    "['{}']".format(f.name)
+                )
 
-    def test_serialization_check_passes_and_returns_objs(self):
+    def test_cloudpickle_deserialization_check_passes_and_returns_objs(self):
         good_bytes = cloudpickle.dumps(Flow("empty"))
         with tempfile.NamedTemporaryFile() as f:
             f.write(good_bytes)
             f.seek(0)
-            objs = healthchecks.serialization_check("['{}']".format(f.name))
+            objs = healthchecks.cloudpickle_deserialization_check(
+                "['{}']".format(f.name)
+            )
 
         assert len(objs) == 1
 
@@ -32,7 +36,7 @@ class TestSerialization:
         assert flow.name == "empty"
         assert flow.tasks == set()
 
-    def test_serialization_check_passes_and_returns_multiple_objs(self):
+    def test_cloudpickle_deserialization_check_passes_and_returns_multiple_objs(self):
         flow_one = cloudpickle.dumps(Flow("one"))
         flow_two = cloudpickle.dumps(Flow("two"))
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -45,7 +49,7 @@ class TestSerialization:
                 f.write(flow_two)
 
             paths = "['{0}', '{1}']".format(file_one, file_two)
-            objs = healthchecks.serialization_check(paths)
+            objs = healthchecks.cloudpickle_deserialization_check(paths)
 
         assert len(objs) == 2
 

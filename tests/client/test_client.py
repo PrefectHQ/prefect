@@ -359,6 +359,32 @@ def test_client_deploy_with_bad_proj_name(monkeypatch):
     assert "client.create_project" in str(exc.value)
 
 
+def test_client_deploy_with_flow_that_cant_be_deserialized(monkeypatch):
+    response = {"data": {"project": [{"id": "proj-id"}]}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    task = prefect.Task()
+    # we add a max_retries value to the task without a corresponding retry_delay; this will fail at deserialization
+    task.max_retries = 3
+    flow = prefect.Flow(name="test", tasks=[task])
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "(Flow could not be deserialized).*"
+            "(`retry_delay` must be provided if max_retries > 0)"
+        ),
+    ) as exc:
+        client.deploy(flow, project_name="my-default-project", build=False)
+
+
 def test_get_flow_run_info(monkeypatch):
     response = """
 {
