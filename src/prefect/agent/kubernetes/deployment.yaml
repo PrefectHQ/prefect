@@ -27,6 +27,8 @@ spec:
               value: "https://api.prefect.io"
             - name: NAMESPACE
               value: "default"
+            - name: IMAGE_PULL_SECRETS
+              value: ""
           resources:
             limits:
               memory: "128Mi"
