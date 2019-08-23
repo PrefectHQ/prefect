@@ -43,3 +43,5 @@ spec:
             limits:
               cpu: "100m"
       restartPolicy: Never
+      imagePullSecrets:
+      - name: ""
