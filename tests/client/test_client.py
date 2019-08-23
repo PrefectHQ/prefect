@@ -385,7 +385,6 @@ def test_client_deploy_with_flow_that_cant_be_deserialized(monkeypatch):
         client.deploy(flow, project_name="my-default-project", build=False)
 
 
-
 def test_get_flow_run_info(monkeypatch):
     response = """
 {
