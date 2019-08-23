@@ -107,6 +107,8 @@ def test_k8s_agent_replace_yaml(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
+    monkeypatch.setenv("IMAGE_PULL_SECRETS", "my-secret")
+
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {
@@ -138,6 +140,36 @@ def test_k8s_agent_replace_yaml(monkeypatch):
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
         assert env[3]["value"] == "default"
+
+        assert (
+            job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
+            == "my-secret"
+        )
+
+
+def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+        flow_run = GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
+
+        agent = KubernetesAgent()
+        job = agent.replace_job_spec_yaml(flow_run)
+
+        assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
 
 
 def test_k8s_agent_generate_deployment_yaml(monkeypatch):
