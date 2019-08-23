@@ -21,7 +21,7 @@ This token can either be added to your Prefect [user configuration file](../../g
 auth_token = "<your auth token>"
 ```
 
-or assigned to the environment variable `PREFECT__CLOUD__AUTH_TOKEN`.
+or assigned to the environment variable `PREFECT__CLOUD__API_TOKEN`.
 
 ## GraphQL
 

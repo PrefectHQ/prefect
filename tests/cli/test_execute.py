@@ -44,7 +44,7 @@ def test_execute_cloud_flow_not_found(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         with prefect.context({"flow_run_id": "test"}):
             runner = CliRunner()
@@ -65,7 +65,7 @@ def test_execute_cloud_flow_fails(monkeypatch):
     monkeypatch.setattr("prefect.cli.execute.Client", client)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         with prefect.context({"flow_run_id": "test"}):
             runner = CliRunner()

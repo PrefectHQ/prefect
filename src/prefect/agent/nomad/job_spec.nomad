@@ -14,7 +14,7 @@
                 "Driver": "docker",
                 "Env": {
                     "PREFECT__CLOUD__API": "XX",
-                    "PREFECT__CLOUD__AUTH_TOKEN": "XX",
+                    "PREFECT__CLOUD__API_TOKEN": "XX",
                     "PREFECT__CONTEXT__FLOW_RUN_ID": "XX",
                     "PREFECT__CONTEXT__NAMESPACE": "XX",
                     "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",

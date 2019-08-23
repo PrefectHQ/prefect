@@ -45,7 +45,7 @@ def test_describe_flows(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["flows", "--name", "flow"])
@@ -83,7 +83,7 @@ def test_describe_flows_not_found(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["flows", "--name", "flow"])
@@ -105,7 +105,7 @@ def test_describe_flows_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -152,7 +152,7 @@ def test_describe_tasks(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["tasks", "--name", "flow"])
@@ -189,7 +189,7 @@ def test_describe_tasks_flow_not_found(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["tasks", "--name", "flow"])
@@ -208,7 +208,7 @@ def test_describe_tasks_not_found(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["tasks", "--name", "flow"])
@@ -232,7 +232,7 @@ def test_describe_flow_runs(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["flow-runs", "--name", "flow-run"])
@@ -274,7 +274,7 @@ def test_describe_flow_runs_not_found(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(describe, ["flow-runs", "--name", "flow-run"])
@@ -298,7 +298,7 @@ def test_describe_flow_runs_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
