@@ -37,6 +37,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Rename `CloudEnvironment` to `DaskKubernetesEnvironment` - [#1250](https://github.com/PrefectHQ/prefect/issues/1250)
+- Renamed a context variable from `scheduled_start_time` to `flow_run_scheduled_start_time` for clarity - [#1403](https://github.com/PrefectHQ/prefect/pull/1403)
 
 ### Contributors
 
