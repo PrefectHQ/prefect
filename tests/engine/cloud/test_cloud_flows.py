@@ -30,6 +30,7 @@ pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
 
 class FlowRun:
     flow_id = str(uuid.uuid4())
+
     def __init__(self, id, state=None, version=None):
         self.id = id
         self.state = state or Pending()
