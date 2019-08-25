@@ -29,6 +29,7 @@ pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
 
 
 class FlowRun:
+    flow_id = str(uuid.uuid4())
     def __init__(self, id, state=None, version=None):
         self.id = id
         self.state = state or Pending()
@@ -50,7 +51,7 @@ class TaskRun:
 
 @prefect.task
 def whats_the_time():
-    return prefect.context.get("scheduled_start_time")
+    return prefect.context.get("flow_run_scheduled_start_time")
 
 
 @prefect.task
@@ -104,6 +105,8 @@ class MockedCloudClient(MagicMock):
         task_runs = [t for t in self.task_runs.values() if t.flow_run_id == flow_run_id]
 
         return FlowRunInfoResult(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
             parameters={},
             context=None,
             version=flow_run.version,
@@ -211,7 +214,7 @@ def test_simple_two_task_flow(monkeypatch, executor):
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-def test_scheduled_start_time_is_in_context(monkeypatch, executor):
+def test_flow_run_scheduled_start_time_is_in_context(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 

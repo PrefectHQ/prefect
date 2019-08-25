@@ -155,7 +155,7 @@ class FlowRunner(Runner):
                 context_params[param] = value
 
         context.update(flow_name=self.flow.name)
-        context.setdefault("scheduled_start_time", pendulum.now("utc"))
+        context.setdefault("flow_run_scheduled_start_time", pendulum.now("utc"))
 
         # add various formatted dates to context
         now = pendulum.now("utc")

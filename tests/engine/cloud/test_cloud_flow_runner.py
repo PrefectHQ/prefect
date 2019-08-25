@@ -270,7 +270,7 @@ def test_flow_runner_loads_context_from_cloud(monkeypatch):
     assert res.context["a"] == 1
 
 
-def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
+def test_flow_runner_puts_flow_run_scheduled_start_time_in_context(monkeypatch):
     flow = prefect.Flow(name="test")
     date = pendulum.parse("19860920")
     get_flow_run_info = MagicMock(
@@ -287,9 +287,12 @@ def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
         state=None, task_states={}, context={}, task_contexts={}, parameters={}
     )
 
-    assert "scheduled_start_time" in res.context
-    assert isinstance(res.context["scheduled_start_time"], datetime.datetime)
-    assert res.context["scheduled_start_time"].strftime("%Y-%m-%d") == "1986-09-20"
+    assert "flow_run_scheduled_start_time" in res.context
+    assert isinstance(res.context["flow_run_scheduled_start_time"], datetime.datetime)
+    assert (
+        res.context["flow_run_scheduled_start_time"].strftime("%Y-%m-%d")
+        == "1986-09-20"
+    )
 
 
 def test_flow_runner_prioritizes_user_context_over_default_context(monkeypatch):

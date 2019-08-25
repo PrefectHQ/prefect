@@ -21,7 +21,7 @@ t2 = ShellTask(name="sleep", command="sleep 5", max_retries=3, retry_delay=retry
 
 @task(max_retries=1, retry_delay=retry_delay)
 def add_7():
-    date = prefect.context.get("scheduled_start_time", datetime.utcnow())
+    date = prefect.context.get("flow_run_scheduled_start_time", datetime.utcnow())
     return date + timedelta(days=7)
 
 
@@ -29,8 +29,8 @@ def add_7():
 ## any passed kwargs to the task
 command = """
     {% for i in range(5) %}
-        echo "{{ scheduled_start_time }}"
-        echo "{{ scheduled_start_time_7 }}"
+        echo "{{ flow_run_scheduled_start_time }}"
+        echo "{{ flow_run_scheduled_start_time_7 }}"
         echo "{{ my_param }}"
     {% endfor %}
 """
@@ -47,7 +47,7 @@ with Flow("tutorial") as flow:
     my_param = Parameter("my_param")
     t2(upstream_tasks=[t1])
     t3 = templated_command(
-        scheduled_start_time_7=add_7, my_param=my_param, upstream_tasks=[t1]
+        flow_run_scheduled_start_time_7=add_7, my_param=my_param, upstream_tasks=[t1]
     )
 
 

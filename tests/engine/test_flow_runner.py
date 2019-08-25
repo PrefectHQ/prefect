@@ -1366,31 +1366,31 @@ class TestContext:
         assert flow_state.is_successful()
         assert flow_state.result[runner.flow.tasks.pop()].result == 42
 
-    def test_flow_runner_provides_scheduled_start_time(self):
+    def test_flow_runner_provides_flow_run_scheduled_start_time(self):
         @prefect.task
-        def return_scheduled_start_time():
-            return prefect.context.get("scheduled_start_time")
+        def return_flow_run_scheduled_start_time():
+            return prefect.context.get("flow_run_scheduled_start_time")
 
-        f = Flow(name="test", tasks=[return_scheduled_start_time])
+        f = Flow(name="test", tasks=[return_flow_run_scheduled_start_time])
         res = f.run()
 
         assert res.is_successful()
-        assert res.result[return_scheduled_start_time].is_successful()
+        assert res.result[return_flow_run_scheduled_start_time].is_successful()
         assert isinstance(
-            res.result[return_scheduled_start_time].result, datetime.datetime
+            res.result[return_flow_run_scheduled_start_time].result, datetime.datetime
         )
 
-    def test_flow_runner_doesnt_override_scheduled_start_time(self):
+    def test_flow_runner_doesnt_override_flow_run_scheduled_start_time(self):
         @prefect.task
-        def return_scheduled_start_time():
-            return prefect.context.get("scheduled_start_time")
+        def return_flow_run_scheduled_start_time():
+            return prefect.context.get("flow_run_scheduled_start_time")
 
-        f = Flow(name="test", tasks=[return_scheduled_start_time])
-        res = f.run(context=dict(scheduled_start_time=42))
+        f = Flow(name="test", tasks=[return_flow_run_scheduled_start_time])
+        res = f.run(context=dict(flow_run_scheduled_start_time=42))
 
         assert res.is_successful()
-        assert res.result[return_scheduled_start_time].is_successful()
-        assert res.result[return_scheduled_start_time].result == 42
+        assert res.result[return_flow_run_scheduled_start_time].is_successful()
+        assert res.result[return_flow_run_scheduled_start_time].result == 42
 
     @pytest.mark.parametrize(
         "date", ["today_nodash", "tomorrow_nodash", "yesterday_nodash"]
