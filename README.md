@@ -57,7 +57,7 @@ flow.run() # "Hello, world!"
 
 Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
 
-Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/guide/development/documentation.html#docstrings).
+Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/guide/development/documentation.html).
 
 ## Contributing
 
