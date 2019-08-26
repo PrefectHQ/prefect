@@ -179,7 +179,7 @@ i
 
     .site-name
         font-family: font-secondary
-        font-size: 1.625em
+        font-size: 1.625em !important
         line-height: 1.3
 
 // sidebar
@@ -193,22 +193,24 @@ i
             color: color-grey
 
 
-.content:not(.custom)
+
+.theme-default-content:not(.custom)
     max-width: 55rem
 
 // footer
 .footer
     margin-top: 2.5em
  
-.page-edit, 
-.page-nav
-    max-width: 55rem
+.page
+    .page-edit, 
+    .page-nav
+        max-width: 55rem
 
 // badges
 badge = 'span.badge'
 // badge = '.badge[data-v-23988dc6], .badge[data-v-099ab69c]'
 
-.content
+.theme-default-content
     {badge}
         border-radius: 0.25rem
         padding: 0.125rem 0.5rem
@@ -276,8 +278,8 @@ buttons = 'button, .action-button, .home .action .action-button'
 
 
 // images
-.content:not(.custom),
-.content
+.theme-default-content:not(.custom),
+.theme-default-content
     img
         display: block
         height: auto
@@ -423,7 +425,7 @@ pre.vue-container
 
 
 // code blocks wrapped in a div inside vuepress content
-.content
+.theme-default-content
     div{lang}
         border-radius: 0.375em
         position: relative
@@ -448,7 +450,7 @@ pre.vue-container
 
 
 // code blocks within vuepress content but not wrapped in a div
-.content
+.theme-default-content
     pre,
     pre{lang}
         @extend .prefect-code
@@ -489,7 +491,7 @@ pre.vue-container
 sig-class = 'div[class="class-sig"]'
 sig-method = 'div[class="method-sig"]'
 
-.content
+.theme-default-content
     {sig-class},
     {sig-method}
         @extend .prefect-block
