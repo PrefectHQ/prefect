@@ -166,7 +166,10 @@ class TaskRunner(Runner):
                 context.update(loop_context)
 
         context.update(
-            task_run_count=run_count, task_name=self.task.name, task_tags=self.task.tags
+            task_run_count=run_count,
+            task_name=self.task.name,
+            task_tags=self.task.tags,
+            task_slug=self.task.slug,
         )
         context.setdefault("checkpointing", config.flows.checkpointing)
 
