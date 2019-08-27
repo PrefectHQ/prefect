@@ -13,7 +13,7 @@ from requests.packages.urllib3.util.retry import Retry
 from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import  ClientError, AuthorizationError
+from prefect.utilities.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
@@ -64,7 +64,6 @@ class Client:
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
-
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.api_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
@@ -205,8 +204,8 @@ class Client:
         )
 
         if raise_on_error and "errors" in result:
-            if 'Malformed Authorization header' in str(result['errors']):
-                raise AuthorizationError(result['errors'])
+            if "Malformed Authorization header" in str(result["errors"]):
+                raise AuthorizationError(result["errors"])
             raise ClientError(result["errors"])
         else:
             return as_nested_dict(result, GraphQLResult)  # type: ignore
@@ -305,10 +304,10 @@ class Client:
         """
         if os.path.exists(self._local_settings_path()):
             with open(self._local_settings_path(), "r") as f:
-                return toml.load(f)
+                return toml.load(f)  # type: ignore
         return {}
 
-    def save_api_token(self):
+    def save_api_token(self) -> None:
         """
         Saves the API token in local storage.
         """
@@ -316,7 +315,7 @@ class Client:
         settings["api_token"] = self._api_token
         self._save_local_settings(settings)
 
-    def get_auth_token(self):
+    def get_auth_token(self) -> str:
         """
         Returns an auth token:
             - if no explicit access token is stored, returns the api token
@@ -347,11 +346,12 @@ class Client:
             List[Dict]: a list of dictionaries containing the id, slug, and name of
             available tenants
         """
-        return self.graphql(
+        result = self.graphql(
             {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
             # use the API token to see all available tenants
             token=self._api_token,
-        ).data.tenant
+        )  # type: ignore
+        return result.data.tenant  # type: ignore
 
     def login_to_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
         """
@@ -392,11 +392,11 @@ class Client:
             variables=dict(slug=tenant_slug, id=tenant_id),
             # use the API token to query the tenant
             token=self._api_token,
-        )
-        if not tenant.data.tenant:
+        )  # type: ignore
+        if not tenant.data.tenant:  # type: ignore
             raise ValueError("No matching tenants found.")
 
-        tenant_id = tenant.data.tenant[0].id
+        tenant_id = tenant.data.tenant[0].id  # type: ignore
 
         payload = self.graphql(
             {
@@ -411,12 +411,12 @@ class Client:
             variables=dict(input=dict(tenantId=tenant_id)),
             # Use the API token to switch tenants
             token=self._api_token,
-        )
-        self._access_token = payload.data.switchTenant.accessToken
+        )  # type: ignore
+        self._access_token = payload.data.switchTenant.accessToken  # type: ignore
         self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.switchTenant.expiresIn
+            seconds=payload.data.switchTenant.expiresIn  # type: ignore
         )
-        self._refresh_token = payload.data.switchTenant.refreshToken
+        self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
@@ -426,7 +426,7 @@ class Client:
 
         return True
 
-    def logout_from_tenant(self):
+    def logout_from_tenant(self) -> None:
         self._access_token = None
         self._refresh_token = None
         self._active_tenant_id = None
@@ -458,12 +458,12 @@ class Client:
             variables=dict(input=dict(accessToken=self._access_token)),
             # pass the refresh token as the auth header
             token=self._refresh_token,
-        )
-        self._access_token = payload.data.refreshToken.accessToken
+        )  # type: ignore
+        self._access_token = payload.data.refreshToken.accessToken  # type: ignore
         self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.refreshToken.expiresIn
+            seconds=payload.data.refreshToken.expiresIn  # type: ignore
         )
-        self._refresh_token = payload.data.refreshToken.refreshToken
+        self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
 
         return True
 
