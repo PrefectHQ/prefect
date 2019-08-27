@@ -59,7 +59,7 @@ flow.deploy("Hello, World!", build=False)
 
 We deploy this flow to the Prefect Cloud project that we saw at the beginning of this guide. On this deploy we are also choosing not to rebuild the flow's storage because we already did that in the prior step.
 
-After this deployment is complete you should be able to see your flow now exist in Prefect Cloud!
+After this deployment is complete you should be able to see your flow now exists in Prefect Cloud!
 
 ```
 $ prefect get flows
