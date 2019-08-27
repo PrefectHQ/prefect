@@ -343,7 +343,7 @@ class Client:
         NOTE: this should only be called by users who have provided a USER-scoped API token.
 
         Returns:
-            List[Dict]: a list of dictionaries containing the id, slug, and name of
+            - List[Dict]: a list of dictionaries containing the id, slug, and name of
             available tenants
         """
         result = self.graphql(
@@ -569,11 +569,14 @@ class Client:
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
         Create a new Project
+
         Args:
             - project_name (str): the project that should contain this flow
             - project_description (str, optional): the project description
+
         Returns:
             - str: the ID of the newly-created project
+
         Raises:
             - ClientError: if the project creation failed
         """

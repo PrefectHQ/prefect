@@ -1,3 +1,4 @@
+import os
 import tempfile
 import sys
 from unittest.mock import MagicMock
@@ -16,6 +17,8 @@ def prefect_home_dir():
     Sets a temporary home directory
     """
     with tempfile.TemporaryDirectory() as tmp:
+        tmp = os.path.join(tmp, ".prefect")
+        os.makedirs(tmp)
         with configuration.set_temporary_config({"home_dir": tmp}):
             yield tmp
 
