@@ -11,7 +11,7 @@
     "markdown-it-attrs": "^2.4.1",
     "markdown-it-checkbox": "^1.1.0",
     "netlify-identity-widget": "^1.5.5",
-    "vuepress": "^0.14.11"
+    "vuepress": "^1.0.3"
   },
   "scripts": {
     "docs:generate-api": "cd docs && python generate_docs.py",
@@ -22,5 +22,7 @@
     "type": "git",
     "url": "git+https://github.com/PrefectHQ/prefect.git"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@vuepress/plugin-google-analytics": "^1.0.1"
+  }
 }
