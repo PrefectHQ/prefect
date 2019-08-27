@@ -49,6 +49,7 @@ class CloudHandler(logging.StreamHandler):
 
             if record_dict.get("exc_text") is not None:
                 message += "\n" + record_dict["exc_text"]
+                record_dict.pop("exc_info", None)
 
             self.client.write_run_log(
                 flow_run_id=flow_run_id,
