@@ -1,11 +1,23 @@
+import tempfile
 import sys
+from unittest.mock import MagicMock
 
 import pytest
 from distributed import Client
 
 import prefect
 from prefect.engine.executors import DaskExecutor, LocalExecutor, SynchronousExecutor
-from prefect.utilities import debug
+from prefect.utilities import debug, configuration
+
+
+@pytest.fixture(autouse=True)
+def prefect_home_dir():
+    """
+    Sets a temporary home directory
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        with configuration.set_temporary_config({"home_dir": tmp}):
+            yield tmp
 
 
 # ----------------
@@ -64,3 +76,23 @@ def executor(request, _switch):
     or with some subset of executors that you want to use.
     """
     return _switch(request.param)
+
+
+@pytest.fixture
+def patch_post(monkeypatch):
+    """
+    Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified response.
+
+    The return value of the fixture is a function that is called on the response to patch it.
+
+    Typically, the response will contain up to two keys, `data` and `errors`.
+    """
+
+    def patch(response):
+        post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        return post
+
+    return patch

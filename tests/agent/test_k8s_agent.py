@@ -28,7 +28,7 @@ def test_k8s_agent_config_options(monkeypatch):
     with set_temporary_config({"cloud.agent.api_token": "TEST_TOKEN"}):
         agent = KubernetesAgent()
         assert agent
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client._api_token == "TEST_TOKEN"
         assert agent.logger
         assert agent.batch_client
 
@@ -136,7 +136,7 @@ def test_k8s_agent_replace_yaml(monkeypatch):
 
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        assert env[0]["value"] == "https://api.prefect.io"
+        assert "https://api.prefect.io" in env[0]["value"]
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
         assert env[3]["value"] == "default"

@@ -36,7 +36,7 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        self.client = Client(token=config.cloud.agent.get("api_token"))
+        self.client = Client(api_token=config.cloud.agent.get("api_token"))
 
         logger = logging.getLogger("agent")
         logger.setLevel(logging.DEBUG)

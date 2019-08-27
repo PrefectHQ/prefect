@@ -23,7 +23,7 @@ def test_local_agent_config_options(monkeypatch):
 
     with set_temporary_config({"cloud.agent.api_token": "TEST_TOKEN"}):
         agent = LocalAgent()
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client._api_token == "TEST_TOKEN"
         assert agent.logger
         assert not agent.no_pull
         assert api.call_args[1]["base_url"] == "unix://var/run/docker.sock"
@@ -35,7 +35,7 @@ def test_local_agent_config_options_populated(monkeypatch):
 
     with set_temporary_config({"cloud.agent.api_token": "TEST_TOKEN"}):
         agent = LocalAgent(base_url="url", no_pull=True)
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client._api_token == "TEST_TOKEN"
         assert agent.logger
         assert agent.no_pull
         assert api.call_args[1]["base_url"] == "url"

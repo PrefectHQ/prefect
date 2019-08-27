@@ -22,7 +22,8 @@ class Local(Storage):
             created for you.
     """
 
-    def __init__(self, directory: str = "~/.prefect/flows") -> None:
+    def __init__(self, directory: str = None) -> None:
+        directory = directory or prefect.config.home_dir
         self.flows = dict()  # type: Dict[str, str]
         abs_directory = os.path.abspath(os.path.expanduser(directory))
         if not os.path.exists(abs_directory):

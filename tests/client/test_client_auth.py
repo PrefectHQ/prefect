@@ -1,0 +1,480 @@
+import uuid
+import toml
+from pathlib import Path
+import tempfile
+import datetime
+import json
+import os
+from unittest.mock import MagicMock, mock_open
+
+import marshmallow
+import pendulum
+import pytest
+import requests
+
+import prefect
+from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.state import Pending
+from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.utilities.graphql import GraphQLResult, decompress
+
+
+@pytest.fixture
+def patch_graphql(monkeypatch):
+    def patch(response):
+        post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+
+    return patch
+
+
+class TestClientConfig:
+    def test_client_initializes_from_config(self):
+        with set_temporary_config(
+            {"cloud.api": "api_server", "cloud.api_token": "token"}
+        ):
+            client = Client()
+        assert client.api_server == "api_server"
+        assert client._api_token == "token"
+
+    def test_client_initializes_and_prioritizes_kwargs(self):
+        with set_temporary_config(
+            {"cloud.api": "api_server", "cloud.api_token": "token"}
+        ):
+            client = Client(api_server="my-graphql")
+        assert client.api_server == "my-graphql"
+        assert client._api_token == "token"
+
+    def test_client_settings_path_is_path_object(self):
+        assert isinstance(Client()._local_settings_path(), Path)
+
+    def test_client_settings_path_depends_on_api_server(self, prefect_home_dir):
+        path = Client(
+            api_server="https://a-test-api.prefect.test/subdomain"
+        )._local_settings_path()
+        expected = os.path.join(
+            prefect_home_dir,
+            "client/https-a-test-api.prefect.test-subdomain/settings.toml",
+        )
+        assert str(path) == expected
+
+    def test_client_settings_path_depends_on_home_dir(self):
+        with set_temporary_config(dict(home_dir="abc/def")):
+            path = Client(api_server="xyz")._local_settings_path()
+            expected = "abc/def/client/xyz/settings.toml"
+            assert str(path) == os.path.expanduser(expected)
+
+    def test_client_token_initializes_from_file(selfmonkeypatch):
+        with tempfile.TemporaryDirectory() as tmp:
+            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
+                path = Path(tmp) / "client" / "xyz" / "settings.toml"
+                os.makedirs(path.parent)
+                with open(path, "w") as f:
+                    toml.dump(dict(api_token="FILE_TOKEN"), f)
+
+                client = Client()
+        assert client._api_token == "FILE_TOKEN"
+
+    def test_client_token_priotizes_config_over_file(selfmonkeypatch):
+        with tempfile.TemporaryDirectory() as tmp:
+            with set_temporary_config(
+                {"home_dir": tmp, "cloud.api": "xyz", "cloud.api_token": "CONFIG_TOKEN"}
+            ):
+                path = Path(tmp) / "client" / "xyz" / "settings.toml"
+                os.makedirs(path.parent)
+                with open(path, "w") as f:
+                    toml.dump(dict(api_token="FILE_TOKEN"), f)
+
+                client = Client()
+        assert client._api_token == "CONFIG_TOKEN"
+
+    def test_client_token_priotizes_arg_over_config(self):
+        with set_temporary_config({"cloud.api_token": "CONFIG_TOKEN"}):
+            client = Client(api_token="ARG_TOKEN")
+        assert client._api_token == "ARG_TOKEN"
+
+    def test_save_local_settings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
+                path = Path(tmp) / "client" / "xyz" / "settings.toml"
+
+                client = Client(api_token="a")
+                client.save_api_token()
+                with open(path, "r") as f:
+                    assert toml.load(f)["api_token"] == "a"
+
+                client = Client(api_token="b")
+                client.save_api_token()
+                with open(path, "r") as f:
+                    assert toml.load(f)["api_token"] == "b"
+
+    def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
+        self
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            with set_temporary_config({"home_dir": tmp}):
+                client = Client(api_token="a")
+                client.save_api_token()
+
+                client = Client()
+                assert client._api_token == "a"
+
+    def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
+        self
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            with set_temporary_config({"home_dir": tmp}):
+                client = Client(api_token="a")
+                client.save_api_token()
+
+                client = Client(api_token="b")
+                assert client._api_token == "b"
+
+                assert Client()._api_token == "a"
+
+
+class TestTenantAuth:
+    def test_login_to_tenant_requires_argument(self):
+        client = Client()
+        with pytest.raises(ValueError, match="At least one"):
+            client.login_to_tenant()
+
+    def test_login_to_tenant_requires_valid_uuid(self):
+        client = Client()
+        with pytest.raises(ValueError, match="valid UUID"):
+            client.login_to_tenant(tenant_id="a")
+
+    def test_login_to_client_sets_access_token(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client()
+        assert client._access_token is None
+        assert client._refresh_token is None
+        client.login_to_tenant(tenant_id=tenant_id)
+        assert client._access_token == "ACCESS_TOKEN"
+        assert client._refresh_token == "REFRESH_TOKEN"
+
+    def test_login_uses_api_token(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client(api_token="api")
+        client.login_to_tenant(tenant_id=tenant_id)
+        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+
+    def test_login_uses_api_token_when_access_token_is_set(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client(api_token="api")
+        client._access_token = "access"
+        client.login_to_tenant(tenant_id=tenant_id)
+        assert client.get_auth_token() == "ACCESS_TOKEN"
+        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+
+    def test_graphql_uses_access_token_after_login(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client(api_token="api")
+        client.graphql({})
+        assert client.get_auth_token() == "api"
+        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+
+        client.login_to_tenant(tenant_id=tenant_id)
+        client.graphql({})
+        assert client.get_auth_token() == "ACCESS_TOKEN"
+        assert post.call_args[1]["headers"] == dict(Authorization="Bearer ACCESS_TOKEN")
+
+    def test_login_to_client_writes_tenant_to_settings_and_reloads_it(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client()
+        assert client._active_tenant_id is None
+        client.login_to_tenant(tenant_id=tenant_id)
+        assert client._active_tenant_id == tenant_id
+
+        # new client loads the active tenant
+        assert Client()._active_tenant_id == tenant_id
+
+    def test_logout_clears_access_token_and_tenant(self, patch_post):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+        client = Client()
+        client.login_to_tenant(tenant_id=tenant_id)
+
+        assert client._access_token is not None
+        assert client._refresh_token is not None
+        assert client._active_tenant_id is not None
+
+        client.logout_from_tenant()
+
+        assert client._access_token is None
+        assert client._refresh_token is None
+        assert client._active_tenant_id is None
+
+        # new client doesn't load the active tenant
+        assert Client()._active_tenant_id is None
+
+    def test_refresh_token_sets_attributes(self, patch_post):
+        patch_post(
+            {
+                "data": {
+                    "refreshToken": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    }
+                }
+            }
+        )
+        client = Client()
+        assert client._access_token is None
+        assert client._refresh_token is None
+        assert client._access_token_expires_at < pendulum.now()
+        client._refresh_access_token()
+        assert client._access_token is "ACCESS_TOKEN"
+        assert client._refresh_token is "REFRESH_TOKEN"
+        assert client._access_token_expires_at > pendulum.now().add(seconds=599)
+
+    def test_refresh_token_passes_access_token_as_arg(self, patch_post):
+        post = patch_post(
+            {
+                "data": {
+                    "refreshToken": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    }
+                }
+            }
+        )
+        client = Client()
+        client._access_token = "access"
+        client._refresh_access_token()
+        variables = json.loads(post.call_args[1]["json"]["variables"])
+        assert variables["input"]["accessToken"] == "access"
+
+    def test_refresh_token_passes_refresh_token_as_header(self, patch_post):
+        post = patch_post(
+            {
+                "data": {
+                    "refreshToken": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    }
+                }
+            }
+        )
+        client = Client()
+        client._refresh_token = "refresh"
+        client._refresh_access_token()
+        assert post.call_args[1]["headers"] == dict(Authorization="Bearer refresh")
+
+    def test_get_available_tenants(self, patch_post):
+        tenants = [
+            {"id": "a", "name": "a-name", "slug": "a-slug"},
+            {"id": "b", "name": "b-name", "slug": "b-slug"},
+            {"id": "c", "name": "c-name", "slug": "c-slug"},
+        ]
+        post = patch_post({"data": {"tenant": tenants}})
+        client = Client()
+        gql_tenants = client.get_available_tenants()
+        assert gql_tenants == tenants
+
+    def test_get_auth_token_returns_api_if_access_token_not_set(self):
+        client = Client(api_token="api")
+        assert client._access_token is None
+        assert client.get_auth_token() == "api"
+
+    def test_get_auth_token_returns_access_token_if_set(self):
+        client = Client(api_token="api")
+        client._access_token = "access"
+        assert client.get_auth_token() == "access"
+
+    def test_get_auth_token_refreshes_if_refresh_token_and_expiration_within_30_seconds(
+        self, monkeypatch
+    ):
+        refresh_token = MagicMock()
+        monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
+        client = Client(api_token="api")
+        client._access_token = "access"
+        client._refresh_token = "refresh"
+        client._access_token_expires_at = pendulum.now().add(seconds=29)
+        client.get_auth_token()
+        refresh_token.assert_called()
+
+    def test_get_auth_token_refreshes_if_refresh_token_and_no_expiration(
+        self, monkeypatch
+    ):
+        refresh_token = MagicMock()
+        monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
+        client = Client(api_token="api")
+        client._access_token = "access"
+        client._refresh_token = "refresh"
+        client._access_token_expires_at = None
+        client.get_auth_token()
+        refresh_token.assert_called()
+
+    def test_get_auth_token_doesnt_refreshe_if_refresh_token_and_future_expiration(
+        self, monkeypatch
+    ):
+        refresh_token = MagicMock()
+        monkeypatch.setattr("prefect.Client._refresh_access_token", refresh_token)
+        client = Client(api_token="api")
+        client._access_token = "access"
+        client._refresh_token = "refresh"
+        client._access_token_expires_at = pendulum.now().add(minutes=10)
+        assert client.get_auth_token() == "access"
+        refresh_token.assert_not_called()
+
+
+class TestPassingHeadersAndTokens:
+    def test_headers_are_passed_to_get(self, monkeypatch):
+        get = MagicMock()
+        session = MagicMock()
+        session.return_value.get = get
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config(
+            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        ):
+            client = Client()
+        client.get("/foo/bar", headers={"x": "y", "Authorization": "z"})
+        assert get.called
+        assert get.call_args[1]["headers"] == {
+            "x": "y",
+            "Authorization": "Bearer secret_token",
+        }
+
+    def test_headers_are_passed_to_post(self, monkeypatch):
+        post = MagicMock()
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config(
+            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        ):
+            client = Client()
+        client.post("/foo/bar", headers={"x": "y", "Authorization": "z"})
+        assert post.called
+        assert post.call_args[1]["headers"] == {
+            "x": "y",
+            "Authorization": "Bearer secret_token",
+        }
+
+    def test_headers_are_passed_to_graphql(self, monkeypatch):
+        post = MagicMock()
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config(
+            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        ):
+            client = Client()
+        client.graphql("query {}", headers={"x": "y", "Authorization": "z"})
+        assert post.called
+        assert post.call_args[1]["headers"] == {
+            "x": "y",
+            "Authorization": "Bearer secret_token",
+        }
+
+    def test_tokens_are_passed_to_get(self, monkeypatch):
+        get = MagicMock()
+        session = MagicMock()
+        session.return_value.get = get
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+            client = Client()
+        client.get("/foo/bar", token="secret_token")
+        assert get.called
+        assert get.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}
+
+    def test_tokens_are_passed_to_post(self, monkeypatch):
+        post = MagicMock()
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+            client = Client()
+        client.post("/foo/bar", token="secret_token")
+        assert post.called
+        assert post.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}
+
+    def test_tokens_are_passed_to_graphql(self, monkeypatch):
+        post = MagicMock()
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+            client = Client()
+        client.graphql("query {}", token="secret_token")
+        assert post.called
+        assert post.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}

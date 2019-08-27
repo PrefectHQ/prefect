@@ -17,7 +17,7 @@ def test_nomad_agent_config_options():
     with set_temporary_config({"cloud.agent.api_token": "TEST_TOKEN"}):
         agent = NomadAgent()
         assert agent
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client._api_token == "TEST_TOKEN"
         assert agent.logger
 
 
@@ -99,7 +99,7 @@ def test_nomad_agent_replace_yaml():
         )
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
-        assert env["PREFECT__CLOUD__API"] == "https://api.prefect.io"
+        assert "https://api.prefect.io" in env["PREFECT__CLOUD__API"]
         assert env["PREFECT__CLOUD__AGENT__API_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"

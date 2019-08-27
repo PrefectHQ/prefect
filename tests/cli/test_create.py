@@ -26,16 +26,8 @@ def test_create_help():
     )
 
 
-def test_create_project(monkeypatch):
-
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(createProject=dict(id="id"))))
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
+def test_create_project(patch_post):
+    patch_post(dict(data=dict(createProject=dict(id="id"))))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
@@ -46,16 +38,8 @@ def test_create_project(monkeypatch):
         assert "test created" in result.output
 
 
-def test_create_project_error(monkeypatch):
-
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(errors=dict(error="bad")))
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
+def test_create_project_error(patch_post):
+    patch_post(dict(errors=dict(error="bad")))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
@@ -66,16 +50,8 @@ def test_create_project_error(monkeypatch):
         assert "Error creating project" in result.output
 
 
-def test_create_project_description(monkeypatch):
-
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(createProject=dict(id="id"))))
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
+def test_create_project_description(patch_post):
+    patch_post(dict(data=dict(createProject=dict(id="id"))))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}

@@ -25,88 +25,48 @@ def test_auth_help():
     assert "Handle Prefect Cloud authorization." in result.output
 
 
-def test_auth_login(monkeypatch):
+def test_auth_login(patch_post):
+    patch_post(dict(data=dict(tenant="id")))
 
-    with tempfile.NamedTemporaryFile() as f:
-        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
-        post = MagicMock(
-            return_value=MagicMock(
-                json=MagicMock(return_value=dict(data=dict(tenant="id")))
-            )
-        )
-        session = MagicMock()
-        session.return_value.post = post
-        monkeypatch.setattr("requests.Session", session)
-
-        with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
-        ):
-            runner = CliRunner()
-            result = runner.invoke(auth, ["login", "--token", "test"])
-            assert result.exit_code == 0
-            assert "Login successful" in result.output
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(auth, ["login", "--token", "test"])
+        assert result.exit_code == 0
+        assert "Login successful" in result.output
 
 
-def test_auth_login_client_error(monkeypatch):
+def test_auth_login_client_error(patch_post):
+    patch_post(dict(errors=dict(error="bad")))
 
-    with tempfile.NamedTemporaryFile() as f:
-        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
-        post = MagicMock(
-            return_value=MagicMock(
-                json=MagicMock(return_value=dict(errors=dict(error="bad")))
-            )
-        )
-        session = MagicMock()
-        session.return_value.post = post
-        monkeypatch.setattr("requests.Session", session)
-
-        with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
-        ):
-            runner = CliRunner()
-            result = runner.invoke(auth, ["login", "--token", "test"])
-            assert result.exit_code == 0
-            assert "Error attempting to communicate with Prefect Cloud" in result.output
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(auth, ["login", "--token", "test"])
+        assert result.exit_code == 0
+        assert "Error attempting to communicate with Prefect Cloud" in result.output
 
 
-def test_auth_login_confirm(monkeypatch):
+def test_auth_login_confirm(patch_post):
+    patch_post(dict(data=dict(hello="hi")))
 
-    with tempfile.NamedTemporaryFile() as f:
-        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
-        post = MagicMock(
-            return_value=MagicMock(
-                json=MagicMock(return_value=dict(data=dict(hello="hi")))
-            )
-        )
-        session = MagicMock()
-        session.return_value.post = post
-        monkeypatch.setattr("requests.Session", session)
-
-        with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
-        ):
-            runner = CliRunner()
-            result = runner.invoke(auth, ["login", "--token", "test"], input="Y")
-            assert result.exit_code == 0
-            assert "Login successful" in result.output
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(auth, ["login", "--token", "test"], input="Y")
+        assert result.exit_code == 0
+        assert "Login successful" in result.output
 
 
-def test_auth_login_not_confirm(monkeypatch):
+def test_auth_login_not_confirm(patch_post):
+    patch_post(dict(data=dict(hello="hi")))
 
-    with tempfile.NamedTemporaryFile() as f:
-        monkeypatch.setattr("prefect.client.Client.local_token_path", f.name)
-        post = MagicMock(
-            return_value=MagicMock(
-                json=MagicMock(return_value=dict(data=dict(hello="hi")))
-            )
-        )
-        session = MagicMock()
-        session.return_value.post = post
-        monkeypatch.setattr("requests.Session", session)
-
-        with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
-        ):
-            runner = CliRunner()
-            result = runner.invoke(auth, ["login", "--token", "test"], input="N")
-            assert result.exit_code == 1
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(auth, ["login", "--token", "test"], input="N")
+        assert result.exit_code == 1
