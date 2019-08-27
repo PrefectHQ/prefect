@@ -166,7 +166,6 @@ class TaskRunner(Runner):
                 context.update(loop_context)
 
         context.update(
-            task=self.task,
             task_run_count=run_count,
             task_name=self.task.name,
             task_tags=self.task.tags,
