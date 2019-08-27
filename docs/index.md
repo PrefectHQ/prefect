@@ -1,28 +1,9 @@
-<p align="center" style="margin-bottom:40px;">
-    <img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height=350 style="max-height: 350px;">
-</p>
-
-<p align="center">
-    <a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
-        <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
-    </a>
-    <a href="https://codecov.io/gh/PrefectHQ/prefect">
-        <img src="https://codecov.io/gh/PrefectHQ/prefect/branch/master/graph/badge.svg" />
-    </a>
-    <a href=https://github.com/ambv/black>
-        <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
-    </a>
-    <a href="https://pypi.org/project/prefect/">
-        <img src="https://img.shields.io/pypi/dm/prefect.svg?color=%2327B1FF&label=installs&logoColor=%234D606E">
-    </a>
-    <a href="https://hub.docker.com/r/prefecthq/prefect">
-        <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
-    </a>
-    <a href="https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU">
-        <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
-    </a>
-</p>
-
+---
+home: true
+heroImage: /assets/wordmark-color-vertical.svg
+heroText: " "
+footer: Copyright © 2018-present Prefect Technologies, Inc.
+---
 
 <div class="hero">
     <div class="action">
