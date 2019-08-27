@@ -19,12 +19,6 @@ NAME            FLOW COUNT  AGE         DESCRIPTION
 Hello, World!   0           1 day ago
 ```
 
------
-
-::: tip Docker
-Make sure that you have Docker installed and running in order for this guide to work!
-:::
-
 ### Write Flow
 
 To start, we are going to write a dummy flow that doesn't do anything. Feel free to make the flow more complex if desired but for the sake of simplicity we will stick with a flow which does nothing.
@@ -36,6 +30,10 @@ flow = Flow("my-flow") # empty dummy flow
 ```
 
 ### Build Flow Storage
+
+::: tip Docker
+Make sure that you have Docker installed and running in order for this step to work!
+:::
 
 Typically, flow storage will be built on the deploy step to Cloud and shipped off to a registry but we are going to perform this guide without the need of an external container registry.
 
