@@ -19,7 +19,6 @@ Prefect provides various key / value pairs in context that are always available 
 
 | Variable | Description |
 | :--- | --- |
-| `scheduled_start_time` | an actual datetime object representing the scheduled start time for the Flow run; falls back to `now` for unscheduled runs |
 | `date` | an actual datetime object representing the current time |
 | `today` | the current date formatted as `YYYY-MM-DD`|
 | `today_nodash` | the current date formatted as `YYYYMMDD`|
@@ -29,12 +28,25 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `logger` | the logger for the current task |
 | `flow_name` | the name of the current flow |
+| `scheduled_start_time` | a datetime object representing the scheduled start time for the flow run; falls back to `now` for unscheduled runs |
 | `parameters` | a dictionary of parameter values for the current flow run |
 | `map_index` | the map index of the current task (if mapped, otherwise `None`) |
 | `task_name` | the name of the current task |
 | `task_full_name` | the name of the current task, including map index |
+| `task_slug` | the slug of the current task |
 | `task_tags` | the tags on the current task |
 | `task_run_count` | the run count of the task run - typically only interesting for retrying tasks |
+
+In addition, Prefect Cloud supplies some additional context variables:
+
+| Variable | Description |
+| :--- | --- |
+| `flow_id` | the id of the current flow |
+| `flow_run_id` | the id of the current flow run |
+| `flow_run_version` | the state version of the current flow run |
+| `task_id` | the id of the current task |
+| `task_run_id` | the id of the current task run |
+| `task_run_version` | the state version of the current task run |
 
 Users can also provide values to context at runtime.
 """

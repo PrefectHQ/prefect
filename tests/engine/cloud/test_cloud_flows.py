@@ -29,6 +29,8 @@ pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
 
 
 class FlowRun:
+    flow_id = str(uuid.uuid4())
+
     def __init__(self, id, state=None, version=None):
         self.id = id
         self.state = state or Pending()
@@ -104,6 +106,8 @@ class MockedCloudClient(MagicMock):
         task_runs = [t for t in self.task_runs.values() if t.flow_run_id == flow_run_id]
 
         return FlowRunInfoResult(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
             parameters={},
             context=None,
             version=flow_run.version,
