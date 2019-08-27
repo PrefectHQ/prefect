@@ -392,13 +392,6 @@ class TestInitializeRun:
             )
             assert result.context.task_slug == "test-slug"
 
-    def test_task_runner_puts_task_in_context(self):
-        with prefect.context() as ctx:
-            assert "task" not in ctx
-            t = Task()
-            result = TaskRunner(t).initialize_run(state=None, context=ctx)
-            assert result.context.task is t
-
     def test_task_runner_puts_tags_in_context(self):
         with prefect.context() as ctx:
             assert "task_tags" not in ctx
