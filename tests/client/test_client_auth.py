@@ -72,7 +72,7 @@ class TestClientConfig:
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
-                os.makedirs(path.parent)
+                path.parent.mkdir(parents=True)
                 with path.open("w") as f:
                     toml.dump(dict(api_token="FILE_TOKEN"), f)
 
@@ -85,7 +85,7 @@ class TestClientConfig:
                 {"home_dir": tmp, "cloud.api": "xyz", "cloud.api_token": "CONFIG_TOKEN"}
             ):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
-                os.makedirs(path.parent)
+                path.parent.mkdir(parents=True)
                 with path.open("w") as f:
                     toml.dump(dict(api_token="FILE_TOKEN"), f)
 
@@ -370,7 +370,7 @@ class TestTenantAuth:
         client._refresh_token = "refresh"
         client._access_token_expires_at = pendulum.now().add(seconds=29)
         client.get_auth_token()
-        refresh_token.assert_called()
+        assert refresh_token.called
 
     def test_get_auth_token_refreshes_if_refresh_token_and_no_expiration(
         self, monkeypatch
@@ -382,7 +382,7 @@ class TestTenantAuth:
         client._refresh_token = "refresh"
         client._access_token_expires_at = None
         client.get_auth_token()
-        refresh_token.assert_called()
+        assert refresh_token.called
 
     def test_get_auth_token_doesnt_refreshe_if_refresh_token_and_future_expiration(
         self, monkeypatch
