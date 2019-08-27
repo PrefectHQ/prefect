@@ -22,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Improve CLI user experience while working with Cloud - [#1384](https://github.com/PrefectHQ/prefect/pull/1384/)
 - Users can now create projects from the CLI - [#1388](https://github.com/PrefectHQ/prefect/pull/1388)
 - Add a health check to confirm that serialized flows are valid prior to Cloud deploy - [#1397](https://github.com/PrefectHQ/prefect/pull/1397)
+- Add `task_slug`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
 
 ### Task Library
 
@@ -43,7 +44,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
-
 
 ## 0.6.1 <Badge text="beta" type="success"/>
 
@@ -84,7 +84,6 @@ Released August 8, 2019
 ### Contributors
 
 - None
-
 
 ## 0.6.0 <Badge text="beta" type="success"/>
 
@@ -153,7 +152,6 @@ Released May 28, 2019
 - Allow for Cloud users to securely pull Docker images from private registries - [#1028](https://github.com/PrefectHQ/prefect/pull/1028)
 
 ### Enhancements
-
 
 - Add `prefect_version` kwarg to `Docker` storage for controlling the version of prefect installed into your containers - [#1010](https://github.com/PrefectHQ/prefect/pull/1010), [#533](https://github.com/PrefectHQ/prefect/issues/533)
 - Warn users if their Docker storage base image uses a different python version than their local machine - [#999](https://github.com/PrefectHQ/prefect/issues/999)
