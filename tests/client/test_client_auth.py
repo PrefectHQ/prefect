@@ -231,7 +231,9 @@ class TestTenantAuth:
         assert client.get_auth_token() == "ACCESS_TOKEN"
         assert post.call_args[1]["headers"] == dict(Authorization="Bearer ACCESS_TOKEN")
 
-    def test_login_to_client_writes_tenant_to_settings_and_reloads_it(self, patch_post):
+    def test_login_to_tenant_writes_tenant_and_reloads_it_when_token_is_reloaded(
+        self, patch_post
+    ):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
@@ -245,13 +247,41 @@ class TestTenantAuth:
                 }
             }
         )
-        client = Client()
+
+        client = Client(api_token="abc")
+        assert client._active_tenant_id is None
+        client.login_to_tenant(tenant_id=tenant_id)
+        client.save_api_token()
+        assert client._active_tenant_id == tenant_id
+
+        # new client loads the active tenant and token
+        assert Client()._active_tenant_id == tenant_id
+        assert Client()._api_token == "abc"
+
+    def test_login_to_client_doesnt_reload_active_tenant_when_token_isnt_loaded(
+        self, patch_post
+    ):
+        tenant_id = str(uuid.uuid4())
+        post = patch_post(
+            {
+                "data": {
+                    "tenant": [{"id": tenant_id}],
+                    "switchTenant": {
+                        "accessToken": "ACCESS_TOKEN",
+                        "expiresIn": 600,
+                        "refreshToken": "REFRESH_TOKEN",
+                    },
+                }
+            }
+        )
+
+        client = Client(api_token="abc")
         assert client._active_tenant_id is None
         client.login_to_tenant(tenant_id=tenant_id)
         assert client._active_tenant_id == tenant_id
 
-        # new client loads the active tenant
-        assert Client()._active_tenant_id == tenant_id
+        # new client doesn't load the active tenant because there's no api token loaded
+        assert Client()._active_tenant_id is None
 
     def test_logout_clears_access_token_and_tenant(self, patch_post):
         tenant_id = str(uuid.uuid4())
