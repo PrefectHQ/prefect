@@ -73,7 +73,7 @@ class TestClientConfig:
             with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
                 os.makedirs(path.parent)
-                with open(path, "w") as f:
+                with path.open("w") as f:
                     toml.dump(dict(api_token="FILE_TOKEN"), f)
 
                 client = Client()
@@ -86,7 +86,7 @@ class TestClientConfig:
             ):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
                 os.makedirs(path.parent)
-                with open(path, "w") as f:
+                with path.open("w") as f:
                     toml.dump(dict(api_token="FILE_TOKEN"), f)
 
                 client = Client()
@@ -104,12 +104,12 @@ class TestClientConfig:
 
                 client = Client(api_token="a")
                 client.save_api_token()
-                with open(path, "r") as f:
+                with path.open("r") as f:
                     assert toml.load(f)["api_token"] == "a"
 
                 client = Client(api_token="b")
                 client.save_api_token()
-                with open(path, "r") as f:
+                with path.open("r") as f:
                     assert toml.load(f)["api_token"] == "b"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
