@@ -20,102 +20,106 @@ const getChildren = function (parent_path, dir) {
 }
 
 module.exports = {
-  title: 'Prefect Docs',
+  title: "Prefect Docs",
   description: "Don't Panic.",
   head: [
-    'link',
+    "link",
     {
-      rel: 'icon',
-      href: '/favicon.ico'
+      rel: "icon",
+      href: "/favicon.ico"
     }
   ],
-  ga: 'UA-115585378-1',
+  plugins: [
+    [
+      "@vuepress/google-analytics",
+      {
+        ga: "UA-115585378-1"
+      }
+    ],
+    ["@dovyp/vuepress-plugin-clipboard-copy", true]
+  ],
   themeConfig: {
-    repo: 'PrefectHQ/prefect',
-    docsDir: 'docs',
+    repo: "PrefectHQ/prefect",
+    docsDir: "docs",
     editLinks: true,
     // repoLabel: 'GitHub',
-    logo: '/assets/logomark-color.svg',
+    logo: "/assets/logomark-color.svg",
     nav: [
       {
-        text: 'Cloud',
-        link: '/cloud/first-steps'
+        text: "Cloud",
+        link: "/cloud/first-steps"
       },
       {
-        text: 'Core',
-        link: '/guide/'
+        text: "Core",
+        link: "/guide/"
       },
       {
-        text: 'API Reference',
+        text: "API Reference",
         items: [
-          { text: 'Unreleased', link: '/api/unreleased/' },
-          { text: '0.6.1', link: '/api/0.6.1/' },
-          { text: '0.6.0', link: '/api/0.6.0/' },
-          { text: '0.5.4', link: '/api/0.5.4/' },
+          { text: "Unreleased", link: "/api/unreleased/" },
+          { text: "0.6.1", link: "/api/0.6.1/" },
+          { text: "0.6.0", link: "/api/0.6.0/" },
+          { text: "0.5.4", link: "/api/0.5.4/" }
         ]
       }
     ],
     sidebar: {
-      '/api/0.5.4/': sidebar54.sidebar,
-      '/api/0.6.0/': sidebar60.sidebar,
-      '/api/0.6.1/': sidebar61.sidebar,
-      '/api/unreleased/': [
-        '/api/unreleased/',
-        'changelog',
-        'coverage',
+      "/api/0.5.4/": sidebar54.sidebar,
+      "/api/0.6.0/": sidebar60.sidebar,
+      "/api/0.6.1/": sidebar61.sidebar,
+      "/api/unreleased/": [
+        { title: "API Reference", path: "/api/unreleased/" },
+        "changelog",
+        "coverage",
         {
-          title: 'prefect',
+          title: "prefect",
           collapsable: true,
-          children: ['triggers']
+          children: ["triggers"]
         },
         {
-          title: 'prefect.client',
+          title: "prefect.client",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'client')
+          children: getChildren("docs/api/unreleased", "client")
         },
         {
-          title: 'prefect.core',
+          title: "prefect.core",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'core')
+          children: getChildren("docs/api/unreleased", "core")
         },
         {
-          title: 'prefect.engine',
+          title: "prefect.engine",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'engine')
+          children: getChildren("docs/api/unreleased", "engine")
         },
         {
-          title: 'prefect.environments',
+          title: "prefect.environments",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'environments')
+          children: getChildren("docs/api/unreleased", "environments")
         },
         {
-          title: 'prefect.tasks',
+          title: "prefect.tasks",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'tasks')
+          children: getChildren("docs/api/unreleased", "tasks")
         },
         {
-          title: 'prefect.schedules',
+          title: "prefect.schedules",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'schedules')
+          children: getChildren("docs/api/unreleased", "schedules")
         },
         {
-          title: 'prefect.utilities',
+          title: "prefect.utilities",
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'utilities')
+          children: getChildren("docs/api/unreleased", "utilities")
         }
       ],
-      '/cloud/': [
+      "/cloud/": [
         {
-          title: 'Welcome',
+          title: "Welcome",
           collapsable: false,
-          children: [
-            'first-steps',
-            'dataflow',
-            'faq',
-          ]
+          children: ["first-steps", "dataflow", "faq"]
         },
         {
-          title: 'Cloud Concepts',
+          title: "Cloud Concepts",
           collapsable: false,
           children: getChildren('docs/cloud', 'cloud_concepts')
         },
@@ -130,86 +134,84 @@ module.exports = {
           ]
         },
       ],
-      '/guide/': [
-        '/guide/',
+      "/guide/": [
+        "/guide/",
         {
-          title: 'Welcome',
+          title: "Welcome",
           collapsable: false,
           children: [
-            'welcome/what_is_prefect',
-            'welcome/why_prefect',
-            'welcome/why_not_airflow',
-            'welcome/community',
-            'welcome/code_of_conduct'
+            "welcome/what_is_prefect",
+            "welcome/why_prefect",
+            "welcome/why_not_airflow",
+            "welcome/community",
+            "welcome/code_of_conduct"
           ]
         },
         {
-          title: 'Getting Started',
+          title: "Getting Started",
           collapsable: true,
           children: [
-            'getting_started/installation',
-            'getting_started/first-steps',
-            'getting_started/next-steps'
+            "getting_started/installation",
+            "getting_started/first-steps",
+            "getting_started/next-steps"
           ]
         },
         {
-          title: 'Tutorials',
+          title: "Tutorials",
           collapsable: true,
-          children: getChildren('docs/guide', 'tutorials')
+          children: getChildren("docs/guide", "tutorials")
         },
         {
-          title: 'Task Library',
+          title: "Task Library",
           collapsable: true,
-          children: getChildren('docs/guide', 'task_library')
+          children: getChildren("docs/guide", "task_library")
         },
         {
-          title: 'Core Concepts',
+          title: "Core Concepts",
           collapsable: true,
           children: [
-            'core_concepts/tasks',
-            'core_concepts/flows',
-            'core_concepts/parameters',
-            'core_concepts/states',
-            'core_concepts/mapping',
-            'core_concepts/engine',
-            'core_concepts/execution',
-            'core_concepts/notifications',
-            'core_concepts/results',
-            'core_concepts/schedules',
-            'core_concepts/configuration',
-            'core_concepts/best-practices',
-            'core_concepts/common-pitfalls'
+            "core_concepts/tasks",
+            "core_concepts/flows",
+            "core_concepts/parameters",
+            "core_concepts/states",
+            "core_concepts/mapping",
+            "core_concepts/engine",
+            "core_concepts/execution",
+            "core_concepts/notifications",
+            "core_concepts/results",
+            "core_concepts/schedules",
+            "core_concepts/configuration",
+            "core_concepts/best-practices",
+            "core_concepts/common-pitfalls"
           ]
         },
         {
-          title: 'Examples',
+          title: "Examples",
           collapsable: true,
-          children: getChildren('docs/guide', 'examples')
+          children: getChildren("docs/guide", "examples")
         },
         {
-          title: 'PINs',
+          title: "PINs",
           collapsable: true,
-          children: getChildren('docs/guide', 'PINs')
+          children: getChildren("docs/guide", "PINs")
         },
         {
-          title: 'Development',
+          title: "Development",
           collapsable: true,
           children: [
-            'development/overview',
-            'development/style',
-            'development/documentation',
-            'development/tests',
-            'development/contributing',
-            'development/release-checklist'
+            "development/overview",
+            "development/style",
+            "development/documentation",
+            "development/tests",
+            "development/contributing",
+            "development/release-checklist"
           ]
         }
       ]
     }
   },
-  markdown: {
-    config: md => {
-      md.use(require('markdown-it-attrs'))
-      md.use(require('markdown-it-checkbox'))
-    }
+  extendMarkdown(md) {
+    md.use(require("markdown-it-attrs"));
+    md.use(require("markdown-it-checkbox"));
   }
-}
+};
