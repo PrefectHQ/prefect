@@ -2,6 +2,8 @@
 
 The Prefect Agent is a small process that is spun up on supported platforms to orchestrate flow runs. The agent works by querying Prefect Cloud for new flow runs and then allocating resources for them on the deployment's platform of choice.
 
+Prefect Cloud is designed to follow a hybrid approach to workflow execution. This means that Prefect processes run inside tenant infrastructure and only send requests _out_ to Prefect Cloud. Similar to how the core Prefect library functions; the agents follow this same access methodology.
+
 ### Agent Process
 
 Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent will then periodically query Prefect Cloud for flow runs that need to be started on that agent's platform.
