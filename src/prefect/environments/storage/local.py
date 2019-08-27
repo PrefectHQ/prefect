@@ -23,7 +23,7 @@ class Local(Storage):
     """
 
     def __init__(self, directory: str = None) -> None:
-        directory = directory or os.path.join(prefect.config.home_dir, 'flows')
+        directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
         abs_directory = os.path.abspath(os.path.expanduser(directory))
         if not os.path.exists(abs_directory):
