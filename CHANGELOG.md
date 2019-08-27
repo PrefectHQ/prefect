@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Adds a copy to clipboard button for codeblocks - [#213](https://github.com/prefecthq/prefect/issues/213)
 - Updates Vuepress to v1.0.3 - [#770](https://github.com/prefecthq/prefect/issues/770)
 - Introduce configurable default for storage class on Flows - [#1044](https://github.com/PrefectHQ/prefect/issues/1044)
 - Allow for min and max workers to be specified in `DaskKubernetesEnvironment` - [#1338](https://github.com/PrefectHQ/prefect/pulls/1338)
