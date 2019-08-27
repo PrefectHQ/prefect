@@ -14,7 +14,7 @@
     "vuepress": "^1.0.3"
   },
   "scripts": {
-    "docs:generate-api": "cd docs && python generate_docs.py",
+    "docs:generate-api": "cd docs && python3 generate_docs.py",
     "docs:dev": "yarn docs:generate-api && vuepress dev docs",
     "docs:build": "yarn docs:generate-api && vuepress build docs"
   },
