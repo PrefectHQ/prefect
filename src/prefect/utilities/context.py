@@ -27,12 +27,10 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `logger` | the logger for the current task |
-| `flow` | the current flow object |
 | `flow_name` | the name of the current flow |
 | `scheduled_start_time` | a datetime object representing the scheduled start time for the flow run; falls back to `now` for unscheduled runs |
 | `parameters` | a dictionary of parameter values for the current flow run |
 | `map_index` | the map index of the current task (if mapped, otherwise `None`) |
-| `task` | the current task object |
 | `task_name` | the name of the current task |
 | `task_full_name` | the name of the current task, including map index |
 | `task_slug` | the slug of the current task

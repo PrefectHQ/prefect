@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Improve CLI user experience while working with Cloud - [#1384](https://github.com/PrefectHQ/prefect/pull/1384/)
 - Users can now create projects from the CLI - [#1388](https://github.com/PrefectHQ/prefect/pull/1388)
 - Add a health check to confirm that serialized flows are valid prior to Cloud deploy - [#1397](https://github.com/PrefectHQ/prefect/pull/1397)
-- Add `task_slug`, `task`, `flow`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
+- Add `task_slug`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
 
 ### Task Library
 
