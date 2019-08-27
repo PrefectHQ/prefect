@@ -17,42 +17,42 @@ const getChildren = function(parent_path, dir) {
 }
 
 sidebar = [
-        '/api/0.6.0/',
-        {
-          title: 'prefect',
-          collapsable: true,
-          children: ['triggers', 'schedules']
-        },
-        {
-          title: 'prefect.client',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'client')
-        },
-        {
-          title: 'prefect.core',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'core')
-        },
-        {
-          title: 'prefect.engine',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'engine')
-        },
-        {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'environments')
-        },
-        {
-          title: 'prefect.tasks',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'tasks')
-        },
-        {
-          title: 'prefect.utilities',
-          collapsable: true,
-          children: getChildren('docs/api/0.6.0', 'utilities')
-        }
-      ]
+  { title: "API Reference", path: "/api/0.6.0/" },
+  {
+    title: "prefect",
+    collapsable: true,
+    children: ["triggers", "schedules"]
+  },
+  {
+    title: "prefect.client",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "client")
+  },
+  {
+    title: "prefect.core",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "core")
+  },
+  {
+    title: "prefect.engine",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "engine")
+  },
+  {
+    title: "prefect.environments",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "environments")
+  },
+  {
+    title: "prefect.tasks",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "tasks")
+  },
+  {
+    title: "prefect.utilities",
+    collapsable: true,
+    children: getChildren("docs/api/0.6.0", "utilities")
+  }
+];
 
 module.exports = {sidebar: sidebar}
