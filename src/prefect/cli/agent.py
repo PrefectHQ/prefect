@@ -90,7 +90,10 @@ def start(name, token, no_pull):
     help="Agent namespace to launch workloads.",
     hidden=True,
 )
-def install(name, token, api, namespace):
+@click.option(
+    "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
+)
+def install(name, token, api, namespace, resource_manager):
     """
     Install an agent. Outputs configuration text which can be used to install on various
     platforms.
@@ -105,6 +108,7 @@ def install(name, token, api, namespace):
         --token, -t         TEXT    A Prefect Cloud API token
         --api, -a           TEXT    A Prefect Cloud API URL
         --namespace, -n     TEXT    Agent namespace to launch workloads
+        --resource-manager          Enable resource manager on install
     """
 
     supported_agents = {"kubernetes": "prefect.agent.kubernetes.KubernetesAgent"}
@@ -116,6 +120,9 @@ def install(name, token, api, namespace):
         return
 
     deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
-        token=token, api=api, namespace=namespace
+        token=token,
+        api=api,
+        namespace=namespace,
+        resource_manager_enabled=resource_manager,
     )
     click.echo(deployment)
