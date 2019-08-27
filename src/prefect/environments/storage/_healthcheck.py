@@ -26,7 +26,7 @@ def system_check(python_version: str):
         print("System Version check: OK")
 
 
-def serialization_check(flow_file_paths: str):
+def cloudpickle_deserialization_check(flow_file_paths: str):
     flow_file_paths = ast.literal_eval(
         flow_file_paths
     )  # convert string to list of strings
@@ -36,7 +36,7 @@ def serialization_check(flow_file_paths: str):
         with open(flow_file, "rb") as f:
             flows.append(cloudpickle.load(f))
 
-    print("Serialization check: OK")
+    print("Cloudpickle serialization check: OK")
     return flows
 
 
@@ -97,6 +97,6 @@ if __name__ == "__main__":
 
     print("Beginning health checks...")
     system_check(python_version)
-    flows = serialization_check(flow_file_path)
+    flows = cloudpickle_serialization_check(flow_file_path)
     result_handler_check(flows)
     print("All health checks passed.")

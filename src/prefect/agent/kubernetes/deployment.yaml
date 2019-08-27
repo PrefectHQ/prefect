@@ -25,10 +25,10 @@ spec:
               value: ""
             - name: PREFECT__CLOUD__API
               value: "https://api.prefect.io"
-            - name: PREFECT__CLOUD__AGENT__LOOP_INTERVAL
-              value: "5"
             - name: NAMESPACE
               value: "default"
+            - name: IMAGE_PULL_SECRETS
+              value: ""
           resources:
             limits:
               memory: "128Mi"

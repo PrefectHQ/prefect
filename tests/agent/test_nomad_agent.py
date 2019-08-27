@@ -14,12 +14,9 @@ def test_nomad_agent_init():
 
 
 def test_nomad_agent_config_options():
-    with set_temporary_config(
-        {"cloud.agent.api_token": "TEST_TOKEN", "cloud.agent.loop_interval": 10}
-    ):
+    with set_temporary_config({"cloud.agent.api_token": "TEST_TOKEN"}):
         agent = NomadAgent()
         assert agent
-        assert agent.loop_interval == 10
         assert agent.client.token == "TEST_TOKEN"
         assert agent.logger
 
