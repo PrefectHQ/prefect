@@ -1,6 +1,6 @@
 # Kubernetes Agent
 
-The Kubernetes Agent is an agent designed to interact directly with a Kubernetes API server to run workflows as jobs on a Kubernetes cluster. This agent is intended to be deployed to a cluster where it uses in-cluster communication to create jobs however it can also run by accessing whichever cluster is currently active in a kubeconfig.
+The Kubernetes Agent is an agent designed to interact directly with a Kubernetes API server to run workflows as jobs on a Kubernetes cluster. This agent is intended to be deployed to a cluster where it uses in-cluster communication to create jobs; however it can also run by accessing whichever cluster is currently active in a kubeconfig.
 
 ### Requirements
 
@@ -139,5 +139,5 @@ Currently there is a feature in testing that can be shipped with the Prefect Kub
 To install your agent with the resource manager run:
 
 ```
-$ prefect agent install kubernetes -t MY_TOKEN --resource-manager
+$ prefect agent install kubernetes -t MY_TOKEN --resource-manager | kubectl apply -f -
 ```
