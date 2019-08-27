@@ -1437,20 +1437,6 @@ class TestContext:
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
 
-    def test_context_includes_flow_object(self):
-
-        f = Flow(name="test")
-
-        @prefect.task
-        def check_ctx():
-            # assert isinstance(prefect.context.get("flow"), Flow)
-            assert prefect.context["flow"] is f
-
-        f.add_task(check_ctx)
-        res = f.run()
-
-        assert res.is_successful()
-
     def test_user_provided_context_is_prioritized(self):
         @prefect.task
         def return_ctx_key():
