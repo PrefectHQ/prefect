@@ -10,7 +10,7 @@ Agents start by first querying Prefect Cloud for their respective tenant ID (inf
 
 Flow runs can be created either through the [GraphQL API](https://docs.prefect.io/cloud/cloud_concepts/graphql.html), [CLI](https://docs.prefect.io/cloud/cloud_concepts/cli.html), [programatically](https://docs.prefect.io/cloud/cloud_concepts/flow_runs.html#creating-a-flow-run), or [UI](https://docs.prefect.io/cloud/cloud_concepts/ui.html). The agent scoped to the tenant which this flow run belongs to will then see that there us work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Local Agent or a job in the case of a Kubernetes Agent.
 
-Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute.
+Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute. That flow run that was submitted for execution is now set to a `Submitted` state.
 
 ### Installation
 
