@@ -8,7 +8,7 @@ Welcome to Prefect Cloud! Now that you have an account, this guide will help you
 
 ## Prefect Agent
 
-_Documentation Coming Soon!_
+Before you can deploy Prefect flows from Prefect Cloud you must stand up a Prefect Agent on your desired platform. For more agent documentation visit the [Agent](https://docs.prefect.io/cloud/agent/overview.html) section of the Cloud docs.
 
 ## Create a Project
 

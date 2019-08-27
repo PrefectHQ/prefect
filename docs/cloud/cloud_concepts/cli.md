@@ -25,7 +25,9 @@ Usage: prefect [OPTIONS] COMMAND [ARGS]...
       get         List high-level object information
       describe    Retrieve detailed object descriptions
 
-  Execution Commands:
+  Action Commands:
+      agent       Manage agents
+      create      Create objects
       execute     Execute a flow's environment
       run         Run a flow
 
@@ -288,7 +290,22 @@ $ prefect describe tasks --name my-flow
 
 This defaults to the most recent version of a flow and to describe tasks for past versions use the `--version` option. You can also specify the project name that a flow belongs to with `--project` (often used if you have multiple flows with the same name in various projects).
 
-## Execution Commands
+## Action Commands
+
+### agent
+
+For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agent/overview.html).
+
+### create
+
+#### create project
+
+Running `prefect create project PROJECT_NAME` will create a project in Prefect Cloud with the given name. You can also specify a project description with `--description`.
+
+```
+$ prefect create project "MY PROJECT" -d "description here"
+MY PROJECT created
+```
 
 ### execute
 
