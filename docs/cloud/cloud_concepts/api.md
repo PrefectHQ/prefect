@@ -71,7 +71,7 @@ client.get_available_tenants()
 This will print the id, name, and slug of all the tenants the user can login to.
 
 ```python
-client.login_to_tenant('a-tenant-slug')
+client.login_to_tenant(tenant_slug='a-tenant-slug')
 # OR
 client.login_to_tenant(tenant_id='A_TENANT_ID')
 ```
