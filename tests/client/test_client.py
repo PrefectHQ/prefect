@@ -196,41 +196,45 @@ def test_client_deploy_with_flow_that_cant_be_deserialized(patch_post):
 
 
 def test_get_flow_run_info(patch_post):
-    response = """
-{
-    "flow_run_by_pk": {
-        "version": 0,
-        "parameters": {},
-        "context": null,
-        "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
-        "serialized_state": {
-            "type": "Pending",
-            "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
-            "message": null,
-            "__version__": "0.3.3+309.gf1db024",
-            "cached_inputs": null
-        },
-        "task_runs":[
-            {
-                "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                "task": {
+    response = {
+        "flow_run_by_pk": {
+            "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "version": 0,
+            "parameters": {},
+            "context": None,
+            "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
+            "serialized_state": {
+                "type": "Pending",
+                "_result": {
+                    "type": "SafeResult",
+                    "value": "42",
+                    "result_handler": {"type": "JSONResultHandler"},
+                },
+                "message": None,
+                "__version__": "0.3.3+309.gf1db024",
+                "cached_inputs": None,
+            },
+            "task_runs": [
+                {
                     "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    "task": {
+                        "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                        "slug": "da344768-5f5d-4eaf-9bca-83815617f713",
                     },
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": null,
-                    "message": null,
-                    "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": null
+                    "version": 0,
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": None,
+                        "message": None,
+                        "__version__": "0.3.3+309.gf1db024",
+                        "cached_inputs": None,
+                    },
                 }
-            }
-        ]
+            ],
+        }
     }
-}
-    """
-    post = patch_post(dict(data=json.loads(response)))
+    post = patch_post(dict(data=response))
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
@@ -250,41 +254,46 @@ def test_get_flow_run_info(patch_post):
 
 
 def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
-    response = """
-{
-    "flow_run_by_pk": {
-        "version": 0,
-        "parameters": {"x": {"deep": {"nested": 5}}},
-        "context": {"my_val": "test"},
-        "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
-        "serialized_state": {
-            "type": "Pending",
-            "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
-            "message": null,
-            "__version__": "0.3.3+309.gf1db024",
-            "cached_inputs": null
-        },
-        "task_runs":[
-            {
-                "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                "task": {
+    response = {
+        "flow_run_by_pk": {
+            "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "version": 0,
+            "parameters": {"x": {"deep": {"nested": 5}}},
+            "context": {"my_val": "test"},
+            "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
+            "serialized_state": {
+                "type": "Pending",
+                "_result": {
+                    "type": "SafeResult",
+                    "value": "42",
+                    "result_handler": {"type": "JSONResultHandler"},
+                },
+                "message": None,
+                "__version__": "0.3.3+309.gf1db024",
+                "cached_inputs": None,
+            },
+            "task_runs": [
+                {
                     "id": "da344768-5f5d-4eaf-9bca-83815617f713",
-                    "slug": "da344768-5f5d-4eaf-9bca-83815617f713"
+                    "task": {
+                        "id": "da344768-5f5d-4eaf-9bca-83815617f713",
+                        "slug": "da344768-5f5d-4eaf-9bca-83815617f713",
                     },
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "result": null,
-                    "message": null,
-                    "__version__": "0.3.3+309.gf1db024",
-                    "cached_inputs": null
+                    "version": 0,
+                    "serialized_state": {
+                        "type": "Pending",
+                        "result": None,
+                        "message": None,
+                        "__version__": "0.3.3+309.gf1db024",
+                        "cached_inputs": None,
+                    },
                 }
-            }
-        ]
+            ],
+        }
     }
-}
-    """
-    post = patch_post(dict(data=json.loads(response)))
+    post = patch_post(dict(data=response))
+
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
@@ -307,12 +316,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
 
 
 def test_get_flow_run_info_raises_informative_error(patch_post):
-    response = """
-    {
-        "flow_run_by_pk": null
-    }
-    """
-    post = patch_post(dict(data=json.loads(response)))
+    post = patch_post(dict(data={"flow_run_by_pk": None}))
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):
@@ -351,27 +355,28 @@ def test_set_flow_run_state_with_error(patch_post):
 
 
 def test_get_task_run_info(patch_post):
-    response = """
-    {
+    response = {
         "getOrCreateTaskRun": {
             "task_run": {
                 "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
                 "version": 0,
                 "serialized_state": {
                     "type": "Pending",
-                    "_result": {"type": "SafeResult", "value": "42", "result_handler": {"type": "JSONResultHandler"}},
-                    "message": null,
+                    "_result": {
+                        "type": "SafeResult",
+                        "value": "42",
+                        "result_handler": {"type": "JSONResultHandler"},
+                    },
+                    "message": None,
                     "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": null
+                    "cached_inputs": None,
                 },
-                "task": {
-                    "slug": "slug"
-                }
+                "task": {"slug": "slug"},
             }
         }
     }
-    """
-    post = patch_post(dict(data=json.loads(response)))
+
+    post = patch_post(dict(data=response))
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
     ):

@@ -384,6 +384,14 @@ class TestInitializeRun:
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
             assert result.context.checkpointing == "FOO"
 
+    def test_task_runner_puts_task_slug_in_context(self):
+        with prefect.context() as ctx:
+            assert "task_slug" not in ctx
+            result = TaskRunner(Task(slug="test-slug")).initialize_run(
+                state=None, context=ctx
+            )
+            assert result.context.task_slug == "test-slug"
+
     def test_task_runner_puts_tags_in_context(self):
         with prefect.context() as ctx:
             assert "task_tags" not in ctx
