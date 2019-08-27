@@ -90,7 +90,8 @@ class Client:
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
-            self._active_tenant_id = settings.get("active_tenant_id")
+            if self._api_token:
+                self._active_tenant_id = settings.get("active_tenant_id")
             if self._active_tenant_id:
                 self.login_to_tenant(tenant_id=self._active_tenant_id)
 
