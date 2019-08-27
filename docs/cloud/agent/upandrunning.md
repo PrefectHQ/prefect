@@ -4,7 +4,7 @@ In this guide we will look at a quick way to get Prefect Cloud flow deployments 
 
 ### Prerequisites
 
-In order to start using Prefect Cloud we need to quickly set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate an `AGENT` token and save that in a secure place because we will use it later when creating our Local Agent.
+In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to login to Prefect Cloud. We are also going to want to generate an `AGENT` token and save that in a secure place because we will use it later when creating our Local Agent.
 
 Let's use the Prefect CLI to log into Cloud:
 ```
