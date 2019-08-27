@@ -33,7 +33,7 @@ Prefect provides various key / value pairs in context that are always available 
 | `map_index` | the map index of the current task (if mapped, otherwise `None`) |
 | `task_name` | the name of the current task |
 | `task_full_name` | the name of the current task, including map index |
-| `task_slug` | the slug of the current task
+| `task_slug` | the slug of the current task |
 | `task_tags` | the tags on the current task |
 | `task_run_count` | the run count of the task run - typically only interesting for retrying tasks |
 
