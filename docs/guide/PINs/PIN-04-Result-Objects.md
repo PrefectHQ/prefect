@@ -10,7 +10,7 @@ Jeremiah Lowin
 
 ## Status
 
-Accepted; furthers the objectives of [PIN-2](PIN-2-Result-Handlers.md)
+Accepted; furthers the objectives of [PIN-2](PIN-02-Result-Handlers.md)
 
 ## Context
 
@@ -26,7 +26,7 @@ Because of all these possible actions and the need to apply them to essentially 
 
 Some of these are far more deceptive than they seem. For example, if task A passes a result to task B, and task B needs to retry, then task **B** is responsible for serializing the result of task **A** -- after all, A has no way of knowing that its result will be reused in the future. This may be surprising to someone unfamiliar with Prefect (and fortunately is an internal detail users don't need to know!). This implies that it isn't enough for A to know how to serialize its own results; B must know how to serialize A's result as well.
 
-As I write this, Prefect is doing a great job of handling all of the above cases. [PIN-2](PIN-2-Result-Handlers.md) introduced many of the required mechanisms for doing this in a distributed way, interacting with remote servers.
+As I write this, Prefect is doing a great job of handling all of the above cases. [PIN-2](PIN-02-Result-Handlers.md) introduced many of the required mechanisms for doing this in a distributed way, interacting with remote servers.
 
 However, the logic for working with results has spread across a few classes -- it manifests with special methods in the `TaskRunner` class (where results must be parsed out of `upstream_states`), a series of `ResultHandler` objects, methods for setting/getting results on `State` objects, and a complex `State._metadata` object for tracking how to serialize results as well as whether they have, in fact, been serialized. For example, consider PRs [#581](https://github.com/PrefectHQ/prefect/pull/581) and [#595](https://github.com/PrefectHQ/prefect/pull/595).
 
@@ -37,7 +37,7 @@ It is desirable to consolidate all of this state handling logic into a single lo
 - more formal contracts for serializing results via `marshmallow` schemas
 - reduction of development burden, since contributors can write methods that work with results without needing to also know exactly how to work with those results.
 
-To be clear, this PIN represents an evolution of the mechanisms introduced by [PIN-2](PIN-2-Result-Handlers.md). It represents the same logic, just refactored with the benefit of seeing it in action.
+To be clear, this PIN represents an evolution of the mechanisms introduced by [PIN-2](PIN-02-Result-Handlers.md). It represents the same logic, just refactored with the benefit of seeing it in action.
 
 ## Proposal
 
