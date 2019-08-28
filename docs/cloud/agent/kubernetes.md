@@ -134,7 +134,7 @@ The current default resource usage of a prefect-job has a request and limit for 
 
 ### Resource Manager
 
-Currently there is a feature in testing that can be shipped with the Prefect Kubernetes Agent called the Resource Manager. The Resource Manager is a small container that runs inside the agent's pod and its responsibilities involve dynamically cleaning up resources that were created from the orchestration of flow runs. For example: when a prefect-job is finished the resource manager will delete the job and it's associated pods from the cluster. It checks every minute if there are prefect-jobs and pods that need to be cleaned up.
+Prefect is currently testing a feature called the Resource Manager alongside the Kubernetes agent. The Resource Manager is a small container that runs inside the agent's pod, responsible for cleaning up resources created from the orchestration of flow runs. For example: when a prefect-job is finished, the resource manager will delete the job and it's associated pods from the cluster. It checks every minute if there are prefect-jobs and pods that need to be cleaned up.
 
 To install your agent with the resource manager run:
 
