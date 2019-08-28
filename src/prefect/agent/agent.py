@@ -79,7 +79,7 @@ class Agent:
         print(ascii_name)
         self.logger.info("Starting {}".format(type(self).__name__))
         self.logger.info(
-            "Agent documentation can be found at https://docs.prefect.io/cloud/agent"
+            "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
         tenant_id = self.query_tenant_id()
 
