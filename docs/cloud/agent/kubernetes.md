@@ -113,7 +113,7 @@ $ kubectl logs prefect-agent-845798bb59-s7wxg
 2019-09-01 19:01:09,158 - agent - INFO - Submitted 1 flow run(s) for execution.
 ```
 
-The job and it's respective pod should be visible now on the cluster:
+The job and its respective pod should now be visible on the cluster:
 
 ```
 $ kubectl get jobs
