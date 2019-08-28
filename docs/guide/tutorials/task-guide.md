@@ -319,7 +319,7 @@ flow.tasks
 
 # {<Task: Constant[dict]>, <Task: do_nothing>}
 ```
-The `Constant` Task tells Prefect to treat its input as a raw constant, with no further inspection.
+The `Constant` Task tells Prefect to treat its input as a raw constant, with no further introspection.
 
 :::
 
