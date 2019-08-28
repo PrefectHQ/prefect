@@ -441,7 +441,7 @@ class Task(metaclass=SignatureValidator):
                 to map over
             - flow (Flow, optional): The flow to set dependencies on, defaults to the current
                 flow in context if no flow is specified
-            - **task_args (dict, optional): a dictionary of task attribute keyword arguments,
+            - task_args (dict, optional): a dictionary of task attribute keyword arguments,
                 these attributes will be set on the new copy
             - **kwargs: keyword arguments to map over, which will elementwise be bound to the Task's `run` method
 
