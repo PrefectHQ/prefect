@@ -4,7 +4,7 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 ### Requirements
 
-When running the Kubernetes Agent inside a cluster it will require permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if needed for your setup.
+Running the Kubernetes Agent inside a cluster requires permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if necessary.
 
 :::tip GKE Permissions
 If you are using GKE to quickly enable the correct permissions you can run:
