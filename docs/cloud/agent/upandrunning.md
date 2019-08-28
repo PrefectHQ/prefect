@@ -21,7 +21,7 @@ Hello, World!   0           1 day ago
 
 ### Write a Flow
 
-To start, we are going to write a dummy flow that doesn't do anything. Feel free to make the flow more complex if desired but for the sake of simplicity we will stick with a flow which does nothing.
+To start, we're going to write a dummy flow that doesn't do anything. You can make your flow as complex as you want, but this is the flow we'll use for the tutorial!
 
 ```python
 from prefect import Flow
