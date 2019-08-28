@@ -116,7 +116,7 @@ module.exports = {
         {
           title: "Welcome",
           collapsable: false,
-          children: ["first-steps", "dataflow", "faq"]
+          children: ["first-steps", "dataflow", "faq", "upandrunning"]
         },
         {
           title: "Cloud Concepts",
@@ -128,7 +128,6 @@ module.exports = {
           collapsable: false,
           children: [
             'agent/overview',
-            'agent/upandrunning',
             'agent/local',
             'agent/kubernetes',
           ]
