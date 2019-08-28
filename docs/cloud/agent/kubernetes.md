@@ -4,7 +4,7 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 ### Requirements
 
-When running the Kubernetes Agent inside a cluster it will require permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if needed for your setup.
+Running the Kubernetes Agent inside a cluster requires permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if necessary.
 
 :::tip GKE Permissions
 If you are using GKE to quickly enable the correct permissions you can run:
@@ -99,7 +99,7 @@ You are now ready to run some flows!
 
 ### Process
 
-The Kubernetes Agent periodically polls for new flow runs to execute. Once a flow run is found from Prefect Cloud it checks to make sure that the flow was deployed with a Docker storage option. If it was then it takes the `storage` attribute of that flow, creates a Kubernetes job using that image, and runs `prefect execute cloud-flow`.
+The Kubernetes Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was deployed with a Docker storage option. If so, the agent then creates a Kubernetes job using the `storage` attribute of that flow, and runs `prefect execute cloud-flow`.
 
 When the job is found and submitted the logs of the agent should reflect that:
 
@@ -113,7 +113,7 @@ $ kubectl logs prefect-agent-845798bb59-s7wxg
 2019-09-01 19:01:09,158 - agent - INFO - Submitted 1 flow run(s) for execution.
 ```
 
-The job and it's respective pod should be visible now on the cluster:
+The job and its respective pod should now be visible on the cluster:
 
 ```
 $ kubectl get jobs
@@ -129,12 +129,12 @@ prefect-job-39171cc4-gffrp       0/1     ContainerCreating   0          9s
 Once the flow has entered a finished state the pod's status should read `Completed`.
 
 :::warning Resources
-Currently, the default resource usage of a prefect-job has a request and limit for CPU of `100m` and the agent limits itself to `128Mi` for memory and `100m` for CPU. Make sure your cluster has enough resources that it does not start to get clogged up with all of your flow runs. A more customizable Kubernetes environment is on the roadmap!
+The current default resource usage of a prefect-job has a request and limit for CPU of `100m` and the agent limits itself to `128Mi` for memory and `100m` for CPU. Make sure your cluster has enough resources that it does not start to get clogged up with all of your flow runs. A more customizable Kubernetes environment is on the roadmap!
 :::
 
 ### Resource Manager
 
-Currently there is a feature in testing that can be shipped with the Prefect Kubernetes Agent called the Resource Manager. The Resource Manager is a small container that runs inside the agent's pod and its responsibilities involve dynamically cleaning up resources that were created from the orchestration of flow runs. For example: when a prefect-job is finished the resource manager will delete the job and it's associated pods from the cluster. It checks every minute if there are prefect-jobs and pods that need to be cleaned up.
+Prefect is currently testing a feature called the Resource Manager alongside the Kubernetes agent. The Resource Manager is a small container that runs inside the agent's pod, responsible for cleaning up resources created from the orchestration of flow runs. For example: when a prefect-job is finished, the resource manager will delete the job and it's associated pods from the cluster. It checks every minute if there are prefect-jobs and pods that need to be cleaned up.
 
 To install your agent with the resource manager run:
 
