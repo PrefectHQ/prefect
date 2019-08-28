@@ -5,7 +5,7 @@ The Local Agent is designed to work in all environments with access to a Docker 
 ### Requirements
 
 ::: warning Docker Daemon
-In order for the Local Agent to operate it requires a Docker daemon to be accessible. So if you are using this on your local machine make sure that you have Docker running. If Docker is not running, or the agent cannot access a daemon, it will notify users on start.
+The Local Agent requires an accessible Docker daemon. So if you are using this on your local machine make sure that you have Docker running. If Docker is not running, or the agent cannot access a daemon, it will notify users on start.
 :::
 
 ### Usage
