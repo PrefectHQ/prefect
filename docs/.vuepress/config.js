@@ -4,7 +4,7 @@ const sidebar61 = require('../api/0.6.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -116,13 +116,22 @@ module.exports = {
         {
           title: "Welcome",
           collapsable: false,
-          children: ["first-steps", "dataflow", "faq"]
+          children: ["first-steps", "dataflow", "faq", "upandrunning"]
         },
         {
           title: "Cloud Concepts",
           collapsable: false,
-          children: getChildren("docs/cloud", "cloud_concepts")
-        }
+          children: getChildren('docs/cloud', 'cloud_concepts')
+        },
+        {
+          title: 'Agent',
+          collapsable: false,
+          children: [
+            'agent/overview',
+            'agent/local',
+            'agent/kubernetes',
+          ]
+        },
       ],
       "/guide/": [
         "/guide/",
