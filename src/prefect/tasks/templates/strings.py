@@ -16,6 +16,27 @@ class StringFormatter(Task):
             can also be provided as a keyword to `run`, which takes precendence over this default.
         - **kwargs (optional): additional keyword arguments to pass to the
             standard Task constructor
+
+    Example:
+
+    ```python
+    from prefect import Flow
+    from prefect.tasks.templates import StringFormatter
+
+
+    message = '''
+    Hi {name}!  Welcome to Prefect.  Today is {today}.
+    '''
+
+    msg_task = StringFormatter(name="message body", template=message)
+
+    with Flow("string-template") as flow:
+        output = msg_task(name="Marvin")
+
+    flow_state = flow.run()
+    print(flow_state.result[output].result)
+    # Hi Marvin!  Welcome to Prefect.  Today is 2019-08-28.
+    ```
     """
 
     def __init__(self, template: str = None, **kwargs: Any):
