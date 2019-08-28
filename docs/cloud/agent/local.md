@@ -1,11 +1,11 @@
 # Local Agent
 
-The Local Agent is an agent designed to work in all environments which have access to a Docker daemon. This is most commonly used on personal machines as a way of testing flow run deployments in conjunction with Cloud. It does not mean that this agent is only synonymous with testing! In fact, it creates flow runs that interact with Prefect Cloud in the same way that it would on any other platform. This allows the Local Agent to be a fully functioning method of executing flows in conjunction with Prefect Cloud.
+The Local Agent is designed to work in all environments with access to a Docker daemon. Local agents are most commonly used on personal machines for testing flow run deployments, but the local agent is by no means only useful for testing. In fact, it creates flow runs that interact with Prefect Cloud in the same way that it would on any other platform. This allows the Local Agent to be a fully functioning method of executing flows in conjunction with Prefect Cloud.
 
 ### Requirements
 
 ::: warning Docker Daemon
-In order for the Local Agent to operate it requires a Docker daemon to be accessible. So if you are using this on your local machine make sure that you have Docker running. If Docker is not running, or the agent cannot access a daemon, it will notify users on start.
+The Local Agent requires an accessible Docker daemon. So if you are using this on your local machine make sure that you have Docker running. If Docker is not running, or the agent cannot access a daemon, it will notify users on start.
 :::
 
 ### Usage
@@ -39,7 +39,7 @@ There are a few ways in which you can specify an `AGENT` API token:
 
 ### Process
 
-The Local Agent periodically polls for new flow runs to execute. Once a flow run is found from Prefect Cloud it checks to make sure that the flow was deployed with a Docker storage option. If it was then it uses the Docker daemon that it connected to in order to create a container which runs the flow.
+The Local Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud, the agent confirms that the flow was deployed with a Docker storage option and uses the connected Docker daemon to create a container and run the flow.
 
 The agent will block on the process in between finding the flow run and submitting it for execution if it has to pull the flow's Docker image.
 
