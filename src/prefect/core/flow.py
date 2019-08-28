@@ -839,7 +839,7 @@ class Flow:
         # set global caches that persist across runs
         prefect.context.setdefault("caches", {})
 
-        # set cache for this flow run
+        # set context for this flow run
         flow_run_context = dict(scheduled_start_time=next_run_time)
 
         ## run this flow indefinitely, so long as its schedule has future dates
