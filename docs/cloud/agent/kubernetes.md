@@ -129,7 +129,7 @@ prefect-job-39171cc4-gffrp       0/1     ContainerCreating   0          9s
 Once the flow has entered a finished state the pod's status should read `Completed`.
 
 :::warning Resources
-Currently, the default resource usage of a prefect-job has a request and limit for CPU of `100m` and the agent limits itself to `128Mi` for memory and `100m` for CPU. Make sure your cluster has enough resources that it does not start to get clogged up with all of your flow runs. A more customizable Kubernetes environment is on the roadmap!
+The current default resource usage of a prefect-job has a request and limit for CPU of `100m` and the agent limits itself to `128Mi` for memory and `100m` for CPU. Make sure your cluster has enough resources that it does not start to get clogged up with all of your flow runs. A more customizable Kubernetes environment is on the roadmap!
 :::
 
 ### Resource Manager
