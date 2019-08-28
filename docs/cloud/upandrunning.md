@@ -1,4 +1,4 @@
-# Up and Running
+# Prefect Cloud: Up and Running
 
 In this guide we will look at a quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build it's Docker storage, deploy to Prefect Cloud, and orchestrate a run with the Local Agent. No extra infrastructure required!
 
