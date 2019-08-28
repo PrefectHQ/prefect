@@ -99,7 +99,7 @@ You are now ready to run some flows!
 
 ### Process
 
-The Kubernetes Agent periodically polls for new flow runs to execute. Once a flow run is found from Prefect Cloud it checks to make sure that the flow was deployed with a Docker storage option. If it was then it takes the `storage` attribute of that flow, creates a Kubernetes job using that image, and runs `prefect execute cloud-flow`.
+The Kubernetes Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud the agent checks to make sure that the flow was deployed with a Docker storage option. If so, the agent then creates a Kubernetes job using the `storage` attribute of that flow, and runs `prefect execute cloud-flow`.
 
 When the job is found and submitted the logs of the agent should reflect that:
 
