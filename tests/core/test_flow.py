@@ -2030,7 +2030,7 @@ class TestFlowRunMethod:
         state = f.run()
         assert state.result[report_start_time].result is start_time
 
-    def test_flow_dot_run_sets_scheduled_start_time_for_one_run_only(self):
+    def test_flow_dot_run_does_not_set_scheduled_start_time_globally(self):
 
         @task
         def report_start_time():

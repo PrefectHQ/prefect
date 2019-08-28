@@ -115,6 +115,14 @@ However, flows may also have schedules. In Prefect terms, a schedule is nothing 
 
 For more information, see the [Schedules concept doc](schedules.html).
 
+### Running a flow on schedule
+
+If `flow.run()` is called for a flow with a schedule attached, then it will run the flow on schedule. Note that it will wait for the next scheduled time and not start running immediately.
+
+::: warning Concurrent flow runs are not supported by `flow.run()`
+`flow.run()` is a convenient way to run a flow on schedule, but it does not support concurrent flow runs. It will wait for a run to completely finish, including things like tasks that require retries, before starting the next run. However, Prefect schedules never return start times in the past. This means that if a flow run is still running when another flow run is supposed to start, the second flow run won't happen at all. If you require concurrent runs in a local process, consider using the lower-level `FlowRunner` classes directly.
+:::
+
 ## Key tasks
 
 ### Terminal tasks
