@@ -39,7 +39,7 @@ There are a few ways in which you can specify an `AGENT` API token:
 
 ### Process
 
-The Local Agent periodically polls for new flow runs to execute. Once a flow run is found from Prefect Cloud it checks to make sure that the flow was deployed with a Docker storage option. If it was then it uses the Docker daemon that it connected to in order to create a container which runs the flow.
+The Local Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud, the agent confirms that the flow was deployed with a Docker storage option and uses the connected Docker daemon to create a container and run the flow.
 
 The agent will block on the process in between finding the flow run and submitting it for execution if it has to pull the flow's Docker image.
 
