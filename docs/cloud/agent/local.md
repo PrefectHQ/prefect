@@ -21,7 +21,7 @@ $ prefect agent start
                                            |___/
 
 2019-09-01 12:24:59,261 - agent - INFO - Starting LocalAgent
-2019-09-01 12:24:59,261 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/agent
+2019-09-01 12:24:59,261 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
 2019-09-01 12:24:59,482 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 12:24:59,482 - agent - INFO - Waiting for flow runs...
 ```

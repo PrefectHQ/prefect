@@ -82,7 +82,7 @@ $ prefect agent start -t AGENT_TOKEN --no-pull
                                            |___/
 
 2019-09-01 13:11:58,202 - agent - INFO - Starting LocalAgent
-2019-09-01 13:11:58,203 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/agent
+2019-09-01 13:11:58,203 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
 2019-09-01 13:11:58,453 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 13:11:58,453 - agent - INFO - Waiting for flow runs...
 ```
@@ -113,4 +113,4 @@ NAME                FLOW NAME       STATE    AGE                START TIME
 super-bat           my-flow         Success  a few seconds ago  2019-09-01 13:12:02
 ```
 
-Congratulations! You ran a flow using Prefect Cloud! Now you can take it a step further and deploy a Prefect Agent on a high availability platform such as [Kubernetes](https://docs.prefect.io/cloud/agent/kubernetes.html).
+Congratulations! You ran a flow using Prefect Cloud! Now you can take it a step further and deploy a Prefect Agent on a high availability platform such as [Kubernetes](agent/kubernetes.html).
