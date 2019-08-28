@@ -19,7 +19,7 @@ NAME            FLOW COUNT  AGE         DESCRIPTION
 Hello, World!   0           1 day ago
 ```
 
-### Write Flow
+### Write a Flow
 
 To start, we are going to write a dummy flow that doesn't do anything. Feel free to make the flow more complex if desired but for the sake of simplicity we will stick with a flow which does nothing.
 
