@@ -275,6 +275,54 @@ result in f.tasks # True
 
 As before, the constants were auto-converted to Prefect Tasks, and we see that a _copy_ of the `add_task` was created and added to the Flow.  
 
+::: warning Auto-generation is granular
+Note that Prefect unpacks Python collections at a very granular level; so, for example, adding a dictionary to a Flow will actually create Tasks for all of the dictionary's keys and its values.
+
+```python
+from prefect import task, Flow
+
+@task
+def do_nothing(arg):
+    pass
+
+with Flow("constants") as flow:
+    do_nothing({"x": 1, "y": [9, 10]})
+
+flow.tasks
+
+# {<Task: 'x'>,
+#  <Task: 'y'>,
+#  <Task: 10>,
+#  <Task: 1>,
+#  <Task: 9>,
+#  <Task: Dict>,
+#  <Task: List>, # corresponding to [9, 10]
+#  <Task: List>, # corresponding to the dictionary keys
+#  <Task: List>, # corresponding to the dictionary values
+#  <Task: do_nothing>}
+```
+
+This can be burdensome for very large Python collections.  To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
+
+```python
+from prefect import task, Flow
+from prefect.tasks.core.constants import Constant
+
+@task
+def do_nothing(arg):
+    pass
+
+with Flow("constants") as flow:
+    do_nothing(Constant({"x": 1, "y": [9, 10]}))
+
+flow.tasks
+
+# {<Task: Constant[dict]>, <Task: do_nothing>}
+```
+The `Constant` Task tells Prefect to treat its input as a raw constant, with no further inspection.
+
+:::
+
 As a final illustration of how / when Tasks are added to Flows in the functional API, let's elevate these values to `Parameter`s with default values:
 
 ```python
