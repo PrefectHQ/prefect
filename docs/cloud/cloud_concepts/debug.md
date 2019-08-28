@@ -5,7 +5,7 @@
 
 ### My flow is stuck in scheduled!
 
-The most likely culprit when a flow is stuck in scheduled is due to agent misconfiguration. Here are some steps for debugging your agent:
+The most likely culprit when a flow is stuck in scheduled is agent misconfiguration. Here are some steps for debugging your agent:
 
 1. Verify that your agent is running on your desired platform
 2. Check that the API token given to the agent is scoped to the same tenant as your flow
