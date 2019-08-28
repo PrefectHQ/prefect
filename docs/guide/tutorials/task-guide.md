@@ -305,12 +305,7 @@ flow.tasks
 This can be burdensome for very large Python collections.  To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
 
 ```python
-from prefect import task, Flow
 from prefect.tasks.core.constants import Constant
-
-@task
-def do_nothing(arg):
-    pass
 
 with Flow("constants") as flow:
     do_nothing(Constant({"x": 1, "y": [9, 10]}))
