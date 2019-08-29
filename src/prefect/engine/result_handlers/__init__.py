@@ -16,3 +16,8 @@ try:
     from prefect.engine.result_handlers.s3_result_handler import S3ResultHandler
 except ImportError:
     pass
+
+try:
+    from prefect.engine.result_handlers.azure_result_handler import AzureResultHandler
+except ImportError:
+    pass
