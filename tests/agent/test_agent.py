@@ -17,7 +17,7 @@ def test_agent_init():
 def test_agent_config_options():
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
 
 

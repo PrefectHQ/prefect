@@ -6,7 +6,7 @@ import pytest
 import prefect
 from prefect.client import Secret
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError
+from prefect.utilities.exceptions import AuthorizationError, ClientError
 
 #################################
 ##### Secret Tests
@@ -36,14 +36,11 @@ def test_secret_value_pulled_from_context():
 
 def test_secret_value_depends_on_use_local_secrets(monkeypatch):
     secret = Secret(name="test")
-    monkeypatch.setattr(
-        "prefect.client.secrets.os.path.exists", MagicMock(return_value=False)
-    )
     with set_temporary_config(
         {"cloud.use_local_secrets": False, "cloud.auth_token": None}
     ):
         with prefect.context(secrets=dict(test=42)):
-            with pytest.raises(AuthorizationError, match="Client.login"):
+            with pytest.raises(ClientError):
                 secret.get()
 
 
