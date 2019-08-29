@@ -9,6 +9,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
+    AzureResultHandler,
 )
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -66,6 +67,14 @@ class S3ResultHandlerSchema(BaseResultHandlerSchema):
     aws_credentials_secret = fields.String(allow_none=True)
 
 
+class AzureResultHandlerSchema(BaseResultHandlerSchema):
+    class Meta:
+        object_class = AzureResultHandler
+
+    container = fields.String(allow_none=False)
+    azure_credentials_secret = fields.String(allow_none=True)
+
+
 class ResultHandlerSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -78,6 +87,7 @@ class ResultHandlerSchema(OneOfSchema):
         "S3ResultHandler": S3ResultHandlerSchema,
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
+        "AzureResultHandler": AzureResultHandlerSchema,
     }
 
     def get_obj_type(self, obj: Any) -> str:
