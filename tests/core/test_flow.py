@@ -2201,6 +2201,33 @@ def test_looping_with_retries_works_in_a_flow():
     assert flow_state.result[final].result == 200 ** 2
 
 
+def test_looping_with_retries_resets_run_count():
+    run_counts = []
+
+    @task(max_retries=1, retry_delay=datetime.timedelta(seconds=0))
+    def looper(x):
+        run_counts.append(prefect.context.get("task_run_count"))
+
+        if (
+            prefect.context.get("task_loop_count") == 2
+            and prefect.context.get("task_run_count", 1) == 1
+        ):
+            raise ValueError("err")
+
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result") + x
+
+    with Flow(name="looping") as f:
+        inter = looper(1)
+
+    flow_state = f.run()
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 20
+    assert list(filter(lambda x: x == 2, run_counts)) == [2]
+
+
 def test_starting_at_arbitrary_loop_index():
     @task
     def looper(x):
