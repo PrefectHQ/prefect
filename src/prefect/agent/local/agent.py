@@ -78,7 +78,7 @@ class LocalAgent(Agent):
             - dict: a dictionary representing the populated environment variables
         """
         return {
-            "PREFECT__CLOUD__API": config.cloud.api,
+            "PREFECT__CLOUD__GRAPHQL": config.cloud.graphql,
             "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",

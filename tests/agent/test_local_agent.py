@@ -94,13 +94,15 @@ def test_populate_env_vars(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "cloud.graphql": "api"}
+    ):
         agent = LocalAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
-            "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__GRAPHQL": "api",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",

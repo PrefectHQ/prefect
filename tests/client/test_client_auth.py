@@ -35,7 +35,7 @@ def patch_graphql(monkeypatch):
 class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
-            {"cloud.api": "api_server", "cloud.auth_token": "token"}
+            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
         ):
             client = Client()
         assert client.api_server == "api_server"
@@ -43,7 +43,7 @@ class TestClientConfig:
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
-            {"cloud.api": "api_server", "cloud.auth_token": "token"}
+            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
         ):
             client = Client(api_server="my-graphql")
         assert client.api_server == "my-graphql"
@@ -70,7 +70,7 @@ class TestClientConfig:
 
     def test_client_token_initializes_from_file(selfmonkeypatch):
         with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
+            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
                 path.parent.mkdir(parents=True)
                 with path.open("w") as f:
@@ -84,7 +84,7 @@ class TestClientConfig:
             with set_temporary_config(
                 {
                     "home_dir": tmp,
-                    "cloud.api": "xyz",
+                    "cloud.graphql": "xyz",
                     "cloud.auth_token": "CONFIG_TOKEN",
                 }
             ):
@@ -103,7 +103,7 @@ class TestClientConfig:
 
     def test_save_local_settings(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
+            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
 
                 client = Client(api_token="a")
@@ -438,7 +438,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.get = get
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.get("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -454,7 +454,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.post("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -470,7 +470,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.graphql("query {}", headers={"x": "y", "Authorization": "z"})
@@ -485,7 +485,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.get = get
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
             client = Client()
         client.get("/foo/bar", token="secret_token")
         assert get.called
@@ -496,7 +496,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
             client = Client()
         client.post("/foo/bar", token="secret_token")
         assert post.called
@@ -507,7 +507,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
+        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
             client = Client()
         client.graphql("query {}", token="secret_token")
         assert post.called

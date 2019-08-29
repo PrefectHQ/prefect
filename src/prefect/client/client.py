@@ -80,7 +80,7 @@ class Client:
         self._active_tenant_id = None
 
         # store api server
-        self.api_server = api_server or prefect.config.cloud.get("api")
+        self.api_server = api_server or prefect.config.cloud.get("graphql")
 
         # store api token
         self._api_token = api_token or prefect.config.cloud.get("auth_token", None)

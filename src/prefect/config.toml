@@ -6,8 +6,8 @@ home_dir = "~/.prefect"
 
 
 [cloud]
-# the Prefect Server address
-api = "https://api.prefect.io/graphql/alpha"
+# the Prefect Cloud API
+graphql = "https://api.prefect.io/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
 auth_token = ""

@@ -99,7 +99,7 @@ def test_nomad_agent_replace_yaml():
         )
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
-        assert "https://api.prefect.io" in env["PREFECT__CLOUD__API"]
+        assert "https://api.prefect.io" in env["PREFECT__CLOUD__GRAPHQL"]
         assert env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"

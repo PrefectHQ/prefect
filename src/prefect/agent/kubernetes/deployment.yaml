@@ -23,7 +23,7 @@ spec:
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""
-            - name: PREFECT__CLOUD__API
+            - name: PREFECT__CLOUD__GRAPHQL
               value: "https://api.prefect.io"
             - name: NAMESPACE
               value: "default"
@@ -41,7 +41,7 @@ spec:
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""
-            - name: PREFECT__CLOUD__API
+            - name: PREFECT__CLOUD__GRAPHQL
               value: "https://api.prefect.io"
             - name: PREFECT__CLOUD__AGENT__RESOURCE_MANAGER__LOOP_INTERVAL
               value: "60"
