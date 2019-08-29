@@ -2176,7 +2176,7 @@ def test_looping_with_retries_resets_run_count():
 
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 20
-    assert list(filter(lambda x: x == 2, run_counts)) == 1
+    assert list(filter(lambda x: x == 2, run_counts)) == [2]
 
 
 def test_starting_at_arbitrary_loop_index():
