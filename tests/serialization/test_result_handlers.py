@@ -10,6 +10,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
+    AzureResultHandler,
 )
 from prefect.serialization.result_handlers import (
     CustomResultHandlerSchema,
@@ -211,3 +212,47 @@ class TestS3ResultHandler:
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "bucket3"
         assert handler.aws_credentials_secret == "FOO"
+
+
+@pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")
+class TestAzureResultHandler:
+    def test_serialize(self):
+        handler = AzureResultHandler(
+            container="my-container", azure_credentials_secret="FOO"
+        )
+        serialized = ResultHandlerSchema().dump(handler)
+        assert serialized["type"] == "AzureResultHandler"
+        assert serialized["container"] == "my-container"
+        assert serialized["azure_credentials_secret"] == "FOO"
+
+    def test_deserialize_from_dict(self):
+        handler = ResultHandlerSchema().load(
+            {"type": "AzureResultHandler", "container": "foo-bar"}
+        )
+        assert isinstance(handler, AzureResultHandler)
+        assert handler.container == "foo-bar"
+        assert handler.azure_credentials_secret == "AZ_CREDENTIALS"
+
+    def test_roundtrip(self):
+        schema = ResultHandlerSchema()
+        handler = schema.load(schema.dump(AzureResultHandler(container="container3")))
+        assert isinstance(handler, AzureResultHandler)
+        assert handler.container == "container3"
+
+    def test_roundtrip_never_loads_client(self, monkeypatch):
+        schema = ResultHandlerSchema()
+
+        def raise_me(*args, **kwargs):
+            raise SyntaxError("oops")
+
+        monkeypatch.setattr(AzureResultHandler, "initialize_service", raise_me)
+        handler = schema.load(
+            schema.dump(
+                AzureResultHandler(
+                    container="container3", azure_credentials_secret="FOO"
+                )
+            )
+        )
+        assert isinstance(handler, AzureResultHandler)
+        assert handler.container == "container3"
+        assert handler.azure_credentials_secret == "FOO"
