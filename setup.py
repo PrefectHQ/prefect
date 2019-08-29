@@ -11,6 +11,7 @@ dev_requires = open("dev-requirements.txt").read().strip().split("\n")
 extras = {
     "airtable": ["airtable-python-wrapper >= 0.11, < 0.12"],
     "aws": ["boto3 >= 1.9, < 2.0"],
+    "azure": ["azure-storage-blob >= 2.1.0, < 3.0"],
     "dev": dev_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "google": [

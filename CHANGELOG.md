@@ -8,6 +8,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Added Local, Kubernetes, and Nomad agents - [#1341](https://github.com/PrefectHQ/prefect/pull/1341)
 - Add the ability for Tasks to sequentially loop - [#1356](https://github.com/PrefectHQ/prefect/pull/1356)
+- - Add `AzureResultHandler` for handling results to / from Azure Blob storage containers - [#1421](https://github.com/PrefectHQ/prefect/pull/1421)
 
 ### Enhancements
 
