@@ -92,7 +92,7 @@ class KubernetesAgent(Agent):
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
-        env[1]["value"] = config.cloud.agent.api_token
+        env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
 

@@ -22,7 +22,7 @@ def test_client_posts_to_api_server(patch_post):
     post = patch_post(dict(success=True))
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.post("/foo/bar")
@@ -35,7 +35,7 @@ def test_client_posts_graphql_to_api_server(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
@@ -49,7 +49,7 @@ def test_graphql_errors_get_raised(patch_post):
     patch_post(dict(data="42", errors="GraphQL issue!"))
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="GraphQL issue!"):
@@ -72,7 +72,7 @@ def test_client_deploy(patch_post, compressed):
     patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
@@ -98,7 +98,7 @@ def test_client_deploy_builds_flow(patch_post, compressed):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
@@ -136,7 +136,7 @@ def test_client_deploy_optionally_avoids_building_flow(patch_post, compressed):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test")
@@ -162,7 +162,7 @@ def test_client_deploy_with_bad_proj_name(patch_post):
     patch_post({"data": {"project": []}})
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test")
@@ -237,7 +237,7 @@ def test_get_flow_run_info(patch_post):
     post = patch_post(dict(data=response))
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -295,7 +295,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     post = patch_post(dict(data=response))
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.get_flow_run_info(flow_run_id="74-salt")
@@ -318,7 +318,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
 def test_get_flow_run_info_raises_informative_error(patch_post):
     post = patch_post(dict(data={"flow_run_by_pk": None}))
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="not found"):
@@ -330,7 +330,7 @@ def test_set_flow_run_state(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.set_flow_run_state(
@@ -347,7 +347,7 @@ def test_set_flow_run_state_with_error(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     with pytest.raises(ClientError, match="something went wrong"):
@@ -378,7 +378,7 @@ def test_get_task_run_info(patch_post):
 
     post = patch_post(dict(data=response))
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.get_task_run_info(
@@ -400,7 +400,7 @@ def test_get_task_run_info_with_error(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
 
@@ -415,7 +415,7 @@ def test_set_task_run_state(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
     result = client.set_task_run_state(
@@ -430,7 +430,7 @@ def test_set_task_run_state_serializes(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
 
@@ -449,7 +449,7 @@ def test_set_task_run_state_with_error(patch_post):
     post = patch_post(response)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
 
@@ -461,7 +461,7 @@ def test_write_log_successfully(patch_post):
     patch_post({"data": {"writeRunLog": {"success": True}}})
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
 
@@ -474,7 +474,7 @@ def test_write_log_with_error(patch_post):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
 

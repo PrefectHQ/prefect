@@ -37,7 +37,7 @@ def login(token):
         --token, -t         TEXT    A Prefect Cloud api token  [required]
     """
 
-    if config.cloud.get("api_token"):
+    if config.cloud.get("auth_token"):
         click.confirm(
             "Prefect Cloud API token already set in config. Do you want to override?",
             default=True,

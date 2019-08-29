@@ -9,5 +9,5 @@ The agent needs to be able to read, list, and create both pods and jobs. The res
 Quick Start:
 
 - Build Dockerfile and push to registry
-- Update the `image` and `PREFECT__CLOUD__API_TOKEN` env value in the deployment yaml
+- Update the `image` and `PREFECT__CLOUD__AUTH_TOKEN` env value in the deployment yaml
 - Run `kubectl apply -f deployment.yaml`

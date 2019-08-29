@@ -63,7 +63,7 @@ def start(name, token, no_pull):
                                 Defaults to pulling if not provided
     """
     with set_temporary_config(
-        {"cloud.agent.api_token": token or config.cloud.agent.api_token}
+        {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
     ):
         retrieved_agent = _agents.get(name, None)
 

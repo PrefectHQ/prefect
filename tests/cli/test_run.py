@@ -44,7 +44,7 @@ def test_run_cloud(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -74,7 +74,7 @@ def test_run_cloud_fails(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.api_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(

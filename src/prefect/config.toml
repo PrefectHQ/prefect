@@ -10,11 +10,11 @@ home_dir = "~/.prefect"
 api = "https://api.prefect.io/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
-api_token = ""
+auth_token = ""
 
     [cloud.agent]
     # Agents require different API tokens
-    api_token = ""
+    auth_token = ""
 
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers

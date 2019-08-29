@@ -56,7 +56,7 @@ client = prefect.Client()
 assert client._api_token == "YOUR_USER_TOKEN"  # True
 ```
 
-Note that a token can be provided by environment variable (`PREFECT__CLOUD__API_TOKEN`) or in your Prefect config (under `cloud.api_token`).
+Note that a token can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
 
 :::tip Using `USER` tokens
 The steps shown here were designed to be used with `USER`-scoped tokens. They will work with `TENANT` scoped tokens as well, but unexpected errors could result.

@@ -37,7 +37,7 @@ def test_secret_value_pulled_from_context():
 def test_secret_value_depends_on_use_local_secrets(monkeypatch):
     secret = Secret(name="test")
     with set_temporary_config(
-        {"cloud.use_local_secrets": False, "cloud.api_token": None}
+        {"cloud.use_local_secrets": False, "cloud.auth_token": None}
     ):
         with prefect.context(secrets=dict(test=42)):
             with pytest.raises(ClientError):
@@ -51,7 +51,7 @@ def test_secrets_use_client(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.api_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()
