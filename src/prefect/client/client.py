@@ -1,17 +1,19 @@
-import base64
 import datetime
 import json
-import logging
 import os
+import uuid
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 
 import pendulum
 import requests
+import toml
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.utilities.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
@@ -62,36 +64,36 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - graphql_server (str, optional): the URL to send all GraphQL requests
+        - api_server (str, optional): the URL to send all GraphQL requests
             to; if not provided, will be pulled from `cloud.graphql` config var
-        - token (str, optional): a Prefect Cloud auth token for communication; if not
-            provided, will be pulled from `cloud.auth_token` config var
+        - api_token (str, optional): a Prefect Cloud API token, taken from
+            `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
+            be used to log in to any tenant that the user is a member of. In that case,
+            ephemeral JWTs will be loaded as necessary. Otherwise, the API token itself
+            will be used as authorization.
     """
 
-    def __init__(self, graphql_server: str = None, token: str = None):
+    def __init__(self, api_server: str = None, api_token: str = None):
+        self._access_token = None
+        self._refresh_token = None
+        self._access_token_expires_at = pendulum.now()
+        self._active_tenant_id = None
 
-        if not graphql_server:
-            graphql_server = prefect.config.cloud.get("graphql")
-        self.graphql_server = graphql_server
+        # store api server
+        self.api_server = api_server or prefect.config.cloud.get("graphql")
 
-        token = token or prefect.config.cloud.get("auth_token", None)
+        # store api token
+        self._api_token = api_token or prefect.config.cloud.get("auth_token", None)
 
-        self.token_is_local = False
-        if token is None:
-            if os.path.exists(self.local_token_path):
-                with open(self.local_token_path, "r") as f:
-                    token = f.read() or None
-                    self.token_is_local = True
+        # if no api token was passed, attempt to load state from local storage
+        if not self._api_token:
+            settings = self._load_local_settings()
+            self._api_token = settings.get("api_token")
 
-        self.token = token
-
-    @property
-    def local_token_path(self) -> str:
-        """
-        Returns the local token path corresponding to the provided graphql_server
-        """
-        graphql_server = (self.graphql_server or "").replace("/", "_")
-        return os.path.expanduser("~/.prefect/tokens/{}".format(graphql_server))
+            if self._api_token:
+                self._active_tenant_id = settings.get("active_tenant_id")
+            if self._active_tenant_id:
+                self.login_to_tenant(tenant_id=self._active_tenant_id)
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -102,6 +104,7 @@ class Client:
         server: str = None,
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
+        token: str = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and GET request
@@ -110,15 +113,21 @@ class Client:
             - path (str): the path of the API url. For example, to GET
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the GET request to;
-                defaults to `self.graphql_server`
+                defaults to `self.api_server`
             - headers (dict, optional): Headers to pass with the request
             - params (dict): GET parameters
+            - token (str): an auth token. If not supplied, the `client.access_token` is used.
 
         Returns:
             - dict: Dictionary representation of the request made
         """
         response = self._request(
-            method="GET", path=path, params=params, server=server, headers=headers
+            method="GET",
+            path=path,
+            params=params,
+            server=server,
+            headers=headers,
+            token=token,
         )
         if response.text:
             return response.json()
@@ -131,6 +140,7 @@ class Client:
         server: str = None,
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
+        token: str = None,
     ) -> dict:
         """
         Convenience function for calling the Prefect API with token auth and POST request
@@ -139,15 +149,21 @@ class Client:
             - path (str): the path of the API url. For example, to POST
                 http://prefect-server/v1/auth/login, path would be 'auth/login'.
             - server (str, optional): the server to send the POST request to;
-                defaults to `self.graphql_server`
+                defaults to `self.api_server`
             - headers(dict): headers to pass with the request
             - params (dict): POST parameters
+            - token (str): an auth token. If not supplied, the `client.access_token` is used.
 
         Returns:
             - dict: Dictionary representation of the request made
         """
         response = self._request(
-            method="POST", path=path, params=params, server=server, headers=headers
+            method="POST",
+            path=path,
+            params=params,
+            server=server,
+            headers=headers,
+            token=token,
         )
         if response.text:
             return response.json()
@@ -160,6 +176,7 @@ class Client:
         raise_on_error: bool = True,
         headers: Dict[str, str] = None,
         variables: Dict[str, JSONLike] = None,
+        token: str = None,
     ) -> GraphQLResult:
         """
         Convenience function for running queries against the Prefect GraphQL API
@@ -173,6 +190,7 @@ class Client:
                 request
             - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
+            - token (str): an auth token. If not supplied, the `client.access_token` is used.
 
         Returns:
             - dict: Data returned from the GraphQL query
@@ -182,12 +200,15 @@ class Client:
         """
         result = self.post(
             path="",
-            server=self.graphql_server,
+            server=self.api_server,
             headers=headers,
             params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
+            token=token,
         )
 
         if raise_on_error and "errors" in result:
+            if "Malformed Authorization header" in str(result["errors"]):
+                raise AuthorizationError(result["errors"])
             raise ClientError(result["errors"])
         else:
             return as_nested_dict(result, GraphQLResult)  # type: ignore
@@ -199,6 +220,7 @@ class Client:
         params: Dict[str, JSONLike] = None,
         server: str = None,
         headers: dict = None,
+        token: str = None,
     ) -> "requests.models.Response":
         """
         Runs any specified request (GET, POST, DELETE) against the server
@@ -210,6 +232,7 @@ class Client:
             - server (str, optional): The server to make requests against, base API
                 server is used if not specified
             - headers (dict, optional): Headers to pass with the request
+            - token (str): an auth token. If not supplied, the `client.access_token` is used.
 
         Returns:
             - requests.models.Response: The response returned from the request
@@ -220,18 +243,20 @@ class Client:
             - requests.HTTPError: if a status code is returned that is not `200` or `401`
         """
         if server is None:
-            server = self.graphql_server
+            server = self.api_server
         assert isinstance(server, str)  # mypy assert
 
-        if self.token is None:
-            raise AuthorizationError("No token found; call Client.login() to set one.")
+        if token is None:
+            token = self.get_auth_token()
 
         url = os.path.join(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 
         headers = headers or {}
-        headers.update({"Authorization": "Bearer {}".format(self.token)})
+        if token:
+            headers["Authorization"] = "Bearer {}".format(token)
+
         session = requests.Session()
         retries = Retry(
             total=6,
@@ -258,33 +283,196 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
-    def login(self, api_token: str) -> None:
+    def _local_settings_path(self) -> Path:
         """
-        Logs in to Prefect Cloud with an API token. The token is written to local storage
-        so it persists across Prefect sessions.
+        Returns the local settings directory corresponding to the current API servers
+        """
+        path = "{home}/client/{server}".format(
+            home=prefect.config.home_dir,
+            server=slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+"),
+        )
+        return Path(os.path.expanduser(path)) / "settings.toml"
+
+    def _save_local_settings(self, settings: dict) -> None:
+        """
+        Writes settings to local storage
+        """
+        self._local_settings_path().parent.mkdir(exist_ok=True, parents=True)
+        with self._local_settings_path().open("w+") as f:
+            toml.dump(settings, f)
+
+    def _load_local_settings(self) -> dict:
+        """
+        Loads settings from local storage
+        """
+        if self._local_settings_path().exists():
+            with self._local_settings_path().open("r") as f:
+                return toml.load(f)  # type: ignore
+        return {}
+
+    def save_api_token(self) -> None:
+        """
+        Saves the API token in local storage.
+        """
+        settings = self._load_local_settings()
+        settings["api_token"] = self._api_token
+        self._save_local_settings(settings)
+
+    def get_auth_token(self) -> str:
+        """
+        Returns an auth token:
+            - if no explicit access token is stored, returns the api token
+            - if there is an access token:
+                - if there's a refresh token and the access token expires in the next 30 seconds,
+                  then we refresh the access token and store the result
+                - return the access token
+
+        Returns:
+            - str: the access token
+        """
+        if not self._access_token:
+            return self._api_token
+
+        expiration = self._access_token_expires_at or pendulum.now()
+        if self._refresh_token and pendulum.now().add(seconds=30) > expiration:
+            self._refresh_access_token()
+
+        return self._access_token
+
+    def get_available_tenants(self) -> List[Dict]:
+        """
+        Returns a list of available tenants.
+
+        NOTE: this should only be called by users who have provided a USER-scoped API token.
+
+        Returns:
+            - List[Dict]: a list of dictionaries containing the id, slug, and name of
+            available tenants
+        """
+        result = self.graphql(
+            {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
+            # use the API token to see all available tenants
+            token=self._api_token,
+        )  # type: ignore
+        return result.data.tenant  # type: ignore
+
+    def login_to_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
+        """
+        Log in to a specific tenant
+
+        NOTE: this should only be called by users who have provided a USER-scoped API token.
 
         Args:
-            - api_token (str): a Prefect Cloud API token
+            - tenant_slug (str): the tenant's slug
+            - tenant_id (str): the tenant's id
+
+        Returns:
+            - bool: True if the login was successful
 
         Raises:
-            - AuthorizationError if unable to login to the server (request does not return `200`)
-        """
-        if not os.path.exists(os.path.dirname(self.local_token_path)):
-            os.makedirs(os.path.dirname(self.local_token_path))
-        with open(self.local_token_path, "w+") as f:
-            f.write(api_token)
-        self.token = api_token
-        self.token_is_local = True
+            - ValueError: if at least one of `tenant_slug` or `tenant_id` isn't provided
+            - ValueError: if the `tenant_id` is not a valid UUID
+            - ValueError: if no matching tenants are found
 
-    def logout(self) -> None:
         """
-        Deletes the token from this client, and removes it from local storage.
+
+        if tenant_slug is None and tenant_id is None:
+            raise ValueError(
+                "At least one of `tenant_slug` or `tenant_id` must be provided."
+            )
+        elif tenant_id:
+            try:
+                uuid.UUID(tenant_id)
+            except ValueError:
+                raise ValueError("The `tenant_id` must be a valid UUID.")
+
+        tenant = self.graphql(
+            {
+                "query($slug: String, $id: uuid)": {
+                    "tenant(where: {slug: { _eq: $slug }, id: { _eq: $id } })": {"id"}
+                }
+            },
+            variables=dict(slug=tenant_slug, id=tenant_id),
+            # use the API token to query the tenant
+            token=self._api_token,
+        )  # type: ignore
+        if not tenant.data.tenant:  # type: ignore
+            raise ValueError("No matching tenants found.")
+
+        tenant_id = tenant.data.tenant[0].id  # type: ignore
+
+        payload = self.graphql(
+            {
+                "mutation($input: switchTenantInput!)": {
+                    "switchTenant(input: $input)": {
+                        "accessToken",
+                        "expiresIn",
+                        "refreshToken",
+                    }
+                }
+            },
+            variables=dict(input=dict(tenantId=tenant_id)),
+            # Use the API token to switch tenants
+            token=self._api_token,
+        )  # type: ignore
+        self._access_token = payload.data.switchTenant.accessToken  # type: ignore
+        self._access_token_expires_at = pendulum.now().add(
+            seconds=payload.data.switchTenant.expiresIn  # type: ignore
+        )
+        self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
+        self._active_tenant_id = tenant_id
+
+        # save the tenant setting
+        settings = self._load_local_settings()
+        settings["active_tenant_id"] = self._active_tenant_id
+        self._save_local_settings(settings)
+
+        return True
+
+    def logout_from_tenant(self) -> None:
+        self._access_token = None
+        self._refresh_token = None
+        self._active_tenant_id = None
+
+        # remove the tenant setting
+        settings = self._load_local_settings()
+        settings["active_tenant_id"] = None
+        self._save_local_settings(settings)
+
+    def _refresh_access_token(self) -> bool:
         """
-        self.token = None
-        if self.token_is_local:
-            if os.path.exists(self.local_token_path):
-                os.remove(self.local_token_path)
-            self.token_is_local = False
+        Refresh the client's JWT access token.
+
+        NOTE: this should only be called by users who have provided a USER-scoped API token.
+
+        Returns:
+            - bool: True if the refresh succeeds
+        """
+        payload = self.graphql(
+            {
+                "mutation($input: refreshTokenInput!)": {
+                    "refreshToken(input: $input)": {
+                        "accessToken",
+                        "expiresIn",
+                        "refreshToken",
+                    }
+                }
+            },
+            variables=dict(input=dict(accessToken=self._access_token)),
+            # pass the refresh token as the auth header
+            token=self._refresh_token,
+        )  # type: ignore
+        self._access_token = payload.data.refreshToken.accessToken  # type: ignore
+        self._access_token_expires_at = pendulum.now().add(
+            seconds=payload.data.refreshToken.expiresIn  # type: ignore
+        )
+        self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
+
+        return True
+
+    # -------------------------------------------------------------------------
+    # Actions
+    # -------------------------------------------------------------------------
 
     def deploy(
         self,

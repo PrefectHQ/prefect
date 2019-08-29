@@ -11,7 +11,7 @@ The most likely culprit when a flow is stuck in scheduled is agent misconfigurat
 2. Check that the API token given to the agent is scoped to the same tenant as your flow
 
 ```
-$ export PREFECT__CLOUD__API_TOKEN=YOUR_TOKEN
+$ export PREFECT__CLOUD__AUTH_TOKEN=YOUR_TOKEN
 $ prefect get flows
 # if you do not see your flow then there is a tenant mismatch
 ```
