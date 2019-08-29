@@ -544,6 +544,26 @@ class TestTaskArgs:
 
         assert getattr(f.tasks.pop(), attr) == val
 
+    @pytest.mark.parametrize(
+        "attr,val",
+        [
+            ("name", "foo-bar"),
+            ("slug", "foo-bar"),
+            ("max_retries", 4200),
+            ("retry_delay", timedelta(seconds=1)),
+            ("timeout", 12),
+            ("skip_on_upstream_skip", False),
+            ("cache_for", timedelta(seconds=1)),
+        ],
+    )
+    def test_task_args_sets_new_attrs_on_mapped_tasks(self, attr, val):
+        t = Task()
+        with Flow(name="test") as f:
+            res = t.map(upstream_tasks=[1, 2, 3, 4], task_args={attr: val})
+
+        tasks = f.get_tasks(name="Task")
+        assert all(getattr(tt, attr) == val for tt in tasks)
+
     def test_tags_are_appended_to_when_updating_with_task_args(self):
         t = AddTask(tags=["math"])
 
