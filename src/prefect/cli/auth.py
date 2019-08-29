@@ -44,8 +44,7 @@ def login(token):
             abort=True,
         )
 
-    client = Client()
-    client.login(api_token=token)
+    client = Client(api_token=token)
 
     # Verify login obtained a valid api token
     try:
@@ -58,5 +57,8 @@ def login(token):
     except ClientError:
         click.secho("Error attempting to communicate with Prefect Cloud", fg="red")
         return
+
+    # save token
+    client.save_api_token()
 
     click.secho("Login successful", fg="green")
