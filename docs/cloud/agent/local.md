@@ -29,7 +29,7 @@ $ prefect agent start
 The Local Agent can be started either through the Prefect CLI or by importing the `LocalAgent` class from the core library.
 
 ::: tip Tokens
-There are a few ways in which you can specify an `AGENT` API token:
+There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`

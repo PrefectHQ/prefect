@@ -10,6 +10,7 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import (
+    AzureResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
@@ -256,3 +257,82 @@ class TestS3ResultHandler:
                     handler = S3ResultHandler(bucket="foo")
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, S3ResultHandler)
+
+
+@pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")
+class TestAzureResultHandler:
+    @pytest.fixture
+    def azure_service(self, monkeypatch):
+        import azure.storage.blob
+
+        service = MagicMock()
+        blob = MagicMock(BlockBlobService=service)
+        storage = MagicMock(blob=blob)
+
+        with patch.dict("sys.modules", {"azure": MagicMock(storage=storage)}):
+            yield service
+
+    def test_azure_service_init_uses_secrets(self, azure_service):
+        handler = AzureResultHandler(container="bob")
+        assert handler.container == "bob"
+        assert azure_service.called is False
+
+        with prefect.context(
+            secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME="1", ACCOUNT_KEY="42"))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_service()
+
+        assert azure_service.call_args[1] == {"account_name": "1", "account_key": "42"}
+
+    def test_azure_service_init_uses_custom_secrets(self, azure_service):
+        handler = AzureResultHandler(container="bob", azure_credentials_secret="MY_FOO")
+
+        with prefect.context(
+            secrets=dict(MY_FOO=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_service()
+
+        assert handler.container == "bob"
+        assert azure_service.call_args[1] == {"account_name": 1, "account_key": 999}
+
+    def test_azure_service_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
+        self, azure_service
+    ):
+        handler = AzureResultHandler(container="foo")
+
+        with prefect.context(
+            secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=42))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                uri = handler.write("so-much-data")
+
+        a = azure_service.return_value
+
+        used_uri = azure_service.return_value.create_blob_from_text.call_args[1][
+            "blob_name"
+        ]
+
+        assert used_uri == uri
+        assert used_uri.startswith(pendulum.now("utc").format("Y/M/D"))
+        assert used_uri.endswith("prefect_result")
+
+    def test_azure_service_handler_is_pickleable(self, monkeypatch):
+        class service:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __getstate__(self):
+                raise ValueError("I cannot be pickled.")
+
+        with patch.dict(
+            "sys.modules", {"azure.storage.blob": MagicMock(BlockBlobService=service)}
+        ):
+            with prefect.context(
+                secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=42))
+            ):
+                with set_temporary_config({"cloud.use_local_secrets": True}):
+                    handler = AzureResultHandler(container="foo")
+            res = cloudpickle.loads(cloudpickle.dumps(handler))
+            assert isinstance(res, AzureResultHandler)
