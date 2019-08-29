@@ -42,7 +42,7 @@ If running out-of-cluster (i.e. not on a pod) you may see the warning:
 The Kubernetes Agent can be started either through the Prefect CLI or by importing the `KubernetesAgent` class from the core library.
 
 ::: tip Tokens
-There are a few ways in which you can specify an `AGENT` API token:
+There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start kubernetes -t MY_TOKEN`
 - environment variable `export PREFECT__CLOUD__AGENT__API_TOKEN=MY_TOKEN`
