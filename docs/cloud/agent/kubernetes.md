@@ -45,8 +45,8 @@ The Kubernetes Agent can be started either through the Prefect CLI or by importi
 There are a few ways in which you can specify an `AGENT` API token:
 
 - command argument `prefect agent start kubernetes -t MY_TOKEN`
-- environment variable `export PREFECT__CLOUD__AGENT__API_TOKEN=MY_TOKEN`
-- token will be used from `prefect.config.cloud.api_token` if not provided from one of the two previous methods
+- environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
+- token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
 :::
 
