@@ -36,6 +36,8 @@ Prefect provides various key / value pairs in context that are always available 
 | `task_slug` | the slug of the current task |
 | `task_tags` | the tags on the current task |
 | `task_run_count` | the run count of the task run - typically only interesting for retrying tasks |
+| `task_loop_count` | if the Task utilizes looping, the loop count of the task run |
+| `task_loop_result` | if the Task is looping, the current loop result |
 
 In addition, Prefect Cloud supplies some additional context variables:
 
