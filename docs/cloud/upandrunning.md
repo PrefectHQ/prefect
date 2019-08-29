@@ -4,7 +4,7 @@ In this guide, we will look at a quick way to get Prefect Cloud flow deployments
 
 ### Prerequisites
 
-In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate an `AGENT` token and save that in a secure place because we will use it later when creating our Local Agent.
+In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate a `RUNNER` token and save that in a secure place because we will use it later when creating our Local Agent.
 
 Let's use the Prefect CLI to log into Cloud:
 ```
@@ -69,10 +69,10 @@ my-flow     1          Demo            a few seconds ago
 
 ### Start Local Agent
 
-In order to orchestrate runs of your flow we will need to boot up a Prefect Agent which will look for flow runs to execute. This is where the `AGENT` token you generated earlier will become useful.
+In order to orchestrate runs of your flow we will need to boot up a Prefect Agent which will look for flow runs to execute. This is where the `RUNNER` token you generated earlier will become useful.
 
 ```
-$ prefect agent start -t AGENT_TOKEN --no-pull
+$ prefect agent start -t RUNNER_TOKEN --no-pull
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -87,7 +87,7 @@ $ prefect agent start -t AGENT_TOKEN --no-pull
 2019-09-01 13:11:58,453 - agent - INFO - Waiting for flow runs...
 ```
 
-Here we use the Prefect CLI to start a Local Agent. The `AGENT` token that was generated earlier is specified through the `--token` argument. We also pass the `--no-pull` flag to the agent start command. This is because we deployed our flow to Prefect Cloud without actually pushing our flow's Docker storage to a registry. The image exists locally on your machine (and does not have a specified registry) therefore we want to tell the Local Agent to not bother trying to pull the image.
+Here we use the Prefect CLI to start a Local Agent. The `RUNNER` token that was generated earlier is specified through the `--token` argument. We also pass the `--no-pull` flag to the agent start command. This is because we deployed our flow to Prefect Cloud without actually pushing our flow's Docker storage to a registry. The image exists locally on your machine (and does not have a specified registry) therefore we want to tell the Local Agent to not bother trying to pull the image.
 
 ### Create a Flow Run
 
