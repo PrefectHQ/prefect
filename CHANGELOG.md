@@ -25,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `task_slug`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
 - Support persistent `scheduled_start_time` for scheduled flow runs when run locally with `flow.run()` - [#1418](https://github.com/PrefectHQ/prefect/pull/1418)
 - Add `task_args` to `Task.map` - [#1390](https://github.com/PrefectHQ/prefect/issues/1390)
+- Add auth flows for `USER`-scoped Cloud API tokens - [#1410](https://github.com/PrefectHQ/prefect/pull/1410)
 
 ### Task Library
 
@@ -42,6 +43,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Rename `CloudEnvironment` to `DaskKubernetesEnvironment` - [#1250](https://github.com/PrefectHQ/prefect/issues/1250)
+- Removed `config.cloud.api` default key - [#1410](https://github.com/PrefectHQ/prefect/pull/1410)
 
 ### Contributors
 
