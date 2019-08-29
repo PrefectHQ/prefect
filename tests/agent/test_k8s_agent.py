@@ -28,7 +28,7 @@ def test_k8s_agent_config_options(monkeypatch):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = KubernetesAgent()
         assert agent
-        assert agent.client.token == "TEST_TOKEN"
+        assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.batch_client
 
