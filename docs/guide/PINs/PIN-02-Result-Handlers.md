@@ -11,7 +11,7 @@ Author: Chris White
 
 ## Status
 
-Accepted; expanded by [PIN-4](PIN-4-Result-Objects.md)
+Accepted; expanded by [PIN-4](PIN-04-Result-Objects.md)
 
 ## Context
 
@@ -43,4 +43,4 @@ Re-orchestrating our data flow in this way will gain us a few things:
 
 ## Actions
 
-Expanded by [PIN-4](PIN-4-Result-Objects.md).
+Expanded by [PIN-4](PIN-04-Result-Objects.md).

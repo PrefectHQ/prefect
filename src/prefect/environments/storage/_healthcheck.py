@@ -97,6 +97,6 @@ if __name__ == "__main__":
 
     print("Beginning health checks...")
     system_check(python_version)
-    flows = cloudpickle_serialization_check(flow_file_path)
+    flows = cloudpickle_deserialization_check(flow_file_path)
     result_handler_check(flows)
     print("All health checks passed.")

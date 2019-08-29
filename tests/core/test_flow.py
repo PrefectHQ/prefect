@@ -2011,6 +2011,55 @@ class TestFlowRunMethod:
         state = f.run(state=Finished())
         assert state.is_finished()
 
+    def test_flow_dot_run_sets_scheduled_start_time(self):
+
+        # start very soon
+        start_time = pendulum.now().add(seconds=0.2)
+
+        @task
+        def report_start_time():
+            return prefect.context.scheduled_start_time
+
+        f = Flow(
+            name="test",
+            tasks=[report_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=[start_time])]
+            ),
+        )
+        state = f.run()
+        assert state.result[report_start_time].result is start_time
+
+    def test_flow_dot_run_does_not_set_scheduled_start_time_globally(self):
+        @task
+        def report_start_time():
+            return prefect.context.scheduled_start_time
+
+        f = Flow(name="test", tasks=[report_start_time])
+        state = f.run()
+        assert isinstance(state.result[report_start_time].result, datetime.datetime)
+        assert "scheduled_start_time" not in prefect.context
+
+    def test_flow_dot_run_persists_scheduled_start_time_across_retries(self):
+        # start very soon
+        start_time = pendulum.now().add(seconds=0.2)
+
+        @task(max_retries=1, retry_delay=datetime.timedelta(0))
+        def report_start_time():
+            if prefect.context.task_run_count == 1:
+                raise ValueError("I'm not ready to tell you the start time yet")
+            return prefect.context.scheduled_start_time
+
+        f = Flow(
+            name="test",
+            tasks=[report_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=[start_time])]
+            ),
+        )
+        state = f.run()
+        assert state.result[report_start_time].result is start_time
+
 
 class TestFlowDeploy:
     @pytest.mark.parametrize(

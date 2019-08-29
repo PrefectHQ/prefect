@@ -105,7 +105,10 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
-        token: str = None, api: str = None, namespace: str = None
+        token: str = None,
+        api: str = None,
+        namespace: str = None,
+        resource_manager_enabled: bool = False,
     ) -> str:
 
         # Use defaults if not provided
@@ -119,17 +122,21 @@ class KubernetesAgent(Agent):
             deployment = yaml.safe_load(deployment_file)
 
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-        resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][1][
-            "env"
-        ]
 
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
 
-        resource_manager_env[0]["value"] = token
-        resource_manager_env[1]["value"] = api
-        resource_manager_env[3]["value"] = namespace
+        if resource_manager_enabled:
+            resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][
+                1
+            ]["env"]
+
+            resource_manager_env[0]["value"] = token
+            resource_manager_env[1]["value"] = api
+            resource_manager_env[3]["value"] = namespace
+        else:
+            del deployment["spec"]["template"]["spec"]["containers"][1]
 
         return yaml.safe_dump(deployment)
 
