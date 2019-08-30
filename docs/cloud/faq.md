@@ -54,4 +54,8 @@ As previously stated, `flow.run` is purely a convenience method for running your
 
 ### Do you have an integration for service X?
 
-Yes. People commonly mistake our Task library for an inclusive list of possible "integrations".  While our Task Library will help you save time writing your own custom code for connecting to a particular service, remember that Prefect is completely agnostic as to the logic you call inside of your Tasks.  If the Task Library doesn't have a service that you use, this doesn't prevent you from implementing and running it yourself.  The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.
+Yes! Prefect can integrate with any service and we have a growing Task Library of pre-built tasks for working with internal and external services. 
+
+People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others! 
+
+The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.
