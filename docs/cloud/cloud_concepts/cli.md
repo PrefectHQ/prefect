@@ -373,6 +373,60 @@ $ prefect auth login --token BAD_TOKEN
 Error attempting to use Prefect API token BAD_TOKEN
 ```
 
+#### auth logout
+
+Running `prefect auth logout` will log you out of your active tenant if one if currently logged in to.
+```
+$ prefect auth logout
+Are you sure you want to log out of Prefect Cloud? (y/N) Y
+Logged out from tenant PREVIOUS_ACTIVE_TENANT_ID
+```
+
+If there is no current active tenant then you should see:
+```
+$ prefect auth logout
+Are you sure you want to log out of Prefect Cloud? (y/N) Y
+No tenant currently active
+```
+
+#### auth list-tenants
+
+Running `prefect auth list-tenants` will output all of the tenants that you have access to use.
+```
+$ prefect auth list-tenants
+NAME                        SLUG                        ID
+Test Person                 test-person                 816sghf2-4d51-4338-a333-1771gns7614d
+test@prefect.io's Account   test-prefect-io-s-account   1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
+```
+
+#### auth switch-tenants
+
+Running `prefect auth switch-tenants --id TENANT_ID --slug TENANT_SLUG` will switch your active tenants. Either the tenant ID or the tenant slug need to be provided.
+```
+$ prefect auth switch-tenants --slug test-person
+Tenant switched
+```
+
+If you are unable to switch tenants for various reasons (bad id, bad slug, not providing either) then you should see:
+```
+$ prefect auth switch-tenants --slug test-person
+Unable to switch tenant
+```
+
+#### auth create-token
+
+Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens visit go [here](./api.html).
+```
+$ prefect auth create-token -n MyToken -r RUNNER
+...token output...
+```
+
+If you are unable to create an API token then you should see:
+```
+$ prefect auth create-token -n MyToken -r RUNNER
+Issue creating API token
+```
+
 ## Miscellaneous Commands
 
 `prefect version` outputs the current version of Prefect you are using:
