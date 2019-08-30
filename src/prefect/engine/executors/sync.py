@@ -1,7 +1,6 @@
 import datetime
 import warnings
 from contextlib import contextmanager
-from queue import Queue
 from typing import Any, Callable, Iterable, Iterator, List
 
 import dask

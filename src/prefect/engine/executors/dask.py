@@ -7,7 +7,7 @@ import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
 
-from distributed import Client, Future, Queue, fire_and_forget, worker_client
+from distributed import Client, Future, fire_and_forget, worker_client
 
 from prefect import config, context
 from prefect.engine.executors.base import Executor
@@ -102,20 +102,6 @@ class DaskExecutor(Executor):
             dask_kwargs.update(resources=resources)
 
         return dask_kwargs
-
-    def queue(self, maxsize: int = 0, client: Client = None) -> Queue:
-        """
-        Creates an executor-compatible Queue object that can share state
-        across tasks.
-
-        Args:
-            - maxsize (int, optional): `maxsize` for the Queue; defaults to 0
-                (interpreted as no size limitation)
-            - client (dask.distributed.Client, optional): which client to
-                associate the Queue with; defaults to `self.client`
-        """
-        q = Queue(maxsize=maxsize, client=client or self.client)
-        return q
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
@@ -228,10 +214,6 @@ class LocalDaskExecutor(Executor):
         """
         with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
             yield cfg
-
-    def queue(self, maxsize: int = 0) -> Queue:
-        q = Queue(maxsize=maxsize)  # type: Queue
-        return q
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
         """
