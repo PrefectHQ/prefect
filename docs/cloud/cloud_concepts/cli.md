@@ -359,6 +359,10 @@ TIMESTAMP                         LEVEL    MESSAGE
 
 `auth` is a group of commands that handle authentication related configuration with Prefect Cloud.
 
+::: warning Config
+Having an API token set as a config value prior to using auth CLI commands, either in your config.toml or as an environment variable, will cause all auth commands to abort on use.
+:::
+
 #### auth login
 
 Running `prefect auth login` requires that a Prefect Cloud API token be provided and when executed the API token is used to login to Prefect Cloud.
@@ -425,6 +429,35 @@ If you are unable to create an API token then you should see:
 ```
 $ prefect auth create-token -n MyToken -r RUNNER
 Issue creating API token
+```
+
+#### auth revoke-token
+
+Running `prefect auth revoke-token --id TOKEN_ID` will revoke API tokens in Prefect Cloud.
+```
+$ prefect auth revoke-token --id TOKEN_ID
+Token successfully revoked
+```
+
+If the token is not found then you should see:
+```
+$ prefect auth revoke-token --id TOKEN_ID
+Unable to revoke token with ID TOKEN_ID
+```
+
+#### auth list-tokens
+
+Running `prefect auth list-tokens` will list your available API tokens in Prefect Cloud. Note: only the name and ID of the token will be shown, not the actual token.
+```
+$ prefect auth list-tokens
+NAME        ID
+My_Token    87gh22f4-333c-47fc-ae8f-0b61ghu811c3
+```
+
+If you are unable to list API tokens then you should see:
+```
+$ prefect auth list-tokens
+Unable to list API tokens
 ```
 
 ## Miscellaneous Commands

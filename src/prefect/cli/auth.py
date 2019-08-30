@@ -253,7 +253,7 @@ def revoke_token(id):
 
     \b
     Options:
-        --id, -i    TEXT    An id of a token to revoke
+        --id, -i    TEXT    The id of a token to revoke
     """
     check_override_auth_token()
 
@@ -269,7 +269,7 @@ def revoke_token(id):
     )
 
     if not output.get("data", None) or not output.data.deleteAPIToken.success:
-        click.secho("Unable to revoke token with id {}".format(id), fg="red")
+        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
         return
 
     click.secho("Token successfully revoked", fg="green")
