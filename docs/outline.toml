@@ -144,6 +144,7 @@ module = "prefect.engine.executors"
 classes = [
             "Executor",
             "DaskExecutor",
+            "LocalDaskExecutor",
             "LocalExecutor",
             "SynchronousExecutor"]
 
