@@ -1380,17 +1380,32 @@ class TestContext:
             res.result[return_scheduled_start_time].result, datetime.datetime
         )
 
-    def test_flow_runner_doesnt_override_scheduled_start_time(self):
+    def test_flow_runner_does_override_scheduled_start_time_when_running_off_schedule(
+        self
+    ):
         @prefect.task
         def return_scheduled_start_time():
             return prefect.context.get("scheduled_start_time")
 
         f = Flow(name="test", tasks=[return_scheduled_start_time])
-        res = f.run(context=dict(scheduled_start_time=42))
+        res = f.run(context=dict(scheduled_start_time=42), run_on_schedule=False)
 
         assert res.is_successful()
         assert res.result[return_scheduled_start_time].is_successful()
         assert res.result[return_scheduled_start_time].result == 42
+
+    def test_flow_runner_doesnt_override_scheduled_start_time_when_running_on_schedule(
+        self
+    ):
+        @prefect.task
+        def return_scheduled_start_time():
+            return prefect.context.get("scheduled_start_time")
+
+        f = Flow(name="test", tasks=[return_scheduled_start_time])
+        res = f.run(context=dict(scheduled_start_time=42), run_on_schedule=True)
+
+        assert res.is_successful()
+        assert res.result[return_scheduled_start_time].result != 42
 
     @pytest.mark.parametrize(
         "date", ["today_nodash", "tomorrow_nodash", "yesterday_nodash"]
