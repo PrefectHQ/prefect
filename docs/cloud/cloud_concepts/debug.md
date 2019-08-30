@@ -3,7 +3,7 @@
 
  [[toc]]
 
-### My flow is stuck in a Scheduled state!
+### My flow is stuck in a `Scheduled` state!
 
 The most likely culprit when a flow is stuck in a Scheduled state is agent misconfiguration. A Scheduled state whose start time is past means that no Agent was able to retrieve the flow run and submit it for execution (which, in normal operation, is indicated by the Flow Run entering a `Submitted` state).
 
