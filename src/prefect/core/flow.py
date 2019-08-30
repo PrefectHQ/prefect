@@ -843,10 +843,12 @@ class Flow:
         flow_run_context = kwargs.pop(
             "context", {}
         ).copy()  # copy to avoid modification
-        flow_run_context.setdefault("scheduled_start_time", next_run_time)
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
+
+            flow_run_context.update(scheduled_start_time=next_run_time)
+
             if flow_state.is_scheduled():
                 next_run_time = flow_state.start_time
                 now = pendulum.now("utc")

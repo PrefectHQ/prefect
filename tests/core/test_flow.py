@@ -2060,6 +2060,25 @@ class TestFlowRunMethod:
         state = f.run()
         assert state.result[report_start_time].result is start_time
 
+    def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
+
+        start_times = [pendulum.now().add(seconds=i * 0.1) for i in range(1, 4)]
+        REPORTED_START_TIMES = []
+
+        @task
+        def record_start_time():
+            REPORTED_START_TIMES.append(prefect.context.scheduled_start_time)
+
+        f = Flow(
+            name="test",
+            tasks=[record_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=start_times)]
+            ),
+        )
+        f.run()
+        assert REPORTED_START_TIMES == start_times
+
 
 class TestFlowDeploy:
     @pytest.mark.parametrize(
