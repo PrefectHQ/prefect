@@ -120,36 +120,6 @@ class TestLocalDaskExecutor:
             res = e.wait(e.map(map_fn))
         assert res == []
 
-    @pytest.mark.parametrize("scheduler", ["threads", "processes"])
-    def test_runs_in_parallel(self, scheduler):
-        """This test is designed to have two tasks record and return their multiple execution times;
-        if the tasks run in parallel, we expect the times to be scrambled."""
-
-        executor = LocalDaskExecutor(scheduler=scheduler)
-
-        def record_times():
-            res = []
-            pause = random.randint(0, 50)
-            for i in range(50):
-                if i == pause:
-                    time.sleep(0.1)  # add a little noise
-                res.append(time.time())
-            return res
-
-        with executor.start():
-            a = executor.submit(record_times)
-            b = executor.submit(record_times)
-            res = executor.wait([a, b])
-
-        times = [("alice", t) for t in res[0]] + [("bob", t) for t in res[1]]
-        names = [name for name, time in sorted(times, key=lambda x: x[1])]
-
-        alice_first = ["alice"] * 50 + ["bob"] * 50
-        bob_first = ["bob"] * 50 + ["alice"] * 50
-
-        assert names != alice_first
-        assert names != bob_first
-
 
 class TestLocalExecutor:
     def test_submit(self):
