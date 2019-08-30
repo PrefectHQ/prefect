@@ -40,7 +40,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- Deprecate `SynchronousExecutor` in favor of `LocalDaskExecutor` - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
+- Rename `SynchronousExecutor` as `LocalDaskExecutor` - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
 
 ### Breaking Changes
 
