@@ -1514,6 +1514,18 @@ class TestFlowRunMethod:
         state = f.run(run_on_schedule=False)
         assert t.call_count == 1
 
+    def test_flow_dot_run_returns_tasks_when_running_off_schedule(self):
+        @prefect.task
+        def test_task():
+            return 2
+
+        f = Flow(name="test", tasks=[test_task])
+        res = f.run(run_on_schedule=False)
+
+        assert res.is_successful()
+        assert res.result[test_task].is_successful()
+        assert res.result[test_task].result == 2
+
     def test_flow_dot_run_responds_to_config(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
@@ -2059,6 +2071,25 @@ class TestFlowRunMethod:
         )
         state = f.run()
         assert state.result[report_start_time].result is start_time
+
+    def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
+
+        start_times = [pendulum.now().add(seconds=i * 0.1) for i in range(1, 4)]
+        REPORTED_START_TIMES = []
+
+        @task
+        def record_start_time():
+            REPORTED_START_TIMES.append(prefect.context.scheduled_start_time)
+
+        f = Flow(
+            name="test",
+            tasks=[record_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=start_times)]
+            ),
+        )
+        f.run()
+        assert REPORTED_START_TIMES == start_times
 
 
 class TestFlowDeploy:
