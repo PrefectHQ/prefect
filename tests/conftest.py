@@ -7,7 +7,7 @@ import pytest
 from distributed import Client
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalExecutor, SynchronousExecutor
+from prefect.engine.executors import DaskExecutor, LocalExecutor, LocalDaskExecutor
 from prefect.utilities import debug, configuration
 
 
@@ -44,7 +44,7 @@ def local():
 @pytest.fixture()
 def sync():
     "Synchronous dask (not dask.distributed) executor"
-    yield SynchronousExecutor()
+    yield LocalDaskExecutor()
 
 
 @pytest.fixture(scope="session")

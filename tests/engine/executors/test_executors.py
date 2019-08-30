@@ -15,6 +15,7 @@ from prefect.engine.executors import (
     DaskExecutor,
     Executor,
     LocalExecutor,
+    LocalDaskExecutor,
     SynchronousExecutor,
 )
 
@@ -53,23 +54,29 @@ class TestBaseExecutor:
 
 
 class TestSyncExecutor:
-    @pytest.fixture(autouse=True)
-    def set_dask_config(self):
-        """
-        Ensures that the config is properly set; otherwise it may be overriden by the
-        active LocalClusters
-        """
-        with dask.config.set(scheduler="synchronous"):
-            yield
+    def test_sync_is_depcrecated(self):
+        with pytest.warns(UserWarning) as w:
+            e = SynchronousExecutor()
+
+        assert "deprecated" in str(w[0].message)
+        assert "LocalDaskExecutor" in str(w[0].message)
+        assert isinstance(e, LocalDaskExecutor)
+        assert e.scheduler == "synchronous"
+
+
+class TestLocalDaskExecutor:
+    def test_responds_to_kwargs(self):
+        e = LocalDaskExecutor(scheduler="threads")
+        assert e.scheduler == "threads"
 
     def test_submit(self):
-        assert SynchronousExecutor().submit(lambda: 1).compute() == 1
-        assert SynchronousExecutor().submit(lambda x: x, 1).compute() == 1
-        assert SynchronousExecutor().submit(lambda x: x, x=1).compute() == 1
-        assert SynchronousExecutor().submit(lambda: prefect).compute() is prefect
+        assert LocalDaskExecutor().submit(lambda: 1).compute() == 1
+        assert LocalDaskExecutor().submit(lambda x: x, 1).compute() == 1
+        assert LocalDaskExecutor().submit(lambda x: x, x=1).compute() == 1
+        assert LocalDaskExecutor().submit(lambda: prefect).compute() is prefect
 
     def test_wait(self):
-        e = SynchronousExecutor()
+        e = LocalDaskExecutor()
         assert e.wait(1) == 1
         assert e.wait(prefect) is prefect
         assert e.wait(e.submit(lambda: 1)) == 1
@@ -78,21 +85,21 @@ class TestSyncExecutor:
         assert e.wait(e.submit(lambda: prefect)) is prefect
 
     def test_is_pickleable(self):
-        e = SynchronousExecutor()
+        e = LocalDaskExecutor()
         post = cloudpickle.loads(cloudpickle.dumps(e))
-        assert isinstance(post, SynchronousExecutor)
+        assert isinstance(post, LocalDaskExecutor)
 
     def test_is_pickleable_after_start(self):
-        e = SynchronousExecutor()
+        e = LocalDaskExecutor()
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
-            assert isinstance(post, SynchronousExecutor)
+            assert isinstance(post, LocalDaskExecutor)
 
     def test_map_iterates_over_multiple_args(self):
         def map_fn(x, y):
             return x + y
 
-        e = SynchronousExecutor()
+        e = LocalDaskExecutor()
         with e.start():
             res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
         assert res == [2, 5]
@@ -101,7 +108,7 @@ class TestSyncExecutor:
         def map_fn(*args):
             raise ValueError("map_fn was called")
 
-        e = SynchronousExecutor()
+        e = LocalDaskExecutor()
         with e.start():
             res = e.wait(e.map(map_fn))
         assert res == []
