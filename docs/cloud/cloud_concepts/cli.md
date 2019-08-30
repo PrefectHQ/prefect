@@ -375,7 +375,7 @@ Error attempting to use Prefect API token BAD_TOKEN
 
 #### auth logout
 
-Running `prefect auth logout` will log you out of your active tenant if one if currently logged in to.
+Running `prefect auth logout` will log you out of your active tenant (if you are logged in)
 ```
 $ prefect auth logout
 Are you sure you want to log out of Prefect Cloud? (y/N) Y
