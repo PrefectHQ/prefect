@@ -1514,6 +1514,18 @@ class TestFlowRunMethod:
         state = f.run(run_on_schedule=False)
         assert t.call_count == 1
 
+    def test_flow_dot_run_returns_tasks_when_running_off_schedule(self):
+        @prefect.task
+        def test_task():
+            return 2
+
+        f = Flow(name="test", tasks=[test_task])
+        res = f.run(run_on_schedule=False)
+
+        assert res.is_successful()
+        assert res.result[test_task].is_successful()
+        assert res.result[test_task].result == 2
+
     def test_flow_dot_run_responds_to_config(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0

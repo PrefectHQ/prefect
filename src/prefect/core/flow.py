@@ -1003,7 +1003,7 @@ class Flow:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
         if run_on_schedule is False:
             runner = runner_cls(flow=self)
-            state = runner.run(parameters=parameters, **kwargs)
+            state = runner.run(parameters=parameters, return_tasks=self.tasks, **kwargs)
         else:
             state = self._run_on_schedule(
                 parameters=parameters, runner_cls=runner_cls, **kwargs
