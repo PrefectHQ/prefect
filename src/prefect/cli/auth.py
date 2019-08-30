@@ -1,8 +1,15 @@
 import click
+from click.exceptions import Abort
 from tabulate import tabulate
 
 from prefect import Client, config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
+
+
+def check_override_auth_token():
+    if config.cloud.get("auth_token"):
+        click.secho("Auth token already present in config.", fg="red")
+        raise Abort
 
 
 @click.group(hidden=True)
@@ -60,19 +67,24 @@ def login(token):
     Options:
         --token, -t         TEXT    A Prefect Cloud api token  [required]
     """
-
-    if config.cloud.get("auth_token"):
-        click.confirm(
-            "Prefect Cloud API token already set in config. Do you want to override?",
-            default=True,
-            abort=True,
-        )
+    check_override_auth_token()
 
     client = Client(api_token=token)
 
     # Verify login obtained a valid api token
     try:
-        client.graphql(query={"query": {"tenant": "id"}})
+        output = client.graphql(
+            query={"query": {"user": {"default_membership": "tenant_id"}}}
+        )
+
+        # Log into default membership
+        success_login = client.login_to_tenant(
+            tenant_id=output.data.user[0].default_membership.tenant_id
+        )
+
+        if not success_login:
+            raise AuthorizationError
+
     except AuthorizationError:
         click.secho(
             "Error attempting to use Prefect API token {}".format(token), fg="red"
@@ -93,6 +105,8 @@ def logout():
     """
     Log out of Prefect Cloud
     """
+    check_override_auth_token()
+
     click.confirm(
         "Are you sure you want to log out of Prefect Cloud?", default=False, abort=True
     )
@@ -114,6 +128,7 @@ def list_tenants():
     """
     List available tenants
     """
+    check_override_auth_token()
 
     client = Client()
 
@@ -154,6 +169,7 @@ def switch_tenants(id, slug):
         --id, -i    TEXT    A Prefect Cloud tenant id
         --slug, -s  TEXT    A Prefect Cloud tenant slug
     """
+    check_override_auth_token()
 
     client = Client()
 
@@ -179,6 +195,8 @@ def create_token(name, role):
         --name, -n      TEXT    A name to give the generated token
         --role, -r      TEXT    A role for the token
     """
+    check_override_auth_token()
+
     client = Client()
 
     output = client.graphql(
@@ -195,3 +213,63 @@ def create_token(name, role):
         return
 
     click.echo(output.data.createAPIToken.token)
+
+
+@auth.command(hidden=True)
+def list_tokens():
+    """
+    List your available Prefect Cloud API tokens.
+    """
+    check_override_auth_token()
+
+    client = Client()
+
+    output = client.graphql(query={"query": {"api_token": {"id", "name"}}})
+
+    if not output.get("data", None):
+        click.secho("Unable to list API tokens", fg="red")
+        return
+
+    tokens = []
+    for item in output.data.api_token:
+        tokens.append([item.name, item.id])
+
+    click.echo(
+        tabulate(
+            tokens,
+            headers=["NAME", "ID"],
+            tablefmt="plain",
+            numalign="left",
+            stralign="left",
+        )
+    )
+
+
+@auth.command(hidden=True)
+@click.option("--id", "-i", required=True, help="A token ID.", hidden=True)
+def revoke_token(id):
+    """
+    Revote a Prefect Cloud API token
+
+    \b
+    Options:
+        --id, -i    TEXT    An id of a token to revoke
+    """
+    check_override_auth_token()
+
+    client = Client()
+
+    output = client.graphql(
+        query={
+            "mutation($input: deleteAPITokenInput!)": {
+                "deleteAPIToken(input: $input)": {"success"}
+            }
+        },
+        variables=dict(input=dict(tokenId=id)),
+    )
+
+    if not output.get("data", None) or not output.data.deleteAPIToken.success:
+        click.secho("Unable to revoke token with id {}".format(id), fg="red")
+        return
+
+    click.secho("Token successfully revoked", fg="green")
