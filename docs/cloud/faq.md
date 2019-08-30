@@ -51,3 +51,11 @@ Note that regardless of which scheduler is being used, dependencies between Pref
 ::: tip In Cloud, flow.run() is never called
 As previously stated, `flow.run` is purely a convenience method for running your Flows on schedule locally and testing your Flow execution locally. When the Prefect Agent submits a Flow for execution, a `CloudFlowRunner` is created and interacted with directly.
 :::
+
+### Do you have an integration for service X?
+
+Yes! Prefect can integrate with any service and we have a growing Task Library of pre-built tasks for working with internal and external services. 
+
+People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others! 
+
+The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.
