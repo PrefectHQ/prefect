@@ -6,6 +6,39 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+
+## 0.6.2 <Badge text="beta" type="success"/>
+
+Released August 30, 2019
+
+### Features
+
 - Added Local, Kubernetes, and Nomad agents - [#1341](https://github.com/PrefectHQ/prefect/pull/1341)
 - Add the ability for Tasks to sequentially loop - [#1356](https://github.com/PrefectHQ/prefect/pull/1356)
 
@@ -51,6 +84,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
+
 
 ## 0.6.1 <Badge text="beta" type="success"/>
 
