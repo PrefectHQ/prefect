@@ -16,9 +16,9 @@ Currently, the available executor options are:
 
 - `LocalExecutor`: the no frills, straightforward executor - great for simple
     debugging; tasks are executed immediately upon being called by `executor.submit()`.
-    Note that the `LocalExecutor` is not capable of parallelism.
-- `SynchronousExecutor`: an executor that runs on `dask` primitives with the
-    synchronous dask scheduler; currently the default executor
+    Note that the `LocalExecutor` is not capable of parallelism.  Currently the default executor.
+- `LocalDaskExecutor`: an executor that runs on `dask` primitives with a
+    configurable dask scheduler.
 - `DaskExecutor`: the most feature-rich of the executors, this executor runs
     on `dask.distributed` and has support for multiprocessing, multithreading, and distributed execution.
 
@@ -27,6 +27,6 @@ of task execution.
 """
 import prefect
 from prefect.engine.executors.base import Executor
-from prefect.engine.executors.dask import DaskExecutor
+from prefect.engine.executors.dask import DaskExecutor, LocalDaskExecutor
 from prefect.engine.executors.local import LocalExecutor
 from prefect.engine.executors.sync import SynchronousExecutor

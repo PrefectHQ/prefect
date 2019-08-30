@@ -1,3 +1,4 @@
+import dask
 import datetime
 import logging
 import queue
@@ -201,3 +202,77 @@ class DaskExecutor(Executor):
                 return client.gather(futures)
         else:
             raise ValueError("This executor has not been started.")
+
+
+class LocalDaskExecutor(Executor):
+    """
+    An executor that runs all functions locally using `dask` and a configurable dask scheduler.  Note that
+    this executor is known to occasionally run tasks twice when using multi-level mapping.
+
+    Args:
+        - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "synchronous".
+        - **kwargs (Any): Additional keyword arguments to pass to dask config
+    """
+
+    def __init__(self, scheduler: str = "synchronous", **kwargs: Any):
+        self.scheduler = scheduler
+        self.kwargs = kwargs
+        super().__init__()
+
+    @contextmanager
+    def start(self) -> Iterator:
+        """
+        Context manager for initializing execution.
+
+        Configures `dask` and yields the `dask.config` contextmanager.
+        """
+        with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
+            yield cfg
+
+    def queue(self, maxsize: int = 0) -> Queue:
+        q = Queue(maxsize=maxsize)  # type: Queue
+        return q
+
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+        """
+        Submit a function to the executor for execution. Returns a `dask.delayed` object.
+
+        Args:
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments to be passed to `fn`
+            - **kwargs (Any): keyword arguments to be passed to `fn`
+
+        Returns:
+            - dask.delayed: a `dask.delayed` object that represents the computation of `fn(*args, **kwargs)`
+        """
+        return dask.delayed(fn)(*args, **kwargs)
+
+    def map(self, fn: Callable, *args: Any) -> List[dask.delayed]:
+        """
+        Submit a function to be mapped over its iterable arguments.
+
+        Args:
+            - fn (Callable): function that is being submitted for execution
+            - *args (Any): arguments that the function will be mapped over
+
+        Returns:
+            - List[dask.delayed]: the result of computating the function over the arguments
+
+        """
+        results = []
+        for args_i in zip(*args):
+            results.append(self.submit(fn, *args_i))
+        return results
+
+    def wait(self, futures: Any) -> Any:
+        """
+        Resolves a `dask.delayed` object to its values. Blocks until the computation is complete.
+
+        Args:
+            - futures (Any): iterable of `dask.delayed` objects to compute
+
+        Returns:
+            - Any: an iterable of resolved futures
+        """
+        with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
+            return dask.compute(futures)[0]
