@@ -27,6 +27,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Support persistent `scheduled_start_time` for scheduled flow runs when run locally with `flow.run()` - [#1418](https://github.com/PrefectHQ/prefect/pull/1418)
 - Add `task_args` to `Task.map` - [#1390](https://github.com/PrefectHQ/prefect/issues/1390)
 - Add auth flows for `USER`-scoped Cloud API tokens - [#1423](https://github.com/PrefectHQ/prefect/pull/1423)
+- Add CLI commands for working with Prefect Cloud auth - [#1431](https://github.com/PrefectHQ/prefect/pull/1431)
 
 ### Task Library
 
