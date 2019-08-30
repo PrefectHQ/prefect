@@ -200,7 +200,7 @@ def test_revoke_token_fails(patch_post):
         runner = CliRunner()
         result = runner.invoke(auth, ["revoke-token", "--id", "id"])
         assert result.exit_code == 0
-        assert "Unable to revoke token with id id" in result.output
+        assert "Unable to revoke token with ID id" in result.output
 
 
 def test_check_override_function():
