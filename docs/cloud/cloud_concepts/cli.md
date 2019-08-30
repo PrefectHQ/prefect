@@ -415,7 +415,7 @@ Unable to switch tenant
 
 #### auth create-token
 
-Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens visit go [here](./api.html).
+Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens go [here](./api.html).
 ```
 $ prefect auth create-token -n MyToken -r RUNNER
 ...token output...
