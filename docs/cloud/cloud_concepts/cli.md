@@ -401,7 +401,7 @@ test@prefect.io's Account   test-prefect-io-s-account   1971hs9f-e8ha-4a33-8c33-
 
 #### auth switch-tenants
 
-Running `prefect auth switch-tenants --id TENANT_ID --slug TENANT_SLUG` will switch your active tenants. Either the tenant ID or the tenant slug need to be provided.
+Running `prefect auth switch-tenants --id TENANT_ID --slug TENANT_SLUG` will switch your active tenants. Either the tenant ID or the tenant slug needs to be provided.
 ```
 $ prefect auth switch-tenants --slug test-person
 Tenant switched
