@@ -600,7 +600,7 @@ def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
 def test_reduce_task_properly_applies_trigger_across_all_mapped_states(executor):
     """
     The `take_sum` task reduces over the `div` task, which is going to return one Success
-    and one Failure. The `take_sum` should fail its trigger check.
+    and one Retrying. The `take_sum` should fail its upstream finished check.
     """
 
     @prefect.task
@@ -634,11 +634,6 @@ def test_reduce_task_properly_applies_trigger_across_all_mapped_states(executor)
 def test_reduce_task_properly_applies_trigger_across_all_mapped_states_for_deep_pipelines(
     executor
 ):
-    """
-    The `take_sum` task reduces over the `div` task, which is going to return one Success
-    and one Failure. The `take_sum` should fail its trigger check.
-    """
-
     @prefect.task
     def ll():
         return [0, 1]
