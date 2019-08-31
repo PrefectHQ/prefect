@@ -1,3 +1,7 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
@@ -31,15 +35,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
-
-
-## 0.6.3 <Badge text="beta" type="success"/>
-
-Released August 30, 2019
-
-### Fixes
-
-- Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
 
 
 ## 0.6.2 <Badge text="beta" type="success"/>
@@ -723,3 +718,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on August 30, 2019 at 22:53 UTC</p>
