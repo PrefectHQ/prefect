@@ -71,6 +71,7 @@ Released August 30, 2019
 
 - Fix issue with Docker storage not respecting user-provided image names - [#1335](https://github.com/PrefectHQ/prefect/pull/1335)
 - Fix issue with local retries in Cloud not always running in-process - [#1348](https://github.com/PrefectHQ/prefect/pull/1348)
+- Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
 
 ### Deprecations
 
