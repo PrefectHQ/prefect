@@ -58,7 +58,7 @@ module.exports = {
         text: "API Reference",
         items: [
           { text: "Unreleased", link: "/api/unreleased/" },
-          { text: "0.6.2", link: "/api/0.6.2/" },
+          { text: "0.6.2 / 0.6.3", link: "/api/0.6.2/" },
           { text: "0.6.1", link: "/api/0.6.1/" },
           { text: "0.6.0", link: "/api/0.6.0/" },
           { text: "0.5.4", link: "/api/0.5.4/" }
