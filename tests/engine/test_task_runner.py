@@ -461,6 +461,26 @@ class TestCheckUpstreamFinished:
                 state=state, upstream_states={1: Success(), 2: Running()}
             )
 
+    def test_raises_if_mapped_upstream_retrying(self):
+        state = Pending()
+        task = Task()
+        with pytest.raises(ENDRUN) as exc:
+            edge = Edge(1, 2, mapped=False)
+            new_state = TaskRunner(task).check_upstream_finished(
+                state=state,
+                upstream_states={edge: Mapped(map_states=[Retrying(), Success()])},
+            )
+
+    def test_doesnt_raise_if_mapped_upstream_complete(self):
+        state = Pending()
+        task = Task()
+        edge = Edge(1, 2, mapped=False)
+        new_state = TaskRunner(task).check_upstream_finished(
+            state=state,
+            upstream_states={edge: Mapped(map_states=[Failed(), Success()])},
+        )
+        assert new_state is state
+
 
 class TestCheckUpstreamSkipped:
     def test_empty(self):
