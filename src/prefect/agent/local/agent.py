@@ -29,8 +29,12 @@ class LocalAgent(Agent):
         else:
             default_url = "http+unix:///var/run/docker.sock"
 
-        base_url = base_url or default_url
-        self.docker_client = docker.APIClient(base_url=base_url, version="auto")
+        # Determine Daemon URL
+        self.base_url = base_url or context.get("base_url")
+        if self.base_url is None:
+            self.base_url = default_url
+
+        self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
 
         # Ping Docker daemon for connection issues
         try:
@@ -41,6 +45,7 @@ class LocalAgent(Agent):
             )
             raise exc
 
+        # Determine pull specification
         self.no_pull = no_pull or context.get("no_pull")
         if self.no_pull is None:
             self.no_pull = False
