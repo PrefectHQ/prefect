@@ -1,3 +1,5 @@
+from sys import platform
+
 import docker
 
 from prefect import config, context
@@ -22,7 +24,12 @@ class LocalAgent(Agent):
     def __init__(self, base_url: str = None, no_pull: bool = None) -> None:
         super().__init__()
 
-        base_url = base_url or "unix://var/run/docker.sock"
+        if platform == "win32":
+            default_url = "npipe:////./pipe/docker_engine"
+        else:
+            default_url = "http+unix:///var/run/docker.sock"
+
+        base_url = base_url or default_url
         self.docker_client = docker.APIClient(base_url=base_url, version="auto")
 
         # Ping Docker daemon for connection issues

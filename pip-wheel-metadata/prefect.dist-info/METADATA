@@ -1,0 +1,218 @@
+Metadata-Version: 2.1
+Name: prefect
+Version: 0.6.3
+Summary: The Prefect Core automation and scheduling engine.
+Home-page: https://www.github.com/PrefectHQ/prefect
+Author: Prefect Technologies, Inc.
+Author-email: help@prefect.io
+License: Apache License 2.0
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: System :: Monitoring
+Requires-Python: >=3.5.2
+Description-Content-Type: text/markdown
+Requires-Dist: click (<8.0,>=7.0)
+Requires-Dist: cloudpickle (<1.3,>=0.6.0)
+Requires-Dist: croniter (<1.0,>=0.3.24)
+Requires-Dist: dask[bag] (<3.0,>=0.19.3)
+Requires-Dist: distributed (<3.0,>=1.26.1)
+Requires-Dist: docker (<5.0,>=3.4.1)
+Requires-Dist: marshmallow (<4.0.0,>=3.0.0b19)
+Requires-Dist: marshmallow-oneofschema (<3.0,>=2.0.0b2)
+Requires-Dist: mypy-extensions (<1.0,>=0.4.0)
+Requires-Dist: pendulum (<3.0,>=2.0.4)
+Requires-Dist: python-dateutil (~=2.7)
+Requires-Dist: pyyaml (<5.2,>=3.13)
+Requires-Dist: python-slugify (<4.0,>=1.2.6)
+Requires-Dist: pytz (>=2018.7)
+Requires-Dist: requests (<3.0,>=2.20)
+Requires-Dist: tabulate (<1.0,>=0.8.0)
+Requires-Dist: toml (<1.0,>=0.9.4)
+Requires-Dist: typing (<4.0,>=3.6.1)
+Requires-Dist: typing-extensions (<4.0,>=3.6.2)
+Provides-Extra: airtable
+Requires-Dist: airtable-python-wrapper (<0.12,>=0.11) ; extra == 'airtable'
+Provides-Extra: all_extras
+Requires-Dist: airtable-python-wrapper (<0.12,>=0.11) ; extra == 'all_extras'
+Requires-Dist: boto3 (<2.0,>=1.9) ; extra == 'all_extras'
+Requires-Dist: azure-storage-blob (<3.0,>=2.1.0) ; extra == 'all_extras'
+Requires-Dist: black ; extra == 'all_extras'
+Requires-Dist: graphviz (<0.13,>=0.8) ; extra == 'all_extras'
+Requires-Dist: jinja2 (<3.0,>=2.0) ; extra == 'all_extras'
+Requires-Dist: mypy (<0.800,>=0.600) ; extra == 'all_extras'
+Requires-Dist: pytest (<6.0,>=5.0) ; extra == 'all_extras'
+Requires-Dist: pytest-cov (<3.0,>=2.6) ; extra == 'all_extras'
+Requires-Dist: pytest-env (<0.7.0,>=0.6.0) ; extra == 'all_extras'
+Requires-Dist: pytest-xdist (<2.0,>=1.23) ; extra == 'all_extras'
+Requires-Dist: Pygments (<3.0,>=2.2) ; extra == 'all_extras'
+Requires-Dist: dropbox (~=9.0) ; extra == 'all_extras'
+Requires-Dist: google-cloud-bigquery (<2.0,>=1.6.0) ; extra == 'all_extras'
+Requires-Dist: google-cloud-storage (<2.0,>=1.13) ; extra == 'all_extras'
+Requires-Dist: kubernetes (<10.0,>=9.0.0a1) ; extra == 'all_extras'
+Requires-Dist: dask-kubernetes (>=0.8.0) ; extra == 'all_extras'
+Requires-Dist: feedparser (<6.0,>=5.0.1) ; extra == 'all_extras'
+Requires-Dist: psycopg2-binary (>=2.8.2) ; extra == 'all_extras'
+Requires-Dist: snowflake-connector-python (<2.0,>=1.8.2) ; extra == 'all_extras'
+Requires-Dist: redis (>=3.2.1) ; extra == 'all_extras'
+Requires-Dist: spacy (<3.0.0,>=2.0.0) ; extra == 'all_extras'
+Requires-Dist: graphviz (>=0.8.3) ; extra == 'all_extras'
+Requires-Dist: tweepy (<4.0,>=3.5) ; extra == 'all_extras'
+Provides-Extra: aws
+Requires-Dist: boto3 (<2.0,>=1.9) ; extra == 'aws'
+Provides-Extra: azure
+Requires-Dist: azure-storage-blob (<3.0,>=2.1.0) ; extra == 'azure'
+Provides-Extra: dev
+Requires-Dist: black ; extra == 'dev'
+Requires-Dist: graphviz (<0.13,>=0.8) ; extra == 'dev'
+Requires-Dist: jinja2 (<3.0,>=2.0) ; extra == 'dev'
+Requires-Dist: mypy (<0.800,>=0.600) ; extra == 'dev'
+Requires-Dist: pytest (<6.0,>=5.0) ; extra == 'dev'
+Requires-Dist: pytest-cov (<3.0,>=2.6) ; extra == 'dev'
+Requires-Dist: pytest-env (<0.7.0,>=0.6.0) ; extra == 'dev'
+Requires-Dist: pytest-xdist (<2.0,>=1.23) ; extra == 'dev'
+Requires-Dist: Pygments (<3.0,>=2.2) ; extra == 'dev'
+Provides-Extra: dropbox
+Requires-Dist: dropbox (~=9.0) ; extra == 'dropbox'
+Provides-Extra: google
+Requires-Dist: google-cloud-bigquery (<2.0,>=1.6.0) ; extra == 'google'
+Requires-Dist: google-cloud-storage (<2.0,>=1.13) ; extra == 'google'
+Provides-Extra: kubernetes
+Requires-Dist: kubernetes (<10.0,>=9.0.0a1) ; extra == 'kubernetes'
+Requires-Dist: dask-kubernetes (>=0.8.0) ; extra == 'kubernetes'
+Provides-Extra: postgres
+Requires-Dist: psycopg2-binary (>=2.8.2) ; extra == 'postgres'
+Provides-Extra: redis
+Requires-Dist: redis (>=3.2.1) ; extra == 'redis'
+Provides-Extra: rss
+Requires-Dist: feedparser (<6.0,>=5.0.1) ; extra == 'rss'
+Provides-Extra: snowflake
+Requires-Dist: snowflake-connector-python (<2.0,>=1.8.2) ; extra == 'snowflake'
+Provides-Extra: spacy
+Requires-Dist: spacy (<3.0.0,>=2.0.0) ; extra == 'spacy'
+Provides-Extra: templates
+Requires-Dist: jinja2 (<3.0,>=2.0) ; extra == 'templates'
+Provides-Extra: twitter
+Requires-Dist: tweepy (<4.0,>=3.5) ; extra == 'twitter'
+Provides-Extra: viz
+Requires-Dist: graphviz (>=0.8.3) ; extra == 'viz'
+
+<p align="center" style="margin-bottom:40px;">
+<img src="https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5c942c9ca934ec5c88588297_primary-color-vertical.svg"  height=350 style="max-height: 350px;">
+</p>
+
+<p align="center">
+<a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
+    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
+</a>
+
+<a href="https://codecov.io/gh/PrefectHQ/prefect">
+  <img src="https://codecov.io/gh/PrefectHQ/prefect/branch/master/graph/badge.svg" />
+</a>
+
+<a href=https://github.com/ambv/black>
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
+</a>
+
+<a href="https://pypi.org/project/prefect/">
+    <img src="https://img.shields.io/pypi/dm/prefect.svg?color=%2327B1FF&label=installs&logoColor=%234D606E">
+</a>
+
+<a href="https://hub.docker.com/r/prefecthq/prefect">
+    <img src="https://img.shields.io/docker/pulls/prefecthq/prefect.svg?color=%2327B1FF&logoColor=%234D606E">
+</a>
+
+<a href="https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU">
+    <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
+</a>
+
+</p>
+
+## Hello, world! 👋
+
+We've rebuilt data engineering for the data science era.
+
+Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
+
+Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU)!
+
+```python
+from prefect import task, Flow
+
+
+@task
+def say_hello():
+    print("Hello, world!")
+
+
+with Flow("My First Flow") as flow:
+    say_hello()
+
+
+flow.run() # "Hello, world!"
+```
+
+## Docs
+
+Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
+
+Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/guide/development/documentation.html).
+
+## Contributing
+
+Read about Prefect's [community](https://docs.prefect.io/guide/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/guide/development/overview.html) for information about contributions, documentation, code style, and testing.
+
+Join our [Slack](https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU) to chat about Prefect, ask questions, and share tips.
+
+Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
+
+## "...Prefect?"
+
+From the Latin _praefectus_, meaning "one who is in charge", a prefect is an official who oversees a domain and makes sure that the rules are followed. Similarly, Prefect is responsible for making sure that workflows execute properly.
+
+It also happens to be the name of a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
+
+## Installation
+
+### Requirements
+
+Prefect requires Python 3.5.2+.
+
+### Install latest release
+
+Using `pip`:
+
+```bash
+pip install prefect
+```
+
+or `conda`:
+
+```bash
+conda install -c conda-forge prefect
+```
+
+or `pipenv`:
+```
+pipenv install --pre prefect
+```
+
+### Install bleeding edge
+
+```bash
+git clone https://github.com/PrefectHQ/prefect.git
+pip install ./prefect
+```
+
+## License
+
+Prefect is licensed under the Apache Software License version 2.0.
+
+
