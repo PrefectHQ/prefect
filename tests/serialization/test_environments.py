@@ -5,6 +5,7 @@ from prefect.serialization.environment import (
     DaskKubernetesEnvironmentSchema,
     LocalEnvironmentSchema,
     RemoteEnvironmentSchema,
+    EnvironmentSchema,
 )
 
 
@@ -143,3 +144,17 @@ def test_serialize_local_environment_with_labels():
 
     new = schema.load(serialized)
     assert new.labels == ["bob", "alice"]
+
+
+def test_deserialize_old_env_payload():
+    old = {
+        "executor": "prefect.engine.executors.LocalExecutor",
+        "executor_kwargs": {},
+        "__version__": "0.6.3",
+        "type": "RemoteEnvironment",
+    }
+
+    schema = EnvironmentSchema()
+    obj = schema.load(old)
+    assert isinstance(obj, environments.RemoteEnvironment)
+    assert obj.labels == []
