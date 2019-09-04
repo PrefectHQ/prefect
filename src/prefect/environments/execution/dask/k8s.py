@@ -39,6 +39,8 @@ class DaskKubernetesEnvironment(Environment):
         - docker_secret (str, optional): the name of the Prefect Secret containing your Docker credentials; defaults to
             `"DOCKER_REGISTRY_CREDENTIALS"`.  This Secret should be a dictionary containing the following keys: `"docker-server"`,
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
     def __init__(
@@ -47,6 +49,7 @@ class DaskKubernetesEnvironment(Environment):
         max_workers: int = 2,
         private_registry: bool = False,
         docker_secret: str = None,
+        labels: List[str] = None,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -56,7 +59,7 @@ class DaskKubernetesEnvironment(Environment):
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
         else:
             self.docker_secret = None  # type: ignore
-        self.logger = logging.get_logger("CloudEnvironment")
+        super().__init__(labels=labels)
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
