@@ -7,6 +7,8 @@ from prefect.environments.storage import Docker
 def test_create_environment():
     environment = Environment()
     assert environment
+    assert environment.labels == []
+    assert environment.logger.name == "prefect.Environment"
 
 
 def test_setup_environment_passes():

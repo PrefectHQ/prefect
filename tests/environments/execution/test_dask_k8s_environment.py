@@ -19,6 +19,13 @@ def test_create_dask_environment():
     assert environment
     assert environment.private_registry is False
     assert environment.docker_secret is None
+    assert environment.labels == []
+    assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
+
+
+def test_create_dask_environment_labels():
+    environment = DaskKubernetesEnvironment(labels=["foo"])
+    assert environment.labels == ["foo"]
 
 
 def test_create_dask_environment_identifier_label():

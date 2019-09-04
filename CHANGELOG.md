@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add environment labels for organizing / tagging different Flow execution environments - [#1438](https://github.com/PrefectHQ/prefect/issues/1438)
 
 ### Task Library
 
