@@ -39,12 +39,12 @@ class ShellTask(prefect.Task):
     """
 
     def __init__(
-        self,
-        command: str = None,
-        env: dict = None,
-        helper_script: str = None,
-        shell: str = "bash",
-        **kwargs: Any
+            self,
+            command: str = None,
+            env: dict = None,
+            helper_script: str = None,
+            shell: str = "bash",
+            **kwargs: Any
     ):
         self.command = command
         self.env = env
