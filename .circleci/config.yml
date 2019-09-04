@@ -257,6 +257,20 @@ jobs:
           paths:
             - coverage
 
+  test-agent:
+    docker:
+      - image: python:3.6
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install prefect
+          command: pip install ".[dev]"
+
+      - run:
+          name: Run agent tests
+          command: prefect agent start -t "BAD"
+
   upload-coverage:
     docker:
       - image: python:3.6
@@ -290,6 +304,7 @@ workflows:
 
   "Run tests":
     jobs:
+      - test-agent
       - test-3.5
       - test-3.6
       - test-3.7
