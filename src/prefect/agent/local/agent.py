@@ -27,12 +27,13 @@ class LocalAgent(Agent):
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
         else:
-            default_url = "http+unix:///var/run/docker.sock"
+            default_url = "unix://var/run/docker.sock"
 
         # Determine Daemon URL
-        self.base_url = base_url or context.get("base_url")
-        if self.base_url is None:
-            self.base_url = default_url
+        self.base_url = base_url or context.get("base_url", default_url)
+
+        # Determine pull specification
+        self.no_pull = no_pull or context.get("no_pull", False)
 
         self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
 
@@ -44,11 +45,6 @@ class LocalAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
-
-        # Determine pull specification
-        self.no_pull = no_pull or context.get("no_pull")
-        if self.no_pull is None:
-            self.no_pull = False
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
