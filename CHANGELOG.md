@@ -10,7 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add OS platform check to Local Agent - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
+- Add `--base-url` argument for Docker daemons to `agent start` CLI command - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
 
 ### Task Library
 
