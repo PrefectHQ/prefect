@@ -14,16 +14,20 @@ def test_create_remote_environment():
     assert environment
     assert environment.executor == prefect.config.engine.executor.default_class
     assert environment.executor_kwargs == {}
+    assert environment.labels == set()
+    assert environment.logger.name == "prefect.RemoteEnvironment"
 
 
 def test_create_remote_environment_populated():
     environment = RemoteEnvironment(
         executor="prefect.engine.executors.DaskExecutor",
         executor_kwargs={"address": "test"},
+        labels=["foo", "bar", "good"],
     )
     assert environment
     assert environment.executor == "prefect.engine.executors.DaskExecutor"
     assert environment.executor_kwargs == {"address": "test"}
+    assert environment.labels == set(["foo", "bar", "good"])
 
 
 def test_environment_execute():

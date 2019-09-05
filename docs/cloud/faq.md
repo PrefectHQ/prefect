@@ -8,6 +8,10 @@
 
 Prefect absolutely has a User Interface (UI). The [Prefect Core Engine](https://github.com/PrefectHQ/prefect) is designed for building and testing your Prefect workflows locally, and consequently does not require a database or any other sort of monitoring service running (which is what any UI _requires_ in order to expose stateful information!). Prefect Cloud is our recommended persistent orchestration layer for monitoring and orchestrating workflows in a production setting, and the Cloud API is what drives our UI. To gain access to Cloud, please [contact us](https://www.prefect.io/lighthouse-partners).
 
+### What is the difference between Prefect Core and Prefect Cloud?
+
+[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally.  For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence.  This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows.  Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things.  Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](dataflow.html).
+
 ### Is using Dask a requirement of Prefect?
 
 No - Dask is our preferred executor for distributed and parallelizable workflows, but running your workflows on Dask is _not_ a requirement. [Any of Prefect's executors](https://docs.prefect.io/api/unreleased/engine/executors.html) are available for use in deployment, and we are always interested in adding new ones.
