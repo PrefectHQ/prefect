@@ -1,6 +1,6 @@
 # Prefect Cloud API
 
-Prefect Cloud exposes a powerful GraphQL API for interacting with the platform. There are a variety of ways you can access the API.
+Prefect Cloud exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io`. There are a variety of ways you can access the API.
 
 # Authentication
 
