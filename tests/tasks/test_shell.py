@@ -30,7 +30,7 @@ def test_shell_initializes_and_multiline_output_returns_last_line():
         task = ShellTask()(command="echo -n 'hello world\n42'")
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == '42'
+    assert out.result[task].result == "42"
 
 
 def test_shell_raises_if_no_command_provided():
@@ -82,7 +82,10 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
     assert out.is_failed()
     print(caplog.text)
     assert "ERROR    prefect.Task: ShellTask:shell.py" in caplog.text
-    assert " Command failed with exit code 1: ls: surely_a_dir_that_doesnt_exist: No such file or directory" in caplog.text
+    assert (
+        " Command failed with exit code 1: ls: surely_a_dir_that_doesnt_exist: No such file or directory"
+        in caplog.text
+    )
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
@@ -96,7 +99,7 @@ def test_shell_initializes_and_runs_multiline_cmd():
         task = ShellTask()(command=cmd, env={key: "test" for key in "abcdefgh"})
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == 'yes'
+    assert out.result[task].result == "yes"
 
 
 def test_shell_task_raises_fail_if_cmd_fails():
