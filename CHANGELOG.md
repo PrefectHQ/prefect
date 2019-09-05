@@ -71,7 +71,7 @@ Released August 30, 2019
 - Add `AzureResultHandler` for handling results to / from Azure Blob storage containers - [#1421](https://github.com/PrefectHQ/prefect/pull/1421)
 - Add new configurable `LocalDaskExecutor` - [#1336](https://github.com/PrefectHQ/prefect/issues/1336)
 - Add CLI commands for working with Prefect Cloud auth - [#1431](https://github.com/PrefectHQ/prefect/pull/1431)
-- Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values
+- Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values - [#1448](https://github.com/PrefectHQ/prefect/pull/1448)
 
 ### Task Library
 
