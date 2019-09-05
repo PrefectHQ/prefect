@@ -7,7 +7,14 @@ from prefect.environments.storage import Docker
 def test_create_environment():
     environment = Environment()
     assert environment
-    assert environment.labels == []
+    assert environment.labels == set()
+    assert environment.logger.name == "prefect.Environment"
+
+
+def test_create_environment_converts_labels_to_set():
+    environment = Environment(labels=["a", "b", "a"])
+    assert environment
+    assert environment.labels == set(["a", "b"])
     assert environment.logger.name == "prefect.Environment"
 
 
