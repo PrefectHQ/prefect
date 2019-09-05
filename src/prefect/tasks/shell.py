@@ -90,7 +90,7 @@ class ShellTask(prefect.Task):
             line = ""
             for raw_line in iter(sub_process.stdout.readline, b""):
                 line = raw_line.decode("utf-8").rstrip()
-                self.logger.info(line)
+                self.logger.debug(line)
             sub_process.wait()
             if sub_process.returncode:
                 msg = "Command failed with exit code {0}: {1}".format(
