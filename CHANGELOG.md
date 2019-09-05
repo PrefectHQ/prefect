@@ -71,6 +71,7 @@ Released August 30, 2019
 - Add `AzureResultHandler` for handling results to / from Azure Blob storage containers - [#1421](https://github.com/PrefectHQ/prefect/pull/1421)
 - Add new configurable `LocalDaskExecutor` - [#1336](https://github.com/PrefectHQ/prefect/issues/1336)
 - Add CLI commands for working with Prefect Cloud auth - [#1431](https://github.com/PrefectHQ/prefect/pull/1431)
+- Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values - 
 
 ### Task Library
 
@@ -89,7 +90,7 @@ Released August 30, 2019
 
 - Rename `CloudEnvironment` to `DaskKubernetesEnvironment` - [#1250](https://github.com/PrefectHQ/prefect/issues/1250)
 - Remove unused `queue` method from all executors - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
-
+- Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values, which changes behavior of task - 
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
