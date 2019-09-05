@@ -39,12 +39,12 @@ class ShellTask(prefect.Task):
     """
 
     def __init__(
-            self,
-            command: str = None,
-            env: dict = None,
-            helper_script: str = None,
-            shell: str = "bash",
-            **kwargs: Any
+        self,
+        command: str = None,
+        env: dict = None,
+        helper_script: str = None,
+        shell: str = "bash",
+        **kwargs: Any
     ):
         self.command = command
         self.env = env
@@ -85,14 +85,11 @@ class ShellTask(prefect.Task):
             tmp.write(command.encode())
             tmp.flush()
             sub_process = Popen(
-                [self.shell, tmp.name],
-                stdout=PIPE,
-                stderr=STDOUT,
-                env=current_env
+                [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
             )
-            line = ''
-            for raw_line in iter(sub_process.stdout.readline, b''):
-                line = raw_line.decode('utf-8').rstrip()
+            line = ""
+            for raw_line in iter(sub_process.stdout.readline, b""):
+                line = raw_line.decode("utf-8").rstrip()
                 self.logger.info(line)
             sub_process.wait()
             if sub_process.returncode:
