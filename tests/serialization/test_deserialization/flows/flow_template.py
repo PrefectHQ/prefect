@@ -13,7 +13,11 @@ def root_task():
     pass
 
 
-@task(cache_for=datetime.timedelta(days=10), cache_validator=partial_parameters_only(["x"]), result_handler=JSONResultHandler())
+@task(
+    cache_for=datetime.timedelta(days=10),
+    cache_validator=partial_parameters_only(["x"]),
+    result_handler=JSONResultHandler(),
+)
 def cached_task(x, y):
     pass
 
@@ -27,8 +31,16 @@ def terminal_task():
     pass
 
 
-env = RemoteEnvironment(executor = "prefect.engine.executors.DaskExecutor", executor_kwargs={"scheduler_address": "tcp://"})
-storage = Docker(registry_url="prefecthq", image_name="flows", image_tag="welcome-flow", python_dependencies=["boto3"])
+env = RemoteEnvironment(
+    executor="prefect.engine.executors.DaskExecutor",
+    executor_kwargs={"scheduler_address": "tcp://"},
+)
+storage = Docker(
+    registry_url="prefecthq",
+    image_name="flows",
+    image_tag="welcome-flow",
+    python_dependencies=["boto3"],
+)
 
 with Flow("test-serialization", storage=storage, environment=env) as f:
     result = cached_task.map(x, y, upstream_tasks=[root_task, root_task])
