@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, List
 
 import prefect
 from prefect.environments.execution.base import Environment
@@ -12,10 +12,14 @@ class LocalEnvironment(Environment):
     Execution will first attempt to call `get_flow` on the storage object, and if that fails it will
     fall back to `get_env_runner`.  If `get_env_runner` is used, the environment variables from this
     process will be passed.
+
+    Args:
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, labels: List[str] = None) -> None:
+        super().__init__(labels=labels)
 
     def execute(self, storage: "Storage", flow_location: str, **kwargs: Any) -> None:
         """
