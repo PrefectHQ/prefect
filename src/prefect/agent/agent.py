@@ -36,7 +36,7 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        self.client = Client(token=config.cloud.agent.get("auth_token"))
+        self.client = Client(api_token=config.cloud.agent.get("auth_token"))
 
         logger = logging.getLogger("agent")
         logger.setLevel(logging.DEBUG)
@@ -79,7 +79,7 @@ class Agent:
         print(ascii_name)
         self.logger.info("Starting {}".format(type(self).__name__))
         self.logger.info(
-            "Agent documentation can be found at https://docs.prefect.io/cloud/agent"
+            "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
         tenant_id = self.query_tenant_id()
 

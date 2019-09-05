@@ -351,7 +351,17 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if upstream tasks are not finished.
         """
-        if not all(s.is_finished() for s in upstream_states.values()):
+        all_states = set()  # type: Set[State]
+        for edge, upstream_state in upstream_states.items():
+            # if the upstream state is Mapped, and this task is also mapped,
+            # we want each individual child to determine if it should
+            # proceed or not based on its upstream parent in the mapping
+            if isinstance(upstream_state, Mapped) and not edge.mapped:
+                all_states.update(upstream_state.map_states)
+            else:
+                all_states.add(upstream_state)
+
+        if not all(s.is_finished() for s in all_states):
             self.logger.debug(
                 "Task '{name}': not all upstream states are finished; ending run.".format(
                     name=prefect.context.get("task_full_name", self.task.name)

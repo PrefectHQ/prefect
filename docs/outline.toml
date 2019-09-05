@@ -144,6 +144,7 @@ module = "prefect.engine.executors"
 classes = [
             "Executor",
             "DaskExecutor",
+            "LocalDaskExecutor",
             "LocalExecutor",
             "SynchronousExecutor"]
 
@@ -155,7 +156,7 @@ classes = ["Result", "SafeResult", "NoResultType"]
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler"]
+classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"

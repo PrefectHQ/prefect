@@ -1,6 +1,9 @@
 # debug mode
 debug = false
 
+# base configuration directory (typically you won't change this!)
+home_dir = "~/.prefect"
+
 
 [cloud]
 # the Prefect Server address
@@ -16,6 +19,7 @@ heartbeat_interval = 30.0
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers
         loop_interval = 60
+
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
@@ -67,7 +71,7 @@ checkpointing = false
     [engine.executor]
 
     # the default executor, specified using a full path
-    default_class = "prefect.engine.executors.SynchronousExecutor"
+    default_class = "prefect.engine.executors.LocalExecutor"
 
         [engine.executor.dask]
         # the default scheduler address for the DaskExecutor. Set to "local" to configure

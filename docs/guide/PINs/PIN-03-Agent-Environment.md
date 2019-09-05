@@ -83,4 +83,4 @@ Any currently created flows will need to be redeployed if the agent that execute
 
 ## Actions
 
-This PIN was largely superseded by [PIN 7](PIN-7-Storage-Execution.md).
+This PIN was largely superseded by [PIN 7](PIN-07-Storage-Execution.md).
