@@ -6,6 +6,48 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+
+## 0.6.3 <Badge text="beta" type="success"/>
+
+Released August 30, 2019
+
+### Fixes
+
+- Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
+
+
+## 0.6.2 <Badge text="beta" type="success"/>
+
+Released August 30, 2019
+
+### Features
+
 - Added Local, Kubernetes, and Nomad agents - [#1341](https://github.com/PrefectHQ/prefect/pull/1341)
 - Add the ability for Tasks to sequentially loop - [#1356](https://github.com/PrefectHQ/prefect/pull/1356)
 
@@ -23,6 +65,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Users can now create projects from the CLI - [#1388](https://github.com/PrefectHQ/prefect/pull/1388)
 - Add a health check to confirm that serialized flows are valid prior to Cloud deploy - [#1397](https://github.com/PrefectHQ/prefect/pull/1397)
 - Add `task_slug`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
+- Support persistent `scheduled_start_time` for scheduled flow runs when run locally with `flow.run()` - [#1418](https://github.com/PrefectHQ/prefect/pull/1418), [#1429](https://github.com/PrefectHQ/prefect/pull/1429)
+- Add `task_args` to `Task.map` - [#1390](https://github.com/PrefectHQ/prefect/issues/1390)
+- Add auth flows for `USER`-scoped Cloud API tokens - [#1423](https://github.com/PrefectHQ/prefect/pull/1423)
+- Add `AzureResultHandler` for handling results to / from Azure Blob storage containers - [#1421](https://github.com/PrefectHQ/prefect/pull/1421)
+- Add new configurable `LocalDaskExecutor` - [#1336](https://github.com/PrefectHQ/prefect/issues/1336)
+- Add CLI commands for working with Prefect Cloud auth - [#1431](https://github.com/PrefectHQ/prefect/pull/1431)
 - Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values
 
 ### Task Library
@@ -36,15 +84,17 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- None
+- Rename `SynchronousExecutor` as `LocalDaskExecutor` - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
 
 ### Breaking Changes
 
 - Rename `CloudEnvironment` to `DaskKubernetesEnvironment` - [#1250](https://github.com/PrefectHQ/prefect/issues/1250)
+- Remove unused `queue` method from all executors - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
 
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
+
 
 ## 0.6.1 <Badge text="beta" type="success"/>
 

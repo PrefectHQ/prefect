@@ -597,6 +597,67 @@ def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_reduce_task_properly_applies_trigger_across_all_mapped_states(executor):
+    """
+    The `take_sum` task reduces over the `div` task, which is going to return one Success
+    and one Retrying. The `take_sum` should fail its upstream finished check.
+    """
+
+    @prefect.task
+    def ll():
+        return [0, 1]
+
+    @prefect.task(max_retries=5, retry_delay=datetime.timedelta(hours=1))
+    def div(x):
+        return 1 / x
+
+    @prefect.task
+    def take_sum(x):
+        return sum(x)
+
+    with Flow(name="test") as f:
+        d = div.map(ll)
+        t = div.map(d)
+        s = take_sum(d)
+
+    state = FlowRunner(flow=f).run(executor=executor, return_tasks=[s, t])
+    assert state.is_running()
+    assert state.result[s].is_pending()
+    assert state.result[t].is_mapped()
+    assert state.result[t].map_states[0].is_pending()
+    assert all(s.is_successful() for s in state.result[t].map_states[1:])
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_reduce_task_properly_applies_trigger_across_all_mapped_states_for_deep_pipelines(
+    executor
+):
+    @prefect.task
+    def ll():
+        return [0, 1]
+
+    @prefect.task(max_retries=5, retry_delay=datetime.timedelta(hours=1))
+    def div(x):
+        return 1 / x
+
+    @prefect.task
+    def take_sum(x):
+        return sum(x)
+
+    with Flow(name="test") as f:
+        d = div.map(ll)
+        s = take_sum(d)
+
+    state = FlowRunner(flow=f).run(executor=executor, return_tasks=[s])
+    assert state.is_running()
+    assert state.result[s].is_pending()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_task_map_downstreams_handle_single_failures(executor):
     @prefect.task
     def ll():

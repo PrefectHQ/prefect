@@ -25,7 +25,9 @@ Usage: prefect [OPTIONS] COMMAND [ARGS]...
       get         List high-level object information
       describe    Retrieve detailed object descriptions
 
-  Execution Commands:
+  Action Commands:
+      agent       Manage agents
+      create      Create objects
       execute     Execute a flow's environment
       run         Run a flow
 
@@ -288,7 +290,22 @@ $ prefect describe tasks --name my-flow
 
 This defaults to the most recent version of a flow and to describe tasks for past versions use the `--version` option. You can also specify the project name that a flow belongs to with `--project` (often used if you have multiple flows with the same name in various projects).
 
-## Execution Commands
+## Action Commands
+
+### agent
+
+For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agent/overview.html).
+
+### create
+
+#### create project
+
+Running `prefect create project PROJECT_NAME` will create a project in Prefect Cloud with the given name. You can also specify a project description with `--description`.
+
+```
+$ prefect create project "MY PROJECT" -d "description here"
+MY PROJECT created
+```
 
 ### execute
 
@@ -342,6 +359,10 @@ TIMESTAMP                         LEVEL    MESSAGE
 
 `auth` is a group of commands that handle authentication related configuration with Prefect Cloud.
 
+::: warning Config
+Having an API token set as a config value prior to using auth CLI commands, either in your config.toml or as an environment variable, will cause all auth commands to abort on use.
+:::
+
 #### auth login
 
 Running `prefect auth login` requires that a Prefect Cloud API token be provided and when executed the API token is used to login to Prefect Cloud.
@@ -354,6 +375,89 @@ If the API token is not valid then you should see:
 ```
 $ prefect auth login --token BAD_TOKEN
 Error attempting to use Prefect API token BAD_TOKEN
+```
+
+#### auth logout
+
+Running `prefect auth logout` will log you out of your active tenant (if you are logged in)
+```
+$ prefect auth logout
+Are you sure you want to log out of Prefect Cloud? (y/N) Y
+Logged out from tenant PREVIOUS_ACTIVE_TENANT_ID
+```
+
+If there is no current active tenant then you should see:
+```
+$ prefect auth logout
+Are you sure you want to log out of Prefect Cloud? (y/N) Y
+No tenant currently active
+```
+
+#### auth list-tenants
+
+Running `prefect auth list-tenants` will output all of the tenants that you have access to use.
+```
+$ prefect auth list-tenants
+NAME                        SLUG                        ID
+Test Person                 test-person                 816sghf2-4d51-4338-a333-1771gns7614d
+test@prefect.io's Account   test-prefect-io-s-account   1971hs9f-e8ha-4a33-8c33-64512gds86g1  *
+```
+
+#### auth switch-tenants
+
+Running `prefect auth switch-tenants --id TENANT_ID --slug TENANT_SLUG` will switch your active tenants. Either the tenant ID or the tenant slug needs to be provided.
+```
+$ prefect auth switch-tenants --slug test-person
+Tenant switched
+```
+
+If you are unable to switch tenants for various reasons (bad id, bad slug, not providing either) then you should see:
+```
+$ prefect auth switch-tenants --slug test-person
+Unable to switch tenant
+```
+
+#### auth create-token
+
+Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens go [here](./api.html).
+```
+$ prefect auth create-token -n MyToken -r RUNNER
+...token output...
+```
+
+If you are unable to create an API token then you should see:
+```
+$ prefect auth create-token -n MyToken -r RUNNER
+Issue creating API token
+```
+
+#### auth revoke-token
+
+Running `prefect auth revoke-token --id TOKEN_ID` will revoke API tokens in Prefect Cloud.
+```
+$ prefect auth revoke-token --id TOKEN_ID
+Token successfully revoked
+```
+
+If the token is not found then you should see:
+```
+$ prefect auth revoke-token --id TOKEN_ID
+Unable to revoke token with ID TOKEN_ID
+```
+
+#### auth list-tokens
+
+Running `prefect auth list-tokens` will list your available API tokens in Prefect Cloud. Note: only the name and ID of the token will be shown, not the actual token.
+```
+$ prefect auth list-tokens
+NAME        ID
+My_Token    87gh22f4-333c-47fc-ae8f-0b61ghu811c3
+```
+
+If you are unable to list API tokens then you should see:
+```
+$ prefect auth list-tokens
+Unable to list API tokens
 ```
 
 ## Miscellaneous Commands

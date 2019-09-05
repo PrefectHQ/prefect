@@ -1514,6 +1514,18 @@ class TestFlowRunMethod:
         state = f.run(run_on_schedule=False)
         assert t.call_count == 1
 
+    def test_flow_dot_run_returns_tasks_when_running_off_schedule(self):
+        @prefect.task
+        def test_task():
+            return 2
+
+        f = Flow(name="test", tasks=[test_task])
+        res = f.run(run_on_schedule=False)
+
+        assert res.is_successful()
+        assert res.result[test_task].is_successful()
+        assert res.result[test_task].result == 2
+
     def test_flow_dot_run_responds_to_config(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
@@ -2011,6 +2023,74 @@ class TestFlowRunMethod:
         state = f.run(state=Finished())
         assert state.is_finished()
 
+    def test_flow_dot_run_sets_scheduled_start_time(self):
+
+        # start very soon
+        start_time = pendulum.now().add(seconds=0.2)
+
+        @task
+        def report_start_time():
+            return prefect.context.scheduled_start_time
+
+        f = Flow(
+            name="test",
+            tasks=[report_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=[start_time])]
+            ),
+        )
+        state = f.run()
+        assert state.result[report_start_time].result is start_time
+
+    def test_flow_dot_run_does_not_set_scheduled_start_time_globally(self):
+        @task
+        def report_start_time():
+            return prefect.context.scheduled_start_time
+
+        f = Flow(name="test", tasks=[report_start_time])
+        state = f.run()
+        assert isinstance(state.result[report_start_time].result, datetime.datetime)
+        assert "scheduled_start_time" not in prefect.context
+
+    def test_flow_dot_run_persists_scheduled_start_time_across_retries(self):
+        # start very soon
+        start_time = pendulum.now().add(seconds=0.2)
+
+        @task(max_retries=1, retry_delay=datetime.timedelta(0))
+        def report_start_time():
+            if prefect.context.task_run_count == 1:
+                raise ValueError("I'm not ready to tell you the start time yet")
+            return prefect.context.scheduled_start_time
+
+        f = Flow(
+            name="test",
+            tasks=[report_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=[start_time])]
+            ),
+        )
+        state = f.run()
+        assert state.result[report_start_time].result is start_time
+
+    def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
+
+        start_times = [pendulum.now().add(seconds=i * 0.1) for i in range(1, 4)]
+        REPORTED_START_TIMES = []
+
+        @task
+        def record_start_time():
+            REPORTED_START_TIMES.append(prefect.context.scheduled_start_time)
+
+        f = Flow(
+            name="test",
+            tasks=[record_start_time],
+            schedule=prefect.schedules.Schedule(
+                clocks=[prefect.schedules.clocks.DatesClock(dates=start_times)]
+            ),
+        )
+        f.run()
+        assert REPORTED_START_TIMES == start_times
+
 
 class TestFlowDeploy:
     @pytest.mark.parametrize(
@@ -2150,6 +2230,33 @@ def test_looping_with_retries_works_in_a_flow():
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 200
     assert flow_state.result[final].result == 200 ** 2
+
+
+def test_looping_with_retries_resets_run_count():
+    run_counts = []
+
+    @task(max_retries=1, retry_delay=datetime.timedelta(seconds=0))
+    def looper(x):
+        run_counts.append(prefect.context.get("task_run_count"))
+
+        if (
+            prefect.context.get("task_loop_count") == 2
+            and prefect.context.get("task_run_count", 1) == 1
+        ):
+            raise ValueError("err")
+
+        if prefect.context.get("task_loop_count", 1) < 20:
+            raise LOOP(result=prefect.context.get("task_loop_result", 0) + x)
+        return prefect.context.get("task_loop_result") + x
+
+    with Flow(name="looping") as f:
+        inter = looper(1)
+
+    flow_state = f.run()
+
+    assert flow_state.is_successful()
+    assert flow_state.result[inter].result == 20
+    assert list(filter(lambda x: x == 2, run_counts)) == [2]
 
 
 def test_starting_at_arbitrary_loop_index():

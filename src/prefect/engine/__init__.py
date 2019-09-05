@@ -25,11 +25,9 @@ def get_default_executor_class() -> type:
         except ValueError:
             warn(
                 "Could not import {}; using "
-                "prefect.engine.executors.SynchronousExecutor instead.".format(
-                    config_value
-                )
+                "prefect.engine.executors.LocalExecutor instead.".format(config_value)
             )
-            return prefect.engine.executors.SynchronousExecutor
+            return prefect.engine.executors.LocalExecutor
     else:
         return config_value
 

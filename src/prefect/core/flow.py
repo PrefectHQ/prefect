@@ -835,10 +835,20 @@ class Flow:
             flow_state.result = {}
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
+
+        # set global caches that persist across runs
         prefect.context.setdefault("caches", {})
+
+        # set context for this flow run
+        flow_run_context = kwargs.pop(
+            "context", {}
+        ).copy()  # copy to avoid modification
 
         ## run this flow indefinitely, so long as its schedule has future dates
         while True:
+
+            flow_run_context.update(scheduled_start_time=next_run_time)
+
             if flow_state.is_scheduled():
                 next_run_time = flow_state.start_time
                 now = pendulum.now("utc")
@@ -857,6 +867,7 @@ class Flow:
                     return_tasks=self.tasks,
                     state=flow_state,
                     task_states=flow_state.result,
+                    context=flow_run_context,
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
@@ -992,7 +1003,7 @@ class Flow:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
         if run_on_schedule is False:
             runner = runner_cls(flow=self)
-            state = runner.run(parameters=parameters, **kwargs)
+            state = runner.run(parameters=parameters, return_tasks=self.tasks, **kwargs)
         else:
             state = self._run_on_schedule(
                 parameters=parameters, runner_cls=runner_cls, **kwargs

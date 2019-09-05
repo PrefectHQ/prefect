@@ -89,9 +89,32 @@ def test_agent_install_passes_args():
             "TEST_API",
             "--namespace",
             "TEST_NAMESPACE",
+            "--resource-manager",
         ],
     )
     assert result.exit_code == 0
     assert "TEST_TOKEN" in result.output
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
+    assert "resource-manager" in result.output
+
+
+def test_agent_install_no_resource_manager():
+    runner = CliRunner()
+    result = runner.invoke(
+        agent,
+        [
+            "install",
+            "--token",
+            "TEST_TOKEN",
+            "--api",
+            "TEST_API",
+            "--namespace",
+            "TEST_NAMESPACE",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "TEST_TOKEN" in result.output
+    assert "TEST_API" in result.output
+    assert "TEST_NAMESPACE" in result.output
+    assert not "resource-manager" in result.output
