@@ -23,6 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Users can now create projects from the CLI - [#1388](https://github.com/PrefectHQ/prefect/pull/1388)
 - Add a health check to confirm that serialized flows are valid prior to Cloud deploy - [#1397](https://github.com/PrefectHQ/prefect/pull/1397)
 - Add `task_slug`, `flow_id`, and `flow_run_id` to context - [#1405](https://github.com/PrefectHQ/prefect/pull/1405)
+- Updating ShellTask to work more like Airflow Bash Operator for streaming logs and returning values
 
 ### Task Library
 
