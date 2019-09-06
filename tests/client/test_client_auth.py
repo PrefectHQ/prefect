@@ -58,14 +58,16 @@ class TestClientConfig:
         )._local_settings_path()
         expected = os.path.join(
             prefect_home_dir,
-            "client/https-a-test-api.prefect.test-subdomain/settings.toml",
+            "client",
+            "https-a-test-api.prefect.test-subdomain",
+            "settings.toml",
         )
         assert str(path) == expected
 
     def test_client_settings_path_depends_on_home_dir(self):
         with set_temporary_config(dict(home_dir="abc/def")):
             path = Client(api_server="xyz")._local_settings_path()
-            expected = "abc/def/client/xyz/settings.toml"
+            expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
     def test_client_token_initializes_from_file(selfmonkeypatch):
