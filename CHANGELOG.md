@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix incorrect import in `DaskKubernetesEnvironment` job template - [#1458](https://github.com/PrefectHQ/prefect/pull/1458)
+- Raise error on Agents started without an appropriate API token - [#1459](https://github.com/PrefectHQ/prefect/pull/1459)
 
 ### Deprecations
 
