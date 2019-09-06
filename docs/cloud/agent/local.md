@@ -39,6 +39,8 @@ There are a few ways in which you can specify a `RUNNER` API token:
 
 ### Process
 
+On start, the Local Agent verifies that it can connect to a Docker daemon. The default daemon location is determined by your system. `npipe:////./pipe/docker_engine` for Windows and `unix://var/run/docker.sock` for Unix. A separate Docker daemon location can be provided either through `base_url` when instantiating a `LocalAgent` object or through `--base-url` on the CLI.
+
 The Local Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud, the agent confirms that the flow was deployed with a Docker storage option and uses the connected Docker daemon to create a container and run the flow.
 
 The agent will block on the process in between finding the flow run and submitting it for execution if it has to pull the flow's Docker image.
