@@ -16,6 +16,12 @@ Prefect absolutely has a User Interface (UI). The [Prefect Core Engine](https://
 
 No - Dask is our preferred executor for distributed and parallelizable workflows, but running your workflows on Dask is _not_ a requirement. [Any of Prefect's executors](https://docs.prefect.io/api/unreleased/engine/executors.html) are available for use in deployment, and we are always interested in adding new ones.
 
+### What are the requirements of Prefect Cloud?
+
+Prefect Cloud currently requires that all Flows are containerized using [Docker](https://www.docker.com). Extensive knowledge of Docker is not required, and Prefect Core has many convenient interfaces and utility functions for interacting with Docker.  Your Prefect Agent also requires access to a platform which is capable of running Docker containers.  In addition to Docker, your Prefect Agent needs the ability to communicate _out_ to Cloud (but not the other way around - Prefect Cloud _never_ requires access to your code, data or infrastructure).
+
+Other than the python dependencies of Prefect Core, there are no additional requirements for deploying Flows to Prefect Cloud.
+
 ### How is Prefect different from Airflow?
 
 For some of the main distinctions, see our blogpost: [Why Not Airflow?](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
