@@ -8,6 +8,7 @@ from prefect import config
 from prefect.client import Client
 from prefect.serialization import state
 from prefect.engine.state import Submitted
+from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import with_args
 
 
@@ -36,7 +37,12 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        self.client = Client(api_token=config.cloud.agent.get("auth_token"))
+
+        token = config.cloud.agent.get("auth_token")
+        if not token:
+            raise AuthorizationError("No agent API token provided.")
+
+        self.client = Client(api_token=token)
 
         logger = logging.getLogger("agent")
         logger.setLevel(logging.DEBUG)

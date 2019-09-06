@@ -13,8 +13,9 @@ def test_local_agent_init(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
 
-    agent = LocalAgent()
-    assert agent
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = LocalAgent()
+        assert agent
 
 
 def test_local_agent_config_options(monkeypatch):

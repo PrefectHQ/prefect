@@ -16,9 +16,10 @@ def test_k8s_agent_init(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
-    agent = KubernetesAgent()
-    assert agent
-    assert agent.batch_client
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = KubernetesAgent()
+        assert agent
+        assert agent.batch_client
 
 
 def test_k8s_agent_config_options(monkeypatch):

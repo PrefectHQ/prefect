@@ -10,8 +10,9 @@ from prefect.utilities.graphql import GraphQLResult
 
 
 def test_agent_init():
-    agent = Agent()
-    assert agent
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent()
+        assert agent
 
 
 def test_agent_config_options():
@@ -25,7 +26,6 @@ def test_agent_fails_no_auth_token():
     with set_temporary_config({"cloud.agent.auth_token": None}):
         with pytest.raises(AuthorizationError):
             agent = Agent()
-            agent.query_tenant_id()
 
 
 def test_query_tenant_id(monkeypatch):
