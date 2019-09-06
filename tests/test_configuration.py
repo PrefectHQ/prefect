@@ -104,10 +104,11 @@ class TestConfig:
 
 @pytest.fixture
 def test_config_file_path():
-    with tempfile.NamedTemporaryFile() as test_config:
-        test_config.write(template)
-        test_config.seek(0)
-        yield test_config.name
+    with tempfile.TemporaryDirectory() as test_config_dir:
+        test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+        with open(test_config_loc, "wb") as test_config:
+            test_config.write(template)
+        yield test_config_loc
 
 
 @pytest.fixture
@@ -248,19 +249,20 @@ def test_copy_doesnt_make_keys_mutable(config):
 class TestUserConfig:
     def test_load_user_config(self, test_config_file_path):
 
-        with tempfile.NamedTemporaryFile() as user_config:
-            user_config.write(
-                b"""
-                [general]
-                x = 2
+        with tempfile.TemporaryDirectory() as user_config_dir:
+            user_config_loc = os.path.join(user_config_dir, "test_config.toml")
+            with open(user_config_loc, "wb") as user_config:
+                user_config.write(
+                    b"""
+                    [general]
+                    x = 2
 
-                [user]
-                foo = "bar"
-                """
-            )
-            user_config.seek(0)
+                    [user]
+                    foo = "bar"
+                    """
+                )
             config = configuration.load_configuration(
-                path=test_config_file_path, user_config_path=user_config.name
+                path=test_config_file_path, user_config_path=user_config_loc
             )
 
             # check that user values are loaded
@@ -363,41 +365,46 @@ class TestProcessTaskDefaults:
 class TestConfigValidation:
     def test_invalid_keys_raise_error(self):
 
-        with tempfile.NamedTemporaryFile() as test_config:
-            test_config.write(
-                b"""
-                [outer]
-                x = 1
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(
+                    b"""
+                    [outer]
+                    x = 1
 
-                    [outer.keys]
-                    a = "b"
-                """
-            )
-            test_config.seek(0)
+                        [outer.keys]
+                        a = "b"
+                    """
+                )
 
             with pytest.raises(ValueError):
-                configuration.load_configuration(test_config.name)
+                configuration.load_configuration(test_config_loc)
 
     def test_invalid_env_var_raises_error(self, monkeypatch):
         monkeypatch.setenv("PREFECT_TEST__X__Y__KEYS__Z", "TEST")
 
-        with tempfile.NamedTemporaryFile() as test_config:
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(b"")
             with pytest.raises(ValueError):
                 configuration.load_configuration(
-                    test_config.name, env_var_prefix="PREFECT_TEST"
+                    test_config_loc, env_var_prefix="PREFECT_TEST"
                 )
 
     def test_mixed_case_keys_are_ok(self):
-        with tempfile.NamedTemporaryFile() as test_config:
-            test_config.write(
-                b"""
-                [SeCtIoN]
-                KeY = 1
-                """
-            )
-            test_config.seek(0)
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(
+                    b"""
+                    [SeCtIoN]
+                    KeY = 1
+                    """
+                )
 
-            config = configuration.load_configuration(test_config.name)
+            config = configuration.load_configuration(test_config_loc)
 
         assert "KeY" in config.SeCtIoN
         assert config.SeCtIoN.KeY == 1
@@ -406,17 +413,18 @@ class TestConfigValidation:
 
         monkeypatch.setenv("PREFECT_TEST__SECTION__KEY", "2")
 
-        with tempfile.NamedTemporaryFile() as test_config:
-            test_config.write(
-                b"""
-                [SeCtIoN]
-                KeY = 1
-                """
-            )
-            test_config.seek(0)
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(
+                    b"""
+                    [SeCtIoN]
+                    KeY = 1
+                    """
+                )
 
             config = configuration.load_configuration(
-                test_config.name, env_var_prefix="PREFECT_TEST"
+                test_config_loc, env_var_prefix="PREFECT_TEST"
             )
 
         assert "KeY" in config.SeCtIoN
