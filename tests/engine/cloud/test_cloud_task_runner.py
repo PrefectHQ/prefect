@@ -380,8 +380,8 @@ class TestHeartBeats:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_task_runner_has_a_heartbeat(self, executor, monkeypatch):
-        with tempfile.NamedTemporaryFile() as call_file:
-            fname = call_file.name
+        with tempfile.TemporaryDirectory() as call_dir:
+            fname = os.path.join(call_dir, "heartbeat.txt")
 
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
@@ -406,7 +406,7 @@ class TestHeartBeats:
                 fut = executor.submit(multiprocessing_helper, executor=executor)
                 res = executor.wait(fut)
 
-            with open(call_file.name, "r") as g:
+            with open(fname, "r") as g:
                 results = g.read()
 
         assert res.is_successful()
@@ -414,8 +414,8 @@ class TestHeartBeats:
 
     @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
     def test_task_runner_has_a_heartbeat_with_timeouts(self, executor, monkeypatch):
-        with tempfile.NamedTemporaryFile() as call_file:
-            fname = call_file.name
+        with tempfile.TemporaryDirectory() as call_dir:
+            fname = os.path.join(call_dir, "heartbeat.txt")
 
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
@@ -440,7 +440,7 @@ class TestHeartBeats:
                 fut = executor.submit(multiprocessing_helper, executor=executor)
                 res = executor.wait(fut)
 
-            with open(call_file.name, "r") as g:
+            with open(fname, "r") as g:
                 results = g.read()
 
         assert isinstance(res, TimedOut)
@@ -452,8 +452,8 @@ class TestHeartBeats:
     def test_task_runner_has_a_heartbeat_only_during_execution(
         self, executor, monkeypatch
     ):
-        with tempfile.NamedTemporaryFile() as call_file:
-            fname = call_file.name
+        with tempfile.TemporaryDirectory() as call_dir:
+            fname = os.path.join(call_dir, "heartbeat.txt")
 
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
@@ -475,7 +475,7 @@ class TestHeartBeats:
                 fut = executor.submit(multiprocessing_helper, executor=executor)
                 res = executor.wait(fut)
 
-            with open(call_file.name, "r") as g:
+            with open(fname, "r") as g:
                 results = g.read()
 
         assert len(results.split()) == 1
