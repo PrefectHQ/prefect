@@ -358,8 +358,8 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
-                # RUN pip install prefect
+                # update version if base image already has prefect installed
+                RUN pip install -U git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
 
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
