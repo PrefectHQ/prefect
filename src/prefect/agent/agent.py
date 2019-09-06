@@ -8,6 +8,7 @@ from prefect import config
 from prefect.client import Client
 from prefect.serialization import state
 from prefect.engine.state import Submitted
+from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import with_args
 
 
@@ -36,7 +37,11 @@ class Agent:
     """
 
     def __init__(self) -> None:
-        self.client = Client(api_token=config.cloud.agent.get("auth_token"))
+
+        token = config.cloud.agent.get("auth_token")
+
+        self.client = Client(api_token=token)
+        self._verify_token(token)
 
         logger = logging.getLogger("agent")
         logger.setLevel(logging.DEBUG)
@@ -49,6 +54,27 @@ class Agent:
         logger.addHandler(ch)
 
         self.logger = logger
+
+    def _verify_token(self, token: str) -> None:
+        """
+        Checks whether a token with a `RUNNER` scope was provided
+
+        Args:
+            - token (str): The provided agent token to verify
+
+        Raises:
+            - AuthorizationError: if token is empty or does not have a RUNNER role
+        """
+        if not token:
+            raise AuthorizationError("No agent API token provided.")
+
+        # Check if RUNNER role
+        result = self.client.graphql(query="query { authInfo { apiTokenScope } }")
+        if (
+            not result.data  # type: ignore
+            or result.data.authInfo.apiTokenScope != "RUNNER"  # type: ignore
+        ):
+            raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
     def start(self) -> None:
         """
