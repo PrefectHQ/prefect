@@ -35,7 +35,7 @@ def test_shell_raises_if_no_command_provided():
             out = f.run()
 
 
-@pytest.mark.skipif(shutil.which("zsh"), reason="zsh not installed.")
+@pytest.mark.skipif(bool(shutil.which("zsh")), reason="zsh not installed.")
 def test_shell_runs_other_shells():
     with Flow(name="test") as f:
         task = ShellTask(shell="zsh")(command="echo -n $ZSH_NAME")
