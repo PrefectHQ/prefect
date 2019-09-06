@@ -57,7 +57,7 @@ class Agent:
 
     def _verify_token(self, token: str) -> None:
         """
-        Check whether a token if provided or in a RUNNER scope
+        Checks whether a token with a `RUNNER` scope was provided
 
         Args:
             - token (str): The provided agent token to verify
