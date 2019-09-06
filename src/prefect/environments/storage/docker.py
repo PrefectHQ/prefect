@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List
 
 import cloudpickle
 import docker
+from pathlib import PurePosixPath
 from slugify import slugify
 
 import prefect
@@ -165,7 +166,7 @@ class Docker(Storage):
             raise ValueError("Docker storage is missing required fields")
 
         return "{}:{}".format(
-            os.path.join(self.registry_url, self.image_name),  # type: ignore
+            PurePosixPath(self.registry_url, self.image_name),  # type: ignore
             self.image_tag,  # type: ignore
         )
 
@@ -232,7 +233,7 @@ class Docker(Storage):
 
             # Verify that a registry url has been provided for images that should be pushed
             if self.registry_url:
-                full_name = os.path.join(self.registry_url, self.image_name)
+                full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
                 raise ValueError(
                     "This environment has no `registry_url`, and cannot be pushed."

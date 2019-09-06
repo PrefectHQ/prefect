@@ -65,6 +65,7 @@ class LocalAgent(Agent):
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
             if not self.no_pull:
+                self.logger.debug("Pulling image {}...".format(storage.name))
                 try:
                     self.docker_client.pull(storage.name)
                 except docker.errors.APIError:
