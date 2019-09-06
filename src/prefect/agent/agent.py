@@ -74,7 +74,7 @@ class Agent:
             not result.data  # type: ignore
             or result.data.authInfo.apiTokenScope != "RUNNER"  # type: ignore
         ):
-            raise AuthorizationError("Provided token does not have the RUNNER role.")
+            raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
     def start(self) -> None:
         """
