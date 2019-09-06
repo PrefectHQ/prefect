@@ -81,7 +81,7 @@ def executor(request, _switch):
     return _switch(request.param)
 
 
-@pytest.fixture
+@pytest.fixture()
 def patch_post(monkeypatch):
     """
     Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified response.
@@ -99,3 +99,8 @@ def patch_post(monkeypatch):
         return post
 
     return patch
+
+
+@pytest.fixture()
+def runner_token(monkeypatch):
+    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())

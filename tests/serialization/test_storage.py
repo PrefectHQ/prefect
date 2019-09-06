@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 import pytest
@@ -108,7 +109,7 @@ def test_local_empty_serialize():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["flows"] == dict()
-    assert serialized["directory"].endswith(".prefect/flows")
+    assert serialized["directory"].endswith(os.path.join(".prefect", "flows"))
 
 
 def test_local_roundtrip():
