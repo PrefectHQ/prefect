@@ -8,13 +8,12 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_nomad_agent_init():
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
-        agent = NomadAgent()
-        assert agent
+def test_nomad_agent_init(runner_token):
+    agent = NomadAgent()
+    assert agent
 
 
-def test_nomad_agent_config_options():
+def test_nomad_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = NomadAgent()
         assert agent
@@ -22,59 +21,53 @@ def test_nomad_agent_config_options():
         assert agent.logger
 
 
-def test_nomad_agent_deploy_flows(monkeypatch):
+def test_nomad_agent_deploy_flows(monkeypatch, runner_token):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
-        agent = NomadAgent()
-        agent.deploy_flows(
-            flow_runs=[
-                GraphQLResult(
-                    {
-                        "flow": GraphQLResult(
-                            {
-                                "storage": Docker(
-                                    registry_url="test",
-                                    image_name="name",
-                                    image_tag="tag",
-                                ).serialize(),
-                                "id": "id",
-                            }
-                        ),
-                        "id": "id",
-                    }
-                )
-            ]
-        )
+    agent = NomadAgent()
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Docker(
+                                registry_url="test", image_name="name", image_tag="tag"
+                            ).serialize(),
+                            "id": "id",
+                        }
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
 
     assert requests.post.called
     assert requests.post.call_args[1]["json"]
 
 
-def test_nomad_agent_deploy_flows_continues(monkeypatch):
+def test_nomad_agent_deploy_flows_continues(monkeypatch, runner_token):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
-        agent = NomadAgent()
-        agent.deploy_flows(
-            flow_runs=[
-                GraphQLResult(
-                    {
-                        "flow": GraphQLResult(
-                            {"storage": Local().serialize(), "id": "id"}
-                        ),
-                        "id": "id",
-                    }
-                )
-            ]
-        )
+    agent = NomadAgent()
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult({"storage": Local().serialize(), "id": "id"}),
+                    "id": "id",
+                }
+            )
+        ]
+    )
 
     assert not requests.post.called
 
 
-def test_nomad_agent_replace_yaml():
+def test_nomad_agent_replace_yaml(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {
