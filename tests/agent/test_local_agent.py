@@ -20,6 +20,7 @@ def test_local_agent_init(monkeypatch):
 def test_local_agent_config_options(monkeypatch):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
+    monkeypatch.setattr("prefect.agent.local.agent.platform", "osx")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent()
@@ -27,6 +28,19 @@ def test_local_agent_config_options(monkeypatch):
         assert agent.logger
         assert not agent.no_pull
         assert api.call_args[1]["base_url"] == "unix://var/run/docker.sock"
+
+
+def test_local_agent_daemon_url_responds_to_system(monkeypatch):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
+    monkeypatch.setattr("prefect.agent.local.agent.platform", "win32")
+
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = LocalAgent()
+        assert agent.client.get_auth_token() == "TEST_TOKEN"
+        assert agent.logger
+        assert not agent.no_pull
+        assert api.call_args[1]["base_url"] == "npipe:////./pipe/docker_engine"
 
 
 def test_local_agent_config_options_populated(monkeypatch):
