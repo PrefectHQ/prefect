@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add OS platform check to Local Agent for running on Windows machines - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
 - Add `--base-url` argument for Docker daemons to `agent start` CLI command - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
+- Add environment labels for organizing / tagging different Flow execution environments - [#1438](https://github.com/PrefectHQ/prefect/issues/1438)
 
 ### Task Library
 

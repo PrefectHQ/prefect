@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 import cloudpickle
 
@@ -31,12 +31,19 @@ class RemoteEnvironment(Environment):
             to `prefect.config.engine.executor.default_class`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self, executor: str = None, executor_kwargs: dict = None) -> None:
+    def __init__(
+        self,
+        executor: str = None,
+        executor_kwargs: dict = None,
+        labels: List[str] = None,
+    ) -> None:
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
-        self.logger = logging.get_logger("RemoteEnvironment")
+        super().__init__(labels=labels)
 
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any

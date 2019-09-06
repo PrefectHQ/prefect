@@ -62,6 +62,16 @@ f = Flow("example-env")
 f.environment = RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor")
 ```
 
+::: warning Remote Environment Configuration
+Some remote environments will require configuration to be able to communicate successfully to Prefect's Cloud API. For example, when using a Remote Environment with the `DaskExecutor` (executor="`prefect.engine.executors.DaskExecutor`") you will need to manually configure your Dask workers with relevant environment variables:
+- `PREFECT__CLOUD__AUTH_TOKEN` is required for Prefect to be able to update task state by calling the Prefect Cloud API. You can specify the same token value that you used with the Prefect Kubernetes Agent or another valid auth token.
+- `PREFECT__CLOUD__API` should be set to https://api.prefect.io for use with Prefect Cloud
+- `PREFECT__LOGGING__LOG_TO_CLOUD` can optionally be set to "true" to enable sending task logs to Prefect Cloud
+- `PREFECT__LOGGING__LEVEL` can optionally be set to "DEBUG", "INFO", etc. to control the logging level
+
+See [here](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_spec.yaml) for example configuration of environment variable used by the Prefect Kubernetes Agent to launch a job to run flows. (You won't need all of these environment variables, but you can see how they are specified in a Kubernetes YAML file.)
+:::
+
 ### Storage
 
 The [Prefect Storage interface](https://docs.prefect.io/api/unreleased/environments/storage.html#docker) provides a way to specify (via metadata) _where_ your Flow code is actually stored.  Currently the only supported Storage class in Prefect Cloud is [Docker storage](https://docs.prefect.io/api/unreleased/environments/storage.html#docker).  The only _required_ piece of information to include when creating your Docker storage class is the `registry_url` of the Docker registry where your image will live.  All other keyword arguments are optional and "smart" defaults will be inferred. 
