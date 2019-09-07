@@ -302,6 +302,8 @@ def test_merge_nested_dicts_with_empty_section(dct_class):
 def test_as_nested_dict_works_when_critical_keys_shadowed():
     x = dict(update=1, items=2)
     y = as_nested_dict(x, DotDict)
+    assert y.update == 1
+    assert y.items == 2
 
 
 def test_protect_critical_keys_inactive_for_nested_query():
