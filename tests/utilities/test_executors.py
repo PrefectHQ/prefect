@@ -1,4 +1,5 @@
 import multiprocessing
+import sys
 import threading
 import time
 from datetime import timedelta
@@ -62,6 +63,7 @@ def test_timeout_handler_reraises():
         timeout_handler(do_something, timeout=1)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
 def test_timeout_handler_allows_function_to_spawn_new_process():
     def my_process():
         p = multiprocessing.Process(target=lambda: 5)
@@ -72,6 +74,7 @@ def test_timeout_handler_allows_function_to_spawn_new_process():
     assert timeout_handler(my_process, timeout=1) is None
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
 def test_timeout_handler_allows_function_to_spawn_new_thread():
     def my_thread():
         t = threading.Thread(target=lambda: 5)
