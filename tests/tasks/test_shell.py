@@ -11,7 +11,7 @@ from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
 
-pytest.mark.skipif(sys.platform == "win32")
+pytestmark = pytest.mark.skipif(sys.platform == "win32")
 
 
 def test_shell_initializes_and_runs_basic_cmd():
