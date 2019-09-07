@@ -47,12 +47,12 @@ module.exports = {
     logo: "/assets/logomark-color.svg",
     nav: [
       {
-        text: "Cloud",
-        link: "/cloud/first-steps"
+        text: "Prefect Core",
+        link: "/core/"
       },
       {
-        text: "Core",
-        link: "/guide/"
+        text: "Prefect Cloud",
+        link: "/cloud/first-steps"
       },
       {
         text: "API Reference",
@@ -136,8 +136,8 @@ module.exports = {
           ]
         },
       ],
-      "/guide/": [
-        "/guide/",
+      "/core/": [
+        "/core/",
         {
           title: "Welcome",
           collapsable: false,
@@ -161,12 +161,12 @@ module.exports = {
         {
           title: "Tutorials",
           collapsable: true,
-          children: getChildren("docs/guide", "tutorials")
+          children: getChildren("docs/core", "tutorials")
         },
         {
           title: "Task Library",
           collapsable: true,
-          children: getChildren("docs/guide", "task_library")
+          children: getChildren("docs/core", "task_library")
         },
         {
           title: "Core Concepts",
@@ -190,12 +190,12 @@ module.exports = {
         {
           title: "Examples",
           collapsable: true,
-          children: getChildren("docs/guide", "examples")
+          children: getChildren("docs/core", "examples")
         },
         {
           title: "PINs",
           collapsable: true,
-          children: getChildren("docs/guide", "PINs")
+          children: getChildren("docs/core", "PINs")
         },
         {
           title: "Development",

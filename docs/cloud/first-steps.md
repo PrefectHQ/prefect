@@ -12,7 +12,7 @@ Before you can deploy Prefect flows from Prefect Cloud you must stand up a Prefe
 
 ## Create a Project
 
-Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](https://docs.prefect.io/guide/cloud_concepts/cli.html#auth) to persist your token locally.
+Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](https://docs.prefect.io/core/cloud_concepts/cli.html#auth) to persist your token locally.
 
 Prior to deploying your first Flow you should create a Project in Prefect Cloud.  Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
 
@@ -46,7 +46,7 @@ Now that you have Docker running and have your Prefect Cloud auth token ready, t
 
 ### Execution Environments
 
-[Prefect execution environments](https://docs.prefect.io/api/unreleased/environments/execution.html) specify execution information about _how your Flow should be run_.  For example, what executor should be used and are there any auxiliary infrastructure requirements for your Flow's execution?  At this exact moment, the only supported execution environment is the [Remote Environment](https://docs.prefect.io/api/unreleased/environments/execution.html#remoteenvironment) which allows you to specify which Prefect Executor to use, but this will soon expand into a richer library.  
+[Prefect execution environments](https://docs.prefect.io/api/unreleased/environments/execution.html) specify execution information about _how your Flow should be run_.  For example, what executor should be used and are there any auxiliary infrastructure requirements for your Flow's execution?  At this exact moment, the only supported execution environment is the [Remote Environment](https://docs.prefect.io/api/unreleased/environments/execution.html#remoteenvironment) which allows you to specify which Prefect Executor to use, but this will soon expand into a richer library.
 
 By default, Prefect will attach a `RemoteEnvironment` with your local default executor to every Flow you create.  To specify a different environment, simply provide it to your Flow at initialization:
 ```python
@@ -74,7 +74,7 @@ See [here](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/ku
 
 ### Storage
 
-The [Prefect Storage interface](https://docs.prefect.io/api/unreleased/environments/storage.html#docker) provides a way to specify (via metadata) _where_ your Flow code is actually stored.  Currently the only supported Storage class in Prefect Cloud is [Docker storage](https://docs.prefect.io/api/unreleased/environments/storage.html#docker).  The only _required_ piece of information to include when creating your Docker storage class is the `registry_url` of the Docker registry where your image will live.  All other keyword arguments are optional and "smart" defaults will be inferred. 
+The [Prefect Storage interface](https://docs.prefect.io/api/unreleased/environments/storage.html#docker) provides a way to specify (via metadata) _where_ your Flow code is actually stored.  Currently the only supported Storage class in Prefect Cloud is [Docker storage](https://docs.prefect.io/api/unreleased/environments/storage.html#docker).  The only _required_ piece of information to include when creating your Docker storage class is the `registry_url` of the Docker registry where your image will live.  All other keyword arguments are optional and "smart" defaults will be inferred.
 
 Similar to environments above, simply provide your storage at initiliazation:
 ```python
@@ -107,7 +107,7 @@ A common issue when first onboarding to Cloud is understanding how Flow serializ
 - ensuring all Python package dependences are provided (this is usually fixed via a judicious choice of `base_image` or the `python_dependencies` kwarg)
 - ensuring all utility functions / scripts are importable at runtime via the same Python path (this usually requires understanding [`cloudpickle`](https://github.com/cloudpipe/cloudpickle) a little deeper)
 
-A tutorial on how to debug such issues can be found [here](https://docs.prefect.io/guide/tutorials/local-debugging.html#locally-check-your-flow-s-docker-storage).
+A tutorial on how to debug such issues can be found [here](https://docs.prefect.io/core/tutorials/local-debugging.html#locally-check-your-flow-s-docker-storage).
 :::
 
 ### `flow.deploy`
