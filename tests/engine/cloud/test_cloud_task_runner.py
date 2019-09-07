@@ -410,7 +410,7 @@ class TestHeartBeats:
                 results = g.read()
 
         assert res.is_successful()
-        assert len(results.split()) >= 60
+        assert len(results.split()) >= 50
 
     @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
     def test_task_runner_has_a_heartbeat_with_timeouts(self, executor, monkeypatch):
