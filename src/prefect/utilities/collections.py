@@ -55,7 +55,7 @@ class DotDict(MutableMapping):
     """
 
     def __init__(self, init_dict: DictLike = None, **kwargs: Any):
-        # a DotDict could a key that shadows `update`
+        # a DotDict could have a key that shadows `update`
         if init_dict:
             super().update(init_dict)
         super().update(kwargs)
