@@ -12,7 +12,7 @@ from prefect.utilities.debug import raise_on_exception
 
 
 pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="ShellTask current not supported on Windows"
+    sys.platform == "win32", reason="ShellTask currently not supported on Windows"
 )
 
 
