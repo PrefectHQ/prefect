@@ -20,13 +20,12 @@ def lowercase_first_letter(s: str) -> str:
 
 
 class GraphQLResult(DotDict):
-    __protect_critical_keys__ = False
-
     def __repr__(self) -> str:
+        self_as_dict = as_nested_dict(self, dct_class=dict)
         try:
-            return json.dumps(as_nested_dict(self, dict), indent=4)
+            return json.dumps(self_as_dict, indent=4)
         except TypeError:
-            return repr(self.to_dict())
+            return repr(self_as_dict)
 
 
 class EnumValue:
@@ -282,7 +281,7 @@ def with_args(field: Any, arguments: Any) -> str:
 def compress(input: Any) -> str:
     """
     Convenience function for compressing something before sending
-    it to Cloud. Converts to string, encodes, compresses, 
+    it to Cloud. Converts to string, encodes, compresses,
     encodes again using b64, and decodes.
 
     Args:
@@ -297,7 +296,7 @@ def compress(input: Any) -> str:
 def decompress(string: str) -> Any:
     """
     Convenience function for decompressing a string that's been
-    compressed. Base64 decodes the string, decodes it, 
+    compressed. Base64 decodes the string, decodes it,
     decompresses it, and loads.
 
     Args:
