@@ -15,6 +15,7 @@ To access a Prefect-configured logger, use `prefect.utilities.logging.get_logger
 ## Logging from Tasks
 
 ### Task Classes
+
 To log from a task class, simply use `self.logger`:
 
 ```python
@@ -25,14 +26,28 @@ class MyTask(prefect.Task):
 ```
 
 ### Task Decorators
-To log from a task generated with an @task decorator, create a logger using Prefect's logging utility:
+
+To log from a task generated with an @task decorator, access the `logger` from context while your task is running:
 
 ```python
-logger = prefect.utilities.logging.get_logger("my task")
-
 @task
 def my_task():
+    logger = prefect.context.get("logger")
+
     logger.info("An info message.")
     logger.warning("A warning message.")
 ```
 
+::: tip Make sure to only access context while your task is running
+The Prefect `context` is populated when your task runs. Therefore, you should only access the context logger while your task is running. For example, this WON'T work:
+
+```python
+logger = prefect.context.get("logger")
+
+@task
+def my_task():
+
+    logger.info("An info message.")
+    logger.warning("A warning message.")
+```
+:::
