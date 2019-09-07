@@ -114,17 +114,6 @@ class TestDotDict:
         del d["chris"]
         assert len(d) == 2
 
-    @pytest.mark.parametrize("key", ["keys", "update", "get", "items"])
-    def test_reserved_attrs_raise_error_on_init(self, key):
-        with pytest.raises(ValueError):
-            d = DotDict({key: 5})
-
-    @pytest.mark.parametrize("key", ["keys", "update", "get", "items"])
-    def test_reserved_attrs_raise_error_on_set(self, key):
-        with pytest.raises(ValueError):
-            d = DotDict(data=5)
-            d.__setattr__(key, "value")
-
     def test_attr_updates_and_key_updates_agree(self):
         d = DotDict(data=5)
         d.data += 1
@@ -177,6 +166,10 @@ class TestDotDict:
         d[1] = 1
         d["b"] = 1
         assert repr(d) == "<DotDict: 'a', 'b', 1>"
+
+    def test_copy(self):
+        d = DotDict(a=1, b=2, c=3)
+        assert d == d.copy()
 
     def test_eq_empty(self):
         assert DotDict() == DotDict()
@@ -306,31 +299,9 @@ def test_merge_nested_dicts_with_empty_section(dct_class):
     assert merge_dicts(b, a) == a
 
 
-def test_protect_critical_default_true():
-    x = DotDict()
-    assert x.__protect_critical_keys__
-
-
-def test_protect_critical_keys_active():
-    x = DotDict()
-    with pytest.raises(ValueError):
-        x.update = 1
-
-
-def test_protect_critical_default_false_for_graphql_result():
-    x = GraphQLResult()
-    assert not x.__protect_critical_keys__
-
-
-def test_protect_critical_keys_inactive_for_graphql_result():
-    x = GraphQLResult()
-    x.update = 1
-    assert x.update == 1
-
-
-def test_protect_critical_keys_inactive_for_graphql_result_init():
-    x = GraphQLResult(update=1)
-    assert x.update == 1
+def test_as_nested_dict_works_when_critical_keys_shadowed():
+    x = dict(update=1, items=2)
+    y = as_nested_dict(x, DotDict)
 
 
 def test_protect_critical_keys_inactive_for_nested_query():
