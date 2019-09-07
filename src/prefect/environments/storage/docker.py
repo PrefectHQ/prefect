@@ -56,7 +56,7 @@ class Docker(Storage):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
-        base_url: str = "unix://var/run/docker.sock",
+        base_url: str = None,
         prefect_version: str = None,
         local_image: bool = False,
     ) -> None:
@@ -70,6 +70,11 @@ class Docker(Storage):
         else:
             self.base_image = base_image
 
+        if sys.platform == "win32":
+            default_url = "npipe:////./pipe/docker_engine"
+        else:
+            default_url = "unix://var/run/docker.sock"
+
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -77,7 +82,7 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = base_url
+        self.base_url = base_url or default_url
         self.local_image = local_image
 
         version = prefect.__version__.split("+")
