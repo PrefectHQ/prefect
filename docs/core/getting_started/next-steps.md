@@ -8,7 +8,7 @@ So far, we've dealt exclusively with tasks that obey "normal" data pipeline rule
 
 It is frequently desirable to build flows in which tasks respond to each other in more complicated ways. A simple example is a "clean up task" that must run, even (or only!) if a prior task failed. Suppose our first task creates a Spark cluster, the second task submits a job to that cluster, and a third task tears down the cluster. In a "normal" pipeline world, if the second task fails the third task won't run -- and that could result in our Spark cluster running forever!
 
-Prefect introduces a concept called [`triggers`](../core_concepts/execution.html#triggers) to solve this situation. Before a task runs, its trigger function is called on a set of upstream task states. If the trigger function doesn't pass, the task won't run. Prefect has a variety of built-in triggers, including `all_successful` (the default), `all_failed`, `any_successful`, `any_failed`, and even a particularly interesting one called `manual_only`.
+Prefect introduces a concept called [`triggers`](../concepts/execution.html#triggers) to solve this situation. Before a task runs, its trigger function is called on a set of upstream task states. If the trigger function doesn't pass, the task won't run. Prefect has a variety of built-in triggers, including `all_successful` (the default), `all_failed`, `any_successful`, `any_failed`, and even a particularly interesting one called `manual_only`.
 
 Let's set up our Spark cluster flow, using obvious pseudocode where appropriate:
 
@@ -74,7 +74,7 @@ Now the flow's state will be determined by what happens to this job. If it fails
 
 ## Signals
 
-Prefect's [State](../core_concepts/states.html) system allows users to set up advanced behaviors through triggers and reference tasks. Each task enters a final state based on what happens in its `run()` function: if the function finishes normally, the task enters a `Success` state; and if the function encounters an error, the task enters a `Failed` state. However, Prefect also gives users fine-grained control over a task's state via a mechanism called "signals."
+Prefect's [State](../concepts/states.html) system allows users to set up advanced behaviors through triggers and reference tasks. Each task enters a final state based on what happens in its `run()` function: if the function finishes normally, the task enters a `Success` state; and if the function encounters an error, the task enters a `Failed` state. However, Prefect also gives users fine-grained control over a task's state via a mechanism called "signals."
 
 Signals are ways of telling the Prefect engine that a task should be moved immediately into a specific state.
 

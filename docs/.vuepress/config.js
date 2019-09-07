@@ -123,12 +123,12 @@ module.exports = {
         },
         {
           title: "Cloud Concepts",
-          collapsable: false,
-          children: getChildren('docs/cloud', 'cloud_concepts')
+          collapsable: true,
+          children: getChildren('docs/cloud', 'concepts')
         },
         {
           title: 'Agent',
-          collapsable: false,
+          collapsable: true,
           children: [
             'agent/overview',
             'agent/local',
@@ -172,19 +172,19 @@ module.exports = {
           title: "Core Concepts",
           collapsable: true,
           children: [
-            "core_concepts/tasks",
-            "core_concepts/flows",
-            "core_concepts/parameters",
-            "core_concepts/states",
-            "core_concepts/mapping",
-            "core_concepts/engine",
-            "core_concepts/execution",
-            "core_concepts/notifications",
-            "core_concepts/results",
-            "core_concepts/schedules",
-            "core_concepts/configuration",
-            "core_concepts/best-practices",
-            "core_concepts/common-pitfalls"
+            "concepts/tasks",
+            "concepts/flows",
+            "concepts/parameters",
+            "concepts/states",
+            "concepts/mapping",
+            "concepts/engine",
+            "concepts/execution",
+            "concepts/notifications",
+            "concepts/results",
+            "concepts/schedules",
+            "concepts/configuration",
+            "concepts/best-practices",
+            "concepts/common-pitfalls"
           ]
         },
         {

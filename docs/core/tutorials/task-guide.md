@@ -99,7 +99,7 @@ def log_hello():
     logger = prefect.context["logger"]
     logger.info("Hello!")
 ```
-Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/core/core_concepts/execution.html#context).  Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
+Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/core/concepts/execution.html#context).  Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
 
 ## Running Tasks
 
@@ -168,7 +168,7 @@ If you are interested in pursuing this further, the following API reference docu
 - [Edges](https://docs.prefect.io/api/unreleased/core/edge.html)
 - [TaskRunner](https://docs.prefect.io/api/unreleased/engine/task_runner.html#taskrunner-2)
 - [States](https://docs.prefect.io/api/unreleased/engine/state.html#state-2)
-- [Triggers](https://docs.prefect.io/core/core_concepts/execution.html#triggers)
+- [Triggers](https://docs.prefect.io/core/concepts/execution.html#triggers)
 
 ::: tip Flows have runners, too
 In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, which is the object responsible for making a _single_ pass through your Flow and its task states.  The keyword arguments on the `run` method of both Task and Flow runners are useful to explore when testing your Flows.
@@ -365,7 +365,7 @@ with Flow("functional-example") as flow:
 
 ## Mapping
 
-[Mapping](https://docs.prefect.io/core/core_concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output.  When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
+[Mapping](https://docs.prefect.io/core/concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output.  When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
 
 If a "normal" (non-mapped) task depends on a mapped task, Prefect automatically applies a reduce operation to gather the mapped results and pass them to the downstream task.
 

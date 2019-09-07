@@ -12,7 +12,7 @@ Before you can deploy Prefect flows from Prefect Cloud you must stand up a Prefe
 
 ## Create a Project
 
-Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](https://docs.prefect.io/core/cloud_concepts/cli.html#auth) to persist your token locally.
+Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API.  To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu.  Either follow the instructions from the UI, or use [Prefect's CLI](https://docs.prefect.io/core/concepts/cli.html#auth) to persist your token locally.
 
 Prior to deploying your first Flow you should create a Project in Prefect Cloud.  Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
 
