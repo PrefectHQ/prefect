@@ -4,6 +4,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from urllib.parse import urljoin
 
 import pendulum
 import requests
@@ -249,7 +250,7 @@ class Client:
         if token is None:
             token = self.get_auth_token()
 
-        url = os.path.join(server, path.lstrip("/")).rstrip("/")
+        url = urljoin(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 

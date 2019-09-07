@@ -1,4 +1,5 @@
 import datetime
+import os
 import logging
 import random
 import sys
@@ -995,8 +996,9 @@ class TestFlowVisualize:
         f = Flow(name="test")
         f.add_task(Task(name="a_nice_task"))
 
-        with tempfile.NamedTemporaryFile() as tmp:
-            graph = f.visualize(filename=tmp.name)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
+                graph = f.visualize(filename=tmp.name)
             with open(tmp.name, "r") as f:
                 contents = f.read()
 

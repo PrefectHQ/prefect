@@ -111,5 +111,14 @@ Notice that we didn't specify an executor in our call to `flow.run()`. This is b
 
 This flow will now run every minute on your local Dask cluster until you kill this process.
 
+::: warning Prefect Cloud Configuration
+Your Dask cluster will require configuration to be able to communicate successfully to Prefect's Cloud API. For example, when using a Remote Environment with the `DaskExecutor`, you will need to manually configure your Dask workers with relevant environment variables:
+- `PREFECT__CLOUD__AUTH_TOKEN` is required for Prefect to be able to update task state by calling the Prefect Cloud API. You can specify the same token value that you used with the Prefect Kubernetes Agent or another valid auth token.
+- `PREFECT__LOGGING__LOG_TO_CLOUD` can optionally be set to "true" to enable sending task logs to Prefect Cloud
+- `PREFECT__LOGGING__LEVEL` can optionally be set to "DEBUG", "INFO", etc. to control the logging level
+
+See [here](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_spec.yaml) for example configuration of environment variable used by the Prefect Kubernetes Agent to launch a job to run flows. (You won't need all of these environment variables, but you can see how they are specified in a Kubernetes YAML file.)
+:::
+
 ## Further steps
 Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project! Details are left as an exercise to the reader. ;)
