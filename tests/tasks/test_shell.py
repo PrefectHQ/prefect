@@ -11,7 +11,9 @@ from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32")
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="ShellTask current not supported on Windows"
+)
 
 
 def test_shell_initializes_and_runs_basic_cmd():
