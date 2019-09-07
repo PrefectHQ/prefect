@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import tempfile
 import textwrap
 from datetime import timedelta
@@ -134,11 +135,17 @@ def test_raise_on_exception_plays_well_with_context():
         pass
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="is_serializable is not supported on Windows"
+)
 @pytest.mark.parametrize("obj", [5, "string", lambda x, y, z: None, bool])
 def test_is_serializable_returns_true_for_basic_objects(obj):
     assert is_serializable(obj) is True
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="is_serializable is not supported on Windows"
+)
 def test_is_serializable_returns_false_for_curried_functions_defined_in_main():
     script = textwrap.dedent(
         """
@@ -156,6 +163,9 @@ def test_is_serializable_returns_false_for_curried_functions_defined_in_main():
     assert_script_runs(script)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="is_serializable is not supported on Windows"
+)
 def test_is_serializable_with_raise_is_informative():
     script = textwrap.dedent(
         """
@@ -175,3 +185,9 @@ def test_is_serializable_with_raise_is_informative():
         """
     )
     assert_script_runs(script)
+
+
+def test_is_serializable_raises_on_windows(monkeypatch):
+    monkeypatch.setattr("prefect.utilities.debug.sys.platform", "win32")
+    with pytest.raises(OSError):
+        is_serializable(5)
