@@ -167,7 +167,6 @@ def as_nested_dict(
                 for k, v in getattr(obj, "__dict__", obj).items()
             }
         )
-        return new_dict
     return obj
 
 
