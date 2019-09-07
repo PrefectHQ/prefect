@@ -54,12 +54,11 @@ class DotDict(MutableMapping):
         ```
     """
 
-    __protect_critical_keys__ = True
-
     def __init__(self, init_dict: DictLike = None, **kwargs: Any):
+        # a DotDict could have a key that shadows `update`
         if init_dict:
-            self.update(init_dict)
-        self.update(kwargs)
+            super().update(init_dict)
+        super().update(kwargs)
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -79,13 +78,6 @@ class DotDict(MutableMapping):
         return self.__dict__[key]  # __dict__ expects string keys
 
     def __setitem__(self, key: str, value: Any) -> None:
-        # prevent overwriting any critical attributes
-        if (
-            self.__protect_critical_keys__
-            and isinstance(key, str)
-            and hasattr(MutableMapping, key)
-        ):
-            raise ValueError('Invalid key: "{}"'.format(key))
         self.__dict__[key] = value
 
     def __setattr__(self, attr: str, value: Any) -> None:
@@ -167,11 +159,14 @@ def as_nested_dict(
     if isinstance(obj, (list, tuple, set)):
         return type(obj)([as_nested_dict(d, dct_class) for d in obj])
     elif isinstance(obj, (dict, DotDict)):
-        # instantiate the dict and call update because if a dotdict contains a key called
-        # `update`, then calling update in __init__ becomes impossible
-        new_dict = dct_class()
-        new_dict.update({k: as_nested_dict(v, dct_class) for k, v in obj.items()})
-        return new_dict
+        # DotDicts could have keys that shadow `update` and `items`, so we
+        # take care to avoid accessing those keys here
+        return dct_class(
+            {
+                k: as_nested_dict(v, dct_class)
+                for k, v in getattr(obj, "__dict__", obj).items()
+            }
+        )
     return obj
 
 
