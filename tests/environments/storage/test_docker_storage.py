@@ -33,7 +33,16 @@ def test_add_flow_to_docker():
     assert storage.flows[f.name] == "/root/.prefect/test.prefect"
 
 
-def test_empty_docker_storage():
+@pytest.mark.parametrize(
+    "platform,url",
+    [
+        ("win32", "npipe:////./pipe/docker_engine"),
+        ("darwn", "unix://var/run/docker.sock"),
+    ],
+)
+def test_empty_docker_storage(monkeypatch, platform, url):
+    monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+
     storage = Docker()
 
     assert not storage.registry_url
@@ -44,7 +53,7 @@ def test_empty_docker_storage():
     assert not storage.env_vars
     assert not storage.files
     assert storage.prefect_version
-    assert storage.base_url == "unix://var/run/docker.sock"
+    assert storage.base_url == url
     assert not storage.local_image
 
 
