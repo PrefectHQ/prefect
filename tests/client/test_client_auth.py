@@ -334,7 +334,9 @@ class TestTenantAuth:
         client = Client()
         assert client._access_token is None
         assert client._refresh_token is None
-        assert client._access_token_expires_at < pendulum.now()
+
+        # add buffer because Windows doesn't compare milliseconds
+        assert client._access_token_expires_at < pendulum.now().add(seconds=1)
         client._refresh_access_token()
         assert client._access_token is "ACCESS_TOKEN"
         assert client._refresh_token is "REFRESH_TOKEN"

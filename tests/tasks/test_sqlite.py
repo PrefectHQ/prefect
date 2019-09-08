@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import tempfile
 from contextlib import closing
@@ -19,12 +20,13 @@ INSERT INTO TEST (NUMBER, DATA) VALUES
 
 @pytest.fixture(scope="module")
 def database():
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        with closing(sqlite3.connect(tmp.name)) as conn:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpname = os.path.join(tmpdir, "test.db")
+        with closing(sqlite3.connect(tmpname)) as conn:
             with closing(conn.cursor()) as c:
                 c.executescript(sql_script)
                 conn.commit()
-        yield tmp.name
+        yield tmpname
 
 
 class TestSQLiteQuery:

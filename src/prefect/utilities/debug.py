@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import tempfile
 import textwrap
 from contextlib import contextmanager
@@ -27,6 +28,8 @@ def is_serializable(obj: Any, raise_on_error: bool = False) -> bool:
     Raises:
         - subprocess.CalledProcessError: if `raise_on_error=True` and the object is not deployable
     """
+    if sys.platform == "win32":
+        raise OSError("is_serializable is not supported on Windows")
 
     template = textwrap.dedent(
         """

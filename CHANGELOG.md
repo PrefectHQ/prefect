@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Improve Windows compatibility for local development and deploying to Prefect Cloud - [#1456](https://github.com/PrefectHQ/prefect/pull/1456), [#1465](https://github.com/PrefectHQ/prefect/pull/1465)
 
 ### Enhancements
 

@@ -206,6 +206,9 @@ class TestDaskExecutor:
         assert x == 3
         assert y == 4
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Nondeterministically fails on Windows machines"
+    )
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
         """This test is designed to have two tasks record and return their multiple execution times;
