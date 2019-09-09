@@ -24,7 +24,6 @@ def check_heartbeat() -> None:
 
     # If file has not been modified in the last 40 seconds then raise an exit code of 1
     if current_timestamp - last_modified_timestamp > 40:
-        self.logger.error("Heartbeat file has not been modified in the last 40s")
         sys.exit(1)
 
 
