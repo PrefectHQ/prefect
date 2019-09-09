@@ -25,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix incorrect import in `DaskKubernetesEnvironment` job template - [#1458](https://github.com/PrefectHQ/prefect/pull/1458)
 - Raise error on Agents started without an appropriate API token - [#1459](https://github.com/PrefectHQ/prefect/pull/1459)
 - Fix bug when calling `as_nested_dict` on `DotDicts` with an `items` key - [#1462](https://github.com/PrefectHQ/prefect/pull/1462)
+- Fix `--resource-manager` flag on agent install invalidating `imagePullSecrets` - [#1469](https://github.com/PrefectHQ/prefect/pull/1469)
 
 ### Deprecations
 
@@ -36,7 +37,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Joe Schmid](https://github.com/joeschmid)
+- [Brett Naul](https://github.com/bnaul)
 
 
 ## 0.6.3 <Badge text="beta" type="success"/>
