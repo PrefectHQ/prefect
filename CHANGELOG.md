@@ -37,7 +37,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Joe Schmid](https://github.com/joeschmid)
+- [Brett Naul](https://github.com/bnaul)
 
 
 ## 0.6.3 <Badge text="beta" type="success"/>
