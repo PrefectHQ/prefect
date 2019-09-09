@@ -27,6 +27,7 @@ or directly in context:
 ```python
 import prefect
 
+prefect.context.setdefault("secrets", {}) # to make sure context has a secrets attribute
 prefect.context.secrets["MY_KEY"] = "MY_VALUE"
 ```
 """
