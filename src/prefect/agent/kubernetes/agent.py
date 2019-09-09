@@ -1,7 +1,9 @@
 import os
 from os import path
+import sys
 import uuid
 
+import pendulum
 import yaml
 
 from prefect import config
@@ -9,6 +11,20 @@ from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
+
+AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
+
+
+def check_heartbeat() -> None:
+    """
+    Check the agent's heartbeat by verifying heartbeat file has been recently modified
+    """
+    current_timestamp = pendulum.now().timestamp()
+    last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
+
+    # If file has not been modified in the last 40 seconds then raise an exit code of 1
+    if current_timestamp - last_modified_timestamp > 40:
+        sys.exit(1)
 
 
 class KubernetesAgent(Agent):
@@ -139,6 +155,16 @@ class KubernetesAgent(Agent):
             del deployment["spec"]["template"]["spec"]["containers"][1]
 
         return yaml.safe_dump(deployment)
+
+    def heartbeat(self) -> None:
+        """
+        Write agent heartbeat by opening and closing a heartbeat file. This allows
+        liveness probes to check the agent's main process activity based on the
+        heartbeat file's last modified time.
+        """
+        os.makedirs(AGENT_DIRECTORY, exist_ok=True)
+
+        open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
 if __name__ == "__main__":
