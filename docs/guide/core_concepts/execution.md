@@ -14,6 +14,46 @@ Tasks will only evaluate their triggers if all upstream tasks are in `Finished` 
 The `manual_only` trigger always puts the task in a `Paused` state, so the flow will never run a `manual_only` task automatically. This allows users to pause a flow mid-run. To resume, put the task in a `Resume` state and set it as one of the run's `start_tasks`. This will treat is as a root task with no upstream tasks, and skip the trigger check entirely.
 :::
 
+For example, suppose we want to construct a flow with one root task; if this task
+succeeds, we want to run task B.  If instead it fails, we want to run task C.  We
+can accomplish this pattern through the use of triggers:
+
+```python
+import random
+
+from prefect.triggers import all_successful, all_failed
+from prefect import task, Flow
+
+
+@task(name="Task A")
+def task_a():
+    if random.random() > 0.5:
+        raise ValueError("Non-deterministic error has occured.")
+
+@task(name="Task B", trigger=all_successful)
+def task_b():
+    # do something interesting
+    pass
+
+@task(name="Task C", trigger=all_failed)
+def task_c():
+    # do something interesting
+    pass
+
+
+with Flow("Trigger example") as flow:
+    success = task_b(upstream_tasks=[task_a])
+    fail = task_c(upstream_tasks=[task_a])
+
+## note that as written, this flow will fail regardless of the path taken
+## because *at least one* terminal task will fail;
+## to fix this, we want to set Task B as the "reference task" for the Flow
+## so that it's state uniquely determines the overall Flow state
+flow.set_reference_tasks([success])
+
+flow.run()
+```
+
 ## State signals
 
 Prefect does its best to infer the state of a running task. If the `run()` method succeeds, Prefect sets the state to `Success` and records any data that was returned. If the `run()` method raises an error, Prefect sets the state to `Failed` with an appropriate message.
