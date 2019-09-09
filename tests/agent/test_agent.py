@@ -166,6 +166,11 @@ def test_deploy_flows_passes_base_agent(runner_token):
     assert not agent.deploy_flows([])
 
 
+def test_heartbeat_passes_base_agent(runner_token):
+    agent = Agent()
+    assert not agent.heartbeat()
+
+
 def test_agent_connect(monkeypatch, runner_token):
     post = MagicMock(
         return_value=MagicMock(
