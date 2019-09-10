@@ -100,7 +100,7 @@ class Context(DotDict, threading.local):
         try:
             new_context = Context(*args, **kwargs)
             if "config" in new_context:
-                new_config = merge_dicts(new_context["config"], self.get("config", {}))
+                new_config = merge_dicts(self.get("config", {}), new_context["config"])
                 new_context["config"] = as_nested_dict(new_config, dct_class=Config)
             self.update(new_context)  # type: ignore
             yield self
