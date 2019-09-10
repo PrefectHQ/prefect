@@ -397,6 +397,7 @@ def load_configuration(
 
     # interpolate after user config has already been merged
     config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
+
     validate_config(config)
     return config
 
