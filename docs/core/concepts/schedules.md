@@ -2,7 +2,7 @@
 
 ## Overview
 
-Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object.
+Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object.
 
 ## Simple Schedules
 
