@@ -4,12 +4,11 @@
 
 Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object.
 
-## Simple Schedules
+## Simple Schedules (schedules)
 
 Simple schedules can be attached to Flows via the `schedule` keyword argument:
 
 ```python
-from prefect import task, Flow
 from prefect import task, Flow
 from datetime import timedelta
 from prefect.schedules import IntervalSchedule
@@ -26,9 +25,9 @@ with Flow("Hello", schedule) as flow:
 flow.run()
 ```
 
-You can see a chron schedule in [this example](https://docs.prefect.io/core/examples/daily_github_stats_to_airtable.html).
+You can see a cron schedule in [this example](https://docs.prefect.io/core/examples/daily_github_stats_to_airtable.html).
 
-## Design
+## Complex Schedules (Schedules)
 
 Prefect `Schedules` have three components:
 
