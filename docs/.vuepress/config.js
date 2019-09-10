@@ -1,18 +1,18 @@
-const sidebar54 = require("../api/0.5.4/sidebar");
-const sidebar60 = require("../api/0.6.0/sidebar");
-const sidebar61 = require("../api/0.6.1/sidebar");
-const sidebar62 = require("../api/0.6.2/sidebar");
-const glob = require("glob");
+const sidebar54 = require('../api/0.5.4/sidebar');
+const sidebar60 = require('../api/0.6.0/sidebar');
+const sidebar61 = require('../api/0.6.1/sidebar');
+const sidebar62 = require('../api/0.6.2/sidebar');
+const glob = require('glob');
 
 // function for loading all MD files in a directory
 const getChildren = function(parent_path, dir) {
   return glob
-    .sync(parent_path + "/" + dir + "/**/*.md")
+    .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
       // remove "parent_path" and ".md"
       path = path.slice(parent_path.length + 1, -3);
       // remove README
-      if (path.endsWith("README")) {
+      if (path.endsWith('README')) {
         path = path.slice(0, -6);
       }
       return path;
