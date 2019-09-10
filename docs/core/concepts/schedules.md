@@ -4,7 +4,7 @@
 
 Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object.
 
-## Simple Schedules (`schedule`)
+## Simple Schedules
 
 Simple schedules can be attached to Flows via the `schedule` keyword argument:
 
@@ -27,7 +27,7 @@ flow.run()
 
 You can see a cron schedule in [this example](https://docs.prefect.io/core/examples/daily_github_stats_to_airtable.html).
 
-## Complex Schedules (`Schedule`)
+## Complex Schedules
 
 Prefect `Schedules` have three components:
 
