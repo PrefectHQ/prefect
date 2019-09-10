@@ -1,7 +1,7 @@
 # Secrets
 
 Secrets represent sensitive key / value pairs that might be required during execution of your Flow. As an example,
-the [ability to receive slack notifications from Prefect](../../guide/tutorials/slack-notifications.html#using-your-url-to-get-notifications) relies on a secret
+the [ability to receive slack notifications from Prefect](../../core/tutorials/slack-notifications.html#using-your-url-to-get-notifications) relies on a secret
 URL. It is easy to imagine other examples of Secrets that might be relevant, such as API credentials.
 
 ## Setting a Secret
@@ -10,7 +10,7 @@ As with everything in Prefect, there are two standard modes of operation: "local
 
 ### Local testing
 
-During local execution, Secrets can easily be set and retrieved from your configuration file. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
+During local execution, Secrets can easily be set in your configuration file, or set directly in `prefect.context`. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
 
 ```
 [cloud]
@@ -26,7 +26,14 @@ Now, to populate your local secrets you can simply add an additional section to 
 KEY = VALUE
 ```
 
-with however many key / value pairs you'd like.
+with however many key / value pairs you'd like.  This will autopopulate `prefect.context.secrets["KEY"]` with your specified value.  Alternatively, you can set the `KEY` / `VALUE` pair directly: 
+
+```python
+import prefect
+
+prefect.context.setdefault("secrets", {}) # to make sure context has a secrets attribute
+prefect.context.secrets["KEY"] = "VALUE"
+```
 
 ::: tip You don't have to store raw values in your config
 Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`.  Note that secrets set this way will always result in lowercase names.

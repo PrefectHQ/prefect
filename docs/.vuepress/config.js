@@ -47,12 +47,12 @@ module.exports = {
     logo: "/assets/logomark-color.svg",
     nav: [
       {
-        text: "Cloud",
-        link: "/cloud/first-steps"
+        text: "Prefect Core",
+        link: "/core/"
       },
       {
-        text: "Core",
-        link: "/guide/"
+        text: "Prefect Cloud",
+        link: "/cloud/first-steps"
       },
       {
         text: "API Reference",
@@ -123,16 +123,21 @@ module.exports = {
         },
         {
           title: "Cloud Concepts",
-          collapsable: false,
-          children: getChildren("docs/cloud", "cloud_concepts")
+          collapsable: true,
+          children: getChildren('docs/cloud', 'concepts')
         },
         {
-          collapsable: false,
-          children: ["agent/overview", "agent/local", "agent/kubernetes"]
-        }
+          title: 'Agent',
+          collapsable: true,
+          children: [
+            'agent/overview',
+            'agent/local',
+            'agent/kubernetes',
+          ]
+        },
       ],
-      "/guide/": [
-        "/guide/",
+      "/core/": [
+        "/core/",
         {
           title: "Welcome",
           collapsable: false,
@@ -156,41 +161,41 @@ module.exports = {
         {
           title: "Tutorials",
           collapsable: true,
-          children: getChildren("docs/guide", "tutorials")
+          children: getChildren("docs/core", "tutorials")
         },
         {
           title: "Task Library",
           collapsable: true,
-          children: getChildren("docs/guide", "task_library")
+          children: getChildren("docs/core", "task_library")
         },
         {
           title: "Core Concepts",
           collapsable: true,
           children: [
-            "core_concepts/tasks",
-            "core_concepts/flows",
-            "core_concepts/parameters",
-            "core_concepts/states",
-            "core_concepts/mapping",
-            "core_concepts/engine",
-            "core_concepts/execution",
-            "core_concepts/notifications",
-            "core_concepts/results",
-            "core_concepts/schedules",
-            "core_concepts/configuration",
-            "core_concepts/best-practices",
-            "core_concepts/common-pitfalls"
+            "concepts/tasks",
+            "concepts/flows",
+            "concepts/parameters",
+            "concepts/states",
+            "concepts/mapping",
+            "concepts/engine",
+            "concepts/execution",
+            "concepts/notifications",
+            "concepts/results",
+            "concepts/schedules",
+            "concepts/configuration",
+            "concepts/best-practices",
+            "concepts/common-pitfalls"
           ]
         },
         {
           title: "Examples",
           collapsable: true,
-          children: getChildren("docs/guide", "examples")
+          children: getChildren("docs/core", "examples")
         },
         {
           title: "PINs",
           collapsable: true,
-          children: getChildren("docs/guide", "PINs")
+          children: getChildren("docs/core", "PINs")
         },
         {
           title: "Development",
