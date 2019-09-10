@@ -397,11 +397,15 @@ def load_configuration(
 
     # interpolate after user config has already been merged
     config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
-    config = process_task_defaults(config)
+
     validate_config(config)
     return config
 
 
+# load prefect configuration
 config = load_configuration(
     path=DEFAULT_CONFIG, user_config_path=USER_CONFIG, env_var_prefix=ENV_VAR_PREFIX
 )
+
+# add task defaults
+config = process_task_defaults(config)
