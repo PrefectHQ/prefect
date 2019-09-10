@@ -1,24 +1,24 @@
-const sidebar54 = require('../api/0.5.4/sidebar')
-const sidebar60 = require('../api/0.6.0/sidebar')
-const sidebar61 = require('../api/0.6.1/sidebar')
-const sidebar62 = require('../api/0.6.2/sidebar')
-const glob = require('glob')
+const sidebar54 = require("../api/0.5.4/sidebar");
+const sidebar60 = require("../api/0.6.0/sidebar");
+const sidebar61 = require("../api/0.6.1/sidebar");
+const sidebar62 = require("../api/0.6.2/sidebar");
+const glob = require("glob");
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
-    .sync(parent_path + '/' + dir + '/**/*.md')
+    .sync(parent_path + "/" + dir + "/**/*.md")
     .map(path => {
       // remove "parent_path" and ".md"
-      path = path.slice(parent_path.length + 1, -3)
+      path = path.slice(parent_path.length + 1, -3);
       // remove README
-      if (path.endsWith('README')) {
-        path = path.slice(0, -6)
+      if (path.endsWith("README")) {
+        path = path.slice(0, -6);
       }
-      return path
+      return path;
     })
-    .sort()
-}
+    .sort();
+};
 
 module.exports = {
   title: "Prefect Docs",
@@ -37,7 +37,7 @@ module.exports = {
         ga: "UA-115585378-1"
       }
     ],
-    ["@dovyp/vuepress-plugin-clipboard-copy", true]
+    ["vuepress-plugin-code-copy", true]
   ],
   themeConfig: {
     repo: "PrefectHQ/prefect",
@@ -124,17 +124,12 @@ module.exports = {
         {
           title: "Cloud Concepts",
           collapsable: false,
-          children: getChildren('docs/cloud', 'cloud_concepts')
+          children: getChildren("docs/cloud", "cloud_concepts")
         },
         {
-          title: 'Agent',
           collapsable: false,
-          children: [
-            'agent/overview',
-            'agent/local',
-            'agent/kubernetes',
-          ]
-        },
+          children: ["agent/overview", "agent/local", "agent/kubernetes"]
+        }
       ],
       "/guide/": [
         "/guide/",
