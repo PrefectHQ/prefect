@@ -131,3 +131,13 @@ def test_context_loads_secrets_from_config(monkeypatch):
     fresh_context = Context()
     assert "secrets" in fresh_context
     assert fresh_context.secrets == secrets_dict
+
+
+def test_context_contextmanager_prioritizes_new_config_keys():
+    with prefect.context({"config": {"logging": {"log_to_cloud": "FOO"}}}):
+        assert prefect.context.config.logging.log_to_cloud == "FOO"
+
+
+def test_context_init_prioritizes_new_config_keys():
+    ctx = Context(config=dict(logging=dict(log_to_cloud="FOO")))
+    assert ctx.config.logging.log_to_cloud == "FOO"
