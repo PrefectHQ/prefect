@@ -39,7 +39,7 @@ Generally speaking, there are two preferred methods for creating your own Prefec
 
 #### Subclassing the `Task` class
 
-Subclassing the `Task` class is the preferred method for creating Tasks when you want a reusable, parametrizable Task interface (for example, when adding a Task to the [Prefect Task Library](https://docs.prefect.io/guide/task_library/)).  All of your runtime logic is implemented inside of the Task's `run` method:
+Subclassing the `Task` class is the preferred method for creating Tasks when you want a reusable, parametrizable Task interface (for example, when adding a Task to the [Prefect Task Library](https://docs.prefect.io/core/task_library/)).  All of your runtime logic is implemented inside of the Task's `run` method:
 
 ```python
 from prefect import Task
@@ -99,7 +99,7 @@ def log_hello():
     logger = prefect.context["logger"]
     logger.info("Hello!")
 ```
-Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/guide/core_concepts/execution.html#context).  Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
+Note that context is only populated _within a Flow run_.  This is important to be aware of when testing your task outside of a Flow run.  For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/unreleased/utilities/context.html).  For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/core/concepts/execution.html#context).  Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
 
 ## Running Tasks
 
@@ -168,14 +168,14 @@ If you are interested in pursuing this further, the following API reference docu
 - [Edges](https://docs.prefect.io/api/unreleased/core/edge.html)
 - [TaskRunner](https://docs.prefect.io/api/unreleased/engine/task_runner.html#taskrunner-2)
 - [States](https://docs.prefect.io/api/unreleased/engine/state.html#state-2)
-- [Triggers](https://docs.prefect.io/guide/core_concepts/execution.html#triggers)
+- [Triggers](https://docs.prefect.io/core/concepts/execution.html#triggers)
 
 ::: tip Flows have runners, too
 In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, which is the object responsible for making a _single_ pass through your Flow and its task states.  The keyword arguments on the `run` method of both Task and Flow runners are useful to explore when testing your Flows.
 :::
 
 ## Task Inputs and Outputs
-In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Sucessful").  In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.  
+In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Sucessful").  In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.
 
 However, there _can_ be restrictions on what tasks can receive as inputs and return as outputs.  In particular, Prefect's most popular executor is the `DaskExecutor`, which allows users to execute tasks on a cluster; because each machine is running a different Python process, Dask must convert Python objects to bytecode that can be shared between different processes. Consequently, the data that is passed around the Prefect platform must be compatible with this serialization protocol.  Specifically, tasks must operate on objects that are serializable by the [`cloudpickle` library](https://github.com/cloudpipe/cloudpickle).
 
@@ -256,11 +256,11 @@ To see some of these subtleties in action, let's work out a more complicated exa
 ```python
 f = Flow("add-example")
 
-f.set_dependencies(add_task, keyword_tasks={"x": 1, "y": 2}) 
+f.set_dependencies(add_task, keyword_tasks={"x": 1, "y": 2})
 print(f.tasks) # {<Task: add_task>, <Task: 2>, <Task: 1>}
 ```
 
-The first thing to observe here is that _three_ tasks were added to our flow!  This is because, in Prefect, _every single piece of data that is passed around_ must be represented as a Prefect Task.  In this case, the constants 1 and 2 were auto-converted to Tasks which simply return these values when run. 
+The first thing to observe here is that _three_ tasks were added to our flow!  This is because, in Prefect, _every single piece of data that is passed around_ must be represented as a Prefect Task.  In this case, the constants 1 and 2 were auto-converted to Tasks which simply return these values when run.
 
 Now, let's switch our attention to the functional API and reproduce the above example exactly:
 ```python
@@ -273,7 +273,7 @@ add_task in f.tasks # False
 result in f.tasks # True
 ```
 
-As before, the constants were auto-converted to Prefect Tasks, and we see that a _copy_ of the `add_task` was created and added to the Flow.  
+As before, the constants were auto-converted to Prefect Tasks, and we see that a _copy_ of the `add_task` was created and added to the Flow.
 
 ::: warning Auto-generation is granular
 Note that Prefect unpacks Python collections at a very granular level; so, for example, adding a dictionary to a Flow will actually create Tasks for all of the dictionary's keys and its values.
@@ -365,7 +365,7 @@ with Flow("functional-example") as flow:
 
 ## Mapping
 
-[Mapping](https://docs.prefect.io/guide/core_concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output.  When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
+[Mapping](https://docs.prefect.io/core/concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output.  When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
 
 If a "normal" (non-mapped) task depends on a mapped task, Prefect automatically applies a reduce operation to gather the mapped results and pass them to the downstream task.
 
