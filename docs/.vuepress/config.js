@@ -5,7 +5,7 @@ const sidebar62 = require('../api/0.6.2/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -18,7 +18,7 @@ const getChildren = function (parent_path, dir) {
       return path
     })
     .sort()
-}
+};
 
 module.exports = {
   title: "Prefect Docs",
@@ -37,7 +37,7 @@ module.exports = {
         ga: "UA-115585378-1"
       }
     ],
-    ["@dovyp/vuepress-plugin-clipboard-copy", true]
+    ["vuepress-plugin-code-copy", true]
   ],
   themeConfig: {
     repo: "PrefectHQ/prefect",
