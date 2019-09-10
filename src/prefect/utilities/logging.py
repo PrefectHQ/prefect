@@ -32,7 +32,7 @@ class CloudHandler(logging.StreamHandler):
 
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
-        if not context.config.logging.log_to_cloud:
+        if not prefect.context.config.logging.log_to_cloud:
             return
 
         try:
