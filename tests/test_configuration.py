@@ -142,7 +142,7 @@ def test_keys(config):
 def test_repr(config):
     assert (
         repr(config)
-        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets', 'tasks'>"
+        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
     )
     assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
 
@@ -277,6 +277,10 @@ class TestUserConfig:
 
 
 class TestProcessTaskDefaults:
+    def test_process_task_defaults_called_on_prefect_config(self):
+        "If task defaults was called, the max_retry default should be 0 instead of False"
+        assert prefect.config.tasks.defaults.max_retries == 0
+
     def test_max_retries_is_0_if_not_set(self):
         config = configuration.process_task_defaults(Config())
         assert config.tasks.defaults.max_retries == 0
