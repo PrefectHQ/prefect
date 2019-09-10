@@ -11,7 +11,7 @@ class SlackTask(Task):
     """
     Task for sending a message via Slack.  For this task to function properly,
     you must have a Prefect Secret set which stores your Slack webhook URL.  For installing the Prefect App,
-    please see these [installation instructions](https://docs.prefect.io/guide/tutorials/slack-notifications.html#installation-instructions).
+    please see these [installation instructions](https://docs.prefect.io/core/tutorials/slack-notifications.html#installation-instructions).
 
     Args:
         - message (str, optional): the message to send; can also be provided at runtime
