@@ -88,11 +88,14 @@ class Agent:
 
         index = 0
         while True:
+            self.heartbeat()
+
             runs = self.agent_process(tenant_id)
             if runs:
                 index = 0
             elif index < max(loop_intervals.keys()):
                 index += 1
+
             time.sleep(loop_intervals[index])
 
     def agent_connect(self) -> str:
@@ -277,6 +280,12 @@ class Agent:
 
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
+        """
+        pass
+
+    def heartbeat(self) -> None:
+        """
+        Meant to be overridden by a platform specific heartbeat option
         """
         pass
 
