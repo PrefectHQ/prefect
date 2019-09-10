@@ -81,7 +81,7 @@ class Secret:
                 "Secrets should only be retrieved during a Flow run, not while building a Flow."
             )
 
-        if prefect.config.cloud.use_local_secrets is True:
+        if prefect.context.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("secrets", {})
             try:
                 value = secrets[self.name]

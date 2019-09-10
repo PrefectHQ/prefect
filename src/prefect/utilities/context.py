@@ -101,3 +101,4 @@ class Context(DotDict, threading.local):
 
 
 context = Context()
+context["config"] = config
