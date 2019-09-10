@@ -15,7 +15,7 @@ from typing import Any
 import pendulum
 
 import prefect
-from prefect.configuration import config
+from prefect.utilities.context import context
 
 
 class CloudHandler(logging.StreamHandler):
@@ -24,11 +24,11 @@ class CloudHandler(logging.StreamHandler):
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
         handler = logging.StreamHandler()
-        formatter = logging.Formatter(config.logging.format)
+        formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-        self.logger.setLevel(config.logging.level)
+        self.logger.setLevel(context.config.logging.level)
 
     def emit(self, record) -> None:  # type: ignore
         try:
@@ -80,14 +80,14 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(config.logging.format)
+    formatter = logging.Formatter(context.config.logging.format)
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(config.logging.level)
+    logger.setLevel(context.config.logging.level)
 
     # send logs to server
-    if config.logging.log_to_cloud:
+    if context.config.logging.log_to_cloud:
         logger.addHandler(CloudHandler())
     return logger
 
