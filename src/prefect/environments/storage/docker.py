@@ -241,7 +241,7 @@ class Docker(Storage):
                 full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
                 raise ValueError(
-                    "This environment has no `registry_url`, and cannot be pushed."
+                    "This Docker storage object has no `registry_url`, and cannot be pushed."
                 )
             else:
                 full_name = self.image_name

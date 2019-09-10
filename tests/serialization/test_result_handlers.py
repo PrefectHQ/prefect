@@ -87,11 +87,19 @@ class TestCustomSchema:
 
         schema = ResultHandlerSchema()
         serialized = schema.dump(Weird(dict(y="test")))
-        assert serialized["type"].endswith("Weird")
+        assert serialized["type"] == "CustomResultHandler"
         assert serialized["__version__"] == prefect.__version__
 
         obj = schema.load(serialized)
         assert obj is None
+
+    def test_cloud_can_deserialize_custom_handlers(self):
+        schema = ResultHandlerSchema()
+        serialized = {
+            "type": "CustomResultHandler",
+            "__version__": "0.6.3+120.g60ca943b",
+        }
+        assert schema.load(serialized) is None
 
 
 class TestLocalResultHandler:

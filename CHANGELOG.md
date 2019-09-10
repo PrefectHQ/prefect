@@ -27,6 +27,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Raise error on Agents started without an appropriate API token - [#1459](https://github.com/PrefectHQ/prefect/pull/1459)
 - Fix bug when calling `as_nested_dict` on `DotDicts` with an `items` key - [#1462](https://github.com/PrefectHQ/prefect/pull/1462)
 - Fix `--resource-manager` flag on agent install invalidating `imagePullSecrets` - [#1469](https://github.com/PrefectHQ/prefect/pull/1469)
+- Fix issue with user-written result handlers in Prefect Cloud preventing some states from being set - [#1480](https://github.com/PrefectHQ/prefect/pull/1480)
 
 ### Deprecations
 
