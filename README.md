@@ -57,15 +57,15 @@ flow.run() # "Hello, world!"
 
 Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
 
-Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/guide/development/documentation.html).
+Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/core/development/documentation.html).
 
 ## Contributing
 
-Read about Prefect's [community](https://docs.prefect.io/guide/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/guide/development/overview.html) for information about contributions, documentation, code style, and testing.
+Read about Prefect's [community](https://docs.prefect.io/core/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.
 
 Join our [Slack](https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU) to chat about Prefect, ask questions, and share tips.
 
-Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/guide/welcome/code_of_conduct.html).
+Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/core/welcome/code_of_conduct.html).
 
 ## "...Prefect?"
 

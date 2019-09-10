@@ -18,7 +18,7 @@ The most common place you might want to add additional logs is within a custom T
 
 ### Configuration
 
-Your [Prefect user configuration file](../core_concepts/configuration.html) provides one way to easily change how logs are presented to you when running locally.  In your user config file, simply add a section for logging with the following structure:
+Your [Prefect user configuration file](../concepts/configuration.html) provides one way to easily change how logs are presented to you when running locally.  In your user config file, simply add a section for logging with the following structure:
 ```
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
