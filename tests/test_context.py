@@ -79,6 +79,23 @@ def test_modify_context_by_assigning_attributes_inside_contextmanager():
     assert "a" not in context
 
 
+def test_context_respects_the_dotdict_nature_of_config():
+    assert "KEY" not in context.config
+    with context(config=dict(KEY=dict(x=1))):
+        assert context.config.KEY.x == 1
+
+    assert "KEY" not in context.config
+
+
+def test_context_respects_the_dict_nature_of_non_config_keys():
+    assert "KEY" not in context
+    with context(KEY=dict(x=1)):
+        with pytest.raises(AttributeError):
+            assert context.KEY.x == 1
+
+    assert "KEY" not in context.config
+
+
 def test_modify_context_by_calling_update_inside_contextmanager():
     assert "a" not in context
     with context(a=1):

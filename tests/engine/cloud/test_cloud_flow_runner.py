@@ -427,3 +427,22 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 10
     assert flow_state.result[final].result == 100
+
+
+def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
+    """
+    After the context refactor wherein config settings were pulled from context.config,
+    there were various errors related to `prefect.context(self.context.to_dict())`
+    caused by the Context object not creating a nested DotDict structure.  The main
+    symptom of this was when a CloudFlowRunner submitted a job to a dask worker and an error
+    was raised: `dict has no attribute cloud`
+    """
+    fr = CloudFlowRunner(flow=prefect.Flow(name="test"))
+    fr.run_task(
+        task=MagicMock(),
+        state=None,
+        upstream_states=dict(),
+        context=dict(),
+        task_runner_state_handlers=[],
+        executor=None,
+    )

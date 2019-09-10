@@ -58,7 +58,7 @@ import threading
 from typing import Any, Iterator, MutableMapping
 
 from prefect.configuration import config
-from prefect.utilities.collections import DotDict
+from prefect.utilities.collections import DotDict, as_nested_dict
 
 
 class Context(DotDict, threading.local):
@@ -93,7 +93,10 @@ class Context(DotDict, threading.local):
         """
         previous_context = self.copy()
         try:
-            self.update(*args, **kwargs)
+            new_context = Context(*args, **kwargs)
+            if "config" in new_context:
+                new_context["config"] = as_nested_dict(new_context["config"])
+            self.update(new_context)  # type: ignore
             yield self
         finally:
             self.clear()
