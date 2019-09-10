@@ -36,7 +36,7 @@ with Flow("Trigger example") as flow:
 ## note that as written, this flow will fail regardless of the path taken
 ## because *at least one* terminal task will fail;
 ## to fix this, we want to set Task B as the "reference task" for the Flow
-## so that it's state uniquely determines the overall Flow state
+## so that its state uniquely determines the overall Flow state
 flow.set_reference_tasks([success])
 
 flow.run()
