@@ -87,12 +87,7 @@ class Runner:
         ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
-
-    @property
-    def logger(self):
-        if not hasattr(self, "_logger"):
-            self._logger = logging.get_logger(type(self).__name__)
-        return self._logger
+        self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
         return '<"Runner">'

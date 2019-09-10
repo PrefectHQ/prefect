@@ -18,18 +18,6 @@ import prefect
 from prefect.utilities.context import context
 
 
-class PrefectLogger(logging.Logger):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.config = context.config.to_dict()
-
-    def __reduce__(self):
-        if self.name == "prefect":
-            return configure_logging, (self.config, False)
-        else:
-            return get_logger, (self.name,)
-
-
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__()
@@ -43,6 +31,10 @@ class CloudHandler(logging.StreamHandler):
         self.logger.setLevel(context.config.logging.level)
 
     def emit(self, record) -> None:  # type: ignore
+        # if we shouldn't log to cloud, don't emit
+        if not context.config.logging.log_to_cloud:
+            return
+
         try:
             from prefect.client import Client
 
@@ -76,7 +68,7 @@ class CloudHandler(logging.StreamHandler):
             self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
 
-def configure_logging(config: dict = None, testing: bool = False) -> logging.Logger:
+def configure_logging(testing: bool = False) -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
     set from `prefect.config`.
@@ -89,20 +81,16 @@ def configure_logging(config: dict = None, testing: bool = False) -> logging.Log
     Returns:
         - logging.Logger: a configured logging object
     """
-    config = config or context.config
-
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(config["logging"]["format"])
+    formatter = logging.Formatter(context.config.logging.format)
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(config["logging"]["level"])
+    logger.setLevel(context.config.logging.level)
 
-    # send logs to server
-    if config["logging"]["log_to_cloud"]:
-        logger.addHandler(CloudHandler())
+    logger.addHandler(CloudHandler())
     return logger
 
 

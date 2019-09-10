@@ -79,6 +79,13 @@ def test_modify_context_by_assigning_attributes_inside_contextmanager():
     assert "a" not in context
 
 
+def test_context_doesnt_overwrite_all_config_keys():
+    old_level = context.config.logging.level
+    with context(config=dict(logging=dict(x=1))):
+        assert context.config.logging.x == 1
+        assert context.config.logging.level == old_level
+
+
 def test_context_respects_the_dotdict_nature_of_config():
     assert "KEY" not in context.config
     with context(config=dict(KEY=dict(x=1))):
