@@ -2,7 +2,7 @@
 
 ## Overview
 
-Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. For this purpose, Prefect provides a versatile `Schedule` object.  Note that schedules can be attached to Flows via the `schedule` keyword argument, as in [this example](https://docs.prefect.io/guide/examples/daily_github_stats_to_airtable.html).
+Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. For this purpose, Prefect provides a versatile `Schedule` object.  Note that schedules can be attached to Flows via the `schedule` keyword argument, as in [this example](https://docs.prefect.io/core/examples/daily_github_stats_to_airtable.html).
 
 ## Design
 

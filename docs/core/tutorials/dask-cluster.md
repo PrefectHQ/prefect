@@ -90,7 +90,7 @@ Let's take this one step further: let's attach a schedule to this flow, and pack
 def main():
     from prefect.schedules import IntervalSchedule
 
-    every_minute = IntervalSchedule(start_date=datetime.datetime.utcnow(),     
+    every_minute = IntervalSchedule(start_date=datetime.datetime.utcnow(),
                  					interval=datetime.timedelta(minutes=1))
     flow.schedule = every_minute
     flow.run() # runs this flow on its schedule
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     main()
 ```
 
-Notice that we didn't specify an executor in our call to `flow.run()`. This is because the default executor can be set via environment variable (for more information on how this works, see [Prefect's documentation](../core_concepts/configuration.html)). Supposing we save this in a file called `dask_flow.py`, we can now specify the executor and the Dask scheduler address as follows:
+Notice that we didn't specify an executor in our call to `flow.run()`. This is because the default executor can be set via environment variable (for more information on how this works, see [Prefect's documentation](../concepts/configuration.html)). Supposing we save this in a file called `dask_flow.py`, we can now specify the executor and the Dask scheduler address as follows:
 
 ```bash
 > export PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.DaskExecutor"
