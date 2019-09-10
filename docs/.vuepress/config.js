@@ -17,7 +17,7 @@ const getChildren = function(parent_path, dir) {
       }
       return path
     })
-    .sort();
+    .sort()
 };
 
 module.exports = {
