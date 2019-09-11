@@ -382,7 +382,7 @@ class TestInitializeRun:
             assert "task_tags" not in ctx
             with set_temporary_config({"flows.checkpointing": "FOO"}):
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
-            assert result.context.checkpointing == "FOO"
+                assert result.context.checkpointing == "FOO"
 
     def test_task_runner_puts_task_slug_in_context(self):
         with prefect.context() as ctx:

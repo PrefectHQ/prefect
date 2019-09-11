@@ -57,8 +57,8 @@ import contextlib
 import threading
 from typing import Any, Iterator, MutableMapping
 
-from prefect.configuration import config
-from prefect.utilities.collections import DotDict
+from prefect.configuration import config, Config
+from prefect.utilities.collections import DotDict, as_nested_dict, merge_dicts
 
 
 class Context(DotDict, threading.local):
@@ -77,6 +77,11 @@ class Context(DotDict, threading.local):
         super().__init__(*args, **kwargs)
         if "context" in config:
             self.update(config.context)
+        if "config" in self:
+            new_config = merge_dicts(config, self["config"])  # order matters
+            self["config"] = as_nested_dict(new_config, dct_class=Config)
+        else:
+            self["config"] = config
 
     def __repr__(self) -> str:
         return "<Context>"
@@ -93,7 +98,11 @@ class Context(DotDict, threading.local):
         """
         previous_context = self.copy()
         try:
-            self.update(*args, **kwargs)
+            new_context = dict(*args, **kwargs)
+            if "config" in new_context:
+                new_config = merge_dicts(self.get("config", {}), new_context["config"])
+                new_context["config"] = as_nested_dict(new_config, dct_class=Config)
+            self.update(new_context)  # type: ignore
             yield self
         finally:
             self.clear()

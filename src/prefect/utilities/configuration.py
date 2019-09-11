@@ -27,7 +27,9 @@ def set_temporary_config(temp_config: dict) -> Iterator:
         for key, value in temp_config.items():
             prefect.config.set_nested(key, value)
 
-        yield prefect.config
+        # ensure the new config is available in context
+        with prefect.context(config=prefect.config):
+            yield prefect.config
     finally:
         prefect.config.__dict__.clear()
         prefect.config.__dict__.update(old_config)
