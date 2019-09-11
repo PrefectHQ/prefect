@@ -35,7 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ## 0.6.4 <Badge text="beta" type="success"/>
 
-These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+Released September 10, 2019
 
 ### Features
 
