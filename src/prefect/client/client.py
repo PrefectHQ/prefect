@@ -81,10 +81,12 @@ class Client:
         self._active_tenant_id = None
 
         # store api server
-        self.api_server = api_server or prefect.config.cloud.get("graphql")
+        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
         # store api token
-        self._api_token = api_token or prefect.config.cloud.get("auth_token", None)
+        self._api_token = api_token or prefect.context.config.cloud.get(
+            "auth_token", None
+        )
 
         # if no api token was passed, attempt to load state from local storage
         if not self._api_token:
@@ -289,7 +291,7 @@ class Client:
         Returns the local settings directory corresponding to the current API servers
         """
         path = "{home}/client/{server}".format(
-            home=prefect.config.home_dir,
+            home=prefect.context.config.home_dir,
             server=slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+"),
         )
         return Path(os.path.expanduser(path)) / "settings.toml"

@@ -79,6 +79,30 @@ def test_modify_context_by_assigning_attributes_inside_contextmanager():
     assert "a" not in context
 
 
+def test_context_doesnt_overwrite_all_config_keys():
+    old_level = context.config.logging.level
+    with context(config=dict(logging=dict(x=1))):
+        assert context.config.logging.x == 1
+        assert context.config.logging.level == old_level
+
+
+def test_context_respects_the_dotdict_nature_of_config():
+    assert "KEY" not in context.config
+    with context(config=dict(KEY=dict(x=1))):
+        assert context.config.KEY.x == 1
+
+    assert "KEY" not in context.config
+
+
+def test_context_respects_the_dict_nature_of_non_config_keys():
+    assert "KEY" not in context
+    with context(KEY=dict(x=1)):
+        with pytest.raises(AttributeError):
+            assert context.KEY.x == 1
+
+    assert "KEY" not in context.config
+
+
 def test_modify_context_by_calling_update_inside_contextmanager():
     assert "a" not in context
     with context(a=1):
@@ -107,3 +131,19 @@ def test_context_loads_secrets_from_config(monkeypatch):
     fresh_context = Context()
     assert "secrets" in fresh_context
     assert fresh_context.secrets == secrets_dict
+
+
+def test_context_contextmanager_prioritizes_new_config_keys():
+    with prefect.context({"config": {"logging": {"log_to_cloud": "FOO"}}}):
+        assert prefect.context.config.logging.log_to_cloud == "FOO"
+
+
+def test_context_init_prioritizes_new_config_keys():
+    ctx = Context(config=dict(logging=dict(log_to_cloud="FOO")))
+    assert ctx.config.logging.log_to_cloud == "FOO"
+
+
+def test_context_init_prioritizes_new_config_keys_when_passed_a_dict():
+    old = dict(config=dict(logging=dict(log_to_cloud="FOO")))
+    ctx = Context(old)
+    assert ctx.config.logging.log_to_cloud == "FOO"

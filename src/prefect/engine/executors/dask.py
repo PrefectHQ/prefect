@@ -9,7 +9,7 @@ from typing import Any, Callable, Iterable, Iterator, List
 
 from distributed import Client, Future, fire_and_forget, worker_client
 
-from prefect import config, context
+from prefect import context
 from prefect.engine.executors.base import Executor
 
 
@@ -45,13 +45,13 @@ class DaskExecutor(Executor):
         **kwargs: Any
     ):
         if address is None:
-            address = config.engine.executor.dask.address
+            address = context.config.engine.executor.dask.address
         if address == "local":
             address = None
         if local_processes is None:
-            local_processes = config.engine.executor.dask.local_processes
+            local_processes = context.config.engine.executor.dask.local_processes
         if debug is None:
-            debug = config.debug
+            debug = context.config.debug
         self.address = address
         self.local_processes = local_processes
         self.debug = debug
