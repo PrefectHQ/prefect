@@ -141,3 +141,9 @@ def test_context_contextmanager_prioritizes_new_config_keys():
 def test_context_init_prioritizes_new_config_keys():
     ctx = Context(config=dict(logging=dict(log_to_cloud="FOO")))
     assert ctx.config.logging.log_to_cloud == "FOO"
+
+
+def test_context_init_prioritizes_new_config_keys_when_passed_a_dict():
+    old = dict(config=dict(logging=dict(log_to_cloud="FOO")))
+    ctx = Context(old)
+    assert ctx.config.logging.log_to_cloud == "FOO"

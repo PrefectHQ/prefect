@@ -98,7 +98,7 @@ class Context(DotDict, threading.local):
         """
         previous_context = self.copy()
         try:
-            new_context = Context(*args, **kwargs)
+            new_context = dict(*args, **kwargs)
             if "config" in new_context:
                 new_config = merge_dicts(self.get("config", {}), new_context["config"])
                 new_context["config"] = as_nested_dict(new_config, dct_class=Config)
