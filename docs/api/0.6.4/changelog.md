@@ -1,3 +1,7 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
@@ -35,7 +39,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ## 0.6.4 <Badge text="beta" type="success"/>
 
-Released September 10, 2019
+These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
 
 ### Features
 
@@ -767,3 +771,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on September 11, 2019 at 18:10 UTC</p>
