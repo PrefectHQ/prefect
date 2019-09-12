@@ -166,7 +166,7 @@ class LambdaDelete(Task):
     Task for deleting a Lambda function.
 
     Args:
-        - function_name (str): name of teh Lambda function to delete
+        - function_name (str): name of the Lambda function to delete
         - qualifier (str, optional): specify a version to delete, if not
             provided, the function will be deleted entirely
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
