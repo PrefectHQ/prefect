@@ -9,6 +9,7 @@ import pytest
 from prefect.utilities.collections import DotDict
 from prefect.utilities.graphql import (
     EnumValue,
+    LiteralSetValue,
     GQLObject,
     compress,
     decompress,
@@ -388,6 +389,13 @@ def test_dict_values_in_arguments():
 def test_enum_value_in_arguments():
     query = parse_graphql_arguments({"where": {"color": EnumValue("red")}})
     assert query == "where: { color: red }"
+
+
+def test_set_value_in_arguments():
+    query = parse_graphql_arguments(
+        {"where": {"color": LiteralSetValue(["red", "blue"])}}
+    )
+    assert query == 'where: { color: "{red, blue}" }'
 
 
 def test_uuid_value_in_arguments():
