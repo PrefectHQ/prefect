@@ -1,16 +1,18 @@
 # Secrets
 
-Secrets represent sensitive key / value pairs that might be required during execution of your Flow. As an example,
-the [ability to receive slack notifications from Prefect](../../core/tutorials/slack-notifications.html#using-your-url-to-get-notifications) relies on a secret
-URL. It is easy to imagine other examples of Secrets that might be relevant, such as API credentials.
+Prefect secrets are a way to store any sensitive key-value pairs to which your flow might need access. One such example is
+the [secret URL used to receive Slack notifications from Prefect](../../core/tutorials/slack-notifications.html#using-your-url-to-get-notifications).
+Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
 
-## Setting a Secret
+Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io).
 
-As with everything in Prefect, there are two standard modes of operation: "local execution", intended mainly for testing or running non-production Flows, and "cloud execution" which utilizes the Prefect Cloud API.
+## Setting a secret
+
+There are two standard modes of operation: local execution, intended mainly for testing and running non-production flows, and cloud execution, which utilizes the Prefect Cloud API.
 
 ### Local testing
 
-During local execution, Secrets can easily be set in your configuration file, or set directly in `prefect.context`. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
+During local execution, secrets can easily be set in your configuration file, or set directly in `prefect.context`. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
 
 ```
 [cloud]
@@ -26,7 +28,7 @@ Now, to populate your local secrets you can simply add an additional section to 
 KEY = VALUE
 ```
 
-with however many key / value pairs you'd like.  This will autopopulate `prefect.context.secrets["KEY"]` with your specified value.  Alternatively, you can set the `KEY` / `VALUE` pair directly: 
+with however many key / value pairs you'd like. This will autopopulate `prefect.context.secrets["KEY"]` with your specified value. Alternatively, you can set the `KEY` / `VALUE` pair directly:
 
 ```python
 import prefect
@@ -36,7 +38,7 @@ prefect.context.secrets["KEY"] = "VALUE"
 ```
 
 ::: tip You don't have to store raw values in your config
-Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`.  Note that secrets set this way will always result in lowercase names.
+Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`. Note that secrets set this way will always result in lowercase names.
 :::
 
 ### Cloud Execution
@@ -61,11 +63,11 @@ mutation {
 }
 ```
 
-::: tip You can overwrite Secrets
-Changing the value of a Secret is as simple as re-issuing the above mutation with the new value.
+::: tip You can overwrite secrets
+Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
 :::
 
-## Using a Secret
+## Using a secret
 
 Secrets can be used anywhere, at any time. This includes, but is not limited to:
 
@@ -83,13 +85,13 @@ s = Secret("my secret") # create a secret object
 s.get() # retrieve its value
 ```
 
-Note that `s.get()` will *not* work locally unless `use_local_secrets` is set to `true` in your config.
+Note that `s.get()` will _not_ work locally unless `use_local_secrets` is set to `true` in your config.
 
 ::: warning Secrets are secret!
-You cannot query for the value of a Cloud Secret after it has been set. Calls to `Secret.get()` will *only* work during Cloud execution.
+You cannot query for the value of a secret after it has been set. Calls to `Secret.get()` will _only_ work during Cloud execution.
 :::
 
-## Querying for Secret names <Badge text="GQL"/>
+## Querying for secret names <Badge text="GQL"/>
 
 Viewing all secrets by name:
 
