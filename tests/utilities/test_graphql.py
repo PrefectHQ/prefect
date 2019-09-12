@@ -398,6 +398,11 @@ def test_set_value_in_arguments():
     assert query == 'where: { color: "{red, blue}" }'
 
 
+def test_set_value_in_arguments_with_one_value():
+    query = parse_graphql_arguments({"where": {"color": LiteralSetValue(["red"])}})
+    assert query == 'where: { color: "{red}" }'
+
+
 def test_uuid_value_in_arguments():
     id = uuid.uuid4()
     query = parse_graphql_arguments({"id": id})

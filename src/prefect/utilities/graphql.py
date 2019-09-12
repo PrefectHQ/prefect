@@ -47,8 +47,8 @@ class EnumValue:
 
 def LiteralSetValue(value: list) -> str:
     """
-    When parsing GraphQL arguments, strings can be wrapped in this class to be rendered
-    as literal set values, without internal quotation marks:
+    When parsing GraphQL arguments, `LiteralSetValue` renders strings as literal set values,
+    without internal quotation marks.
 
     For example: "{a, b, c}"
 
