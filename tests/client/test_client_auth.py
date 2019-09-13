@@ -162,7 +162,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -183,7 +183,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -201,7 +201,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -221,7 +221,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -247,7 +247,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -274,7 +274,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -297,7 +297,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -325,7 +325,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }
@@ -348,7 +348,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }
@@ -366,7 +366,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }
