@@ -19,6 +19,10 @@ During local execution, secrets can easily be set in your configuration file, or
 use_local_secrets = true
 ```
 
+::: tip
+When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
+:::
+
 This is also the default setting, so you only need to change this if you've changed it yourself.
 
 Now, to populate your local secrets you can simply add an additional section to your user config:
