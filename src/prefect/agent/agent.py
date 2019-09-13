@@ -186,11 +186,12 @@ class Agent:
             }
         }
 
+        now = pendulum.now("UTC")
         result = self.client.graphql(
-            mutation, variables={"input": {"tenantId": tenant_id}}
+            mutation,
+            variables={"input": {"tenantId": tenant_id, "before": now.isoformat()}},
         )
         flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
-        now = pendulum.now("UTC")
 
         # Query metadata fow flow runs found in queue
         query = {
