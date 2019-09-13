@@ -27,6 +27,7 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `logger` | the logger for the current task |
+| `config` | the complete [Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html) object that is being used during this run |
 | `flow_name` | the name of the current flow |
 | `scheduled_start_time` | a datetime object representing the scheduled start time for the flow run; falls back to `now` for unscheduled runs |
 | `parameters` | a dictionary of parameter values for the current flow run |

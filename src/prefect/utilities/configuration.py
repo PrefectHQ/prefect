@@ -1,3 +1,7 @@
+"""
+Utilities for interacting with [Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html).  These are only intended
+to be used for testing.
+"""
 from contextlib import contextmanager
 from typing import Iterator
 
