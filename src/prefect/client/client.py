@@ -409,7 +409,7 @@ class Client:
                 "mutation($input: switchTenantInput!)": {
                     "switchTenant(input: $input)": {
                         "accessToken",
-                        "expiresIn",
+                        "expiresAt",
                         "refreshToken",
                     }
                 }
@@ -419,9 +419,9 @@ class Client:
             token=self._api_token,
         )  # type: ignore
         self._access_token = payload.data.switchTenant.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.switchTenant.expiresIn  # type: ignore
-        )
+        self._access_token_expires_at = pendulum.parse(
+            payload.data.switchTenant.expiresAt  # type: ignore
+        )  # type: ignore
         self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
         self._active_tenant_id = tenant_id
 
@@ -456,7 +456,7 @@ class Client:
                 "mutation($input: refreshTokenInput!)": {
                     "refreshToken(input: $input)": {
                         "accessToken",
-                        "expiresIn",
+                        "expiresAt",
                         "refreshToken",
                     }
                 }
@@ -466,9 +466,9 @@ class Client:
             token=self._refresh_token,
         )  # type: ignore
         self._access_token = payload.data.refreshToken.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.refreshToken.expiresIn  # type: ignore
-        )
+        self._access_token_expires_at = pendulum.parse(
+            payload.data.refreshToken.expiresAt  # type: ignore
+        )  # type: ignore
         self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
 
         return True
