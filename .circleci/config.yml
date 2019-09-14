@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 
 references:
   workspace_root: &workspace_root /tmp/workspace
@@ -6,10 +6,19 @@ references:
     attach_workspace:
       at: *workspace_root
 
+orbs:
+  win: circleci/windows@1.0.0
+
 jobs:
   # ----------------------------------
   # Check formatting
   # ----------------------------------
+
+  test-windows:
+    executor: win/vs2019
+    steps:
+      - checkout
+      - run: Write-Host 'Hello, Windows'
 
   check_black_formatting:
     docker:
@@ -286,7 +295,7 @@ jobs:
             docker push prefecthq/prefect
 
 workflows:
-  version: 2
+  version: 2.1
 
   "Run tests":
     jobs:
@@ -297,6 +306,7 @@ workflows:
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
+      - test-windows
       - upload-coverage:
           requires:
             - test-3.5
