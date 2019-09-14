@@ -295,7 +295,6 @@ jobs:
             docker push prefecthq/prefect
 
 workflows:
-  version: 2.1
 
   "Run tests":
     jobs:
