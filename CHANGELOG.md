@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Allow for Agents to correctly run in environments with differently calibrated clocks - [#1402](https://github.com/PrefectHQ/prefect/issues/1402)
+- Ensure Task logger is available in context throughout every pipeline step of the run - [#1509](https://github.com/PrefectHQ/prefect/issues/1509)
 
 ### Task Library
 

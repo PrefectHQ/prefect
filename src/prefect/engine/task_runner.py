@@ -172,6 +172,7 @@ class TaskRunner(Runner):
             task_slug=self.task.slug,
         )
         context.setdefault("checkpointing", config.flows.checkpointing)
+        context.update(logger=self.task.logger)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -857,10 +858,9 @@ class TaskRunner(Runner):
                 timeout_handler or prefect.utilities.executors.timeout_handler
             )
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            with prefect.context(logger=self.task.logger):
-                result = timeout_handler(
-                    self.task.run, timeout=self.task.timeout, **raw_inputs
-                )
+            result = timeout_handler(
+                self.task.run, timeout=self.task.timeout, **raw_inputs
+            )
 
         # inform user of timeout
         except TimeoutError as exc:
