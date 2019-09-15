@@ -83,26 +83,31 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
     assert out.is_failed()
-    print(caplog.text)
     assert "ERROR    prefect.Task: ShellTask:shell.py" in caplog.text
     assert (
-        " Command failed with exit code 1: ls: surely_a_dir_that_doesnt_exist: No such file or directory"
+        "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
         in caplog.text
     )
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
     cmd = """
-    for line in $(printenv)
-    do
-        echo "${line#*=}"
-    done
-    """
+    TEST=$(cat <<-END
+This is line one
+This is line two
+This is line three
+boom!
+END
+)
+for i in $TEST
+do
+    echo $i
+done"""
     with Flow(name="test") as f:
         task = ShellTask()(command=cmd, env={key: "test" for key in "abcdefgh"})
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == "yes"
+    assert out.result[task].result == "boom!"
 
 
 def test_shell_task_raises_fail_if_cmd_fails():
