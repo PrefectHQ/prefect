@@ -14,7 +14,6 @@ from typing import (
 import pendulum
 
 import prefect
-from prefect import config
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers

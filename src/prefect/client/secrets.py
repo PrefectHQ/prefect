@@ -27,8 +27,14 @@ or directly in context:
 ```python
 import prefect
 
+prefect.context.setdefault("secrets", {}) # to make sure context has a secrets attribute
 prefect.context.secrets["MY_KEY"] = "MY_VALUE"
 ```
+
+::: tip
+When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
+:::
+
 """
 
 import json
@@ -80,7 +86,7 @@ class Secret:
                 "Secrets should only be retrieved during a Flow run, not while building a Flow."
             )
 
-        if prefect.config.cloud.use_local_secrets is True:
+        if prefect.context.config.cloud.use_local_secrets is True:
             secrets = prefect.context.get("secrets", {})
             try:
                 value = secrets[self.name]

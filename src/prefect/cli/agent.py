@@ -47,7 +47,8 @@ def agent():
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
-def start(name, token, no_pull):
+@click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
+def start(name, token, no_pull, base_url):
     """
     Start an agent.
 
@@ -59,6 +60,7 @@ def start(name, token, no_pull):
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
+        --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
     """
@@ -71,7 +73,7 @@ def start(name, token, no_pull):
             click.secho("{} is not a valid agent".format(name), fg="red")
             return
 
-        with context(no_pull=no_pull):
+        with context(no_pull=no_pull, base_url=base_url):
             from_qualified_name(retrieved_agent)().start()
 
 

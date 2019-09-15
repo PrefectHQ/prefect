@@ -382,7 +382,7 @@ class TestInitializeRun:
             assert "task_tags" not in ctx
             with set_temporary_config({"flows.checkpointing": "FOO"}):
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
-            assert result.context.checkpointing == "FOO"
+                assert result.context.checkpointing == "FOO"
 
     def test_task_runner_puts_task_slug_in_context(self):
         with prefect.context() as ctx:
@@ -940,6 +940,35 @@ class TestCheckTaskCached:
             )
         assert new is state
         assert new.result == 2
+
+    def test_all_of_run_context_is_available_to_custom_cache_validators(self):
+        ctxt = dict()
+
+        def custom_validator(state, inputs, parameters):
+            ctxt.update(prefect.context.to_dict())
+            return False
+
+        # have to have a state worth checking to trigger the validator
+        with prefect.context(caches={"Task": [State()]}):
+            task = Task(
+                cache_for=timedelta(seconds=10), cache_validator=custom_validator
+            )
+            state = TaskRunner(task).run()
+
+        expected_subset = dict(
+            map_index=None,
+            task_full_name="Task",
+            task_run_count=1,
+            task_name="Task",
+            task_tags=set(),
+            task_slug=task.slug,
+            checkpointing=False,
+        )
+        for key, val in expected_subset.items():
+            assert ctxt[key] == val
+
+        assert "config" in ctxt
+        assert ctxt["logger"] is task.logger
 
 
 class TestSetTaskRunning:

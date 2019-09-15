@@ -16,6 +16,12 @@ Prefect absolutely has a User Interface (UI). The [Prefect Core Engine](https://
 
 No - Dask is our preferred executor for distributed and parallelizable workflows, but running your workflows on Dask is _not_ a requirement. [Any of Prefect's executors](https://docs.prefect.io/api/unreleased/engine/executors.html) are available for use in deployment, and we are always interested in adding new ones.
 
+### What are the requirements of Prefect Cloud?
+
+Prefect Cloud currently requires that all Flows are containerized using [Docker](https://www.docker.com). Extensive knowledge of Docker is not required, and Prefect Core has many convenient interfaces and utility functions for interacting with Docker.  Your Prefect Agent also requires access to a platform which is capable of running Docker containers.  In addition to Docker, your Prefect Agent needs the ability to communicate _out_ to Cloud (but not the other way around - Prefect Cloud _never_ requires access to your code, data or infrastructure).
+
+Other than the python dependencies of Prefect Core, there are no additional requirements for deploying Flows to Prefect Cloud.
+
 ### How is Prefect different from Airflow?
 
 For some of the main distinctions, see our blogpost: [Why Not Airflow?](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
@@ -47,7 +53,7 @@ There are two distinct "implementations" of the scheduler:
 
 - the Prefect Core standalone version: this "scheduler" is more of a convenience method than a real scheduler. It can be triggered by calling `flow.run()` on a Prefect Flow object. If the Flow has no schedule, a run will begin immediately. Otherwise, the process will block until the next scheduled time has been reached.
 - the Prefect Cloud scheduler service: this horizontally-scalable service is responsible for one thing: creating "Scheduled" states for Flows which are then picked up by your Prefect Agent and submitted for execution (at the appropriate time). These Scheduled states are created in two distinct ways:
-  - anytime a user creates a Flow Run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](cloud_concepts/flow_runs.html#creating-a-flow-run)
+  - anytime a user creates a Flow Run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](concepts/flow_runs.html#creating-a-flow-run)
   - the scheduler is constantly scanning the database looking for Flows with active schedules; anytime one is found that hasn't been processed recently, the next 10 runs are scheduled via the creation of `Scheduled` states
 
 Note that regardless of which scheduler is being used, dependencies between Prefect Tasks typically _do not involve a scheduler_; rather, the executor being used for the flow run handles when each dependency is finished and the next can begin.
@@ -58,8 +64,8 @@ As previously stated, `flow.run` is purely a convenience method for running your
 
 ### Do you have an integration for service X?
 
-Yes! Prefect can integrate with any service and we have a growing Task Library of pre-built tasks for working with internal and external services. 
+Yes! Prefect can integrate with any service and we have a growing Task Library of pre-built tasks for working with internal and external services.
 
-People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others! 
+People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others!
 
 The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.

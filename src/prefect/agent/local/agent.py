@@ -1,3 +1,5 @@
+from sys import platform
+
 import docker
 
 from prefect import config, context
@@ -22,8 +24,18 @@ class LocalAgent(Agent):
     def __init__(self, base_url: str = None, no_pull: bool = None) -> None:
         super().__init__()
 
-        base_url = base_url or "unix://var/run/docker.sock"
-        self.docker_client = docker.APIClient(base_url=base_url, version="auto")
+        if platform == "win32":
+            default_url = "npipe:////./pipe/docker_engine"
+        else:
+            default_url = "unix://var/run/docker.sock"
+
+        # Determine Daemon URL
+        self.base_url = base_url or context.get("base_url", default_url)
+
+        # Determine pull specification
+        self.no_pull = no_pull or context.get("no_pull", False)
+
+        self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
 
         # Ping Docker daemon for connection issues
         try:
@@ -33,10 +45,6 @@ class LocalAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
-
-        self.no_pull = no_pull or context.get("no_pull")
-        if self.no_pull is None:
-            self.no_pull = False
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
@@ -57,7 +65,11 @@ class LocalAgent(Agent):
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
             if not self.no_pull:
-                self.docker_client.pull(storage.name)
+                self.logger.debug("Pulling image {}...".format(storage.name))
+                try:
+                    self.docker_client.pull(storage.name)
+                except docker.errors.APIError:
+                    self.logger.error("Issue pulling image {}".format(storage.name))
 
             # Create a container
             container = self.docker_client.create_container(

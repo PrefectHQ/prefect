@@ -88,9 +88,12 @@ class ResultHandlerSchema(OneOfSchema):
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
         "AzureResultHandler": AzureResultHandlerSchema,
+        "CustomResultHandler": CustomResultHandlerSchema,
     }
 
     def get_obj_type(self, obj: Any) -> str:
         name = obj.__class__.__name__
-        self.type_schemas.setdefault(name, CustomResultHandlerSchema)
-        return name
+        if name in self.type_schemas:
+            return name
+        else:
+            return "CustomResultHandler"

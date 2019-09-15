@@ -94,7 +94,7 @@ Here we use the Prefect CLI to start a Local Agent. The `RUNNER` token that was 
 Now that the Local Agent is running we want to create a flow run in Prefect Cloud that the agent can pick up and execute! If you recall, we named our flow `my-flow` and deployed it to the `Hello, World!` project. We are going to use these two names in order to create the flow run with the Prefect CLI.
 
 ```
-$ prefect cloud run -n my-flow -p "Hello, World!"
+$ prefect run cloud -n my-flow -p "Hello, World!"
 Flow Run ID: 43a6624a-c5ce-43f3-a652-55e9c0b20527
 ```
 

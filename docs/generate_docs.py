@@ -225,7 +225,7 @@ def format_signature(obj):
 
 @preprocess
 def create_absolute_path(obj):
-    dir_struct = inspect.getfile(obj).split("/")
+    dir_struct = inspect.getfile(obj).split(os.sep)
     if ("prefect" not in dir_struct) or ("test_generate_docs.py" in dir_struct):
         return obj.__qualname__
     first_dir, offset = ("src", 1) if "src" in dir_struct else ("prefect", 0)
@@ -242,7 +242,7 @@ def get_source(obj):
     base_url = "https://github.com/PrefectHQ/prefect/blob/{}/src/prefect/".format(
         commit
     )
-    dir_struct = inspect.getfile(obj).split("/")
+    dir_struct = inspect.getfile(obj).split(os.sep)
     if "src" not in dir_struct:
         link = "[source]"  # dead-link
     else:

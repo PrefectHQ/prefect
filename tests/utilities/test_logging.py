@@ -124,6 +124,41 @@ def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
         logger.handlers = []
 
 
+def test_cloud_handler_responds_to_config(caplog, monkeypatch):
+    calls = []
+
+    class Client:
+        def write_run_log(self, *args, **kwargs):
+            calls.append(1)
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+    try:
+        logger = utilities.logging.configure_logging(testing=True)
+        cloud_handler = logger.handlers[-1]
+        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
+
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": False}
+        ):
+            logger.critical("testing")
+
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger.critical("testing")
+
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": False}
+        ):
+            logger.critical("testing")
+
+        assert len(calls) == 1
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
 def test_get_logger_returns_root_logger():
     assert utilities.logging.get_logger() is logging.getLogger("prefect")
 

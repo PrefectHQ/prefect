@@ -42,6 +42,15 @@ def test_basic_safe_result_deserializes():
     assert r.result_handler == JSONResultHandler()
 
 
+def test_safe_result_with_custom_handler_deserializes():
+    r = SafeResultSchema().load(
+        {"value": "3", "result_handler": {"type": "CustomResultHandler"}}
+    )
+    assert isinstance(r, SafeResult)
+    assert r.value == "3"
+    assert r.result_handler is None
+
+
 def test_roundtrip_for_results():
     r = SafeResult(value={"y": 4}, result_handler=JSONResultHandler())
     s = SafeResultSchema().load(SafeResultSchema().dump(r))

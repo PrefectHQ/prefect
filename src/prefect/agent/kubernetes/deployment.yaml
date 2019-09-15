@@ -14,6 +14,8 @@ spec:
       labels:
         app: prefect-agent
     spec:
+      imagePullSecrets:
+        - name: ""
       containers:
         - name: agent
           image: prefecthq/prefect:latest
@@ -33,11 +35,23 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "100m"
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "from prefect.agent.kubernetes.agent import check_heartbeat; check_heartbeat()"
+            initialDelaySeconds: 40
+            periodSeconds: 40
+            failureThreshold: 2
         - name: resource-manager
           image: prefecthq/prefect:latest
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
-          args: ["python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'"]
+          args:
+            [
+              "python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'",
+            ]
           env:
             - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
               value: ""
@@ -51,5 +65,3 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "100m"
-      imagePullSecrets:
-      - name: ""

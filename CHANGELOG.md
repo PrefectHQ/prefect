@@ -10,7 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Allow for Agents to correctly run in environments with differently calibrated clocks - [#1402](https://github.com/PrefectHQ/prefect/issues/1402)
+- Ensure Task logger is available in context throughout every pipeline step of the run - [#1509](https://github.com/PrefectHQ/prefect/issues/1509)
 
 ### Task Library
 
@@ -31,6 +32,50 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
+
+
+## 0.6.4 <Badge text="beta" type="success"/>
+
+Released September 10, 2019
+
+### Features
+
+- Improve Windows compatibility for local development and deploying to Prefect Cloud - [#1441](https://github.com/PrefectHQ/prefect/pull/1441), [#1456](https://github.com/PrefectHQ/prefect/pull/1456), [#1465](https://github.com/PrefectHQ/prefect/pull/1465), [#1466](https://github.com/PrefectHQ/prefect/pull/1466)
+
+### Enhancements
+
+- Add OS platform check to Local Agent for running on Windows machines - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
+- Add `--base-url` argument for Docker daemons to `agent start` CLI command - [#1441](https://github.com/PrefectHQ/prefect/pull/1441)
+- Add environment labels for organizing / tagging different Flow execution environments - [#1438](https://github.com/PrefectHQ/prefect/issues/1438)
+- Use `-U` option when installing `prefect` in Docker containers to override base image version - [#1461](https://github.com/PrefectHQ/prefect/pull/1461)
+- Remove restriction that prevented `DotDict` classes from having keys that shadowed dict methods - [#1462](https://github.com/PrefectHQ/prefect/pull/1462)
+- Added livenessProbe to Kubernetes Agent - [#1474](https://github.com/PrefectHQ/prefect/pull/1474)
+- Ensure external Dask Clusters do not require Prefect Cloud environment variables to run Cloud flows - [#1481](https://github.com/PrefectHQ/prefect/pull/1481)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix incorrect import in `DaskKubernetesEnvironment` job template - [#1458](https://github.com/PrefectHQ/prefect/pull/1458)
+- Raise error on Agents started without an appropriate API token - [#1459](https://github.com/PrefectHQ/prefect/pull/1459)
+- Fix bug when calling `as_nested_dict` on `DotDicts` with an `items` key - [#1462](https://github.com/PrefectHQ/prefect/pull/1462)
+- Fix `--resource-manager` flag on agent install invalidating `imagePullSecrets` - [#1469](https://github.com/PrefectHQ/prefect/pull/1469)
+- Fix issue with user-written result handlers in Prefect Cloud preventing some states from being set - [#1480](https://github.com/PrefectHQ/prefect/pull/1480)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Joe Schmid](https://github.com/joeschmid)
+- [Brett Naul](https://github.com/bnaul)
 
 
 ## 0.6.3 <Badge text="beta" type="success"/>

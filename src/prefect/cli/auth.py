@@ -188,7 +188,7 @@ def create_token(name, role):
     """
     Create a Prefect Cloud API token.
 
-    For more info on API tokens visit https://docs.prefect.io/cloud/cloud_concepts/api.html
+    For more info on API tokens visit https://docs.prefect.io/cloud/concepts/api.html
 
     \b
     Options:

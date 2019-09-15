@@ -1,5 +1,6 @@
 import os
-import subprocess
+import shutil
+import sys
 import tempfile
 
 import pytest
@@ -7,6 +8,11 @@ import pytest
 from prefect import Flow
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
+
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="ShellTask currently not supported on Windows"
+)
 
 
 def test_shell_initializes_and_runs_basic_cmd():
@@ -41,10 +47,7 @@ def test_shell_raises_if_no_command_provided():
             assert f.run()
 
 
-@pytest.mark.skipif(
-    subprocess.call(["which", "zsh"], stdout=open(os.devnull, "w")),
-    reason="zsh not installed.",
-)
+@pytest.mark.skipif(not bool(shutil.which("zsh")), reason="zsh not installed.")
 def test_shell_runs_other_shells():
     with Flow(name="test") as f:
         task = ShellTask(shell="zsh")(command="echo -n $ZSH_NAME")

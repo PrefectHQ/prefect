@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List
 
 import cloudpickle
 import docker
+from pathlib import PurePosixPath
 from slugify import slugify
 
 import prefect
@@ -55,7 +56,7 @@ class Docker(Storage):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
-        base_url: str = "unix://var/run/docker.sock",
+        base_url: str = None,
         prefect_version: str = None,
         local_image: bool = False,
     ) -> None:
@@ -69,6 +70,11 @@ class Docker(Storage):
         else:
             self.base_image = base_image
 
+        if sys.platform == "win32":
+            default_url = "npipe:////./pipe/docker_engine"
+        else:
+            default_url = "unix://var/run/docker.sock"
+
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -76,7 +82,7 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = base_url
+        self.base_url = base_url or default_url
         self.local_image = local_image
 
         version = prefect.__version__.split("+")
@@ -165,7 +171,7 @@ class Docker(Storage):
             raise ValueError("Docker storage is missing required fields")
 
         return "{}:{}".format(
-            os.path.join(self.registry_url, self.image_name),  # type: ignore
+            PurePosixPath(self.registry_url, self.image_name),  # type: ignore
             self.image_tag,  # type: ignore
         )
 
@@ -232,10 +238,10 @@ class Docker(Storage):
 
             # Verify that a registry url has been provided for images that should be pushed
             if self.registry_url:
-                full_name = os.path.join(self.registry_url, self.image_name)
+                full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
                 raise ValueError(
-                    "This environment has no `registry_url`, and cannot be pushed."
+                    "This Docker storage object has no `registry_url`, and cannot be pushed."
                 )
             else:
                 full_name = self.image_name
@@ -357,8 +363,8 @@ class Docker(Storage):
                 ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
 
-                RUN pip install git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
-                # RUN pip install prefect
+                # update version if base image already has prefect installed
+                RUN pip install -U git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
 
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(

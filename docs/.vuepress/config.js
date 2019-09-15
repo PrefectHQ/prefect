@@ -2,10 +2,11 @@ const sidebar54 = require('../api/0.5.4/sidebar')
 const sidebar60 = require('../api/0.6.0/sidebar')
 const sidebar61 = require('../api/0.6.1/sidebar')
 const sidebar62 = require('../api/0.6.2/sidebar')
+const sidebar64 = require('../api/0.6.4/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -18,7 +19,7 @@ const getChildren = function (parent_path, dir) {
       return path
     })
     .sort()
-}
+};
 
 module.exports = {
   title: "Prefect Docs",
@@ -37,7 +38,7 @@ module.exports = {
         ga: "UA-115585378-1"
       }
     ],
-    ["@dovyp/vuepress-plugin-clipboard-copy", true]
+    ["vuepress-plugin-code-copy", true]
   ],
   themeConfig: {
     repo: "PrefectHQ/prefect",
@@ -47,17 +48,18 @@ module.exports = {
     logo: "/assets/logomark-color.svg",
     nav: [
       {
-        text: "Cloud",
-        link: "/cloud/first-steps"
+        text: "Prefect Core",
+        link: "/core/"
       },
       {
-        text: "Core",
-        link: "/guide/"
+        text: "Prefect Cloud",
+        link: "/cloud/first-steps"
       },
       {
         text: "API Reference",
         items: [
           { text: "Unreleased", link: "/api/unreleased/" },
+          { text: "0.6.4", link: "/api/0.6.4/" },
           { text: "0.6.2 / 0.6.3", link: "/api/0.6.2/" },
           { text: "0.6.1", link: "/api/0.6.1/" },
           { text: "0.6.0", link: "/api/0.6.0/" },
@@ -70,6 +72,7 @@ module.exports = {
       "/api/0.6.0/": sidebar60.sidebar,
       "/api/0.6.1/": sidebar61.sidebar,
       "/api/0.6.2/": sidebar62.sidebar,
+      "/api/0.6.4/": sidebar64.sidebar,
       "/api/unreleased/": [
         { title: "API Reference", path: "/api/unreleased/" },
         "changelog",
@@ -123,12 +126,12 @@ module.exports = {
         },
         {
           title: "Cloud Concepts",
-          collapsable: false,
-          children: getChildren('docs/cloud', 'cloud_concepts')
+          collapsable: true,
+          children: getChildren('docs/cloud', 'concepts')
         },
         {
           title: 'Agent',
-          collapsable: false,
+          collapsable: true,
           children: [
             'agent/overview',
             'agent/local',
@@ -136,8 +139,8 @@ module.exports = {
           ]
         },
       ],
-      "/guide/": [
-        "/guide/",
+      "/core/": [
+        "/core/",
         {
           title: "Welcome",
           collapsable: false,
@@ -161,41 +164,41 @@ module.exports = {
         {
           title: "Tutorials",
           collapsable: true,
-          children: getChildren("docs/guide", "tutorials")
+          children: getChildren("docs/core", "tutorials")
         },
         {
           title: "Task Library",
           collapsable: true,
-          children: getChildren("docs/guide", "task_library")
+          children: getChildren("docs/core", "task_library")
         },
         {
           title: "Core Concepts",
           collapsable: true,
           children: [
-            "core_concepts/tasks",
-            "core_concepts/flows",
-            "core_concepts/parameters",
-            "core_concepts/states",
-            "core_concepts/mapping",
-            "core_concepts/engine",
-            "core_concepts/execution",
-            "core_concepts/notifications",
-            "core_concepts/results",
-            "core_concepts/schedules",
-            "core_concepts/configuration",
-            "core_concepts/best-practices",
-            "core_concepts/common-pitfalls"
+            "concepts/tasks",
+            "concepts/flows",
+            "concepts/parameters",
+            "concepts/states",
+            "concepts/mapping",
+            "concepts/engine",
+            "concepts/execution",
+            "concepts/notifications",
+            "concepts/results",
+            "concepts/schedules",
+            "concepts/configuration",
+            "concepts/best-practices",
+            "concepts/common-pitfalls"
           ]
         },
         {
           title: "Examples",
           collapsable: true,
-          children: getChildren("docs/guide", "examples")
+          children: getChildren("docs/core", "examples")
         },
         {
           title: "PINs",
           collapsable: true,
-          children: getChildren("docs/guide", "PINs")
+          children: getChildren("docs/core", "PINs")
         },
         {
           title: "Development",
