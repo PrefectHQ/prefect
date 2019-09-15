@@ -85,8 +85,7 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
     assert out.is_failed()
     assert "ERROR    prefect.Task: ShellTask:shell.py" in caplog.text
     assert (
-        "ls: surely_a_dir_that_doesnt_exist: No such file or directory"
-        in caplog.text
+        "ls: surely_a_dir_that_doesnt_exist: No such file or directory" in caplog.text
     )
 
 
