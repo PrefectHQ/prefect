@@ -83,9 +83,12 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
                 # TODO link this warning to a more complete example in the docs.
                 warnings.warn(
                     "One of the tasks passed to the switch condition has upstream "
-                    "dependencies: {}. Those upstream tasks could run even if the "
-                    "switch condition fails, which might cause unexpected "
-                    "results.".format(task),
+                    'dependencies: "{}". Those upstream tasks will be executed before the '
+                    "switch is evaluated. If you are using the switch to combine multiple upstream "
+                    "task branches, then you can probably disregard this warning. However, "
+                    "if you are using the switch to kick off one of multiple downstream branches, "
+                    "you may see unexpected behavior. Try using `flow.visualize()` to examine "
+                    "the flow's dependency structure to learn more.".format(task),
                     prefect.utilities.exceptions.PrefectWarning,
                 )
 
