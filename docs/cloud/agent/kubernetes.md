@@ -83,6 +83,15 @@ $ prefect agent install kubernetes -t MY_TOKEN | kubectl apply -f -
 
 The `install` command for Kubernetes will output a YAML deployment definition that can be applied to a cluster. You can view the output ahead of time by not piping the output into `kubectl apply`.
 
+:::tip Namespace
+By default, running `kubectl apply -f -` will apply the last metadata configuration. To ensure namespace does not get overwritten, include it in your kubectl command:
+
+```
+kubectl apply -n AGENT_NAMESPACE -f -
+```
+
+:::
+
 Now you should be able to see the agent deployment created on your cluster:
 
 ```
