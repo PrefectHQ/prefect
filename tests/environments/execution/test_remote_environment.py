@@ -35,8 +35,8 @@ def test_environment_execute():
 
         @prefect.task
         def add_to_dict():
-            with open(path.join(directory, "output"), "w") as file:
-                file.write("success")
+            with open(path.join(directory, "output"), "w") as tmp:
+                tmp.write("success")
 
         with open(path.join(directory, "flow_env.prefect"), "w+") as env:
             flow = prefect.Flow("test", tasks=[add_to_dict])
