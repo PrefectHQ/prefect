@@ -73,25 +73,6 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     with prefect.tags("switch"):
         for value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
-
-            active_flow = prefect.context.get("flow", None)
-            if (
-                active_flow
-                and task in active_flow.tasks
-                and active_flow.upstream_tasks(task)
-            ):
-                # TODO link this warning to a more complete example in the docs.
-                warnings.warn(
-                    "One of the tasks passed to the switch condition has upstream "
-                    'dependencies: "{}". Those upstream tasks will be executed before the '
-                    "switch is evaluated. If you are using the switch to combine multiple upstream "
-                    "task branches, then you can probably disregard this warning. However, "
-                    "if you are using the switch to kick off one of multiple downstream branches, "
-                    "you may see unexpected behavior. Try using `flow.visualize()` to examine "
-                    "the flow's dependency structure to learn more.".format(task),
-                    prefect.utilities.exceptions.PrefectWarning,
-                )
-
             match_condition = CompareValue(value=value).bind(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])
 
