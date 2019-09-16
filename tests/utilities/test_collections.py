@@ -325,4 +325,3 @@ def test_protect_critical_keys_inactive_for_nested_query():
     """
     gql = {"update": {"update": [{"x": 1}, {"x": 2}]}}
     as_nested_dict(gql, GraphQLResult)
-
