@@ -5,7 +5,6 @@ from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine import result, state
 from prefect.serialization.result import StateResultSchema
-from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
     Nested,

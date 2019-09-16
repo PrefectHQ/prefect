@@ -5,12 +5,12 @@ from collections import OrderedDict
 from textwrap import dedent
 
 import pytest
-
-from prefect.utilities.collections import DotDict
+from box import Box
 from prefect.utilities.graphql import (
     EnumValue,
     LiteralSetValue,
     GQLObject,
+    GraphQLResult,
     compress,
     decompress,
     parse_graphql,
@@ -334,9 +334,9 @@ def test_use_true_to_indicate_field_name():
     )
 
 
-def test_dotdict_query_parsing():
+def test_box_query_parsing():
     verify(
-        query=DotDict(query=DotDict(books={"id"})),
+        query=Box(query=Box(books={"id"})),
         expected="""
             query {
                 books {
@@ -347,13 +347,11 @@ def test_dotdict_query_parsing():
     )
 
 
-def test_pass_dotdicts_as_args():
+def test_pass_box_as_args():
     verify(
         query={
             "query": {
-                with_args(
-                    "books", DotDict(author=DotDict(name=DotDict(first="first")))
-                ): {"id"}
+                with_args("books", Box(author=Box(name=Box(first="first")))): {"id"}
             }
         },
         expected="""

@@ -7,7 +7,7 @@ import uuid
 from collections.abc import KeysView, ValuesView
 from typing import Any, Union
 
-from prefect.utilities.collections import DotDict, as_nested_dict
+from box import Box
 
 
 def lowercase_first_letter(s: str) -> str:
@@ -19,13 +19,8 @@ def lowercase_first_letter(s: str) -> str:
     return s
 
 
-class GraphQLResult(DotDict):
-    def __repr__(self) -> str:
-        self_as_dict = as_nested_dict(self, dct_class=dict)
-        try:
-            return json.dumps(self_as_dict, indent=4)
-        except TypeError:
-            return repr(self_as_dict)
+class GraphQLResult(Box):
+    pass
 
 
 class EnumValue:
@@ -176,7 +171,7 @@ def _parse_graphql_inner(document: Any, delimiter: str) -> str:
         return "\n".join(
             [_parse_graphql_inner(item, delimiter=delimiter) for item in document]
         )
-    elif isinstance(document, (dict, DotDict)):
+    elif isinstance(document, dict):
         result = []
         for key, value in document.items():
             if value is True:
@@ -219,7 +214,7 @@ def parse_graphql_arguments(arguments: Any) -> str:
     """
     parsed = _parse_arguments_inner(arguments)
     # remove '{ ' and ' }' from front and end of parsed dict
-    if isinstance(arguments, (dict, DotDict)):
+    if isinstance(arguments, dict):
         parsed = parsed[2:-2]
     # remove '"' and '"' from front and end of parsed str
     elif isinstance(arguments, str):
@@ -228,7 +223,7 @@ def parse_graphql_arguments(arguments: Any) -> str:
 
 
 def _parse_arguments_inner(arguments: Any) -> str:
-    if isinstance(arguments, (dict, DotDict)):
+    if isinstance(arguments, dict):
         # empty dicts are valid GQL arguments
         if len(arguments) == 0:
             return "{}"

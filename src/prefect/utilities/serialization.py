@@ -21,7 +21,7 @@ from marshmallow import (
 )
 
 import prefect
-from prefect.utilities.collections import DotDict, as_nested_dict
+from prefect.utilities.collections import as_nested_dict
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -179,8 +179,6 @@ class JSONCompatible(fields.Field):
         return super()._serialize(value, attr, obj, **kwargs)
 
     def _validate_json(self, value: Any) -> None:
-        # handle dict-like subclasses including DotDict and GraphQLResult
-        value = as_nested_dict(value, dict)
         try:
             json.dumps(value)
         except TypeError:
@@ -226,11 +224,6 @@ class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
 
     class Meta:
         unknown = EXCLUDE
-
-    def _load(self, data, partial=None, unknown=None):  # type: ignore
-        if isinstance(data, DotDict):
-            data = as_nested_dict(data, dict)
-        return super()._load(data=data, partial=partial, unknown=unknown)
 
 
 class Bytes(fields.Field):
