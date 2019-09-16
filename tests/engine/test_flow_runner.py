@@ -17,6 +17,7 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
+from prefect.engine.task_runner import TaskRunner
 from prefect.engine.result import NoResult, Result
 from prefect.engine.state import (
     Cached,
@@ -1480,3 +1481,62 @@ def test_task_logs_survive_if_timeout_is_used(caplog, executor):
 
     assert res.is_successful()
     assert len([r for r in caplog.records if r.levelname == "CRITICAL"]) == 1
+
+
+def test_task_runners_submitted_to_remote_machines_respect_original_config(monkeypatch):
+    """
+    This test is meant to simulate the behavior of running a Cloud Flow against an external
+    cluster which has _not_ been configured for Prefect.  The idea is that the configuration
+    settings which were present on the original machine are respected in the remote job, reflected
+    here by having the CloudHandler called during logging and the special values present in context.
+    """
+
+    class CustomFlowRunner(FlowRunner):
+        def run_task(self, *args, **kwargs):
+            with prefect.utilities.configuration.set_temporary_config(
+                {
+                    "logging.log_to_cloud": False,
+                    "special_key": 99,
+                    "cloud.auth_token": "",
+                }
+            ):
+                return super().run_task(*args, **kwargs)
+
+    calls = []
+
+    class Client:
+        def write_run_log(self, *args, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+
+    @prefect.task
+    def log_stuff():
+        logger = prefect.context.get("logger")
+        logger.critical("important log right here")
+        return (
+            prefect.context.config.special_key,
+            prefect.context.config.cloud.auth_token,
+        )
+
+    with prefect.utilities.configuration.set_temporary_config(
+        {
+            "logging.log_to_cloud": True,
+            "special_key": 42,
+            "cloud.auth_token": "original",
+        }
+    ):
+        # captures config at init
+        runner = CustomFlowRunner(flow=Flow("test", tasks=[log_stuff]))
+        flow_state = runner.run(return_tasks=[log_stuff])
+
+    assert flow_state.is_successful()
+    assert flow_state.result[log_stuff].result == (42, "original")
+    assert len(calls) == 6
+
+    loggers = [c["name"] for c in calls]
+    assert set(loggers) == {
+        "prefect.TaskRunner",
+        "prefect.CustomFlowRunner",
+        "prefect.Task: log_stuff",
+    }

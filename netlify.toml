@@ -15,6 +15,22 @@
   publish = "docs/.vuepress/dist"
   command = 'export GIT_SHA=$COMMIT_REF && pip install -e ".[dev]" && yarn docs:build'
 
+
+# redirect from /guide/core_concepts to /core/concepts
+[[redirects]]
+  from = "/guide/core_concepts/*"
+  to = "/core/concepts/:splat"
+
+# redirect from /cloud/cloud_concepts to /cloud/concepts
+[[redirects]]
+  from = "/cloud/cloud_concepts/*"
+  to = "/cloud/concepts/:splat"
+
+# redirect from /guide to /core
+[[redirects]]
+  from = "/guide/*"
+  to = "/core/:splat"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

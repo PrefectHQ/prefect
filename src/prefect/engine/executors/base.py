@@ -69,15 +69,3 @@ class Executor:
             - Any: an iterable of resolved futures
         """
         raise NotImplementedError()
-
-    def queue(self, maxsize: int = 0) -> Any:
-        """
-        Creates an executor-compatible Queue object that can share state across tasks.
-
-        Args:
-            - maxsize (int): maxsize of the queue; defaults to 0 (infinite)
-
-        Returns:
-            - Queue: an executor compatible queue that can be shared among tasks
-        """
-        raise NotImplementedError()

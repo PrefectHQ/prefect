@@ -172,6 +172,7 @@ class TaskRunner(Runner):
             task_slug=self.task.slug,
         )
         context.setdefault("checkpointing", config.flows.checkpointing)
+        context.update(logger=self.task.logger)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -351,7 +352,17 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if upstream tasks are not finished.
         """
-        if not all(s.is_finished() for s in upstream_states.values()):
+        all_states = set()  # type: Set[State]
+        for edge, upstream_state in upstream_states.items():
+            # if the upstream state is Mapped, and this task is also mapped,
+            # we want each individual child to determine if it should
+            # proceed or not based on its upstream parent in the mapping
+            if isinstance(upstream_state, Mapped) and not edge.mapped:
+                all_states.update(upstream_state.map_states)
+            else:
+                all_states.add(upstream_state)
+
+        if not all(s.is_finished() for s in all_states):
             self.logger.debug(
                 "Task '{name}': not all upstream states are finished; ending run.".format(
                     name=prefect.context.get("task_full_name", self.task.name)
@@ -847,10 +858,9 @@ class TaskRunner(Runner):
                 timeout_handler or prefect.utilities.executors.timeout_handler
             )
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            with prefect.context(logger=self.task.logger):
-                result = timeout_handler(
-                    self.task.run, timeout=self.task.timeout, **raw_inputs
-                )
+            result = timeout_handler(
+                self.task.run, timeout=self.task.timeout, **raw_inputs
+            )
 
         # inform user of timeout
         except TimeoutError as exc:

@@ -67,6 +67,14 @@ def test_local_secrets_auto_load_json_strings():
             secret.get()
 
 
+def test_local_secrets_remain_plain_dictionaries():
+    secret = Secret(name="test")
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(test={"x": 42})):
+            assert isinstance(prefect.context.secrets["test"], dict)
+            assert secret.get() == {"x": 42}
+
+
 def test_secrets_raise_if_in_flow_context():
     secret = Secret(name="test")
     with set_temporary_config({"cloud.use_local_secrets": True}):

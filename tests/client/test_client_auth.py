@@ -58,14 +58,16 @@ class TestClientConfig:
         )._local_settings_path()
         expected = os.path.join(
             prefect_home_dir,
-            "client/https-a-test-api.prefect.test-subdomain/settings.toml",
+            "client",
+            "https-a-test-api.prefect.test-subdomain",
+            "settings.toml",
         )
         assert str(path) == expected
 
     def test_client_settings_path_depends_on_home_dir(self):
         with set_temporary_config(dict(home_dir="abc/def")):
             path = Client(api_server="xyz")._local_settings_path()
-            expected = "abc/def/client/xyz/settings.toml"
+            expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
     def test_client_token_initializes_from_file(selfmonkeypatch):
@@ -160,7 +162,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -181,7 +183,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -199,7 +201,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -219,7 +221,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -245,7 +247,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -272,7 +274,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -295,7 +297,7 @@ class TestTenantAuth:
                     "tenant": [{"id": tenant_id}],
                     "switchTenant": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     },
                 }
@@ -323,7 +325,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }
@@ -332,7 +334,9 @@ class TestTenantAuth:
         client = Client()
         assert client._access_token is None
         assert client._refresh_token is None
-        assert client._access_token_expires_at < pendulum.now()
+
+        # add buffer because Windows doesn't compare milliseconds
+        assert client._access_token_expires_at < pendulum.now().add(seconds=1)
         client._refresh_access_token()
         assert client._access_token is "ACCESS_TOKEN"
         assert client._refresh_token is "REFRESH_TOKEN"
@@ -344,7 +348,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }
@@ -362,7 +366,7 @@ class TestTenantAuth:
                 "data": {
                     "refreshToken": {
                         "accessToken": "ACCESS_TOKEN",
-                        "expiresIn": 600,
+                        "expiresAt": "2100-01-01",
                         "refreshToken": "REFRESH_TOKEN",
                     }
                 }

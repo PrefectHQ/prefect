@@ -1,6 +1,46 @@
 """
-Triggers are functions that determine if task state should change based on
-the state of preceding tasks.
+Triggers are functions that determine if a task should run based on
+the state of upstream tasks.
+
+For example, suppose we want to construct a flow with one root task; if this task
+succeeds, we want to run task B.  If instead it fails, we want to run task C.  We
+can accomplish this pattern through the use of triggers:
+
+```python
+import random
+
+from prefect.triggers import all_successful, all_failed
+from prefect import task, Flow
+
+
+@task(name="Task A")
+def task_a():
+    if random.random() > 0.5:
+        raise ValueError("Non-deterministic error has occured.")
+
+@task(name="Task B", trigger=all_successful)
+def task_b():
+    # do something interesting
+    pass
+
+@task(name="Task C", trigger=all_failed)
+def task_c():
+    # do something interesting
+    pass
+
+
+with Flow("Trigger example") as flow:
+    success = task_b(upstream_tasks=[task_a])
+    fail = task_c(upstream_tasks=[task_a])
+
+## note that as written, this flow will fail regardless of the path taken
+## because *at least one* terminal task will fail;
+## to fix this, we want to set Task B as the "reference task" for the Flow
+## so that its state uniquely determines the overall Flow state
+flow.set_reference_tasks([success])
+
+flow.run()
+```
 """
 from typing import Callable, Set, Union
 

@@ -48,7 +48,7 @@ def result_handler_check(flows: list):
         ## test for tasks which are checkpointed with no result handler
         if any([(t.checkpoint and t.result_handler is None) for t in flow.tasks]):
             raise ValueError(
-                "Some tasks request to be checkpointed but do not have a result handler. See https://docs.prefect.io/guide/core_concepts/results.html for more details."
+                "Some tasks request to be checkpointed but do not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details."
             )
 
         ## test for tasks which might retry without upstream result handlers
@@ -63,7 +63,7 @@ def result_handler_check(flows: list):
                 ]
             ):
                 raise ValueError(
-                    "Task {} has retry settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/guide/core_concepts/results.html for more details.".format(
+                    "Task {} has retry settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )
@@ -73,7 +73,7 @@ def result_handler_check(flows: list):
         for task in cached_tasks:
             if task.result_handler is None:
                 raise ValueError(
-                    "Task {} has cache settings but does not have a result handler. See https://docs.prefect.io/guide/core_concepts/results.html for more details.".format(
+                    "Task {} has cache settings but does not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )
@@ -85,7 +85,7 @@ def result_handler_check(flows: list):
                 ]
             ):
                 raise ValueError(
-                    "Task {} has cache settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/guide/core_concepts/results.html for more details.".format(
+                    "Task {} has cache settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )

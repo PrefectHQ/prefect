@@ -4,6 +4,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
+from urllib.parse import urljoin
 
 import pendulum
 import requests
@@ -80,10 +81,12 @@ class Client:
         self._active_tenant_id = None
 
         # store api server
-        self.api_server = api_server or prefect.config.cloud.get("graphql")
+        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
         # store api token
-        self._api_token = api_token or prefect.config.cloud.get("auth_token", None)
+        self._api_token = api_token or prefect.context.config.cloud.get(
+            "auth_token", None
+        )
 
         # if no api token was passed, attempt to load state from local storage
         if not self._api_token:
@@ -249,7 +252,7 @@ class Client:
         if token is None:
             token = self.get_auth_token()
 
-        url = os.path.join(server, path.lstrip("/")).rstrip("/")
+        url = urljoin(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
 
@@ -288,7 +291,7 @@ class Client:
         Returns the local settings directory corresponding to the current API servers
         """
         path = "{home}/client/{server}".format(
-            home=prefect.config.home_dir,
+            home=prefect.context.config.home_dir,
             server=slugify(self.api_server, regex_pattern=r"[^-\.a-z0-9]+"),
         )
         return Path(os.path.expanduser(path)) / "settings.toml"
@@ -406,7 +409,7 @@ class Client:
                 "mutation($input: switchTenantInput!)": {
                     "switchTenant(input: $input)": {
                         "accessToken",
-                        "expiresIn",
+                        "expiresAt",
                         "refreshToken",
                     }
                 }
@@ -416,9 +419,9 @@ class Client:
             token=self._api_token,
         )  # type: ignore
         self._access_token = payload.data.switchTenant.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.switchTenant.expiresIn  # type: ignore
-        )
+        self._access_token_expires_at = pendulum.parse(
+            payload.data.switchTenant.expiresAt  # type: ignore
+        )  # type: ignore
         self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
         self._active_tenant_id = tenant_id
 
@@ -453,7 +456,7 @@ class Client:
                 "mutation($input: refreshTokenInput!)": {
                     "refreshToken(input: $input)": {
                         "accessToken",
-                        "expiresIn",
+                        "expiresAt",
                         "refreshToken",
                     }
                 }
@@ -463,9 +466,9 @@ class Client:
             token=self._refresh_token,
         )  # type: ignore
         self._access_token = payload.data.refreshToken.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.now().add(
-            seconds=payload.data.refreshToken.expiresIn  # type: ignore
-        )
+        self._access_token_expires_at = pendulum.parse(
+            payload.data.refreshToken.expiresAt  # type: ignore
+        )  # type: ignore
         self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
 
         return True
@@ -532,7 +535,7 @@ class Client:
 
         if not project:
             raise ValueError(
-                "Project {} not found. Run `client.create_project({})` to create it.".format(
+                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
                     project_name, project_name
                 )
             )

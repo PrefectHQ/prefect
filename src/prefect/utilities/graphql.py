@@ -20,13 +20,12 @@ def lowercase_first_letter(s: str) -> str:
 
 
 class GraphQLResult(DotDict):
-    __protect_critical_keys__ = False
-
     def __repr__(self) -> str:
+        self_as_dict = as_nested_dict(self, dct_class=dict)
         try:
-            return json.dumps(as_nested_dict(self, dict), indent=4)
+            return json.dumps(self_as_dict, indent=4)
         except TypeError:
-            return repr(self.to_dict())
+            return repr(self_as_dict)
 
 
 class EnumValue:
@@ -44,6 +43,19 @@ class EnumValue:
 
     def __str__(self) -> str:
         return self.value
+
+
+def LiteralSetValue(value: list) -> str:
+    """
+    When parsing GraphQL arguments, `LiteralSetValue` renders strings as literal set values,
+    without internal quotation marks.
+
+    For example: "{a, b, c}"
+
+    Args:
+        - value (list): the value that should be represented as a literal set
+    """
+    return "{" + ", ".join(v for v in value) + "}"
 
 
 class GQLObject:
@@ -282,7 +294,7 @@ def with_args(field: Any, arguments: Any) -> str:
 def compress(input: Any) -> str:
     """
     Convenience function for compressing something before sending
-    it to Cloud. Converts to string, encodes, compresses, 
+    it to Cloud. Converts to string, encodes, compresses,
     encodes again using b64, and decodes.
 
     Args:
@@ -297,7 +309,7 @@ def compress(input: Any) -> str:
 def decompress(string: str) -> Any:
     """
     Convenience function for decompressing a string that's been
-    compressed. Base64 decodes the string, decodes it, 
+    compressed. Base64 decodes the string, decodes it,
     decompresses it, and loads.
 
     Args:

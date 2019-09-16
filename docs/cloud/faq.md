@@ -8,9 +8,19 @@
 
 Prefect absolutely has a User Interface (UI). The [Prefect Core Engine](https://github.com/PrefectHQ/prefect) is designed for building and testing your Prefect workflows locally, and consequently does not require a database or any other sort of monitoring service running (which is what any UI _requires_ in order to expose stateful information!). Prefect Cloud is our recommended persistent orchestration layer for monitoring and orchestrating workflows in a production setting, and the Cloud API is what drives our UI. To gain access to Cloud, please [contact us](https://www.prefect.io/lighthouse-partners).
 
+### What is the difference between Prefect Core and Prefect Cloud?
+
+[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally.  For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence.  This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows.  Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things.  Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](dataflow.html).
+
 ### Is using Dask a requirement of Prefect?
 
 No - Dask is our preferred executor for distributed and parallelizable workflows, but running your workflows on Dask is _not_ a requirement. [Any of Prefect's executors](https://docs.prefect.io/api/unreleased/engine/executors.html) are available for use in deployment, and we are always interested in adding new ones.
+
+### What are the requirements of Prefect Cloud?
+
+Prefect Cloud currently requires that all Flows are containerized using [Docker](https://www.docker.com). Extensive knowledge of Docker is not required, and Prefect Core has many convenient interfaces and utility functions for interacting with Docker.  Your Prefect Agent also requires access to a platform which is capable of running Docker containers.  In addition to Docker, your Prefect Agent needs the ability to communicate _out_ to Cloud (but not the other way around - Prefect Cloud _never_ requires access to your code, data or infrastructure).
+
+Other than the python dependencies of Prefect Core, there are no additional requirements for deploying Flows to Prefect Cloud.
 
 ### How is Prefect different from Airflow?
 
@@ -43,7 +53,7 @@ There are two distinct "implementations" of the scheduler:
 
 - the Prefect Core standalone version: this "scheduler" is more of a convenience method than a real scheduler. It can be triggered by calling `flow.run()` on a Prefect Flow object. If the Flow has no schedule, a run will begin immediately. Otherwise, the process will block until the next scheduled time has been reached.
 - the Prefect Cloud scheduler service: this horizontally-scalable service is responsible for one thing: creating "Scheduled" states for Flows which are then picked up by your Prefect Agent and submitted for execution (at the appropriate time). These Scheduled states are created in two distinct ways:
-  - anytime a user creates a Flow Run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](cloud_concepts/flow_runs.html#creating-a-flow-run)
+  - anytime a user creates a Flow Run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](concepts/flow_runs.html#creating-a-flow-run)
   - the scheduler is constantly scanning the database looking for Flows with active schedules; anytime one is found that hasn't been processed recently, the next 10 runs are scheduled via the creation of `Scheduled` states
 
 Note that regardless of which scheduler is being used, dependencies between Prefect Tasks typically _do not involve a scheduler_; rather, the executor being used for the flow run handles when each dependency is finished and the next can begin.
@@ -51,3 +61,11 @@ Note that regardless of which scheduler is being used, dependencies between Pref
 ::: tip In Cloud, flow.run() is never called
 As previously stated, `flow.run` is purely a convenience method for running your Flows on schedule locally and testing your Flow execution locally. When the Prefect Agent submits a Flow for execution, a `CloudFlowRunner` is created and interacted with directly.
 :::
+
+### Do you have an integration for service X?
+
+Yes! Prefect can integrate with any service and we have a growing Task Library of pre-built tasks for working with internal and external services.
+
+People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others!
+
+The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.

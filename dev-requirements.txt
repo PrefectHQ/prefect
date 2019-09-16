@@ -1,5 +1,5 @@
 black
-graphviz >= 0.8, < 0.13
+graphviz >= 0.8, < 0.14
 jinja2 >= 2.0, < 3.0
 mypy >= 0.600, < 0.800
 pytest >= 5.0, < 6.0

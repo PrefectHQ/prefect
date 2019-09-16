@@ -71,7 +71,7 @@ checkpointing = false
     [engine.executor]
 
     # the default executor, specified using a full path
-    default_class = "prefect.engine.executors.SynchronousExecutor"
+    default_class = "prefect.engine.executors.LocalExecutor"
 
         [engine.executor.dask]
         # the default scheduler address for the DaskExecutor. Set to "local" to configure

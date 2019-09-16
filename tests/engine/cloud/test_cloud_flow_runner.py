@@ -427,3 +427,86 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 10
     assert flow_state.result[final].result == 100
+
+
+def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
+    """
+    After the context refactor wherein config settings were pulled from context.config,
+    there were various errors related to `prefect.context(self.context.to_dict())`
+    caused by the Context object not creating a nested DotDict structure.  The main
+    symptom of this was when a CloudFlowRunner submitted a job to a dask worker and an error
+    was raised: `dict has no attribute cloud`
+    """
+    fr = CloudFlowRunner(flow=prefect.Flow(name="test"))
+    fr.run_task(
+        task=MagicMock(),
+        state=None,
+        upstream_states=dict(),
+        context=dict(),
+        task_runner_state_handlers=[],
+        executor=None,
+    )
+
+
+def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config(
+    monkeypatch
+):
+    """
+    This test is meant to simulate the behavior of running a Cloud Flow against an external
+    cluster which has _not_ been configured for Prefect.  The idea is that the configuration
+    settings which were present on the original machine are respected in the remote job, reflected
+    here by having the CloudHandler called during logging and the special values present in context.
+    """
+
+    class CustomFlowRunner(CloudFlowRunner):
+        def run_task(self, *args, **kwargs):
+            with prefect.utilities.configuration.set_temporary_config(
+                {
+                    "logging.log_to_cloud": False,
+                    "special_key": 99,
+                    "cloud.auth_token": "",
+                }
+            ):
+                return super().run_task(*args, **kwargs)
+
+    calls = []
+
+    class Client(MagicMock):
+        def write_run_log(self, *args, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+    monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
+    prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
+
+    @prefect.task
+    def log_stuff():
+        logger = prefect.context.get("logger")
+        logger.critical("important log right here")
+        return (
+            prefect.context.config.special_key,
+            prefect.context.config.cloud.auth_token,
+        )
+
+    with prefect.utilities.configuration.set_temporary_config(
+        {
+            "logging.log_to_cloud": True,
+            "special_key": 42,
+            "cloud.auth_token": "original",
+        }
+    ):
+        # captures config at init
+        runner = CustomFlowRunner(flow=prefect.Flow("test", tasks=[log_stuff]))
+        flow_state = runner.run(return_tasks=[log_stuff])
+
+    assert flow_state.is_successful()
+    assert flow_state.result[log_stuff].result == (42, "original")
+    assert len(calls) == 6
+
+    loggers = [c["name"] for c in calls]
+    assert set(loggers) == {
+        "prefect.CloudTaskRunner",
+        "prefect.CustomFlowRunner",
+        "prefect.Task: log_stuff",
+    }

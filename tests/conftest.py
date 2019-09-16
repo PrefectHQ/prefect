@@ -7,7 +7,7 @@ import pytest
 from distributed import Client
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalExecutor, SynchronousExecutor
+from prefect.engine.executors import DaskExecutor, LocalExecutor, LocalDaskExecutor
 from prefect.utilities import debug, configuration
 
 
@@ -44,7 +44,7 @@ def local():
 @pytest.fixture()
 def sync():
     "Synchronous dask (not dask.distributed) executor"
-    yield SynchronousExecutor()
+    yield LocalDaskExecutor()
 
 
 @pytest.fixture(scope="session")
@@ -81,7 +81,7 @@ def executor(request, _switch):
     return _switch(request.param)
 
 
-@pytest.fixture
+@pytest.fixture()
 def patch_post(monkeypatch):
     """
     Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified response.
@@ -99,3 +99,8 @@ def patch_post(monkeypatch):
         return post
 
     return patch
+
+
+@pytest.fixture()
+def runner_token(monkeypatch):
+    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())

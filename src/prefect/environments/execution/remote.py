@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 import cloudpickle
 
@@ -31,12 +31,19 @@ class RemoteEnvironment(Environment):
             to `prefect.config.engine.executor.default_class`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self, executor: str = None, executor_kwargs: dict = None) -> None:
+    def __init__(
+        self,
+        executor: str = None,
+        executor_kwargs: dict = None,
+        labels: List[str] = None,
+    ) -> None:
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
-        self.logger = logging.get_logger("RemoteEnvironment")
+        super().__init__(labels=labels)
 
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any
@@ -58,17 +65,13 @@ class RemoteEnvironment(Environment):
             )
 
             # Load serialized flow from file and run it with a DaskExecutor
-            with open(flow_location, "rb") as f:
-                flow = cloudpickle.load(f)
+            flow = storage.get_flow(flow_location)
+            with set_temporary_config({"engine.executor.default_class": self.executor}):
+                executor = get_default_executor_class()
 
-                with set_temporary_config(
-                    {"engine.executor.default_class": self.executor}
-                ):
-                    executor = get_default_executor_class()
-
-                executor = executor(**self.executor_kwargs)
-                runner_cls = get_default_flow_runner_class()
-                runner_cls(flow=flow).run(executor=executor)
+            executor = executor(**self.executor_kwargs)
+            runner_cls = get_default_flow_runner_class()
+            runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)

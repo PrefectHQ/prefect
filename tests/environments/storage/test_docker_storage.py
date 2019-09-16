@@ -1,3 +1,4 @@
+import cloudpickle
 import os
 import pendulum
 import sys
@@ -33,7 +34,16 @@ def test_add_flow_to_docker():
     assert storage.flows[f.name] == "/root/.prefect/test.prefect"
 
 
-def test_empty_docker_storage():
+@pytest.mark.parametrize(
+    "platform,url",
+    [
+        ("win32", "npipe:////./pipe/docker_engine"),
+        ("darwn", "unix://var/run/docker.sock"),
+    ],
+)
+def test_empty_docker_storage(monkeypatch, platform, url):
+    monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+
     storage = Docker()
 
     assert not storage.registry_url
@@ -44,7 +54,7 @@ def test_empty_docker_storage():
     assert not storage.env_vars
     assert not storage.files
     assert storage.prefect_version
-    assert storage.base_url == "unix://var/run/docker.sock"
+    assert storage.base_url == url
     assert not storage.local_image
 
 
@@ -433,10 +443,25 @@ def test_docker_storage_name():
     assert storage.name == "test1/test2:test3"
 
 
-def test_docker_storage_doesnt_have_get_flow_method():
+def test_docker_storage_get_flow_method():
     storage = Docker(base_image="python:3.6")
-    with pytest.raises(NotImplementedError):
-        storage.get_flow("")
+    with tempfile.TemporaryDirectory() as directory:
+
+        @prefect.task
+        def add_to_dict():
+            with open(os.path.join(directory, "output"), "w") as tmp:
+                tmp.write("success")
+
+        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+            flow = Flow("test", tasks=[add_to_dict])
+            flow_path = os.path.join(directory, "flow_env.prefect")
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
+
+        f = storage.get_flow(flow_path)
+        assert isinstance(f, Flow)
+        assert f.name == "test"
+        assert len(f.tasks) == 1
 
 
 def test_add_similar_flows_fails():
