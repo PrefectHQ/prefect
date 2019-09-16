@@ -107,4 +107,4 @@ class Secret:
                 """,
                 variables=dict(name=self.name),
             )
-            return dict(result)
+            return result.data.secretValue
