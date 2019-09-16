@@ -219,7 +219,7 @@ class Nested(fields.Nested):
 
 class OneOfSchema(marshmallow_oneofschema.OneOfSchema):
     """
-    A subclass of marshmallow_oneofschema.OneOfSchema that can load DotDicts
+    A subclass of marshmallow_oneofschema.OneOfSchema that excludes unknown fields
     """
 
     class Meta:
