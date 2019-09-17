@@ -7,7 +7,7 @@ from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
 
-class ECSAgent(Agent):
+class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
     long as the proper access configuration variables are set.
@@ -21,7 +21,7 @@ class ECSAgent(Agent):
             `AWS_SECRET_ACCESS_KEY`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME`.
-        - cluster (str, optional): The ECS cluster to deploy tasks. Defaults to the
+        - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the
             value set in the environment variable `CLUSTER`.
         - subnets (list, optional): A list of AWS VPC subnets to use for the tasks that
             are deployed on Fargate. Defaults to the subnets found which have
@@ -101,7 +101,7 @@ class ECSAgent(Agent):
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
-        Deploy flow runs to ECS using Fargate
+        Deploy flow runs to Fargate
 
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
@@ -254,4 +254,4 @@ class ECSAgent(Agent):
 
 
 if __name__ == "__main__":
-    ECSAgent().start()
+    FargateAgent().start()

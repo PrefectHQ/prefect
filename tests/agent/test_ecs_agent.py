@@ -7,7 +7,7 @@ pytest.importorskip("boto3")
 from botocore.exceptions import ClientError
 
 
-from prefect.agent.ecs import ECSAgent
+from prefect.agent.fargate import FargateAgent
 from prefect.environments.storage import Docker
 from prefect.utilities.graphql import GraphQLResult
 
@@ -16,7 +16,7 @@ def test_ecs_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     assert agent
     assert agent.boto3_client
 
@@ -25,7 +25,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     assert agent
     assert agent.cluster == "default"
     assert not agent.subnets
@@ -41,7 +41,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = ECSAgent(
+    agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         region_name="region",
@@ -83,7 +83,7 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("TASK_CPU", "1")
     monkeypatch.setenv("TASK_MEMORY", "2")
 
-    agent = ECSAgent(subnets=["subnet"])
+    agent = FargateAgent(subnets=["subnet"])
     assert agent
     assert agent.cluster == "cluster"
     assert agent.repository_credentials == "repo"
@@ -109,7 +109,7 @@ def test_default_subnets(monkeypatch, runner_token):
     }
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     assert agent.subnets == ["id"]
 
 
@@ -121,7 +121,7 @@ def test_deploy_flows(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -153,7 +153,7 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent(
+    agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         region_name="region",
@@ -216,7 +216,7 @@ def test_deploy_flows_no_security_group(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -252,7 +252,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -288,7 +288,7 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent(
+    agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         region_name="region",
@@ -370,7 +370,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = ECSAgent()
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
