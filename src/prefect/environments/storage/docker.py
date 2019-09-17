@@ -182,11 +182,11 @@ class Docker(Storage):
         """
         Full name of the Docker image.
         """
-        if None in [self.registry_url, self.image_name, self.image_tag]:
+        if None in [self.image_name, self.image_tag]:
             raise ValueError("Docker storage is missing required fields")
 
         return "{}:{}".format(
-            PurePosixPath(self.registry_url, self.image_name),  # type: ignore
+            PurePosixPath(self.registry_url or "", self.image_name),  # type: ignore
             self.image_tag,  # type: ignore
         )
 

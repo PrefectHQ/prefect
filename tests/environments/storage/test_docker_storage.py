@@ -447,6 +447,16 @@ def test_docker_storage_name():
     assert storage.name == "test1/test2:test3"
 
 
+def test_docker_storage_name_registry_url_none():
+    storage = Docker(base_image="python:3.6")
+    with pytest.raises(ValueError):
+        storage.name
+
+    storage.image_name = "test2"
+    storage.image_tag = "test3"
+    assert storage.name == "test2:test3"
+
+
 def test_docker_storage_get_flow_method():
     storage = Docker(base_image="python:3.6")
     with tempfile.TemporaryDirectory() as directory:
