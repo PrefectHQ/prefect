@@ -27,5 +27,3 @@ assignees: ''
 
 ## Environment
 *Any additional information about your environment*
-
-

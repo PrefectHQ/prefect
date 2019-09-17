@@ -1,6 +1,6 @@
 ---
-name: Feature request
-about: '"Mostly Harmless"'
+name: New feature request
+about: '"So amazingly cool you could keep a side of meat in it for a month."'
 title: ''
 labels: feature request
 assignees: ''
