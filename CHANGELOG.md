@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Added Fargate agent - [#1521](https://github.com/PrefectHQ/prefect/pull/1521)
 
 ### Enhancements
 
