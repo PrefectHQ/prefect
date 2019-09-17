@@ -104,6 +104,8 @@ def test_agent_install_passes_args():
             "--namespace",
             "TEST_NAMESPACE",
             "--resource-manager",
+            "--image-pull-secrets",
+            "secret-test",
         ],
     )
     assert result.exit_code == 0
@@ -111,6 +113,7 @@ def test_agent_install_passes_args():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert "resource-manager" in result.output
+    assert "secret-test" in result.output
 
 
 def test_agent_install_no_resource_manager():
@@ -125,6 +128,8 @@ def test_agent_install_no_resource_manager():
             "TEST_API",
             "--namespace",
             "TEST_NAMESPACE",
+            "--image-pull-secrets",
+            "secret-test",
         ],
     )
     assert result.exit_code == 0
@@ -132,3 +137,4 @@ def test_agent_install_no_resource_manager():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert not "resource-manager" in result.output
+    assert "secret-test" in result.output
