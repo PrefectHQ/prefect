@@ -218,6 +218,44 @@ def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
+def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
+    monkeypatch, runner_token
+):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token", api="test_api", namespace="test_namespace"
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    assert not deployment["spec"]["template"]["spec"].get("imagePullSecrets")
+
+
+def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
+    monkeypatch, runner_token
+):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        image_pull_secrets="secrets",
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    assert (
+        deployment["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
+        == "secrets"
+    )
+
+
 def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
