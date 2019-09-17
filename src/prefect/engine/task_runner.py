@@ -220,19 +220,19 @@ class TaskRunner(Runner):
         mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
-        if context.get("task_loop_count") is None:
-            self.logger.info(
-                "Task '{name}': Starting task run...".format(
-                    name=context["task_full_name"]
-                )
-            )
-
         try:
             # initialize the run
             state, context = self.initialize_run(state, context)
 
             # run state transformation pipeline
             with prefect.context(context):
+
+                if prefect.context.get("task_loop_count") is None:
+                    self.logger.info(
+                        "Task '{name}': Starting task run...".format(
+                            name=context["task_full_name"]
+                        )
+                    )
 
                 # check to make sure the task is in a pending state
                 state = self.check_task_is_ready(state)
@@ -323,15 +323,18 @@ class TaskRunner(Runner):
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
+        # to prevent excessive repetition of this log
+        # since looping relies on recursively calling self.run
+        # TODO: figure out a way to only log this one single time instead of twice
         if prefect.context.get("task_loop_count") is None:
-            # to prevent excessive repetition of this log
-            # since looping relies on recursively calling self.run
-            # TODO: figure out a way to only log this one single time instead of twice
-            self.logger.info(
-                "Task '{name}': finished task run for task with final state: '{state}'".format(
-                    name=context["task_full_name"], state=type(state).__name__
+            # wrapping this final log in prefect.context(context) ensures
+            # that any run-context, including task-run-ids, are respected
+            with prefect.context(context):
+                self.logger.info(
+                    "Task '{name}': finished task run for task with final state: '{state}'".format(
+                        name=context["task_full_name"], state=type(state).__name__
+                    )
                 )
-            )
 
         return state
 
