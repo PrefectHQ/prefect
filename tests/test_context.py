@@ -1,3 +1,6 @@
+import queue
+import time
+import threading
 from typing import Any
 
 import pytest
@@ -147,3 +150,35 @@ def test_context_init_prioritizes_new_config_keys_when_passed_a_dict():
     old = dict(config=dict(logging=dict(log_to_cloud="FOO")))
     ctx = Context(old)
     assert ctx.config.logging.log_to_cloud == "FOO"
+
+
+def test_contexts_are_thread_safe():
+
+    result_queue = queue.Queue()
+
+    def get_context_in_thread(q, id, delay=0):
+        time.sleep(delay)
+        with prefect.context(x=id):
+            time.sleep(delay)
+            q.put(prefect.context.x)
+            time.sleep(delay)
+
+    threads = []
+    for i in range(5):
+        thread = threading.Thread(
+            target=get_context_in_thread, kwargs=dict(q=result_queue, id=i, delay=0.1)
+        )
+        threads.append(thread)
+
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    results = set()
+    for _ in threads:
+        results.add(result_queue.get(block=False))
+
+    assert results == set(range(len(threads)))
+
