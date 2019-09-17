@@ -5,6 +5,7 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
 
 _agents = {
+    "ecs": "prefect.agent.ecs.ECSAgent",
     "local": "prefect.agent.local.LocalAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
     "nomad": "prefect.agent.nomad.NomadAgent",
@@ -54,12 +55,15 @@ def start(name, token, no_pull, base_url):
 
     \b
     Arguments:
-        name            TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `nomad`)
+        name            TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `ecs`, `nomad`)
                                 Defaults to `local`
 
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
+
+    \b
+    Local Agent Options:
         --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
