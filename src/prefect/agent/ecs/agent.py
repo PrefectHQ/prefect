@@ -137,8 +137,8 @@ class ECSAgent(Agent):
         try:
             self.boto3_client.describe_task_definition(
                 taskDefinition="prefect-task-{}".format(
-                    flow_run.flow.id[:8]
-                )  # type: ignore
+                    flow_run.flow.id[:8]  # type: ignore
+                )
             )
         except ClientError:
             return False
@@ -157,8 +157,8 @@ class ECSAgent(Agent):
             {
                 "name": "flow",
                 "image": StorageSchema()
-                .load(flow_run.flow.storage)
-                .name,  # type: ignore
+                .load(flow_run.flow.storage)  # type: ignore
+                .name,
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {
@@ -171,8 +171,8 @@ class ECSAgent(Agent):
                     },
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
-                        "value": flow_run.id,
-                    },  # type: ignore
+                        "value": flow_run.id,  # type: ignore
+                    },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
@@ -222,8 +222,8 @@ class ECSAgent(Agent):
                     },
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
-                        "value": flow_run.id,
-                    },  # type: ignore
+                        "value": flow_run.id,  # type: ignore
+                    },
                 ],
             }
         ]
@@ -245,8 +245,8 @@ class ECSAgent(Agent):
         self.boto3_client.run_task(
             cluster=self.cluster,
             taskDefinition="prefect-task-{}".format(
-                flow_run.flow.id[:8]
-            ),  # type: ignore
+                flow_run.flow.id[:8]  # type: ignore
+            ),
             overrides={"containerOverrides": container_overrides},
             launchType="FARGATE",
             networkConfiguration=network_configuration,
