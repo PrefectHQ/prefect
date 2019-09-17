@@ -231,7 +231,7 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
 
     deployment = yaml.safe_load(deployment)
 
-    assert not deployment["spec"]["template"]["spec"].get("imagePullSecrets")
+    assert deployment["spec"]["template"]["spec"].get("imagePullSecrets") is None
 
 
 def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
