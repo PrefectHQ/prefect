@@ -333,8 +333,6 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
-                {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
@@ -400,8 +398,6 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
-                {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},

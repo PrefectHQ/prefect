@@ -165,14 +165,6 @@ class FargateAgent(Agent):
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",
                     },
-                    {
-                        "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token,
-                    },
-                    {
-                        "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
-                        "value": flow_run.id,  # type: ignore
-                    },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
