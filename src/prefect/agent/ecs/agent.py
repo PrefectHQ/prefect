@@ -1,10 +1,4 @@
 import os
-from os import path
-import sys
-import uuid
-
-import pendulum
-import yaml
 
 from boto3 import client as boto3_client
 from botocore.exceptions import ClientError
