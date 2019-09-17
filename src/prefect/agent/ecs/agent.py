@@ -1,8 +1,5 @@
 import os
 
-from boto3 import client as boto3_client
-from botocore.exceptions import ClientError
-
 from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
@@ -59,6 +56,8 @@ class ECSAgent(Agent):
         task_memory: str = None,
     ) -> None:
         super().__init__()
+
+        from boto3 import client as boto3_client
 
         # Config used for boto3 client initialization
         aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
@@ -133,9 +132,13 @@ class ECSAgent(Agent):
         Returns:
             - bool: whether or not a preexisting task definition is found for this flow
         """
+        from botocore.exceptions import ClientError
+
         try:
             self.boto3_client.describe_task_definition(
-                taskDefinition="prefect-task-{}".format(flow_run.flow.id[:8])  # type: ignore
+                taskDefinition="prefect-task-{}".format(
+                    flow_run.flow.id[:8]
+                )  # type: ignore
             )
         except ClientError:
             return False
@@ -153,7 +156,9 @@ class ECSAgent(Agent):
         container_definitions = [
             {
                 "name": "flow",
-                "image": StorageSchema().load(flow_run.flow.storage).name,  # type: ignore
+                "image": StorageSchema()
+                .load(flow_run.flow.storage)
+                .name,  # type: ignore
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {
@@ -164,7 +169,10 @@ class ECSAgent(Agent):
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
                         "value": config.cloud.agent.auth_token,
                     },
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run.id},  # type: ignore
+                    {
+                        "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
+                        "value": flow_run.id,
+                    },  # type: ignore
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
@@ -212,7 +220,10 @@ class ECSAgent(Agent):
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
                         "value": config.cloud.agent.auth_token,
                     },
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run.id},  # type: ignore
+                    {
+                        "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
+                        "value": flow_run.id,
+                    },  # type: ignore
                 ],
             }
         ]
@@ -233,7 +244,9 @@ class ECSAgent(Agent):
         # Run task
         self.boto3_client.run_task(
             cluster=self.cluster,
-            taskDefinition="prefect-task-{}".format(flow_run.flow.id[:8]),  # type: ignore
+            taskDefinition="prefect-task-{}".format(
+                flow_run.flow.id[:8]
+            ),  # type: ignore
             overrides={"containerOverrides": container_overrides},
             launchType="FARGATE",
             networkConfiguration=network_configuration,

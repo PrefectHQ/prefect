@@ -14,7 +14,7 @@ from prefect.utilities.graphql import GraphQLResult
 
 def test_ecs_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.ecs.agent.boto3_client", boto3_client)
+    monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = ECSAgent()
     assert agent
@@ -23,7 +23,7 @@ def test_ecs_agent_init(monkeypatch, runner_token):
 
 def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     boto3_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.ecs.agent.boto3_client", boto3_client)
+    monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = ECSAgent()
     assert agent
@@ -39,7 +39,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
 def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.ecs.agent.boto3_client", boto3_client)
+    monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = ECSAgent(
         aws_access_key_id="id",
@@ -72,7 +72,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
 
 def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
     boto3_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.ecs.agent.boto3_client", boto3_client)
+    monkeypatch.setattr("boto3.client", boto3_client)
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
@@ -107,9 +107,7 @@ def test_default_subnets(monkeypatch, runner_token):
             {"MapPublicIpOnLaunch": True, "SubnetId": "id2"},
         ]
     }
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent()
     assert agent.subnets == ["id"]
@@ -121,9 +119,7 @@ def test_deploy_flows(monkeypatch, runner_token):
     boto3_client.describe_task_definition.return_value = {}
     boto3_client.run_task.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent()
     agent.deploy_flows(
@@ -155,9 +151,7 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
     boto3_client.describe_task_definition.return_value = {}
     boto3_client.run_task.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent(
         aws_access_key_id="id",
@@ -220,9 +214,7 @@ def test_deploy_flows_no_security_group(monkeypatch, runner_token):
     boto3_client.describe_task_definition.return_value = {}
     boto3_client.run_task.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent()
     agent.deploy_flows(
@@ -258,9 +250,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
     boto3_client.run_task.return_value = {}
     boto3_client.register_task_definition.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent()
     agent.deploy_flows(
@@ -296,9 +286,7 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
     boto3_client.run_task.return_value = {}
     boto3_client.register_task_definition.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent(
         aws_access_key_id="id",
@@ -380,9 +368,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
     boto3_client.run_task.return_value = {}
     boto3_client.register_task_definition.return_value = {}
 
-    monkeypatch.setattr(
-        "prefect.agent.ecs.agent.boto3_client", MagicMock(return_value=boto3_client)
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = ECSAgent()
     agent.deploy_flows(
