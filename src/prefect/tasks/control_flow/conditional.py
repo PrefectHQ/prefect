@@ -1,4 +1,3 @@
-import warnings
 from typing import Any, Dict
 
 import prefect
@@ -73,22 +72,6 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     with prefect.tags("switch"):
         for value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
-
-            active_flow = prefect.context.get("flow", None)
-            if (
-                active_flow
-                and task in active_flow.tasks
-                and active_flow.upstream_tasks(task)
-            ):
-                # TODO link this warning to a more complete example in the docs.
-                warnings.warn(
-                    "One of the tasks passed to the switch condition has upstream "
-                    "dependencies: {}. Those upstream tasks could run even if the "
-                    "switch condition fails, which might cause unexpected "
-                    "results.".format(task),
-                    prefect.utilities.exceptions.PrefectWarning,
-                )
-
             match_condition = CompareValue(value=value).bind(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])
 
