@@ -275,14 +275,18 @@ def test_build_image_passes_and_pushes(monkeypatch):
     assert "reg" in remove.call_args[1]["image"]
 
 
-def test_build_image_fails_no_registry(monkeypatch):
+@pytest.mark.filterwarnings("error")
+def test_build_image_passes_but_raises_warning(monkeypatch):
     storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
-    monkeypatch.setattr("docker.APIClient", client)
+    client.images.return_value = ["name"]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UserWarning):
         image_name, image_tag = storage._build_image()
+        assert image_name == "test"
+        assert image_tag == "latest"
 
 
 def test_create_dockerfile_from_base_image():

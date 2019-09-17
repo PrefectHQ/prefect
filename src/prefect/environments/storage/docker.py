@@ -9,6 +9,7 @@ import tempfile
 import textwrap
 import uuid
 from typing import Any, Callable, Dict, Iterable, List
+import warnings
 
 import cloudpickle
 import docker
@@ -254,9 +255,11 @@ class Docker(Storage):
             if self.registry_url:
                 full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
-                raise ValueError(
-                    "This Docker storage object has no `registry_url`, and cannot be pushed."
+                warnings.warn(
+                    "This Docker storage object has no `registry_url`, and will not be pushed.",
+                    UserWarning,
                 )
+                full_name = self.image_name
             else:
                 full_name = self.image_name
 
@@ -275,7 +278,7 @@ class Docker(Storage):
                 )
 
             # Push the image if requested
-            if push:
+            if push and self.registry_url:
                 self.push_image(full_name, self.image_tag)
 
                 # Remove the image locally after being pushed
