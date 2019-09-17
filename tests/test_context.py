@@ -181,4 +181,3 @@ def test_contexts_are_thread_safe():
         results.add(result_queue.get(block=False))
 
     assert results == set(range(len(threads)))
-
