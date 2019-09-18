@@ -1494,11 +1494,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     class CustomFlowRunner(FlowRunner):
         def run_task(self, *args, **kwargs):
             with prefect.utilities.configuration.set_temporary_config(
-                {
-                    "logging.log_to_cloud": False,
-                    "special_key": 99,
-                    "cloud.auth_token": "",
-                }
+                {"logging.log_to_cloud": False, "cloud.auth_token": ""}
             ):
                 return super().run_task(*args, **kwargs)
 
@@ -1528,7 +1524,9 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     ):
         # captures config at init
         runner = CustomFlowRunner(flow=Flow("test", tasks=[log_stuff]))
-        flow_state = runner.run(return_tasks=[log_stuff])
+        flow_state = runner.run(
+            return_tasks=[log_stuff], task_contexts={log_stuff: dict(special_key=99)}
+        )
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
