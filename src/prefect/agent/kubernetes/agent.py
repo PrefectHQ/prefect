@@ -19,14 +19,11 @@ def check_heartbeat() -> None:
     """
     Check the agent's heartbeat by verifying heartbeat file has been recently modified
     """
-    self.logger.debug("Checking heartbeat")
     current_timestamp = pendulum.now().timestamp()
     last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
-    self.logger.debug("Last heartbeat {}".format(last_modified_timestamp))
 
     # If file has not been modified in the last 40 seconds then raise an exit code of 1
     if current_timestamp - last_modified_timestamp > 40:
-        self.logger.debug("Heartbeat not received within last 40 seconds")
         sys.exit(1)
 
 
@@ -191,7 +188,6 @@ class KubernetesAgent(Agent):
         """
         os.makedirs(AGENT_DIRECTORY, exist_ok=True)
 
-        self.logger.debug("Sending heartbeat to {}/heartbeat".format(AGENT_DIRECTORY))
         open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
