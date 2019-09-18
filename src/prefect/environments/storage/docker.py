@@ -9,6 +9,7 @@ import tempfile
 import textwrap
 import uuid
 from typing import Any, Callable, Dict, Iterable, List
+import warnings
 
 import cloudpickle
 import docker
@@ -162,16 +163,30 @@ class Docker(Storage):
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
 
+    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
+        """
+        Given a file path within this Docker container, returns the underlying Flow.
+        Note that this method should only be run _within_ the container itself.
+
+        Args:
+            - flow_location (str): the file path of a flow within this container
+
+        Returns:
+            - Flow: the requested flow
+        """
+        with open(flow_location, "rb") as f:
+            return cloudpickle.load(f)
+
     @property
     def name(self) -> str:
         """
         Full name of the Docker image.
         """
-        if None in [self.registry_url, self.image_name, self.image_tag]:
+        if None in [self.image_name, self.image_tag]:
             raise ValueError("Docker storage is missing required fields")
 
         return "{}:{}".format(
-            PurePosixPath(self.registry_url, self.image_name),  # type: ignore
+            PurePosixPath(self.registry_url or "", self.image_name),  # type: ignore
             self.image_tag,  # type: ignore
         )
 
@@ -240,9 +255,11 @@ class Docker(Storage):
             if self.registry_url:
                 full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
-                raise ValueError(
-                    "This Docker storage object has no `registry_url`, and cannot be pushed."
+                warnings.warn(
+                    "This Docker storage object has no `registry_url`, and will not be pushed.",
+                    UserWarning,
                 )
+                full_name = self.image_name
             else:
                 full_name = self.image_name
 
@@ -261,7 +278,7 @@ class Docker(Storage):
                 )
 
             # Push the image if requested
-            if push:
+            if push and self.registry_url:
                 self.push_image(full_name, self.image_tag)
 
                 # Remove the image locally after being pushed

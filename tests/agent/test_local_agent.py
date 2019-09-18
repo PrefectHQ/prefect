@@ -210,3 +210,35 @@ def test_local_agent_deploy_flows_no_pull(monkeypatch, runner_token):
     assert not api.pull.called
     assert api.create_container.called
     assert api.start.called
+
+
+def test_local_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_token):
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = LocalAgent()
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Docker(
+                                registry_url="", image_name="name", image_tag="tag"
+                            ).serialize()
+                        }
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    assert not api.pull.called
+    assert api.create_container.called
+    assert api.start.called
