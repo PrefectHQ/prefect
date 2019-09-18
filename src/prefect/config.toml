@@ -15,6 +15,7 @@ heartbeat_interval = 30.0
     [cloud.agent]
     # Agents require different API tokens
     auth_token = ""
+    level = "INFO"
 
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers
