@@ -286,13 +286,14 @@ class Agent:
             - flow_runs (list): A list of GraphQLResult flow run objects
             - exc (Exception): A caught exception to log
         """
-        for flow_run in flow_runs:
-            self.client.write_run_log(
-                flow_run_id=flow_run.id,  # type: ignore
-                name="agent",
-                message=str(exc),
-                level="ERROR",
-            )
+        if flow_runs:
+            for flow_run in flow_runs:
+                self.client.write_run_log(
+                    flow_run_id=flow_run.id,  # type: ignore
+                    name="agent",
+                    message=str(exc),
+                    level="ERROR",
+                )
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
