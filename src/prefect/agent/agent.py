@@ -277,9 +277,7 @@ class Agent:
                         ),
                     )
 
-    def _log_flow_run_exceptions(
-        self, flow_runs: list, exc: Exception
-    ) -> None:
+    def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
         """
         Log platform issues to Prefect Cloud, attached to each flow run which
         could not start.
