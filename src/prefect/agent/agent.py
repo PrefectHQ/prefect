@@ -10,6 +10,7 @@ from prefect.serialization import state
 from prefect.engine.state import Submitted
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import with_args
+from prefect.utilities.graphql import GraphQLResult
 
 
 ascii_name = r"""
@@ -150,7 +151,7 @@ class Agent:
                 )
         except Exception as exc:
             self.logger.error(exc)
-            self._log_flow_run_exceptions(flow_runs, exc)
+            self._log_flow_run_exceptions(flow_runs, exc)  # type: ignore
 
         return bool(flow_runs)
 
@@ -276,11 +277,23 @@ class Agent:
                         ),
                     )
 
-    def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
-        """"""
+    def _log_flow_run_exceptions(
+        self, flow_runs: list, exc: Exception
+    ) -> None:
+        """
+        Log platform issues to Prefect Cloud, attached to each flow run which
+        could not start.
+
+        Args:
+            - flow_runs (list): A list of GraphQLResult flow run objects
+            - exc (Exception): A caught exception to log
+        """
         for flow_run in flow_runs:
             self.client.write_run_log(
-                flow_run_id=flow_run.id, name="agent", message=str(exc), level="ERROR"
+                flow_run_id=flow_run.id,  # type: ignore
+                name="agent",
+                message=str(exc),
+                level="ERROR",
             )
 
     def deploy_flows(self, flow_runs: list) -> None:
