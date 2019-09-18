@@ -19,11 +19,14 @@ def check_heartbeat() -> None:
     """
     Check the agent's heartbeat by verifying heartbeat file has been recently modified
     """
+    self.logger.debug("Checking heartbeat")
     current_timestamp = pendulum.now().timestamp()
     last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
+    self.logger.debug("Last heartbeat {}".format(last_modified_timestamp))
 
     # If file has not been modified in the last 40 seconds then raise an exit code of 1
     if current_timestamp - last_modified_timestamp > 40:
+        self.logger.debug("Heartbeat not received within last 40 seconds")
         sys.exit(1)
 
 
@@ -40,11 +43,13 @@ class KubernetesAgent(Agent):
         from kubernetes import client, config
 
         try:
+            self.logger.debug("Loading incluster configuration")
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
             self.logger.warning(
                 "{} Using out of cluster configuration option.".format(exc)
             )
+            self.logger.debug("Loading out of cluster configuration")
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
@@ -57,6 +62,9 @@ class KubernetesAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
+            self.logger.debug(
+                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+            )
 
             # Require Docker storage
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
@@ -67,6 +75,9 @@ class KubernetesAgent(Agent):
 
             job_spec = self.replace_job_spec_yaml(flow_run)
 
+            self.logger.debug(
+                "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+            )
             self.batch_client.create_namespaced_job(
                 namespace=os.getenv("NAMESPACE", "default"), body=job_spec
             )
@@ -174,6 +185,7 @@ class KubernetesAgent(Agent):
         """
         os.makedirs(AGENT_DIRECTORY, exist_ok=True)
 
+        self.logger.debug("Sending heartbeat to {}/heartbeat".format(AGENT_DIRECTORY))
         open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
