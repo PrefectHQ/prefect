@@ -150,6 +150,7 @@ class Agent:
                 )
         except Exception as exc:
             self.logger.error(exc)
+            self._log_flow_run_exceptions(flow_runs, exc)
 
         return bool(flow_runs)
 
@@ -274,6 +275,13 @@ class Agent:
                             state=state.StateSchema().load(task_run.serialized_state),
                         ),
                     )
+
+    def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
+        """"""
+        for flow_run in flow_runs:
+            self.client.write_run_log(
+                flow_run_id=flow_run.id, name="agent", message=str(exc), level="ERROR"
+            )
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
