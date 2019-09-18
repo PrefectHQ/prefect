@@ -55,6 +55,7 @@ Released September 10, 2019
 - Remove restriction that prevented `DotDict` classes from having keys that shadowed dict methods - [#1462](https://github.com/PrefectHQ/prefect/pull/1462)
 - Added livenessProbe to Kubernetes Agent - [#1474](https://github.com/PrefectHQ/prefect/pull/1474)
 - Ensure external Dask Clusters do not require Prefect Cloud environment variables to run Cloud flows - [#1481](https://github.com/PrefectHQ/prefect/pull/1481)
+- Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Task Library
 
@@ -74,7 +75,7 @@ Released September 10, 2019
 
 ### Breaking Changes
 
-- None
+- Update `ShellTask` to return only the last line of stdout, as a string - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Contributors
 
@@ -120,7 +121,6 @@ Released August 30, 2019
 - Add `AzureResultHandler` for handling results to / from Azure Blob storage containers - [#1421](https://github.com/PrefectHQ/prefect/pull/1421)
 - Add new configurable `LocalDaskExecutor` - [#1336](https://github.com/PrefectHQ/prefect/issues/1336)
 - Add CLI commands for working with Prefect Cloud auth - [#1431](https://github.com/PrefectHQ/prefect/pull/1431)
-- Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Task Library
 
@@ -139,7 +139,6 @@ Released August 30, 2019
 
 - Rename `CloudEnvironment` to `DaskKubernetesEnvironment` - [#1250](https://github.com/PrefectHQ/prefect/issues/1250)
 - Remove unused `queue` method from all executors - [#1434](https://github.com/PrefectHQ/prefect/pull/1434)
-- Update `ShellTask` to return only the last line of stdout, as a string - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Contributors
 
