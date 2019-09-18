@@ -115,6 +115,12 @@ class KubernetesAgent(Agent):
             StorageSchema().load(flow_run.flow.storage).name  # type: ignore
         )
 
+        self.logger.debug(
+            "Using image {} for job".format(
+                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
+            )
+        )
+
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
