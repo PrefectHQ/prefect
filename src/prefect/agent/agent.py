@@ -151,7 +151,7 @@ class Agent:
                 )
         except Exception as exc:
             self.logger.error(exc)
-            self._log_flow_run_exceptions(flow_runs, exc)  # type: ignore
+            self._log_flow_run_exceptions(flow_runs or [], exc)  # type: ignore
 
         return bool(flow_runs)
 

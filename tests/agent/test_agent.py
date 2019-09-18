@@ -294,6 +294,20 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
     )
 
 
+def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
+    )
+    client = MagicMock()
+    client.return_value.write_run_log = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
+
+    agent = Agent()
+    agent._log_flow_run_exceptions(flow_runs=[], exc=ValueError("Error Here"))
+
+    assert not client.write_run_log.called
+
+
 def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
     client = MagicMock()
     client.return_value.graphql.side_effect = ValueError("Error")
