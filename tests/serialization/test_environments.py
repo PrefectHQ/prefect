@@ -38,6 +38,8 @@ def test_serialize_dask_environment():
     assert serialized["min_workers"] == 1
     assert serialized["max_workers"] == 2
     assert serialized["labels"] == []
+    assert serialized["scheduler_spec_file"] is None
+    assert serialized["worker_spec_file"] is None
 
     new = schema.load(serialized)
     assert new.private_registry is False
@@ -45,6 +47,8 @@ def test_serialize_dask_environment():
     assert new.min_workers == 1
     assert new.max_workers == 2
     assert new.labels == set()
+    assert new.scheduler_spec_file is None
+    assert new.worker_spec_file is None
 
 
 def test_serialize_dask_environment_with_labels():
