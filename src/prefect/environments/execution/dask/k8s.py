@@ -189,6 +189,9 @@ class DaskKubernetesEnvironment(Environment):
 
         if self._scheduler_spec:
             job = self._scheduler_spec
+            job = self._populate_scheduler_spec_yaml(
+                yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
+            )
         else:
             with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
                 job = yaml.safe_load(job_file)
@@ -216,6 +219,7 @@ class DaskKubernetesEnvironment(Environment):
 
             if self._worker_spec:
                 worker_pod = self._worker_spec
+                worker_pod = self._populate_worker_spec_yaml(yaml_obj=worker_pod)
             else:
                 with open(
                     path.join(path.dirname(__file__), "worker_pod.yaml")
@@ -246,9 +250,9 @@ class DaskKubernetesEnvironment(Environment):
             )
             raise exc
 
-    ########################
-    # YAML Spec Manipulation
-    ########################
+    ################################
+    # Default YAML Spec Manipulation
+    ################################
 
     def _populate_job_yaml(
         self, yaml_obj: dict, docker_name: str, flow_file_path: str
@@ -324,6 +328,85 @@ class DaskKubernetesEnvironment(Environment):
             pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+
+        # set image
+        yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
+            "image", "daskdev/dask:latest"
+        )
+
+        return yaml_obj
+
+    ###############################
+    # Custom YAML Spec Manipulation
+    ###############################
+
+    def _populate_scheduler_spec_yaml(
+        self, yaml_obj: dict, docker_name: str, flow_file_path: str
+    ) -> dict:
+        """
+        Populate the execution job yaml object used in this environment with the proper values
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+            - docker_name (str): the full path to the docker image
+            - flow_file_path (str): the location of the flow within the docker container
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        flow_run_id = prefect.context.get("flow_run_id", "unknown")
+
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
+        yaml_obj["spec"]["template"]["metadata"]["labels"][
+            "identifier"
+        ] = self.identifier_label
+
+        env_values = {
+            "PREFECT__CLOUD__GRAPHQL": prefect.config.cloud.graphql,
+            "PREFECT__CLOUD__AUTH_TOKEN": prefect.config.cloud.auth_token,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run_id,
+            "PREFECT__CONTEXT__NAMESPACE": prefect.context.get("namespace", ""),
+            "PREFECT__CONTEXT__IMAGE": docker_name,
+            "PREFECT__CONTEXT__FLOW_FILE_PATH": flow_file_path,
+        }
+
+        # set environment variables
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        for env_var in env:
+            env_var["value"] = env_values["name"]
+
+        # set image
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
+
+        return yaml_obj
+
+    def _populate_worker_spec_yaml(self, yaml_obj: dict) -> dict:
+        """
+        Populate the worker pod yaml object used in this environment with the proper values.
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        # set identifier labels
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
+            "flow_run_id", "unknown"
+        )
+
+        env_values = {
+            "PREFECT__CLOUD__GRAPHQL": prefect.config.cloud.graphql,
+            "PREFECT__CLOUD__AUTH_TOKEN": prefect.config.cloud.auth_token,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": prefect.context.get("flow_run_id", ""),
+        }
+
+        # set environment variables
+        env = yaml_obj["spec"]["containers"][0]["env"]
+        for env_var in env:
+            env_var["value"] = env_values["name"]
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
