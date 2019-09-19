@@ -18,7 +18,7 @@ spec:
         - name: ""
       containers:
         - name: agent
-          image: prefecthq/prefect:latest
+          image: joshmeek18/prfct:latest
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args: ["prefect agent start kubernetes"]
@@ -45,7 +45,7 @@ spec:
             periodSeconds: 40
             failureThreshold: 2
         - name: resource-manager
-          image: prefecthq/prefect:latest
+          image: joshmeek18/prfct:latest
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args:
