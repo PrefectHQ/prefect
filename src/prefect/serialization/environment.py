@@ -33,6 +33,10 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
     min_workers = fields.Int()
     max_workers = fields.Int()
 
+    # Serialize original spec file locations, not the spec itself
+    scheduler_spec_file = fields.String(allow_none=True)
+    worker_spec_file = fields.String(allow_none=True)
+
 
 class RemoteEnvironmentSchema(ObjectSchema):
     class Meta:
