@@ -682,12 +682,6 @@ class Client:
         }
         result = self.graphql(query).data.flow_run_by_pk  # type: ignore
 
-        # this step forces all Box properties to be visited and initialized, which
-        # avoids an odd situation in which the popped serialized_states attempt to
-        # reference box properties that no longer exist. To be clear, this probably
-        # shouldn't be necessary but works.
-        repr(result)
-
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
 
