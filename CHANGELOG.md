@@ -6,14 +6,17 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Added Fargate agent - [#1521](https://github.com/PrefectHQ/prefect/pull/1521)
 
 ### Enhancements
 
 - Allow for Agents to correctly run in environments with differently calibrated clocks - [#1402](https://github.com/PrefectHQ/prefect/issues/1402)
 - Refactor `RemoteEnvironment` to utilize the `get_flow` storage interface - [#1476](https://github.com/PrefectHQ/prefect/issues/1476)
 - Ensure Task logger is available in context throughout every pipeline step of the run - [#1509](https://github.com/PrefectHQ/prefect/issues/1509)
-Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
+- Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
+- Skip Docker registry pushing and pulling on empty `registry_url` attribute - [#1525](https://github.com/PrefectHQ/prefect/pull/1525)
+- Agents now log platform errors to flow runs which cannot deploy - [#1528](https://github.com/PrefectHQ/prefect/pull/1528)
+- Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Task Library
 
@@ -21,7 +24,8 @@ Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/
 
 ### Fixes
 
-- None
+- Fix map error by removing `imagePullSecrets` from Kubernetes Agent install if not provided - [#1524](https://github.com/PrefectHQ/prefect/pull/1524)
+- Fix issue with two INFO logs not being associated with the Task Run in Cloud - [#1526](https://github.com/PrefectHQ/prefect/pull/1526)
 
 ### Deprecations
 
@@ -29,7 +33,7 @@ Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/
 
 ### Breaking Changes
 
-- None
+- Update `ShellTask` to return only the last line of stdout, as a string - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 
 ### Contributors
 

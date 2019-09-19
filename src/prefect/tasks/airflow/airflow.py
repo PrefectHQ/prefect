@@ -175,7 +175,7 @@ class AirflowTask(prefect.tasks.shell.ShellTask):
             self.dag_id, self.task_id, execution_date
         )
         res = super().run()
-        if "Task is not able to be run" in res.decode():
+        if "Task is not able to be run" in res:
             raise prefect.engine.signals.SKIP("Airflow task was not run.")
         self._post_check(execution_date)
         data = self._pull_xcom(execution_date)

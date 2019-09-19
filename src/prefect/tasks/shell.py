@@ -1,7 +1,7 @@
 import os
-import subprocess
+from subprocess import Popen, STDOUT, PIPE
 import tempfile
-from typing import Any, List
+from typing import Any
 
 import prefect
 from prefect.utilities.tasks import defaults_from_attrs
@@ -53,7 +53,7 @@ class ShellTask(prefect.Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
-    def run(self, command: str = None, env: dict = None) -> bytes:
+    def run(self, command: str = None, env: dict = None) -> str:
         """
         Run the shell command.
 
@@ -66,8 +66,8 @@ class ShellTask(prefect.Task):
                 the subprocess
 
         Returns:
-            - stdout + stderr (bytes): anything printed to standard out /
-                standard error during command execution
+            - last line of stdout (string): returns last line of stdout which is
+                useful for passing result of shell command to other downstream tasks
 
         Raises:
             - prefect.engine.signals.FAIL: if command has an exit code other
@@ -84,13 +84,18 @@ class ShellTask(prefect.Task):
                 tmp.write("\n".encode())
             tmp.write(command.encode())
             tmp.flush()
-            try:
-                out = subprocess.check_output(
-                    [self.shell, tmp.name], stderr=subprocess.STDOUT, env=current_env
-                )
-            except subprocess.CalledProcessError as exc:
+            sub_process = Popen(
+                [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
+            )
+            line = ""
+            for raw_line in iter(sub_process.stdout.readline, b""):
+                line = raw_line.decode("utf-8").rstrip()
+                self.logger.debug(line)
+            sub_process.wait()
+            if sub_process.returncode:
                 msg = "Command failed with exit code {0}: {1}".format(
-                    exc.returncode, exc.output
+                    sub_process.returncode, line
                 )
+                self.logger.error(msg)
                 raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
-        return out
+        return line

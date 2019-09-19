@@ -124,6 +124,7 @@ class KubernetesAgent(Agent):
         token: str = None,
         api: str = None,
         namespace: str = None,
+        image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
     ) -> str:
 
@@ -143,6 +144,7 @@ class KubernetesAgent(Agent):
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
 
+        # Populate resource manager if requested
         if resource_manager_enabled:
             resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][
                 1
@@ -153,6 +155,14 @@ class KubernetesAgent(Agent):
             resource_manager_env[3]["value"] = namespace
         else:
             del deployment["spec"]["template"]["spec"]["containers"][1]
+
+        # Populate image pull secrets if provided
+        if image_pull_secrets:
+            agent_env = deployment["spec"]["template"]["spec"]["imagePullSecrets"][0][
+                "name"
+            ] = image_pull_secrets
+        else:
+            del deployment["spec"]["template"]["spec"]["imagePullSecrets"]
 
         return yaml.safe_dump(deployment)
 

@@ -463,24 +463,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     class CustomFlowRunner(CloudFlowRunner):
         def run_task(self, *args, **kwargs):
             with prefect.utilities.configuration.set_temporary_config(
-                {
-                    "logging.log_to_cloud": False,
-                    "special_key": 99,
-                    "cloud.auth_token": "",
-                }
+                {"logging.log_to_cloud": False, "cloud.auth_token": ""}
             ):
                 return super().run_task(*args, **kwargs)
-
-    calls = []
-
-    class Client(MagicMock):
-        def write_run_log(self, *args, **kwargs):
-            calls.append(kwargs)
-
-    monkeypatch.setattr("prefect.client.Client", Client)
-    monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
-    monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
-    prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
 
     @prefect.task
     def log_stuff():
@@ -491,6 +476,22 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             prefect.context.config.cloud.auth_token,
         )
 
+    calls = []
+
+    class Client(MagicMock):
+        def write_run_log(self, *args, **kwargs):
+            calls.append(kwargs)
+
+        def get_flow_run_info(self, *args, **kwargs):
+            return MagicMock(
+                task_runs=[MagicMock(task_slug=log_stuff.slug, id="TESTME")]
+            )
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+    monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", Client)
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.Client", Client)
+    prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
+
     with prefect.utilities.configuration.set_temporary_config(
         {
             "logging.log_to_cloud": True,
@@ -500,7 +501,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     ):
         # captures config at init
         runner = CustomFlowRunner(flow=prefect.Flow("test", tasks=[log_stuff]))
-        flow_state = runner.run(return_tasks=[log_stuff])
+        flow_state = runner.run(
+            return_tasks=[log_stuff], task_contexts={log_stuff: dict(special_key=99)}
+        )
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
@@ -512,3 +515,6 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         "prefect.CustomFlowRunner",
         "prefect.Task: log_stuff",
     }
+
+    task_run_ids = [c["task_run_id"] for c in calls if c["task_run_id"]]
+    assert task_run_ids == ["TESTME"] * 3
