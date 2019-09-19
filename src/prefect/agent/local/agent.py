@@ -76,10 +76,12 @@ class LocalAgent(Agent):
             if not self.no_pull and storage.registry_url:
                 self.logger.debug("Pulling image {}...".format(storage.name))
                 try:
-                    pull_output = self.docker_client.pull(storage.name)
-                    self.logger.debug(pull_output)
-                except docker.errors.APIError:
+                    pull_output = self.docker_client.pull(storage.name, stream=True)
+                    for line in pull_output:
+                        self.logger.debug(line)
+                except docker.errors.APIError as exc:
                     self.logger.error("Issue pulling image {}".format(storage.name))
+                    self.logger.debug(str(exc))
 
             # Create a container
             self.logger.debug("Creating Docker container")

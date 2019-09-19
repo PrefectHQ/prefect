@@ -195,7 +195,6 @@ class Agent:
         }
 
         now = pendulum.now("UTC")
-        self.logger.debug("Current process time {}".format(now.isoformat()))
         result = self.client.graphql(
             mutation,
             variables={"input": {"tenantId": tenant_id, "before": now.isoformat()}},
