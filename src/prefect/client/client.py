@@ -215,10 +215,7 @@ class Client:
         )
 
         if raise_on_error and "errors" in result:
-            if (
-                result["errors"][0].get("extensions", {}).get("code")
-                == "UNAUTHENTICATED"
-            ):
+            if "UNAUTHENTICATED" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
             elif "Malformed Authorization header" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
