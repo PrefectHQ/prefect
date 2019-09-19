@@ -84,7 +84,7 @@ class LocalAgent(Agent):
                     self.logger.debug(str(exc))
 
             # Create a container
-            self.logger.debug("Creating Docker container")
+            self.logger.debug("Creating Docker container {}".format(storage.name))
             container = self.docker_client.create_container(
                 storage.name, command="prefect execute cloud-flow", environment=env_vars
             )
