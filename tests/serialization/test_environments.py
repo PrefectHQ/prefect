@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 import prefect
 from prefect import environments
 from prefect.serialization.environment import (
@@ -38,8 +41,6 @@ def test_serialize_dask_environment():
     assert serialized["min_workers"] == 1
     assert serialized["max_workers"] == 2
     assert serialized["labels"] == []
-    assert serialized["scheduler_spec_file"] is None
-    assert serialized["worker_spec_file"] is None
 
     new = schema.load(serialized)
     assert new.private_registry is False
@@ -49,6 +50,25 @@ def test_serialize_dask_environment():
     assert new.labels == set()
     assert new.scheduler_spec_file is None
     assert new.worker_spec_file is None
+
+
+def test_serialize_dask_env_with_custom_specs():
+    with tempfile.TemporaryDirectory() as directory:
+        with open(os.path.join(directory, "scheduler.yaml"), "w+") as f:
+            f.write("scheduler")
+        with open(os.path.join(directory, "worker.yaml"), "w+") as f:
+            f.write("worker")
+
+        env = environments.DaskKubernetesEnvironment(
+            scheduler_spec_file=os.path.join(directory, "scheduler.yaml"),
+            worker_spec_file=os.path.join(directory, "worker.yaml"),
+        )
+
+        schema = DaskKubernetesEnvironmentSchema()
+        serialized = schema.dump(env)
+
+    deserialized = schema.load(serialized)
+    assert isinstance(deserialized, environments.DaskKubernetesEnvironment)
 
 
 def test_serialize_dask_environment_with_labels():
@@ -162,3 +182,23 @@ def test_deserialize_old_env_payload():
     obj = schema.load(old)
     assert isinstance(obj, environments.RemoteEnvironment)
     assert obj.labels == set()
+
+
+def test_serialize_custom_environment():
+    class MyEnv(environments.Environment):
+        def __init__(self, x=5):
+            self.x = 5
+            super().__init__(labels=["foo", "bar"])
+
+        def custom_method(self):
+            pass
+
+    env = MyEnv()
+    schema = EnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized["type"] == "CustomEnvironment"
+    assert set(serialized["labels"]) == set(["foo", "bar"])
+
+    obj = schema.load(serialized)
+    assert isinstance(obj, environments.Environment)
+    assert obj.labels == set(["foo", "bar"])
