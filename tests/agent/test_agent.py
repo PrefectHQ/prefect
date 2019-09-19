@@ -21,6 +21,20 @@ def test_agent_config_options(runner_token):
         assert agent.logger
 
 
+def test_agent_log_level(runner_token):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent()
+        assert agent.logger.level == 20
+
+
+def test_agent_log_level_debug(runner_token):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+    ):
+        agent = Agent()
+        assert agent.logger.level == 10
+
+
 def test_agent_fails_no_auth_token():
     with pytest.raises(AuthorizationError):
         agent = Agent()
