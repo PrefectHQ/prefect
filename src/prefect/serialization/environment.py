@@ -57,7 +57,10 @@ class CustomEnvironmentSchema(ObjectSchema):
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Environment:
-        """Because we cannot deserialize a custom class, just return `None`"""
+        """
+        Because we cannot deserialize a custom class, we return an empty
+        Base Environment with the appropriate labels.
+        """
         return Environment(labels=data.get("labels"))
 
 
