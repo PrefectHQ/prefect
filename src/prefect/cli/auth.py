@@ -32,7 +32,7 @@ def auth():
     \b
     Examples:
         $ prefect auth login --token MY_TOKEN
-        Log in successful
+        Login successful!
 
     \b
         $ prefect auth logout
@@ -97,7 +97,7 @@ def login(token):
     # save token
     client.save_api_token()
 
-    click.secho("Log in successful", fg="green")
+    click.secho("Login successful!", fg="green")
 
 
 @auth.command(hidden=True)
