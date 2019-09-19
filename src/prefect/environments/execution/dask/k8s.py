@@ -1,21 +1,16 @@
 import base64
 import json
-import sys
-import time
 import uuid
 from os import path
 from typing import Any, List
 
 import cloudpickle
-import docker
 import yaml
-from slugify import slugify
 
 import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
-from prefect.utilities import logging
 
 
 class DaskKubernetesEnvironment(Environment):
@@ -30,6 +25,18 @@ class DaskKubernetesEnvironment(Environment):
     function does have the requirement in that it needs to have an `identifier_label`
     set with a UUID so resources can be cleaned up independently of other deployments.
 
+    It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
+    `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
+    should be modeled after the job.yaml and worker_pod.yaml found at
+    https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask
+    The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
+    required for cloud do not need to be included because they are instead automatically added and populated during execution:
+    PREFECT__CLOUD__GRAPHQL, PREFECT__CLOUD__AUTH_TOKEN, PREFECT__CONTEXT__FLOW_RUN_ID,
+    PREFECT__CONTEXT__NAMESPACE, PREFECT__CONTEXT__IMAGE, PREFECT__CONTEXT__FLOW_FILE_PATH,
+    PREFECT__CLOUD__USE_LOCAL_SECRETS, PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS,
+    PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS, PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS,
+    PREFECT__LOGGING__LOG_TO_CLOUD
+
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
         - max_workers (int, optional): the maximum allowed number of Dask worker pods; defaults to 1
@@ -41,6 +48,8 @@ class DaskKubernetesEnvironment(Environment):
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
+        - worker_spec_file (str, optional): Path to a worker spec YAML file
     """
 
     def __init__(
@@ -344,7 +353,7 @@ class DaskKubernetesEnvironment(Environment):
         self, yaml_obj: dict, docker_name: str, flow_file_path: str
     ) -> dict:
         """
-        Populate the execution job yaml object used in this environment with the proper values
+        Populate the custom execution job yaml object used in this environment with the proper values
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
@@ -403,7 +412,7 @@ class DaskKubernetesEnvironment(Environment):
 
     def _populate_worker_spec_yaml(self, yaml_obj: dict) -> dict:
         """
-        Populate the worker pod yaml object used in this environment with the proper values.
+        Populate the custom worker pod yaml object used in this environment with the proper values.
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
@@ -456,7 +465,12 @@ class DaskKubernetesEnvironment(Environment):
         return yaml_obj
 
     def _load_specs_from_file(self) -> tuple:
-        """"""
+        """
+        Load scheduler and worker spec from provided file paths
+
+        Returns:
+            - tuple: scheduler spec dictionary, worker spec dictionary
+        """
         scheduler = None
         worker = None
 

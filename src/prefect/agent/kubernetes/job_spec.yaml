@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: flow
-          image: joshmeek18/prfct:latest
+          image: prefecthq/prefect:latest
           imagePullPolicy: Always
           command: ["/bin/sh", "-c"]
           args: ["prefect execute cloud-flow"]
