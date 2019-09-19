@@ -263,15 +263,6 @@ def test_populate_worker_pod_yaml_with_private_registry():
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
 
-    flow_runner = MagicMock()
-    monkeypatch.setattr(
-        "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner),
-    )
-
-    kube_cluster = MagicMock()
-    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
-
     with tempfile.TemporaryDirectory() as directory:
 
         with open(os.path.join(directory, "scheduler.yaml"), "w+") as file:
@@ -355,3 +346,25 @@ def test_populate_custom_scheduler_spec_yaml():
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
         == "test1/test2:test3"
     )
+
+
+def test_roundtrip_cloudpickle():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "scheduler.yaml"), "w+") as file:
+            file.write("scheduler")
+        with open(os.path.join(directory, "worker.yaml"), "w+") as file:
+            file.write("worker")
+
+        environment = DaskKubernetesEnvironment(
+            scheduler_spec_file=os.path.join(directory, "scheduler.yaml"),
+            worker_spec_file=os.path.join(directory, "worker.yaml"),
+        )
+
+        assert environment._scheduler_spec == "scheduler"
+        assert environment._worker_spec == "worker"
+
+        new = cloudpickle.loads(cloudpickle.dumps(environment))
+        assert isinstance(new, DaskKubernetesEnvironment)
+        assert new._scheduler_spec == "scheduler"
+        assert new._worker_spec == "worker"
