@@ -50,6 +50,8 @@ class DaskKubernetesEnvironment(Environment):
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
+        scheduler_spec_file: str = None,
+        worker_spec_file: str = None,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -59,6 +61,12 @@ class DaskKubernetesEnvironment(Environment):
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
         else:
             self.docker_secret = None  # type: ignore
+        self.scheduler_spec_file = scheduler_spec_file
+        self.worker_spec_file = worker_spec_file
+
+        # Load specs from file if path given, store on object
+        self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
+
         super().__init__(labels=labels)
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
@@ -179,20 +187,23 @@ class DaskKubernetesEnvironment(Environment):
 
         batch_client = client.BatchV1Api()
 
-        with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
-            job = yaml.safe_load(job_file)
-            job = self._populate_job_yaml(
-                yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
-            )
-
-            # Create Job
-            try:
-                batch_client.create_namespaced_job(
-                    namespace=prefect.context.get("namespace"), body=job
+        if self._scheduler_spec:
+            job = self._scheduler_spec
+        else:
+            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
+                job = yaml.safe_load(job_file)
+                job = self._populate_job_yaml(
+                    yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
                 )
-            except Exception as exc:
-                self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
-                raise exc
+
+        # Create Job
+        try:
+            batch_client.create_namespaced_job(
+                namespace=prefect.context.get("namespace"), body=job
+            )
+        except Exception as exc:
+            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+            raise exc
 
     def run_flow(self) -> None:
         """
@@ -203,27 +214,32 @@ class DaskKubernetesEnvironment(Environment):
             from prefect.engine.executors import DaskExecutor
             from dask_kubernetes import KubeCluster
 
-            with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-                worker_pod = yaml.safe_load(pod_file)
-                worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
-
-                cluster = KubeCluster.from_dict(
-                    worker_pod, namespace=prefect.context.get("namespace")
-                )
-                cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
-
-                # Load serialized flow from file and run it with a DaskExecutor
+            if self._worker_spec:
+                worker_pod = self._worker_spec
+            else:
                 with open(
-                    prefect.context.get(
-                        "flow_file_path", "/root/.prefect/flow_env.prefect"
-                    ),
-                    "rb",
-                ) as f:
-                    flow = cloudpickle.load(f)
+                    path.join(path.dirname(__file__), "worker_pod.yaml")
+                ) as pod_file:
+                    worker_pod = yaml.safe_load(pod_file)
+                    worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-                    executor = DaskExecutor(address=cluster.scheduler_address)
-                    runner_cls = get_default_flow_runner_class()
-                    runner_cls(flow=flow).run(executor=executor)
+            cluster = KubeCluster.from_dict(
+                worker_pod, namespace=prefect.context.get("namespace")
+            )
+            cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
+
+            # Load serialized flow from file and run it with a DaskExecutor
+            with open(
+                prefect.context.get(
+                    "flow_file_path", "/root/.prefect/flow_env.prefect"
+                ),
+                "rb",
+            ) as f:
+                flow = cloudpickle.load(f)
+
+                executor = DaskExecutor(address=cluster.scheduler_address)
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
@@ -315,3 +331,18 @@ class DaskKubernetesEnvironment(Environment):
         )
 
         return yaml_obj
+
+    def _load_specs_from_file(self) -> tuple:
+        """"""
+        scheduler = None
+        worker = None
+
+        if self.scheduler_spec_file:
+            with open(self.scheduler_spec_file) as scheduler_spec_file:
+                scheduler = yaml.safe_load(scheduler_spec_file)
+
+        if self.worker_spec_file:
+            with open(self.worker_spec_file) as worker_spec_file:
+                worker = yaml.safe_load(worker_spec_file)
+
+        return scheduler, worker
