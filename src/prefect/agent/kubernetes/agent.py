@@ -31,7 +31,8 @@ class KubernetesAgent(Agent):
     """
     Agent which deploys flow runs as Kubernetes jobs. Currently this is required to either
     run on a k8s cluster or on a local machine where the kube_config is pointing at the
-    desired cluster.
+    desired cluster. Information on using the Kubernetes Agent can be found at
+    https://docs.prefect.io/cloud/agent/kubernetes.html
     """
 
     def __init__(self) -> None:
@@ -141,6 +142,23 @@ class KubernetesAgent(Agent):
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
     ) -> str:
+        """
+        Generate and output an installable YAML spec for the agent.
+
+        Args:
+            - token (str, optional): A `RUNNER` token to give the agent
+            - api (str, optional): A URL pointing to the Prefect API. Defaults to
+                `https://api.prefect.io`
+            - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
+                to `default`
+            - image_pull_secrets (str, optional): The name of an image pull secret to use
+                for Prefect jobs
+            - resource_manager_enabled (bool, optional): Whether to include the resource
+                manager as part of the YAML. Defaults to `False`
+
+        Returns:
+            - str: A string representation of the generated YAML
+        """
 
         # Use defaults if not provided
         token = token or ""
