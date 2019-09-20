@@ -6,7 +6,7 @@ const sidebar64 = require('../api/0.6.4/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -136,6 +136,7 @@ module.exports = {
             'agent/overview',
             'agent/local',
             'agent/kubernetes',
+            'agent/fargate',
           ]
         },
       ],
