@@ -15,10 +15,14 @@ jobs:
   # ----------------------------------
 
   test-windows:
-    executor: win/vs2019
+    executor: 
+      name: win/vs2019
+      shell: bash.exe
     steps:
       - checkout
-      - run: Write-Host 'Hello, Windows'
+      - run: curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe --output miniconda.exe
+      - run: ./miniconda.exe
+
 
   check_black_formatting:
     docker:
