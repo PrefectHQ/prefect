@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
 
 ### Fixes
 
@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Fredrik Sannholm](https://github.com/frsann)
 
 ## 0.6.5 <Badge text="beta" type="success"/>
 
@@ -51,7 +51,6 @@ Released September 20, 2019
 - Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 - Agents now have a verbose/debug logging option for granular output - [#1532](https://github.com/PrefectHQ/prefect/pull/1532)
 - `DaskKubernetesEnvironment` now allows for custom scheduler and worker specs - [#1543](https://github.com/PrefectHQ/prefect/pull/1534), [#1537](https://github.com/PrefectHQ/prefect/pull/1537)
-- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
 
 ### Task Library
 
@@ -73,7 +72,7 @@ Released September 20, 2019
 
 ### Contributors
 
-- None
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.6.4 <Badge text="beta" type="success"/>
 
