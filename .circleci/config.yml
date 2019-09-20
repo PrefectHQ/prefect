@@ -156,7 +156,7 @@ jobs:
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
 
-  test-3.5:
+  test-3point5:
     docker:
       - image: python:3.5
 
@@ -185,7 +185,7 @@ jobs:
           paths:
             - coverage
 
-  test-3.6:
+  test-3point6:
     docker:
       - image: python:3.6
     steps:
@@ -213,7 +213,7 @@ jobs:
           paths:
             - coverage
 
-  test-3.7:
+  test-3point7:
     docker:
       - image: python:3.7
     steps:
@@ -298,9 +298,9 @@ workflows:
 
   "Run tests":
     jobs:
-      - test-3.5
-      - test-3.6
-      - test-3.7
+      - test-3point5
+      - test-3point6
+      - test-3point7
       - test-lower-prefect
       - test-vanilla-prefect
       - test-py352-import-prefect
@@ -308,8 +308,8 @@ workflows:
       - test-windows
       - upload-coverage:
           requires:
-            - test-3.5
-            - test-3.6
+            - test-3point5
+            - test-3point6
             - test-vanilla-prefect
             - test-airflow
 
