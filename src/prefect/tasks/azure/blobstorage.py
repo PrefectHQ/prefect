@@ -69,7 +69,6 @@ class BlobStorageDownload(Task):
         )
         content_string = blob_result.content
 
-        # TODO: some other format?
         return content_string
 
 
