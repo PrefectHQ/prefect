@@ -113,6 +113,11 @@ module.exports = {
           children: getChildren("docs/api/unreleased", "schedules")
         },
         {
+          title: "prefect.agent",
+          collapsable: true,
+          children: getChildren("docs/api/unreleased", "agent")
+        },
+        {
           title: "prefect.utilities",
           collapsable: true,
           children: getChildren("docs/api/unreleased", "utilities")
