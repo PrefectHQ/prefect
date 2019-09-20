@@ -10,7 +10,8 @@ from prefect.utilities.graphql import GraphQLResult
 class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
-    long as the proper access configuration variables are set.
+    long as the proper access configuration variables are set.  Information on using the
+    Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
     Args:
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3

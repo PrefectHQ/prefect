@@ -11,7 +11,8 @@ from prefect.utilities.graphql import GraphQLResult
 
 class LocalAgent(Agent):
     """
-    Agent which deploys flow runs locally as Docker containers.
+    Agent which deploys flow runs locally as Docker containers. Information on using the
+    Local Agent can be found at https://docs.prefect.io/cloud/agent/local.html
 
     Args:
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
