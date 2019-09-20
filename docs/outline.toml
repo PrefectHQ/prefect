@@ -194,6 +194,11 @@ title = "AWS Tasks"
 module = "prefect.tasks.aws"
 classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate"]
 
+[pages.tasks.azure]
+title = "Azure Tasks"
+module = "prefect.tasks.azure"
+classes = ["BlobStorageDownload", "BlobStorageUpload"]
+
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"

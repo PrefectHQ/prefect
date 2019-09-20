@@ -45,9 +45,8 @@ class Agent:
         self._verify_token(token)
 
         logger = logging.getLogger("agent")
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(config.cloud.agent.get("level"))
         ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
@@ -97,6 +96,9 @@ class Agent:
             elif index < max(loop_intervals.keys()):
                 index += 1
 
+            self.logger.debug(
+                "Next query for flow runs in {} seconds".format(loop_intervals[index])
+            )
             time.sleep(loop_intervals[index])
 
     def agent_connect(self) -> str:
@@ -111,6 +113,8 @@ class Agent:
         self.logger.info(
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
+
+        self.logger.debug("Querying for tenant ID")
         tenant_id = self.query_tenant_id()
 
         if not tenant_id:
@@ -118,6 +122,7 @@ class Agent:
                 "Tenant ID not found. Verify that you are using the proper API token."
             )
 
+        self.logger.debug("Tenant ID: {} found".format(tenant_id))
         self.logger.info("Agent successfully connected to Prefect Cloud")
         self.logger.info("Waiting for flow runs...")
 
@@ -180,6 +185,7 @@ class Agent:
         Returns:
             - list: A list of GraphQLResult flow run objects
         """
+        self.logger.debug("Querying for flow runs")
 
         # Get scheduled flow runs from queue
         mutation = {
@@ -194,6 +200,7 @@ class Agent:
             variables={"input": {"tenantId": tenant_id, "before": now.isoformat()}},
         )
         flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
+        self.logger.debug("Found flow runs {}".format(flow_run_ids))
 
         # Query metadata fow flow runs found in queue
         query = {
@@ -241,6 +248,7 @@ class Agent:
             }
         }
 
+        self.logger.debug("Querying flow run metadata")
         result = self.client.graphql(query)
         return result.data.flow_run  # type: ignore
 
@@ -254,8 +262,18 @@ class Agent:
         """
         for flow_run in flow_runs:
 
+            self.logger.debug(
+                "Updating states for flow run {}".format(flow_run.id)  # type: ignore
+            )
+
             # Set flow run state to `Submitted` if it is currently `Scheduled`
             if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
+
+                self.logger.debug(
+                    "Flow run {} is in a Scheduled state, updating to Submitted".format(
+                        flow_run.id  # type: ignore
+                    )
+                )
                 self.client.set_flow_run_state(
                     flow_run_id=flow_run.id,
                     version=flow_run.version,
@@ -268,6 +286,12 @@ class Agent:
             # Set task run states to `Submitted` if they are currently `Scheduled`
             for task_run in flow_run.task_runs:
                 if state.StateSchema().load(task_run.serialized_state).is_scheduled():
+
+                    self.logger.debug(
+                        "Task run {} is in a Scheduled state, updating to Submitted".format(
+                            task_run.id  # type: ignore
+                        )
+                    )
                     self.client.set_task_run_state(
                         task_run_id=task_run.id,
                         version=task_run.version,
@@ -287,6 +311,12 @@ class Agent:
             - exc (Exception): A caught exception to log
         """
         for flow_run in flow_runs:
+
+            self.logger.debug(
+                "Logging platform error for flow run {}".format(
+                    flow_run.id  # type: ignore
+                )
+            )
             self.client.write_run_log(
                 flow_run_id=flow_run.id,  # type: ignore
                 name="agent",

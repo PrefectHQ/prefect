@@ -6,7 +6,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.6.5 <Badge text="beta" type="success"/>
+
+Released September 20, 2019
+
+### Features
+
 - Added Fargate agent - [#1521](https://github.com/PrefectHQ/prefect/pull/1521)
+- Custom user-written environments can be deployed to Prefect Cloud - [#1534](https://github.com/PrefectHQ/prefect/pull/1534), [#1537](https://github.com/PrefectHQ/prefect/pull/1537)
 
 ### Enhancements
 
@@ -16,7 +49,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Skip Docker registry pushing and pulling on empty `registry_url` attribute - [#1525](https://github.com/PrefectHQ/prefect/pull/1525)
 - Agents now log platform errors to flow runs which cannot deploy - [#1528](https://github.com/PrefectHQ/prefect/pull/1528)
 - Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
-- Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+- Agents now have a verbose/debug logging option for granular output - [#1532](https://github.com/PrefectHQ/prefect/pull/1532)
+- `DaskKubernetesEnvironment` now allows for custom scheduler and worker specs - [#1543](https://github.com/PrefectHQ/prefect/pull/1534), [#1537](https://github.com/PrefectHQ/prefect/pull/1537)
+- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
 
 ### Task Library
 
@@ -26,6 +61,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix map error by removing `imagePullSecrets` from Kubernetes Agent install if not provided - [#1524](https://github.com/PrefectHQ/prefect/pull/1524)
 - Fix issue with two INFO logs not being associated with the Task Run in Cloud - [#1526](https://github.com/PrefectHQ/prefect/pull/1526)
+- `execute` CLI command can now load custom environments off of the flow object - [#1534](https://github.com/PrefectHQ/prefect/pull/1534)
 
 ### Deprecations
 
@@ -38,7 +74,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
-
 
 ## 0.6.4 <Badge text="beta" type="success"/>
 
@@ -83,7 +118,6 @@ Released September 10, 2019
 - [Joe Schmid](https://github.com/joeschmid)
 - [Brett Naul](https://github.com/bnaul)
 
-
 ## 0.6.3 <Badge text="beta" type="success"/>
 
 Released August 30, 2019
@@ -91,7 +125,6 @@ Released August 30, 2019
 ### Fixes
 
 - Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
-
 
 ## 0.6.2 <Badge text="beta" type="success"/>
 
@@ -144,7 +177,6 @@ Released August 30, 2019
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
-
 
 ## 0.6.1 <Badge text="beta" type="success"/>
 

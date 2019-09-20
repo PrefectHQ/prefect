@@ -1,4 +1,5 @@
-from marshmallow import fields
+from marshmallow import fields, post_load
+from typing import Any
 
 from prefect.environments import (
     DaskKubernetesEnvironment,
@@ -6,7 +7,7 @@ from prefect.environments import (
     LocalEnvironment,
     RemoteEnvironment,
 )
-from prefect.utilities.serialization import ObjectSchema, OneOfSchema
+from prefect.utilities.serialization import ObjectSchema, OneOfSchema, to_qualified_name
 
 
 class BaseEnvironmentSchema(ObjectSchema):
@@ -43,6 +44,26 @@ class RemoteEnvironmentSchema(ObjectSchema):
     labels = fields.List(fields.String())
 
 
+class CustomEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: Environment
+        exclude_fields = ["type"]
+
+    labels = fields.List(fields.String())
+
+    type = fields.Function(
+        lambda environment: to_qualified_name(type(environment)), lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Environment:
+        """
+        Because we cannot deserialize a custom class, we return an empty
+        Base Environment with the appropriate labels.
+        """
+        return Environment(labels=data.get("labels"))
+
+
 class EnvironmentSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -54,4 +75,12 @@ class EnvironmentSchema(OneOfSchema):
         "Environment": BaseEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
+        "CustomEnvironment": CustomEnvironmentSchema,
     }
+
+    def get_obj_type(self, obj: Any) -> str:
+        name = obj.__class__.__name__
+        if name in self.type_schemas:
+            return name
+        else:
+            return "CustomEnvironment"
