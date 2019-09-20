@@ -183,6 +183,6 @@ class TestTriggerDAG:
         assert check_state.is_successful()
 
         # check CLI output
-        assert "manual__1986-09-20T00:00:00+00:00" in check_state.result.decode()
-        assert "running" in check_state.result.decode()
-        assert "1986-09-20T00:00:00+00:00" in check_state.result.decode()
+        assert "manual__1986-09-20T00:00:00+00:00" in check_state.result
+        assert "running" in check_state.result
+        assert "1986-09-20T00:00:00+00:00" in check_state.result

@@ -97,17 +97,14 @@ def test_merging_diamond_flow():
 
 def test_list_of_tasks():
     """
-    Test that a list of tasks can be set as a switch condition, with a warning.
-
-    The warning is raised because the tasks in the list will actually run
+    Test that a list of tasks can be set as a switch condition
     """
 
     with Flow(name="test") as flow:
         condition = Condition()
         true_branch = [SuccessTask(), SuccessTask()]
         false_branch = SuccessTask()
-        with pytest.warns(prefect.utilities.exceptions.PrefectWarning):
-            ifelse(condition, true_branch, false_branch)
+        ifelse(condition, true_branch, false_branch)
 
     with prefect.context(CONDITION=True):
         state = flow.run()
@@ -177,8 +174,7 @@ def test_merge_with_list():
         true_branch = prefect.utilities.tasks.as_task([Constant(1), Constant(2)])
         false_branch = Constant(0)
 
-        with pytest.warns(prefect.utilities.exceptions.PrefectWarning):
-            ifelse(condition, true_branch, false_branch)
+        ifelse(condition, true_branch, false_branch)
         merge_task = merge(true_branch, false_branch)
 
     with prefect.context(CONDITION=True):

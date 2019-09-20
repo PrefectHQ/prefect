@@ -21,6 +21,20 @@ def test_agent_config_options(runner_token):
         assert agent.logger
 
 
+def test_agent_log_level(runner_token):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent()
+        assert agent.logger.level == 20
+
+
+def test_agent_log_level_debug(runner_token):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+    ):
+        agent = Agent()
+        assert agent.logger.level == 10
+
+
 def test_agent_fails_no_auth_token():
     with pytest.raises(AuthorizationError):
         agent = Agent()
@@ -255,3 +269,65 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
     # Assert it doesn't return everything but all functions are called properly
     agent = Agent()
     assert not agent.agent_process("id")
+
+
+def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
+    )
+    client = MagicMock()
+    client.return_value.write_run_log = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
+
+    agent = Agent()
+    agent._log_flow_run_exceptions(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "id": "id",
+                    "serialized_state": Scheduled().serialize(),
+                    "version": 1,
+                    "task_runs": [
+                        GraphQLResult(
+                            {
+                                "id": "id",
+                                "version": 1,
+                                "serialized_state": Scheduled().serialize(),
+                            }
+                        )
+                    ],
+                }
+            )
+        ],
+        exc=ValueError("Error Here"),
+    )
+
+    assert client.write_run_log.called
+    client.write_run_log.assert_called_with(
+        flow_run_id="id", level="ERROR", message="Error Here", name="agent"
+    )
+
+
+def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
+    )
+    client = MagicMock()
+    client.return_value.write_run_log = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
+
+    agent = Agent()
+    agent._log_flow_run_exceptions(flow_runs=[], exc=ValueError("Error Here"))
+
+    assert not client.write_run_log.called
+
+
+def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
+    client = MagicMock()
+    client.return_value.graphql.side_effect = ValueError("Error")
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    with pytest.raises(Exception):
+        agent.agent_process("id")
+        assert client.write_run_log.called

@@ -1,3 +1,4 @@
+import cloudpickle
 import os
 import pendulum
 import sys
@@ -274,14 +275,18 @@ def test_build_image_passes_and_pushes(monkeypatch):
     assert "reg" in remove.call_args[1]["image"]
 
 
-def test_build_image_fails_no_registry(monkeypatch):
+@pytest.mark.filterwarnings("error")
+def test_build_image_passes_but_raises_warning(monkeypatch):
     storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
-    monkeypatch.setattr("docker.APIClient", client)
+    client.images.return_value = ["name"]
+    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UserWarning):
         image_name, image_tag = storage._build_image()
+        assert image_name == "test"
+        assert image_tag == "latest"
 
 
 def test_create_dockerfile_from_base_image():
@@ -442,10 +447,35 @@ def test_docker_storage_name():
     assert storage.name == "test1/test2:test3"
 
 
-def test_docker_storage_doesnt_have_get_flow_method():
+def test_docker_storage_name_registry_url_none():
     storage = Docker(base_image="python:3.6")
-    with pytest.raises(NotImplementedError):
-        storage.get_flow("")
+    with pytest.raises(ValueError):
+        storage.name
+
+    storage.image_name = "test2"
+    storage.image_tag = "test3"
+    assert storage.name == "test2:test3"
+
+
+def test_docker_storage_get_flow_method():
+    storage = Docker(base_image="python:3.6")
+    with tempfile.TemporaryDirectory() as directory:
+
+        @prefect.task
+        def add_to_dict():
+            with open(os.path.join(directory, "output"), "w") as tmp:
+                tmp.write("success")
+
+        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+            flow = Flow("test", tasks=[add_to_dict])
+            flow_path = os.path.join(directory, "flow_env.prefect")
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
+
+        f = storage.get_flow(flow_path)
+        assert isinstance(f, Flow)
+        assert f.name == "test"
+        assert len(f.tasks) == 1
 
 
 def test_add_similar_flows_fails():

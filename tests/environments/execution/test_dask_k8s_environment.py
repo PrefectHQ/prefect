@@ -259,3 +259,112 @@ def test_populate_worker_pod_yaml_with_private_registry():
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
     yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
+
+
+def test_initialize_environment_with_spec_populates(monkeypatch):
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "scheduler.yaml"), "w+") as file:
+            file.write("scheduler")
+        with open(os.path.join(directory, "worker.yaml"), "w+") as file:
+            file.write("worker")
+
+        environment = DaskKubernetesEnvironment(
+            scheduler_spec_file=os.path.join(directory, "scheduler.yaml"),
+            worker_spec_file=os.path.join(directory, "worker.yaml"),
+        )
+
+        assert environment._scheduler_spec == "scheduler"
+        assert environment._worker_spec == "worker"
+
+
+def test_populate_custom_worker_spec_yaml():
+    environment = DaskKubernetesEnvironment()
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+        pod["spec"]["containers"][0]["env"] = []
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(flow_run_id="id_test", image="my_image"):
+            yaml_obj = environment._populate_worker_spec_yaml(yaml_obj=pod)
+
+    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+
+    env = yaml_obj["spec"]["containers"][0]["env"]
+
+    assert env[0]["value"] == "gql_test"
+    assert env[1]["value"] == "auth_test"
+    assert env[2]["value"] == "id_test"
+    assert env[3]["value"] == "false"
+    assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
+    assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
+    assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[7]["value"] == "true"
+
+    assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
+
+
+def test_populate_custom_scheduler_spec_yaml():
+    environment = DaskKubernetesEnvironment()
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "job.yaml")) as job_file:
+        job = yaml.safe_load(job_file)
+        job["spec"]["template"]["spec"]["containers"][0]["env"] = []
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            yaml_obj = environment._populate_scheduler_spec_yaml(
+                yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
+            )
+
+    env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert env[0]["value"] == "gql_test"
+    assert env[1]["value"] == "auth_test"
+    assert env[2]["value"] == "id_test"
+    assert env[3]["value"] == "namespace_test"
+    assert env[4]["value"] == "test1/test2:test3"
+    assert env[5]["value"] == "test4"
+    assert env[6]["value"] == "false"
+    assert env[7]["value"] == "prefect.engine.cloud.CloudFlowRunner"
+    assert env[8]["value"] == "prefect.engine.cloud.CloudTaskRunner"
+    assert env[9]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[10]["value"] == "true"
+
+    assert (
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
+        == "test1/test2:test3"
+    )
+
+
+def test_roundtrip_cloudpickle():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "scheduler.yaml"), "w+") as file:
+            file.write("scheduler")
+        with open(os.path.join(directory, "worker.yaml"), "w+") as file:
+            file.write("worker")
+
+        environment = DaskKubernetesEnvironment(
+            scheduler_spec_file=os.path.join(directory, "scheduler.yaml"),
+            worker_spec_file=os.path.join(directory, "worker.yaml"),
+        )
+
+        assert environment._scheduler_spec == "scheduler"
+        assert environment._worker_spec == "worker"
+
+        new = cloudpickle.loads(cloudpickle.dumps(environment))
+        assert isinstance(new, DaskKubernetesEnvironment)
+        assert new._scheduler_spec == "scheduler"
+        assert new._worker_spec == "worker"

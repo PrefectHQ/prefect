@@ -6,7 +6,6 @@ import tempfile
 import pytest
 
 from prefect import Flow
-from prefect.engine import signals
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
@@ -21,7 +20,7 @@ def test_shell_initializes_and_runs_basic_cmd():
         task = ShellTask()(command="echo -n 'hello world'")
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"hello world"
+    assert out.result[task].result == "hello world"
 
 
 def test_shell_initializes_with_basic_cmd():
@@ -29,16 +28,23 @@ def test_shell_initializes_with_basic_cmd():
         task = ShellTask(command="echo -n 'hello world'")()
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"hello world"
+    assert out.result[task].result == "hello world"
+
+
+def test_shell_initializes_and_multiline_output_returns_last_line():
+    with Flow(name="test") as f:
+        task = ShellTask()(command="echo -n 'hello world\n42'")
+    out = f.run()
+    assert out.is_successful()
+    assert out.result[task].result == "42"
 
 
 def test_shell_raises_if_no_command_provided():
     with Flow(name="test") as f:
-        task = ShellTask()()
-
+        ShellTask()()
     with pytest.raises(TypeError):
         with raise_on_exception():
-            out = f.run()
+            assert f.run()
 
 
 @pytest.mark.skipif(not bool(shutil.which("zsh")), reason="zsh not installed.")
@@ -47,7 +53,7 @@ def test_shell_runs_other_shells():
         task = ShellTask(shell="zsh")(command="echo -n $ZSH_NAME")
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"zsh"
+    assert out.result[task].result == "zsh"
 
 
 def test_shell_inherits_env():
@@ -56,7 +62,7 @@ def test_shell_inherits_env():
     os.environ["MYTESTVAR"] = "42"
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"42"
+    assert out.result[task].result == "42"
 
 
 def test_shell_task_accepts_env():
@@ -64,7 +70,7 @@ def test_shell_task_accepts_env():
         task = ShellTask()(command="echo -n $MYTESTVAR", env=dict(MYTESTVAR="test"))
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"test"
+    assert out.result[task].result == "test"
 
 
 def test_shell_task_env_can_be_set_at_init():
@@ -72,31 +78,40 @@ def test_shell_task_env_can_be_set_at_init():
         task = ShellTask(env=dict(MYTESTVAR="test"))(command="echo -n $MYTESTVAR")
     out = f.run()
     assert out.is_successful()
-    assert out.result[task].result == b"test"
+    assert out.result[task].result == "test"
 
 
-def test_shell_returns_stderr_as_well():
+def test_shell_logs_error_on_non_zero_exit(caplog):
     with Flow(name="test") as f:
-        task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist || exit 0")
+        task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
-    assert out.is_successful()
-    assert "No such file or directory" in out.result[task].result.decode()
+    assert out.is_failed()
+
+    error_log = [c for c in caplog.records if c.levelname == "ERROR"]
+    assert len(error_log) == 1
+    assert error_log[0].name == "prefect.Task: ShellTask"
+    assert "surely_a_dir_that_doesnt_exist" in error_log[0].message
+    assert "No such file or directory" in error_log[0].message
 
 
 def test_shell_initializes_and_runs_multiline_cmd():
     cmd = """
-    for line in $(printenv)
-    do
-        echo "${line#*=}"
-    done
-    """
+    TEST=$(cat <<-END
+This is line one
+This is line two
+This is line three
+boom!
+END
+)
+for i in $TEST
+do
+    echo $i
+done"""
     with Flow(name="test") as f:
         task = ShellTask()(command=cmd, env={key: "test" for key in "abcdefgh"})
     out = f.run()
     assert out.is_successful()
-    lines = out.result[task].result.decode().split("\n")
-    test_lines = [l for l in lines if l == "test"]
-    assert len(test_lines) == 8
+    assert out.result[task].result == "boom!"
 
 
 def test_shell_task_raises_fail_if_cmd_fails():
@@ -127,7 +142,7 @@ def test_shell_task_handles_multiline_commands():
         out = f.run()
 
     assert out.is_successful()
-    assert out.result[task].result == b"this is a test"
+    assert out.result[task].result == "this is a test"
 
 
 def test_shell_adds_newline_to_helper_script():
@@ -153,4 +168,4 @@ def test_shell_sources_helper_script_correctly():
 
     out = f.run()
     assert out.is_successful()
-    assert out.result[res].result == b"chris\n"
+    assert out.result[res].result == "chris"

@@ -90,7 +90,9 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     logger.addHandler(handler)
     logger.setLevel(context.config.logging.level)
 
-    logger.addHandler(CloudHandler())
+    cloud_handler = CloudHandler()
+    cloud_handler.setLevel("DEBUG")
+    logger.addHandler(cloud_handler)
     return logger
 
 
