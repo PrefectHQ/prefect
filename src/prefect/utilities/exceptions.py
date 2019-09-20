@@ -18,5 +18,5 @@ class ClientError(PrefectError):
     pass
 
 
-class AuthorizationError(PrefectError):
+class AuthorizationError(ClientError):
     pass

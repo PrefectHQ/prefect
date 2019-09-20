@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+
+### Task Library
+
+- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Fredrik Sannholm](https://github.com/frsann)
+
+## 0.6.5 <Badge text="beta" type="success"/>
+
+Released September 20, 2019
+
+### Features
+
 - Added Fargate agent - [#1521](https://github.com/PrefectHQ/prefect/pull/1521)
 - Custom user-written environments can be deployed to Prefect Cloud - [#1534](https://github.com/PrefectHQ/prefect/pull/1534), [#1537](https://github.com/PrefectHQ/prefect/pull/1537)
 
@@ -19,7 +51,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)
 - Agents now have a verbose/debug logging option for granular output - [#1532](https://github.com/PrefectHQ/prefect/pull/1532)
 - `DaskKubernetesEnvironment` now allows for custom scheduler and worker specs - [#1543](https://github.com/PrefectHQ/prefect/pull/1534), [#1537](https://github.com/PrefectHQ/prefect/pull/1537)
-- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
 
 ### Task Library
 
@@ -41,8 +72,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
-
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.6.4 <Badge text="beta" type="success"/>
 
@@ -87,7 +117,6 @@ Released September 10, 2019
 - [Joe Schmid](https://github.com/joeschmid)
 - [Brett Naul](https://github.com/bnaul)
 
-
 ## 0.6.3 <Badge text="beta" type="success"/>
 
 Released August 30, 2019
@@ -95,7 +124,6 @@ Released August 30, 2019
 ### Fixes
 
 - Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
-
 
 ## 0.6.2 <Badge text="beta" type="success"/>
 
@@ -148,7 +176,6 @@ Released August 30, 2019
 ### Contributors
 
 - [Alex Kravetz](http://github.com/akravetz)
-
 
 ## 0.6.1 <Badge text="beta" type="success"/>
 
