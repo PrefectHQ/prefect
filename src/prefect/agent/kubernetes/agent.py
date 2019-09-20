@@ -141,6 +141,23 @@ class KubernetesAgent(Agent):
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
     ) -> str:
+        """
+        Generate and output an installable YAML spec for the agent.
+
+        Args:
+            - token (str, optional): A `RUNNER` token to give the agent
+            - api (str, optional): A URL pointing to the Prefect API. Defaults to
+                `https://api.prefect.io`
+            - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
+                to `default`
+            - image_pull_secrets (str, optional): The name of an image pull secret to use
+                for Prefect jobs
+            - resource_manager_enabled (bool, optional): Whether to include the resource
+                manager as part of the YAML. Defaults to `False`
+
+        Returns:
+            - str: A string representation of the generated YAML
+        """
 
         # Use defaults if not provided
         token = token or ""
