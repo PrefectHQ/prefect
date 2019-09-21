@@ -164,7 +164,7 @@ class DaskExecutor(Executor):
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
                 futures = client.map(fn, *args, **kwargs)
-                return client.gather(futures)
+                return [f.result() for f in futures]
         else:
             raise ValueError("This executor has not been started.")
 
