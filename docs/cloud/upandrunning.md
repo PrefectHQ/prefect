@@ -43,7 +43,7 @@ Now that the flow is written and we want to call the `deploy` function which wil
 flow.deploy(project_name="Hello, World!")
 ```
 
-A few things are happening in this step. First your flow will be serialized and placed into a local Docker image. By not providing a registry url the step to push your image to a contain registry is skipped entirely. Once the image finished building a small metadata description of the structure of your flow will be sent to Prefect Cloud.
+A few things are happening in this step. First your flow will be serialized and placed into a local Docker image. By not providing a registry url, the step to push your image to a container registry is skipped entirely. Once the image finished building a small metadata description of the structure of your flow will be sent to Prefect Cloud.
 
 You should now be able to see the flow's Docker image on your machine if you would like by running `docker image list` in your command line.
 
