@@ -1,21 +1,16 @@
 import base64
 import json
-import sys
-import time
 import uuid
 from os import path
 from typing import Any, List
 
 import cloudpickle
-import docker
 import yaml
-from slugify import slugify
 
 import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
-from prefect.utilities import logging
 
 
 class DaskKubernetesEnvironment(Environment):
@@ -30,6 +25,18 @@ class DaskKubernetesEnvironment(Environment):
     function does have the requirement in that it needs to have an `identifier_label`
     set with a UUID so resources can be cleaned up independently of other deployments.
 
+    It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
+    `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
+    should be modeled after the job.yaml and worker_pod.yaml found at
+    https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask
+    The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
+    required for cloud do not need to be included because they are instead automatically added and populated during execution:
+    PREFECT__CLOUD__GRAPHQL, PREFECT__CLOUD__AUTH_TOKEN, PREFECT__CONTEXT__FLOW_RUN_ID,
+    PREFECT__CONTEXT__NAMESPACE, PREFECT__CONTEXT__IMAGE, PREFECT__CONTEXT__FLOW_FILE_PATH,
+    PREFECT__CLOUD__USE_LOCAL_SECRETS, PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS,
+    PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS, PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS,
+    PREFECT__LOGGING__LOG_TO_CLOUD
+
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
         - max_workers (int, optional): the maximum allowed number of Dask worker pods; defaults to 1
@@ -41,6 +48,8 @@ class DaskKubernetesEnvironment(Environment):
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
+        - worker_spec_file (str, optional): Path to a worker spec YAML file
     """
 
     def __init__(
@@ -50,6 +59,8 @@ class DaskKubernetesEnvironment(Environment):
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
+        scheduler_spec_file: str = None,
+        worker_spec_file: str = None,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -59,6 +70,12 @@ class DaskKubernetesEnvironment(Environment):
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
         else:
             self.docker_secret = None  # type: ignore
+        self.scheduler_spec_file = scheduler_spec_file
+        self.worker_spec_file = worker_spec_file
+
+        # Load specs from file if path given, store on object
+        self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
+
         super().__init__(labels=labels)
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
@@ -179,20 +196,26 @@ class DaskKubernetesEnvironment(Environment):
 
         batch_client = client.BatchV1Api()
 
-        with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
-            job = yaml.safe_load(job_file)
-            job = self._populate_job_yaml(
+        if self._scheduler_spec:
+            job = self._scheduler_spec
+            job = self._populate_scheduler_spec_yaml(
                 yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
             )
-
-            # Create Job
-            try:
-                batch_client.create_namespaced_job(
-                    namespace=prefect.context.get("namespace"), body=job
+        else:
+            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
+                job = yaml.safe_load(job_file)
+                job = self._populate_job_yaml(
+                    yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
                 )
-            except Exception as exc:
-                self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
-                raise exc
+
+        # Create Job
+        try:
+            batch_client.create_namespaced_job(
+                namespace=prefect.context.get("namespace"), body=job
+            )
+        except Exception as exc:
+            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+            raise exc
 
     def run_flow(self) -> None:
         """
@@ -203,36 +226,42 @@ class DaskKubernetesEnvironment(Environment):
             from prefect.engine.executors import DaskExecutor
             from dask_kubernetes import KubeCluster
 
-            with open(path.join(path.dirname(__file__), "worker_pod.yaml")) as pod_file:
-                worker_pod = yaml.safe_load(pod_file)
-                worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
-
-                cluster = KubeCluster.from_dict(
-                    worker_pod, namespace=prefect.context.get("namespace")
-                )
-                cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
-
-                # Load serialized flow from file and run it with a DaskExecutor
+            if self._worker_spec:
+                worker_pod = self._worker_spec
+                worker_pod = self._populate_worker_spec_yaml(yaml_obj=worker_pod)
+            else:
                 with open(
-                    prefect.context.get(
-                        "flow_file_path", "/root/.prefect/flow_env.prefect"
-                    ),
-                    "rb",
-                ) as f:
-                    flow = cloudpickle.load(f)
+                    path.join(path.dirname(__file__), "worker_pod.yaml")
+                ) as pod_file:
+                    worker_pod = yaml.safe_load(pod_file)
+                    worker_pod = self._populate_worker_pod_yaml(yaml_obj=worker_pod)
 
-                    executor = DaskExecutor(address=cluster.scheduler_address)
-                    runner_cls = get_default_flow_runner_class()
-                    runner_cls(flow=flow).run(executor=executor)
+            cluster = KubeCluster.from_dict(
+                worker_pod, namespace=prefect.context.get("namespace")
+            )
+            cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
+
+            # Load serialized flow from file and run it with a DaskExecutor
+            with open(
+                prefect.context.get(
+                    "flow_file_path", "/root/.prefect/flow_env.prefect"
+                ),
+                "rb",
+            ) as f:
+                flow = cloudpickle.load(f)
+
+                executor = DaskExecutor(address=cluster.scheduler_address)
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
 
-    ########################
-    # YAML Spec Manipulation
-    ########################
+    ################################
+    # Default YAML Spec Manipulation
+    ################################
 
     def _populate_job_yaml(
         self, yaml_obj: dict, docker_name: str, flow_file_path: str
@@ -315,3 +344,142 @@ class DaskKubernetesEnvironment(Environment):
         )
 
         return yaml_obj
+
+    ###############################
+    # Custom YAML Spec Manipulation
+    ###############################
+
+    def _populate_scheduler_spec_yaml(
+        self, yaml_obj: dict, docker_name: str, flow_file_path: str
+    ) -> dict:
+        """
+        Populate the custom execution job yaml object used in this environment with the proper values
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+            - docker_name (str): the full path to the docker image
+            - flow_file_path (str): the location of the flow within the docker container
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        flow_run_id = prefect.context.get("flow_run_id", "unknown")
+
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
+        yaml_obj["spec"]["template"]["metadata"]["labels"][
+            "identifier"
+        ] = self.identifier_label
+
+        # Required Cloud environment variables
+        env_values = [
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {
+                "name": "PREFECT__CLOUD__AUTH_TOKEN",
+                "value": prefect.config.cloud.auth_token,
+            },
+            {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
+            {
+                "name": "PREFECT__CONTEXT__NAMESPACE",
+                "value": prefect.context.get("namespace", ""),
+            },
+            {"name": "PREFECT__CONTEXT__IMAGE", "value": docker_name},
+            {"name": "PREFECT__CONTEXT__FLOW_FILE_PATH", "value": flow_file_path},
+            {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+            {
+                "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudFlowRunner",
+            },
+            {
+                "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudTaskRunner",
+            },
+            {
+                "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
+                "value": "prefect.engine.executors.DaskExecutor",
+            },
+            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+        ]
+
+        # set environment variables
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        env.extend(env_values)
+
+        # set image
+        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
+
+        return yaml_obj
+
+    def _populate_worker_spec_yaml(self, yaml_obj: dict) -> dict:
+        """
+        Populate the custom worker pod yaml object used in this environment with the proper values.
+
+        Args:
+            - yaml_obj (dict): A dictionary representing the parsed yaml
+
+        Returns:
+            - dict: a dictionary with the yaml values replaced
+        """
+        # set identifier labels
+        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
+        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
+            "flow_run_id", "unknown"
+        )
+
+        # Required Cloud environment variables
+        env_values = [
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {
+                "name": "PREFECT__CLOUD__AUTH_TOKEN",
+                "value": prefect.config.cloud.auth_token,
+            },
+            {
+                "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
+                "value": prefect.context.get("flow_run_id", ""),
+            },
+            {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+            {
+                "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudFlowRunner",
+            },
+            {
+                "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                "value": "prefect.engine.cloud.CloudTaskRunner",
+            },
+            {
+                "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
+                "value": "prefect.engine.executors.DaskExecutor",
+            },
+            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+        ]
+
+        # set environment variables
+        env = yaml_obj["spec"]["containers"][0]["env"]
+        env.extend(env_values)
+
+        # set image
+        yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
+            "image", "daskdev/dask:latest"
+        )
+
+        return yaml_obj
+
+    def _load_specs_from_file(self) -> tuple:
+        """
+        Load scheduler and worker spec from provided file paths
+
+        Returns:
+            - tuple: scheduler spec dictionary, worker spec dictionary
+        """
+        scheduler = None
+        worker = None
+
+        if self.scheduler_spec_file:
+            with open(self.scheduler_spec_file) as scheduler_spec_file:
+                scheduler = yaml.safe_load(scheduler_spec_file)
+
+        if self.worker_spec_file:
+            with open(self.worker_spec_file) as worker_spec_file:
+                worker = yaml.safe_load(worker_spec_file)
+
+        return scheduler, worker

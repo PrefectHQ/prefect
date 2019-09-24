@@ -31,7 +31,8 @@ class KubernetesAgent(Agent):
     """
     Agent which deploys flow runs as Kubernetes jobs. Currently this is required to either
     run on a k8s cluster or on a local machine where the kube_config is pointing at the
-    desired cluster.
+    desired cluster. Information on using the Kubernetes Agent can be found at
+    https://docs.prefect.io/cloud/agent/kubernetes.html
     """
 
     def __init__(self) -> None:
@@ -40,11 +41,13 @@ class KubernetesAgent(Agent):
         from kubernetes import client, config
 
         try:
+            self.logger.debug("Loading incluster configuration")
             config.load_incluster_config()
         except config.config_exception.ConfigException as exc:
             self.logger.warning(
                 "{} Using out of cluster configuration option.".format(exc)
             )
+            self.logger.debug("Loading out of cluster configuration")
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
@@ -57,6 +60,9 @@ class KubernetesAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
+            self.logger.debug(
+                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+            )
 
             # Require Docker storage
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
@@ -67,6 +73,9 @@ class KubernetesAgent(Agent):
 
             job_spec = self.replace_job_spec_yaml(flow_run)
 
+            self.logger.debug(
+                "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+            )
             self.batch_client.create_namespaced_job(
                 namespace=os.getenv("NAMESPACE", "default"), body=job_spec
             )
@@ -104,6 +113,12 @@ class KubernetesAgent(Agent):
             StorageSchema().load(flow_run.flow.storage).name  # type: ignore
         )
 
+        self.logger.debug(
+            "Using image {} for job".format(
+                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
+            )
+        )
+
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
@@ -127,6 +142,23 @@ class KubernetesAgent(Agent):
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
     ) -> str:
+        """
+        Generate and output an installable YAML spec for the agent.
+
+        Args:
+            - token (str, optional): A `RUNNER` token to give the agent
+            - api (str, optional): A URL pointing to the Prefect API. Defaults to
+                `https://api.prefect.io`
+            - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
+                to `default`
+            - image_pull_secrets (str, optional): The name of an image pull secret to use
+                for Prefect jobs
+            - resource_manager_enabled (bool, optional): Whether to include the resource
+                manager as part of the YAML. Defaults to `False`
+
+        Returns:
+            - str: A string representation of the generated YAML
+        """
 
         # Use defaults if not provided
         token = token or ""

@@ -11,7 +11,8 @@ from prefect.utilities.graphql import GraphQLResult
 
 class LocalAgent(Agent):
     """
-    Agent which deploys flow runs locally as Docker containers.
+    Agent which deploys flow runs locally as Docker containers. Information on using the
+    Local Agent can be found at https://docs.prefect.io/cloud/agent/local.html
 
     Args:
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
@@ -28,17 +29,23 @@ class LocalAgent(Agent):
             default_url = "npipe:////./pipe/docker_engine"
         else:
             default_url = "unix://var/run/docker.sock"
+        self.logger.debug(
+            "Platform {} and default docker daemon {}".format(platform, default_url)
+        )
 
         # Determine Daemon URL
         self.base_url = base_url or context.get("base_url", default_url)
+        self.logger.debug("Base docker daemon url {}".format(self.base_url))
 
         # Determine pull specification
         self.no_pull = no_pull or context.get("no_pull", False)
+        self.logger.debug("no_pull set to {}".format(self.no_pull))
 
         self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
 
         # Ping Docker daemon for connection issues
         try:
+            self.logger.debug("Pinging docker daemon")
             self.docker_client.ping()
         except Exception as exc:
             self.logger.exception(
@@ -54,6 +61,9 @@ class LocalAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
+            self.logger.debug(
+                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+            )
 
             storage = StorageSchema().load(flow_run.flow.storage)
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
@@ -67,16 +77,24 @@ class LocalAgent(Agent):
             if not self.no_pull and storage.registry_url:
                 self.logger.debug("Pulling image {}...".format(storage.name))
                 try:
-                    self.docker_client.pull(storage.name)
-                except docker.errors.APIError:
+                    pull_output = self.docker_client.pull(
+                        storage.name, stream=True, decode=True
+                    )
+                    for line in pull_output:
+                        self.logger.debug(line)
+                except docker.errors.APIError as exc:
                     self.logger.error("Issue pulling image {}".format(storage.name))
 
             # Create a container
+            self.logger.debug("Creating Docker container {}".format(storage.name))
             container = self.docker_client.create_container(
                 storage.name, command="prefect execute cloud-flow", environment=env_vars
             )
 
             # Start the container
+            self.logger.debug(
+                "Starting Docker container with ID {}".format(container.get("Id"))
+            )
             self.docker_client.start(container=container.get("Id"))
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:

@@ -86,9 +86,12 @@ def test_shell_logs_error_on_non_zero_exit(caplog):
         task = ShellTask()(command="ls surely_a_dir_that_doesnt_exist")
     out = f.run()
     assert out.is_failed()
-    assert "ERROR    prefect.Task: ShellTask:shell.py" in caplog.text
-    assert "surely_a_dir_that_doesnt_exist" in caplog.text
-    assert "No such file or directory" in caplog.text
+
+    error_log = [c for c in caplog.records if c.levelname == "ERROR"]
+    assert len(error_log) == 1
+    assert error_log[0].name == "prefect.Task: ShellTask"
+    assert "surely_a_dir_that_doesnt_exist" in error_log[0].message
+    assert "No such file or directory" in error_log[0].message
 
 
 def test_shell_initializes_and_runs_multiline_cmd():

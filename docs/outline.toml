@@ -194,6 +194,11 @@ title = "AWS Tasks"
 module = "prefect.tasks.aws"
 classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate"]
 
+[pages.tasks.azure]
+title = "Azure Tasks"
+module = "prefect.tasks.azure"
+classes = ["BlobStorageDownload", "BlobStorageUpload"]
+
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"
@@ -351,6 +356,26 @@ classes = ["StringFormatter", "JinjaTemplate"]
 title = "Twitter Tasks"
 module = "prefect.tasks.twitter"
 classes = ["LoadTweetReplies"]
+
+[pages.agent.agent]
+title = "Agent"
+module = "prefect.agent"
+classes = ["Agent"]
+
+[pages.agent.local]
+title = "Local Agent"
+module = "prefect.agent.local"
+classes = ["LocalAgent"]
+
+[pages.agent.kubernetes]
+title = "Kubernetes Agent"
+module = "prefect.agent.kubernetes"
+classes = ["KubernetesAgent"]
+
+[pages.agent.fargate]
+title = "Fargate Agent"
+module = "prefect.agent.fargate"
+classes = ["FargateAgent"]
 
 [pages.utilities.collections]
 title = "Collections"

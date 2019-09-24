@@ -95,7 +95,12 @@ class Client:
             if self._api_token:
                 self._active_tenant_id = settings.get("active_tenant_id")
             if self._active_tenant_id:
-                self.login_to_tenant(tenant_id=self._active_tenant_id)
+                try:
+                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                except AuthorizationError:
+                    # if an authorization error is raised, then the token is invalid and should
+                    # be cleared
+                    self.logout_from_tenant()
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -209,7 +214,9 @@ class Client:
         )
 
         if raise_on_error and "errors" in result:
-            if "Malformed Authorization header" in str(result["errors"]):
+            if "UNAUTHENTICATED" in str(result["errors"]):
+                raise AuthorizationError(result["errors"])
+            elif "Malformed Authorization header" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
             raise ClientError(result["errors"])
         else:

@@ -47,9 +47,12 @@ def agent():
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
+@click.option(
+    "--verbose", "-v", is_flag=True, help="Enable verbose agent logs.", hidden=True
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
-def start(name, token, no_pull, base_url):
+def start(name, token, verbose, no_pull, base_url):
     """
     Start an agent.
 
@@ -61,6 +64,8 @@ def start(name, token, no_pull, base_url):
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
+        --verbose, -v           Enable verbose agent DEBUG logs
+                                Defaults to INFO level logging
 
     \b
     Local Agent Options:
@@ -69,7 +74,10 @@ def start(name, token, no_pull, base_url):
                                 Defaults to pulling if not provided
     """
     with set_temporary_config(
-        {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
+        {
+            "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+            "cloud.agent.level": "INFO" if not verbose else "DEBUG",
+        }
     ):
         retrieved_agent = _agents.get(name, None)
 

@@ -21,17 +21,6 @@ from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult, decompress
 
 
-@pytest.fixture
-def patch_graphql(monkeypatch):
-    def patch(response):
-        post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
-        session = MagicMock()
-        session.return_value.post = post
-        monkeypatch.setattr("requests.Session", session)
-
-    return patch
-
-
 class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
@@ -422,7 +411,7 @@ class TestTenantAuth:
         client.get_auth_token()
         assert refresh_token.called
 
-    def test_get_auth_token_doesnt_refreshe_if_refresh_token_and_future_expiration(
+    def test_get_auth_token_doesnt_refresh_if_refresh_token_and_future_expiration(
         self, monkeypatch
     ):
         refresh_token = MagicMock()
@@ -433,6 +422,33 @@ class TestTenantAuth:
         client._access_token_expires_at = pendulum.now().add(minutes=10)
         assert client.get_auth_token() == "access"
         refresh_token.assert_not_called()
+
+    def test_client_clears_active_tenant_if_login_fails_on_initialization(
+        self, patch_post
+    ):
+        post = patch_post(
+            {
+                "errors": [
+                    {
+                        "message": "",
+                        "locations": [],
+                        "path": ["tenant"],
+                        "extensions": {"code": "UNAUTHENTICATED"},
+                    }
+                ]
+            }
+        )
+
+        # create a client just so we can use its settings methods to store settings
+        client = Client()
+        settings = client._load_local_settings()
+        settings.update(api_token="API_TOKEN", active_tenant_id=str(uuid.uuid4()))
+        client._save_local_settings(settings)
+
+        # this initialization will fail with the patched error
+        client = Client()
+        settings = client._load_local_settings()
+        assert "active_tenant_id" not in settings
 
 
 class TestPassingHeadersAndTokens:

@@ -10,7 +10,8 @@ from prefect.utilities.graphql import GraphQLResult
 class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
-    long as the proper access configuration variables are set.
+    long as the proper access configuration variables are set.  Information on using the
+    Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
     Args:
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
@@ -68,16 +69,31 @@ class FargateAgent(Agent):
 
         # Agent task config
         self.cluster = cluster or os.getenv("CLUSTER", "default")
+        self.logger.debug("Cluster {}".format(self.cluster))
+
         self.subnets = subnets or []
+        self.logger.debug("Subnets {}".format(self.subnets))
+
         self.security_groups = security_groups or []
+        self.logger.debug("Security groups {}".format(self.security_groups))
+
         self.repository_credentials = repository_credentials or os.getenv(
             "REPOSITORY_CREDENTIALS"
         )
+        self.logger.debug(
+            "Repository credentials {}".format(self.repository_credentials)
+        )
+
         self.assign_public_ip = assign_public_ip or os.getenv(
             "ASSIGN_PUBLIC_IP", "ENABLED"
         )
+        self.logger.debug("Assign public IP {}".format(self.assign_public_ip))
+
         self.task_cpu = task_cpu or os.getenv("TASK_CPU", "256")
+        self.logger.debug("Task CPU {}".format(self.task_cpu))
+
         self.task_memory = task_memory or os.getenv("TASK_MEMORY", "512")
+        self.logger.debug("Task Memory {}".format(self.task_memory))
 
         # Client initialization
         self.boto3_client = boto3_client(
@@ -89,6 +105,7 @@ class FargateAgent(Agent):
 
         # Look for default subnets with `MapPublicIpOnLaunch` disabled
         if not subnets:
+            self.logger.debug("No subnets provided, finding defaults")
             ec2 = boto3_client(
                 "ec2",
                 aws_access_key_id=aws_access_key_id,
@@ -98,6 +115,7 @@ class FargateAgent(Agent):
             for subnet in ec2.describe_subnets()["Subnets"]:
                 if not subnet.get("MapPublicIpOnLaunch"):
                     self.subnets.append(subnet.get("SubnetId"))
+                    self.logger.debug("Subnet {} found".format(subnet.get("SubnetId")))
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
@@ -107,6 +125,9 @@ class FargateAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
+            self.logger.debug(
+                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+            )
 
             # Require Docker storage
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
@@ -116,7 +137,9 @@ class FargateAgent(Agent):
                 continue
 
             # check if task definition exists
+            self.logger.debug("Checking for task definition")
             if not self._verify_task_definition_exists(flow_run):
+                self.logger.debug("No task definition found")
                 self._create_task_definition(flow_run)
 
             # run task
@@ -140,6 +163,9 @@ class FargateAgent(Agent):
                     flow_run.flow.id[:8]  # type: ignore
                 )
             )
+            self.logger.debug(
+                "Task definition {} found".format(flow_run.flow.id[:8])  # type: ignore
+            )
         except ClientError:
             return False
 
@@ -153,6 +179,11 @@ class FargateAgent(Agent):
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
+        self.logger.debug(
+            "Using image {} for task definition".format(
+                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
+            )
+        )
         container_definitions = [
             {
                 "name": "flow",
@@ -183,11 +214,17 @@ class FargateAgent(Agent):
 
         # Assign repository credentials if they are specified
         if self.repository_credentials:
+            self.logger.debug("Assigning repository credentials")
             container_definitions[0]["repositoryCredentials"] = {
                 "credentialsParameter": self.repository_credentials
             }
 
         # Register task definition
+        self.logger.debug(
+            "Registering task definition {}".format(
+                flow_run.flow.id[:8]  # type: ignore
+            )
+        )
         self.boto3_client.register_task_definition(
             family="prefect-task-{}".format(flow_run.flow.id[:8]),  # type: ignore
             containerDefinitions=container_definitions,
@@ -229,11 +266,17 @@ class FargateAgent(Agent):
 
         # Asssign task security groups if they are specified
         if self.security_groups:
+            self.logger.debug("Assigning security groups")
             network_configuration["awsvpcConfiguration"][
                 "securityGroups"
             ] = self.security_groups
 
         # Run task
+        self.logger.debug(
+            "Running task using task definition {}".format(
+                flow_run.flow.id[:8]  # type: ignore
+            )
+        )
         self.boto3_client.run_task(
             cluster=self.cluster,
             taskDefinition="prefect-task-{}".format(

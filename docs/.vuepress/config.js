@@ -3,10 +3,11 @@ const sidebar60 = require('../api/0.6.0/sidebar')
 const sidebar61 = require('../api/0.6.1/sidebar')
 const sidebar62 = require('../api/0.6.2/sidebar')
 const sidebar64 = require('../api/0.6.4/sidebar')
+const sidebar65 = require('../api/0.6.5/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -59,6 +60,7 @@ module.exports = {
         text: "API Reference",
         items: [
           { text: "Unreleased", link: "/api/unreleased/" },
+          { text: "0.6.5", link: "/api/0.6.5/" },
           { text: "0.6.4", link: "/api/0.6.4/" },
           { text: "0.6.2 / 0.6.3", link: "/api/0.6.2/" },
           { text: "0.6.1", link: "/api/0.6.1/" },
@@ -73,6 +75,7 @@ module.exports = {
       "/api/0.6.1/": sidebar61.sidebar,
       "/api/0.6.2/": sidebar62.sidebar,
       "/api/0.6.4/": sidebar64.sidebar,
+      "/api/0.6.5/": sidebar65.sidebar,
       "/api/unreleased/": [
         { title: "API Reference", path: "/api/unreleased/" },
         "changelog",
@@ -113,6 +116,11 @@ module.exports = {
           children: getChildren("docs/api/unreleased", "schedules")
         },
         {
+          title: "prefect.agent",
+          collapsable: true,
+          children: getChildren("docs/api/unreleased", "agent")
+        },
+        {
           title: "prefect.utilities",
           collapsable: true,
           children: getChildren("docs/api/unreleased", "utilities")
@@ -136,6 +144,7 @@ module.exports = {
             'agent/overview',
             'agent/local',
             'agent/kubernetes',
+            'agent/fargate',
           ]
         },
       ],
