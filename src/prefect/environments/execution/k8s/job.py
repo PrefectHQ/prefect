@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Any, List
 
@@ -29,14 +30,14 @@ class KubernetesJobEnvironment(Environment):
     $ /bin/sh -c 'python -c "from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()"'
 
     Args:
-        - job_spec_file (str, optional): Path to a job spec YAML file
+        - job_spec_file (str): Path to a job spec YAML file
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, job_spec_file: str = None, labels: List[str] = None) -> None:
+    def __init__(self, job_spec_file: str, labels: List[str] = None) -> None:
         self.identifier_label = str(uuid.uuid4())
-        self.job_spec_file = job_spec_file
+        self.job_spec_file = os.path.abspath(job_spec_file)
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()

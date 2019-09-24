@@ -14,55 +14,104 @@ from prefect.environments.storage import Docker, Memory
 from prefect.utilities.configuration import set_temporary_config
 
 
-def test_create_dask_environment():
-    environment = KubernetesJobEnvironment()
-    assert environment
-    assert environment.job_spec_file is None
-    assert environment.labels == set()
-    assert environment.logger.name == "prefect.KubernetesJobEnvironment"
+def test_create_k8s_job_environment():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        assert environment
+        assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.labels == set()
+        assert environment.logger.name == "prefect.KubernetesJobEnvironment"
 
 
-def test_create_dask_environment_labels():
-    environment = KubernetesJobEnvironment(labels=["foo"])
-    assert environment.labels == set(["foo"])
+def test_create_k8s_job_environment_labels():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"), labels=["foo"]
+        )
+        assert environment.labels == set(["foo"])
 
 
-def test_create_dask_environment_identifier_label():
-    environment = KubernetesJobEnvironment()
-    assert environment.identifier_label
+def test_create_k8s_job_environment_identifier_label():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        assert environment.identifier_label
 
 
-def test_setup_dask_environment_passes():
-    environment = KubernetesJobEnvironment()
-    environment.setup(storage=Docker())
-    assert environment
+def test_setup_k8s_job_environment_passes():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        environment.setup(storage=Docker())
+        assert environment
 
 
 def test_execute_improper_storage():
-    environment = KubernetesJobEnvironment()
-    with pytest.raises(TypeError):
-        environment.execute(storage=Memory(), flow_location="")
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        with pytest.raises(TypeError):
+            environment.execute(storage=Memory(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
-    environment = KubernetesJobEnvironment()
-    with pytest.raises(ValueError):
-        environment.execute(storage=Docker(), flow_location="")
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        with pytest.raises(ValueError):
+            environment.execute(storage=Docker(), flow_location="")
 
 
 def test_execute(monkeypatch):
-    environment = KubernetesJobEnvironment()
-    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
+    with tempfile.TemporaryDirectory() as directory:
 
-    create_flow_run = MagicMock()
-    monkeypatch.setattr(
-        "prefect.environments.KubernetesJobEnvironment.create_flow_run_job",
-        create_flow_run,
-    )
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
 
-    environment.execute(storage=storage, flow_location="")
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
-    assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
+        create_flow_run = MagicMock()
+        monkeypatch.setattr(
+            "prefect.environments.KubernetesJobEnvironment.create_flow_run_job",
+            create_flow_run,
+        )
+
+        environment.execute(storage=storage, flow_location="")
+
+        assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
 
 
 def test_create_flow_run_job(monkeypatch):
@@ -88,13 +137,20 @@ def test_create_flow_run_job(monkeypatch):
 
 
 def test_create_flow_run_job_fails_outside_cluster():
-    environment = KubernetesJobEnvironment()
+    with tempfile.TemporaryDirectory() as directory:
 
-    with pytest.raises(EnvironmentError):
-        with set_temporary_config({"cloud.auth_token": "test"}):
-            environment.create_flow_run_job(
-                docker_name="test1/test2:test3", flow_file_path="test4"
-            )
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+
+        with pytest.raises(EnvironmentError):
+            with set_temporary_config({"cloud.auth_token": "test"}):
+                environment.create_flow_run_job(
+                    docker_name="test1/test2:test3", flow_file_path="test4"
+                )
 
 
 def test_run_flow(monkeypatch):
@@ -106,9 +162,6 @@ def test_run_flow(monkeypatch):
         "prefect.engine.get_default_flow_runner_class",
         MagicMock(return_value=flow_runner),
     )
-
-    kube_cluster = MagicMock()
-    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
@@ -127,122 +180,144 @@ def test_run_flow(monkeypatch):
 
 
 def test_populate_job_yaml():
-    environment = KubernetesJobEnvironment()
+    with tempfile.TemporaryDirectory() as directory:
 
-    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
 
-    with open(path.join(file_path, "job.yaml")) as job_file:
-        job = yaml.safe_load(job_file)
-        job["spec"]["template"]["spec"]["containers"][0]["env"] = []
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
 
-    with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
-    ):
-        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
-            yaml_obj = environment._populate_job_spec_yaml(
-                yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
-            )
+        file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
-    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
-    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
-    assert (
-        yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
-        == environment.identifier_label
-    )
+        with open(path.join(file_path, "job.yaml")) as job_file:
+            job = yaml.safe_load(job_file)
+            job["spec"]["template"]["spec"]["containers"][0]["env"] = []
 
-    env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        with set_temporary_config(
+            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        ):
+            with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+                yaml_obj = environment._populate_job_spec_yaml(
+                    yaml_obj=job,
+                    docker_name="test1/test2:test3",
+                    flow_file_path="test4",
+                )
 
-    assert env[0]["value"] == "gql_test"
-    assert env[1]["value"] == "auth_test"
-    assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "namespace_test"
-    assert env[4]["value"] == "test1/test2:test3"
-    assert env[5]["value"] == "test4"
+        assert (
+            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+        )
+        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert (
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            == environment.identifier_label
+        )
 
-    assert (
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
-        == "test1/test2:test3"
-    )
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == [
-        "/bin/sh",
-        "-c",
-    ]
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
-    ]
+        assert env[0]["value"] == "gql_test"
+        assert env[1]["value"] == "auth_test"
+        assert env[2]["value"] == "id_test"
+        assert env[3]["value"] == "namespace_test"
+        assert env[4]["value"] == "test1/test2:test3"
+        assert env[5]["value"] == "test4"
+
+        assert (
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
+            == "test1/test2:test3"
+        )
+
+        assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "/bin/sh",
+            "-c",
+        ]
+        assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
+            "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
+        ]
 
 
 def test_populate_job_yaml_multiple_containers():
-    environment = KubernetesJobEnvironment()
+    with tempfile.TemporaryDirectory() as directory:
 
-    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
 
-    with open(path.join(file_path, "job.yaml")) as job_file:
-        job = yaml.safe_load(job_file)
-        # Generate yaml object with multiple containers
-        job["spec"]["template"]["spec"]["containers"][0]["env"] = []
-        job["spec"]["template"]["spec"]["containers"].append(
-            copy.deepcopy(job["spec"]["template"]["spec"]["containers"][0])
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
         )
-        job["spec"]["template"]["spec"]["containers"][1]["env"] = []
 
-    with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
-    ):
-        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
-            yaml_obj = environment._populate_job_spec_yaml(
-                yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
+        file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+        with open(path.join(file_path, "job.yaml")) as job_file:
+            job = yaml.safe_load(job_file)
+            # Generate yaml object with multiple containers
+            job["spec"]["template"]["spec"]["containers"][0]["env"] = []
+            job["spec"]["template"]["spec"]["containers"].append(
+                copy.deepcopy(job["spec"]["template"]["spec"]["containers"][0])
             )
+            job["spec"]["template"]["spec"]["containers"][1]["env"] = []
 
-    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
-    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
-    assert (
-        yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
-        == environment.identifier_label
-    )
+        with set_temporary_config(
+            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        ):
+            with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+                yaml_obj = environment._populate_job_spec_yaml(
+                    yaml_obj=job,
+                    docker_name="test1/test2:test3",
+                    flow_file_path="test4",
+                )
 
-    # Assert First Container
-    env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        assert (
+            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+        )
+        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert (
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            == environment.identifier_label
+        )
 
-    assert env[0]["value"] == "gql_test"
-    assert env[1]["value"] == "auth_test"
-    assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "namespace_test"
-    assert env[4]["value"] == "test1/test2:test3"
-    assert env[5]["value"] == "test4"
+        # Assert First Container
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert (
-        yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
-        == "test1/test2:test3"
-    )
+        assert env[0]["value"] == "gql_test"
+        assert env[1]["value"] == "auth_test"
+        assert env[2]["value"] == "id_test"
+        assert env[3]["value"] == "namespace_test"
+        assert env[4]["value"] == "test1/test2:test3"
+        assert env[5]["value"] == "test4"
 
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == [
-        "/bin/sh",
-        "-c",
-    ]
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
-    ]
+        assert (
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
+            == "test1/test2:test3"
+        )
 
-    # Assert Second Container
-    env = yaml_obj["spec"]["template"]["spec"]["containers"][1]["env"]
+        assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "/bin/sh",
+            "-c",
+        ]
+        assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
+            "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
+        ]
 
-    assert env[0]["value"] == "gql_test"
-    assert env[1]["value"] == "auth_test"
-    assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "namespace_test"
-    assert env[4]["value"] == "test1/test2:test3"
-    assert env[5]["value"] == "test4"
+        # Assert Second Container
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][1]["env"]
 
-    assert (
-        yaml_obj["spec"]["template"]["spec"]["containers"][1]["image"]
-        != "test1/test2:test3"
-    )
+        assert env[0]["value"] == "gql_test"
+        assert env[1]["value"] == "auth_test"
+        assert env[2]["value"] == "id_test"
+        assert env[3]["value"] == "namespace_test"
+        assert env[4]["value"] == "test1/test2:test3"
+        assert env[5]["value"] == "test4"
 
-    assert yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"] != [
-        "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
-    ]
+        assert (
+            yaml_obj["spec"]["template"]["spec"]["containers"][1]["image"]
+            != "test1/test2:test3"
+        )
+
+        assert yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"] != [
+            "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
+        ]
 
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
