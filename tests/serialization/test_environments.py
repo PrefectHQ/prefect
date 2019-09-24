@@ -125,17 +125,24 @@ def test_serialize_dask_environment_with_private_registry():
 
 
 def test_serialize_k8s_job_environment():
-    env = environments.KubernetesJobEnvironment()
+    with tempfile.TemporaryDirectory() as directory:
 
-    schema = KubernetesJobEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["labels"] == []
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
 
-    new = schema.load(serialized)
-    assert new.labels == set()
-    assert new.job_spec_file is None
+        env = environments.KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+
+        schema = KubernetesJobEnvironmentSchema()
+        serialized = schema.dump(env)
+        assert serialized
+        assert serialized["__version__"] == prefect.__version__
+        assert serialized["labels"] == []
+
+        new = schema.load(serialized)
+        assert new.labels == set()
+        assert new.job_spec_file == os.path.join(directory, "job.yaml")
 
 
 def test_serialize_k8s_job_env_with_job_spec():
@@ -150,21 +157,28 @@ def test_serialize_k8s_job_env_with_job_spec():
         schema = KubernetesJobEnvironmentSchema()
         serialized = schema.dump(env)
 
-    deserialized = schema.load(serialized)
-    assert isinstance(deserialized, environments.KubernetesJobEnvironment)
+        deserialized = schema.load(serialized)
+        assert isinstance(deserialized, environments.KubernetesJobEnvironment)
 
 
 def test_serialize_k8s_job_environment_with_labels():
-    env = environments.KubernetesJobEnvironment(labels=["a", "b", "c"])
+    with tempfile.TemporaryDirectory() as directory:
 
-    schema = KubernetesJobEnvironmentSchema()
-    serialized = schema.dump(env)
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert set(serialized["labels"]) == set(["a", "b", "c"])
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
 
-    new = schema.load(serialized)
-    assert new.labels == set(["a", "b", "c"])
+        env = environments.KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"), labels=["a", "b", "c"]
+        )
+
+        schema = KubernetesJobEnvironmentSchema()
+        serialized = schema.dump(env)
+        assert serialized
+        assert serialized["__version__"] == prefect.__version__
+        assert set(serialized["labels"]) == set(["a", "b", "c"])
+
+        new = schema.load(serialized)
+        assert new.labels == set(["a", "b", "c"])
 
 
 def test_serialize_remote_environment():
