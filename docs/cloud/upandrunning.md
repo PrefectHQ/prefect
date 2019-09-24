@@ -45,6 +45,10 @@ flow.deploy(project_name="Hello, World!")
 
 A few things are happening in this step. First your flow will be serialized and placed into a local Docker image. By not providing a registry url, the step to push your image to a container registry is skipped entirely. Once the image finished building a small metadata description of the structure of your flow will be sent to Prefect Cloud.
 
+::: warning Production
+The decision to not push our image to a container registry is entirely for the purposes of this tutorial. In an actual production setting you would be pushing the images that contain your flows to a registry so they can be stored and retrieved by agents running on platforms other than your local machine.
+:::
+
 You should now be able to see the flow's Docker image on your machine if you would like by running `docker image list` in your command line.
 
 After this deployment is complete you should be able to see your flow now exists in Prefect Cloud!
