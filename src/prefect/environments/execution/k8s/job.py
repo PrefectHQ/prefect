@@ -30,12 +30,12 @@ class KubernetesJobEnvironment(Environment):
     $ /bin/sh -c 'python -c "from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()"'
 
     Args:
-        - job_spec_file (str): Path to a job spec YAML file
+        - job_spec_file (str, optional): Path to a job spec YAML file
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, job_spec_file: str, labels: List[str] = None) -> None:
+    def __init__(self, job_spec_file: str = None, labels: List[str] = None) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.job_spec_file = job_spec_file
 
@@ -175,10 +175,6 @@ class KubernetesJobEnvironment(Environment):
             {
                 "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                 "value": "prefect.engine.cloud.CloudTaskRunner",
-            },
-            {
-                "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
-                "value": "prefect.engine.executors.DaskExecutor",
             },
             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
         ]
