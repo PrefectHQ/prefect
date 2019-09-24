@@ -140,9 +140,9 @@ def test_serialize_k8s_job_environment():
         assert serialized["__version__"] == prefect.__version__
         assert serialized["labels"] == []
 
-        new = schema.load(serialized)
-        assert new.labels == set()
-        assert new.job_spec_file == os.path.join(directory, "job.yaml")
+    new = schema.load(serialized)
+    assert new.labels == set()
+    assert new.job_spec_file is None
 
 
 def test_serialize_k8s_job_env_with_job_spec():
@@ -177,8 +177,8 @@ def test_serialize_k8s_job_environment_with_labels():
         assert serialized["__version__"] == prefect.__version__
         assert set(serialized["labels"]) == set(["a", "b", "c"])
 
-        new = schema.load(serialized)
-        assert new.labels == set(["a", "b", "c"])
+    new = schema.load(serialized)
+    assert new.labels == set(["a", "b", "c"])
 
 
 def test_serialize_remote_environment():

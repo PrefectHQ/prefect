@@ -40,7 +40,6 @@ class KubernetesJobEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = KubernetesJobEnvironment
 
-    job_spec_file = fields.String(allow_none=False)
     labels = fields.List(fields.String())
 
 
