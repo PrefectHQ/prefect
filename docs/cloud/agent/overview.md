@@ -54,3 +54,7 @@ from prefect.agent import LocalAgent
 
 LocalAgent().start()
 ```
+
+### Tokens
+
+Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
