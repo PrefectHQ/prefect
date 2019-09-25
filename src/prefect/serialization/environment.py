@@ -5,6 +5,7 @@ from prefect.environments import (
     DaskKubernetesEnvironment,
     Environment,
     LocalEnvironment,
+    KubernetesJobEnvironment,
     RemoteEnvironment,
 )
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema, to_qualified_name
@@ -33,6 +34,13 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
     private_registry = fields.Boolean(allow_none=False)
     min_workers = fields.Int()
     max_workers = fields.Int()
+
+
+class KubernetesJobEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = KubernetesJobEnvironment
+
+    labels = fields.List(fields.String())
 
 
 class RemoteEnvironmentSchema(ObjectSchema):
@@ -74,6 +82,7 @@ class EnvironmentSchema(OneOfSchema):
         "DaskKubernetesEnvironment": DaskKubernetesEnvironmentSchema,
         "Environment": BaseEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
+        "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
     }
