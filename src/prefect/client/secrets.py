@@ -107,4 +107,7 @@ class Secret:
                 """,
                 variables=dict(name=self.name),
             )
-            return result.data.secretValue
+            # the result object is a Box, so we recursively restore builtin
+            # dict/list classes
+            result_dict = result.to_dict()
+            return result_dict["data"]["secretValue"]

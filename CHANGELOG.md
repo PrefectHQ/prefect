@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+- Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
 
 ### Task Library
 
@@ -46,7 +47,6 @@ Released September 20, 2019
 - Allow for Agents to correctly run in environments with differently calibrated clocks - [#1402](https://github.com/PrefectHQ/prefect/issues/1402)
 - Refactor `RemoteEnvironment` to utilize the `get_flow` storage interface - [#1476](https://github.com/PrefectHQ/prefect/issues/1476)
 - Ensure Task logger is available in context throughout every pipeline step of the run - [#1509](https://github.com/PrefectHQ/prefect/issues/1509)
-- Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
 - Skip Docker registry pushing and pulling on empty `registry_url` attribute - [#1525](https://github.com/PrefectHQ/prefect/pull/1525)
 - Agents now log platform errors to flow runs which cannot deploy - [#1528](https://github.com/PrefectHQ/prefect/pull/1528)
 - Updating `ShellTask` to work more like Airflow Bash Operator for streaming logs and returning values - [#1451](https://github.com/PrefectHQ/prefect/pull/1451)

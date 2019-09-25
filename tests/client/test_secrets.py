@@ -1,3 +1,4 @@
+import box
 import json
 from unittest.mock import MagicMock
 
@@ -58,6 +59,25 @@ def test_secrets_use_client(monkeypatch):
     assert val == "1234"
 
 
+def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
+    response = {"data": {"secretValue": {"a": "1234", "b": [1, 2, {"c": 3}]}}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+    ):
+        my_secret = Secret(name="the-key")
+        val = my_secret.get()
+    assert val == {"a": "1234", "b": [1, 2, {"c": 3}]}
+    assert isinstance(val, dict) and not isinstance(val, box.Box)
+    val2 = val["b"]
+    assert isinstance(val2, list) and not isinstance(val2, box.BoxList)
+    val3 = val["b"][2]
+    assert isinstance(val3, dict) and not isinstance(val3, box.Box)
+
+
 def test_local_secrets_auto_load_json_strings():
     secret = Secret(name="test")
     with set_temporary_config({"cloud.use_local_secrets": True}):
@@ -72,7 +92,9 @@ def test_local_secrets_remain_plain_dictionaries():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(test={"x": 42})):
             assert isinstance(prefect.context.secrets["test"], dict)
-            assert secret.get() == {"x": 42}
+            val = secret.get()
+            assert val == {"x": 42}
+            assert isinstance(val, dict) and not isinstance(val, box.Box)
 
 
 def test_secrets_raise_if_in_flow_context():
