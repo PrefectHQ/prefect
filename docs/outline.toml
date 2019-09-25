@@ -406,7 +406,7 @@ functions = ["timeout_handler"]
 [pages.utilities.graphql]
 title = "GraphQL"
 module = "prefect.utilities.graphql"
-classes = ["GraphQLResult", "EnumValue"]
+classes = ["EnumValue"]
 functions = ["parse_graphql", "parse_graphql_arguments", "with_args", "compress", "decompress"]
 
 [pages.utilities.logging]

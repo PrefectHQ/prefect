@@ -18,7 +18,6 @@ from prefect.utilities.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
-    as_nested_dict,
     compress,
     parse_graphql,
     with_args,
@@ -221,7 +220,7 @@ class Client:
                 raise AuthorizationError(result["errors"])
             raise ClientError(result["errors"])
         else:
-            return as_nested_dict(result, GraphQLResult)  # type: ignore
+            return GraphQLResult(result)  # type: ignore
 
     def _request(
         self,
@@ -663,7 +662,7 @@ class Client:
             - flow_run_id (str): the id of the flow run to get information for
 
         Returns:
-            - GraphQLResult: a `DotDict` representing information about the flow run
+            - GraphQLResult: an object representing information about the flow run
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
@@ -689,6 +688,7 @@ class Client:
             }
         }
         result = self.graphql(query).data.flow_run_by_pk  # type: ignore
+
         if result is None:
             raise ClientError('Flow run ID not found: "{}"'.format(flow_run_id))
 

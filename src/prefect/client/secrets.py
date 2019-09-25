@@ -43,7 +43,6 @@ from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client
-from prefect.utilities.collections import as_nested_dict
 
 
 class Secret:
@@ -107,5 +106,8 @@ class Secret:
                 }
                 """,
                 variables=dict(name=self.name),
-            )  # type: Any
-            return as_nested_dict(result.data.secretValue, dict)
+            )
+            # the result object is a Box, so we recursively restore builtin
+            # dict/list classes
+            result_dict = result.to_dict()
+            return result_dict["data"]["secretValue"]

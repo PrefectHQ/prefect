@@ -436,6 +436,8 @@ def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
     caused by the Context object not creating a nested DotDict structure.  The main
     symptom of this was when a CloudFlowRunner submitted a job to a dask worker and an error
     was raised: `dict has no attribute cloud`
+
+    Note: DotDicts have been replaced by Box objects
     """
     fr = CloudFlowRunner(flow=prefect.Flow(name="test"))
     fr.run_task(

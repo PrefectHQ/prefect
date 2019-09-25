@@ -18,7 +18,6 @@ import pendulum
 import prefect
 from prefect.engine.result import NoResult, Result, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.utilities.collections import DotDict
 
 
 class State:

@@ -18,7 +18,8 @@ def get_default_executor_class() -> type:
 
     Defaults to `SynchronousExecutor` if the string config value can not be loaded
     """
-    config_value = config.get_nested("engine.executor.default_class")
+    config_value = config.engine.executor.default_class
+
     if isinstance(config_value, str):
         try:
             return prefect.utilities.serialization.from_qualified_name(config_value)
@@ -40,7 +41,7 @@ def get_default_flow_runner_class() -> type:
 
     Defaults to `FlowRunner` if the string config value can not be loaded
     """
-    config_value = config.get_nested("engine.flow_runner.default_class")
+    config_value = config.engine.flow_runner.default_class
 
     if isinstance(config_value, str):
         try:
@@ -63,7 +64,7 @@ def get_default_task_runner_class() -> type:
 
     Defaults to `TaskRunner` if the string config value can not be loaded
     """
-    config_value = config.get_nested("engine.task_runner.default_class")
+    config_value = config.engine.task_runner.default_class
 
     if isinstance(config_value, str):
         try:
@@ -86,7 +87,7 @@ def get_default_result_handler_class() -> type:
 
     Defaults to `None` if the string config value can not be loaded
     """
-    config_value = config.get_nested("engine.result_handler.default_class")
+    config_value = config.engine.result_handler.default_class
 
     if isinstance(config_value, str):
         if not config_value:

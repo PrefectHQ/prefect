@@ -8,7 +8,7 @@ import pytest
 import pytz
 
 import prefect
-from prefect.utilities.collections import DotDict
+from box import Box
 from prefect.utilities.serialization import (
     UUID,
     Bytes,
@@ -28,7 +28,7 @@ json_test_values = [
     [1, "2"],
     {"x": 1},
     {"x": "1", "y": {"z": 3}},
-    DotDict({"x": "1", "y": [DotDict(z=3)]}),
+    Box({"x": "1", "y": [dict(z=3)]}),
 ]
 
 
@@ -393,9 +393,9 @@ class TestObjectSchema:
 
 
 class TestOneOfSchema:
-    def test_oneofschema_load_dotdict(self):
+    def test_oneofschema_load_box(self):
         """
-        Tests that modified OneOfSchema can load data from a DotDict (standard can not)
+        Tests that modified OneOfSchema can load data from a Box (standard can not)
         """
 
         class ChildSchema(marshmallow.Schema):
@@ -404,7 +404,7 @@ class TestOneOfSchema:
         class ParentSchema(OneOfSchema):
             type_schemas = {"Child": ChildSchema}
 
-        child = ParentSchema().load(DotDict(type="Child", x="5"))
+        child = ParentSchema().load(Box(type="Child", x="5"))
         assert child["x"] == 5
 
     def test_oneofschema_handles_unknown_fields(self):
@@ -414,6 +414,6 @@ class TestOneOfSchema:
         class ParentSchema(OneOfSchema):
             type_schemas = {"Child": ChildSchema}
 
-        child = ParentSchema().load(DotDict(type="Child", x="5", y="6"))
+        child = ParentSchema().load(Box(type="Child", x="5", y="6"))
         assert child["x"] == 5
         assert not hasattr(child, "y")

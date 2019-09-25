@@ -1,3 +1,4 @@
+from box import Box
 import collections
 import json
 from collections.abc import MutableMapping
@@ -158,6 +159,12 @@ def as_nested_dict(
     """
     if isinstance(obj, (list, tuple, set)):
         return type(obj)([as_nested_dict(d, dct_class) for d in obj])
+
+    # calling as_nested_dict on `Box` objects pulls out their "private" keys due to our recursion
+    # into `__dict__` if it exists. We can special-case Box and just convert it to dict this way,
+    # which automatically handles recursion.
+    elif isinstance(obj, Box):
+        return dict(obj)
     elif isinstance(obj, (dict, DotDict)):
         # DotDicts could have keys that shadow `update` and `items`, so we
         # take care to avoid accessing those keys here
