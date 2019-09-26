@@ -976,11 +976,19 @@ class TestSetTaskRunning:
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
+        assert new_state.context == dict(tags=set())
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).set_task_to_running(state=state)
+
+    def test_tags_are_placed_in_context(self):
+        new_state = TaskRunner(task=Task(tags=["foo", "bar"])).set_task_to_running(
+            state=Pending()
+        )
+        assert new_state.is_running()
+        assert new_state.context == dict(tags={"foo", "bar"})
 
 
 class TestRunTaskStep:

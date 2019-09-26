@@ -96,6 +96,23 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
+    assert states[0].context == dict(tags=set())
+
+
+def test_task_runner_places_task_tags_in_state_context(client):
+    task = Task(name="test", tags=["1", "2", "tag"])
+
+    res = CloudTaskRunner(task=task).run()
+
+    ## assertions
+    assert client.get_task_run_info.call_count == 0  # never called
+    assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
+    assert client.get_latest_cached_states.call_count == 0
+
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert [type(s).__name__ for s in states] == ["Running", "Success"]
+    assert res.is_successful()
+    assert states[0].context == dict(tags={"1", "2", "tag"})
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
