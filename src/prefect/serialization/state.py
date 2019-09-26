@@ -32,9 +32,7 @@ class BaseStateSchema(ObjectSchema):
     class Meta:
         object_class = state.State
 
-    context = fields.Dict(
-        key=fields.Str(), values=fields.List(fields.Str()), allow_none=True
-    )
+    context = fields.Dict(key=fields.Str(), values=JSONCompatible(), allow_none=True)
     message = fields.String(allow_none=True)
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 

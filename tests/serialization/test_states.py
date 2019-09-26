@@ -152,6 +152,21 @@ def test_serialize_state_with_context():
     assert deserialized.context == dict(tags=["foo", "bar"])
 
 
+def test_serialize_state_with_context_allows_for_diverse_values():
+    s = state.Running(message="hi")
+    s.context = dict(tags=["foo", "bar"], info=dict(x=42), baz="99")
+    serialized = StateSchema().dump(s)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == "Running"
+    assert serialized["message"] == "hi"
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["context"] == s.context
+
+    deserialized = StateSchema().load(serialized)
+    assert deserialized.is_running()
+    assert deserialized.context == s.context
+
+
 def test_serialize_mapped():
     s = state.Success(message="1", result=1)
     f = state.Failed(message="2", result=2)
