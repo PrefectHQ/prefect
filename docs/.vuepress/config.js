@@ -42,6 +42,10 @@ module.exports = {
     ["vuepress-plugin-code-copy", true]
   ],
   themeConfig: {
+    algolia: {
+      apiKey: '553c75634e1d4f09c84f7a513f9cc4f9',
+      indexName: 'prefect'
+    },
     repo: "PrefectHQ/prefect",
     docsDir: "docs",
     editLinks: true,
