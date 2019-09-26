@@ -195,6 +195,7 @@ module.exports = {
             "concepts/mapping",
             "concepts/engine",
             "concepts/execution",
+            "concepts/persistence",
             "concepts/notifications",
             "concepts/results",
             "concepts/schedules",
