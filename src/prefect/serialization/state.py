@@ -32,14 +32,19 @@ class BaseStateSchema(ObjectSchema):
     class Meta:
         object_class = state.State
 
+    context = fields.Dict(
+        key=fields.Str(), values=fields.List(fields.Str()), allow_none=True
+    )
     message = fields.String(allow_none=True)
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> state.State:
         result_obj = data.pop("_result", result.NoResult)
+        context = data.pop("context", dict())
         data["result"] = result_obj
         base_obj = super().create_object(data)
+        base_obj.context = context
         return base_obj
 
 
