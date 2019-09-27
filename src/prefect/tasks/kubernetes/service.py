@@ -1,6 +1,7 @@
 from typing import Any
 
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 
 from prefect import Task
 from prefect.client import Secret
@@ -85,7 +86,9 @@ class CreateNamespacedService(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -94,7 +97,7 @@ class CreateNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -183,7 +186,9 @@ class DeleteNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -192,7 +197,7 @@ class DeleteNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -273,7 +278,9 @@ class ListNamespacedService(Task):
         Returns:
             - V1ServiceList: a Kubernetes V1ServiceList of the services which are found
         """
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -282,7 +289,7 @@ class ListNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -381,7 +388,9 @@ class PatchNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -390,7 +399,7 @@ class PatchNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -482,7 +491,9 @@ class ReadNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -491,7 +502,7 @@ class ReadNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -590,7 +601,9 @@ class ReplaceNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -599,7 +612,7 @@ class ReplaceNamespacedService(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
