@@ -8,6 +8,7 @@ from prefect.environments.storage import Docker
 from prefect.utilities.graphql import GraphQLResult
 
 pytest.importorskip("boto3")
+pytest.importorskip("botocore")
 
 
 def test_ecs_agent_init(monkeypatch, runner_token):
