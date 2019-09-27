@@ -10,6 +10,7 @@ import pytest
 import prefect
 from prefect.core import Flow, Task
 from prefect.engine import FlowRunner, TaskRunner, state
+from prefect.tasks.control_flow import switch
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import is_serializable, raise_on_exception
 
@@ -57,13 +58,24 @@ def test_raise_on_exception_raises_basic_error():
             flow.run()
 
 
-def test_raise_on_exception_raises_basic_prefect_signal():
+@pytest.mark.parametrize(
+    "signal", prefect.engine.signals.PrefectStateSignal.__subclasses__()
+)
+def test_raise_on_exception_ignores_all_prefect_signals(signal):
     flow = Flow(name="test")
-    flow.add_task(BusinessTask())
-    with pytest.raises(prefect.engine.signals.FAIL) as error:
-        with raise_on_exception():
-            flow.run()
-    assert "needs more blockchain!" in str(error.value)
+
+    @prefect.task
+    def raise_signal():
+        if (
+            prefect.context.get("task_loop_count", 1) < 2
+            and prefect.context.get("task_run_count", 1) < 2
+            and signal.__name__ != "PAUSE"
+        ):
+            raise signal("my message")
+
+    flow.add_task(raise_signal)
+    with raise_on_exception():
+        flow_state = flow.run()
 
 
 def test_raise_on_exception_works_at_the_task_level_with_error():
@@ -71,14 +83,6 @@ def test_raise_on_exception_works_at_the_task_level_with_error():
     with pytest.raises(ZeroDivisionError):
         with raise_on_exception():
             taskrunner.run()
-
-
-def test_raise_on_exception_works_at_the_task_level_with_signal():
-    taskrunner = TaskRunner(task=BusinessTask())
-    with pytest.raises(prefect.engine.signals.FAIL) as error:
-        with raise_on_exception():
-            taskrunner.run()
-    assert "needs more blockchain!" in str(error.value)
 
 
 def test_that_bad_code_in_flow_runner_is_caught():
@@ -133,6 +137,20 @@ def test_raise_on_exception_plays_well_with_context():
     except ZeroDivisionError:
         assert "raise_on_exception" not in prefect.context
         pass
+
+
+def test_switch_works_with_raise_on_exception():
+    @prefect.task
+    def return_b():
+        return "b"
+
+    tasks = {let: prefect.Task(name=let) for let in "abcde"}
+
+    with Flow(name="test") as flow:
+        res = switch(return_b, tasks)
+
+    with raise_on_exception():
+        flow_state = flow.run()
 
 
 @pytest.mark.skipif(
