@@ -1,13 +1,8 @@
 from unittest.mock import MagicMock, PropertyMock
 
-import pytest
-
 from click.testing import CliRunner
 
 import prefect
-from prefect import Flow
-from prefect.environments import LocalEnvironment, Environment
-from prefect.environments.storage import Local, Bytes, Memory, Docker
 from prefect.cli.execute import execute
 from prefect.utilities.configuration import set_temporary_config
 
