@@ -11,6 +11,7 @@ pytest.importorskip("botocore")
 
 from botocore.exceptions import ClientError
 
+
 def test_ecs_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
