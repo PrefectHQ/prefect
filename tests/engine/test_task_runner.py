@@ -1281,6 +1281,17 @@ class TestCacheResultStep:
         assert new_state._result.safe_value is NoResult
 
     @pytest.mark.parametrize(
+        "state", [cls() for cls in Failed.__subclasses__() + [Failed]]
+    )
+    def test_non_success_states(self, state):
+        new_state = TaskRunner(task=Task()).cache_result(
+            state=state, inputs={"x": Result(1)}
+        )
+        assert new_state is state
+        assert new_state._result.safe_value is NoResult
+        assert new_state.cached_inputs == {"x": Result(1)}
+
+    @pytest.mark.parametrize(
         "validator",
         [
             all_inputs,
@@ -1964,3 +1975,14 @@ class TestLooping:
         assert state.is_mapped()
         state.map_states[0].is_retrying()
         state.map_states[1].is_successful()
+
+
+def test_failure_caches_inputs():
+    @prefect.task
+    def fail(x):
+        raise ValueError()
+
+    upstream_states = {Edge(Task(), fail, key="x"): Success(result=Result(1))}
+    new_state = TaskRunner(task=fail).run(upstream_states=upstream_states)
+    assert new_state.is_failed()
+    assert new_state.cached_inputs == {"x": Result(1)}

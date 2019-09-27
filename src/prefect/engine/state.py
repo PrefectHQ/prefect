@@ -613,9 +613,20 @@ class Failed(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task might require manual Retries.
     """
 
     color = "#eb0000"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
+    ):
+        super().__init__(message=message, result=result)
+        self.cached_inputs = cached_inputs
 
 
 class Aborted(Failed):
@@ -626,6 +637,8 @@ class Aborted(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#c42800"
@@ -645,15 +658,6 @@ class TimedOut(Failed):
 
     color = "#ff4e33"
 
-    def __init__(
-        self,
-        message: str = None,
-        result: Any = NoResult,
-        cached_inputs: Dict[str, Result] = None,
-    ):
-        super().__init__(message=message, result=result)
-        self.cached_inputs = cached_inputs
-
 
 class TriggerFailed(Failed):
     """
@@ -663,6 +667,8 @@ class TriggerFailed(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
     """
 
     color = "#ff5131"

@@ -227,13 +227,24 @@ def test_serialize_and_deserialize_on_safe_cached_state():
     assert new_state.cached_inputs == state.cached_inputs
 
 
-def test_serialization_of_cached_inputs():
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_serialization_of_cached_inputs_with_safe_values(cls):
     safe5 = SafeResult(5, result_handler=JSONResultHandler())
-    state = Pending(cached_inputs=dict(hi=safe5, bye=safe5))
+    state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Pending)
+    assert isinstance(new_state, cls)
     assert new_state.cached_inputs == state.cached_inputs
+
+
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_serialization_of_cached_inputs_with_unsafe_values(cls):
+    unsafe5 = Result(5, result_handler=JSONResultHandler())
+    state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, cls)
+    assert new_state.cached_inputs == dict(hi=NoResult, bye=NoResult)
 
 
 def test_state_equality():

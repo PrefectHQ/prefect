@@ -543,6 +543,32 @@ class TestStateResultHandling:
         assert states[2].cached_inputs == dict(x=result, y=result)
         assert states[2].result == 2
 
+    def test_task_runner_errors_if_no_result_provided_as_input(self, client):
+        @prefect.task
+        def add(x, y):
+            return x + y
+
+        base_state = prefect.serialization.state.StateSchema().load({"type": "Success"})
+        x_state, y_state = base_state, base_state
+
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert res.is_failed()
+        assert "unsupported operand" in res.message
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Failed
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()  # this isn't ideal, it's a little confusing
+        assert states[1].is_failed()
+        assert "unsupported operand" in states[1].message
+
     def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
         handler = JSONResultHandler()
 
