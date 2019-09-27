@@ -1,6 +1,7 @@
 from typing import Any
 
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 
 from prefect import Task
 from prefect.client import Secret
@@ -87,7 +88,9 @@ class CreateNamespacedDeployment(Task):
                 "A dictionary representing a ExtensionsV1beta1Deployment must be provided."
             )
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -96,7 +99,7 @@ class CreateNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
@@ -185,7 +188,9 @@ class DeleteNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -194,7 +199,7 @@ class DeleteNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
@@ -276,7 +281,9 @@ class ListNamespacedDeployment(Task):
             - ExtensionsV1beta1DeploymentList: a Kubernetes ExtensionsV1beta1DeploymentList
                 of the deployments which are found
         """
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -285,7 +292,7 @@ class ListNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
@@ -388,7 +395,9 @@ class PatchNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -397,7 +406,7 @@ class PatchNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
@@ -490,7 +499,9 @@ class ReadNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -499,7 +510,7 @@ class ReadNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
@@ -604,7 +615,9 @@ class ReplaceNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -613,7 +626,7 @@ class ReplaceNamespacedDeployment(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.ExtensionsV1beta1Api()
