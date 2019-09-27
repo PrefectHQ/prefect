@@ -139,6 +139,25 @@ def test_only_scheduled_and_queued_states_have_start_times(cls):
         assert not state.is_scheduled()
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_only_scheduled_states_have_task_run_count_in_context(cls):
+    """
+    Storing task_run_count in state.context provides a way of communicating
+    the current run_count across multiple state changes.  Persisting this data
+    in a Finished state causes the run count to "freeze" across runs.
+    """
+    with prefect.context(task_run_count=910):
+        state = cls()
+
+    if state.context.get("task_run_count") is not None:
+        assert isinstance(state, Scheduled)
+        assert state.is_scheduled()
+        assert state.context["task_run_count"] == 910
+    else:
+        assert not isinstance(state, Scheduled)
+        assert not state.is_scheduled()
+
+
 def test_retry_stores_loop_count():
     state = Looped(loop_count=2)
     assert state.loop_count == 2
