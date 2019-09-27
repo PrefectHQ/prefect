@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
 - Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
 - Store `cached_inputs` on Failed states and call their result handlers if they were provided - [#1557](https://github.com/PrefectHQ/prefect/pull/1557)
+- `raise_on_exception` no longer raises for Prefect Signals, as these are typically intentional / for control flow - [#1562](https://github.com/PrefectHQ/prefect/pull/1562)
 
 ### Task Library
 
