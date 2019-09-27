@@ -1,14 +1,14 @@
 import os
-import tempfile
 import sys
+import tempfile
 from unittest.mock import MagicMock
 
 import pytest
 from distributed import Client
 
 import prefect
-from prefect.engine.executors import DaskExecutor, LocalExecutor, LocalDaskExecutor
-from prefect.utilities import debug, configuration
+from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
+from prefect.utilities import configuration, debug
 
 
 @pytest.fixture(autouse=True)

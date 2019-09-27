@@ -1,11 +1,8 @@
-from os import path
 import tempfile
+from os import path
 from unittest.mock import MagicMock
 
 import pytest
-
-pytest.importorskip("kubernetes")
-
 import yaml
 
 from prefect.agent.kubernetes import KubernetesAgent
@@ -13,6 +10,8 @@ from prefect.agent.kubernetes.agent import check_heartbeat
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
+
+pytest.importorskip("kubernetes")
 
 
 def test_k8s_agent_init(monkeypatch, runner_token):

@@ -32,8 +32,8 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.environments import RemoteEnvironment, Environment
-from prefect.environments.storage import get_default_storage_class, Storage
+from prefect.environments import Environment, RemoteEnvironment
+from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name

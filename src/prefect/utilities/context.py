@@ -58,7 +58,7 @@ import contextlib
 import threading
 from typing import Any, Iterator, MutableMapping
 
-from prefect.configuration import config, Config
+from prefect.configuration import Config, config
 from prefect.utilities.collections import DotDict, merge_dicts
 
 

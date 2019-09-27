@@ -1,10 +1,10 @@
-import cloudpickle
 import os
-import pendulum
 import sys
 import tempfile
 from unittest.mock import MagicMock
 
+import cloudpickle
+import pendulum
 import pytest
 
 import prefect

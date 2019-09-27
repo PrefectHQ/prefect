@@ -9,7 +9,6 @@ from prefect import Flow
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
-
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="ShellTask currently not supported on Windows"
 )

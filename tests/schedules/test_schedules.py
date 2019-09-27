@@ -1,10 +1,11 @@
+import itertools
 from datetime import time, timedelta
 
 import pendulum
 import pytest
-import itertools
+
 from prefect import __version__
-from prefect.schedules import schedules, clocks, filters, adjustments
+from prefect.schedules import adjustments, clocks, filters, schedules
 
 
 def test_create_schedule_requires_clock():

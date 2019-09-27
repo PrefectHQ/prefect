@@ -1,7 +1,7 @@
 import json
 import os
-from os import path
 import uuid
+from os import path
 
 import requests
 

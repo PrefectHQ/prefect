@@ -2,8 +2,8 @@ import uuid
 from unittest.mock import MagicMock
 
 import click
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
 
 import prefect
 from prefect.cli.auth import auth

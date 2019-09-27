@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
-import snowflake.connector as sf
 import pytest
 
+import snowflake.connector as sf
 from prefect.tasks.snowflake import SnowflakeQuery
 
 

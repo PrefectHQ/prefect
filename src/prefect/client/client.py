@@ -14,7 +14,7 @@ from requests.packages.urllib3.util.retry import Retry
 from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import ClientError, AuthorizationError
+from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,

@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.environments import storage
 from prefect import utilities
+from prefect.environments import storage
 
 
 def test_default_storage():

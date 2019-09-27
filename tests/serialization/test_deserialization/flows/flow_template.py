@@ -1,10 +1,10 @@
 import datetime
 
-from prefect import task, Flow, Parameter
+from prefect import Flow, Parameter, task
 from prefect.engine.cache_validators import partial_parameters_only
+from prefect.engine.result_handlers import JSONResultHandler, S3ResultHandler
 from prefect.environments.execution import RemoteEnvironment
 from prefect.environments.storage import Docker
-from prefect.engine.result_handlers import JSONResultHandler, S3ResultHandler
 from prefect.tasks.shell import ShellTask
 
 

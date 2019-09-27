@@ -1,6 +1,6 @@
 import datetime
-import os
 import logging
+import os
 import random
 import sys
 import tempfile
@@ -17,7 +17,7 @@ from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
-from prefect.engine.signals import PrefectError, LOOP
+from prefect.engine.signals import LOOP, PrefectError
 from prefect.engine.state import (
     Failed,
     Finished,
