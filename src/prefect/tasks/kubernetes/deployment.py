@@ -17,7 +17,10 @@ class CreateNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -121,7 +124,10 @@ class DeleteNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -223,7 +229,10 @@ class ListNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -311,7 +320,10 @@ class PatchNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -428,7 +440,10 @@ class ReadNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -531,7 +546,10 @@ class ReplaceNamespacedDeployment(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
