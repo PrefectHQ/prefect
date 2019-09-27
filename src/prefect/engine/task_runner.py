@@ -144,7 +144,7 @@ class TaskRunner(Runner):
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
         else:
-            run_count = 1
+            run_count = state.context.get("task_run_count", 1)
 
         if isinstance(state, Resume):
             context.update(resume=True)

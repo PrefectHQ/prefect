@@ -280,6 +280,9 @@ class Scheduled(Pending):
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
+        run_count = prefect.context.get("task_run_count")
+        if run_count is not None:
+            self.context.update(task_run_count=run_count)
 
 
 class Paused(Scheduled):
