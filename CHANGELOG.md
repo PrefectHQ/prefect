@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
+- Loosen Kubernetes Tasks' requirement of an API secret key - [#1559](https://github.com/PrefectHQ/prefect/pull/1559)
 
 ### Fixes
 
