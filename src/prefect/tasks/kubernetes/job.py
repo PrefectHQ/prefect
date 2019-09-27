@@ -1,6 +1,7 @@
 from typing import Any
 
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 
 from prefect import Task
 from prefect.client import Secret
@@ -85,7 +86,9 @@ class CreateNamespacedJob(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -94,7 +97,7 @@ class CreateNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
@@ -181,7 +184,9 @@ class DeleteNamespacedJob(Task):
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -190,7 +195,7 @@ class DeleteNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
@@ -271,7 +276,9 @@ class ListNamespacedJob(Task):
         Returns:
             - V1JobList: a Kubernetes V1JobList of the jobs which are found
         """
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -280,7 +287,7 @@ class ListNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
@@ -379,7 +386,9 @@ class PatchNamespacedJob(Task):
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -388,7 +397,7 @@ class PatchNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
@@ -480,7 +489,9 @@ class ReadNamespacedJob(Task):
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -489,7 +500,7 @@ class ReadNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
@@ -588,7 +599,9 @@ class ReplaceNamespacedJob(Task):
         if not job_name:
             raise ValueError("The name of a Kubernetes job must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -597,7 +610,7 @@ class ReplaceNamespacedJob(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.BatchV1Api()
