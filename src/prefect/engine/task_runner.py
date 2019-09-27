@@ -306,7 +306,7 @@ class TaskRunner(Runner):
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
-            if exc.state.is_pending():
+            if exc.state.is_pending() or exc.state.is_failed():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
             if not isinstance(exc, ENDRUN) and prefect.context.get(
@@ -597,7 +597,6 @@ class TaskRunner(Runner):
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
-
         return task_inputs
 
     @call_state_handlers
@@ -901,7 +900,8 @@ class TaskRunner(Runner):
     @call_state_handlers
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
-        Caches the result of a successful task, if appropriate.
+        Caches the result of a successful task, if appropriate. Alternatively,
+        if the task is failed, caches the inputs.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -917,6 +917,9 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        if state.is_failed():
+            state.cached_inputs = inputs  # type: ignore
+
         if (
             state.is_successful()
             and not state.is_skipped()
