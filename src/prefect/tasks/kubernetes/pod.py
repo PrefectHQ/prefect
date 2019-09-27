@@ -1,6 +1,7 @@
 from typing import Any
 
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 
 from prefect import Task
 from prefect.client import Secret
@@ -16,7 +17,10 @@ class CreateNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -85,7 +89,9 @@ class CreateNamespacedPod(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -94,7 +100,7 @@ class CreateNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -114,7 +120,10 @@ class DeleteNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -181,7 +190,9 @@ class DeleteNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -190,7 +201,7 @@ class DeleteNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -214,7 +225,10 @@ class ListNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -271,7 +285,9 @@ class ListNamespacedPod(Task):
         Returns:
             - V1PodList: a Kubernetes V1PodList of the pods which are found
         """
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -280,7 +296,7 @@ class ListNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -299,7 +315,10 @@ class PatchNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -379,7 +398,9 @@ class PatchNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -388,7 +409,7 @@ class PatchNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -410,7 +431,10 @@ class ReadNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -480,7 +504,9 @@ class ReadNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -489,7 +515,7 @@ class ReadNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -510,7 +536,10 @@ class ReplaceNamespacedPod(Task):
     the first successful connection attempt becoming the mode of communication with a
     cluster.
 
-    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key
+    1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
+    `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
+    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
@@ -588,7 +617,9 @@ class ReplaceNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -597,7 +628,7 @@ class ReplaceNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
