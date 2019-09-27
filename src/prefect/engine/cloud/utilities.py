@@ -16,9 +16,21 @@ def prepare_state_for_cloud(state: State) -> State:
         state._result.store_safe_value()
 
     if (
+        state.is_failed()
+        and state.cached_inputs is not None
+        and all(
+            r.result_handler is not None
+            for k, r in state.cached_inputs.items()  # type: ignore
+        )
+    ):  # type: ignore
+        for res in state.cached_inputs.values():  # type: ignore
+            res.store_safe_value()
+    elif (
         hasattr(state, "cached_inputs")
         and state.cached_inputs is not None  # type: ignore
+        and not state.is_failed()
     ):
         for res in state.cached_inputs.values():  # type: ignore
             res.store_safe_value()
+
     return state
