@@ -8,7 +8,6 @@ specified versions.
 """
 import re
 
-
 with open("requirements.txt", "r") as f:
     reqs = f.readlines()
 

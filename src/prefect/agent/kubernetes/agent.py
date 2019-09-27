@@ -1,7 +1,7 @@
 import os
-from os import path
 import sys
 import uuid
+from os import path
 
 import pendulum
 import yaml

@@ -1,17 +1,15 @@
 import logging
+import time
 from typing import Union
 
 import pendulum
-import time
 
 from prefect import config
 from prefect.client import Client
-from prefect.serialization import state
 from prefect.engine.state import Submitted
+from prefect.serialization import state
 from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import with_args
-from prefect.utilities.graphql import GraphQLResult
-
+from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
  ____            __           _        _                    _

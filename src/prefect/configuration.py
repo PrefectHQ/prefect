@@ -1,4 +1,3 @@
-from box import Box
 import datetime
 import inspect
 import logging
@@ -7,6 +6,7 @@ import re
 from typing import Any, Optional, Union, cast
 
 import toml
+from box import Box
 
 from prefect.utilities import collections
 

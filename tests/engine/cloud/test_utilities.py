@@ -6,7 +6,6 @@ from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.state import Cached, Failed, Pending, Success, _MetaState
 
-
 all_states = sorted(
     set(
         cls

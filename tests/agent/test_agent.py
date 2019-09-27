@@ -5,8 +5,8 @@ import pytest
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.exceptions import AuthorizationError
+from prefect.utilities.graphql import GraphQLResult
 
 
 def test_agent_init(runner_token):

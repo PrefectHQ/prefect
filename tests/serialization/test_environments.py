@@ -6,10 +6,10 @@ from prefect import environments
 from prefect.serialization.environment import (
     BaseEnvironmentSchema,
     DaskKubernetesEnvironmentSchema,
+    EnvironmentSchema,
     KubernetesJobEnvironmentSchema,
     LocalEnvironmentSchema,
     RemoteEnvironmentSchema,
-    EnvironmentSchema,
 )
 
 

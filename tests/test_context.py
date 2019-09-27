@@ -1,13 +1,13 @@
 import queue
-import time
 import threading
+import time
 from typing import Any
 
 import pytest
-from prefect.configuration import Config
 
 import prefect
 from prefect import context
+from prefect.configuration import Config
 from prefect.utilities.context import Context
 
 

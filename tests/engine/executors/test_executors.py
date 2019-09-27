@@ -14,8 +14,8 @@ import prefect
 from prefect.engine.executors import (
     DaskExecutor,
     Executor,
-    LocalExecutor,
     LocalDaskExecutor,
+    LocalExecutor,
     SynchronousExecutor,
 )
 

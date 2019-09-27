@@ -4,12 +4,12 @@ from typing import Any, Dict, Optional
 from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine.result_handlers import (
+    AzureResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
-    AzureResultHandler,
 )
 from prefect.utilities.serialization import (
     JSONCompatible,
