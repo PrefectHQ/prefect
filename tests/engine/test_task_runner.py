@@ -379,7 +379,7 @@ class TestInitializeRun:
 
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:
-            assert "task_tags" not in ctx
+            assert "checkpointing" not in ctx
             with set_temporary_config({"flows.checkpointing": "FOO"}):
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
                 assert result.context.checkpointing == "FOO"
@@ -976,7 +976,7 @@ class TestSetTaskRunning:
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
-        assert new_state.context == dict(tags=set())
+        assert new_state.context == dict(tags=[])
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
@@ -988,7 +988,7 @@ class TestSetTaskRunning:
             state=Pending()
         )
         assert new_state.is_running()
-        assert new_state.context == dict(tags={"foo", "bar"})
+        assert set(new_state.context["tags"]) == set(["foo", "bar"])
 
 
 class TestRunTaskStep:

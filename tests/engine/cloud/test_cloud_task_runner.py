@@ -97,7 +97,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
-    assert states[0].context == dict(tags=set())
+    assert states[0].context == dict(tags=[])
 
 
 def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
