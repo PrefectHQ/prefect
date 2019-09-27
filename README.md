@@ -100,6 +100,8 @@ pipenv install --pre prefect
 
 ### Install bleeding edge
 
+Please note that the master branch of Prefect is not guaranteed to be compatible with Prefect Cloud.
+
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git
 pip install ./prefect
