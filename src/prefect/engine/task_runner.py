@@ -900,7 +900,8 @@ class TaskRunner(Runner):
     @call_state_handlers
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
-        Caches the result of a successful task, if appropriate.
+        Caches the result of a successful task, if appropriate. Alternatively,
+        if the task is failed, caches the inputs.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -916,6 +917,9 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        if state.is_failed():
+            state.cached_inputs = inputs  # type: ignore
+
         if (
             state.is_successful()
             and not state.is_skipped()
