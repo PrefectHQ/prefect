@@ -597,7 +597,6 @@ class TaskRunner(Runner):
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
-
         return task_inputs
 
     @call_state_handlers

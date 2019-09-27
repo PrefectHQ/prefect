@@ -17,7 +17,7 @@ def prepare_state_for_cloud(state: State) -> State:
 
     if (
         state.is_failed()
-        and state.cached_inputs is not None
+        and state.cached_inputs is not None  # type: ignore
         and all(
             r.result_handler is not None
             for k, r in state.cached_inputs.items()  # type: ignore
