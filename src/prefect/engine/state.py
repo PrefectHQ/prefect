@@ -45,6 +45,7 @@ class State:
     def __init__(self, message: str = None, result: Any = NoResult):
         self.message = message
         self.result = result
+        self.context = dict()  # type: Dict[str, Any]
 
     def __repr__(self) -> str:
         return '<{}: "{}">'.format(type(self).__name__, self.message)
