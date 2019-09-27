@@ -1,6 +1,7 @@
 from typing import Any
 
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 
 from prefect import Task
 from prefect.client import Secret
@@ -85,7 +86,9 @@ class CreateNamespacedPod(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -94,7 +97,7 @@ class CreateNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -181,7 +184,9 @@ class DeleteNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -190,7 +195,7 @@ class DeleteNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -271,7 +276,9 @@ class ListNamespacedPod(Task):
         Returns:
             - V1PodList: a Kubernetes V1PodList of the pods which are found
         """
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -280,7 +287,7 @@ class ListNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -379,7 +386,9 @@ class PatchNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -388,7 +397,7 @@ class PatchNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -480,7 +489,9 @@ class ReadNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -489,7 +500,7 @@ class ReadNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
@@ -588,7 +599,9 @@ class ReplaceNamespacedPod(Task):
         if not pod_name:
             raise ValueError("The name of a Kubernetes pod must be provided.")
 
-        kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
+        kubernetes_api_key = None
+        if kubernetes_api_key_secret:
+            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
 
         if kubernetes_api_key:
             configuration = client.Configuration()
@@ -597,7 +610,7 @@ class ReplaceNamespacedPod(Task):
         else:
             try:
                 config.load_incluster_config()
-            except config.config_exception.ConfigException:
+            except ConfigException:
                 config.load_kube_config()
 
             api_client = client.CoreV1Api()
