@@ -154,6 +154,12 @@ class FailedSchema(FinishedSchema):
     class Meta:
         object_class = state.Failed
 
+    cached_inputs = fields.Dict(
+        key=fields.Str(),
+        values=Nested(StateResultSchema, value_selection_fn=get_safe),
+        allow_none=True,
+    )
+
 
 class AbortedSchema(FailedSchema):
     class Meta:

@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import tempfile
 import time
@@ -96,23 +97,23 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
-    assert states[0].context == dict(tags=set())
+    assert states[0].context == dict(tags=[])
 
 
-def test_task_runner_places_task_tags_in_state_context(client):
+def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
     task = Task(name="test", tags=["1", "2", "tag"])
+    session = MagicMock()
+    monkeypatch.setattr(
+        "prefect.client.client.requests.Session", MagicMock(return_value=session)
+    )
 
     res = CloudTaskRunner(task=task).run()
-
-    ## assertions
-    assert client.get_task_run_info.call_count == 0  # never called
-    assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
-    assert client.get_latest_cached_states.call_count == 0
-
-    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
-    assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
-    assert states[0].context == dict(tags={"1", "2", "tag"})
+
+    ## extract the variables payload from the firsts call to POST
+    variables = json.loads(session.post.call_args_list[0][1]["json"]["variables"])
+    assert variables["state"]["type"] == "Running"
+    assert set(variables["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
@@ -542,6 +543,32 @@ class TestStateResultHandling:
         assert isinstance(states[2], Cached)
         assert states[2].cached_inputs == dict(x=result, y=result)
         assert states[2].result == 2
+
+    def test_task_runner_errors_if_no_result_provided_as_input(self, client):
+        @prefect.task
+        def add(x, y):
+            return x + y
+
+        base_state = prefect.serialization.state.StateSchema().load({"type": "Success"})
+        x_state, y_state = base_state, base_state
+
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert res.is_failed()
+        assert "unsupported operand" in res.message
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Failed
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()  # this isn't ideal, it's a little confusing
+        assert states[1].is_failed()
+        assert "unsupported operand" in states[1].message
 
     def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
         handler = JSONResultHandler()

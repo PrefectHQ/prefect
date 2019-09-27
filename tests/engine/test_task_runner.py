@@ -379,7 +379,7 @@ class TestInitializeRun:
 
     def test_task_runner_puts_checkpointing_in_context(self):
         with prefect.context() as ctx:
-            assert "task_tags" not in ctx
+            assert "checkpointing" not in ctx
             with set_temporary_config({"flows.checkpointing": "FOO"}):
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
                 assert result.context.checkpointing == "FOO"
@@ -976,7 +976,7 @@ class TestSetTaskRunning:
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
-        assert new_state.context == dict(tags=set())
+        assert new_state.context == dict(tags=[])
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
@@ -988,7 +988,7 @@ class TestSetTaskRunning:
             state=Pending()
         )
         assert new_state.is_running()
-        assert new_state.context == dict(tags={"foo", "bar"})
+        assert set(new_state.context["tags"]) == set(["foo", "bar"])
 
 
 class TestRunTaskStep:
@@ -1279,6 +1279,17 @@ class TestCacheResultStep:
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
         assert new_state._result.safe_value is NoResult
+
+    @pytest.mark.parametrize(
+        "state", [cls() for cls in Failed.__subclasses__() + [Failed]]
+    )
+    def test_non_success_states(self, state):
+        new_state = TaskRunner(task=Task()).cache_result(
+            state=state, inputs={"x": Result(1)}
+        )
+        assert new_state is state
+        assert new_state._result.safe_value is NoResult
+        assert new_state.cached_inputs == {"x": Result(1)}
 
     @pytest.mark.parametrize(
         "validator",
@@ -1964,3 +1975,14 @@ class TestLooping:
         assert state.is_mapped()
         state.map_states[0].is_retrying()
         state.map_states[1].is_successful()
+
+
+def test_failure_caches_inputs():
+    @prefect.task
+    def fail(x):
+        raise ValueError()
+
+    upstream_states = {Edge(Task(), fail, key="x"): Success(result=Result(1))}
+    new_state = TaskRunner(task=fail).run(upstream_states=upstream_states)
+    assert new_state.is_failed()
+    assert new_state.cached_inputs == {"x": Result(1)}
