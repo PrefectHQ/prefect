@@ -812,7 +812,7 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
         new_state = Running(message="Starting task run.")
-        new_state.context.update(tags=self.task.tags)
+        new_state.context.update(tags=list(self.task.tags))
         return new_state
 
     @run_with_heartbeat

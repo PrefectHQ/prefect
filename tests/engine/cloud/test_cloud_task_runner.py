@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import tempfile
 import time
@@ -99,20 +100,20 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     assert states[0].context == dict(tags=set())
 
 
-def test_task_runner_places_task_tags_in_state_context(client):
+def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
     task = Task(name="test", tags=["1", "2", "tag"])
+    session = MagicMock()
+    monkeypatch.setattr(
+        "prefect.client.client.requests.Session", MagicMock(return_value=session)
+    )
 
     res = CloudTaskRunner(task=task).run()
-
-    ## assertions
-    assert client.get_task_run_info.call_count == 0  # never called
-    assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Success
-    assert client.get_latest_cached_states.call_count == 0
-
-    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
-    assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
-    assert states[0].context == dict(tags={"1", "2", "tag"})
+
+    ## extract the variables payload from the firsts call to POST
+    variables = json.loads(session.post.call_args_list[0][1]["json"]["variables"])
+    assert variables["state"]["type"] == "Running"
+    assert set(variables["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
