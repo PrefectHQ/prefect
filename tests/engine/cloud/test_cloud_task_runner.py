@@ -27,6 +27,7 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Finished,
+    Queued,
     Mapped,
     Paused,
     Pending,
@@ -826,3 +827,34 @@ def test_task_runner_handles_looping_with_retries(client):
     )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
     versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
     assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_cloud_task_runner_respects_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task
+    def tagged_task():
+        pass
+
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert len(calls) == 3  # Running -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Running",
+        "Success",
+    ]

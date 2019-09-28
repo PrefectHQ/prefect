@@ -436,7 +436,7 @@ def test_set_task_run_state_responds_to_status(patch_post):
     result = client.set_task_run_state(task_run_id="76-salt", version=0, state=state)
 
     assert result.is_queued()
-    assert result.state is state
+    assert result.state is None  # caller should set this
 
 
 def test_set_task_run_state_responds_to_config_when_queued(patch_post):
@@ -461,7 +461,7 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
         )
 
     assert result.is_queued()
-    assert result.state is state
+    assert result.state is None  # caller should set this
     assert result.message == "hol up"
     assert result.start_time >= pendulum.now("UTC").add(seconds=749)
 
