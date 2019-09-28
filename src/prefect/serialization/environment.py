@@ -1,11 +1,12 @@
-from marshmallow import fields, post_load
 from typing import Any
+
+from marshmallow import fields, post_load
 
 from prefect.environments import (
     DaskKubernetesEnvironment,
     Environment,
-    LocalEnvironment,
     KubernetesJobEnvironment,
+    LocalEnvironment,
     RemoteEnvironment,
 )
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema, to_qualified_name

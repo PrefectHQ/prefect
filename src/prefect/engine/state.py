@@ -46,19 +46,21 @@ class State:
         self.message = message
         self.result = result
         self.context = dict()  # type: Dict[str, Any]
+        if "task_tags" in prefect.context:
+            self.context.update(tags=list(prefect.context.task_tags))
 
     def __repr__(self) -> str:
         return '<{}: "{}">'.format(type(self).__name__, self.message)
 
     def __eq__(self, other: object) -> bool:
         """
-        Equality depends on state type and data, but not message
+        Equality depends on state type and data, but not message or context
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
             eq = self._result.value == other._result.value  # type: ignore
             for attr in self.__dict__:
-                if attr.startswith("_") or attr in ["message", "result"]:
+                if attr.startswith("_") or attr in ["context", "message", "result"]:
                     continue
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
@@ -280,6 +282,9 @@ class Scheduled(Pending):
     ):
         super().__init__(message=message, result=result, cached_inputs=cached_inputs)
         self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
+        run_count = prefect.context.get("task_run_count")
+        if run_count is not None:
+            self.context.update(task_run_count=run_count)
 
 
 class Paused(Scheduled):

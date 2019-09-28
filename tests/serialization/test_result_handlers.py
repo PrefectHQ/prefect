@@ -5,12 +5,12 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import (
+    AzureResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
-    AzureResultHandler,
 )
 from prefect.serialization.result_handlers import (
     CustomResultHandlerSchema,

@@ -144,7 +144,7 @@ class TaskRunner(Runner):
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
         else:
-            run_count = 1
+            run_count = state.context.get("task_run_count", 1)
 
         if isinstance(state, Resume):
             context.update(resume=True)
@@ -309,10 +309,6 @@ class TaskRunner(Runner):
             if exc.state.is_pending() or exc.state.is_failed():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
-            if not isinstance(exc, ENDRUN) and prefect.context.get(
-                "raise_on_exception"
-            ):
-                raise exc
 
         except Exception as exc:
             msg = "Task '{name}': unexpected error while running task: {exc}".format(
@@ -812,7 +808,6 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
         new_state = Running(message="Starting task run.")
-        new_state.context.update(tags=list(self.task.tags))
         return new_state
 
     @run_with_heartbeat

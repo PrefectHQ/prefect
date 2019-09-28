@@ -6,11 +6,12 @@ from textwrap import dedent
 
 import pytest
 from box import Box
+
 from prefect.utilities.graphql import (
     EnumValue,
-    LiteralSetValue,
     GQLObject,
     GraphQLResult,
+    LiteralSetValue,
     compress,
     decompress,
     parse_graphql,

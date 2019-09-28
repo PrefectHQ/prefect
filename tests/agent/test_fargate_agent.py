@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytest.importorskip("boto3")
-
-from botocore.exceptions import ClientError
-
-
 from prefect.agent.fargate import FargateAgent
 from prefect.environments.storage import Docker
 from prefect.utilities.graphql import GraphQLResult
+
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
+from botocore.exceptions import ClientError
 
 
 def test_ecs_agent_init(monkeypatch, runner_token):

@@ -1,4 +1,3 @@
-import cloudpickle
 import collections
 import datetime
 import queue
@@ -8,6 +7,7 @@ import time
 from distutils.version import LooseVersion
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pendulum
 import pytest
 
@@ -17,7 +17,6 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
-from prefect.engine.task_runner import TaskRunner
 from prefect.engine.result import NoResult, Result
 from prefect.engine.state import (
     Cached,
@@ -36,6 +35,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.engine.task_runner import TaskRunner
 from prefect.triggers import any_failed, manual_only
 from prefect.utilities.debug import raise_on_exception
 
