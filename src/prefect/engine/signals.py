@@ -6,6 +6,8 @@ are used in TaskRunners and FlowRunners as a way of communicating the changes in
 from prefect.engine import state
 from prefect.utilities.exceptions import PrefectError
 
+from typing import TypeVar
+
 
 class ENDRUN(Exception):
     """
@@ -33,7 +35,7 @@ class PrefectStateSignal(PrefectError):
             associated state constructor
     """
 
-    _state_cls = state.State
+    _state_cls = state.State  # type: type
 
     def __init__(self, message: str = None, *args, **kwargs):  # type: ignore
         super().__init__(message)  # type: ignore

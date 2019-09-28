@@ -39,10 +39,8 @@ class BaseStateSchema(ObjectSchema):
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> state.State:
         result_obj = data.pop("_result", result.NoResult)
-        context = data.pop("context", dict())
         data["result"] = result_obj
         base_obj = super().create_object(data)
-        base_obj.context = context
         return base_obj
 
 
