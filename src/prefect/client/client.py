@@ -932,7 +932,9 @@ class Client:
             return prefect.engine.state.Queued(
                 message=state_payload.message,
                 state=state,
-                start_time=pendulum.now("UTC").add(seconds=30),
+                start_time=pendulum.now("UTC").add(
+                    seconds=prefect.context.config.cloud.queue_interval
+                ),
             )
         return state
 
@@ -961,6 +963,30 @@ class Client:
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
+
+    def get_task_tag_limit(self, tag: str) -> int:
+        """
+        Retrieve the current task tag concurrency limit for a given tag.
+
+        Args:
+            - tag (str): the tag to update
+
+        Raises:
+            - ClientError: if the GraphQL query fails
+        """
+        query = {
+            "query": {
+                with_args("task_tag_limit", {"where": {"tag": {"_eq": tag}}}): {
+                    "limit": True
+                }
+            }
+        }
+
+        result = self.graphql(query)  # type: Any
+        if result.data.task_tag_limit:
+            return result.data.task_tag_limit[0].limit
+        else:
+            return None
 
     def update_task_tag_limit(self, tag: str, limit: int) -> None:
         """

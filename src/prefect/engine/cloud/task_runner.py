@@ -248,7 +248,7 @@ class CloudTaskRunner(TaskRunner):
             context=context,
             executor=executor,
         )
-        if end_state.is_retrying() and (
+        if (end_state.is_retrying() or end_state.is_queued()) and (
             end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
         ):
             assert isinstance(end_state, Retrying)
