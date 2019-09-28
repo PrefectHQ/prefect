@@ -930,7 +930,7 @@ class Client:
         state_payload = result.data.setTaskRunStates.states[0]
         if state_payload.status == "QUEUED":
             return prefect.engine.state.Queued(
-                message=state_payload.message,
+                message=state_payload.get("message"),
                 state=state,
                 start_time=pendulum.now("UTC").add(
                     seconds=prefect.context.config.cloud.queue_interval
