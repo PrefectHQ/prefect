@@ -38,7 +38,8 @@ class State:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#696969"
@@ -246,7 +247,8 @@ class Pending(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#7ebdff"
@@ -277,7 +279,8 @@ class Scheduled(Pending):
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ffab00"
@@ -312,7 +315,8 @@ class Paused(Scheduled):
             to 10 years from now if not provided.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#cfd8dc"
@@ -348,9 +352,13 @@ class _MetaState(State):
     """
 
     def __init__(
-        self, message: str = None, result: Any = NoResult, state: State = None
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        state: State = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result)
+        super().__init__(message=message, result=result, context=context)
         self.state = state
 
 
@@ -368,6 +376,8 @@ class ClientFailed(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that the task run ended in
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -388,8 +398,9 @@ class Submitted(_MetaState):
     Args:
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
-        - state (State): the `State` state that has been marked as
-            "submitted".
+        - state (State): the `State` state that has been marked as "submitted".
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -410,6 +421,8 @@ class Queued(_MetaState):
         - state (State): the `State` state that has been marked as
             "queued".
         - start_time (datetime): a time the state is queued until. Defaults to `now`.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -421,8 +434,9 @@ class Queued(_MetaState):
         result: Any = NoResult,
         state: State = None,
         start_time: datetime.datetime = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, state=state)
+        super().__init__(message=message, result=result, state=state, context=context)
         self.start_time = start_time or pendulum.now("utc")
 
 
@@ -437,7 +451,8 @@ class Resume(Scheduled):
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#fb8532"
@@ -454,7 +469,8 @@ class Retrying(Scheduled):
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
         - run_count (int): The number of runs that had been attempted at the time of this
             Retry. Defaults to the value stored in context under "task_run_count" or 1,
             if that value isn't found.
@@ -497,7 +513,8 @@ class Running(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#3d67ff"
@@ -516,7 +533,8 @@ class Finished(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
@@ -534,7 +552,8 @@ class Looped(Finished):
         - loop_count (int): The iteration number of the looping task.
             Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
@@ -561,7 +580,8 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#28a745"
@@ -581,7 +601,8 @@ class Cached(Success):
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#34d058"
@@ -621,7 +642,8 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
@@ -651,7 +673,8 @@ class Failed(Finished):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task might require manual Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#eb0000"
@@ -677,7 +700,8 @@ class Aborted(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#c42800"
@@ -693,7 +717,8 @@ class TimedOut(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ff4e33"
@@ -709,7 +734,8 @@ class TriggerFailed(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ff5131"
@@ -723,7 +749,8 @@ class Skipped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#62757f"

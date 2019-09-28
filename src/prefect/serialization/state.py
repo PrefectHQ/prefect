@@ -61,14 +61,6 @@ class PendingSchema(BaseStateSchema):
 class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
 
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> "prefect.engine.state.State":
-        result_obj = data.pop("_result", result.NoResult)
-        data["result"] = result_obj
-        data.pop("context", None)
-        base_obj = super().create_object(data)
-        return base_obj
-
 
 class ClientFailedSchema(MetaStateSchema):
     class Meta:

@@ -72,9 +72,7 @@ def test_create_state_with_kwarg_data_arg(cls):
     assert isinstance(state._result, Result)
 
 
-@pytest.mark.parametrize(
-    "cls", [s for s in all_states if not issubclass(s, _MetaState)]
-)
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_kwarg_context(cls):
     state = cls(context={"my-keys": "my-vals"})
     assert state.message is None
@@ -115,9 +113,7 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
-@pytest.mark.parametrize(
-    "cls", [s for s in all_states if not issubclass(s, _MetaState)]
-)
+@pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_tags_in_context(cls):
     with prefect.context(task_tags=set("abcdef")):
         state = cls()
