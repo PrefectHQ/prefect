@@ -88,12 +88,14 @@ class CloudTaskRunner(TaskRunner):
 
         try:
             cloud_state = prepare_state_for_cloud(new_state)
-            self.client.set_task_run_state(
+            state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
+            if state.is_queued():
+                raise ENDRUN(state=state)
         except Exception as exc:
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))

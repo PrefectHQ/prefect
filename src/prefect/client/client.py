@@ -886,7 +886,7 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
-    ) -> None:
+    ) -> "prefect.engine.state.State":
         """
         Sets new state for a task run.
 
@@ -899,6 +899,9 @@ class Client:
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
+
+        Returns:
+            - State: the state the current task run should be considered in
         """
         mutation = {
             "mutation($state: JSON!)": {
@@ -915,13 +918,23 @@ class Client:
                             ]
                         }
                     },
-                ): {"states": {"id"}}
+                ): {"states": {"id", "status", "message"}}
             }
         }
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
+        result = self.graphql(
+            mutation, variables=dict(state=serialized_state)
+        )  # type: Any
+        state_payload = result.data.setTaskRunStates.states[0]
+        if state_payload.status == "QUEUED":
+            return prefect.engine.state.Queued(
+                message=state_payload.message,
+                state=state,
+                start_time=pendulum.now("UTC").add(seconds=30),
+            )
+        return state
 
     def set_secret(self, name: str, value: Any) -> None:
         """
@@ -948,6 +961,34 @@ class Client:
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
+
+    def update_task_tag_limit(self, tag: str, limit: int) -> None:
+        """
+        Update the task tag concurrency limit for a given tag; requires tenant admin permissions.
+
+        Args:
+            - tag (str): the tag to update
+            - limit (int): the concurrency limit to enforce on the tag; should be a value >= 0
+
+        Raises:
+            - ClientError: if the GraphQL mutation is bad for any reason
+            - ValueError: if the tag limit-setting was unsuccessful, or if a bad limit was provided
+        """
+        if limit < 0:
+            raise ValueError("Concurrency limits must be >= 0")
+
+        mutation = {
+            "mutation($input: updateTaskTagLimitInput!)": {
+                "updateTaskTagLimit(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(tag=tag, limit=limit))
+        )  # type: Any
+
+        if not result.data.updateTaskTagLimit.id:
+            raise ValueError("Updating the task tag concurrency limit failed.")
 
     def write_run_log(
         self,

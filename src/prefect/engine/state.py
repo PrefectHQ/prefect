@@ -97,6 +97,16 @@ class State:
 
         return isinstance(self, Pending)
 
+    def is_queued(self) -> bool:
+        """
+        Checks if the state is currently in a queued state
+
+        Returns:
+            - bool: `True` if the state is queued, `False` otherwise
+        """
+
+        return isinstance(self, Queued)
+
     def is_retrying(self) -> bool:
         """
         Checks if the state is currently in a retrying state
