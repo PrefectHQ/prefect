@@ -977,19 +977,11 @@ class TestSetTaskRunning:
     def test_pending(self, state):
         new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
         assert new_state.is_running()
-        assert new_state.context == dict(tags=[])
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
             TaskRunner(task=Task()).set_task_to_running(state=state)
-
-    def test_tags_are_placed_in_context(self):
-        new_state = TaskRunner(task=Task(tags=["foo", "bar"])).set_task_to_running(
-            state=Pending()
-        )
-        assert new_state.is_running()
-        assert set(new_state.context["tags"]) == set(["foo", "bar"])
 
 
 class TestRunTaskStep:
@@ -1379,6 +1371,10 @@ class TestTaskStateHandlers:
         TaskRunner(task=task).run()
         # the task changed state twice: Pending -> Running -> Success
         assert task_handler.call_count == 2
+        assert [type(s[0][-1]).__name__ for s in task_handler.call_args_list] == [
+            "Running",
+            "Success",
+        ]
 
     def test_task_on_failure_is_not_called(self):
         on_failure = MagicMock()
@@ -1987,3 +1983,12 @@ def test_failure_caches_inputs():
     new_state = TaskRunner(task=fail).run(upstream_states=upstream_states)
     assert new_state.is_failed()
     assert new_state.cached_inputs == {"x": Result(1)}
+
+
+def test_task_tags_are_attached_to_all_states():
+    task_handler = MagicMock(side_effect=lambda t, o, n: n)
+    task = Task(state_handlers=[task_handler], tags=["alice", "bob"])
+    TaskRunner(task=task).run()
+
+    states = [s[0][-1] for s in task_handler.call_args_list]
+    assert all(set(state.context["tags"]) == set(["alice", "bob"]) for state in states)
