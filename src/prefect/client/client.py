@@ -775,15 +775,19 @@ class Client:
         mutation = {
             "mutation($state: JSON!)": {
                 with_args(
-                    "setFlowRunState",
+                    "setFlowRunStates",
                     {
                         "input": {
-                            "flowRunId": flow_run_id,
-                            "version": version,
-                            "state": EnumValue("$state"),
+                            "states": [
+                                {
+                                    "flowRunId": flow_run_id,
+                                    "version": version,
+                                    "state": EnumValue("$state"),
+                                }
+                            ]
                         }
                     },
-                ): {"id"}
+                ): {"states": {"id"}}
             }
         }
 
@@ -899,15 +903,19 @@ class Client:
         mutation = {
             "mutation($state: JSON!)": {
                 with_args(
-                    "setTaskRunState",
+                    "setTaskRunStates",
                     {
                         "input": {
-                            "taskRunId": task_run_id,
-                            "version": version,
-                            "state": EnumValue("$state"),
+                            "states": [
+                                {
+                                    "taskRunId": task_run_id,
+                                    "version": version,
+                                    "state": EnumValue("$state"),
+                                }
+                            ]
                         }
                     },
-                ): {"id"}
+                ): {"states": {"id"}}
             }
         }
 
