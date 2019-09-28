@@ -21,13 +21,20 @@ class KubernetesJobEnvironment(Environment):
 
     These environment variables are required for cloud do not need to be included because
     they are instead automatically added and populated during execution:
-    PREFECT__CLOUD__GRAPHQL, PREFECT__CLOUD__AUTH_TOKEN, PREFECT__CONTEXT__FLOW_RUN_ID,
-    PREFECT__CONTEXT__NAMESPACE, PREFECT__CONTEXT__IMAGE, PREFECT__CONTEXT__FLOW_FILE_PATH,
-    PREFECT__CLOUD__USE_LOCAL_SECRETS, PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS,
-    PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS, PREFECT__LOGGING__LOG_TO_CLOUD
+
+    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__CLOUD__AUTH_TOKEN`
+    - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__NAMESPACE`
+    - `PREFECT__CONTEXT__IMAGE`
+    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
+    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__LOGGING__LOG_TO_CLOUD`
 
     Additionally, the following command will be applied to the first container:
-    $ /bin/sh -c 'python -c "from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()"'
+    `$ /bin/sh -c 'python -c "from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()"'`
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
