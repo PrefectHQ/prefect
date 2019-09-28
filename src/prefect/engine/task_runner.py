@@ -309,10 +309,6 @@ class TaskRunner(Runner):
             if exc.state.is_pending() or exc.state.is_failed():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
-            if not isinstance(exc, ENDRUN) and prefect.context.get(
-                "raise_on_exception"
-            ):
-                raise exc
 
         except Exception as exc:
             msg = "Task '{name}': unexpected error while running task: {exc}".format(

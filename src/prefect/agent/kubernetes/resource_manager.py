@@ -1,14 +1,13 @@
 import logging
 import os
 import time
+from typing import TYPE_CHECKING
 
 import pendulum
 from requests.exceptions import HTTPError
 
 from prefect import Client
 from prefect import config as prefect_config
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import kubernetes

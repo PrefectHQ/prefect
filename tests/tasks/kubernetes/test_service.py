@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-from kubernetes.config.config_exception import ConfigException
 import pytest
+from kubernetes.config.config_exception import ConfigException
 
 import prefect
 from prefect.tasks.kubernetes import (

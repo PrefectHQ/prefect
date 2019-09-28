@@ -6,9 +6,9 @@ import marshmallow
 import pendulum
 import pytest
 import pytz
+from box import Box
 
 import prefect
-from box import Box
 from prefect.utilities.serialization import (
     UUID,
     Bytes,

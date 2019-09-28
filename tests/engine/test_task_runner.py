@@ -260,10 +260,11 @@ def test_task_runner_raise_on_exception_when_task_errors():
             TaskRunner(ErrorTask()).run()
 
 
-def test_task_runner_raise_on_exception_when_task_signals():
+def test_task_runner_does_not_raise_when_task_signals():
     with raise_on_exception():
-        with pytest.raises(prefect.engine.signals.FAIL):
-            TaskRunner(RaiseFailTask()).run()
+        state = TaskRunner(RaiseFailTask()).run()
+
+    assert state.is_failed()
 
 
 def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping():

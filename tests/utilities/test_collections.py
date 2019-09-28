@@ -1,8 +1,8 @@
-from box import Box
 import json
 import types
 
 import pytest
+from box import Box
 
 from prefect.engine.state import Pending
 from prefect.utilities import collections

@@ -1,6 +1,6 @@
 import os
-from subprocess import Popen, STDOUT, PIPE
 import tempfile
+from subprocess import PIPE, STDOUT, Popen
 from typing import Any
 
 import prefect

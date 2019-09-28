@@ -1,11 +1,12 @@
-import cloudpickle
 import datetime
 import os
-import pytest
 import sys
 import tempfile
 
-from prefect import task, Flow, Task
+import cloudpickle
+import pytest
+
+from prefect import Flow, Task, task
 from prefect.environments.storage import _healthcheck as healthchecks
 
 

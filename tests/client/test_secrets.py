@@ -1,7 +1,7 @@
-import box
 import json
 from unittest.mock import MagicMock
 
+import box
 import pytest
 
 import prefect
