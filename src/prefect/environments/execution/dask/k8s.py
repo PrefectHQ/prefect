@@ -27,15 +27,21 @@ class DaskKubernetesEnvironment(Environment):
 
     It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
     `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
-    should be modeled after the job.yaml and worker_pod.yaml found at
-    https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask
+    should be modeled after the job.yaml and worker_pod.yaml found [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask).
     The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
     required for cloud do not need to be included because they are instead automatically added and populated during execution:
-    PREFECT__CLOUD__GRAPHQL, PREFECT__CLOUD__AUTH_TOKEN, PREFECT__CONTEXT__FLOW_RUN_ID,
-    PREFECT__CONTEXT__NAMESPACE, PREFECT__CONTEXT__IMAGE, PREFECT__CONTEXT__FLOW_FILE_PATH,
-    PREFECT__CLOUD__USE_LOCAL_SECRETS, PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS,
-    PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS, PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS,
-    PREFECT__LOGGING__LOG_TO_CLOUD
+
+    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__CLOUD__AUTH_TOKEN`
+    - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__NAMESPACE`
+    - `PREFECT__CONTEXT__IMAGE`
+    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
+    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS`
+    - `PREFECT__LOGGING__LOG_TO_CLOUD`
 
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
