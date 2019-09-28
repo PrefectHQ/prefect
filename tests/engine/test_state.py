@@ -72,6 +72,15 @@ def test_create_state_with_kwarg_data_arg(cls):
     assert isinstance(state._result, Result)
 
 
+@pytest.mark.parametrize(
+    "cls", [s for s in all_states if not issubclass(s, _MetaState)]
+)
+def test_create_state_with_kwarg_context(cls):
+    state = cls(context={"my-keys": "my-vals"})
+    assert state.message is None
+    assert state.context == {"my-keys": "my-vals"}
+
+
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_fully_hydrated_result(cls):
     result = Result(value=10)
@@ -106,13 +115,19 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
-@pytest.mark.parametrize("cls", all_states)
+@pytest.mark.parametrize(
+    "cls", [s for s in all_states if not issubclass(s, _MetaState)]
+)
 def test_create_state_with_tags_in_context(cls):
     with prefect.context(task_tags=set("abcdef")):
         state = cls()
     assert state.message is None
     assert state.result == NoResult
     assert state.context == dict(tags=list(set("abcdef")))
+
+    with prefect.context(task_tags=set("abcdef")):
+        state = cls(context={"tags": ["foo"]})
+    assert state.context == dict(tags=["foo"])
 
 
 def test_scheduled_states_have_default_times():
