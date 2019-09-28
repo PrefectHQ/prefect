@@ -852,9 +852,57 @@ def test_cloud_task_runner_respects_queued_states_from_cloud(client):
         executor=prefect.engine.executors.LocalExecutor(),
     )
 
+    assert res.is_successful()
     assert len(calls) == 3  # Running -> Running -> Success
     assert [type(c["state"]).__name__ for c in calls] == [
         "Running",
         "Running",
         "Success",
     ]
+
+
+def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        # first retry attempt will get queued
+        if len(calls) == 4:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task(max_retries=2, retry_delay=datetime.timedelta(seconds=0))
+    def tagged_task(x):
+        if prefect.context.get("task_run_count", 1) == 1:
+            raise ValueError("gimme a sec")
+        return x
+
+    upstream_result = Result(value=42, result_handler=JSONResultHandler())
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={
+            Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
+        },
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert res.is_successful()
+    assert res.result == 42
+    assert (
+        len(calls) == 6
+    )  # Running -> Failed -> Retrying -> Queued -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Failed",
+        "Retrying",
+        "Running",
+        "Running",
+        "Success",
+    ]
+
+    # ensures result handler was called and persisted
+    assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
