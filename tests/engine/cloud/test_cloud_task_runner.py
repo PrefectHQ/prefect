@@ -59,7 +59,9 @@ def client(monkeypatch):
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
-        set_task_run_state=MagicMock(),
+        set_task_run_state=MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
         ),
@@ -104,6 +106,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
 def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
     task = Task(name="test", tags=["1", "2", "tag"])
     session = MagicMock()
+    monkeypatch.setattr("prefect.client.client.GraphQLResult", MagicMock())
     monkeypatch.setattr(
         "prefect.client.client.requests.Session", MagicMock(return_value=session)
     )
@@ -333,7 +336,9 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
 
     db_state = Retrying(cached_inputs=dict(x=Result(41)))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -356,7 +361,9 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     task = Task(name="test")
     db_state = state("already", result=10)
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -415,7 +422,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -449,7 +459,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -483,7 +496,10 @@ class TestHeartBeats:
                     f.write("called\n")
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -504,7 +520,10 @@ class TestHeartBeats:
         assert len(results.split()) == 1
 
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
-        client = MagicMock()
+        set_task_run_state = MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        )
+        client = MagicMock(set_task_run_state=set_task_run_state)
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )

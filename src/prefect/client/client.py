@@ -964,7 +964,7 @@ class Client:
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
 
-    def get_task_tag_limit(self, tag: str) -> int:
+    def get_task_tag_limit(self, tag: str) -> Optional[int]:
         """
         Retrieve the current task tag concurrency limit for a given tag.
 
