@@ -137,7 +137,9 @@ def test_serialize_state_with_safe_result(cls):
     assert serialized["__version__"] == prefect.__version__
 
 
-@pytest.mark.parametrize("cls", all_states)
+@pytest.mark.parametrize(
+    "cls", [s for s in all_states if not issubclass(s, state._MetaState)]
+)
 def test_serialize_state_with_context(cls):
     with prefect.context(task_tags=set(["foo", "bar"])):
         s = cls(message="hi")

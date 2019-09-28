@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, TYPE_CHECKING
 
 from marshmallow import ValidationError, fields, post_load
 
@@ -12,6 +12,9 @@ from prefect.utilities.serialization import (
     OneOfSchema,
     to_qualified_name,
 )
+
+if TYPE_CHECKING:
+    import prefect
 
 
 def get_safe(obj: state.State, context: dict) -> Any:
@@ -39,10 +42,8 @@ class BaseStateSchema(ObjectSchema):
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> state.State:
         result_obj = data.pop("_result", result.NoResult)
-        context = data.pop("context", dict())
         data["result"] = result_obj
         base_obj = super().create_object(data)
-        base_obj.context = context
         return base_obj
 
 
@@ -59,6 +60,14 @@ class PendingSchema(BaseStateSchema):
 
 class MetaStateSchema(BaseStateSchema):
     state = fields.Nested("StateSchema", allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> "prefect.engine.state.State":
+        result_obj = data.pop("_result", result.NoResult)
+        data["result"] = result_obj
+        data.pop("context", None)
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class ClientFailedSchema(MetaStateSchema):
