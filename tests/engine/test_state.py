@@ -106,6 +106,15 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_tags_in_context(cls):
+    with prefect.context(task_tags=set("abcdef")):
+        state = cls()
+    assert state.message is None
+    assert state.result == NoResult
+    assert state.context == dict(tags=list(set("abcdef")))
+
+
 def test_scheduled_states_have_default_times():
     now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
@@ -275,6 +284,12 @@ def test_state_equality():
     assert Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=1))
     assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=2))
     assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(y=1))
+
+
+def test_state_equality_ignores_context():
+    s, r = State(result=1), State(result=1)
+    s.context["key"] = "value"
+    assert s == r
 
 
 def test_state_equality_ignores_message():

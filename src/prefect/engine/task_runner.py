@@ -168,7 +168,7 @@ class TaskRunner(Runner):
         context.update(
             task_run_count=run_count,
             task_name=self.task.name,
-            task_tags=self.task.tags,
+            task_tags=list(self.task.tags),
             task_slug=self.task.slug,
         )
         context.setdefault("checkpointing", config.flows.checkpointing)
@@ -808,7 +808,6 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
         new_state = Running(message="Starting task run.")
-        new_state.context.update(tags=list(self.task.tags))
         return new_state
 
     @run_with_heartbeat

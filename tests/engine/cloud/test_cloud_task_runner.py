@@ -98,6 +98,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
     assert states[0].context == dict(tags=[])
+    assert states[1].context == dict(tags=[])
 
 
 def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
@@ -110,10 +111,14 @@ def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monke
     res = CloudTaskRunner(task=task).run()
     assert res.is_successful()
 
-    ## extract the variables payload from the firsts call to POST
-    variables = json.loads(session.post.call_args_list[0][1]["json"]["variables"])
-    assert variables["state"]["type"] == "Running"
-    assert set(variables["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+    ## extract the variables payload from the calls to POST
+    call_vars = [
+        json.loads(call[1]["json"]["variables"]) for call in session.post.call_args_list
+    ]
+    assert call_vars[0]["state"]["type"] == "Running"
+    assert set(call_vars[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+    assert call_vars[-1]["state"]["type"] == "Success"
+    assert set(call_vars[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):

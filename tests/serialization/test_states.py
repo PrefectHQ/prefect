@@ -137,19 +137,21 @@ def test_serialize_state_with_safe_result(cls):
     assert serialized["__version__"] == prefect.__version__
 
 
-def test_serialize_state_with_context():
-    s = state.Running(message="hi")
-    s.context = dict(tags=["foo", "bar"])
+@pytest.mark.parametrize("cls", all_states)
+def test_serialize_state_with_context(cls):
+    with prefect.context(task_tags=set(["foo", "bar"])):
+        s = cls(message="hi")
     serialized = StateSchema().dump(s)
     assert isinstance(serialized, dict)
-    assert serialized["type"] == "Running"
+    assert serialized["type"] == cls.__name__
     assert serialized["message"] == "hi"
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["context"] == dict(tags=["foo", "bar"])
+    assert isinstance(serialized["context"], dict)
+    assert set(serialized["context"]["tags"]) == set(["foo", "bar"])
 
     deserialized = StateSchema().load(serialized)
-    assert deserialized.is_running()
-    assert deserialized.context == dict(tags=["foo", "bar"])
+    assert isinstance(deserialized, cls)
+    assert set(deserialized.context["tags"]) == set(["foo", "bar"])
 
 
 def test_serialize_scheduled_state_with_context():
