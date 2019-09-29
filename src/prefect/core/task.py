@@ -4,7 +4,18 @@ import inspect
 import uuid
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Set,
+    Tuple,
+    Union,
+)
 
 import prefect
 import prefect.engine.cache_validators
@@ -461,7 +472,7 @@ class Task(metaclass=SignatureValidator):
         flow: "Flow" = None,
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
-        keyword_tasks: Dict[str, object] = None,
+        keyword_tasks: Mapping[str, object] = None,
         mapped: bool = False,
         validate: bool = None,
     ) -> None:
