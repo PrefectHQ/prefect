@@ -773,27 +773,27 @@ class Client:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
-            "mutation($state: JSON!)": {
-                with_args(
-                    "setFlowRunStates",
-                    {
-                        "input": {
-                            "states": [
-                                {
-                                    "flowRunId": flow_run_id,
-                                    "version": version,
-                                    "state": EnumValue("$state"),
-                                }
-                            ]
-                        }
-                    },
-                ): {"states": {"id"}}
+            "mutation($input: setFlowRunStatesInput!)": {
+                "setFlowRunStates(input: $input)": {"states": {"id"}}
             }
         }
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            state=serialized_state,
+                            flowRunId=flow_run_id,
+                            version=version,
+                        )
+                    ]
+                )
+            ),
+        )  # type: Any
 
     def get_latest_cached_states(
         self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime
@@ -904,28 +904,28 @@ class Client:
             - State: the state the current task run should be considered in
         """
         mutation = {
-            "mutation($state: JSON!)": {
-                with_args(
-                    "setTaskRunStates",
-                    {
-                        "input": {
-                            "states": [
-                                {
-                                    "taskRunId": task_run_id,
-                                    "version": version,
-                                    "state": EnumValue("$state"),
-                                }
-                            ]
-                        }
-                    },
-                ): {"states": {"id", "status", "message"}}
+            "mutation($input: setTaskRunStatesInput!)": {
+                "setTaskRunStates(input: $input)": {
+                    "states": {"id", "status", "message"}
+                }
             }
         }
 
         serialized_state = state.serialize()
 
         result = self.graphql(
-            mutation, variables=dict(state=serialized_state)
+            mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            state=serialized_state,
+                            taskRunId=task_run_id,
+                            version=version,
+                        )
+                    ]
+                )
+            ),
         )  # type: Any
         state_payload = result.data.setTaskRunStates.states[0]
         if state_payload.status == "QUEUED":
