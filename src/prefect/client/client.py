@@ -773,23 +773,27 @@ class Client:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
-            "mutation($state: JSON!)": {
-                with_args(
-                    "setFlowRunState",
-                    {
-                        "input": {
-                            "flowRunId": flow_run_id,
-                            "version": version,
-                            "state": EnumValue("$state"),
-                        }
-                    },
-                ): {"id"}
+            "mutation($input: setFlowRunStatesInput!)": {
+                "setFlowRunStates(input: $input)": {"states": {"id"}}
             }
         }
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            state=serialized_state,
+                            flowRunId=flow_run_id,
+                            version=version,
+                        )
+                    ]
+                )
+            ),
+        )  # type: Any
 
     def get_latest_cached_states(
         self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime
@@ -882,7 +886,7 @@ class Client:
         version: int,
         state: "prefect.engine.state.State",
         cache_for: datetime.timedelta = None,
-    ) -> None:
+    ) -> "prefect.engine.state.State":
         """
         Sets new state for a task run.
 
@@ -895,25 +899,45 @@ class Client:
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
+
+        Returns:
+            - State: the state the current task run should be considered in
         """
         mutation = {
-            "mutation($state: JSON!)": {
-                with_args(
-                    "setTaskRunState",
-                    {
-                        "input": {
-                            "taskRunId": task_run_id,
-                            "version": version,
-                            "state": EnumValue("$state"),
-                        }
-                    },
-                ): {"id"}
+            "mutation($input: setTaskRunStatesInput!)": {
+                "setTaskRunStates(input: $input)": {
+                    "states": {"id", "status", "message"}
+                }
             }
         }
 
         serialized_state = state.serialize()
 
-        self.graphql(mutation, variables=dict(state=serialized_state))  # type: Any
+        result = self.graphql(
+            mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            state=serialized_state,
+                            taskRunId=task_run_id,
+                            version=version,
+                        )
+                    ]
+                )
+            ),
+        )  # type: Any
+        state_payload = result.data.setTaskRunStates.states[0]
+        if state_payload.status == "QUEUED":
+            # If appropriate, the state attribute of the Queued state can be
+            # set by the caller of this method
+            return prefect.engine.state.Queued(
+                message=state_payload.get("message"),
+                start_time=pendulum.now("UTC").add(
+                    seconds=prefect.context.config.cloud.queue_interval
+                ),
+            )
+        return state
 
     def set_secret(self, name: str, value: Any) -> None:
         """
@@ -940,6 +964,58 @@ class Client:
 
         if not result.data.setSecret.success:
             raise ValueError("Setting secret failed.")
+
+    def get_task_tag_limit(self, tag: str) -> Optional[int]:
+        """
+        Retrieve the current task tag concurrency limit for a given tag.
+
+        Args:
+            - tag (str): the tag to update
+
+        Raises:
+            - ClientError: if the GraphQL query fails
+        """
+        query = {
+            "query": {
+                with_args("task_tag_limit", {"where": {"tag": {"_eq": tag}}}): {
+                    "limit": True
+                }
+            }
+        }
+
+        result = self.graphql(query)  # type: Any
+        if result.data.task_tag_limit:
+            return result.data.task_tag_limit[0].limit
+        else:
+            return None
+
+    def update_task_tag_limit(self, tag: str, limit: int) -> None:
+        """
+        Update the task tag concurrency limit for a given tag; requires tenant admin permissions.
+
+        Args:
+            - tag (str): the tag to update
+            - limit (int): the concurrency limit to enforce on the tag; should be a value >= 0
+
+        Raises:
+            - ClientError: if the GraphQL mutation is bad for any reason
+            - ValueError: if the tag limit-setting was unsuccessful, or if a bad limit was provided
+        """
+        if limit < 0:
+            raise ValueError("Concurrency limits must be >= 0")
+
+        mutation = {
+            "mutation($input: updateTaskTagLimitInput!)": {
+                "updateTaskTagLimit(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(tag=tag, limit=limit))
+        )  # type: Any
+
+        if not result.data.updateTaskTagLimit.id:
+            raise ValueError("Updating the task tag concurrency limit failed.")
 
     def write_run_log(
         self,

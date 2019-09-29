@@ -27,6 +27,7 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Finished,
+    Queued,
     Mapped,
     Paused,
     Pending,
@@ -59,7 +60,9 @@ def client(monkeypatch):
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
-        set_task_run_state=MagicMock(),
+        set_task_run_state=MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
         ),
@@ -104,6 +107,7 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
 def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
     task = Task(name="test", tags=["1", "2", "tag"])
     session = MagicMock()
+    monkeypatch.setattr("prefect.client.client.GraphQLResult", MagicMock())
     monkeypatch.setattr(
         "prefect.client.client.requests.Session", MagicMock(return_value=session)
     )
@@ -115,10 +119,13 @@ def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monke
     call_vars = [
         json.loads(call[1]["json"]["variables"]) for call in session.post.call_args_list
     ]
-    assert call_vars[0]["state"]["type"] == "Running"
-    assert set(call_vars[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
-    assert call_vars[-1]["state"]["type"] == "Success"
-    assert set(call_vars[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+
+    # do some mainpulation to get the state payloads
+    inputs = [c["input"]["states"][0] for c in call_vars if c is not None]
+    assert inputs[0]["state"]["type"] == "Running"
+    assert set(inputs[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+    assert inputs[-1]["state"]["type"] == "Success"
+    assert set(inputs[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
@@ -333,7 +340,9 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
 
     db_state = Retrying(cached_inputs=dict(x=Result(41)))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -356,7 +365,9 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     task = Task(name="test")
     db_state = state("already", result=10)
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -415,7 +426,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -449,7 +463,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -483,7 +500,10 @@ class TestHeartBeats:
                     f.write("called\n")
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -504,7 +524,10 @@ class TestHeartBeats:
         assert len(results.split()) == 1
 
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
-        client = MagicMock()
+        set_task_run_state = MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        )
+        client = MagicMock(set_task_run_state=set_task_run_state)
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
@@ -807,3 +830,82 @@ def test_task_runner_handles_looping_with_retries(client):
     )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
     versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
     assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_cloud_task_runner_respects_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task
+    def tagged_task():
+        pass
+
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert res.is_successful()
+    assert len(calls) == 3  # Running -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Running",
+        "Success",
+    ]
+
+
+def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        # first retry attempt will get queued
+        if len(calls) == 4:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task(max_retries=2, retry_delay=datetime.timedelta(seconds=0))
+    def tagged_task(x):
+        if prefect.context.get("task_run_count", 1) == 1:
+            raise ValueError("gimme a sec")
+        return x
+
+    upstream_result = Result(value=42, result_handler=JSONResultHandler())
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={
+            Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
+        },
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert res.is_successful()
+    assert res.result == 42
+    assert (
+        len(calls) == 6
+    )  # Running -> Failed -> Retrying -> Queued -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Failed",
+        "Retrying",
+        "Running",
+        "Running",
+        "Success",
+    ]
+
+    # ensures result handler was called and persisted
+    assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"

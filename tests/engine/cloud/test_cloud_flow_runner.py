@@ -47,7 +47,9 @@ def client(monkeypatch):
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
-        set_task_run_state=MagicMock(),
+        set_task_run_state=MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states, result_handler: states
         ),
@@ -481,6 +483,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     class Client(MagicMock):
         def write_run_log(self, *args, **kwargs):
             calls.append(kwargs)
+
+        def set_task_run_state(self, *args, **kwargs):
+            return kwargs.get("state")
 
         def get_flow_run_info(self, *args, **kwargs):
             return MagicMock(

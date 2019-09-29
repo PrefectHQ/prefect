@@ -393,7 +393,7 @@ class TestStateHierarchy:
         dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
         dict(state=Paused(), assert_true={"is_pending", "is_scheduled"}),
         dict(state=Pending(), assert_true={"is_pending"}),
-        dict(state=Queued(), assert_true={"is_meta_state"}),
+        dict(state=Queued(), assert_true={"is_meta_state", "is_queued"}),
         dict(state=Resume(), assert_true={"is_pending", "is_scheduled"}),
         dict(
             state=Retrying(), assert_true={"is_pending", "is_scheduled", "is_retrying"}

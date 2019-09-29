@@ -13,7 +13,15 @@ from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, Retrying, State
+from prefect.engine.state import (
+    Cached,
+    ClientFailed,
+    Failed,
+    Mapped,
+    Retrying,
+    Queued,
+    State,
+)
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -88,7 +96,7 @@ class CloudTaskRunner(TaskRunner):
 
         try:
             cloud_state = prepare_state_for_cloud(new_state)
-            self.client.set_task_run_state(
+            state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
                 state=cloud_state,
@@ -99,6 +107,10 @@ class CloudTaskRunner(TaskRunner):
                 "Failed to set task state with error: {}".format(repr(exc))
             )
             raise ENDRUN(state=ClientFailed(state=new_state))
+
+        if state.is_queued():
+            state.state = old_state  # type: ignore
+            raise ENDRUN(state=state)
 
         if version is not None:
             prefect.context.update(task_run_version=version + 1)  # type: ignore
@@ -246,10 +258,10 @@ class CloudTaskRunner(TaskRunner):
             context=context,
             executor=executor,
         )
-        if end_state.is_retrying() and (
+        if (end_state.is_retrying() or end_state.is_queued()) and (
             end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
         ):
-            assert isinstance(end_state, Retrying)
+            assert isinstance(end_state, (Retrying, Queued))
             naptime = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
@@ -262,6 +274,7 @@ class CloudTaskRunner(TaskRunner):
                 map_index=context.get("map_index"),
             )
             context.update(task_run_version=task_run_info.version)  # type: ignore
+
             return self.run(
                 state=end_state,
                 upstream_states=upstream_states,

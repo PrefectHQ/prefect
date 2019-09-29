@@ -411,22 +411,63 @@ def test_get_task_run_info_with_error(patch_post):
 
 
 def test_set_task_run_state(patch_post):
-    response = {"data": {"setTaskRunState": None}}
+    response = {"data": {"setTaskRunStates": {"states": [{"status": "SUCCESS"}]}}}
     post = patch_post(response)
+    state = Pending()
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    result = client.set_task_run_state(
-        task_run_id="76-salt", version=0, state=Pending()
-    )
+    result = client.set_task_run_state(task_run_id="76-salt", version=0, state=state)
 
-    assert result is None
+    assert result is state
+
+
+def test_set_task_run_state_responds_to_status(patch_post):
+    response = {"data": {"setTaskRunStates": {"states": [{"status": "QUEUED"}]}}}
+    post = patch_post(response)
+    state = Pending()
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    result = client.set_task_run_state(task_run_id="76-salt", version=0, state=state)
+
+    assert result.is_queued()
+    assert result.state is None  # caller should set this
+
+
+def test_set_task_run_state_responds_to_config_when_queued(patch_post):
+    response = {
+        "data": {
+            "setTaskRunStates": {"states": [{"status": "QUEUED", "message": "hol up"}]}
+        }
+    }
+    post = patch_post(response)
+    state = Pending()
+
+    with set_temporary_config(
+        {
+            "cloud.graphql": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.queue_interval": 750,
+        }
+    ):
+        client = Client()
+        result = client.set_task_run_state(
+            task_run_id="76-salt", version=0, state=state
+        )
+
+    assert result.is_queued()
+    assert result.state is None  # caller should set this
+    assert result.message == "hol up"
+    assert result.start_time >= pendulum.now("UTC").add(seconds=749)
 
 
 def test_set_task_run_state_serializes(patch_post):
-    response = {"data": {"setTaskRunState": None}}
+    response = {"data": {"setTaskRunStates": {"states": [{"status": "SUCCESS"}]}}}
     post = patch_post(response)
 
     with set_temporary_config(
@@ -443,7 +484,7 @@ def test_set_task_run_state_serializes(patch_post):
 
 def test_set_task_run_state_with_error(patch_post):
     response = {
-        "data": {"setTaskRunState": None},
+        "data": {"setTaskRunStates": None},
         "errors": [{"message": "something went wrong"}],
     }
     post = patch_post(response)
