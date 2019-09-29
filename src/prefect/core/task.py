@@ -55,13 +55,13 @@ def _validate_run_signature(run: Callable) -> None:
 
 
 class SignatureValidator(type):
-    def __new__(cls, name: str, parents: tuple, methods: dict) -> type:
+    def __new__(cls, name: str, parents: tuple, methods: dict) -> "SignatureValidator":
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
 
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
-        return type.__new__(cls, name, parents, methods)
+        return type.__new__(cls, name, parents, methods)  # type: ignore
 
 
 class Task(metaclass=SignatureValidator):

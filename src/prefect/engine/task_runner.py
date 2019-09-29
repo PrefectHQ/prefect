@@ -744,9 +744,9 @@ class TaskRunner(Runner):
             initial_states = []
         initial_states.extend([None] * (len(map_upstream_states) - len(initial_states)))
 
-        current_state = Mapped(  # type: ignore
+        current_state = Mapped(
             message="Preparing to submit {} mapped tasks.".format(len(initial_states)),
-            map_states=initial_states,
+            map_states=initial_states,  # type: ignore
         )
         state = self.handle_state_change(old_state=state, new_state=current_state)
         if state is not current_state:
