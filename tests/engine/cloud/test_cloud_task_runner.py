@@ -119,10 +119,13 @@ def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monke
     call_vars = [
         json.loads(call[1]["json"]["variables"]) for call in session.post.call_args_list
     ]
-    assert call_vars[0]["state"]["type"] == "Running"
-    assert set(call_vars[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
-    assert call_vars[-1]["state"]["type"] == "Success"
-    assert set(call_vars[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+
+    # do some mainpulation to get the state payloads
+    inputs = [c["input"]["states"][0] for c in call_vars if c is not None]
+    assert inputs[0]["state"]["type"] == "Running"
+    assert set(inputs[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+    assert inputs[-1]["state"]["type"] == "Success"
+    assert set(inputs[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):

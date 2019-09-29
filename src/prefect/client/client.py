@@ -929,9 +929,8 @@ class Client:
         )  # type: Any
         state_payload = result.data.setTaskRunStates.states[0]
         if state_payload.status == "QUEUED":
-            # note that we don't populate the 'state' attribute of the Queued MetaState yet;
-            # this is because the actual state we want to start from is the _previous_ state
-            # of this task, which is more readily available by the caller of this method
+            # If appropriate, the state attribute of the Queued state can be
+            # set by the caller of this method
             return prefect.engine.state.Queued(
                 message=state_payload.get("message"),
                 start_time=pendulum.now("UTC").add(

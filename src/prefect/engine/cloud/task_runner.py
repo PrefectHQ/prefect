@@ -275,12 +275,6 @@ class CloudTaskRunner(TaskRunner):
             )
             context.update(task_run_version=task_run_info.version)  # type: ignore
 
-            start_state = (
-                end_state
-                if not end_state.is_queued()
-                else end_state.state  # type: ignore
-            )  # type: ignore
-
             return self.run(
                 state=end_state,
                 upstream_states=upstream_states,
