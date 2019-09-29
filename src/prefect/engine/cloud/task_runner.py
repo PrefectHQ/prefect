@@ -205,8 +205,8 @@ class CloudTaskRunner(TaskRunner):
 
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.cached_inputs = {  # type: ignore
-                    key: res.to_result()
+                candidate_state.cached_inputs = {
+                    key: res.to_result()  # type: ignore
                     for key, res in (candidate_state.cached_inputs or {}).items()
                 }
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
