@@ -8,6 +8,7 @@ pytest.importorskip("kubernetes")
 
 import yaml
 
+import prefect
 from prefect.agent.kubernetes import KubernetesAgent
 from prefect.agent.kubernetes.agent import check_heartbeat
 from prefect.environments.storage import Docker, Local
@@ -194,6 +195,31 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"
     assert resource_manager_env[3]["value"] == "test_namespace"
+
+
+def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        resource_manager_enabled=True,
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_yaml = deployment["spec"]["template"]["spec"]["containers"][0]
+    resource_manager_yaml = deployment["spec"]["template"]["spec"]["containers"][1]
+
+    assert agent_yaml["image"] == "prefecthq/prefect:{}".format(
+        prefect.__version__.split("+")[0]
+    )
+    assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(
+        prefect.__version__.split("+")[0]
+    )
 
 
 def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
