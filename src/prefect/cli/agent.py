@@ -117,7 +117,7 @@ def start(name, token, verbose, no_pull, base_url):
 def install(name, token, api, namespace, image_pull_secrets, resource_manager):
     """
     Install an agent. Outputs configuration text which can be used to install on various
-    platforms.
+    platforms. The Prefect image version will default to your local `prefect.__version__`
 
     \b
     Arguments:
