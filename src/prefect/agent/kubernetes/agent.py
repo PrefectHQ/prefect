@@ -166,7 +166,8 @@ class KubernetesAgent(Agent):
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
 
-        version = prefect.__version__.split("+")[0]
+        version = prefect.__version__.split("+")
+        image_version = "latest" if len(version) > 1 else version[0]
 
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"
@@ -182,7 +183,7 @@ class KubernetesAgent(Agent):
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
             "image"
-        ] = "prefecthq/prefect:{}".format(version)
+        ] = "prefecthq/prefect:{}".format(image_version)
 
         # Populate resource manager if requested
         if resource_manager_enabled:
@@ -197,7 +198,7 @@ class KubernetesAgent(Agent):
             # Use local prefect version for image
             deployment["spec"]["template"]["spec"]["containers"][1][
                 "image"
-            ] = "prefecthq/prefect:{}".format(version)
+            ] = "prefecthq/prefect:{}".format(image_version)
         else:
             del deployment["spec"]["template"]["spec"]["containers"][1]
 

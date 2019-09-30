@@ -197,7 +197,19 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert resource_manager_env[3]["value"] == "test_namespace"
 
 
-def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, runner_token):
+@pytest.mark.parametrize(
+    "version",
+    [
+        ("0.6.3", "0.6.3"),
+        ("0.5.3+114.g35bc7ba4", "latest"),
+        ("0.5.2+999.gr34343.dirty", "latest"),
+    ],
+)
+def test_k8s_agent_generate_deployment_yaml_local_version(
+    monkeypatch, runner_token, version
+):
+    monkeypatch.setattr(prefect, "__version__", version[0])
+
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -214,12 +226,8 @@ def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, runner_to
     agent_yaml = deployment["spec"]["template"]["spec"]["containers"][0]
     resource_manager_yaml = deployment["spec"]["template"]["spec"]["containers"][1]
 
-    assert agent_yaml["image"] == "prefecthq/prefect:{}".format(
-        prefect.__version__.split("+")[0]
-    )
-    assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(
-        prefect.__version__.split("+")[0]
-    )
+    assert agent_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
+    assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
 def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
