@@ -6,6 +6,7 @@ from os import path
 import pendulum
 import yaml
 
+import prefect
 from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
@@ -165,6 +166,8 @@ class KubernetesAgent(Agent):
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
 
+        version = prefect.__version__.split("+")[0]
+
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"
         ) as deployment_file:
@@ -176,6 +179,11 @@ class KubernetesAgent(Agent):
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
 
+        # Use local prefect version for image
+        deployment["spec"]["template"]["spec"]["containers"][0][
+            "image"
+        ] = "prefecthq/prefect:{}".format(version)
+
         # Populate resource manager if requested
         if resource_manager_enabled:
             resource_manager_env = deployment["spec"]["template"]["spec"]["containers"][
@@ -185,6 +193,11 @@ class KubernetesAgent(Agent):
             resource_manager_env[0]["value"] = token
             resource_manager_env[1]["value"] = api
             resource_manager_env[3]["value"] = namespace
+
+            # Use local prefect version for image
+            deployment["spec"]["template"]["spec"]["containers"][1][
+                "image"
+            ] = "prefecthq/prefect:{}".format(version)
         else:
             del deployment["spec"]["template"]["spec"]["containers"][1]
 
