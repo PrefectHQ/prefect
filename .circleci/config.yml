@@ -33,7 +33,7 @@ jobs:
 
       - run:
           name: Install mypy
-          command: pip install "mypy<0.730" mypy_extensions
+          command: pip install mypy mypy_extensions
 
       - run:
           name: Run mypy

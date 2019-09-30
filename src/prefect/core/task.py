@@ -4,7 +4,18 @@ import inspect
 import uuid
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Set,
+    Tuple,
+    Union,
+)
 
 import prefect
 import prefect.engine.cache_validators
@@ -44,13 +55,13 @@ def _validate_run_signature(run: Callable) -> None:
 
 
 class SignatureValidator(type):
-    def __new__(cls, name: str, parents: tuple, methods: dict) -> type:
+    def __new__(cls, name: str, parents: tuple, methods: dict) -> "SignatureValidator":
         run = methods.get("run", lambda: None)
         _validate_run_signature(run)
 
         # necessary to ensure classes that inherit from parent class
         # also get passed through __new__
-        return type.__new__(cls, name, parents, methods)
+        return type.__new__(cls, name, parents, methods)  # type: ignore
 
 
 class Task(metaclass=SignatureValidator):
@@ -461,7 +472,7 @@ class Task(metaclass=SignatureValidator):
         flow: "Flow" = None,
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
-        keyword_tasks: Dict[str, object] = None,
+        keyword_tasks: Mapping[str, object] = None,
         mapped: bool = False,
         validate: bool = None,
     ) -> None:
