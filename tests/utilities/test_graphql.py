@@ -7,6 +7,7 @@ from textwrap import dedent
 import pytest
 from box import Box
 
+from prefect.engine.state import Pending
 from prefect.utilities.graphql import (
     EnumValue,
     GQLObject,
@@ -425,3 +426,16 @@ def test_decompress():
 )
 def test_compression_back_translation(obj):
     assert decompress(compress(obj)) == obj
+
+
+def test_graphql_result_has_nice_repr():
+    expected = """{\n    "flow_run": {\n        "flow": [\n            {\n                "id": 1\n            },\n            {\n                "version": 2\n            }\n        ]\n    }\n}"""
+    gql = {"flow_run": {"flow": [{"id": 1}, {"version": 2}]}}
+    res = GraphQLResult(gql)
+    assert repr(res) == expected
+
+
+def test_graphql_repr_falls_back_to_dict_repr():
+    gql = {"flow_run": Pending("test")}
+    res = GraphQLResult(gql)
+    assert repr(res) == """{'flow_run': <Pending: "test">}"""

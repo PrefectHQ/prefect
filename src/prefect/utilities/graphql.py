@@ -20,7 +20,11 @@ def lowercase_first_letter(s: str) -> str:
 
 
 class GraphQLResult(Box):
-    pass
+    def __repr__(self) -> str:
+        try:
+            return json.dumps(self, indent=4)
+        except TypeError:
+            return repr(self.to_dict())
 
 
 class EnumValue:
