@@ -3,7 +3,7 @@ import pytest
 
 import prefect
 from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
-from prefect.engine.result_handlers import JSONResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.serialization.result import (
     NoResultSchema,
     SafeResultSchema,
@@ -48,7 +48,7 @@ def test_safe_result_with_custom_handler_deserializes():
     )
     assert isinstance(r, SafeResult)
     assert r.value == "3"
-    assert r.result_handler is None
+    assert isinstance(r.result_handler, ResultHandler)
 
 
 def test_roundtrip_for_results():
