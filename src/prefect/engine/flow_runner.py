@@ -395,6 +395,10 @@ class FlowRunner(Runner):
             for task in self.flow.sorted_tasks():
 
                 task_state = task_states.get(task)
+                if task_state is None and isinstance(
+                    task, prefect.tasks.core.constants.Constant
+                ):
+                    task_states[task] = task_state = Success(result=task.value)
 
                 # if the state is finished, don't run the task, just use the provided state
                 if (
