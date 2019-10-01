@@ -56,6 +56,24 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     skipped. Any tasks downstream of the skipped tasks are also skipped unless they set
     `skip_on_upstream_skip=False`.
 
+    Example:
+    ```python
+    @task
+    def condition():
+        return "b"    # returning 'b' will take the b_branch
+
+    @task
+    def a_branch():
+        return "A Branch"
+
+    @task
+    def b_branch():
+        return "B Branch"
+
+    with Flow("switch-flow") as flow:
+        switch(condition, dict(a=a_branch, b=b_branch))
+    ```
+
     Args:
         - condition (Task): a task whose result forms the condition for the switch
         - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
