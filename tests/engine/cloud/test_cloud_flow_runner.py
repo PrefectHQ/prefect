@@ -333,15 +333,13 @@ def test_client_is_always_called_even_during_failures(client):
     ]
     assert [type(s).__name__ for s in flow_states] == ["Running", "Failed"]
 
-    assert (
-        client.set_task_run_state.call_count == 6
-    )  # (Pending -> Running -> Finished) * 3
+    assert client.set_task_run_state.call_count == 2  # (Pending -> Running -> Finished)
 
     task_states = [
         call[1]["state"] for call in client.set_task_run_state.call_args_list
     ]
-    assert len([s for s in task_states if s.is_running()]) == 3
-    assert len([s for s in task_states if s.is_successful()]) == 2
+    assert len([s for s in task_states if s.is_running()]) == 1
+    assert len([s for s in task_states if s.is_successful()]) == 0
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
