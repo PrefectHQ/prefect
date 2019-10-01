@@ -57,10 +57,10 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     `skip_on_upstream_skip=False`.
 
     Example:
-    ```
+    ```python
     @task
     def condition():
-        return "b" # returning 'b' will take the b_branch
+        return "b"    # returning 'b' will take the b_branch
 
     @task
     def a_branch():
