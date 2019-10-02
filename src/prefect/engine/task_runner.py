@@ -577,18 +577,24 @@ class TaskRunner(Runner):
 
         """
         task_inputs = {}  # type: Dict[str, Result]
+        handlers = {}  # type: Dict[str, ResultHandler]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
+                handlers[edge.key] = handler = getattr(
+                    edge.upstream_task, "result_handler", None
+                )
                 task_inputs[  # type: ignore
                     edge.key
-                ] = upstream_state._result.to_result()  # type: ignore
+                ] = upstream_state._result.to_result(  # type: ignore
+                    handler
+                )  # type: ignore
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(
                 {
-                    k: r.to_result()
+                    k: r.to_result(handlers.get(k))
                     for k, r in state.cached_inputs.items()  # type: ignore
                     if task_inputs.get(k, NoResult) == NoResult
                 }
@@ -617,7 +623,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.to_result()
+                state._result = state._result.to_result(self.task.result_handler)
                 return state
             else:
                 state = Pending("Cache was invalid; ready to run.")
@@ -631,7 +637,9 @@ class TaskRunner(Runner):
                 if self.task.cache_validator(
                     candidate, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate._result = candidate._result.to_result()
+                    candidate._result = candidate._result.to_result(
+                        self.task.result_handler
+                    )
                     return candidate
 
         if self.task.cache_for is not None:

@@ -27,6 +27,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with certain Pause / Resume / Retry pipelines retrying indefinitely - [#1177](https://github.com/PrefectHQ/prefect/issues/1177)
 - Kubernetes Agent deployment YAML generation defaults to local Prefect version - [#1573](https://github.com/PrefectHQ/prefect/pull/1573)
+- Fix issue with custom result handlers not working when called in `cached_inputs` - [#1585](https://github.com/PrefectHQ/prefect/pull/1585)
 
 ### Deprecations
 
