@@ -756,9 +756,6 @@ class TestGetTaskInputs:
 
     def test_get_inputs_from_upstream_reads_results_using_upstream_handlers(self):
         class CustomHandler(ResultHandler):
-            def __eq__(self, other):
-                return True
-
             def read(self, loc):
                 return "foo-bar-baz".split("-")
 
@@ -780,6 +777,24 @@ class TestGetTaskInputs:
             state=state, upstream_states={}
         )
         assert inputs == {"x": result.to_result()}
+
+    def test_get_inputs_from_upstream_reads_cached_inputs_using_upstream_handlers(self):
+        class CustomHandler(ResultHandler):
+            def read(self, loc):
+                return 99
+
+        new_handler = CustomHandler()
+        result = SafeResult("1", result_handler=JSONResultHandler())
+        state = Pending(cached_inputs=dict(x=result))
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=state,
+            upstream_states={
+                Edge(Task(result_handler=new_handler), 2, key="x"): Success()
+            },
+        )
+        res = Result(value=99, result_handler=new_handler)
+        res.safe_value = result
+        assert inputs == {"x": res}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
