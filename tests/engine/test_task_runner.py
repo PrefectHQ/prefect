@@ -918,6 +918,27 @@ class TestCheckTaskCached:
         assert new is state
         assert new.result == 2
 
+    def test_reads_result_using_handler_attribute_if_cached_valid(self):
+        class Handler(ResultHandler):
+            def read(self, val):
+                return 53
+
+        with pytest.warns(UserWarning):
+            task = Task(
+                cache_validator=cache_validators.duration_only, result_handler=Handler()
+            )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 53
+
     def test_reads_result_from_context_if_cached_valid(self):
         task = Task(
             cache_for=timedelta(minutes=1),
@@ -935,6 +956,29 @@ class TestCheckTaskCached:
             )
         assert new is state
         assert new.result == 2
+
+    def test_reads_result_from_context_if_cached_valid_using_task_handler(task):
+        class Handler(ResultHandler):
+            def read(self, val):
+                return 53
+
+        task = Task(
+            result_handler=Handler(),
+            cache_for=timedelta(minutes=1),
+            cache_validator=cache_validators.duration_only,
+        )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        with prefect.context(caches={"Task": [state]}):
+            new = TaskRunner(task).check_task_is_cached(
+                state=Pending(), inputs={"a": Result(1)}
+            )
+        assert new is state
+        assert new.result == 53
 
     def test_state_kwarg_is_prioritized_over_context_caches(self):
         task = Task(

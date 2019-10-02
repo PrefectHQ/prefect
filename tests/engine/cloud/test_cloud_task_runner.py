@@ -15,11 +15,7 @@ from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import (
-    JSONResultHandler,
-    LocalResultHandler,
-    ResultHandler,
-)
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -254,23 +250,95 @@ def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
     dull_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(minutes=2),
-        result=Result(-1, JSONResultHandler()),
+        result=SafeResult("-1", JSONResultHandler()),
     )
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(minutes=2),
-        result=Result(99, JSONResultHandler()),
+        result=SafeResult("99", JSONResultHandler()),
         cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
     )
     client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
 
     res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-        Pending(), inputs={"x": Result(2, result_handler=LocalResultHandler())}
+        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
     )
     assert client.get_latest_cached_states.called
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 99
+
+
+def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
+    client
+):
+    class Handler(ResultHandler):
+        def read(self, val):
+            return 1337
+
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1),
+        cache_validator=all_inputs,
+        result_handler=JSONResultHandler(),
+    )
+    def cached_task(x):
+        return 42
+
+    dull_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("-1", JSONResultHandler()),
+    )
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("99", JSONResultHandler()),
+        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+        Pending(), inputs={"x": Result(2, result_handler=Handler())}
+    )
+    assert client.get_latest_cached_states.called
+    assert res.is_pending()
+
+
+def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
+    client
+):
+    class Handler(ResultHandler):
+        def read(self, val):
+            return 1337
+
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1),
+        cache_validator=all_inputs,
+        result_handler=Handler(),
+    )
+    def cached_task(x):
+        return 42
+
+    dull_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("-1", JSONResultHandler()),
+    )
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("99", JSONResultHandler()),
+        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
+    )
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 1337
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):

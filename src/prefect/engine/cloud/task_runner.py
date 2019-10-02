@@ -206,14 +206,16 @@ class CloudTaskRunner(TaskRunner):
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
                 candidate_state.cached_inputs = {
-                    key: res.to_result()  # type: ignore
+                    key: res.to_result(inputs[key].result_handler)  # type: ignore
                     for key, res in (candidate_state.cached_inputs or {}).items()
                 }
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
                 if self.task.cache_validator(
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate_state._result = candidate_state._result.to_result()
+                    candidate_state._result = candidate_state._result.to_result(
+                        self.task.result_handler
+                    )
                     return candidate_state
 
                 self.logger.debug(
