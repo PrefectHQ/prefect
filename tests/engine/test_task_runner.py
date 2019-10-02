@@ -2070,3 +2070,19 @@ def test_task_tags_are_attached_to_all_states():
 
     states = [s[0][-1] for s in task_handler.call_args_list]
     assert all(set(state.context["tags"]) == set(["alice", "bob"]) for state in states)
+
+
+def test_task_runner_uses_upstream_result_handlers():
+    class Handler(ResultHandler):
+        def read(self, val):
+            return "cool"
+
+    @prefect.task
+    def t(x):
+        return x
+
+    success = Success(result=SafeResult(1, result_handler=JSONResultHandler()))
+    upstream_states = {Edge(Task(result_handler=Handler()), t, key="x"): success}
+    state = TaskRunner(task=t).run(upstream_states=upstream_states)
+    assert state.is_successful()
+    assert state.result == "cool"
