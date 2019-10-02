@@ -209,13 +209,13 @@ def test_run_cloud_no_param_file(monkeypatch):
                 "project",
                 "--version",
                 "2",
-                "--parameters",
+                "--parameters-file",
                 "no_file.json",
             ],
         )
         assert result.exit_code == 2
         assert (
-            'Invalid value for "--parameters": Path "no_file.json" does not exist.'
+            'Invalid value for "--parameters-file" / "-pf": Path "no_file.json" does not exist.'
             in result.output
         )
 
@@ -253,7 +253,7 @@ def test_run_cloud_param_file(monkeypatch):
                     "project",
                     "--version",
                     "2",
-                    "--parameters",
+                    "--parameters-file",
                     file_path,
                 ],
             )
@@ -262,4 +262,89 @@ def test_run_cloud_param_file(monkeypatch):
             assert mock_client.create_flow_run.called
             assert mock_client.create_flow_run.call_args[1]["parameters"] == {
                 "test": 42
+            }
+
+
+def test_run_cloud_param_string(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    mock_client = MagicMock()
+    mock_client.create_flow_run.return_value = "id"
+    monkeypatch.setattr("prefect.cli.run.Client", MagicMock(return_value=mock_client))
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            run,
+            [
+                "cloud",
+                "--name",
+                "flow",
+                "--project",
+                "project",
+                "--version",
+                "2",
+                "--parameters-string",
+                '{"test": 42}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Flow Run ID" in result.output
+        assert mock_client.create_flow_run.called
+        assert mock_client.create_flow_run.call_args[1]["parameters"] == {"test": 42}
+
+
+def test_run_cloud_param_string_overwrites(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    mock_client = MagicMock()
+    mock_client.create_flow_run.return_value = "id"
+    monkeypatch.setattr("prefect.cli.run.Client", MagicMock(return_value=mock_client))
+
+    with tempfile.TemporaryDirectory() as directory:
+        file_path = os.path.join(directory, "file.json")
+        with open(file_path, "w") as tmp:
+            json.dump({"test": 42}, tmp)
+
+        with set_temporary_config(
+            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        ):
+            runner = CliRunner()
+            result = runner.invoke(
+                run,
+                [
+                    "cloud",
+                    "--name",
+                    "flow",
+                    "--project",
+                    "project",
+                    "--version",
+                    "2",
+                    "--parameters-file",
+                    file_path,
+                    "--parameters-string",
+                    '{"test": 43}',
+                ],
+            )
+            assert result.exit_code == 0
+            assert "Flow Run ID" in result.output
+            assert mock_client.create_flow_run.called
+            assert mock_client.create_flow_run.call_args[1]["parameters"] == {
+                "test": 43
             }
