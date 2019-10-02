@@ -34,9 +34,9 @@ class CustomResultHandlerSchema(ObjectSchema):
     )
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> None:
+    def create_object(self, data: dict, **kwargs: Any) -> ResultHandler:
         """Because we cannot deserialize a custom class, just return `None`"""
-        return None
+        return ResultHandler()
 
 
 class GCSResultHandlerSchema(BaseResultHandlerSchema):

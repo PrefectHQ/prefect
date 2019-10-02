@@ -754,6 +754,22 @@ class TestGetTaskInputs:
         )
         assert inputs == {"x": result.to_result()}
 
+    def test_get_inputs_from_upstream_reads_results_using_upstream_handlers(self):
+        class CustomHandler(ResultHandler):
+            def read(self, loc):
+                return "foo-bar-baz".split("-")
+
+        new_handler = CustomHandler()
+        result = SafeResult("1", result_handler=JSONResultHandler())
+        state = Success(result=result)
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=Pending(),
+            upstream_states={Edge(Task(result_handler=new_handler), 2, key="x"): state},
+        )
+        res = Result(value=["foo", "bar", "baz"], result_handler=new_handler)
+        res.safe_value = result
+        assert inputs == {"x": res}
+
     def test_get_inputs_from_upstream_reads_cached_inputs(self):
         result = SafeResult("1", result_handler=JSONResultHandler())
         state = Pending(cached_inputs=dict(x=result))
@@ -761,6 +777,24 @@ class TestGetTaskInputs:
             state=state, upstream_states={}
         )
         assert inputs == {"x": result.to_result()}
+
+    def test_get_inputs_from_upstream_reads_cached_inputs_using_upstream_handlers(self):
+        class CustomHandler(ResultHandler):
+            def read(self, loc):
+                return 99
+
+        new_handler = CustomHandler()
+        result = SafeResult("1", result_handler=JSONResultHandler())
+        state = Pending(cached_inputs=dict(x=result))
+        inputs = TaskRunner(task=Task()).get_task_inputs(
+            state=state,
+            upstream_states={
+                Edge(Task(result_handler=new_handler), 2, key="x"): Success()
+            },
+        )
+        res = Result(value=99, result_handler=new_handler)
+        res.safe_value = result
+        assert inputs == {"x": res}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
@@ -884,6 +918,27 @@ class TestCheckTaskCached:
         assert new is state
         assert new.result == 2
 
+    def test_reads_result_using_handler_attribute_if_cached_valid(self):
+        class Handler(ResultHandler):
+            def read(self, val):
+                return 53
+
+        with pytest.warns(UserWarning):
+            task = Task(
+                cache_validator=cache_validators.duration_only, result_handler=Handler()
+            )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        new = TaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 53
+
     def test_reads_result_from_context_if_cached_valid(self):
         task = Task(
             cache_for=timedelta(minutes=1),
@@ -901,6 +956,29 @@ class TestCheckTaskCached:
             )
         assert new is state
         assert new.result == 2
+
+    def test_reads_result_from_context_if_cached_valid_using_task_handler(task):
+        class Handler(ResultHandler):
+            def read(self, val):
+                return 53
+
+        task = Task(
+            result_handler=Handler(),
+            cache_for=timedelta(minutes=1),
+            cache_validator=cache_validators.duration_only,
+        )
+        result = SafeResult("2", result_handler=JSONResultHandler())
+        state = Cached(
+            result=result,
+            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
+        )
+
+        with prefect.context(caches={"Task": [state]}):
+            new = TaskRunner(task).check_task_is_cached(
+                state=Pending(), inputs={"a": Result(1)}
+            )
+        assert new is state
+        assert new.result == 53
 
     def test_state_kwarg_is_prioritized_over_context_caches(self):
         task = Task(
@@ -1992,3 +2070,19 @@ def test_task_tags_are_attached_to_all_states():
 
     states = [s[0][-1] for s in task_handler.call_args_list]
     assert all(set(state.context["tags"]) == set(["alice", "bob"]) for state in states)
+
+
+def test_task_runner_uses_upstream_result_handlers():
+    class Handler(ResultHandler):
+        def read(self, val):
+            return "cool"
+
+    @prefect.task
+    def t(x):
+        return x
+
+    success = Success(result=SafeResult(1, result_handler=JSONResultHandler()))
+    upstream_states = {Edge(Task(result_handler=Handler()), t, key="x"): success}
+    state = TaskRunner(task=t).run(upstream_states=upstream_states)
+    assert state.is_successful()
+    assert state.result == "cool"

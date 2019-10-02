@@ -196,6 +196,28 @@ class TestToResult:
         assert res.safe_value is s
         assert res.result_handler is s.result_handler
 
+    def test_to_result_resets_with_provided_result_handler(self):
+        class WeirdHandler(ResultHandler):
+            def read(self, loc):
+                return 99
+
+        r = Result("4", result_handler=JSONResultHandler())
+        out = r.to_result(result_handler=WeirdHandler())
+        assert out is r
+        assert isinstance(out.result_handler, WeirdHandler)
+
+    def test_to_result_uses_provided_result_handler(self):
+        class WeirdHandler(ResultHandler):
+            def read(self, loc):
+                return 99
+
+        r = SafeResult("4", result_handler=JSONResultHandler())
+        out = r.to_result(result_handler=WeirdHandler())
+        assert isinstance(out, Result)
+        assert isinstance(out.result_handler, WeirdHandler)
+        assert out.value == 99
+        assert isinstance(out.safe_value.result_handler, WeirdHandler)
+
 
 @pytest.mark.parametrize(
     "obj",

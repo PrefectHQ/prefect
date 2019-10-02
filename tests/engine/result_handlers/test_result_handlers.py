@@ -83,26 +83,10 @@ class TestLocalHandler:
         assert isinstance(new, LocalResultHandler)
 
 
-def test_result_handlers_must_implement_read_and_write_to_work():
-    class MyHandler(ResultHandler):
-        pass
-
-    with pytest.raises(TypeError, match="abstract methods read, write"):
-        MyHandler()
-
-    class WriteHandler(ResultHandler):
-        def write(self, val):
-            pass
-
-    with pytest.raises(TypeError, match="abstract methods read"):
-        WriteHandler()
-
-    class ReadHandler(ResultHandler):
-        def read(self, val):
-            pass
-
-    with pytest.raises(TypeError, match="abstract methods write"):
-        ReadHandler()
+def test_result_handler_base_class_is_a_passthrough():
+    handler = ResultHandler()
+    assert handler.write("foo") == "foo"
+    assert handler.read(99) == 99
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")

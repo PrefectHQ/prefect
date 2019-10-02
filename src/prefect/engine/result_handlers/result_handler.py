@@ -5,7 +5,6 @@ Anytime a task needs its output or inputs stored, a result handler is used to de
 """
 import base64
 import tempfile
-from abc import ABCMeta, abstractmethod
 from typing import Any
 
 import cloudpickle
@@ -15,20 +14,18 @@ from prefect.client.client import Client
 from prefect.utilities import logging
 
 
-class ResultHandler(metaclass=ABCMeta):
+class ResultHandler:
     def __init__(self) -> None:
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
         return "<ResultHandler: {}>".format(type(self).__name__)
 
-    @abstractmethod
-    def write(self, result: Any) -> str:
-        raise NotImplementedError()
+    def write(self, result: Any) -> Any:
+        return result
 
-    @abstractmethod
-    def read(self, loc: str) -> Any:
-        raise NotImplementedError()
+    def read(self, loc: str) -> str:
+        return loc
 
     def __eq__(self, other: object) -> bool:
         """
