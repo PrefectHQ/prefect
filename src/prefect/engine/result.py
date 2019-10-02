@@ -42,8 +42,19 @@ class ResultInterface:
         val = self.value  # type: ignore
         return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
 
-    def to_result(self) -> "ResultInterface":
-        """Performs no computation and returns self."""
+    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
+        """
+        If no result handler provided, simply returns self.  If a ResultHandler is provided, however,
+        it will become the new result handler for this result.
+
+        Args:
+            - result_handler (optional): an optional result handler to override the current handler
+
+        Returns:
+            - ResultInterface: a potentially new Result object
+        """
+        if result_handler is not None:
+            self.result_handler = result_handler
         return self
 
     def store_safe_value(self) -> None:
@@ -66,7 +77,7 @@ class Result(ResultInterface):
     def __init__(self, value: Any, result_handler: ResultHandler = None):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
-        self.result_handler = result_handler
+        self.result_handler = result_handler  # type: ignore
 
     def store_safe_value(self) -> None:
         """
@@ -100,10 +111,20 @@ class SafeResult(ResultInterface):
     def safe_value(self) -> "SafeResult":
         return self
 
-    def to_result(self) -> "ResultInterface":
+    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
         Read the value of this result using the result handler and return a fully hydrated Result.
+        If a new ResultHandler is provided, it will instead be used to read the underlying value
+        and the `result_handler` attribute of this result will be reset accordingly.
+
+        Args:
+            - result_handler (optional): an optional result handler to override the current handler
+
+        Returns:
+            - ResultInterface: a potentially new Result object
         """
+        if result_handler is not None:
+            self.result_handler = result_handler
         value = self.result_handler.read(self.value)
         res = Result(value=value, result_handler=self.result_handler)
         res.safe_value = self
@@ -135,8 +156,13 @@ class NoResultType(SafeResult):
     def value(self) -> "ResultInterface":
         return self
 
-    def to_result(self) -> "ResultInterface":
-        """Performs no computation and returns self."""
+    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
+        """
+        Performs no computation and returns self.
+
+        Args:
+            - result_handler (optional): a passthrough for interface compatibility
+        """
         return self
 
 

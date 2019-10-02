@@ -581,9 +581,12 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
+                handler = getattr(edge.upstream_task, "result_handler", None)
                 task_inputs[  # type: ignore
                     edge.key
-                ] = upstream_state._result.to_result()  # type: ignore
+                ] = upstream_state._result.to_result(  # type: ignore
+                    handler
+                )  # type: ignore
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(
