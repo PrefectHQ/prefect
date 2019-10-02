@@ -1,3 +1,4 @@
+import json
 import time
 
 import click
@@ -46,6 +47,16 @@ def run():
 )
 @click.option("--version", "-v", type=int, help="A flow version to run.", hidden=True)
 @click.option(
+    "--parameters-file",
+    "-pf",
+    help="A parameters JSON file.",
+    hidden=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--parameters-string", "--ps", help="A parameters JSON string.", hidden=True
+)
+@click.option(
     "--watch",
     "-w",
     is_flag=True,
@@ -55,17 +66,29 @@ def run():
 @click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
-def cloud(name, project, version, watch, logs):
+def cloud(name, project, version, parameters_file, parameters_string, watch, logs):
     """
     Run a deployed flow in Prefect Cloud.
 
     \b
     Options:
-        --name, -n      TEXT    The name of a flow to run                                       [required]
-        --project, -p   TEXT    The name of a project that contains the flow                    [required]
-        --version, -v   INTEGER A flow version to run
-        --watch, -w             Watch current state of the flow run, stream output to stdout
-        --logs, -l              Get logs of the flow run, stream output to stdout
+        --name, -n                  TEXT        The name of a flow to run                                       [required]
+        --project, -p               TEXT        The name of a project that contains the flow                    [required]
+        --version, -v               INTEGER     A flow version to run
+        --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
+        --parameters-string, -ps    TEXT        A string of JSON parameters
+        --watch, -w                             Watch current state of the flow run, stream output to stdout
+        --logs, -l                              Get logs of the flow run, stream output to stdout
+
+    \b
+    If both `--parameters-file` and `--parameters-string` are provided then the values passed
+    in through the string will override the values provided from the file.
+
+    \b
+    e.g.
+    File contains:  {"a": 1, "b": 2}
+    String:         '{"a": 3}'
+    Parameters passed to the flow run: {"a": 3, "b": 2}
     """
 
     if watch and logs:
@@ -107,7 +130,20 @@ def cloud(name, project, version, watch, logs):
         click.secho("{} not found".format(name), fg="red")
         return
 
-    flow_run_id = client.create_flow_run(flow_id=flow_id)
+    # Load parameters from file if provided
+    file_params = {}
+    if parameters_file:
+        with open(parameters_file) as params_file:
+            file_params = json.load(params_file)
+
+    # Load parameters from string if provided
+    string_params = {}
+    if parameters_string:
+        string_params = json.loads(parameters_string)
+
+    flow_run_id = client.create_flow_run(
+        flow_id=flow_id, parameters={**file_params, **string_params}
+    )
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
     if watch:
