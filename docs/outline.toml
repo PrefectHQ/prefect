@@ -199,6 +199,17 @@ title = "Azure Tasks"
 module = "prefect.tasks.azure"
 classes = ["BlobStorageDownload", "BlobStorageUpload"]
 
+[pages.tasks.azureml]
+title = "Azure ML Service Tasks"
+module = "prefect.tasks.azureml"
+classes = ["DatasetCreateFromDelimitedFiles",
+           "DatasetCreateFromParquetFiles",
+           "DatasetCreateFromFiles",
+           "DatastoreRegisterBlobContainer",
+           "DatastoreList",
+           "DatastoreGet",
+           "DatastoreUpload"]
+
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"
