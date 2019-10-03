@@ -36,12 +36,15 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__LOGGING__LOG_TO_CLOUD`
 
     Additionally, the following command will be applied to the first container:
+
     `$ /bin/sh -c 'python -c "from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()"'`
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
-    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition
-    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 
     The secrets and kwargs that are provided at initialization time of this environment
     are not serialized and will only ever exist on this object.
