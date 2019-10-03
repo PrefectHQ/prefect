@@ -1,34 +1,15 @@
-import copy
 import os
 import tempfile
-from os import path
 from unittest.mock import MagicMock
 
 import cloudpickle
-import pytest
-import yaml
 
 import prefect
 from prefect.environments import FargateTaskEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
 
 from botocore.exceptions import ClientError
-
-# def test_create_k8s_job_environment():
-#     with tempfile.TemporaryDirectory() as directory:
-
-#         with open(os.path.join(directory, "job.yaml"), "w+") as file:
-#             file.write("job")
-
-#         environment = KubernetesJobEnvironment(
-#             job_spec_file=os.path.join(directory, "job.yaml")
-#         )
-#         assert environment
-#         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
-#         assert environment.labels == set()
-#         assert environment.logger.name == "prefect.KubernetesJobEnvironment"
-
 
 def test_create_fargate_task_environment():
     environment = FargateTaskEnvironment()
