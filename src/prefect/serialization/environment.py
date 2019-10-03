@@ -5,6 +5,7 @@ from marshmallow import fields, post_load
 from prefect.environments import (
     DaskKubernetesEnvironment,
     Environment,
+    FargateTaskEnvironment,
     KubernetesJobEnvironment,
     LocalEnvironment,
     RemoteEnvironment,
@@ -35,6 +36,13 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
     private_registry = fields.Boolean(allow_none=False)
     min_workers = fields.Int()
     max_workers = fields.Int()
+
+
+class FargateTaskEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = FargateTaskEnvironment
+
+    labels = fields.List(fields.String())
 
 
 class KubernetesJobEnvironmentSchema(ObjectSchema):
@@ -82,6 +90,7 @@ class EnvironmentSchema(OneOfSchema):
     type_schemas = {
         "DaskKubernetesEnvironment": DaskKubernetesEnvironmentSchema,
         "Environment": BaseEnvironmentSchema,
+        "FargateTaskEnvironment": FargateTaskEnvironmentSchema,
         "LocalEnvironment": LocalEnvironmentSchema,
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
