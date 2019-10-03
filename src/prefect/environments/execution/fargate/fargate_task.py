@@ -15,7 +15,7 @@ from prefect.environments.storage import Docker
 class FargateTaskEnvironment(Environment):
     """
     FargateTaskEnvironment is an environment which deploys your flow (stored in a Docker image)
-    as a Fargate tasl. This environment requires AWS credentials and extra boto3 kwargs which
+    as a Fargate task. This environment requires AWS credentials and extra boto3 kwargs which
     are used in the creation and running of the Fargate task.
 
     When providing a custom container definition spec the first container in the spec must be the
