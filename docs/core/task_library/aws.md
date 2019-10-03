@@ -37,13 +37,13 @@ Task for listing Lambda functions.
 
 Task for downloading data from an S3 bucket and returning it as a string. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/aws.html#prefect-tasks-aws-s3-s3downloadtask)
+[API Reference](/api/unreleased/tasks/aws.html#s3download)
 
 ## S3Upload <Badge text="task"/>
 
 Task for uploading string data (e.g., a JSON string) to an S3 bucket. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/aws.html#prefect-tasks-aws-s3-s3uploadtask)
+[API Reference](/api/unreleased/tasks/aws.html#s3upload)
 
 ## StepActivate <Badge text="task"/>
 
