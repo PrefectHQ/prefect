@@ -23,27 +23,64 @@ class FargateTaskEnvironment(Environment):
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         region_name: str = None,
-        cluster: str = None,
         **kwargs
     ) -> None:
-        self.identifier_label = str(uuid.uuid4())
-
         # Not serialized, only stored on the object
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.region_name = region_name
-        self.cluster = cluster or "default"
 
-        # task_definition = {
-        #     "family": kwargs.get("family"),
-        #     "taskRoleArn": kwargs.get("taskRoleArn"),
-        #     "executionRoleArn": kwargs.get("executionRoleArn"),
-        #     "networkMode": kwargs.get()
-        # }
-
-        self.task_definition_kwargs = kwargs or {}
+        # Parse accepted kwargs for definition and run
+        self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
         super().__init__(labels=labels)
+
+    def _parse_kwargs(self, user_kwargs: dict) -> tuple:
+        """"""
+        definition_kwarg_list = [
+            "family",
+            "taskRoleArn",
+            "executionRoleArn",
+            "networkMode",
+            "containerDefinitions",
+            "volumes",
+            "placementConstraints",
+            "requiresCompatibilities",
+            "cpu",
+            "memory",
+            "tags",
+            "pidMode",
+            "ipcMode",
+            "proxyConfiguration",
+            "inferenceAccelerators",
+        ]
+
+        run_kwarg_list = [
+            "cluster",
+            "taskDefinition",
+            "count",
+            "startedBy",
+            "group",
+            "placementConstraints",
+            "placementStrategy",
+            "platformVersion",
+            "networkConfiguration",
+            "tags",
+            "enableECSManagedTags",
+            "propagateTags",
+        ]
+
+        task_definition_kwargs = {}
+        for key, item in user_kwargs.items():
+            if key in definition_kwarg_list:
+                self.task_definition_kwargs.update({key: item})
+
+        task_run_kwargs = {}
+        for key, item in user_kwargs.items():
+            if key in run_kwarg_list:
+                self.task_run_kwargs.update({key: item})
+
+        return task_definition_kwargs, task_run_kwargs
 
     def setup(self, storage: "Docker") -> None:
         """
@@ -66,9 +103,6 @@ class FargateTaskEnvironment(Environment):
             boto3_c.describe_task_definition(
                 taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8])
             )
-            # self.logger.debug(
-            #     "Task definition {} found".format(flow_run.flow.id[:8])  # type: ignore
-            # )
         except ClientError:
             definition_exists = False
 
@@ -110,18 +144,6 @@ class FargateTaskEnvironment(Environment):
                 family="prefect-task-{}-custom".format(flow_run_id[:8]),
                 **self.task_definition_kwargs
             )
-            # Populate storage name and flow file path, do this during execution step
-            # self.task_definition_kwargs.get("containerDefinitions")[0][
-            #     "environment"
-            # ].extend(
-            #     [
-            #         {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},
-            #         {
-            #             "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
-            #             "value": storage.flows,
-            #         },
-            #     ]
-            # )
 
     def execute(self, storage: "Docker", flow_location: str, **kwargs: Any) -> None:
         """
@@ -159,11 +181,10 @@ class FargateTaskEnvironment(Environment):
         )
 
         boto3_c.run_task(
-            cluster=self.cluster,
             taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8]),
             overrides={"containerOverrides": container_overrides},
             launchType="FARGATE",
-            # networkConfiguration=network_configuration,
+            **self.task_run_kwargs
         )
 
     def run_flow(self) -> None:
