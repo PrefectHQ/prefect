@@ -8,8 +8,8 @@ from prefect import config
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
 
-from boto3 import client as boto3_client
-from botocore.exceptions import ClientError
+# from boto3 import client as boto3_client
+# from botocore.exceptions import ClientError
 
 
 class FargateTaskEnvironment(Environment):
@@ -148,6 +148,9 @@ class FargateTaskEnvironment(Environment):
         Args:
             - storage (Storage): the Storage object that contains the flow
         """
+        from boto3 import client as boto3_client
+        from botocore.exceptions import ClientError
+
         boto3_c = boto3_client(
             "ecs",
             aws_access_key_id=self.aws_access_key_id,
@@ -212,6 +215,8 @@ class FargateTaskEnvironment(Environment):
             - flow_location (str): the location of the Flow to execute
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
+        from boto3 import client as boto3_client
+
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
         container_overrides = [
             {

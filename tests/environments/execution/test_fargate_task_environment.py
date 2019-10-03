@@ -187,10 +187,7 @@ def test_parse_task_kwargs_invalid_value_removed():
 def test_setup_definition_exists(monkeypatch):
     boto3_client = MagicMock()
     boto3_client.describe_task_definition.return_value = {}
-    monkeypatch.setattr(
-        "prefect.environments.execution.fargate.fargate_task.boto3_client",
-        MagicMock(return_value=boto3_client),
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     environment = FargateTaskEnvironment()
 
@@ -203,10 +200,7 @@ def test_setup_definition_register(monkeypatch):
     boto3_client = MagicMock()
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
     boto3_client.register_task_definition.return_value = {}
-    monkeypatch.setattr(
-        "prefect.environments.execution.fargate.fargate_task.boto3_client",
-        MagicMock(return_value=boto3_client),
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     environment = FargateTaskEnvironment(
         containerDefinitions=[
@@ -263,10 +257,7 @@ def test_setup_definition_register(monkeypatch):
 def test_execute_run_task(monkeypatch):
     boto3_client = MagicMock()
     boto3_client.run_task.return_value = {}
-    monkeypatch.setattr(
-        "prefect.environments.execution.fargate.fargate_task.boto3_client",
-        MagicMock(return_value=boto3_client),
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     environment = FargateTaskEnvironment(cluster="test")
 
@@ -333,10 +324,7 @@ def test_entire_environment_process_together(monkeypatch):
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
     boto3_client.register_task_definition.return_value = {}
     boto3_client.run_task.return_value = {}
-    monkeypatch.setattr(
-        "prefect.environments.execution.fargate.fargate_task.boto3_client",
-        MagicMock(return_value=boto3_client),
-    )
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     flow_runner = MagicMock()
     monkeypatch.setattr(
