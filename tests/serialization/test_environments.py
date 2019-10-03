@@ -7,6 +7,7 @@ from prefect.serialization.environment import (
     BaseEnvironmentSchema,
     DaskKubernetesEnvironmentSchema,
     EnvironmentSchema,
+    FargateTaskEnvironmentSchema,
     KubernetesJobEnvironmentSchema,
     LocalEnvironmentSchema,
     RemoteEnvironmentSchema,
@@ -122,6 +123,43 @@ def test_serialize_dask_environment_with_private_registry():
     new = schema.load(serialized)
     assert new.private_registry is True
     assert new.docker_secret == "FOO"
+
+
+def test_serialize_fargate_task_environment():
+    env = environments.FargateTaskEnvironment()
+
+    schema = FargateTaskEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["labels"] == []
+
+    new = schema.load(serialized)
+    assert new.labels == set()
+
+
+def test_serialize_fargate_task_env_with_kwargs():
+    env = environments.FargateTaskEnvironment(cluster="test")
+
+    schema = FargateTaskEnvironmentSchema()
+    serialized = schema.dump(env)
+
+    deserialized = schema.load(serialized)
+    assert isinstance(deserialized, environments.FargateTaskEnvironment)
+    assert deserialized.task_run_kwargs == {}
+
+
+def test_serialize_fargate_task_environment_with_labels():
+    env = environments.FargateTaskEnvironment(labels=["a", "b", "c"])
+
+    schema = FargateTaskEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert set(serialized["labels"]) == set(["a", "b", "c"])
+
+    new = schema.load(serialized)
+    assert new.labels == set(["a", "b", "c"])
 
 
 def test_serialize_k8s_job_environment():
