@@ -17,7 +17,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `raise_on_exception` no longer raises for Prefect Signals, as these are typically intentional / for control flow - [#1562](https://github.com/PrefectHQ/prefect/pull/1562)
 - `run cloud` CLI command takes in optional `--parameters` as a file path pointing to a JSON file - [#1582](https://github.com/PrefectHQ/prefect/pull/1582)
 - Always consider `Constant` tasks successful and unpack them immediately instead of submitting them for execution - [#1527](https://github.com/PrefectHQ/prefect/issues/1527)
-- Improve the performance of Prefect mapping with Dask so that mapped work begins faster - [#1578](https://github.com/PrefectHQ/prefect/issues/1578)
 
 ### Task Library
 

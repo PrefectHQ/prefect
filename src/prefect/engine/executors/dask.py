@@ -156,19 +156,14 @@ class DaskExecutor(Executor):
         if not args:
             return []
 
-        apply = lambda f, *args, **kwargs: f(*args, **kwargs)
-        N = len(args[0])
-
         dask_kwargs = self._prep_dask_kwargs()
         kwargs.update(dask_kwargs)
 
         if self.is_started and hasattr(self, "client"):
-            func = self.client.scatter(fn)
-            futures = self.client.map(apply, [func] * N, *args, **kwargs)
+            futures = self.client.map(fn, *args, **kwargs)
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
-                func = client.scatter(fn)
-                futures = client.map(apply, [func] * N, *args, **kwargs)
+                futures = client.map(fn, *args, **kwargs)
                 return client.gather(futures)
         else:
             raise ValueError("This executor has not been started.")
