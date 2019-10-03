@@ -1,9 +1,7 @@
 import os
-import uuid
 from typing import Any, List
 
 import cloudpickle
-import yaml
 
 import prefect
 from prefect import config
@@ -15,9 +13,55 @@ from botocore.exceptions import ClientError
 
 
 class FargateTaskEnvironment(Environment):
-    """"""
+    """
+    FargateTaskEnvironment is an environment which deploys your flow (stored in a Docker image)
+    as a Fargate tasl. This environment requires AWS credentials and extra boto3 kwargs which
+    are used in the creation and running of the Fargate task.
 
-    def __init__(
+    When providing a custom container definition spec the first container in the spec must be the
+    container that the flow runner will be executed on.
+
+    These environment variables are required for cloud do not need to be included because
+    they are instead automatically added and populated during execution:
+
+    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__CLOUD__AUTH_TOKEN`
+    - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__NAMESPACE`
+    - `PREFECT__CONTEXT__IMAGE`
+    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
+    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__LOGGING__LOG_TO_CLOUD`
+
+    Additionally, the following command will be applied to the first container:
+    `$ /bin/sh -c 'python -c "from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()"'`
+
+    All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
+    and `run_task`. For information on the kwargs supported visit the following links:
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition
+    - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+
+    The secrets and kwargs that are provided at initialization time of this environment
+    are not serialized and will only ever exist on this object.
+
+    Args:
+        - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_ACCESS_KEY_ID`.
+        - aws_secret_access_key (str, optional): AWS secret access key for connecting
+            the boto3 client. Defaults to the value set in the environment variable
+            `AWS_SECRET_ACCESS_KEY`.
+        - region_name (str, optional): AWS region name for connecting the boto3 client.
+            Defaults to the value set in the environment variable `REGION_NAME`.
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
+        - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
+            `register_task_definition` and `run_task`
+    """
+
+    def __init__(  # type: ignore
         self,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
@@ -38,7 +82,17 @@ class FargateTaskEnvironment(Environment):
         super().__init__(labels=labels)
 
     def _parse_kwargs(self, user_kwargs: dict) -> tuple:
-        """"""
+        """
+        Parse the kwargs passed in and separate them out for `register_task_definition`
+        and `run_task`. This is required because boto3 does not allow extra kwargs
+        and if they are provided it will raise botocore.exceptions.ParamValidationError.
+
+        Args:
+            - user_kwargs (dict): The kwargs passed to the initialization of the environment
+
+        Returns:
+            tuple: a tuple of two dictionaries (task_definition_kwargs, task_run_kwargs)
+        """
         definition_kwarg_list = [
             "family",
             "taskRoleArn",
@@ -84,9 +138,9 @@ class FargateTaskEnvironment(Environment):
 
         return task_definition_kwargs, task_run_kwargs
 
-    def setup(self, storage: "Docker") -> None:
+    def setup(self, storage: "Docker") -> None:  # type: ignore
         """
-        Sets up any infrastructure needed for this environment
+        Register the task definition if it does not already exist.
 
         Args:
             - storage (Storage): the Storage object that contains the flow
@@ -144,9 +198,11 @@ class FargateTaskEnvironment(Environment):
                 **self.task_definition_kwargs
             )
 
-    def execute(self, storage: "Docker", flow_location: str, **kwargs: Any) -> None:
+    def execute(  # type: ignore
+        self, storage: "Docker", flow_location: str, **kwargs: Any
+    ) -> None:
         """
-        Executes the flow for this environment from the storage parameter
+        Run the Fargate task that was defined for this flow.
 
         Args:
             - storage (Storage): the Storage object that contains the flow
