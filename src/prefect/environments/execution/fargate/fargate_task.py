@@ -19,16 +19,18 @@ class FargateTaskEnvironment(Environment):
 
     def __init__(
         self,
-        labels: List[str] = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         region_name: str = None,
+        labels: List[str] = None,
         **kwargs
     ) -> None:
         # Not serialized, only stored on the object
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
-        self.region_name = region_name
+        self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = aws_secret_access_key or os.getenv(
+            "AWS_SECRET_ACCESS_KEY"
+        )
+        self.region_name = region_name or os.getenv("REGION_NAME")
 
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
@@ -73,12 +75,12 @@ class FargateTaskEnvironment(Environment):
         task_definition_kwargs = {}
         for key, item in user_kwargs.items():
             if key in definition_kwarg_list:
-                self.task_definition_kwargs.update({key: item})
+                task_definition_kwargs.update({key: item})
 
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
             if key in run_kwarg_list:
-                self.task_run_kwargs.update({key: item})
+                task_run_kwargs.update({key: item})
 
         return task_definition_kwargs, task_run_kwargs
 
@@ -108,10 +110,7 @@ class FargateTaskEnvironment(Environment):
 
         if not definition_exists:
             env_values = [
-                {
-                    "name": "PREFECT__CLOUD__GRAPHQL",
-                    "value": prefect.config.cloud.graphql,
-                },
+                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
