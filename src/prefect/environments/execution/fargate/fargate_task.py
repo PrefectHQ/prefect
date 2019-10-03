@@ -8,9 +8,6 @@ from prefect import config
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
 
-# from boto3 import client as boto3_client
-# from botocore.exceptions import ClientError
-
 
 class FargateTaskEnvironment(Environment):
     """
