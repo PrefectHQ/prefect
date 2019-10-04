@@ -47,6 +47,7 @@ class FargateAgent(Agent):
         self,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
+        aws_session_token: str = None,
         region_name: str = None,
         cluster: str = None,
         subnets: list = None,
@@ -64,6 +65,9 @@ class FargateAgent(Agent):
         aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
         aws_secret_access_key = aws_secret_access_key or os.getenv(
             "AWS_SECRET_ACCESS_KEY"
+        )
+        aws_session_token = aws_session_token or os.getenv(
+            "AWS_SESSION_TOKEN"
         )
         region_name = region_name or os.getenv("REGION_NAME")
 
@@ -100,6 +104,7 @@ class FargateAgent(Agent):
             "ecs",
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
             region_name=region_name,
         )
 
@@ -110,6 +115,7 @@ class FargateAgent(Agent):
                 "ec2",
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
                 region_name=region_name,
             )
             for subnet in ec2.describe_subnets()["Subnets"]:
