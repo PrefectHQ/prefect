@@ -2,7 +2,7 @@
 
 Oftentimes there are situations in which users want to actively prevent too many tasks from running simultaneously; for example, if many tasks across multiple Flows are designed to interact with a database that only allows 10 max connections, we want to ensure that no more than 10 tasks which connect to this database are running at any given time.
 
-Prefect Cloud has built-in functionality for doing this; Tasks can be "tagged" with as many tags as you wish, and each tag can optionally be provided a concurrency limit.  _All_ task tag concurrency limits will be respected at runtime.
+Prefect Cloud has built-in functionality for achieving this; Tasks can be "tagged" with as many tags as you wish, and each tag can optionally be provided a concurrency limit.  _All_ task tag concurrency limits will be respected at runtime.
 
 Note that the ability to _alter_ or _update_ your Tag Concurrency limits requires [Tenant Admin level permissions](tokens.html#tenant).
 
