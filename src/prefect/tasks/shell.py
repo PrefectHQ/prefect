@@ -21,6 +21,8 @@ class ShellTask(prefect.Task):
             change directories, define helper functions, etc. when re-using this Task
             for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
+        - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
+            as a list, or just the last line as a string; defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
