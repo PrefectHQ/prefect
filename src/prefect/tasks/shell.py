@@ -21,6 +21,8 @@ class ShellTask(prefect.Task):
             change directories, define helper functions, etc. when re-using this Task
             for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
+        - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
+            as a list, or just the last line as a string; defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -44,12 +46,14 @@ class ShellTask(prefect.Task):
         env: dict = None,
         helper_script: str = None,
         shell: str = "bash",
+        return_all: bool = False,
         **kwargs: Any
     ):
         self.command = command
         self.env = env
         self.helper_script = helper_script
         self.shell = shell
+        self.return_all = return_all
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env")
@@ -87,10 +91,14 @@ class ShellTask(prefect.Task):
             sub_process = Popen(
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
             )
-            line = ""
+            lines = []
             for raw_line in iter(sub_process.stdout.readline, b""):
                 line = raw_line.decode("utf-8").rstrip()
-                self.logger.debug(line)
+                if self.return_all:
+                    lines.append(line)
+                else:
+                    # if we're returning all, we don't log every line
+                    self.logger.debug(line)
             sub_process.wait()
             if sub_process.returncode:
                 msg = "Command failed with exit code {0}: {1}".format(
@@ -98,4 +106,7 @@ class ShellTask(prefect.Task):
                 )
                 self.logger.error(msg)
                 raise prefect.engine.signals.FAIL(msg) from None  # type: ignore
-        return line
+        if self.return_all:
+            return lines
+        else:
+            return line
