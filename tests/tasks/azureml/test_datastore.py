@@ -79,6 +79,48 @@ class TestDatastoreRegisterBlobContainer:
             == container_name
         )
 
+    def test_register_call_uses_account_key(self, mock_workspace, monkeypatch):
+        container_name = "my_container"
+        task = DatastoreRegisterBlobContainer(workspace=mock_workspace)
+
+        datastore_class = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.azureml.datastore.azureml.core.datastore.Datastore",
+            datastore_class,
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
+            ):
+                task.run(container_name=container_name)
+
+        assert (
+            datastore_class.register_azure_blob_container.call_args[1]["account_key"]
+            == "99"
+        )
+
+    def test_register_call_uses_sas_token(self, mock_workspace, monkeypatch):
+        container_name = "my_container"
+        task = DatastoreRegisterBlobContainer(workspace=mock_workspace)
+
+        datastore_class = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.azureml.datastore.azureml.core.datastore.Datastore",
+            datastore_class,
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "SAS_TOKEN": "24"})
+            ):
+                task.run(container_name=container_name)
+
+        assert (
+            datastore_class.register_azure_blob_container.call_args[1]["sas_token"]
+            == "24"
+        )
+
 
 class TestDatastoreList:
     def test_initialization(self, mock_workspace):
