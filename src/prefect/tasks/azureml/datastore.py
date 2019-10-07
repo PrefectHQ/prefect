@@ -24,7 +24,7 @@ class DatastoreRegisterBlobContainer(Task):
         - datastore_name (str, optional): The name of the datastore. If not defined, the container name will be used.
         - create_container_if_not_exists (bool, optional): Create a container, if one does not exist with the given name. 
         - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore. If the datastore does not exist, it will be created.
-        - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+        - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used). 
         - set_as_default (bool optional): Set the created Datastore as the default datastore for the Workspace.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
@@ -75,7 +75,7 @@ class DatastoreRegisterBlobContainer(Task):
             - datastore_name (str, optional): The name of the datastore. If not defined, the container name will be used.
             - create_container_if_not_exists (bool, optional): Create a container, if one does not exist with the given name. 
             - overwrite_existing_datastore (bool, optional): Overwrite an existing datastore. If the datastore does not exist, it will be created.
-            - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+            - azure_credentials_secret (str, optinonal): The name of the Prefect Secret that stores your Azure credentials; this Secret must be a JSON string with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used)
             - set_as_default (bool optional): Set the created Datastore as the default datastore for the Workspace.
 
         Return:
@@ -91,7 +91,8 @@ class DatastoreRegisterBlobContainer(Task):
         # get Azure credentials
         azure_credentials = Secret(azure_credentials_secret).get()
         az_account_name = azure_credentials["ACCOUNT_NAME"]
-        az_account_key = azure_credentials["ACCOUNT_KEY"]
+        az_account_key = azure_credentials.get("ACCOUNT_KEY")
+        az_sas_token = azure_credentials.get("SAS_TOKEN")
 
         datastore = azureml.core.datastore.Datastore.register_azure_blob_container(
             workspace=self.workspace,
@@ -99,6 +100,7 @@ class DatastoreRegisterBlobContainer(Task):
             container_name=container_name,
             account_name=az_account_name,
             account_key=az_account_key,
+            sas_token=az_sas_token,
             overwrite=overwrite_existing_datastore,
             create_if_not_exists=create_container_if_not_exists,
         )
