@@ -968,7 +968,7 @@ def test_skip_validation_in_init_with_kwarg():
 
 @pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
 class TestFlowVisualize:
-    def test_visualize_raises_informative_importerror_without_graphviz(
+    def test_visualize_raises_informative_importerror_without_python_graphviz(
         self, monkeypatch
     ):
         f = Flow(name="test")
@@ -977,6 +977,23 @@ class TestFlowVisualize:
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
             with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
+                f.visualize()
+
+    def test_visualize_raises_informative_error_without_sys_graphviz(self, monkeypatch):
+        f = Flow(name="test")
+        f.add_task(Task())
+
+        import graphviz as gviz
+
+        err = gviz.backend.ExecutableNotFound
+        graphviz = MagicMock(
+            Digraph=lambda: MagicMock(
+                render=MagicMock(side_effect=err("Can't find dot!"))
+            )
+        )
+        graphviz.backend.ExecutableNotFound = err
+        with patch.dict("sys.modules", graphviz=graphviz):
+            with pytest.raises(err, match="Please install Graphviz"):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
