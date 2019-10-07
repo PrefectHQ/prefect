@@ -10,7 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Allow authentication to Azure Blob Storage with SAS token
+
 
 ### Task Library
 
