@@ -979,6 +979,23 @@ class TestFlowVisualize:
             with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
                 f.visualize()
 
+    def test_visualize_raises_informative_error_without_sys_graphviz(self, monkeypatch):
+        f = Flow(name="test")
+        f.add_task(Task())
+
+        import graphviz as gviz
+
+        err = gviz.backend.ExecutableNotFound
+        graphviz = MagicMock(
+            Digraph=lambda: MagicMock(
+                render=MagicMock(side_effect=err("Can't find dot!"))
+            )
+        )
+        graphviz.backend.ExecutableNotFound = err
+        with patch.dict("sys.modules", graphviz=graphviz):
+            with pytest.raises(err, match="Please install Graphviz"):
+                f.visualize()
+
     def test_viz_returns_graph_object_if_in_ipython(self):
         import graphviz
 
