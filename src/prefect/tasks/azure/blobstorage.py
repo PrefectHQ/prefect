@@ -14,7 +14,7 @@ class BlobStorageDownload(Task):
     Args:
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be a JSON string
-            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
+            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used)
         - container (str, optional): the name of the Azure Blob Storage to download from
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
