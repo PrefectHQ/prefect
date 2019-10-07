@@ -1712,6 +1712,21 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[1, 1, 3])
 
+    def test_flow_dot_run_without_schedule_can_run_cached_tasks(self):
+        # simulate fresh environment
+        if "caches" in prefect.context:
+            del prefect.context["caches"]
+
+        @task(cache_for=datetime.timedelta(minutes=1))
+        def noop():
+            pass
+
+        f = Flow("test-caches", tasks=[noop])
+        flow_state = f.run(run_on_schedule=False)
+
+        assert flow_state.is_successful()
+        assert flow_state.result[noop].result is None
+
     def test_flow_dot_run_handles_mapped_cached_states(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0

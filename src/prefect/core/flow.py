@@ -836,9 +836,6 @@ class Flow:
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
 
-        # set global caches that persist across runs
-        prefect.context.setdefault("caches", {})
-
         # set context for this flow run
         flow_run_context = kwargs.pop(
             "context", {}
@@ -998,6 +995,9 @@ class Flow:
                     fmt_params
                 )
             )
+
+        # set global caches that persist across runs
+        prefect.context.setdefault("caches", {})
 
         if run_on_schedule is None:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
