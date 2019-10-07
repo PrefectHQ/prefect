@@ -968,7 +968,7 @@ def test_skip_validation_in_init_with_kwarg():
 
 @pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
 class TestFlowVisualize:
-    def test_visualize_raises_informative_importerror_without_graphviz(
+    def test_visualize_raises_informative_importerror_without_python_graphviz(
         self, monkeypatch
     ):
         f = Flow(name="test")
