@@ -20,6 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix issue with running local Flow without a schedule containing cached tasks - [#1599](https://github.com/PrefectHQ/prefect/pull/1599)
+- Remove blank string for task_run_id in k8s resource manager - [#1604](https://github.com/PrefectHQ/prefect/pull/1604)
 
 ### Deprecations
 
