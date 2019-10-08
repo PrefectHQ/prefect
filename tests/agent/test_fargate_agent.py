@@ -27,6 +27,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
     agent = FargateAgent()
     assert agent
+    assert agent.labels is None
     assert agent.cluster == "default"
     assert not agent.subnets
     assert not agent.security_groups
@@ -52,8 +53,10 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         assign_public_ip="DISABLED",
         task_cpu="1",
         task_memory="2",
+        labels=["test"],
     )
     assert agent
+    assert agent.labels == ["test"]
     assert agent.cluster == "cluster"
     assert agent.subnets == ["subnet"]
     assert agent.security_groups == ["security_group"]

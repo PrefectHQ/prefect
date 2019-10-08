@@ -1,4 +1,5 @@
 import os
+from typing import Iterable
 
 from prefect import config
 from prefect.agent import Agent
@@ -41,6 +42,8 @@ class FargateAgent(Agent):
         - task_memory (str, optional): The hard limit (in MiB) of memory to present to
             the container. Defaults to the value set in the environment variable
             `TASK_MEMORY` or `512` otherwise.
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
     def __init__(
@@ -55,8 +58,9 @@ class FargateAgent(Agent):
         assign_public_ip: str = None,
         task_cpu: str = None,
         task_memory: str = None,
+        labels: Iterable[str] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(labels=labels)
 
         from boto3 import client as boto3_client
 

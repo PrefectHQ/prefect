@@ -50,9 +50,16 @@ def agent():
 @click.option(
     "--verbose", "-v", is_flag=True, help="Enable verbose agent logs.", hidden=True
 )
+@click.option(
+    "--label",
+    "-l",
+    multiple=True,
+    help="Labels agent will use to query for flow runs.",
+    hidden=True,
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
-def start(name, token, verbose, no_pull, base_url):
+def start(name, token, verbose, label, no_pull, base_url):
     """
     Start an agent.
 
@@ -86,7 +93,7 @@ def start(name, token, verbose, no_pull, base_url):
             return
 
         with context(no_pull=no_pull, base_url=base_url):
-            from_qualified_name(retrieved_agent)().start()
+            from_qualified_name(retrieved_agent)(labels=list(label)).start()
 
 
 @agent.command(hidden=True)

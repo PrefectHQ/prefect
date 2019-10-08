@@ -1,4 +1,5 @@
 from sys import platform
+from typing import Iterable
 
 import docker
 
@@ -20,10 +21,14 @@ class LocalAgent(Agent):
             `tcp://0.0.0.0:2375` can be provided
         - no_pull (bool, optional): Flag on whether or not to pull flow images.
             Defaults to `False` if not provided here or in context.
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self, base_url: str = None, no_pull: bool = None) -> None:
-        super().__init__()
+    def __init__(
+        self, base_url: str = None, no_pull: bool = None, labels: Iterable[str] = None
+    ) -> None:
+        super().__init__(labels=labels)
 
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"

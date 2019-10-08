@@ -11,12 +11,14 @@ from prefect.utilities.graphql import GraphQLResult
 def test_nomad_agent_init(runner_token):
     agent = NomadAgent()
     assert agent
+    assert agent.labels is None
 
 
 def test_nomad_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = NomadAgent()
+        agent = NomadAgent(labels=["test"])
         assert agent
+        assert agent.labels == ["test"]
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
 

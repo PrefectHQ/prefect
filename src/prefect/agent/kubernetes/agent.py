@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 from os import path
+from typing import Iterable
 
 import pendulum
 import yaml
@@ -34,10 +35,14 @@ class KubernetesAgent(Agent):
     run on a k8s cluster or on a local machine where the kube_config is pointing at the
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/cloud/agent/kubernetes.html
+
+    Args:
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, labels: Iterable[str] = None) -> None:
+        super().__init__(labels=labels)
 
         from kubernetes import client, config
 
