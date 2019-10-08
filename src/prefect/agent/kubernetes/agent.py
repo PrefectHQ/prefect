@@ -147,6 +147,7 @@ class KubernetesAgent(Agent):
         namespace: str = None,
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
+        labels: Iterable[str] = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -170,6 +171,7 @@ class KubernetesAgent(Agent):
         token = token or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
+        labels = labels or []
 
         version = prefect.__version__.split("+")
         image_version = "latest" if len(version) > 1 else version[0]
@@ -184,6 +186,7 @@ class KubernetesAgent(Agent):
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
+        agent_env[4]["value"] = str(labels)
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][

@@ -54,7 +54,7 @@ def agent():
     "--label",
     "-l",
     multiple=True,
-    help="Labels agent will use to query for flow runs.",
+    help="Labels the agent will use to query for flow runs.",
     hidden=True,
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
@@ -73,6 +73,8 @@ def start(name, token, verbose, label, no_pull, base_url):
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
         --verbose, -v           Enable verbose agent DEBUG logs
                                 Defaults to INFO level logging
+        --label, -l     TEXT    Labels the agent will use to query for flow runs
+                                Multiple values supported e.g. `-l label1 -l label2`
 
     \b
     Local Agent Options:
@@ -121,7 +123,14 @@ def start(name, token, verbose, label, no_pull, base_url):
 @click.option(
     "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
 )
-def install(name, token, api, namespace, image_pull_secrets, resource_manager):
+@click.option(
+    "--label",
+    "-l",
+    multiple=True,
+    help="Labels the agent will use to query for flow runs.",
+    hidden=True,
+)
+def install(name, token, api, namespace, image_pull_secrets, resource_manager, label):
     """
     Install an agent. Outputs configuration text which can be used to install on various
     platforms. The Prefect image version will default to your local `prefect.__version__`
@@ -138,6 +147,8 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager):
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
+        --label, -l                 TEXT    Labels the agent will use to query for flow runs
+                                            Multiple values supported e.g. `-l label1 -l label2`
     """
 
     supported_agents = {"kubernetes": "prefect.agent.kubernetes.KubernetesAgent"}
@@ -154,5 +165,6 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager):
         namespace=namespace,
         image_pull_secrets=image_pull_secrets,
         resource_manager_enabled=resource_manager,
+        labels=list(label),
     )
     click.echo(deployment)
