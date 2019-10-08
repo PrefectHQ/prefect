@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Union
+from typing import Iterable, Union
 
 import pendulum
 
@@ -34,14 +34,20 @@ class Agent:
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
     environment variable or in your user configuration file.
+
+    Args:
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self) -> None:
+    def __init__(self, labels: Iterable[str] = None) -> None:
 
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
         self._verify_token(token)
+
+        self.labels = labels
 
         logger = logging.getLogger("agent")
         logger.setLevel(config.cloud.agent.get("level"))
@@ -196,7 +202,13 @@ class Agent:
         now = pendulum.now("UTC")
         result = self.client.graphql(
             mutation,
-            variables={"input": {"tenantId": tenant_id, "before": now.isoformat()}},
+            variables={
+                "input": {
+                    "tenantId": tenant_id,
+                    "before": now.isoformat(),
+                    "labels": self.labels,
+                }
+            },
         )
         flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
         self.logger.debug("Found flow runs {}".format(flow_run_ids))
