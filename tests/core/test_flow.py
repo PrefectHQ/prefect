@@ -968,7 +968,7 @@ def test_skip_validation_in_init_with_kwarg():
 
 @pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
 class TestFlowVisualize:
-    def test_visualize_raises_informative_importerror_without_graphviz(
+    def test_visualize_raises_informative_importerror_without_python_graphviz(
         self, monkeypatch
     ):
         f = Flow(name="test")
@@ -977,6 +977,23 @@ class TestFlowVisualize:
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
             with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
+                f.visualize()
+
+    def test_visualize_raises_informative_error_without_sys_graphviz(self, monkeypatch):
+        f = Flow(name="test")
+        f.add_task(Task())
+
+        import graphviz as gviz
+
+        err = gviz.backend.ExecutableNotFound
+        graphviz = MagicMock(
+            Digraph=lambda: MagicMock(
+                render=MagicMock(side_effect=err("Can't find dot!"))
+            )
+        )
+        graphviz.backend.ExecutableNotFound = err
+        with patch.dict("sys.modules", graphviz=graphviz):
+            with pytest.raises(err, match="Please install Graphviz"):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
@@ -1711,6 +1728,21 @@ class TestFlowRunMethod:
         f.run()
 
         assert storage == dict(y=[1, 1, 3])
+
+    def test_flow_dot_run_without_schedule_can_run_cached_tasks(self):
+        # simulate fresh environment
+        if "caches" in prefect.context:
+            del prefect.context["caches"]
+
+        @task(cache_for=datetime.timedelta(minutes=1))
+        def noop():
+            pass
+
+        f = Flow("test-caches", tasks=[noop])
+        flow_state = f.run(run_on_schedule=False)
+
+        assert flow_state.is_successful()
+        assert flow_state.result[noop].result is None
 
     def test_flow_dot_run_handles_mapped_cached_states(self):
         class MockSchedule(prefect.schedules.Schedule):

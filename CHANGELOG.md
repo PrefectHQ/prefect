@@ -6,6 +6,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- Raise more informative error when calling `flow.visualize()` if Graphviz executable not installed - [#1602](https://github.com/PrefectHQ/prefect/pull/1602)
+- Allow authentication to Azure Blob Storage with SAS token - [#1600](https://github.com/PrefectHQ/prefect/pull/1600)
+
+### Task Library
+
+- Add `return_all` kwarg to `ShellTask` for optionally returning all lines of stdout - [#1598](https://github.com/PrefectHQ/prefect/pull/1598)
+
+### Fixes
+
+- Fix issue with running local Flow without a schedule containing cached tasks - [#1599](https://github.com/PrefectHQ/prefect/pull/1599)
+- Remove blank string for `task_run_id` in k8s resource manager - [#1604](https://github.com/PrefectHQ/prefect/pull/1604)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.6.6 <Badge text="beta" type="success"/>
+
+Released October 3, 2019
+
+### Features
+
 - Added `KubernetesJobEnvironment` - [#1548](https://github.com/PrefectHQ/prefect/pull/1548)
 - Add ability to enforce Task concurrency limits by tag in Prefect Cloud - [#1570](https://github.com/PrefectHQ/prefect/pull/1570)
 - Added `FargateTaskEnvironment` - [#1592](https://github.com/PrefectHQ/prefect/pull/1592)

@@ -14,7 +14,7 @@ class BlobStorageDownload(Task):
     Args:
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be a JSON string
-            with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` (if both are defined then`ACCOUNT_KEY` is used)
         - container (str, optional): the name of the Azure Blob Storage to download from
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -44,7 +44,7 @@ class BlobStorageDownload(Task):
             - blob_name (str): the name of the blob within this container to retrieve
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
                 that stores your Azure credentials; this Secret must be a JSON string
-                with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+                with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
             - container (str, optional): the name of the Blob Storage container to download from
 
         Returns:
@@ -57,10 +57,13 @@ class BlobStorageDownload(Task):
         # get Azure credentials
         azure_credentials = Secret(azure_credentials_secret).get()
         az_account_name = azure_credentials["ACCOUNT_NAME"]
-        az_account_key = azure_credentials["ACCOUNT_KEY"]
+        az_account_key = azure_credentials.get("ACCOUNT_KEY")
+        az_sas_token = azure_credentials.get("SAS_TOKEN")
 
         blob_service = azure.storage.blob.BlockBlobService(
-            account_name=az_account_name, account_key=az_account_key
+            account_name=az_account_name,
+            account_key=az_account_key,
+            sas_token=az_sas_token,
         )
 
         blob_result = blob_service.get_blob_to_text(
@@ -79,7 +82,7 @@ class BlobStorageUpload(Task):
     Args:
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be a JSON string
-            with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
         - container (str, optional): the name of the Azure Blob Storage to upload to
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -112,7 +115,7 @@ class BlobStorageUpload(Task):
                     provided, a random `uuid` will be created
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
                 that stores your Azure credentials; this Secret must be a JSON string
-                with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+                with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
             - container (str, optional): the name of the Blob Storage container to upload to
 
         Returns:
@@ -125,10 +128,13 @@ class BlobStorageUpload(Task):
         ## get Azure credentials
         azure_credentials = Secret(azure_credentials_secret).get()
         az_account_name = azure_credentials["ACCOUNT_NAME"]
-        az_account_key = azure_credentials["ACCOUNT_KEY"]
+        az_account_key = azure_credentials.get("ACCOUNT_KEY")
+        az_sas_token = azure_credentials.get("SAS_TOKEN")
 
         blob_service = azure.storage.blob.BlockBlobService(
-            account_name=az_account_name, account_key=az_account_key
+            account_name=az_account_name,
+            account_key=az_account_key,
+            sas_token=az_sas_token,
         )
 
         ## create key if not provided
