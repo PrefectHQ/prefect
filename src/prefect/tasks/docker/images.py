@@ -1,3 +1,4 @@
+import itertools
 import json
 from typing import Any
 
@@ -57,9 +58,16 @@ class ListImages(Task):
         Returns:
             - list: A list of dictionaries containing information about the images found
         """
+        self.logger.debug(
+            "Starting docker pull for repository {}...".format(repository_name)
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
+        api_result = client.images(name=repository_name, all=all_layers)
+        self.logger.debug(
+            "Completed docker pull for repository {}...".format(repository_name)
+        )
 
-        return client.images(name=repository_name, all=all_layers)
+        return api_result
 
 
 class PullImage(Task):
@@ -119,8 +127,19 @@ class PullImage(Task):
             raise ValueError("A repository to pull the image from must be specified.")
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
+        self.logger.debug(
+            "Starting docker pull for repository {repo} with tag {tag}...".format(
+                repo=repository, tag=tag
+            )
+        )
+        api_result = client.pull(repository=repository, tag=tag)
 
-        return client.pull(repository=repository, tag=tag)
+        self.logger.debug(
+            "Completed docker pull for repository {repo} with tag {tag}...".format(
+                repo=repository, tag=tag
+            )
+        )
+        return api_result
 
 
 class PushImage(Task):
@@ -179,9 +198,19 @@ class PushImage(Task):
         if not repository:
             raise ValueError("A repository to push the image to must be specified.")
 
+        self.logger.debug(
+            "Starting docker image push for repo {repo} and tag {tag}".format(
+                repo=repository, tag=tag
+            )
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-
-        return client.push(repository=repository, tag=tag)
+        api_result = client.push(repository=repository, tag=tag)
+        self.logger.debug(
+            "Completed docker image push for repo {repo} and tag {tag}".format(
+                repo=repository, tag=tag
+            )
+        )
+        return api_result
 
 
 class RemoveImage(Task):
@@ -235,9 +264,11 @@ class RemoveImage(Task):
         if not image:
             raise ValueError("The name of an image to remove must be provided.")
 
+        self.logger.debug("Starting to remove Docker images: {}".format(image))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        client.remove_image(image=image, force=force)
+        feed = client.remove_image(image=image, force=force)
+        self.logger.debug("Completed removing Docker images... {}".format(image))
 
 
 class TagImage(Task):
@@ -304,9 +335,22 @@ class TagImage(Task):
         if not image or not repository:
             raise ValueError("Both image and repository must be provided.")
 
+        self.logger.debug(
+            "Starting to tagging Docker image {image} with tag {tag} in repo {repo}".format(
+                image=image, tag=tag, repo=repository
+            )
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        return client.tag(image=image, repository=repository, tag=tag, force=force)
+        api_result = client.tag(
+            image=image, repository=repository, tag=tag, force=force
+        )
+        self.logger.debug(
+            "Completed tagging Docker image {image} with tag {tag} in repo {repo}".format(
+                image=image, tag=tag, repo=repository
+            )
+        )
+        return api_result
 
 
 class BuildImage(Task):
@@ -382,6 +426,11 @@ class BuildImage(Task):
                 "A path to a directory containing a Dockerfile must be provided."
             )
 
+        self.logger.debug(
+            "Starting docker build with path {path} and tag {tag}".format(
+                path=path, tag=tag
+            )
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         payload = [
@@ -390,6 +439,11 @@ class BuildImage(Task):
                 path=path, tag=tag, nocache=nocache, rm=rm, forcerm=forcerm
             )
         ]
+        self.logger.debug(
+            "Completed docker build with path {path} and tag {tag}".format(
+                path=path, tag=tag
+            )
+        )
         output = [
             json.loads(line.decode("utf-8"))
             for resp in payload

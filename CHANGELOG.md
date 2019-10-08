@@ -842,6 +842,7 @@ Released August 20, 2018
 - Automatic versioning via Versioneer - [#70](https://github.com/prefecthq/prefect/issues/70)
 - `TriggerFail` state - [#67](https://github.com/prefecthq/prefect/issues/67)
 - State classes - [#59](https://github.com/prefecthq/prefect/issues/59)
+- Additional debug logs to `Docker Container` and `Docker Image` tasks - [#920](https://github.com/PrefectHQ/prefect/issues/920)
 
 ### Fixes
 
