@@ -2,6 +2,7 @@ import datetime
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import uuid
 
@@ -368,6 +369,10 @@ class TestConfigValidation:
         assert config.SeCtIoN.KeY == 1
         assert config.section.key == 2
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows converts env vars to uppercase automatically.",
+    )
     def test_env_vars_for_secrets_alone_are_not_lower_cased(self, monkeypatch):
 
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__SECRETS__mY_spECIal_kEY", "42")
