@@ -20,6 +20,9 @@ class FargateAgent(Agent):
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
             `AWS_SECRET_ACCESS_KEY`.
+        - aws_session_token (str, optional): AWS session key for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_SESSION_TOKEN`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME`.
         - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the
