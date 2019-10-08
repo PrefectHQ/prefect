@@ -47,7 +47,9 @@ class Agent:
         self.client = Client(api_token=token)
         self._verify_token(token)
 
-        self.labels = labels
+        self.labels = labels or config.cloud.agent.get("labels")
+        if not self.labels:
+            self.labels = None
 
         logger = logging.getLogger("agent")
         logger.setLevel(config.cloud.agent.get("level"))
