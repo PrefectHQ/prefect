@@ -66,9 +66,7 @@ class FargateAgent(Agent):
         aws_secret_access_key = aws_secret_access_key or os.getenv(
             "AWS_SECRET_ACCESS_KEY"
         )
-        aws_session_token = aws_session_token or os.getenv(
-            "AWS_SESSION_TOKEN"
-        )
+        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         region_name = region_name or os.getenv("REGION_NAME")
 
         # Agent task config
