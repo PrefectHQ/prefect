@@ -222,7 +222,7 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
                 value = cast(str, env_var_value.encode().decode("unicode_escape"))
 
                 # place the env var in the flat config as a compound key
-                if env_var_option.upper().startswith("CONTEXT"):
+                if env_var_option.upper().startswith("CONTEXT__SECRETS"):
                     formatted_option = env_var_option.split("__")
                     formatted_option[:-1] = [
                         val.lower() for val in formatted_option[:-1]

@@ -368,10 +368,11 @@ class TestConfigValidation:
         assert config.SeCtIoN.KeY == 1
         assert config.section.key == 2
 
-    def test_env_vars_for_context_are_not_lower_cased(self, monkeypatch):
+    def test_env_vars_for_secrets_alone_are_not_lower_cased(self, monkeypatch):
 
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__SECRETS__mY_spECIal_kEY", "42")
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__strange_VAlUE", "false")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__FLOW_RUN_ID", "12345")
 
         with tempfile.TemporaryDirectory() as test_config_dir:
             test_config_loc = os.path.join(test_config_dir, "test_config.toml")
@@ -394,4 +395,5 @@ class TestConfigValidation:
         assert config.context.secrets.mY_spECIal_kEY == 42
         assert config.context.secrets.KeY == 1
         assert config.context.spECIAL_TOP_key == "foo"
-        assert config.context.strange_VAlUE is False
+        assert config.context.flow_run_id == 12345
+        assert config.context.strange_value is False
