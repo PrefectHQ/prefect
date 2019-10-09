@@ -40,6 +40,24 @@ f = Flow("example-easy-storage")
 f.deploy("My First Project", registry_url="prefecthq/storage-example")
 ```
 
+::: tip Pre-Build Storage
+You are also able to optionally build your storage separate from the `deploy` command and specify that you do not want to build it again at deploy time:
+
+```python
+from prefect.environments.storage import Docker
+
+f = Flow("example-storage")
+f.storage = Docker(registry_url="prefecthq/storage-example")
+
+# Pre-build storage
+f.storage.build()
+
+# Deploy but don't rebuild storage
+f.deploy("My First Project", build=False)
+```
+
+:::
+
 ## Environments
 
 While Storage objects provide a way to save and retrieve flows, [Environments](https://docs.prefect.io/api/unreleased/environments/execution.html) are a mechanism for specifying execution information about _how your Flow should be run_. For example, what executor should be used and are there any auxiliary infrastructure requirements for your Flow's execution? For example, if you want to run your flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
