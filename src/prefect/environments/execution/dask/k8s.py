@@ -2,7 +2,7 @@ import base64
 import json
 import uuid
 from os import path
-from typing import Any, List
+from typing import Any, Callable, List
 
 import cloudpickle
 import yaml
@@ -54,6 +54,8 @@ class DaskKubernetesEnvironment(Environment):
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
         - worker_spec_file (str, optional): Path to a worker spec YAML file
     """
@@ -65,6 +67,8 @@ class DaskKubernetesEnvironment(Environment):
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
         scheduler_spec_file: str = None,
         worker_spec_file: str = None,
     ) -> None:
@@ -82,7 +86,7 @@ class DaskKubernetesEnvironment(Environment):
         # Load specs from file if path given, store on object
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
 
-        super().__init__(labels=labels)
+        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
