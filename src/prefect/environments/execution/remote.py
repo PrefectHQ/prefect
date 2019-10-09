@@ -1,11 +1,8 @@
 from typing import Any, Callable, List
 
-import cloudpickle
-
 from prefect import config
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Storage
-from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 
 

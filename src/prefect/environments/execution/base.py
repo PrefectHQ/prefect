@@ -2,18 +2,15 @@
 Environments are JSON-serializable objects that fully describe how to run a flow. Serialization
 schemas are contained in `prefect.serialization.environment.py`.
 
-Different Environment objects correspond to different computation environments -- currently
-the only allowed environment is a `CloudEnvironment`. This is subject to change in the very
-near future.
-
-Environments that are written on top of a type of infrastructure also define how to
-set up and execute that environment. e.g. the `CloudEnvironment` is an environment which
-runs a flow on Kubernetes using a Dask cluster.
+Different Environment objects correspond to different computation environments. Environments
+that are written on top of a type of infrastructure also define how to set up and execute
+that environment. e.g. the `DaskKubernetesEnvironment` is an environment which
+runs a flow on Kubernetes using the `dask-kubernetes` library.
 
 Some of the information that the environment requires to run a flow -- such as the flow
 itself -- may not available when the Environment class is instantiated. Therefore, Environments
 are accompanied with a Storage objects to specify how and where the flow is stored. For example,
-the `CloudEnvironment` requires the flow to be stored in a `Docker` storage object.
+the `DaskKubernetesEnvironment` requires the flow to be stored in a `Docker` storage object.
 """
 
 from typing import Any, Callable, Iterable

@@ -1,7 +1,6 @@
 import os
 from typing import Any, Callable, List
 
-import prefect
 from prefect.environments.execution.base import Environment
 from prefect.environments.storage import Storage
 
