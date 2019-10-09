@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 import prefect
@@ -97,9 +96,16 @@ def test_merging_diamond_flow():
 
 
 def test_merging_with_objects_that_cant_be_equality_compared():
+    class SpecialObject:
+        def __eq__(self, other):
+            return self
+
+        def __bool__(self):
+            raise SyntaxError("You can't handle the truth!")
+
     @task
     def return_array():
-        return np.array([1, 2, 3])
+        return SpecialObject()
 
     with Flow("test-merge") as flow:
         success = SuccessTask()
@@ -109,7 +115,7 @@ def test_merging_with_objects_that_cant_be_equality_compared():
     with prefect.context(CONDITION=False):
         flow_state = flow.run()
     assert flow_state.is_successful()
-    assert (flow_state.result[merge_task].result == np.array([1, 2, 3])).all()
+    assert isinstance(flow_state.result[merge_task].result, SpecialObject)
 
 
 def test_list_of_tasks():
