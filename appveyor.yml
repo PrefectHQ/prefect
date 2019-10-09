@@ -1,4 +1,5 @@
 build: false
+skip_branch_with_pr: true
 
 environment:
   matrix:

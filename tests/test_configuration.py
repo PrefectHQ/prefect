@@ -2,6 +2,7 @@ import datetime
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import uuid
 
@@ -367,3 +368,37 @@ class TestConfigValidation:
         assert "KeY" in config.SeCtIoN
         assert config.SeCtIoN.KeY == 1
         assert config.section.key == 2
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows converts env vars to uppercase automatically.",
+    )
+    def test_env_vars_for_secrets_alone_are_not_lower_cased(self, monkeypatch):
+
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__SECRETS__mY_spECIal_kEY", "42")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__strange_VAlUE", "false")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__FLOW_RUN_ID", "12345")
+
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(
+                    b"""
+                    [context]
+                    spECIAL_TOP_key = "foo"
+
+                    [context.secrets]
+                    KeY = 1
+                    """
+                )
+
+            config = configuration.load_configuration(
+                test_config_loc, env_var_prefix="PREFECT_TEST"
+            )
+
+        assert "secrets" in config.context
+        assert config.context.secrets.mY_spECIal_kEY == 42
+        assert config.context.secrets.KeY == 1
+        assert config.context.spECIAL_TOP_key == "foo"
+        assert config.context.flow_run_id == 12345
+        assert config.context.strange_value is False
