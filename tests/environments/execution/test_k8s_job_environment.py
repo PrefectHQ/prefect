@@ -26,6 +26,8 @@ def test_create_k8s_job_environment():
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
         assert environment.labels == set()
+        assert environment.on_start is None
+        assert environment.on_exit is None
         assert environment.logger.name == "prefect.KubernetesJobEnvironment"
 
 
@@ -39,6 +41,26 @@ def test_create_k8s_job_environment_labels():
             job_spec_file=os.path.join(directory, "job.yaml"), labels=["foo"]
         )
         assert environment.labels == set(["foo"])
+
+
+def test_create_k8s_job_callbacks():
+    def f():
+        pass
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"),
+            labels=["foo"],
+            on_start=f,
+            on_exit=f,
+        )
+        assert environment.labels == set(["foo"])
+        assert environment.on_start is f
+        assert environment.on_exit is f
 
 
 def test_create_k8s_job_environment_identifier_label():
@@ -177,6 +199,40 @@ def test_run_flow(monkeypatch):
                 environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "test"
+
+
+def test_run_flow_calls_callbacks(monkeypatch):
+    start_func = MagicMock()
+    exit_func = MagicMock()
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+    environment = KubernetesJobEnvironment(
+        path.join(file_path, "job.yaml"), on_start=start_func, on_exit=exit_func
+    )
+
+    flow_runner = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_flow_runner_class",
+        MagicMock(return_value=flow_runner),
+    )
+
+    with tempfile.TemporaryDirectory() as directory:
+        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+            flow = prefect.Flow("test")
+            flow_path = os.path.join(directory, "flow_env.prefect")
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
+
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            with prefect.context(
+                flow_file_path=os.path.join(directory, "flow_env.prefect")
+            ):
+                environment.run_flow()
+
+        assert flow_runner.call_args[1]["flow"].name == "test"
+
+    assert start_func.called
+    assert exit_func.called
 
 
 def test_populate_job_yaml():

@@ -8,6 +8,8 @@ def test_create_environment():
     environment = Environment()
     assert environment
     assert environment.labels == set()
+    assert environment.on_start is None
+    assert environment.on_exit is None
     assert environment.logger.name == "prefect.Environment"
 
 
@@ -16,6 +18,15 @@ def test_create_environment_converts_labels_to_set():
     assert environment
     assert environment.labels == set(["a", "b"])
     assert environment.logger.name == "prefect.Environment"
+
+
+def test_create_environment_callbacks():
+    def f():
+        pass
+
+    environment = Environment(on_start=f, on_exit=f)
+    assert environment.on_start is f
+    assert environment.on_exit is f
 
 
 def test_setup_environment_passes():

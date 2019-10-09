@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Environments now allow for optional `on_start` and `on_exit` callbacks - [#1610](https://github.com/PrefectHQ/prefect/pull/1610)
 
 ### Enhancements
 
