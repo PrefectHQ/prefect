@@ -255,6 +255,11 @@ class FargateTaskEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using the default executor
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import (
                 get_default_flow_runner_class,
@@ -278,3 +283,7 @@ class FargateTaskEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+
+        # Call on_exit callback if specified
+        if self.on_exit:
+            self.on_exit()

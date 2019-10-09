@@ -39,6 +39,11 @@ class LocalEnvironment(Environment):
             - flow_location (str): the location of the Flow to execute
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         env = kwargs.pop("env", dict())
         try:
             runner = storage.get_flow(flow_location)
@@ -48,3 +53,7 @@ class LocalEnvironment(Environment):
             current_env = os.environ.copy()
             current_env.update(env)
             env_runner(env=current_env)
+
+        # Call on_exit callback if specified
+        if self.on_exit:
+            self.on_exit()

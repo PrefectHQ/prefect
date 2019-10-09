@@ -231,6 +231,11 @@ class DaskKubernetesEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using a Dask executor
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import get_default_flow_runner_class
             from prefect.engine.executors import DaskExecutor
@@ -268,6 +273,10 @@ class DaskKubernetesEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+
+        # Call on_exit callback if specified
+        if self.on_exit:
+            self.on_exit()
 
     ################################
     # Default YAML Spec Manipulation
