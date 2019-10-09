@@ -146,10 +146,10 @@ class KubernetesJobEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
-
-        # Call on_exit callback if specified
-        if self.on_exit:
-            self.on_exit()
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()
 
     ###############################
     # Custom YAML Spec Manipulation

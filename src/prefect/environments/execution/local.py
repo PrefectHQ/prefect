@@ -52,7 +52,7 @@ class LocalEnvironment(Environment):
             current_env = os.environ.copy()
             current_env.update(env)
             env_runner(env=current_env)
-
-        # Call on_exit callback if specified
-        if self.on_exit:
-            self.on_exit()
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()
