@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Callable, List
 
 import cloudpickle
 
@@ -40,10 +40,12 @@ class RemoteEnvironment(Environment):
         executor: str = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
     ) -> None:
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
-        super().__init__(labels=labels)
+        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any
@@ -58,6 +60,11 @@ class RemoteEnvironment(Environment):
             - flow_location (str): the location of the Flow to execute
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import (
                 get_default_executor_class,
@@ -77,3 +84,6 @@ class RemoteEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+
+        if self.on_exit:
+            self.on_exit()

@@ -16,7 +16,7 @@ are accompanied with a Storage objects to specify how and where the flow is stor
 the `CloudEnvironment` requires the flow to be stored in a `Docker` storage object.
 """
 
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import prefect
 from prefect.environments.storage import Storage
@@ -39,8 +39,15 @@ class Environment:
             Agents when polling for work
     """
 
-    def __init__(self, labels: Iterable[str] = None) -> None:
+    def __init__(
+        self,
+        labels: Iterable[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
+    ) -> None:
         self.labels = set(labels) if labels else set()
+        self.on_start = on_start
+        self.on_exit = on_exit
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
