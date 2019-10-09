@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 import prefect
@@ -93,6 +94,22 @@ def test_merging_diamond_flow():
         for t in false_branch:
             assert isinstance(state.result[t], Skipped)
         assert isinstance(state.result[merge_task], Success)
+
+
+def test_merging_with_objects_that_cant_be_equality_compared():
+    @task
+    def return_array():
+        return np.array([1, 2, 3])
+
+    with Flow("test-merge") as flow:
+        success = SuccessTask()
+        ifelse(Condition(), success, return_array)
+        merge_task = merge(success, return_array)
+
+    with prefect.context(CONDITION=False):
+        flow_state = flow.run()
+    assert flow_state.is_successful()
+    assert (flow_state.result[merge_task].result == np.array([1, 2, 3])).all()
 
 
 def test_list_of_tasks():
