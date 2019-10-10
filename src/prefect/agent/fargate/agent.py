@@ -51,6 +51,8 @@ class FargateAgent(Agent):
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
+        task_role_arn: str = None,
+        execution_role_arn: str = None,
         region_name: str = None,
         cluster: str = None,
         subnets: list = None,
@@ -76,11 +78,26 @@ class FargateAgent(Agent):
         self.cluster = cluster or os.getenv("CLUSTER", "default")
         self.logger.debug("Cluster {}".format(self.cluster))
 
-        self.subnets = subnets or []
+        if os.getenv("SUBNETS"):
+            self.subnets = os.getenv("SUBNETS").split(',')
+        else:
+            self.subnets = subnets or []
         self.logger.debug("Subnets {}".format(self.subnets))
 
-        self.security_groups = security_groups or []
+        if os.getenv("SECURITY_GROUPS"):
+            self.security_groups = os.getenv("SECURITY_GROUPS").split(',')
+        else:
+            self.security_groups = security_groups or []
         self.logger.debug("Security groups {}".format(self.security_groups))
+
+        self.task_role_arn = os.getenv("TASK_ROLE_ARN")
+        self.logger.debug("Task role arn {}".format(self.task_role_arn))
+
+        self.execution_role_arn = os.getenv("EXECUTION_ROLE_ARN")
+        if not self.execution_role_arn:
+            self.logger.exception("Fargate requires task definition to have execution role ARN to support ECR images")
+            raise Exception('Fargate task execution role required')
+        self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
 
         self.repository_credentials = repository_credentials or os.getenv(
             "REPOSITORY_CREDENTIALS"
@@ -239,6 +256,8 @@ class FargateAgent(Agent):
             networkMode="awsvpc",
             cpu=self.task_cpu,
             memory=self.task_memory,
+            taskRoleArn=self.task_role_arn,
+            executionRoleArn=self.execution_role_arn
         )
 
     def _run_task(self, flow_run: GraphQLResult) -> None:
