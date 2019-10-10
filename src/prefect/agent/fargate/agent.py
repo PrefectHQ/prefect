@@ -127,7 +127,7 @@ class FargateAgent(Agent):
         )
 
         # Look for default subnets with `MapPublicIpOnLaunch` disabled
-        if not subnets:
+        if not self.subnets:
             self.logger.debug("No subnets provided, finding defaults")
             ec2 = boto3_client(
                 "ec2",
