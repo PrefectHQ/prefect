@@ -20,12 +20,24 @@ def test_create_dask_environment():
     assert environment.private_registry is False
     assert environment.docker_secret is None
     assert environment.labels == set()
+    assert environment.on_start is None
+    assert environment.on_exit is None
     assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
 
 
 def test_create_dask_environment_labels():
     environment = DaskKubernetesEnvironment(labels=["foo"])
     assert environment.labels == set(["foo"])
+
+
+def test_create_dask_environment_callbacks():
+    def f():
+        pass
+
+    environment = DaskKubernetesEnvironment(labels=["foo"], on_start=f, on_exit=f)
+    assert environment.labels == set(["foo"])
+    assert environment.on_start is f
+    assert environment.on_exit is f
 
 
 def test_create_dask_environment_identifier_label():
@@ -173,6 +185,40 @@ def test_run_flow(monkeypatch):
                 environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "test"
+
+
+def test_run_flow_calls_callbacks(monkeypatch):
+    start_func = MagicMock()
+    exit_func = MagicMock()
+
+    environment = DaskKubernetesEnvironment(on_start=start_func, on_exit=exit_func)
+
+    flow_runner = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_flow_runner_class",
+        MagicMock(return_value=flow_runner),
+    )
+
+    kube_cluster = MagicMock()
+    monkeypatch.setattr("dask_kubernetes.KubeCluster", kube_cluster)
+
+    with tempfile.TemporaryDirectory() as directory:
+        with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
+            flow = prefect.Flow("test")
+            flow_path = os.path.join(directory, "flow_env.prefect")
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(flow, f)
+
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            with prefect.context(
+                flow_file_path=os.path.join(directory, "flow_env.prefect")
+            ):
+                environment.run_flow()
+
+        assert flow_runner.call_args[1]["flow"].name == "test"
+
+    assert start_func.called
+    assert exit_func.called
 
 
 def test_populate_job_yaml():

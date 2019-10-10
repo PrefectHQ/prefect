@@ -95,6 +95,29 @@ def test_merging_diamond_flow():
         assert isinstance(state.result[merge_task], Success)
 
 
+def test_merging_with_objects_that_cant_be_equality_compared():
+    class SpecialObject:
+        def __eq__(self, other):
+            return self
+
+        def __bool__(self):
+            raise SyntaxError("You can't handle the truth!")
+
+    @task
+    def return_array():
+        return SpecialObject()
+
+    with Flow("test-merge") as flow:
+        success = SuccessTask()
+        ifelse(Condition(), success, return_array)
+        merge_task = merge(success, return_array)
+
+    with prefect.context(CONDITION=False):
+        flow_state = flow.run()
+    assert flow_state.is_successful()
+    assert isinstance(flow_state.result[merge_task].result, SpecialObject)
+
+
 def test_list_of_tasks():
     """
     Test that a list of tasks can be set as a switch condition
