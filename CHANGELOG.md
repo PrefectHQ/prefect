@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Raise more informative error when calling `flow.visualize()` if Graphviz executable not installed - [#1602](https://github.com/PrefectHQ/prefect/pull/1602)
 - Allow authentication to Azure Blob Storage with SAS token - [#1600](https://github.com/PrefectHQ/prefect/pull/1600)
+- Additional debug logs to `Docker Container` and `Docker Image` tasks - [#920](https://github.com/PrefectHQ/prefect/issues/920)
 
 ### Task Library
 
@@ -842,7 +843,6 @@ Released August 20, 2018
 - Automatic versioning via Versioneer - [#70](https://github.com/prefecthq/prefect/issues/70)
 - `TriggerFail` state - [#67](https://github.com/prefecthq/prefect/issues/67)
 - State classes - [#59](https://github.com/prefecthq/prefect/issues/59)
-- Additional debug logs to `Docker Container` and `Docker Image` tasks - [#920](https://github.com/PrefectHQ/prefect/issues/920)
 
 ### Fixes
 

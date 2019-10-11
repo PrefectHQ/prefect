@@ -618,4 +618,3 @@ class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
 
         monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
         self.assert_doesnt_log_on_param_failure(task, caplog)
-
