@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 import prefect
@@ -9,6 +11,20 @@ def test_create_environment():
     environment = LocalEnvironment()
     assert environment
     assert environment.labels == set()
+    assert environment.on_start is None
+    assert environment.on_exit is None
+    assert environment.logger.name == "prefect.LocalEnvironment"
+
+
+def test_create_environment_populated():
+    def f():
+        pass
+
+    environment = LocalEnvironment(labels=["test"], on_start=f, on_exit=f)
+    assert environment
+    assert environment.labels == set(["test"])
+    assert environment.on_start is f
+    assert environment.on_exit is f
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
@@ -111,3 +127,25 @@ def test_environment_execute_with_env_runner_with_kwargs():
     flow_loc = storage.add_flow(flow)
     environment.execute(storage, flow_loc, env=dict(x=42))
     assert global_dict.get("result") == 42
+
+
+def test_environment_execute_calls_callbacks():
+    start_func = MagicMock()
+    exit_func = MagicMock()
+
+    global_dict = {}
+
+    @prefect.task
+    def add_to_dict():
+        global_dict["run"] = True
+
+    environment = LocalEnvironment(on_start=start_func, on_exit=exit_func)
+    storage = Memory()
+    flow = prefect.Flow("test", tasks=[add_to_dict])
+    flow_loc = storage.add_flow(flow)
+
+    environment.execute(storage, flow_loc)
+    assert global_dict.get("run") is True
+
+    assert start_func.called
+    assert exit_func.called
