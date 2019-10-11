@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Any, List
+from typing import Any, Callable, List
 
 import cloudpickle
 import yaml
@@ -40,16 +40,24 @@ class KubernetesJobEnvironment(Environment):
         - job_spec_file (str, optional): Path to a job spec YAML file
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
     """
 
-    def __init__(self, job_spec_file: str = None, labels: List[str] = None) -> None:
+    def __init__(
+        self,
+        job_spec_file: str = None,
+        labels: List[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
+    ) -> None:
         self.identifier_label = str(uuid.uuid4())
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
 
-        super().__init__(labels=labels)
+        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -110,6 +118,11 @@ class KubernetesJobEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using the default executor
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import (
                 get_default_flow_runner_class,
@@ -133,6 +146,10 @@ class KubernetesJobEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()
 
     ###############################
     # Custom YAML Spec Manipulation
