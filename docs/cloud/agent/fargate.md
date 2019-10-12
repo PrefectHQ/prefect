@@ -4,7 +4,7 @@ The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargat
 
 ### Requirements
 
-Running the Fargate Agent requires that you provide an `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `REGION_NAME` and `CLUSTER`. The first three values are required to initialize the [boto3 client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#client) while the `CLUSTER` tells the agent where to run Fargate Tasks.
+Running the Fargate Agent requires that you provide a `REGION_NAME` and `CLUSTER`. Optionally, you may provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` (specific to temporary credentials). If these three items are not explicitly defined, boto3 will default to environment variables or your credentials file. Having the `REGION_NAME` defined along with the appropriate credentials stored per aws expectations are required to initialize the [boto3 client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#client) while the `CLUSTER` tells the agent where to run Fargate Tasks. For more information on properly setting your credentials, check out the boto3 documentation [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
 
 ### Usage
 
@@ -44,6 +44,7 @@ Through the Prefect CLI:
 ```
 $ export AWS_ACCESS_KEY_ID=MY_ACCESS
 $ export AWS_SECRET_ACCESS_KEY=MY_SECRET
+$ export AWS_SESSION_TOKEN=MY_SESSION
 $ export REGION_NAME=MY_REGION
 $ export CLUSTER=MY_CLUSTER
 $ prefect agent start fargate
@@ -57,6 +58,7 @@ from prefect.agent.fargate import FargateAgent
 agent = FargateAgent(
         aws_access_key_id="MY_ACCESS",
         aws_secret_access_key="MY_SECRET",
+        aws_session_token="MY_SESSION",
         region_name="MY_REGION",
         cluser="MY_CLUSTER"
         )
@@ -83,7 +85,7 @@ When the flow run is found and the Task is run the logs of the agent should refl
 2019-09-01 19:01:09,158 - agent - INFO - Submitted 1 flow run(s) for execution.
 ```
 
-The Fargate Task run should be created and it will start in a `PENDING` state. Once the resources are provisioned it rill enter a `RUNNING` state and on completion it will finish as `COMPLETED`.
+The Fargate Task run should be created and it will start in a `PENDING` state. Once the resources are provisioned it will enter a `RUNNING` state and on completion it will finish as `COMPLETED`.
 
 :::warning Resources
 The current default resource usage of a prefect-task has a limit for CPU of `256` and a limit for memory of `512`. Make sure you are aware of the resource usage of your Tasks. You may adjust the CPU and memory for the Tasks on the agent through `task_cpu` and `task_memory` or through the environment variables `TASK_CPU` and `TASK_MEMORY`
@@ -95,6 +97,7 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 
 - aws_access_key_id (str, optional): AWS access key id for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_ACCESS_KEY_ID`.
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
+- aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
 - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the value set in the environment variable `CLUSTER`.
 - subnets (list, optional): A list of AWS VPC subnets to use for the tasks that are deployed on Fargate. Defaults to the subnets found which have `MapPublicIpOnLaunch` disabled.

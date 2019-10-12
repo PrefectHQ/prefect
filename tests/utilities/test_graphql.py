@@ -5,12 +5,14 @@ from collections import OrderedDict
 from textwrap import dedent
 
 import pytest
+from box import Box
 
-from prefect.utilities.collections import DotDict
+from prefect.engine.state import Pending
 from prefect.utilities.graphql import (
     EnumValue,
-    LiteralSetValue,
     GQLObject,
+    GraphQLResult,
+    LiteralSetValue,
     compress,
     decompress,
     parse_graphql,
@@ -334,9 +336,9 @@ def test_use_true_to_indicate_field_name():
     )
 
 
-def test_dotdict_query_parsing():
+def test_box_query_parsing():
     verify(
-        query=DotDict(query=DotDict(books={"id"})),
+        query=Box(query=Box(books={"id"})),
         expected="""
             query {
                 books {
@@ -347,13 +349,11 @@ def test_dotdict_query_parsing():
     )
 
 
-def test_pass_dotdicts_as_args():
+def test_pass_box_as_args():
     verify(
         query={
             "query": {
-                with_args(
-                    "books", DotDict(author=DotDict(name=DotDict(first="first")))
-                ): {"id"}
+                with_args("books", Box(author=Box(name=Box(first="first")))): {"id"}
             }
         },
         expected="""
@@ -426,3 +426,16 @@ def test_decompress():
 )
 def test_compression_back_translation(obj):
     assert decompress(compress(obj)) == obj
+
+
+def test_graphql_result_has_nice_repr():
+    expected = """{\n    "flow_run": {\n        "flow": [\n            {\n                "id": 1\n            },\n            {\n                "version": 2\n            }\n        ]\n    }\n}"""
+    gql = {"flow_run": {"flow": [{"id": 1}, {"version": 2}]}}
+    res = GraphQLResult(gql)
+    assert repr(res) == expected
+
+
+def test_graphql_repr_falls_back_to_dict_repr():
+    gql = {"flow_run": Pending("test")}
+    res = GraphQLResult(gql)
+    assert repr(res) == """{'flow_run': <Pending: "test">}"""

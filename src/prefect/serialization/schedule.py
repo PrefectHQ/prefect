@@ -13,7 +13,6 @@ from prefect.utilities.serialization import (
     to_qualified_name,
 )
 
-
 FILTERS = [
     prefect.schedules.filters.between_datetimes,
     prefect.schedules.filters.between_dates,

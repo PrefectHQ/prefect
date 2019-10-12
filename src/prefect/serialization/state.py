@@ -1,11 +1,10 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, TYPE_CHECKING
 
 from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine import result, state
 from prefect.serialization.result import StateResultSchema
-from prefect.utilities.collections import DotDict
 from prefect.utilities.serialization import (
     JSONCompatible,
     Nested,
@@ -13,6 +12,9 @@ from prefect.utilities.serialization import (
     OneOfSchema,
     to_qualified_name,
 )
+
+if TYPE_CHECKING:
+    import prefect
 
 
 def get_safe(obj: state.State, context: dict) -> Any:
@@ -33,6 +35,7 @@ class BaseStateSchema(ObjectSchema):
     class Meta:
         object_class = state.State
 
+    context = fields.Dict(key=fields.Str(), values=JSONCompatible(), allow_none=True)
     message = fields.String(allow_none=True)
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
 
@@ -151,6 +154,12 @@ class MappedSchema(SuccessSchema):
 class FailedSchema(FinishedSchema):
     class Meta:
         object_class = state.Failed
+
+    cached_inputs = fields.Dict(
+        key=fields.Str(),
+        values=Nested(StateResultSchema, value_selection_fn=get_safe),
+        allow_none=True,
+    )
 
 
 class AbortedSchema(FailedSchema):

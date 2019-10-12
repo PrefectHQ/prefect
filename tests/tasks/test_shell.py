@@ -9,7 +9,6 @@ from prefect import Flow
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.debug import raise_on_exception
 
-
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="ShellTask currently not supported on Windows"
 )
@@ -37,6 +36,14 @@ def test_shell_initializes_and_multiline_output_returns_last_line():
     out = f.run()
     assert out.is_successful()
     assert out.result[task].result == "42"
+
+
+def test_shell_initializes_and_multiline_output_optionally_returns_all_lines():
+    with Flow(name="test") as f:
+        task = ShellTask(return_all=True)(command="echo -n 'hello world\n42'")
+    out = f.run()
+    assert out.is_successful()
+    assert out.result[task].result == ["hello world", "42"]
 
 
 def test_shell_raises_if_no_command_provided():

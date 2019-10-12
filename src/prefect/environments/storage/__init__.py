@@ -33,7 +33,7 @@ def get_default_storage_class() -> type:
 
     Defaults to `Docker` if the string config value can not be loaded
     """
-    config_value = config.get_nested("flows.defaults.storage.default_class")
+    config_value = config.flows.defaults.storage.default_class
     if isinstance(config_value, str):
         try:
             return prefect.utilities.serialization.from_qualified_name(config_value)

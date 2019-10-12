@@ -13,7 +13,15 @@ from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import Cached, ClientFailed, Failed, Mapped, Retrying, State
+from prefect.engine.state import (
+    Cached,
+    ClientFailed,
+    Failed,
+    Mapped,
+    Retrying,
+    Queued,
+    State,
+)
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
 from prefect.utilities.graphql import with_args
 
@@ -88,7 +96,7 @@ class CloudTaskRunner(TaskRunner):
 
         try:
             cloud_state = prepare_state_for_cloud(new_state)
-            self.client.set_task_run_state(
+            state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
                 state=cloud_state,
@@ -99,6 +107,10 @@ class CloudTaskRunner(TaskRunner):
                 "Failed to set task state with error: {}".format(repr(exc))
             )
             raise ENDRUN(state=ClientFailed(state=new_state))
+
+        if state.is_queued():
+            state.state = old_state  # type: ignore
+            raise ENDRUN(state=state)
 
         if version is not None:
             prefect.context.update(task_run_version=version + 1)  # type: ignore
@@ -193,15 +205,17 @@ class CloudTaskRunner(TaskRunner):
 
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.cached_inputs = {  # type: ignore
-                    key: res.to_result()
+                candidate_state.cached_inputs = {
+                    key: res.to_result(inputs[key].result_handler)  # type: ignore
                     for key, res in (candidate_state.cached_inputs or {}).items()
                 }
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
                 if self.task.cache_validator(
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate_state._result = candidate_state._result.to_result()
+                    candidate_state._result = candidate_state._result.to_result(
+                        self.task.result_handler
+                    )
                     return candidate_state
 
                 self.logger.debug(
@@ -246,10 +260,10 @@ class CloudTaskRunner(TaskRunner):
             context=context,
             executor=executor,
         )
-        if end_state.is_retrying() and (
+        while (end_state.is_retrying() or end_state.is_queued()) and (
             end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
         ):
-            assert isinstance(end_state, Retrying)
+            assert isinstance(end_state, (Retrying, Queued))
             naptime = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
@@ -262,11 +276,11 @@ class CloudTaskRunner(TaskRunner):
                 map_index=context.get("map_index"),
             )
             context.update(task_run_version=task_run_info.version)  # type: ignore
-            return self.run(
+
+            end_state = super().run(
                 state=end_state,
                 upstream_states=upstream_states,
                 context=context,
                 executor=executor,
             )
-        else:
-            return end_state
+        return end_state

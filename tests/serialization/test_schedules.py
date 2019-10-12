@@ -7,8 +7,7 @@ import pytest
 
 import prefect
 from prefect import __version__
-from prefect.schedules import schedules, clocks, filters, adjustments
-
+from prefect.schedules import adjustments, clocks, filters, schedules
 from prefect.serialization.schedule import ScheduleSchema
 
 

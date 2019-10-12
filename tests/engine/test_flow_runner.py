@@ -1,4 +1,3 @@
-import cloudpickle
 import collections
 import datetime
 import queue
@@ -8,6 +7,7 @@ import time
 from distutils.version import LooseVersion
 from unittest.mock import MagicMock
 
+import cloudpickle
 import pendulum
 import pytest
 
@@ -17,7 +17,6 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
-from prefect.engine.task_runner import TaskRunner
 from prefect.engine.result import NoResult, Result
 from prefect.engine.state import (
     Cached,
@@ -36,6 +35,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.engine.task_runner import TaskRunner
 from prefect.triggers import any_failed, manual_only
 from prefect.utilities.debug import raise_on_exception
 
@@ -1538,3 +1538,57 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
         "prefect.CustomFlowRunner",
         "prefect.Task: log_stuff",
     }
+
+
+def test_constant_tasks_arent_submitted(caplog):
+    calls = []
+
+    class TrackSubmissions(LocalExecutor):
+        def submit(self, *args, **kwargs):
+            calls.append(kwargs)
+            return super().submit(*args, **kwargs)
+
+    @prefect.task
+    def add(x):
+        return x + 1
+
+    with Flow("constants") as flow:
+        output = add(5)
+
+    runner = FlowRunner(flow=flow)
+    flow_state = runner.run(return_tasks=[output], executor=TrackSubmissions())
+    assert flow_state.is_successful()
+    assert flow_state.result[output].result == 6
+
+    ## only add was submitted
+    assert len(calls) == 1
+
+    ## to be safe, ensure '5' isn't in the logs
+    assert len([log.message for log in caplog.records if "5" in log.message]) == 0
+
+
+def test_constant_tasks_arent_submitted_when_mapped(caplog):
+    calls = []
+
+    class TrackSubmissions(LocalExecutor):
+        def submit(self, *args, **kwargs):
+            calls.append(kwargs)
+            return super().submit(*args, **kwargs)
+
+    @prefect.task
+    def add(x):
+        return x + 1
+
+    with Flow("constants") as flow:
+        output = add.map([99] * 10)
+
+    runner = FlowRunner(flow=flow)
+    flow_state = runner.run(return_tasks=[output], executor=TrackSubmissions())
+    assert flow_state.is_successful()
+    assert flow_state.result[output].result == [100] * 10
+
+    ## only add and the List task were submitted
+    assert len(calls) == 2
+
+    ## to be safe, ensure '5' isn't in the logs
+    assert len([log.message for log in caplog.records if "99" in log.message]) == 0

@@ -7,7 +7,7 @@ title: Azure
 A collection of tasks for interacting with Azure resources.
 
 Note that all tasks require a Prefect Secret called `"AZ_CREDENTIALS"` that should be a JSON
-document with two keys: `"ACCOUNT_NAME"` and `"ACCOUNT_KEY"`.
+document with two keys: `"ACCOUNT_NAME"` and either `"ACCOUNT_KEY"` or `"SAS_TOKEN"`.
 
 ## BlobStorageDownload <Badge text="task"/>
 

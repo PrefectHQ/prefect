@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, PropertyMock
 
-import click
-import requests
 from click.testing import CliRunner
 
 import prefect
@@ -80,3 +78,14 @@ def test_execute_cloud_flow_fails(monkeypatch):
         "Failed to load"
         in client.return_value.set_flow_run_state.call_args[1]["state"].message
     )
+
+
+def test_execute_cloud_flow_raises_exception():
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(execute, "cloud-flow")
+        assert result.exit_code == 1
+        assert "Not currently executing a flow within a Cloud context." in result.output

@@ -1,13 +1,13 @@
 import queue
-import time
 import threading
+import time
 from typing import Any
 
 import pytest
 
 import prefect
 from prefect import context
-from prefect.utilities.collections import DotDict
+from prefect.configuration import Config
 from prefect.utilities.context import Context
 
 
@@ -89,7 +89,7 @@ def test_context_doesnt_overwrite_all_config_keys():
         assert context.config.logging.level == old_level
 
 
-def test_context_respects_the_dotdict_nature_of_config():
+def test_context_respects_the_dot_nature_of_config():
     assert "KEY" not in context.config
     with context(config=dict(KEY=dict(x=1))):
         assert context.config.KEY.x == 1
@@ -118,8 +118,8 @@ def test_modify_context_by_calling_update_inside_contextmanager():
 
 
 def test_context_loads_values_from_config(monkeypatch):
-    subsection = DotDict(password="1234")
-    config = DotDict(context=DotDict(subsection=subsection, my_key="my_value"))
+    subsection = Config(password="1234")
+    config = Config(context=Config(subsection=subsection, my_key="my_value"))
     monkeypatch.setattr(prefect.utilities.context, "config", config)
     fresh_context = Context()
     assert "subsection" in fresh_context
@@ -128,8 +128,8 @@ def test_context_loads_values_from_config(monkeypatch):
 
 
 def test_context_loads_secrets_from_config(monkeypatch):
-    secrets_dict = DotDict(password="1234")
-    config = DotDict(context=DotDict(secrets=secrets_dict))
+    secrets_dict = Config(password="1234")
+    config = Config(context=Config(secrets=secrets_dict))
     monkeypatch.setattr(prefect.utilities.context, "config", config)
     fresh_context = Context()
     assert "secrets" in fresh_context

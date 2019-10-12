@@ -21,7 +21,8 @@ class AzureResultHandler(ResultHandler):
         - container (str): the name of the container to write to / read from
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             which stores your Azure credentials; this Secret must be a JSON string
-            with two keys: `ACCOUNT_NAME` and `ACCOUNT_KEY`
+            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` 
+            (if both are defined then`ACCOUNT_KEY` is used)
 
     Note that for this result handler to work properly, your Azure Credentials must
     be made available in the `"AZ_CREDENTIALS"` Prefect Secret.
@@ -45,9 +46,13 @@ class AzureResultHandler(ResultHandler):
             azure_credentials = json.loads(azure_credentials)
 
         az_account_name = azure_credentials["ACCOUNT_NAME"]
-        az_account_key = azure_credentials["ACCOUNT_KEY"]
+        az_account_key = azure_credentials.get("ACCOUNT_KEY")
+        az_sas_token = azure_credentials.get("SAS_TOKEN")
+
         blob_service = azure.storage.blob.BlockBlobService(
-            account_name=az_account_name, account_key=az_account_key
+            account_name=az_account_name,
+            account_key=az_account_key,
+            sas_token=az_sas_token,
         )
         self.service = blob_service
 

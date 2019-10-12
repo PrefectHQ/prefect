@@ -1,4 +1,3 @@
-import dask
 import datetime
 import logging
 import queue
@@ -7,6 +6,7 @@ import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
 
+import dask
 from distributed import Client, Future, fire_and_forget, worker_client
 
 from prefect import context

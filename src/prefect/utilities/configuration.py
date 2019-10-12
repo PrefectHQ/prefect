@@ -29,11 +29,16 @@ def set_temporary_config(temp_config: dict) -> Iterator:
         old_config = prefect.config.copy()
 
         for key, value in temp_config.items():
-            prefect.config.set_nested(key, value)
+            # the `key` might be a dot-delimited string, so we split on "." and set the value
+            cfg = prefect.config
+            subkeys = key.split(".")
+            for subkey in subkeys[:-1]:
+                cfg = cfg.setdefault(subkey, Config())
+            cfg[subkeys[-1]] = value
 
         # ensure the new config is available in context
         with prefect.context(config=prefect.config):
             yield prefect.config
     finally:
-        prefect.config.__dict__.clear()
-        prefect.config.__dict__.update(old_config)
+        prefect.config.clear()
+        prefect.config.update(old_config)

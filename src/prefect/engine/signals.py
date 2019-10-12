@@ -33,7 +33,7 @@ class PrefectStateSignal(PrefectError):
             associated state constructor
     """
 
-    _state_cls = state.State
+    _state_cls = state.State  # type: type
 
     def __init__(self, message: str = None, *args, **kwargs):  # type: ignore
         super().__init__(message)  # type: ignore

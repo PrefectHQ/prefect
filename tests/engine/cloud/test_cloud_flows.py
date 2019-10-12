@@ -180,6 +180,7 @@ class MockedCloudClient(MagicMock):
             tr.version += 1
         else:
             raise ValueError("Invalid task run update")
+        return state
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)

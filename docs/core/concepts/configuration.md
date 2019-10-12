@@ -11,7 +11,12 @@ Any lowercase Prefect configuration key can be set by environment variable. In o
 For example, if you set `PREFECT__TASKS__DEFAULTS__MAX_RETRIES=4`, then `prefect.config.tasks.defaults.max_retries == 4`.
 
 ::: tip Interpolated keys are lowercase
-Environment variables are always interpreted as lowercase configuration keys.
+Environment variables are always interpreted as lowercase configuration keys, _except_ whenever they are specifying local secrets.  For example,
+```
+export PREFECT__LOGGING__LEVEL="INFO"
+export PREFECT__CONTEXT__SECRETS__my_KEY="val"
+```
+will result in two configuration settings: one for `config.logging.level` and one for `config.context.secrets.my_KEY` (note that the casing on the latter is preserved).
 :::
 
 ### Automatic type casting

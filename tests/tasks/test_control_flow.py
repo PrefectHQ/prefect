@@ -95,6 +95,29 @@ def test_merging_diamond_flow():
         assert isinstance(state.result[merge_task], Success)
 
 
+def test_merging_with_objects_that_cant_be_equality_compared():
+    class SpecialObject:
+        def __eq__(self, other):
+            return self
+
+        def __bool__(self):
+            raise SyntaxError("You can't handle the truth!")
+
+    @task
+    def return_array():
+        return SpecialObject()
+
+    with Flow("test-merge") as flow:
+        success = SuccessTask()
+        ifelse(Condition(), success, return_array)
+        merge_task = merge(success, return_array)
+
+    with prefect.context(CONDITION=False):
+        flow_state = flow.run()
+    assert flow_state.is_successful()
+    assert isinstance(flow_state.result[merge_task].result, SpecialObject)
+
+
 def test_list_of_tasks():
     """
     Test that a list of tasks can be set as a switch condition
@@ -134,8 +157,14 @@ def test_merge_with_upstream_skip_arg_raises_error():
 
 def test_merge_diamond_flow_with_results():
     condition = Condition()
-    true_branch = Constant(1)
-    false_branch = Constant(0)
+
+    @task
+    def true_branch():
+        return 1
+
+    @task
+    def false_branch():
+        return 0
 
     with Flow(name="test") as flow:
         ifelse(condition, true_branch, false_branch)
@@ -156,8 +185,14 @@ def test_merge_diamond_flow_with_results():
 
 def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
     condition = Condition()
-    true_branch = Constant(None)
-    false_branch = Constant(0)
+
+    @task
+    def true_branch():
+        return None
+
+    @task
+    def false_branch():
+        return 0
 
     with Flow(name="test") as flow:
         ifelse(condition, true_branch, false_branch)
@@ -169,11 +204,16 @@ def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
 
 
 def test_merge_with_list():
+    @task
+    def false_branch():
+        return 0
+
+    @task
+    def true_branch():
+        return [1, 2]
+
     with Flow(name="test") as flow:
         condition = Condition()
-        true_branch = prefect.utilities.tasks.as_task([Constant(1), Constant(2)])
-        false_branch = Constant(0)
-
         ifelse(condition, true_branch, false_branch)
         merge_task = merge(true_branch, false_branch)
 

@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytest.importorskip("boto3")
-
-from botocore.exceptions import ClientError
-
-
 from prefect.agent.fargate import FargateAgent
 from prefect.environments.storage import Docker
 from prefect.utilities.graphql import GraphQLResult
+
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
+from botocore.exceptions import ClientError
 
 
 def test_ecs_agent_init(monkeypatch, runner_token):
@@ -44,6 +44,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -66,6 +67,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         "ecs",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
     )
 
@@ -76,6 +78,7 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "token")
     monkeypatch.setenv("REGION_NAME", "region")
     monkeypatch.setenv("CLUSTER", "cluster")
     monkeypatch.setenv("REPOSITORY_CREDENTIALS", "repo")
@@ -95,6 +98,7 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
         "ecs",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
     )
 
@@ -156,6 +160,7 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -291,6 +296,7 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
