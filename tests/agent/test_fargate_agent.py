@@ -15,22 +15,33 @@ from botocore.exceptions import ClientError
 def test_ecs_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+    monkeypatch.setenv("EXECUTION_ROLE_ARN", "execution_role_arn")
 
     agent = FargateAgent()
     assert agent
     assert agent.boto3_client
 
 
+def test_ecs_agent_init_execution_role_arn_not_set(monkeypatch, runner_token):
+    with pytest.raises(Exception):
+        boto3_client = MagicMock()
+        monkeypatch.setattr("boto3.client", boto3_client)
+
+        agent = FargateAgent()
+
+
 def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     assert agent
     assert agent.cluster == "default"
     assert not agent.subnets
     assert not agent.security_groups
     assert not agent.repository_credentials
+    assert not agent.task_role_arn
+    assert agent.execution_role_arn == "ecsTaskExecutionRole"
     assert agent.assign_public_ip == "ENABLED"
     assert agent.task_cpu == "256"
     assert agent.task_memory == "512"
@@ -45,6 +56,8 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -55,6 +68,8 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         task_memory="2",
     )
     assert agent
+    assert agent.task_role_arn == "task_role_arn"
+    assert agent.execution_role_arn == "execution_role_arn"
     assert agent.cluster == "cluster"
     assert agent.subnets == ["subnet"]
     assert agent.security_groups == ["security_group"]
@@ -79,6 +94,8 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "token")
+    monkeypatch.setenv("TASK_ROLE_ARN", "task_role_arn")
+    monkeypatch.setenv("EXECUTION_ROLE_ARN", "execution_role_arn")
     monkeypatch.setenv("REGION_NAME", "region")
     monkeypatch.setenv("CLUSTER", "cluster")
     monkeypatch.setenv("REPOSITORY_CREDENTIALS", "repo")
@@ -88,6 +105,8 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
+    assert agent.execution_role_arn == "execution_role_arn"
+    assert agent.task_role_arn == "task_role_arn"
     assert agent.cluster == "cluster"
     assert agent.repository_credentials == "repo"
     assert agent.assign_public_ip == "DISABLED"
@@ -113,7 +132,7 @@ def test_default_subnets(monkeypatch, runner_token):
     }
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     assert agent.subnets == ["id"]
 
 
@@ -125,7 +144,7 @@ def test_deploy_flows(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -161,6 +180,8 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -221,7 +242,7 @@ def test_deploy_flows_no_security_group(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -257,7 +278,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -297,6 +318,8 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -374,7 +397,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(

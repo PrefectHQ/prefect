@@ -60,7 +60,7 @@ agent = FargateAgent(
         aws_secret_access_key="MY_SECRET",
         aws_session_token="MY_SESSION",
         region_name="MY_REGION",
-        cluser="MY_CLUSTER"
+        cluster="MY_CLUSTER"
         )
 
 agent.start()
@@ -98,10 +98,12 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_access_key_id (str, optional): AWS access key id for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_ACCESS_KEY_ID`.
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
+- task_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf. Defaults to the value set in the environment variable `TASK_ROLE_ARN`.
+- execution_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the task execution role that containers in this task can assume. Defaults to the value set in the environment variable `EXECUTION_ROLE_ARN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
 - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the value set in the environment variable `CLUSTER`.
-- subnets (list, optional): A list of AWS VPC subnets to use for the tasks that are deployed on Fargate. Defaults to the subnets found which have `MapPublicIpOnLaunch` disabled.
-- security_groups (list, optional): A list of security groups to associate with the deployed tasks. Defaults to the default security group of the VPC.
+- subnets (list, optional): A list of AWS VPC subnets to use for the tasks that are deployed on Fargate. Defaults to the value set in the environment variable `SUBNETS`.
+- security_groups (list, optional): A list of security groups to associate with the deployed tasks. Defaults to the value set in the environment variable `SECURITY_GROUPS`.
 - repository_credentials (str, optional): An Amazon Resource Name (ARN) of the secret containing the private repository credentials. Defaults to the value set in the environment variable `REPOSITORY_CREDENTIALS`.
 - assign_public_ip (str, optional): Whether the task's elastic network interface receives a public IP address. Defaults to the value set in the environment variable `ASSIGN_PUBLIC_IP` or `ENABLED` otherwise.
 - task_cpu (str, optional): The number of cpu units reserved for the container. Defaults to the value set in the environment variable `TASK_CPU` or `256` otherwise.
