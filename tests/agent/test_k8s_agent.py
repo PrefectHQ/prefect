@@ -22,6 +22,7 @@ def test_k8s_agent_init(monkeypatch, runner_token):
 
     agent = KubernetesAgent()
     assert agent
+    assert agent.name == "agent"
     assert agent.batch_client
 
 
@@ -30,8 +31,9 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = KubernetesAgent()
+        agent = KubernetesAgent(name="test")
         assert agent
+        assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.batch_client
