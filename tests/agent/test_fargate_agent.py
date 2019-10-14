@@ -15,33 +15,24 @@ from botocore.exceptions import ClientError
 def test_ecs_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
-    monkeypatch.setenv("EXECUTION_ROLE_ARN", "execution_role_arn")
 
     agent = FargateAgent()
     assert agent
     assert agent.boto3_client
 
 
-def test_ecs_agent_init_execution_role_arn_not_set(monkeypatch, runner_token):
-    with pytest.raises(Exception):
-        boto3_client = MagicMock()
-        monkeypatch.setattr("boto3.client", boto3_client)
-
-        agent = FargateAgent()
-
-
 def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     assert agent
     assert agent.cluster == "default"
     assert not agent.subnets
     assert not agent.security_groups
     assert not agent.repository_credentials
     assert not agent.task_role_arn
-    assert agent.execution_role_arn == "ecsTaskExecutionRole"
+    assert not agent.execution_role_arn
     assert agent.assign_public_ip == "ENABLED"
     assert agent.task_cpu == "256"
     assert agent.task_memory == "512"
@@ -132,7 +123,7 @@ def test_default_subnets(monkeypatch, runner_token):
     }
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     assert agent.subnets == ["id"]
 
 
@@ -144,7 +135,7 @@ def test_deploy_flows(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -242,7 +233,7 @@ def test_deploy_flows_no_security_group(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -278,7 +269,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
@@ -397,7 +388,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent(execution_role_arn="ecsTaskExecutionRole")
+    agent = FargateAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(

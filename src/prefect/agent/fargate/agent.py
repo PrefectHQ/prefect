@@ -89,10 +89,9 @@ class FargateAgent(Agent):
 
         self.execution_role_arn = execution_role_arn or os.getenv("EXECUTION_ROLE_ARN")
         if not self.execution_role_arn:
-            self.logger.exception(
+            self.logger.warning(
                 "Fargate requires task definition to have execution role ARN to support ECR images"
             )
-            raise Exception("Fargate task execution role required")
         self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
 
         self.cluster = cluster or os.getenv("CLUSTER", "default")
@@ -101,7 +100,7 @@ class FargateAgent(Agent):
         if subnets:
             self.subnets = subnets
         elif os.getenv("SUBNETS"):
-            self.subnets = os.getenv("SUBNETS").split(",")
+            self.subnets = str(os.getenv("SUBNETS")).split(",")
         else:
             self.subnets = []
         self.logger.debug("Subnets {}".format(self.subnets))
@@ -109,7 +108,7 @@ class FargateAgent(Agent):
         if security_groups:
             self.security_groups = security_groups
         elif os.getenv("SECURITY_GROUPS"):
-            self.security_groups = os.getenv("SECURITY_GROUPS").split(",")
+            self.security_groups = str(os.getenv("SECURITY_GROUPS")).split(",")
         else:
             self.security_groups = []
         self.logger.debug("Security groups {}".format(self.security_groups))
