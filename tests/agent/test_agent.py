@@ -34,11 +34,11 @@ def test_agent_name_set_options(runner_token, monkeypatch):
     assert agent.name == "test1"
     assert agent.logger.name == "test1"
 
-    # Environment var
-    monkeypatch.setenv("AGENT_NAME", "test2")
-    agent = Agent()
-    assert agent.name == "test2"
-    assert agent.logger.name == "test2"
+    # Config
+    with set_temporary_config({"cloud.agent.name": "test2"}):
+        agent = Agent()
+        assert agent.name == "test2"
+        assert agent.logger.name == "test2"
 
 
 def test_agent_log_level(runner_token):

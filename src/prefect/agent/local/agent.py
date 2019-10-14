@@ -16,7 +16,7 @@ class LocalAgent(Agent):
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `AGENT_NAME`. Defaults to "agent"
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided

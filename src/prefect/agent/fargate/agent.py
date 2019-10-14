@@ -15,7 +15,7 @@ class FargateAgent(Agent):
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `AGENT_NAME`. Defaults to "agent"
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.

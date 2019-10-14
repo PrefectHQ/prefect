@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from typing import Union
 
@@ -38,11 +37,11 @@ class Agent:
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `AGENT_NAME`. Defaults to "agent"
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
     """
 
     def __init__(self, name: str = None) -> None:
-        self.name = name or os.getenv("AGENT_NAME", "agent")
+        self.name = name or config.cloud.agent.get("name", "agent")
 
         token = config.cloud.agent.get("auth_token")
 
