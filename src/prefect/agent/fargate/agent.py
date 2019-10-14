@@ -14,6 +14,8 @@ class FargateAgent(Agent):
     Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `AGENT_NAME`. Defaults to "agent"
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
@@ -48,6 +50,7 @@ class FargateAgent(Agent):
 
     def __init__(
         self,
+        name: str = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -60,7 +63,7 @@ class FargateAgent(Agent):
         task_cpu: str = None,
         task_memory: str = None,
     ) -> None:
-        super().__init__()
+        super().__init__(name=name)
 
         from boto3 import client as boto3_client
 

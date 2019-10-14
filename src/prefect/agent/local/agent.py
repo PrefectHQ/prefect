@@ -15,6 +15,8 @@ class LocalAgent(Agent):
     Local Agent can be found at https://docs.prefect.io/cloud/agent/local.html
 
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `AGENT_NAME`. Defaults to "agent"
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -22,8 +24,10 @@ class LocalAgent(Agent):
             Defaults to `False` if not provided here or in context.
     """
 
-    def __init__(self, base_url: str = None, no_pull: bool = None) -> None:
-        super().__init__()
+    def __init__(
+        self, name: str = None, base_url: str = None, no_pull: bool = None
+    ) -> None:
+        super().__init__(name=name)
 
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"

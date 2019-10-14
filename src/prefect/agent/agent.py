@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Union
 
@@ -34,16 +35,21 @@ class Agent:
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
     environment variable or in your user configuration file.
+
+    Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `AGENT_NAME`. Defaults to "agent"
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = None) -> None:
+        self.name = name or os.getenv("AGENT_NAME", "agent")
 
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
         self._verify_token(token)
 
-        logger = logging.getLogger("agent")
+        logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
         ch = logging.StreamHandler()
         formatter = logging.Formatter(
