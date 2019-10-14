@@ -25,15 +25,23 @@ class FargateAgent(Agent):
         - aws_session_token (str, optional): AWS session key for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_SESSION_TOKEN`.
+        - task_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the AWS
+            Identity and Access Management (IAM) role that grants containers in the
+            task permission to call AWS APIs on your behalf. Defaults to the value set
+             in the environment variable `TASK_ROLE_ARN`.
+        - execution_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the
+            task execution role that containers in this task can assume. Defaults to
+             the value set in the environment variable `EXECUTION_ROLE_ARN`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME`.
         - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the
             value set in the environment variable `CLUSTER`.
         - subnets (list, optional): A list of AWS VPC subnets to use for the tasks that
-            are deployed on Fargate. Defaults to the subnets found which have
-            `MapPublicIpOnLaunch` disabled.
+            are deployed on Fargate. Defaults to the value set in the environment
+            variable `SUBNETS`.
         - security_groups (list, optional): A list of security groups to associate with
-            the deployed tasks. Defaults to the default security group of the VPC.
+            the deployed tasks. Defaults to the value set in the environment variable
+            `SECURITY_GROUPS`.
         - repository_credentials (str, optional): An Amazon Resource Name (ARN) of the
             secret containing the private repository credentials. Defaults to the value
             set in the environment variable `REPOSITORY_CREDENTIALS`.
@@ -54,6 +62,8 @@ class FargateAgent(Agent):
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
+        task_role_arn: str = None,
+        execution_role_arn: str = None,
         region_name: str = None,
         cluster: str = None,
         subnets: list = None,
@@ -76,13 +86,33 @@ class FargateAgent(Agent):
         region_name = region_name or os.getenv("REGION_NAME")
 
         # Agent task config
+        self.task_role_arn = task_role_arn or os.getenv("TASK_ROLE_ARN")
+        self.logger.debug("Task role arn {}".format(self.task_role_arn))
+
+        self.execution_role_arn = execution_role_arn or os.getenv("EXECUTION_ROLE_ARN")
+        if not self.execution_role_arn:
+            self.logger.warning(
+                "Fargate requires task definition to have execution role ARN to support ECR images"
+            )
+        self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
+
         self.cluster = cluster or os.getenv("CLUSTER", "default")
         self.logger.debug("Cluster {}".format(self.cluster))
 
-        self.subnets = subnets or []
+        if subnets:
+            self.subnets = subnets
+        elif os.getenv("SUBNETS"):
+            self.subnets = str(os.getenv("SUBNETS")).split(",")
+        else:
+            self.subnets = []
         self.logger.debug("Subnets {}".format(self.subnets))
 
-        self.security_groups = security_groups or []
+        if security_groups:
+            self.security_groups = security_groups
+        elif os.getenv("SECURITY_GROUPS"):
+            self.security_groups = str(os.getenv("SECURITY_GROUPS")).split(",")
+        else:
+            self.security_groups = []
         self.logger.debug("Security groups {}".format(self.security_groups))
 
         self.repository_credentials = repository_credentials or os.getenv(
@@ -113,7 +143,7 @@ class FargateAgent(Agent):
         )
 
         # Look for default subnets with `MapPublicIpOnLaunch` disabled
-        if not subnets:
+        if not self.subnets:
             self.logger.debug("No subnets provided, finding defaults")
             ec2 = boto3_client(
                 "ec2",
@@ -242,6 +272,8 @@ class FargateAgent(Agent):
             networkMode="awsvpc",
             cpu=self.task_cpu,
             memory=self.task_memory,
+            taskRoleArn=self.task_role_arn,
+            executionRoleArn=self.execution_role_arn,
         )
 
     def _run_task(self, flow_run: GraphQLResult) -> None:

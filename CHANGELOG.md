@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Changes to Fargate agent to support temporary credentials and IAM role based credentials within AWS compute such as a container or ec2 instance. [#1607](https://github.com/PrefectHQ/prefect/pull/1607)
 - Local Secrets set through environment variable now retain their casing - [#1601](https://github.com/PrefectHQ/prefect/issues/1601)
 - Agents can accept an optional `name` for logging and debugging - [#1612](https://github.com/PrefectHQ/prefect/pull/1612)
+- Added AWS configuration options for Fargate Agent (task_role_arn, execution_role_arn) - [#1614](https://github.com/PrefectHQ/prefect/pull/1614)
 
 ### Task Library
 
@@ -37,7 +38,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Mark McDonald](https://github.com/mhmcdonal)
 
 ## 0.6.6 <Badge text="beta" type="success"/>
 
