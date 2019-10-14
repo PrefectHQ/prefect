@@ -14,7 +14,6 @@ class FargateAgent(Agent):
     Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
     Args:
-
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
@@ -28,7 +27,7 @@ class FargateAgent(Agent):
             Identity and Access Management (IAM) role that grants containers in the
             task permission to call AWS APIs on your behalf. Defaults to the value set
              in the environment variable `TASK_ROLE_ARN`.
-        - execution_role_arn (str, required): AWS Amazon Resource Name (ARN) of the
+        - execution_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the
             task execution role that containers in this task can assume. Defaults to
              the value set in the environment variable `EXECUTION_ROLE_ARN`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
