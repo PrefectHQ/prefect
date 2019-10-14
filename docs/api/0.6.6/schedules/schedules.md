@@ -22,7 +22,7 @@ schedule = Schedule(
     or_filters=[time_between(Time(9), Time(9)), time_between(Time(17), Time(17))]
 )
 
-schedule.next(4) # returns the next 4 occurances of 9am and 5pm on weekdays
+schedule.next(4) # returns the next 4 occurences of 9am and 5pm on weekdays
 
 ```
 
