@@ -20,3 +20,21 @@ Task for downloading data from an Blob Storage container and returning it as a s
 Task for uploading string data (e.g., a JSON string) to an Blob Storage. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
 [API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-blobstorage-blobstorageupload)
+
+## CosmosDBCreateItem <Badge text="task"/>
+
+Task for creating an item in a Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbcreateitem)
+
+## CosmosDBReadItems <Badge text="task"/>
+
+Task for reading items from a Azure Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbreaditems)
+
+## CosmosDBQueryItems <Badge text="task"/>
+
+Task for querying items from a Azure Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbqueryitems)

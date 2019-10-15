@@ -7,6 +7,11 @@ document with two keys: `"ACCOUNT_NAME"` and either `"ACCOUNT_KEY"` or `"SAS_TOK
 
 try:
     from prefect.tasks.azure.blobstorage import BlobStorageDownload, BlobStorageUpload
+    from prefect.tasks.azure.cosmosdb import (
+        CosmosDBCreateItem,
+        CosmosDBReadItems,
+        CosmosDBQueryItems,
+    )
 except ImportError:
     raise ImportError(
         'Using `prefect.tasks.azure` requires Prefect to be installed with the "azure" extra.'

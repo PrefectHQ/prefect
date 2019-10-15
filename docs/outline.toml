@@ -197,7 +197,11 @@ classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInv
 [pages.tasks.azure]
 title = "Azure Tasks"
 module = "prefect.tasks.azure"
-classes = ["BlobStorageDownload", "BlobStorageUpload"]
+classes = ["BlobStorageDownload", 
+           "BlobStorageUpload", 
+           "CosmosDBCreateItem", 
+           "CosmosDBReadItems", 
+           "CosmosDBQueryItems"]
 
 [pages.tasks.azureml]
 title = "Azure ML Service Tasks"
