@@ -27,6 +27,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
     agent = FargateAgent()
     assert agent
+    assert agent.name == "agent"
     assert agent.cluster == "default"
     assert not agent.subnets
     assert not agent.security_groups
@@ -44,6 +45,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = FargateAgent(
+        name="test",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
@@ -59,6 +61,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         task_memory="2",
     )
     assert agent
+    assert agent.name == "test"
     assert agent.task_role_arn == "task_role_arn"
     assert agent.execution_role_arn == "execution_role_arn"
     assert agent.cluster == "cluster"
