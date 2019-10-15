@@ -284,7 +284,7 @@ classes = [
 [pages.tasks.notifications]
 title = "Notification Tasks"
 module = "prefect.tasks.notifications"
-classes = ["EmailTask", "SlackTask"]
+classes = ["GmailTask", "SlackTask"]
 
 [pages.tasks.postgres]
 title = "Postgres Tasks"

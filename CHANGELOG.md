@@ -34,10 +34,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Local Secrets set through environment variable now retain their casing - [#1601](https://github.com/PrefectHQ/prefect/issues/1601)
+- Changed `prefect.tasks.notifications.email_task.EmailTask` to `prefect.tasks.notifications.gmail_task.GmailTask`
 
 ### Contributors
 
-- None
+- [Sherman K](https://github.com/shrmnk)
 
 ## 0.6.6 <Badge text="beta" type="success"/>
 

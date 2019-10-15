@@ -9,7 +9,7 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class EmailTask(Task):
+class GmailTask(Task):
     """
     Task for sending email from an authenticated Gmail address.  For this task to function properly,
     you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect Secrets set.  It is recommended
