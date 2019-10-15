@@ -5,7 +5,6 @@ import pytest
 import azure.storage.blob
 import prefect
 from prefect.tasks.azure import BlobStorageDownload, BlobStorageUpload
-from prefect.tasks.azure.blobstorage import BlobStorageUpload
 from prefect.utilities.configuration import set_temporary_config
 
 
