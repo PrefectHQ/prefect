@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 
 import azure.cosmos.cosmos_client
 from azure.cosmos.query_iterable import QueryIterable
@@ -150,7 +150,7 @@ class CosmosDBReadItems(Task):
         document_or_container_link: str = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
         options: Dict[Any, Any] = None,
-    ) -> Union[Dict[Any, Any], QueryIterable]:
+    ) -> Union[Dict[Any, Any], List[Dict[Any, Any]]]:
         """
         Task run method.
 
@@ -169,7 +169,7 @@ class CosmosDBReadItems(Task):
                 `azure.cosmos.cosmos_client.CosmosClient.ReadItem` or `ReadItems` method.
 
         Returns:
-            - (dict or azure.cosmos.query_iterable.QueryIterable)): a single document or all documents. 
+            - (dict or list)): a single document or all documents. 
         """
 
         if url is None:
@@ -191,6 +191,7 @@ class CosmosDBReadItems(Task):
             return_obj = client.ReadItems(
                 document_or_container_link, feed_options=options
             )
+            return_obj = list(return_obj)
 
         return return_obj
 
@@ -265,7 +266,7 @@ class CosmosDBQueryItems(Task):
         azure_credentials_secret: str = "AZ_CREDENTIALS",
         options: Dict[Any, Any] = None,
         partition_key: str = None,
-    ) -> QueryIterable:
+    ) -> List:
         """
         Task run method.
 
@@ -284,7 +285,7 @@ class CosmosDBQueryItems(Task):
             - partition_key (str, None): Partition key for the query.
 
         Returns:
-            - (azure.cosmos.query_iterable.QueryIterable)): the query result
+            - (list): a list containing the query results, one item per row.  
         """
 
         if url is None:
@@ -310,4 +311,4 @@ class CosmosDBQueryItems(Task):
             partition_key=partition_key,
         )
 
-        return items
+        return list(items)
