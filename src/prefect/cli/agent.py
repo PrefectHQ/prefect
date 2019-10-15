@@ -51,7 +51,12 @@ def agent():
     "--verbose", "-v", is_flag=True, help="Enable verbose agent logs.", hidden=True
 )
 @click.option(
-    "--name", "-n", required=False, help="A name to use for the agent", hidden=True
+    "--name",
+    "-n",
+    required=False,
+    help="A name to use for the agent",
+    hidden=True,
+    default=None,
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
