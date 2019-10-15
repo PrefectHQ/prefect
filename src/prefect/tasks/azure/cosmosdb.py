@@ -88,7 +88,7 @@ class CosmosDBCreateItem(Task):
             raise ValueError("A database or container link must be provided.")
 
         if item is None:
-            raise ValueError("A item must be provided.")
+            raise ValueError("An item must be provided.")
 
         azure_credentials = Secret(azure_credentials_secret).get()
         auth_dict = azure_credentials["AZ_COSMOS_AUTH"]
