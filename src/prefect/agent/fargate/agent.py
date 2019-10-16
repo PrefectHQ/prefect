@@ -14,7 +14,8 @@ class FargateAgent(Agent):
     Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
     Args:
-
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
@@ -28,7 +29,7 @@ class FargateAgent(Agent):
             Identity and Access Management (IAM) role that grants containers in the
             task permission to call AWS APIs on your behalf. Defaults to the value set
              in the environment variable `TASK_ROLE_ARN`.
-        - execution_role_arn (str, required): AWS Amazon Resource Name (ARN) of the
+        - execution_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the
             task execution role that containers in this task can assume. Defaults to
              the value set in the environment variable `EXECUTION_ROLE_ARN`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
@@ -57,6 +58,7 @@ class FargateAgent(Agent):
 
     def __init__(
         self,
+        name: str = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -71,7 +73,7 @@ class FargateAgent(Agent):
         task_cpu: str = None,
         task_memory: str = None,
     ) -> None:
-        super().__init__()
+        super().__init__(name=name)
 
         from boto3 import client as boto3_client
 
@@ -89,10 +91,9 @@ class FargateAgent(Agent):
 
         self.execution_role_arn = execution_role_arn or os.getenv("EXECUTION_ROLE_ARN")
         if not self.execution_role_arn:
-            self.logger.exception(
+            self.logger.warning(
                 "Fargate requires task definition to have execution role ARN to support ECR images"
             )
-            raise Exception("Fargate task execution role required")
         self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
 
         self.cluster = cluster or os.getenv("CLUSTER", "default")
@@ -101,7 +102,7 @@ class FargateAgent(Agent):
         if subnets:
             self.subnets = subnets
         elif os.getenv("SUBNETS"):
-            self.subnets = os.getenv("SUBNETS").split(",")
+            self.subnets = str(os.getenv("SUBNETS")).split(",")
         else:
             self.subnets = []
         self.logger.debug("Subnets {}".format(self.subnets))
@@ -109,7 +110,7 @@ class FargateAgent(Agent):
         if security_groups:
             self.security_groups = security_groups
         elif os.getenv("SECURITY_GROUPS"):
-            self.security_groups = os.getenv("SECURITY_GROUPS").split(",")
+            self.security_groups = str(os.getenv("SECURITY_GROUPS")).split(",")
         else:
             self.security_groups = []
         self.logger.debug("Security groups {}".format(self.security_groups))
