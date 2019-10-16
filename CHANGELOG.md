@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Add `return_all` kwarg to `ShellTask` for optionally returning all lines of stdout - [#1598](https://github.com/PrefectHQ/prefect/pull/1598)
+- Add `CosmosDBCreateItem`, `CosmosDBReadItems`, `CosmosDBQueryItems` and  for interacting with data stored on Azure Cosmos DB - [#1617](https://github.com/PrefectHQ/prefect/pull/1617)
 
 ### Fixes
 
