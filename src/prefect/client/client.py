@@ -1017,6 +1017,30 @@ class Client:
         if not result.data.updateTaskTagLimit.id:
             raise ValueError("Updating the task tag concurrency limit failed.")
 
+    def delete_task_tag_limit(self, limit_id: str) -> None:
+        """
+        Deletes a given task tag concurrency limit; requires tenant admin permissions.
+
+        Args:
+            - limit (str): the ID of the tag to delete
+
+        Raises:
+            - ClientError: if the GraphQL mutation is bad for any reason
+            - ValueError: if the tag deletion was unsuccessful, or if a bad tag ID was provided
+        """
+        mutation = {
+            "mutation($input: deleteTaskTagLimitInput!)": {
+                "deleteTaskTagLimit(input: $input)": {"success"}
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(limitId=limit_id))
+        )  # type: Any
+
+        if not result.data.deleteTaskTagLimit.success:
+            raise ValueError("Deleting the task tag concurrency limit failed.")
+
     def write_run_log(
         self,
         flow_run_id: str,
