@@ -1022,7 +1022,7 @@ class Client:
         Deletes a given task tag concurrency limit; requires tenant admin permissions.
 
         Args:
-            - limit (str): the ID of the tag to delete
+            - limit_id (str): the ID of the tag to delete
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
