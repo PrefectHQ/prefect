@@ -109,4 +109,4 @@ class ShellTask(prefect.Task):
         if self.return_all:
             return lines
         else:
-            return line
+            return lines[-1]
