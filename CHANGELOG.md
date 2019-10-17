@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
+- Add a "Ask for help" button with a link to the prefect.io support page [#1637](https://github.com/PrefectHQ/prefect/pull/1637)
 
 ### Task Library
 
