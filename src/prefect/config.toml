@@ -11,11 +11,13 @@ api = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
+queue_interval = 30.0
 
     [cloud.agent]
     # Agents require different API tokens
     auth_token = ""
     level = "INFO"
+    name = "agent"
 
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers

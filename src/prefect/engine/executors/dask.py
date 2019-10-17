@@ -1,4 +1,3 @@
-import dask
 import datetime
 import logging
 import queue
@@ -7,6 +6,7 @@ import warnings
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, List
 
+import dask
 from distributed import Client, Future, fire_and_forget, worker_client
 
 from prefect import context
@@ -67,12 +67,12 @@ class DaskExecutor(Executor):
         Creates a `dask.distributed.Client` and yields it.
         """
         try:
-            self.kwargs.update(
-                silence_logs=logging.CRITICAL if not self.debug else logging.WARNING
-            )
-            with Client(
-                self.address, processes=self.local_processes, **self.kwargs
-            ) as client:
+            if self.address is None:
+                self.kwargs.update(
+                    silence_logs=logging.CRITICAL if not self.debug else logging.WARNING
+                )
+                self.kwargs.update(processes=self.local_processes)
+            with Client(self.address, **self.kwargs) as client:
                 self.client = client
                 self.is_started = True
                 yield self.client

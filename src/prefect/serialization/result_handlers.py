@@ -4,12 +4,12 @@ from typing import Any, Dict, Optional
 from marshmallow import ValidationError, fields, post_load
 
 from prefect.engine.result_handlers import (
+    AzureResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
-    AzureResultHandler,
 )
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -34,9 +34,9 @@ class CustomResultHandlerSchema(ObjectSchema):
     )
 
     @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> None:
+    def create_object(self, data: dict, **kwargs: Any) -> ResultHandler:
         """Because we cannot deserialize a custom class, just return `None`"""
-        return None
+        return ResultHandler()
 
 
 class GCSResultHandlerSchema(BaseResultHandlerSchema):

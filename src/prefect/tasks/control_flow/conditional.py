@@ -3,7 +3,7 @@ from typing import Any, Dict
 import prefect
 from prefect import Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResultType
 
 __all__ = ["switch", "ifelse"]
 
@@ -15,7 +15,9 @@ class Merge(Task):
         super().__init__(**kwargs)
 
     def run(self, **task_results: Any) -> Any:
-        return next((v for v in task_results.values() if v != NoResult), None)
+        return next(
+            (v for v in task_results.values() if not isinstance(v, NoResultType)), None
+        )
 
 
 class CompareValue(Task):
@@ -55,6 +57,24 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     dictionary. The task corresponding to the matching key is run; all other tasks are
     skipped. Any tasks downstream of the skipped tasks are also skipped unless they set
     `skip_on_upstream_skip=False`.
+
+    Example:
+    ```python
+    @task
+    def condition():
+        return "b"    # returning 'b' will take the b_branch
+
+    @task
+    def a_branch():
+        return "A Branch"
+
+    @task
+    def b_branch():
+        return "B Branch"
+
+    with Flow("switch-flow") as flow:
+        switch(condition, dict(a=a_branch, b=b_branch))
+    ```
 
     Args:
         - condition (Task): a task whose result forms the condition for the switch

@@ -58,6 +58,7 @@ def test_create_state_with_no_args(cls):
     state = cls()
     assert state.message is None
     assert state.result == NoResult
+    assert state.context == dict()
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -69,6 +70,13 @@ def test_create_state_with_kwarg_data_arg(cls):
     assert state.result == 1
     assert state.message is None
     assert isinstance(state._result, Result)
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_kwarg_context(cls):
+    state = cls(context={"my-keys": "my-vals"})
+    assert state.message is None
+    assert state.context == {"my-keys": "my-vals"}
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -105,6 +113,19 @@ def test_create_state_with_data_and_error(cls):
     assert "division by zero" in str(state.message)
 
 
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_tags_in_context(cls):
+    with prefect.context(task_tags=set("abcdef")):
+        state = cls()
+    assert state.message is None
+    assert state.result == NoResult
+    assert state.context == dict(tags=list(set("abcdef")))
+
+    with prefect.context(task_tags=set("abcdef")):
+        state = cls(context={"tags": ["foo"]})
+    assert state.context == dict(tags=["foo"])
+
+
 def test_scheduled_states_have_default_times():
     now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
@@ -133,6 +154,25 @@ def test_only_scheduled_and_queued_states_have_start_times(cls):
         assert isinstance(state, Scheduled) or isinstance(state, Queued)
         if isinstance(state, Scheduled):
             assert state.is_scheduled()
+    else:
+        assert not isinstance(state, Scheduled)
+        assert not state.is_scheduled()
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_only_scheduled_states_have_task_run_count_in_context(cls):
+    """
+    Storing task_run_count in state.context provides a way of communicating
+    the current run_count across multiple state changes.  Persisting this data
+    in a Finished state causes the run count to "freeze" across runs.
+    """
+    with prefect.context(task_run_count=910):
+        state = cls()
+
+    if state.context.get("task_run_count") is not None:
+        assert isinstance(state, Scheduled)
+        assert state.is_scheduled()
+        assert state.context["task_run_count"] == 910
     else:
         assert not isinstance(state, Scheduled)
         assert not state.is_scheduled()
@@ -226,13 +266,24 @@ def test_serialize_and_deserialize_on_safe_cached_state():
     assert new_state.cached_inputs == state.cached_inputs
 
 
-def test_serialization_of_cached_inputs():
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_serialization_of_cached_inputs_with_safe_values(cls):
     safe5 = SafeResult(5, result_handler=JSONResultHandler())
-    state = Pending(cached_inputs=dict(hi=safe5, bye=safe5))
+    state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
-    assert isinstance(new_state, Pending)
+    assert isinstance(new_state, cls)
     assert new_state.cached_inputs == state.cached_inputs
+
+
+@pytest.mark.parametrize("cls", cached_input_states)
+def test_serialization_of_cached_inputs_with_unsafe_values(cls):
+    unsafe5 = Result(5, result_handler=JSONResultHandler())
+    state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
+    serialized = state.serialize()
+    new_state = State.deserialize(serialized)
+    assert isinstance(new_state, cls)
+    assert new_state.cached_inputs == dict(hi=NoResult, bye=NoResult)
 
 
 def test_state_equality():
@@ -244,6 +295,12 @@ def test_state_equality():
     assert Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=1))
     assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(x=2))
     assert not Pending(cached_inputs=dict(x=1)) == Pending(cached_inputs=dict(y=1))
+
+
+def test_state_equality_ignores_context():
+    s, r = State(result=1), State(result=1)
+    s.context["key"] = "value"
+    assert s == r
 
 
 def test_state_equality_ignores_message():
@@ -336,7 +393,7 @@ class TestStateHierarchy:
         dict(state=Mapped(), assert_true={"is_finished", "is_mapped", "is_successful"}),
         dict(state=Paused(), assert_true={"is_pending", "is_scheduled"}),
         dict(state=Pending(), assert_true={"is_pending"}),
-        dict(state=Queued(), assert_true={"is_meta_state"}),
+        dict(state=Queued(), assert_true={"is_meta_state", "is_queued"}),
         dict(state=Resume(), assert_true={"is_pending", "is_scheduled"}),
         dict(
             state=Retrying(), assert_true={"is_pending", "is_scheduled", "is_retrying"}

@@ -144,7 +144,7 @@ class TaskRunner(Runner):
         if isinstance(state, Retrying):
             run_count = state.run_count + 1
         else:
-            run_count = 1
+            run_count = state.context.get("task_run_count", 1)
 
         if isinstance(state, Resume):
             context.update(resume=True)
@@ -306,13 +306,9 @@ class TaskRunner(Runner):
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
-            if exc.state.is_pending():
+            if exc.state.is_pending() or exc.state.is_failed():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
-            if not isinstance(exc, ENDRUN) and prefect.context.get(
-                "raise_on_exception"
-            ):
-                raise exc
 
         except Exception as exc:
             msg = "Task '{name}': unexpected error while running task: {exc}".format(
@@ -581,23 +577,28 @@ class TaskRunner(Runner):
 
         """
         task_inputs = {}  # type: Dict[str, Result]
+        handlers = {}  # type: Dict[str, ResultHandler]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
+                handlers[edge.key] = handler = getattr(
+                    edge.upstream_task, "result_handler", None
+                )
                 task_inputs[  # type: ignore
                     edge.key
-                ] = upstream_state._result.to_result()  # type: ignore
+                ] = upstream_state._result.to_result(  # type: ignore
+                    handler
+                )  # type: ignore
 
         if state.is_pending() and state.cached_inputs is not None:  # type: ignore
             task_inputs.update(
                 {
-                    k: r.to_result()
+                    k: r.to_result(handlers.get(k))
                     for k, r in state.cached_inputs.items()  # type: ignore
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
-
         return task_inputs
 
     @call_state_handlers
@@ -622,7 +623,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.to_result()
+                state._result = state._result.to_result(self.task.result_handler)
                 return state
             else:
                 state = Pending("Cache was invalid; ready to run.")
@@ -636,7 +637,9 @@ class TaskRunner(Runner):
                 if self.task.cache_validator(
                     candidate, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate._result = candidate._result.to_result()
+                    candidate._result = candidate._result.to_result(
+                        self.task.result_handler
+                    )
                     return candidate
 
         if self.task.cache_for is not None:
@@ -749,9 +752,9 @@ class TaskRunner(Runner):
             initial_states = []
         initial_states.extend([None] * (len(map_upstream_states) - len(initial_states)))
 
-        current_state = Mapped(  # type: ignore
+        current_state = Mapped(
             message="Preparing to submit {} mapped tasks.".format(len(initial_states)),
-            map_states=initial_states,
+            map_states=initial_states,  # type: ignore
         )
         state = self.handle_state_change(old_state=state, new_state=current_state)
         if state is not current_state:
@@ -812,7 +815,8 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
-        return Running(message="Starting task run.")
+        new_state = Running(message="Starting task run.")
+        return new_state
 
     @run_with_heartbeat
     @call_state_handlers
@@ -901,7 +905,8 @@ class TaskRunner(Runner):
     @call_state_handlers
     def cache_result(self, state: State, inputs: Dict[str, Result]) -> State:
         """
-        Caches the result of a successful task, if appropriate.
+        Caches the result of a successful task, if appropriate. Alternatively,
+        if the task is failed, caches the inputs.
 
         Tasks are cached if:
             - task.cache_for is not None
@@ -917,6 +922,9 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
+        if state.is_failed():
+            state.cached_inputs = inputs  # type: ignore
+
         if (
             state.is_successful()
             and not state.is_skipped()

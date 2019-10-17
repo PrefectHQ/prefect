@@ -83,26 +83,10 @@ class TestLocalHandler:
         assert isinstance(new, LocalResultHandler)
 
 
-def test_result_handlers_must_implement_read_and_write_to_work():
-    class MyHandler(ResultHandler):
-        pass
-
-    with pytest.raises(TypeError, match="abstract methods read, write"):
-        MyHandler()
-
-    class WriteHandler(ResultHandler):
-        def write(self, val):
-            pass
-
-    with pytest.raises(TypeError, match="abstract methods read"):
-        WriteHandler()
-
-    class ReadHandler(ResultHandler):
-        def read(self, val):
-            pass
-
-    with pytest.raises(TypeError, match="abstract methods write"):
-        ReadHandler()
+def test_result_handler_base_class_is_a_passthrough():
+    handler = ResultHandler()
+    assert handler.write("foo") == "foo"
+    assert handler.read(99) == 99
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
@@ -272,7 +256,7 @@ class TestAzureResultHandler:
         with patch.dict("sys.modules", {"azure": MagicMock(storage=storage)}):
             yield service
 
-    def test_azure_service_init_uses_secrets(self, azure_service):
+    def test_azure_service_init_uses_secrets_with_account_key(self, azure_service):
         handler = AzureResultHandler(container="bob")
         assert handler.container == "bob"
         assert azure_service.called is False
@@ -283,7 +267,28 @@ class TestAzureResultHandler:
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 handler.initialize_service()
 
-        assert azure_service.call_args[1] == {"account_name": "1", "account_key": "42"}
+        assert azure_service.call_args[1] == {
+            "account_name": "1",
+            "account_key": "42",
+            "sas_token": None,
+        }
+
+    def test_azure_service_init_uses_secrets_with_sas_token(self, azure_service):
+        handler = AzureResultHandler(container="bob")
+        assert handler.container == "bob"
+        assert azure_service.called is False
+
+        with prefect.context(
+            secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME="1", SAS_TOKEN="24"))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_service()
+
+        assert azure_service.call_args[1] == {
+            "account_name": "1",
+            "sas_token": "24",
+            "account_key": None,
+        }
 
     def test_azure_service_init_uses_custom_secrets(self, azure_service):
         handler = AzureResultHandler(container="bob", azure_credentials_secret="MY_FOO")
@@ -295,7 +300,11 @@ class TestAzureResultHandler:
                 handler.initialize_service()
 
         assert handler.container == "bob"
-        assert azure_service.call_args[1] == {"account_name": 1, "account_key": 999}
+        assert azure_service.call_args[1] == {
+            "account_name": 1,
+            "account_key": 999,
+            "sas_token": None,
+        }
 
     def test_azure_service_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
         self, azure_service
@@ -308,8 +317,6 @@ class TestAzureResultHandler:
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 uri = handler.write("so-much-data")
 
-        a = azure_service.return_value
-
         used_uri = azure_service.return_value.create_blob_from_text.call_args[1][
             "blob_name"
         ]
@@ -318,7 +325,7 @@ class TestAzureResultHandler:
         assert used_uri.startswith(pendulum.now("utc").format("Y/M/D"))
         assert used_uri.endswith("prefect_result")
 
-    def test_azure_service_handler_is_pickleable(self, monkeypatch):
+    def test_azure_service_handler_is_pickleable(self):
         class service:
             def __init__(self, *args, **kwargs):
                 pass

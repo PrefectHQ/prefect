@@ -1,17 +1,15 @@
 import logging
+import time
 from typing import Union
 
 import pendulum
-import time
 
 from prefect import config
 from prefect.client import Client
-from prefect.serialization import state
 from prefect.engine.state import Submitted
+from prefect.serialization import state
 from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import with_args
-from prefect.utilities.graphql import GraphQLResult
-
+from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
  ____            __           _        _                    _
@@ -36,16 +34,21 @@ class Agent:
 
     In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
     environment variable or in your user configuration file.
+
+    Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = None) -> None:
+        self.name = name or config.cloud.agent.get("name", "agent")
 
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
         self._verify_token(token)
 
-        logger = logging.getLogger("agent")
+        logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
         ch = logging.StreamHandler()
         formatter = logging.Formatter(

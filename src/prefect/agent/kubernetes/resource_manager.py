@@ -1,14 +1,13 @@
 import logging
 import os
 import time
+from typing import TYPE_CHECKING
 
 import pendulum
 from requests.exceptions import HTTPError
 
 from prefect import Client
 from prefect import config as prefect_config
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import kubernetes
@@ -267,7 +266,6 @@ class ResourceManager:
         try:
             self.client.write_run_log(
                 flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                task_run_id="",
                 timestamp=pendulum.now(),
                 name="resource-manager",
                 message=logs,
@@ -289,7 +287,6 @@ class ResourceManager:
         try:
             self.client.write_run_log(
                 flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                task_run_id="",
                 timestamp=pendulum.now(),
                 name="resource-manager",
                 message="Flow run pod {} entered an unknown state in namespace {}".format(
@@ -318,7 +315,6 @@ class ResourceManager:
                 try:
                     self.client.write_run_log(
                         flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                        task_run_id="",
                         timestamp=pendulum.now(),
                         name="resource-manager",
                         message="Flow run image pull error for pod {} in namespace {}".format(

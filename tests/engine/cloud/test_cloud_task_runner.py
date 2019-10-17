@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import tempfile
 import time
@@ -14,11 +15,7 @@ from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import (
-    JSONResultHandler,
-    LocalResultHandler,
-    ResultHandler,
-)
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
@@ -26,6 +23,7 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Finished,
+    Queued,
     Mapped,
     Paused,
     Pending,
@@ -58,7 +56,9 @@ def client(monkeypatch):
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
-        set_task_run_state=MagicMock(),
+        set_task_run_state=MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
         ),
@@ -96,6 +96,32 @@ def test_task_runner_doesnt_call_client_if_map_index_is_none(client):
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Running", "Success"]
     assert res.is_successful()
+    assert states[0].context == dict(tags=[])
+    assert states[1].context == dict(tags=[])
+
+
+def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monkeypatch):
+    task = Task(name="test", tags=["1", "2", "tag"])
+    session = MagicMock()
+    monkeypatch.setattr("prefect.client.client.GraphQLResult", MagicMock())
+    monkeypatch.setattr(
+        "prefect.client.client.requests.Session", MagicMock(return_value=session)
+    )
+
+    res = CloudTaskRunner(task=task).run()
+    assert res.is_successful()
+
+    ## extract the variables payload from the calls to POST
+    call_vars = [
+        json.loads(call[1]["json"]["variables"]) for call in session.post.call_args_list
+    ]
+
+    # do some mainpulation to get the state payloads
+    inputs = [c["input"]["states"][0] for c in call_vars if c is not None]
+    assert inputs[0]["state"]["type"] == "Running"
+    assert set(inputs[0]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
+    assert inputs[-1]["state"]["type"] == "Success"
+    assert set(inputs[-1]["state"]["context"]["tags"]) == set(["1", "2", "tag"])
 
 
 def test_task_runner_calls_get_task_run_info_if_map_index_is_not_none(client):
@@ -224,23 +250,95 @@ def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
     dull_state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(minutes=2),
-        result=Result(-1, JSONResultHandler()),
+        result=SafeResult("-1", JSONResultHandler()),
     )
     state = Cached(
         cached_result_expiration=datetime.datetime.utcnow()
         + datetime.timedelta(minutes=2),
-        result=Result(99, JSONResultHandler()),
+        result=SafeResult("99", JSONResultHandler()),
         cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
     )
     client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
 
     res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-        Pending(), inputs={"x": Result(2, result_handler=LocalResultHandler())}
+        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
     )
     assert client.get_latest_cached_states.called
     assert res.is_successful()
     assert res.is_cached()
     assert res.result == 99
+
+
+def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
+    client
+):
+    class Handler(ResultHandler):
+        def read(self, val):
+            return 1337
+
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1),
+        cache_validator=all_inputs,
+        result_handler=JSONResultHandler(),
+    )
+    def cached_task(x):
+        return 42
+
+    dull_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("-1", JSONResultHandler()),
+    )
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("99", JSONResultHandler()),
+        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+        Pending(), inputs={"x": Result(2, result_handler=Handler())}
+    )
+    assert client.get_latest_cached_states.called
+    assert res.is_pending()
+
+
+def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
+    client
+):
+    class Handler(ResultHandler):
+        def read(self, val):
+            return 1337
+
+    @prefect.task(
+        cache_for=datetime.timedelta(minutes=1),
+        cache_validator=all_inputs,
+        result_handler=Handler(),
+    )
+    def cached_task(x):
+        return 42
+
+    dull_state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("-1", JSONResultHandler()),
+    )
+    state = Cached(
+        cached_result_expiration=datetime.datetime.utcnow()
+        + datetime.timedelta(minutes=2),
+        result=SafeResult("99", JSONResultHandler()),
+        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
+    )
+    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
+    )
+    assert client.get_latest_cached_states.called
+    assert res.is_successful()
+    assert res.is_cached()
+    assert res.result == 1337
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):
@@ -310,7 +408,9 @@ def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
 
     db_state = Retrying(cached_inputs=dict(x=Result(41)))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -333,7 +433,9 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
     task = Task(name="test")
     db_state = state("already", result=10)
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_task_run_state = MagicMock()
+    set_task_run_state = MagicMock(
+        side_effect=lambda task_run_id, version, state, cache_for: state
+    )
     client = MagicMock(
         get_task_run_info=get_task_run_info, set_task_run_state=set_task_run_state
     )
@@ -392,7 +494,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -426,7 +531,10 @@ class TestHeartBeats:
                 time.sleep(2)
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -460,7 +568,10 @@ class TestHeartBeats:
                     f.write("called\n")
 
             def multiprocessing_helper(executor):
-                client = MagicMock()
+                set_task_run_state = MagicMock(
+                    side_effect=lambda task_run_id, version, state, cache_for: state
+                )
+                client = MagicMock(set_task_run_state=set_task_run_state)
                 monkeypatch.setattr(
                     "prefect.engine.cloud.task_runner.Client",
                     MagicMock(return_value=client),
@@ -481,7 +592,10 @@ class TestHeartBeats:
         assert len(results.split()) == 1
 
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
-        client = MagicMock()
+        set_task_run_state = MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        )
+        client = MagicMock(set_task_run_state=set_task_run_state)
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
@@ -525,6 +639,32 @@ class TestStateResultHandling:
         assert isinstance(states[2], Cached)
         assert states[2].cached_inputs == dict(x=result, y=result)
         assert states[2].result == 2
+
+    def test_task_runner_errors_if_no_result_provided_as_input(self, client):
+        @prefect.task
+        def add(x, y):
+            return x + y
+
+        base_state = prefect.serialization.state.StateSchema().load({"type": "Success"})
+        x_state, y_state = base_state, base_state
+
+        upstream_states = {
+            Edge(Task(), Task(), key="x"): x_state,
+            Edge(Task(), Task(), key="y"): y_state,
+        }
+
+        res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
+        assert res.is_failed()
+        assert "unsupported operand" in res.message
+
+        ## assertions
+        assert client.get_task_run_info.call_count == 0  # never called
+        assert client.set_task_run_state.call_count == 2  # Pending -> Running -> Failed
+
+        states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+        assert states[0].is_running()  # this isn't ideal, it's a little confusing
+        assert states[1].is_failed()
+        assert "unsupported operand" in states[1].message
 
     def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
         handler = JSONResultHandler()
@@ -758,3 +898,82 @@ def test_task_runner_handles_looping_with_retries(client):
     )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
     versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
     assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def test_cloud_task_runner_respects_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task
+    def tagged_task():
+        pass
+
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={},
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert res.is_successful()
+    assert len(calls) == 3  # Running -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Running",
+        "Success",
+    ]
+
+
+def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client):
+    calls = []
+
+    def queued_mock(*args, **kwargs):
+        calls.append(kwargs)
+        # first retry attempt will get queued
+        if len(calls) == 4:
+            return Queued()  # immediate start time
+        else:
+            return kwargs.get("state")
+
+    client.set_task_run_state = queued_mock
+
+    @prefect.task(max_retries=2, retry_delay=datetime.timedelta(seconds=0))
+    def tagged_task(x):
+        if prefect.context.get("task_run_count", 1) == 1:
+            raise ValueError("gimme a sec")
+        return x
+
+    upstream_result = Result(value=42, result_handler=JSONResultHandler())
+    res = CloudTaskRunner(task=tagged_task).run(
+        context={"task_run_version": 1},
+        state=None,
+        upstream_states={
+            Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
+        },
+        executor=prefect.engine.executors.LocalExecutor(),
+    )
+
+    assert res.is_successful()
+    assert res.result == 42
+    assert (
+        len(calls) == 6
+    )  # Running -> Failed -> Retrying -> Queued -> Running -> Success
+    assert [type(c["state"]).__name__ for c in calls] == [
+        "Running",
+        "Failed",
+        "Retrying",
+        "Running",
+        "Running",
+        "Success",
+    ]
+
+    # ensures result handler was called and persisted
+    assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"

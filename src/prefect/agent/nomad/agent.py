@@ -1,7 +1,7 @@
 import json
 import os
-from os import path
 import uuid
+from os import path
 
 import requests
 
@@ -16,10 +16,14 @@ class NomadAgent(Agent):
     """
     Agent which deploys flow runs as Nomad jobs to a Nomad cluster based on the
     `NOMAD_HOST` environment variable.
+
+    Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name: str = None) -> None:
+        super().__init__(name=name)
 
     def deploy_flows(self, flow_runs: list) -> None:
         """

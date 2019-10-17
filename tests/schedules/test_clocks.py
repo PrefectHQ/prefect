@@ -1,8 +1,9 @@
+import itertools
 from datetime import time, timedelta
 
 import pendulum
 import pytest
-import itertools
+
 from prefect import __version__
 from prefect.schedules import clocks
 from prefect.serialization.schedule import ClockSchema

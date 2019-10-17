@@ -1,10 +1,10 @@
 import glob
 import json
 import os
+
 import pytest
 
 from prefect.serialization.flow import FlowSchema
-
 
 ALL_FLOWS = glob.glob(os.path.join(os.path.dirname(__file__), "flows/") + "*.json")
 

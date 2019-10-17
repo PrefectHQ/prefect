@@ -45,6 +45,8 @@ def complex_states():
         cached_parameters={"x": 1, "y": {"z": 2}},
         cached_result_expiration=naive_dt,
     )
+    running_tags = state.Running()
+    running_tags.context = dict(tags=["1", "2", "3"])
     test_states = [
         state.Looped(loop_count=45),
         state.Pending(cached_inputs=complex_result),
@@ -55,6 +57,7 @@ def complex_states():
         state.Scheduled(start_time=naive_dt),
         state.Resume(start_time=utc_dt),
         state.Resume(start_time=naive_dt),
+        running_tags,
         state.Submitted(state=state.Retrying(start_time=utc_dt, run_count=2)),
         state.Submitted(state=state.Resume(start_time=utc_dt)),
         state.Queued(state=state.Pending()),
@@ -132,6 +135,54 @@ def test_serialize_state_with_safe_result(cls):
     assert serialized["_result"]["type"] == "SafeResult"
     assert serialized["_result"]["value"] == "1"
     assert serialized["__version__"] == prefect.__version__
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_serialize_state_with_context(cls):
+    with prefect.context(task_tags=set(["foo", "bar"])):
+        s = cls(message="hi")
+    serialized = StateSchema().dump(s)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == cls.__name__
+    assert serialized["message"] == "hi"
+    assert serialized["__version__"] == prefect.__version__
+    assert isinstance(serialized["context"], dict)
+    assert set(serialized["context"]["tags"]) == set(["foo", "bar"])
+
+    deserialized = StateSchema().load(serialized)
+    assert isinstance(deserialized, cls)
+    assert set(deserialized.context["tags"]) == set(["foo", "bar"])
+
+
+def test_serialize_scheduled_state_with_context():
+    with prefect.context(task_run_count=42):
+        s = state.Scheduled(message="hi")
+
+    serialized = StateSchema().dump(s)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == "Scheduled"
+    assert serialized["message"] == "hi"
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["context"] == dict(task_run_count=42)
+
+    deserialized = StateSchema().load(serialized)
+    assert deserialized.is_scheduled()
+    assert deserialized.context == dict(task_run_count=42)
+
+
+def test_serialize_state_with_context_allows_for_diverse_values():
+    s = state.Running(message="hi")
+    s.context = dict(tags=["foo", "bar"], info=dict(x=42), baz="99")
+    serialized = StateSchema().dump(s)
+    assert isinstance(serialized, dict)
+    assert serialized["type"] == "Running"
+    assert serialized["message"] == "hi"
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["context"] == s.context
+
+    deserialized = StateSchema().load(serialized)
+    assert deserialized.is_running()
+    assert deserialized.context == s.context
 
 
 def test_serialize_mapped():
@@ -216,11 +267,23 @@ def test_result_raises_error_on_dump_if_not_valid_json():
         StateSchema().dump(s)
 
 
+def test_deserialize_json_with_context():
+    deserialized = StateSchema().load(
+        {"type": "Running", "context": {"boo": ["a", "b", "c"]}}
+    )
+    assert type(deserialized) is state.Running
+    assert deserialized.is_running()
+    assert deserialized.message is None
+    assert deserialized.context == dict(boo=["a", "b", "c"])
+    assert deserialized._result == NoResult
+
+
 def test_deserialize_json_without_version():
     deserialized = StateSchema().load({"type": "Running", "message": "test"})
     assert type(deserialized) is state.Running
     assert deserialized.is_running()
     assert deserialized.message == "test"
+    assert deserialized.context == dict()
     assert deserialized._result == NoResult
 
 

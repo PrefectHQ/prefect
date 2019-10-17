@@ -86,13 +86,20 @@ class CreateContainer(Task):
             raise ValueError("An image name must be provided.")
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-
+        self.logger.debug(
+            "Starting to create container {} with command {}".format(
+                image_name, command
+            )
+        )
         container = client.create_container(
             image=image_name,
             command=command,
             detach=detach,
             entrypoint=entrypoint,
             environment=environment,
+        )
+        self.logger.debug(
+            "Completed created container {} with command {}".format(image_name, command)
         )
 
         return container.get("Id")
@@ -147,9 +154,19 @@ class GetContainerLogs(Task):
         if not container_id:
             raise ValueError("A container id must be provided.")
 
+        self.logger.debug(
+            "Starting fetching container logs from container with id {}".format(
+                container_id
+            )
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-
-        return client.logs(container=container_id).decode()
+        api_result = client.logs(container=container_id).decode()
+        self.logger.debug(
+            "Completed fetching all container logs from container with id {}".format(
+                container_id
+            )
+        )
+        return api_result
 
 
 class ListContainers(Task):
@@ -195,9 +212,11 @@ class ListContainers(Task):
         Returns:
             - list: A list of dicts, one per container
         """
+        self.logger.debug("Starting to list containers")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-
-        return client.containers(all=all_containers)
+        api_result = client.containers(all=all_containers)
+        self.logger.debug("Completed listing containers")
+        return api_result
 
 
 class StartContainer(Task):
@@ -246,9 +265,13 @@ class StartContainer(Task):
         if not container_id:
             raise ValueError("A container id must be provided.")
 
+        self.logger.debug("Starting container with id {}".format(container_id))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         client.start(container=container_id)
+        self.logger.debug(
+            "Completed starting container with id {}".format(container_id)
+        )
 
 
 class StopContainer(Task):
@@ -297,9 +320,13 @@ class StopContainer(Task):
         if not container_id:
             raise ValueError("A container id must be provided.")
 
+        self.logger.debug("Starting to stop container with id {}".format(container_id))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         client.stop(container=container_id)
+        self.logger.debug(
+            "Completed stopping container with id {}".format(container_id)
+        )
 
 
 class WaitOnContainer(Task):
@@ -359,6 +386,9 @@ class WaitOnContainer(Task):
         if not container_id:
             raise ValueError("A container id must be provided.")
 
+        self.logger.debug(
+            "Starting to wait on container with id {}".format(container_id)
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         result = client.wait(container=container_id)
@@ -377,5 +407,7 @@ class WaitOnContainer(Task):
                     msg=result.get("Error"),
                 )
             )
-
+        self.logger.debug(
+            "Completed waiting on container with id {}".format(container_id)
+        )
         return result

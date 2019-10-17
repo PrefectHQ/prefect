@@ -1,0 +1,18 @@
+build: false
+skip_branch_with_pr: true
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6"
+      ARCH: "64"
+
+init:
+  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+
+install:
+- "%PYTHON%/Scripts/pip.exe install pytest"
+- "%PYTHON%/Scripts/pip.exe install ."
+
+test_script:
+- "%PYTHON%/Scripts/pytest . --skip-formatting"

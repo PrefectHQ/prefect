@@ -10,15 +10,103 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+- Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
+- Adds an "Ask for help" button with a link to the prefect.io support page [#1637](https://github.com/PrefectHQ/prefect/pull/1637)
 
 ### Task Library
 
-- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#692](https://github.com/PrefectHQ/prefect/pull/1538)
+- None
 
 ### Fixes
 
+- Fix defaults for unspecified ARNs in the Fargate Agent - [#1634](https://github.com/PrefectHQ/prefect/pull/1634)
+
+### Deprecations
+
 - None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.6.7 <Badge text="beta" type="success"/>
+
+Released October 16, 2019
+
+### Features
+
+- Environments now allow for optional `on_start` and `on_exit` callbacks - [#1610](https://github.com/PrefectHQ/prefect/pull/1610)
+
+### Enhancements
+
+- Raise more informative error when calling `flow.visualize()` if Graphviz executable not installed - [#1602](https://github.com/PrefectHQ/prefect/pull/1602)
+- Allow authentication to Azure Blob Storage with SAS token - [#1600](https://github.com/PrefectHQ/prefect/pull/1600)
+- Additional debug logs to `Docker Container` and `Docker Image` tasks - [#920](https://github.com/PrefectHQ/prefect/issues/920)
+- Changes to Fargate agent to support temporary credentials and IAM role based credentials within AWS compute such as a container or ec2 instance. [#1607](https://github.com/PrefectHQ/prefect/pull/1607)
+- Local Secrets set through environment variable now retain their casing - [#1601](https://github.com/PrefectHQ/prefect/issues/1601)
+- Agents can accept an optional `name` for logging and debugging - [#1612](https://github.com/PrefectHQ/prefect/pull/1612)
+- Added AWS configuration options for Fargate Agent (task_role_arn, execution_role_arn) - [#1614](https://github.com/PrefectHQ/prefect/pull/1614)
+- Change EmailTask to accept SMTP server settings as well as an email_from kwarg - [#1619](https://github.com/PrefectHQ/prefect/pull/1619)
+- Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
+
+### Task Library
+
+- Add `return_all` kwarg to `ShellTask` for optionally returning all lines of stdout - [#1598](https://github.com/PrefectHQ/prefect/pull/1598)
+- Add `CosmosDBCreateItem`, `CosmosDBReadItems`, `CosmosDBQueryItems` and for interacting with data stored on Azure Cosmos DB - [#1617](https://github.com/PrefectHQ/prefect/pull/1617)
+
+### Fixes
+
+- Fix issue with running local Flow without a schedule containing cached tasks - [#1599](https://github.com/PrefectHQ/prefect/pull/1599)
+- Remove blank string for `task_run_id` in k8s resource manager - [#1604](https://github.com/PrefectHQ/prefect/pull/1604)
+- Fix issue with merge task not working for pandas dataframes and numpy arrays - [#1609](https://github.com/PrefectHQ/prefect/pull/1609)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Local Secrets set through environment variable now retain their casing - [#1601](https://github.com/PrefectHQ/prefect/issues/1601)
+
+### Contributors
+
+- [Mark McDonald](https://github.com/mhmcdonal)
+- [Sherman K](https://github.com/shrmnk)
+
+## 0.6.6 <Badge text="beta" type="success"/>
+
+Released October 3, 2019
+
+### Features
+
+- Added `KubernetesJobEnvironment` - [#1548](https://github.com/PrefectHQ/prefect/pull/1548)
+- Add ability to enforce Task concurrency limits by tag in Prefect Cloud - [#1570](https://github.com/PrefectHQ/prefect/pull/1570)
+- Added `FargateTaskEnvironment` - [#1592](https://github.com/PrefectHQ/prefect/pull/1592)
+
+### Enhancements
+
+- Allow the `Client` to more gracefully handle failed login attempts on initialization - [#1535](https://github.com/PrefectHQ/prefect/pull/1535)
+- Replace `DotDict` with `box.Box` - [#1518](https://github.com/PrefectHQ/prefect/pull/1518)
+- Store `cached_inputs` on Failed states and call their result handlers if they were provided - [#1557](https://github.com/PrefectHQ/prefect/pull/1557)
+- `raise_on_exception` no longer raises for Prefect Signals, as these are typically intentional / for control flow - [#1562](https://github.com/PrefectHQ/prefect/pull/1562)
+- `run cloud` CLI command takes in optional `--parameters` as a file path pointing to a JSON file - [#1582](https://github.com/PrefectHQ/prefect/pull/1582)
+- Always consider `Constant` tasks successful and unpack them immediately instead of submitting them for execution - [#1527](https://github.com/PrefectHQ/prefect/issues/1527)
+
+### Task Library
+
+- Add `BlobStorageDownload` and `BlobStorageUpload` for interacting with data stored on Azure Blob Storage - [#1538](https://github.com/PrefectHQ/prefect/pull/1538)
+- Loosen Kubernetes Tasks' requirement of an API secret key - [#1559](https://github.com/PrefectHQ/prefect/pull/1559)
+- Add tasks for working in Azure Machine Learning Serviec with Datastores and Datasets - [#1590](https://github.com/PrefectHQ/prefect/pull/1590)
+
+### Fixes
+
+- Fix issue with certain Pause / Resume / Retry pipelines retrying indefinitely - [#1177](https://github.com/PrefectHQ/prefect/issues/1177)
+- Kubernetes Agent deployment YAML generation defaults to local Prefect version - [#1573](https://github.com/PrefectHQ/prefect/pull/1573)
+- Fix issue with custom result handlers not working when called in `cached_inputs` - [#1585](https://github.com/PrefectHQ/prefect/pull/1585)
 
 ### Deprecations
 

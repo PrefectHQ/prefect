@@ -43,27 +43,36 @@ def agent():
 
 
 @agent.command(hidden=True)
-@click.argument("name", default="local")
+@click.argument("agent-option", default="local")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
 @click.option(
     "--verbose", "-v", is_flag=True, help="Enable verbose agent logs.", hidden=True
 )
+@click.option(
+    "--name",
+    "-n",
+    required=False,
+    help="A name to use for the agent",
+    hidden=True,
+    default=None,
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
-def start(name, token, verbose, no_pull, base_url):
+def start(agent_option, token, verbose, name, no_pull, base_url):
     """
     Start an agent.
 
     \b
     Arguments:
-        name            TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `fargate`, `nomad`)
+        agent-option    TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `fargate`, `nomad`)
                                 Defaults to `local`
 
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
+        --name, -n      TEXT    A name to use for the agent
         --verbose, -v           Enable verbose agent DEBUG logs
                                 Defaults to INFO level logging
 
@@ -79,14 +88,14 @@ def start(name, token, verbose, no_pull, base_url):
             "cloud.agent.level": "INFO" if not verbose else "DEBUG",
         }
     ):
-        retrieved_agent = _agents.get(name, None)
+        retrieved_agent = _agents.get(agent_option, None)
 
         if not retrieved_agent:
-            click.secho("{} is not a valid agent".format(name), fg="red")
+            click.secho("{} is not a valid agent".format(agent_option), fg="red")
             return
 
         with context(no_pull=no_pull, base_url=base_url):
-            from_qualified_name(retrieved_agent)().start()
+            from_qualified_name(retrieved_agent)(name=name).start()
 
 
 @agent.command(hidden=True)
@@ -117,7 +126,7 @@ def start(name, token, verbose, no_pull, base_url):
 def install(name, token, api, namespace, image_pull_secrets, resource_manager):
     """
     Install an agent. Outputs configuration text which can be used to install on various
-    platforms.
+    platforms. The Prefect image version will default to your local `prefect.__version__`
 
     \b
     Arguments:

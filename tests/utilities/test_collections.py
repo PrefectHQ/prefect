@@ -2,6 +2,7 @@ import json
 import types
 
 import pytest
+from box import Box
 
 from prefect.engine.state import Pending
 from prefect.utilities import collections
@@ -69,6 +70,18 @@ def test_restore_flattened_dict_with_dict_class():
     restored_dotdict = collections.flatdict_to_dict(flat, dct_class=DotDict)
     assert isinstance(restored_dotdict, DotDict)
     assert isinstance(restored_dotdict.a, DotDict)
+    assert restored_dotdict.a == nested_dict.a
+
+
+def test_restore_flattened_dict_with_box_class():
+    nested_dict = DotDict(a=Box(x=1), b=Box(y=2))
+    flat = collections.dict_to_flatdict(nested_dict)
+    restored = collections.flatdict_to_dict(flat)
+    assert isinstance(restored, dict)
+
+    restored_dotdict = collections.flatdict_to_dict(flat, dct_class=Box)
+    assert isinstance(restored_dotdict, Box)
+    assert isinstance(restored_dotdict.a, Box)
     assert restored_dotdict.a == nested_dict.a
 
 
@@ -312,16 +325,3 @@ def test_protect_critical_keys_inactive_for_nested_query():
     """
     gql = {"update": {"update": [{"x": 1}, {"x": 2}]}}
     as_nested_dict(gql, GraphQLResult)
-
-
-def test_graphql_result_has_nice_repr():
-    expected = '{\n    "flow_run": {\n        "flow": [\n            {\n                "id": 1\n            },\n            {\n                "version": 2\n            }\n        ]\n    }\n}'
-    gql = {"flow_run": {"flow": [{"id": 1}, {"version": 2}]}}
-    res = as_nested_dict(gql, GraphQLResult)
-    assert repr(res) == expected
-
-
-def test_graphql_repr_falls_back_to_dict_repr():
-    gql = {"flow_run": Pending("test")}
-    res = as_nested_dict(gql, GraphQLResult)
-    assert repr(res) == """{'flow_run': <Pending: "test">}"""

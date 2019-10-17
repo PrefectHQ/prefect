@@ -2,7 +2,7 @@ import base64
 import json
 import uuid
 from os import path
-from typing import Any, List
+from typing import Any, Callable, List
 
 import cloudpickle
 import yaml
@@ -27,15 +27,21 @@ class DaskKubernetesEnvironment(Environment):
 
     It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
     `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
-    should be modeled after the job.yaml and worker_pod.yaml found at
-    https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask
+    should be modeled after the job.yaml and worker_pod.yaml found [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask).
     The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
     required for cloud do not need to be included because they are instead automatically added and populated during execution:
-    PREFECT__CLOUD__GRAPHQL, PREFECT__CLOUD__AUTH_TOKEN, PREFECT__CONTEXT__FLOW_RUN_ID,
-    PREFECT__CONTEXT__NAMESPACE, PREFECT__CONTEXT__IMAGE, PREFECT__CONTEXT__FLOW_FILE_PATH,
-    PREFECT__CLOUD__USE_LOCAL_SECRETS, PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS,
-    PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS, PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS,
-    PREFECT__LOGGING__LOG_TO_CLOUD
+
+    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__CLOUD__AUTH_TOKEN`
+    - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__NAMESPACE`
+    - `PREFECT__CONTEXT__IMAGE`
+    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
+    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
+    - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS`
+    - `PREFECT__LOGGING__LOG_TO_CLOUD`
 
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
@@ -48,6 +54,8 @@ class DaskKubernetesEnvironment(Environment):
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
         - worker_spec_file (str, optional): Path to a worker spec YAML file
     """
@@ -59,6 +67,8 @@ class DaskKubernetesEnvironment(Environment):
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
         scheduler_spec_file: str = None,
         worker_spec_file: str = None,
     ) -> None:
@@ -76,7 +86,7 @@ class DaskKubernetesEnvironment(Environment):
         # Load specs from file if path given, store on object
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
 
-        super().__init__(labels=labels)
+        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
@@ -221,6 +231,11 @@ class DaskKubernetesEnvironment(Environment):
         """
         Run the flow from specified flow_file_path location using a Dask executor
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import get_default_flow_runner_class
             from prefect.engine.executors import DaskExecutor
@@ -258,6 +273,10 @@ class DaskKubernetesEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()
 
     ################################
     # Default YAML Spec Manipulation

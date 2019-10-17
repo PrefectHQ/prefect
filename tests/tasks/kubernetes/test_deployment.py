@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.config.config_exception import ConfigException
 
 import prefect
 from prefect.tasks.kubernetes import (
@@ -14,7 +15,7 @@ from prefect.tasks.kubernetes import (
 from prefect.utilities.configuration import set_temporary_config
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
@@ -22,14 +23,14 @@ def kube_secret():
 
 
 class TestCreateNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = CreateNamespacedDeployment()
         assert task.body == {}
         assert task.namespace == "default"
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = CreateNamespacedDeployment(
             body={"test": "test"},
             namespace="test",
@@ -41,17 +42,17 @@ class TestCreateNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_empty_body_raises_error(self):
+    def test_empty_body_raises_error(self, kube_secret):
         task = CreateNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run()
 
-    def test_invalid_body_raises_error(self):
+    def test_invalid_body_raises_error(self, kube_secret):
         task = CreateNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "test"})
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
@@ -65,7 +66,42 @@ class TestCreateNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_body_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = CreateNamespacedDeployment(
+            body={"test": "a"}, kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = CreateNamespacedDeployment(
+            body={"test": "a"}, kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "a"})
 
         config = MagicMock()
@@ -82,7 +118,7 @@ class TestCreateNamespacedDeploymentTask:
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch):
+    def test_body_value_is_appended(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "a"})
 
         config = MagicMock()
@@ -101,7 +137,7 @@ class TestCreateNamespacedDeploymentTask:
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch):
+    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment()
 
         config = MagicMock()
@@ -120,7 +156,7 @@ class TestCreateNamespacedDeploymentTask:
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "a"}, kube_kwargs={"test": "a"})
 
         config = MagicMock()
@@ -135,7 +171,7 @@ class TestCreateNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.create_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "a"}, kube_kwargs={"test": "a"})
 
         config = MagicMock()
@@ -151,7 +187,7 @@ class TestCreateNamespacedDeploymentTask:
         assert extensionsapi.create_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.create_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = CreateNamespacedDeployment(body={"test": "a"})
 
         config = MagicMock()
@@ -168,14 +204,14 @@ class TestCreateNamespacedDeploymentTask:
 
 
 class TestDeleteNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = DeleteNamespacedDeployment()
         assert not task.deployment_name
         assert task.namespace == "default"
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = DeleteNamespacedDeployment(
             deployment_name="test",
             namespace="test",
@@ -187,17 +223,17 @@ class TestDeleteNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_empty_name_raises_error(self):
+    def test_empty_name_raises_error(self, kube_secret):
         task = DeleteNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run()
 
-    def test_invalid_body_raises_error(self):
+    def test_invalid_body_raises_error(self, kube_secret):
         task = DeleteNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = DeleteNamespacedDeployment(deployment_name="test")
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
@@ -211,7 +247,46 @@ class TestDeleteNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = DeleteNamespacedDeployment(
+            deployment_name="test",
+            kube_kwargs={"test": "a"},
+            kubernetes_api_key_secret=None,
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = DeleteNamespacedDeployment(
+            deployment_name="test",
+            kube_kwargs={"test": "a"},
+            kubernetes_api_key_secret=None,
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = DeleteNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
@@ -228,7 +303,7 @@ class TestDeleteNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = DeleteNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
@@ -246,7 +321,7 @@ class TestDeleteNamespacedDeploymentTask:
         assert extensionsapi.delete_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.delete_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = DeleteNamespacedDeployment(deployment_name="test")
 
         config = MagicMock()
@@ -263,13 +338,13 @@ class TestDeleteNamespacedDeploymentTask:
 
 
 class TestListNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = ListNamespacedDeployment()
         assert task.namespace == "default"
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = ListNamespacedDeployment(
             namespace="test",
             kube_kwargs={"test": "test"},
@@ -279,7 +354,7 @@ class TestListNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = ListNamespacedDeployment()
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
@@ -293,7 +368,42 @@ class TestListNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ListNamespacedDeployment(
+            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ListNamespacedDeployment(
+            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = ListNamespacedDeployment(kube_kwargs={"test": "a"})
 
         config = MagicMock()
@@ -308,7 +418,7 @@ class TestListNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.list_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = ListNamespacedDeployment(kube_kwargs={"test": "a"})
 
         config = MagicMock()
@@ -324,7 +434,7 @@ class TestListNamespacedDeploymentTask:
         assert extensionsapi.list_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.list_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = ListNamespacedDeployment()
 
         config = MagicMock()
@@ -341,7 +451,7 @@ class TestListNamespacedDeploymentTask:
 
 
 class TestPatchNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = PatchNamespacedDeployment()
         assert not task.deployment_name
         assert task.body == {}
@@ -349,7 +459,7 @@ class TestPatchNamespacedDeploymentTask:
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = PatchNamespacedDeployment(
             deployment_name="test",
             body={"test": "test"},
@@ -363,22 +473,22 @@ class TestPatchNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_empty_body_raises_error(self):
+    def test_empty_body_raises_error(self, kube_secret):
         task = PatchNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run()
 
-    def test_invalid_body_raises_error(self):
+    def test_invalid_body_raises_error(self, kube_secret):
         task = PatchNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_invalid_deployment_name_raises_error(self):
+    def test_invalid_deployment_name_raises_error(self, kube_secret):
         task = PatchNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(body={"test": "test"}, deployment_name="test")
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
@@ -392,7 +502,42 @@ class TestPatchNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_body_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = PatchNamespacedDeployment(
+            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = PatchNamespacedDeployment(
+            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()
@@ -409,7 +554,7 @@ class TestPatchNamespacedDeploymentTask:
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch):
+    def test_body_value_is_appended(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()
@@ -427,7 +572,7 @@ class TestPatchNamespacedDeploymentTask:
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch):
+    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(deployment_name="test")
 
         config = MagicMock()
@@ -444,7 +589,7 @@ class TestPatchNamespacedDeploymentTask:
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
@@ -461,7 +606,7 @@ class TestPatchNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.patch_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
@@ -479,7 +624,7 @@ class TestPatchNamespacedDeploymentTask:
         assert extensionsapi.patch_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.patch_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = PatchNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()
@@ -496,14 +641,14 @@ class TestPatchNamespacedDeploymentTask:
 
 
 class TestReadNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = ReadNamespacedDeployment()
         assert not task.deployment_name
         assert task.namespace == "default"
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = ReadNamespacedDeployment(
             deployment_name="test",
             namespace="test",
@@ -515,17 +660,17 @@ class TestReadNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_empty_name_raises_error(self):
+    def test_empty_name_raises_error(self, kube_secret):
         task = ReadNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run()
 
-    def test_invalid_body_raises_error(self):
+    def test_invalid_body_raises_error(self, kube_secret):
         task = ReadNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = ReadNamespacedDeployment(deployment_name="test")
         client = MagicMock()
         monkeypatch.setattr("prefect.tasks.kubernetes.deployment.client", client)
@@ -539,7 +684,46 @@ class TestReadNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ReadNamespacedDeployment(
+            deployment_name="test",
+            kube_kwargs={"test": "a"},
+            kubernetes_api_key_secret=None,
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ReadNamespacedDeployment(
+            deployment_name="test",
+            kube_kwargs={"test": "a"},
+            kubernetes_api_key_secret=None,
+        )
+
+        task.run(kube_kwargs={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = ReadNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
@@ -556,7 +740,7 @@ class TestReadNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = ReadNamespacedDeployment(
             deployment_name="test", kube_kwargs={"test": "a"}
         )
@@ -574,7 +758,7 @@ class TestReadNamespacedDeploymentTask:
         assert extensionsapi.read_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.read_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = ReadNamespacedDeployment(deployment_name="test")
 
         config = MagicMock()
@@ -591,7 +775,7 @@ class TestReadNamespacedDeploymentTask:
 
 
 class TestReplaceNamespacedDeploymentTask:
-    def test_empty_initialization(self):
+    def test_empty_initialization(self, kube_secret):
         task = ReplaceNamespacedDeployment()
         assert not task.deployment_name
         assert task.body == {}
@@ -599,7 +783,7 @@ class TestReplaceNamespacedDeploymentTask:
         assert task.kube_kwargs == {}
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
 
-    def test_filled_initialization(self):
+    def test_filled_initialization(self, kube_secret):
         task = ReplaceNamespacedDeployment(
             deployment_name="test",
             body={"test": "test"},
@@ -613,22 +797,22 @@ class TestReplaceNamespacedDeploymentTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_empty_body_raises_error(self):
+    def test_empty_body_raises_error(self, kube_secret):
         task = ReplaceNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run()
 
-    def test_invalid_body_raises_error(self):
+    def test_invalid_body_raises_error(self, kube_secret):
         task = ReplaceNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_invalid_deployment_name_raises_error(self):
+    def test_invalid_deployment_name_raises_error(self, kube_secret):
         task = ReplaceNamespacedDeployment()
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, deployment_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch):
+    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(
             body={"test": "test"}, deployment_name="test"
         )
@@ -644,7 +828,42 @@ class TestReplaceNamespacedDeploymentTask:
         task.run()
         assert api_key == {"authorization": "test_key"}
 
-    def test_body_value_is_replaced(self, monkeypatch):
+    def test_kube_config_in_cluster(self, monkeypatch):
+        config = MagicMock()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ReplaceNamespacedDeployment(
+            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_incluster_config.called
+
+    def test_kube_config_out_of_cluster(self, monkeypatch):
+        config = MagicMock()
+        config.load_incluster_config.side_effect = ConfigException()
+        monkeypatch.setattr("prefect.tasks.kubernetes.deployment.config", config)
+
+        extensionsapi = MagicMock()
+        monkeypatch.setattr(
+            "prefect.tasks.kubernetes.deployment.client",
+            MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
+        )
+
+        task = ReplaceNamespacedDeployment(
+            body={"test": "a"}, deployment_name="test", kubernetes_api_key_secret=None
+        )
+
+        task.run(body={"test": "b"})
+        assert config.load_kube_config.called
+
+    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()
@@ -661,7 +880,7 @@ class TestReplaceNamespacedDeploymentTask:
             "test": "b"
         }
 
-    def test_body_value_is_appended(self, monkeypatch):
+    def test_body_value_is_appended(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()
@@ -679,7 +898,7 @@ class TestReplaceNamespacedDeploymentTask:
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch):
+    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(deployment_name="test")
 
         config = MagicMock()
@@ -696,7 +915,7 @@ class TestReplaceNamespacedDeploymentTask:
             "test": "a"
         }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch):
+    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
@@ -713,7 +932,7 @@ class TestReplaceNamespacedDeploymentTask:
         task.run(kube_kwargs={"test": "b"})
         assert extensionsapi.replace_namespaced_deployment.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch):
+    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(
             body={"test": "a"}, kube_kwargs={"test": "a"}, deployment_name="test"
         )
@@ -731,7 +950,7 @@ class TestReplaceNamespacedDeploymentTask:
         assert extensionsapi.replace_namespaced_deployment.call_args[1]["a"] == "test"
         assert extensionsapi.replace_namespaced_deployment.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch):
+    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
         task = ReplaceNamespacedDeployment(body={"test": "a"}, deployment_name="test")
 
         config = MagicMock()

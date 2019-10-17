@@ -32,8 +32,8 @@ from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.environments import RemoteEnvironment, Environment
-from prefect.environments.storage import get_default_storage_class, Storage
+from prefect.environments import Environment, RemoteEnvironment
+from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
@@ -836,9 +836,6 @@ class Flow:
         task_states = kwargs.pop("task_states", {})
         flow_state.result.update(task_states)
 
-        # set global caches that persist across runs
-        prefect.context.setdefault("caches", {})
-
         # set context for this flow run
         flow_run_context = kwargs.pop(
             "context", {}
@@ -999,6 +996,9 @@ class Flow:
                 )
             )
 
+        # set global caches that persist across runs
+        prefect.context.setdefault("caches", {})
+
         if run_on_schedule is None:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
         if run_on_schedule is False:
@@ -1132,6 +1132,11 @@ class Flow:
                     tmp.close()
                     try:
                         graph.render(tmp.name, view=True)
+                    except graphviz.backend.ExecutableNotFound:
+                        msg = "It appears you do not have Graphviz installed, or it is not on your PATH.\n"
+                        msg += "Please install Graphviz from http://www.graphviz.org/download/\n"
+                        msg += "And note: just installing the `graphviz` python package is not sufficient!"
+                        raise graphviz.backend.ExecutableNotFound(msg)
                     finally:
                         os.unlink(tmp.name)
 

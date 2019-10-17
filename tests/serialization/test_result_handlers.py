@@ -5,12 +5,12 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.engine.result_handlers import (
+    AzureResultHandler,
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
-    AzureResultHandler,
 )
 from prefect.serialization.result_handlers import (
     CustomResultHandlerSchema,
@@ -57,7 +57,8 @@ class TestCustomSchema:
 
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Dummy()))
-        assert obj is None
+        assert isinstance(obj, ResultHandler)
+        assert obj.read(42) == 42  # just the base class, not the Dummy class
 
     def test_custom_schema_roundtrip_on_stateful_class(self):
         class Stateful(ResultHandler):
@@ -72,7 +73,8 @@ class TestCustomSchema:
 
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Stateful(42)))
-        assert obj is None
+        assert isinstance(obj, ResultHandler)
+        assert obj.write("foo") == "foo"  # just the base class, not the Stateful class
 
     def test_result_handler_schema_defaults_to_custom(self):
         class Weird(ResultHandler):
@@ -91,7 +93,8 @@ class TestCustomSchema:
         assert serialized["__version__"] == prefect.__version__
 
         obj = schema.load(serialized)
-        assert obj is None
+        assert isinstance(obj, ResultHandler)
+        assert obj.write("foo") == "foo"  # just the base class, not the Weird class
 
     def test_cloud_can_deserialize_custom_handlers(self):
         schema = ResultHandlerSchema()
@@ -99,7 +102,7 @@ class TestCustomSchema:
             "type": "CustomResultHandler",
             "__version__": "0.6.3+120.g60ca943b",
         }
-        assert schema.load(serialized) is None
+        assert isinstance(schema.load(serialized), ResultHandler)
 
 
 class TestLocalResultHandler:

@@ -3,11 +3,12 @@ This Flow uses Prefect's Task Looping feature for computing
 the largest Fibonacci number less than a given number M. Each
 Fibonacci number is computed using a black-box external API.
 """
-import requests
 from datetime import timedelta
 
+import requests
+
 import prefect
-from prefect import task, Flow, Parameter
+from prefect import Flow, Parameter, task
 from prefect.engine.signals import LOOP
 
 

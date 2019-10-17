@@ -2,6 +2,7 @@ import datetime
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import uuid
 
@@ -43,65 +44,6 @@ template = b"""
     """
 
 
-class TestConfig:
-    def test_is_dotdict(self):
-        assert isinstance(Config(), prefect.utilities.collections.DotDict)
-
-    def test_set_nested_creates_configs(self):
-        config = Config()
-        config.set_nested("a.b.c", 1)
-        assert config.a.b.c == 1
-        assert isinstance(config.a, Config)
-        assert isinstance(config.a.b, Config)
-
-    def test_set_nested_overwrites(self):
-        config = Config()
-        config.set_nested("a.b.c", 1)
-        config.set_nested("a.b.d", 10)
-        config.set_nested("a.b.c", 2)
-        assert config.a.b.c == 2
-        assert config.a.b.d == 10
-
-    def test_set_nested_overwrites_values_with_more_configs(self):
-        config = Config()
-        config.set_nested("a.b", 1)
-        config.set_nested("a.b.c", 2)
-        config.set_nested("a.b.c.d", 3)
-        assert config.a.b.c.d == 3
-
-    def test_setdefault_nested_creates_configs(self):
-        config = Config()
-        config.setdefault_nested("a.b.c", 1)
-        assert config.a.b.c == 1
-        assert isinstance(config.a, Config)
-        assert isinstance(config.a.b, Config)
-
-    def test_setdefault_nested_overwrites_only_if_missing(self):
-        config = Config()
-        config.setdefault_nested("a.b.c", 1)
-        config.setdefault_nested("a.b.d", 10)
-        config.setdefault_nested("a.b.c", 2)
-        assert config.a.b.c == 1
-        assert config.a.b.d == 10
-
-    def test_get_nested(self):
-        config = Config()
-        config.set_nested("a.b.c", 1)
-        assert config.get_nested("a.b.c") == 1
-
-    def test_get_nested_when_missing(self):
-        assert Config().get_nested("a.b.c") is None
-
-    def test_get_nested_default(self):
-        assert Config().get_nested("a.b.c", 1) == 1
-
-    def test_critical_key_protection_disabled(self):
-        config = Config()
-        assert not config.__protect_critical_keys__
-        config.update = 1
-        assert config.update == 1
-
-
 @pytest.fixture
 def test_config_file_path():
     with tempfile.TemporaryDirectory() as test_config_dir:
@@ -139,16 +81,8 @@ def test_keys(config):
     assert "x" not in config
 
 
-def test_repr(config):
-    assert (
-        repr(config)
-        == "<Config: 'debug', 'env_vars', 'general', 'interpolation', 'logging', 'secrets'>"
-    )
-    assert repr(config.general) == "<Config: 'nested', 'x', 'y'>"
-
-
 def test_getattr_missing(config):
-    with pytest.raises(AttributeError, match="Config has no key 'hello'"):
+    with pytest.raises(AttributeError, match="object has no attribute"):
         config.hello
 
 
@@ -231,8 +165,8 @@ def test_env_var_escaped(config):
 
 def test_copy_leaves_values_mutable(config):
 
-    config.set_nested("x.y.z", [1])
-    assert config.x.y.z == [1]
+    config = Config(config, default_box=True)
+    config.x.y.z = [1]
     new = config.copy()
     assert new.x.y.z == [1]
     new.x.y.z.append(2)
@@ -286,26 +220,26 @@ class TestProcessTaskDefaults:
         assert config.tasks.defaults.max_retries == 0
 
     def test_max_retries_is_0_if_false(self):
-        config = Config()
-        config.set_nested("tasks.defaults.max_retries", False)
+        config = Config(default_box=True)
+        config.tasks.defaults.max_retries = False
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.max_retries == 0
 
     def test_max_retries_is_0_if_none(self):
-        config = Config()
-        config.set_nested("tasks.defaults.max_retries", None)
+        config = Config(default_box=True)
+        config.tasks.defaults.max_retries = None
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.max_retries == 0
 
     def test_max_retries_is_0_if_0(self):
-        config = Config()
-        config.set_nested("tasks.defaults.max_retries", 0)
+        config = Config(default_box=True)
+        config.tasks.defaults.max_retries = 0
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.max_retries == 0
 
     def test_max_retries_ignored_if_set(self):
-        config = Config()
-        config.set_nested("tasks.defaults.max_retries", 3)
+        config = Config(default_box=True)
+        config.tasks.defaults.max_retries = 3
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.max_retries == 3
 
@@ -314,26 +248,26 @@ class TestProcessTaskDefaults:
         assert config.tasks.defaults.retry_delay is None
 
     def test_retry_delay_is_none_if_false(self):
-        config = Config()
-        config.set_nested("tasks.defaults.retry_delay", False)
+        config = Config(default_box=True)
+        config.tasks.defaults.retry_delay = False
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.retry_delay is None
 
     def test_retry_delay_is_none_if_none(self):
-        config = Config()
-        config.set_nested("tasks.defaults.retry_delay", None)
+        config = Config(default_box=True)
+        config.tasks.defaults.retry_delay = None
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.retry_delay is None
 
     def test_retry_delay_is_timedelta_if_int(self):
-        config = Config()
-        config.set_nested("tasks.defaults.retry_delay", 5)
+        config = Config(default_box=True)
+        config.tasks.defaults.retry_delay = 5
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.retry_delay == datetime.timedelta(seconds=5)
 
     def test_retry_delay_is_timedelta_if_timedelta(self):
-        config = Config()
-        config.set_nested("tasks.defaults.retry_delay", datetime.timedelta(seconds=5))
+        config = Config(default_box=True)
+        config.tasks.defaults.retry_delay = datetime.timedelta(seconds=5)
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.retry_delay == datetime.timedelta(seconds=5)
 
@@ -342,26 +276,26 @@ class TestProcessTaskDefaults:
         assert config.tasks.defaults.timeout is None
 
     def test_timeout_is_none_if_false(self):
-        config = Config()
-        config.set_nested("tasks.defaults.timeout", False)
+        config = Config(default_box=True)
+        config.tasks.defaults.timeout = False
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout is None
 
     def test_timeout_is_none_if_none(self):
-        config = Config()
-        config.set_nested("tasks.defaults.timeout", None)
+        config = Config(default_box=True)
+        config.tasks.defaults.timeout = None
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout is None
 
     def test_timeout_is_timedelta_if_int(self):
-        config = Config()
-        config.set_nested("tasks.defaults.timeout", 5)
+        config = Config(default_box=True)
+        config.tasks.defaults.timeout = 5
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout == datetime.timedelta(seconds=5)
 
     def test_timeout_is_timedelta_if_timedelta(self):
-        config = Config()
-        config.set_nested("tasks.defaults.timeout", datetime.timedelta(seconds=5))
+        config = Config(default_box=True)
+        config.tasks.defaults.timeout = datetime.timedelta(seconds=5)
         config = configuration.process_task_defaults(config)
         assert config.tasks.defaults.timeout == datetime.timedelta(seconds=5)
 
@@ -434,3 +368,37 @@ class TestConfigValidation:
         assert "KeY" in config.SeCtIoN
         assert config.SeCtIoN.KeY == 1
         assert config.section.key == 2
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows converts env vars to uppercase automatically.",
+    )
+    def test_env_vars_for_secrets_alone_are_not_lower_cased(self, monkeypatch):
+
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__SECRETS__mY_spECIal_kEY", "42")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__strange_VAlUE", "false")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__FLOW_RUN_ID", "12345")
+
+        with tempfile.TemporaryDirectory() as test_config_dir:
+            test_config_loc = os.path.join(test_config_dir, "test_config.toml")
+            with open(test_config_loc, "wb") as test_config:
+                test_config.write(
+                    b"""
+                    [context]
+                    spECIAL_TOP_key = "foo"
+
+                    [context.secrets]
+                    KeY = 1
+                    """
+                )
+
+            config = configuration.load_configuration(
+                test_config_loc, env_var_prefix="PREFECT_TEST"
+            )
+
+        assert "secrets" in config.context
+        assert config.context.secrets.mY_spECIal_kEY == 42
+        assert config.context.secrets.KeY == 1
+        assert config.context.spECIAL_TOP_key == "foo"
+        assert config.context.flow_run_id == 12345
+        assert config.context.strange_value is False

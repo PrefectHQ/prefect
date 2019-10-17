@@ -31,6 +31,12 @@ prefect.context.setdefault("secrets", {}) # to make sure context has a secrets a
 prefect.context.secrets["MY_KEY"] = "MY_VALUE"
 ```
 
+or specify the secret via environment variable:
+
+```bash
+export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
+```
+
 ::: tip
 When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
 :::
@@ -43,7 +49,6 @@ from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client
-from prefect.utilities.collections import as_nested_dict
 
 
 class Secret:
@@ -107,5 +112,8 @@ class Secret:
                 }
                 """,
                 variables=dict(name=self.name),
-            )  # type: Any
-            return as_nested_dict(result.data.secretValue, dict)
+            )
+            # the result object is a Box, so we recursively restore builtin
+            # dict/list classes
+            result_dict = result.to_dict()
+            return result_dict["data"]["secretValue"]

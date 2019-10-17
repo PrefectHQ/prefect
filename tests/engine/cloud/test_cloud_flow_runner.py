@@ -47,7 +47,9 @@ def client(monkeypatch):
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
-        set_task_run_state=MagicMock(),
+        set_task_run_state=MagicMock(
+            side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states, result_handler: states
         ),
@@ -331,15 +333,13 @@ def test_client_is_always_called_even_during_failures(client):
     ]
     assert [type(s).__name__ for s in flow_states] == ["Running", "Failed"]
 
-    assert (
-        client.set_task_run_state.call_count == 6
-    )  # (Pending -> Running -> Finished) * 3
+    assert client.set_task_run_state.call_count == 2  # (Pending -> Running -> Finished)
 
     task_states = [
         call[1]["state"] for call in client.set_task_run_state.call_args_list
     ]
-    assert len([s for s in task_states if s.is_running()]) == 3
-    assert len([s for s in task_states if s.is_successful()]) == 2
+    assert len([s for s in task_states if s.is_running()]) == 1
+    assert len([s for s in task_states if s.is_successful()]) == 0
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
@@ -436,6 +436,8 @@ def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
     caused by the Context object not creating a nested DotDict structure.  The main
     symptom of this was when a CloudFlowRunner submitted a job to a dask worker and an error
     was raised: `dict has no attribute cloud`
+
+    Note: DotDicts have been replaced by Box objects
     """
     fr = CloudFlowRunner(flow=prefect.Flow(name="test"))
     fr.run_task(
@@ -479,6 +481,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     class Client(MagicMock):
         def write_run_log(self, *args, **kwargs):
             calls.append(kwargs)
+
+        def set_task_run_state(self, *args, **kwargs):
+            return kwargs.get("state")
 
         def get_flow_run_info(self, *args, **kwargs):
             return MagicMock(

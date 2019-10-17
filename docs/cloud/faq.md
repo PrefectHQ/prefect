@@ -43,10 +43,6 @@ We have developed an innovative "hybrid" model for Prefect Cloud - it is probabl
 Surprisingly, Prefect Cloud requires _no access_ to your infrastructure or code. Information and communication is always initiated in one direction - _from_ your Agent and workflows _to_ Cloud, but never the other way around. To better understand how data is managed, please see our write-up on [Cloud Dataflow](dataflow.html).
 :::
 
-### Is there a fully on-prem version of Prefect Cloud?
-
-Yes - please [contact us](https://www.prefect.io/lighthouse-partners) for details.
-
 ### How does the Prefect Scheduler work?
 
 There are two distinct "implementations" of the scheduler:

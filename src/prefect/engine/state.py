@@ -18,7 +18,6 @@ import pendulum
 import prefect
 from prefect.engine.result import NoResult, Result, ResultInterface, SafeResult
 from prefect.engine.result_handlers import ResultHandler
-from prefect.utilities.collections import DotDict
 
 
 class State:
@@ -39,26 +38,36 @@ class State:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#696969"
 
-    def __init__(self, message: str = None, result: Any = NoResult):
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        context: Dict[str, Any] = None,
+    ):
         self.message = message
         self.result = result
+        self.context = context or dict()
+        if "task_tags" in prefect.context:
+            self.context.setdefault("tags", list(prefect.context.task_tags))
 
     def __repr__(self) -> str:
         return '<{}: "{}">'.format(type(self).__name__, self.message)
 
     def __eq__(self, other: object) -> bool:
         """
-        Equality depends on state type and data, but not message
+        Equality depends on state type and data, but not message or context
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
             eq = self._result.value == other._result.value  # type: ignore
             for attr in self.__dict__:
-                if attr.startswith("_") or attr in ["message", "result"]:
+                if attr.startswith("_") or attr in ["context", "message", "result"]:
                     continue
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq
@@ -87,6 +96,16 @@ class State:
         """
 
         return isinstance(self, Pending)
+
+    def is_queued(self) -> bool:
+        """
+        Checks if the state is currently in a queued state
+
+        Returns:
+            - bool: `True` if the state is queued, `False` otherwise
+        """
+
+        return isinstance(self, Queued)
 
     def is_retrying(self) -> bool:
         """
@@ -238,6 +257,8 @@ class Pending(State):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#7ebdff"
@@ -247,8 +268,9 @@ class Pending(State):
         message: str = None,
         result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result)
+        super().__init__(message=message, result=result, context=context)
         self.cached_inputs = cached_inputs
 
 
@@ -267,6 +289,8 @@ class Scheduled(Pending):
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ffab00"
@@ -277,9 +301,15 @@ class Scheduled(Pending):
         result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, cached_inputs=cached_inputs)
+        super().__init__(
+            message=message, result=result, cached_inputs=cached_inputs, context=context
+        )
         self.start_time = pendulum.instance(start_time or pendulum.now("utc"))
+        run_count = prefect.context.get("task_run_count")
+        if run_count is not None:
+            self.context.update(task_run_count=run_count)
 
 
 class Paused(Scheduled):
@@ -295,6 +325,8 @@ class Paused(Scheduled):
             to 10 years from now if not provided.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#cfd8dc"
@@ -305,6 +337,7 @@ class Paused(Scheduled):
         result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
     ):
         if start_time is None:
             start_time = pendulum.now().add(years=10)
@@ -314,6 +347,7 @@ class Paused(Scheduled):
             result=result,
             start_time=start_time,
             cached_inputs=cached_inputs,
+            context=context,
         )
 
 
@@ -328,9 +362,13 @@ class _MetaState(State):
     """
 
     def __init__(
-        self, message: str = None, result: Any = NoResult, state: State = None
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        state: State = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result)
+        super().__init__(message=message, result=result, context=context)
         self.state = state
 
 
@@ -348,6 +386,8 @@ class ClientFailed(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that the task run ended in
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -368,8 +408,9 @@ class Submitted(_MetaState):
     Args:
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
-        - state (State): the `State` state that has been marked as
-            "submitted".
+        - state (State): the `State` state that has been marked as "submitted".
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -390,6 +431,8 @@ class Queued(_MetaState):
         - state (State): the `State` state that has been marked as
             "queued".
         - start_time (datetime): a time the state is queued until. Defaults to `now`.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
 
     """
 
@@ -401,8 +444,9 @@ class Queued(_MetaState):
         result: Any = NoResult,
         state: State = None,
         start_time: datetime.datetime = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, state=state)
+        super().__init__(message=message, result=result, state=state, context=context)
         self.start_time = start_time or pendulum.now("utc")
 
 
@@ -417,6 +461,8 @@ class Resume(Scheduled):
         - start_time (datetime): time at which the task is scheduled to run
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#fb8532"
@@ -433,6 +479,8 @@ class Retrying(Scheduled):
         - start_time (datetime): time at which the task is scheduled to be retried
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
         - run_count (int): The number of runs that had been attempted at the time of this
             Retry. Defaults to the value stored in context under "task_run_count" or 1,
             if that value isn't found.
@@ -446,6 +494,7 @@ class Retrying(Scheduled):
         result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
         run_count: int = None,
     ):
         super().__init__(
@@ -453,6 +502,7 @@ class Retrying(Scheduled):
             message=message,
             start_time=start_time,
             cached_inputs=cached_inputs,
+            context=context,
         )
         if run_count is None:
             run_count = prefect.context.get("task_run_count", 1)
@@ -473,6 +523,8 @@ class Running(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#3d67ff"
@@ -491,6 +543,8 @@ class Finished(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
@@ -508,14 +562,20 @@ class Looped(Finished):
         - loop_count (int): The iteration number of the looping task.
             Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
 
     def __init__(
-        self, message: str = None, result: Any = NoResult, loop_count: int = None
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        loop_count: int = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(result=result, message=message)
+        super().__init__(result=result, message=message, context=context)
         if loop_count is None:
             loop_count = prefect.context.get("task_loop_count", 1)
         assert loop_count is not None  # mypy assert
@@ -530,6 +590,8 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#28a745"
@@ -549,6 +611,8 @@ class Cached(Success):
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#34d058"
@@ -560,8 +624,9 @@ class Cached(Success):
         cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result)
+        super().__init__(message=message, result=result, context=context)
         self.cached_inputs = cached_inputs
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
@@ -587,6 +652,8 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#003ccb"
@@ -596,8 +663,9 @@ class Mapped(Success):
         message: str = None,
         result: Any = NoResult,
         map_states: List[State] = None,
+        context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result)
+        super().__init__(message=message, result=result, context=context)
         self.map_states = map_states or []  # type: List[State]
 
     @property
@@ -613,9 +681,23 @@ class Failed(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task might require manual Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#eb0000"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
+    ):
+        super().__init__(message=message, result=result, context=context)
+        self.cached_inputs = cached_inputs
 
 
 class Aborted(Failed):
@@ -626,6 +708,10 @@ class Aborted(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#c42800"
@@ -641,18 +727,11 @@ class TimedOut(Failed):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - cached_inputs (dict): Defaults to `None`. A dictionary of input
             keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ff4e33"
-
-    def __init__(
-        self,
-        message: str = None,
-        result: Any = NoResult,
-        cached_inputs: Dict[str, Result] = None,
-    ):
-        super().__init__(message=message, result=result)
-        self.cached_inputs = cached_inputs
 
 
 class TriggerFailed(Failed):
@@ -663,6 +742,10 @@ class TriggerFailed(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#ff5131"
@@ -676,10 +759,17 @@ class Skipped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
     """
 
     color = "#62757f"
 
     # note: this does not allow setting "cached" as Success states do
-    def __init__(self, message: str = None, result: Any = NoResult):
-        super().__init__(message=message, result=result)
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        context: Dict[str, Any] = None,
+    ):
+        super().__init__(message=message, result=result, context=context)

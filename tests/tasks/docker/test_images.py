@@ -1,5 +1,8 @@
+import json
+import logging
 from unittest.mock import MagicMock
 
+import docker
 import pytest
 
 from prefect.tasks.docker import (
@@ -12,7 +15,40 @@ from prefect.tasks.docker import (
 )
 
 
-class TestListImagesTask:
+class DockerLoggingTestingUtilityMixin:
+    @staticmethod
+    def assert_logs_twice_on_success(task, caplog):
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+            task.run()
+            assert len(caplog.records) == 2
+
+            initial = caplog.records[0]
+            final = caplog.records[1]
+
+            assert "Starting" in initial.msg
+            assert "Completed" in final.msg
+
+    @staticmethod
+    def assert_logs_once_on_docker_api_failure(task, caplog):
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+            with pytest.raises(docker.errors.DockerException):
+                task.run()
+                assert len(caplog.records) == 1
+                assert "Starting" in caplog.text
+                assert "Completed" not in caplog.text
+
+    @staticmethod
+    def assert_doesnt_log_on_param_failure(task, caplog):
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+            with pytest.raises(ValueError):
+                task.run()
+                assert len(caplog.records) == 0
+
+
+class TestListImagesTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = ListImages()
         assert not task.repository_name
@@ -54,8 +90,46 @@ class TestListImagesTask:
         task.run(repository_name="test")
         assert api.return_value.images.call_args[1]["name"] == "test"
 
+    def test_returns_list_images_value(self, monkeypatch, caplog):
+        repo_name = "test repo"
+        task = ListImages(repository_name=repo_name)
 
-class TestPullImageTask:
+        api = MagicMock()
+        expected_docker_output = ["A real image", "A second, equally real image"]
+
+        api.return_value.images = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            result = task.run()
+            assert result == expected_docker_output
+
+            assert len(caplog.records) == 2
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+        repo_name = "test repo"
+        task = ListImages(repository_name=repo_name)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+        repo_name = "test_repo"
+        task = ListImages(repository_name=repo_name)
+
+        api = MagicMock()
+        images_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+        api.return_value.images = images_mock
+
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+
+class TestPullImageTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = PullImage()
         assert not task.repository
@@ -105,8 +179,53 @@ class TestPullImageTask:
         task.run(repository="test")
         assert api.return_value.pull.call_args[1]["repository"] == "test"
 
+    def test_returns_pull_value(self, monkeypatch, caplog):
 
-class TestPushImageTask:
+        task = PullImage(repository="original")
+
+        api = MagicMock()
+        expected_docker_output = "A real output from docker's api"
+
+        api.return_value.pull = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            result = task.run(repository="test")
+            assert result == expected_docker_output
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+        tag = "A very specific tag for an image"
+        repository = "An even more specific repository"
+        task = PullImage(repository=repository, tag=tag)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+
+        task = PullImage()
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_doesnt_log_on_param_failure(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+
+        task = PullImage(repository="test")
+
+        api = MagicMock()
+        pull_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+        api.return_value.pull = pull_mock
+
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+
+class TestPushImageTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = PushImage()
         assert not task.repository
@@ -156,8 +275,51 @@ class TestPushImageTask:
         task.run(repository="test")
         assert api.return_value.push.call_args[1]["repository"] == "test"
 
+    def test_returns_push_value(self, monkeypatch, caplog):
+        task = PushImage(repository="original")
 
-class TestRemoveImageTask:
+        api = MagicMock()
+        expected_docker_output = "An example push API response"
+
+        api.return_value.push = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            result = task.run(repository="test")
+            assert result == expected_docker_output
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+        repository = "test repo"
+        task = PushImage(repository=repository)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+        repository = "test repo"
+        task = PushImage(repository=repository)
+
+        api = MagicMock()
+        push_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+
+        api.return_value.push = push_mock
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+
+        task = PushImage()
+        api = MagicMock()
+
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_doesnt_log_on_param_failure(task, caplog)
+
+
+class TestRemoveImageTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = RemoveImage()
         assert not task.image
@@ -207,8 +369,37 @@ class TestRemoveImageTask:
         task.run(image="test")
         assert api.return_value.remove_image.call_args[1]["image"] == "test"
 
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
 
-class TestTagImageTask:
+        image = "test image"
+        task = RemoveImage(image=image)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+
+        task = RemoveImage()
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_doesnt_log_on_param_failure(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+
+        task = RemoveImage(image="test")
+
+        api = MagicMock()
+        remove_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+        api.return_value.remove_image = remove_mock
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+
+class TestTagImageTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = TagImage()
         assert not task.image
@@ -271,8 +462,55 @@ class TestTagImageTask:
         assert api.return_value.tag.call_args[1]["image"] == "test"
         assert api.return_value.tag.call_args[1]["repository"] == "test"
 
+    def test_returns_tag_value(self, monkeypatch, caplog):
+        image = "an image thats going to get tagged"
+        task = TagImage(image=image)
+        expected_docker_output = image
+        api = MagicMock()
+        api.return_value.tag = MagicMock(return_value=expected_docker_output)
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
 
-class TestBuildImageTask:
+        with caplog.at_level(logging.DEBUG, logger=task.logger.name):
+
+            actual = task.run(image=image, repository="test")
+            assert actual == expected_docker_output
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+
+        task = TagImage(image="test", repository="test")
+
+        api = MagicMock()
+        tag_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+        api.return_value.tag = tag_mock
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+
+        task = TagImage()
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        self.assert_doesnt_log_on_param_failure(task, caplog)
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+
+        task = TagImage(image="test", repository="test")
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+
+        tag = "test tag"
+        image = "test image"
+        repository = "test repo"
+
+        self.assert_logs_twice_on_success(task, caplog)
+
+
+class TestBuildImageTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = BuildImage()
         assert not task.path
@@ -351,3 +589,32 @@ class TestBuildImageTask:
 
         task.run(path="test")
         assert api.return_value.build.call_args[1]["path"] == "test"
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+        path = "test path"
+        task = BuildImage(path=path)
+
+        api = MagicMock()
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+
+        task = BuildImage(path="test")
+        api = MagicMock()
+
+        build_mock = MagicMock(
+            side_effect=docker.errors.DockerException("Docker specific error")
+        )
+
+        api.return_value.build = build_mock
+
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+        task = BuildImage()
+        api = MagicMock()
+
+        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        self.assert_doesnt_log_on_param_failure(task, caplog)

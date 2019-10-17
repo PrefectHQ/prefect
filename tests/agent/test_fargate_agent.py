@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytest.importorskip("boto3")
-
-from botocore.exceptions import ClientError
-
-
 from prefect.agent.fargate import FargateAgent
 from prefect.environments.storage import Docker
 from prefect.utilities.graphql import GraphQLResult
+
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
+from botocore.exceptions import ClientError
 
 
 def test_ecs_agent_init(monkeypatch, runner_token):
@@ -27,10 +27,13 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
     agent = FargateAgent()
     assert agent
+    assert agent.name == "agent"
     assert agent.cluster == "default"
     assert not agent.subnets
     assert not agent.security_groups
     assert not agent.repository_credentials
+    assert agent.task_role_arn == ""
+    assert agent.execution_role_arn == ""
     assert agent.assign_public_ip == "ENABLED"
     assert agent.task_cpu == "256"
     assert agent.task_memory == "512"
@@ -42,8 +45,12 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = FargateAgent(
+        name="test",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -54,6 +61,9 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         task_memory="2",
     )
     assert agent
+    assert agent.name == "test"
+    assert agent.task_role_arn == "task_role_arn"
+    assert agent.execution_role_arn == "execution_role_arn"
     assert agent.cluster == "cluster"
     assert agent.subnets == ["subnet"]
     assert agent.security_groups == ["security_group"]
@@ -66,6 +76,7 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
         "ecs",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
     )
 
@@ -76,6 +87,9 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "token")
+    monkeypatch.setenv("TASK_ROLE_ARN", "task_role_arn")
+    monkeypatch.setenv("EXECUTION_ROLE_ARN", "execution_role_arn")
     monkeypatch.setenv("REGION_NAME", "region")
     monkeypatch.setenv("CLUSTER", "cluster")
     monkeypatch.setenv("REPOSITORY_CREDENTIALS", "repo")
@@ -85,6 +99,8 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
+    assert agent.execution_role_arn == "execution_role_arn"
+    assert agent.task_role_arn == "task_role_arn"
     assert agent.cluster == "cluster"
     assert agent.repository_credentials == "repo"
     assert agent.assign_public_ip == "DISABLED"
@@ -95,6 +111,7 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
         "ecs",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
         region_name="region",
     )
 
@@ -156,6 +173,9 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],
@@ -291,6 +311,9 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="token",
+        task_role_arn="task_role_arn",
+        execution_role_arn="execution_role_arn",
         region_name="region",
         cluster="cluster",
         subnets=["subnet"],

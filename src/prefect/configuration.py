@@ -6,6 +6,7 @@ import re
 from typing import Any, Optional, Union, cast
 
 import toml
+from box import Box
 
 from prefect.utilities import collections
 
@@ -15,22 +16,14 @@ ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
 
-class Config(collections.DotDict):
-
-    __protect_critical_keys__ = False
-
-    def __getattr__(self, attr: str) -> Any:
-        """
-        This method helps mypy discover attribute types without annotations
-        """
-        if attr in self:
-            return super().__getattr__(attr)  # type: ignore
-        else:
-            raise AttributeError("Config has no key '{}'".format(attr))
+class Config(Box):
+    """
+    A config is a Box subclass
+    """
 
     def copy(self) -> "Config":
         """
-        Create a copy of the config. Each level of the Config is a new Config object, so
+        Create a recursive copy of the config. Each level of the Config is a new Config object, so
         modifying keys won't affect the original Config object. However, values are not
         deep-copied, and mutations can affect the original.
         """
@@ -40,88 +33,6 @@ class Config(collections.DotDict):
                 value = value.copy()
             new_config[key] = value
         return new_config
-
-    def get_nested(self, key: str, default: Any = None) -> Any:
-        """
-        Retrieves a (possibly nested) config key's value, creating intermediate keys if
-        necessary
-
-        For example:
-        >>> config = Config(a=Config(b=Config(c=5)))
-        >>> assert config.get_nested('a.b.c') == 5
-
-        >>> config = Config()
-        >>> assert config.get_nested('a.b.c') is None
-
-        Args:
-            - key (str): a key, indicated nested keys by separating them with '.'
-            - default (Any): a value to return if the key is not found
-        """
-        tmp_val = self
-        for k in key.split("."):
-            if isinstance(tmp_val, Config) and k in tmp_val:
-                tmp_val = tmp_val[k]
-            else:
-                return default
-        return tmp_val
-
-    def set_nested(self, key: str, value: Any) -> None:
-        """
-        Sets a (possibly nested) config key to have some value. Creates intermediate keys
-        if necessary.
-
-        For example:
-        >>> config = Config()
-        >>> config.set_nested('a.b.c', 5)
-        >>> assert config.a.b.c == 5
-
-        Args:
-            - key (str): a key, indicated nested keys by separating them with '.'
-            - value (Any): a value to set
-
-        """
-        config = self
-        keys = key.split(".")
-        for k in keys[:-1]:
-            # get the value of the config under the provided key
-            new_config = config.setdefault(k, Config())
-            # if the value is not a config, then we are overwriting an existing config setting
-            if not isinstance(new_config, Config):
-                # assign a new config to the key
-                new_config = Config()
-                config[k] = new_config
-            # get the new config so we can continue into the nested keys
-            config = new_config
-
-        config[keys[-1]] = value
-
-    def setdefault_nested(self, key: str, value: Any) -> Any:
-        """
-        Sets a (possibly nested) config key to have some value, if it doesn't already exist.
-        Creates intermediate keys if necessary.
-
-        For example:
-        >>> config = Config()
-        >>> config.setdefault_nested('a.b.c', 5)
-        >>> assert config.a.b.c == 5
-        >>> config.setdefault_nested('a.b.c', 10)
-        >>> assert config.a.b.c == 5
-
-        Args:
-            - key (str): a key, indicated nested keys by separating them with '.'
-            - value (Any): a value to set
-
-        Returns:
-            Any: the value at the provided key
-
-        """
-        config = self
-        keys = key.split(".")
-        for k in keys[:-1]:
-            config = config.setdefault(k, Config())
-        if keys[-1] not in config:
-            config[keys[-1]] = value
-        return config[keys[-1]]
 
 
 def string_to_type(val: str) -> Union[bool, int, float, str]:
@@ -219,7 +130,7 @@ def process_task_defaults(config: Config) -> Config:
         - config (Config): the configuration to modify
     """
     # make sure defaults exists
-    defaults = config.setdefault_nested("tasks.defaults", Config())
+    defaults = config.setdefault("tasks", {}).setdefault("defaults", {})
 
     # max_retries defaults to 0 if not set, False, or None
     if not defaults.setdefault("max_retries", 0):
@@ -311,9 +222,17 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
                 value = cast(str, env_var_value.encode().decode("unicode_escape"))
 
                 # place the env var in the flat config as a compound key
-                config_option = collections.CompoundKey(
-                    env_var_option.lower().split("__")
-                )
+                if env_var_option.upper().startswith("CONTEXT__SECRETS"):
+                    formatted_option = env_var_option.split("__")
+                    formatted_option[:-1] = [
+                        val.lower() for val in formatted_option[:-1]
+                    ]
+                    config_option = collections.CompoundKey(formatted_option)
+                else:
+                    config_option = collections.CompoundKey(
+                        env_var_option.lower().split("__")
+                    )
+
                 flat_config[config_option] = string_to_type(
                     cast(str, interpolate_env_vars(value))
                 )
