@@ -102,7 +102,7 @@ GraphQL allows you to retrieve more, including:
 
 ```graphql
 query {
-    task_tag_limits(where: {tag: {_eq: "webservice" } }){
+    task_tag_limit(where: {tag: {_eq: "webservice" } }){
         limit
         id
     }
