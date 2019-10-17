@@ -86,14 +86,12 @@ class FargateAgent(Agent):
         region_name = region_name or os.getenv("REGION_NAME")
 
         # Agent task config
-        self.task_role_arn = task_role_arn or os.getenv("TASK_ROLE_ARN")
+        self.task_role_arn = task_role_arn or os.getenv("TASK_ROLE_ARN", "")
         self.logger.debug("Task role arn {}".format(self.task_role_arn))
 
-        self.execution_role_arn = execution_role_arn or os.getenv("EXECUTION_ROLE_ARN")
-        if not self.execution_role_arn:
-            self.logger.warning(
-                "Fargate requires task definition to have execution role ARN to support ECR images"
-            )
+        self.execution_role_arn = execution_role_arn or os.getenv(
+            "EXECUTION_ROLE_ARN", ""
+        )
         self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
 
         self.cluster = cluster or os.getenv("CLUSTER", "default")

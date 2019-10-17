@@ -32,8 +32,8 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     assert not agent.subnets
     assert not agent.security_groups
     assert not agent.repository_credentials
-    assert not agent.task_role_arn
-    assert not agent.execution_role_arn
+    assert agent.task_role_arn == ""
+    assert agent.execution_role_arn == ""
     assert agent.assign_public_ip == "ENABLED"
     assert agent.task_cpu == "256"
     assert agent.task_memory == "512"
