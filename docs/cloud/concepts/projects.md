@@ -26,6 +26,14 @@ query {
 
 ## Creating a new project
 
+#### Prefect CLI
+
+To create a new project with the Prefect CLI:
+
+```
+$ prefect create project "My Project"
+```
+
 #### Core Client
 
 To create a new project with the Core client:
@@ -38,6 +46,8 @@ client.create_project(project_name="My Project")
 ```
 
 #### GraphQL <Badge text="GQL"/>
+
+To create a new project with GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
