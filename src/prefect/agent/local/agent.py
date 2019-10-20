@@ -65,7 +65,7 @@ class LocalAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
-            self.logger.debug(
+            self.logger.info(
                 "Deploying flow run {}".format(flow_run.id)  # type: ignore
             )
 
@@ -79,13 +79,16 @@ class LocalAgent(Agent):
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
             if not self.no_pull and storage.registry_url:
-                self.logger.debug("Pulling image {}...".format(storage.name))
+                self.logger.info("Pulling image {}...".format(storage.name))
                 try:
                     pull_output = self.docker_client.pull(
                         storage.name, stream=True, decode=True
                     )
                     for line in pull_output:
                         self.logger.debug(line)
+                    self.logger.info(
+                        "Successfully pulled image {}...".format(storage.name)
+                    )
                 except docker.errors.APIError as exc:
                     self.logger.error("Issue pulling image {}".format(storage.name))
 
