@@ -144,7 +144,7 @@ jobs:
             - coverage
 
   # ----------------------------------
-  # Run unit tests in Python 3.5-3.7
+  # Run unit tests in Python 3.5-3.8
   # ----------------------------------
 
   test-3.5:
@@ -207,6 +207,28 @@ jobs:
   test-3.7:
     docker:
       - image: python:3.7
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest -rfEsx .
+
+  test-3.8:
+    docker:
+      - image: python:3.8
     steps:
       - checkout
       - setup_remote_docker
@@ -293,6 +315,7 @@ workflows:
       - test-3.5
       - test-3.6
       - test-3.7
+      - test-3.8
       - test-lower-prefect
       - test-vanilla-prefect
       - test-py352-import-prefect
