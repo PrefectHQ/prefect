@@ -24,7 +24,20 @@ query {
 }
 ```
 
-## Creating a new project <Badge text="GQL"/>
+## Creating a new project
+
+#### Core Client
+
+To create a new project with the Core client:
+
+```python
+from prefect import Client
+
+client = Client()
+client.create_project(project_name="My Project")
+```
+
+#### GraphQL <Badge text="GQL"/>
 
 ```graphql
 mutation {
@@ -33,6 +46,19 @@ mutation {
         id
         name
     }
+  }
+}
+```
+
+## Deleting a project
+
+#### GraphQL <Badge text="GQL"/>
+
+Deleting a project requires tenant admin permissions as well as the project's ID.
+```graphql
+mutation{
+  deleteProject(input: {projectId: "project-UUID"}){
+    success
   }
 }
 ```
