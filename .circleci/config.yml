@@ -240,9 +240,14 @@ jobs:
           name: Install graphviz
           command: apt-get update && apt-get install -y graphviz
 
+      # we only install a vanilla version as we might have task integrations which are not 3.8 compatible 
       - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
+          name: Install vanilla prefect
+          command: pip install .
+
+      - run:
+          name: Install testing packages
+          command: pip install "pytest>=4.3,<5.0" pytest-cov pytest-env
 
       - run:
           name: Run tests
