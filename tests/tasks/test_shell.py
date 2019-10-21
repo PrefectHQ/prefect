@@ -38,6 +38,14 @@ def test_shell_initializes_and_multiline_output_returns_last_line():
     assert out.result[task].result == "42"
 
 
+def test_shell_returns_none_if_empty_output():
+    with Flow(name="test") as f:
+        task = ShellTask()(command="ls > /dev/null")
+    out = f.run()
+    assert out.is_successful()
+    assert out.result[task].result is None
+
+
 def test_shell_initializes_and_multiline_output_optionally_returns_all_lines():
     with Flow(name="test") as f:
         task = ShellTask(return_all=True)(command="echo -n 'hello world\n42'")

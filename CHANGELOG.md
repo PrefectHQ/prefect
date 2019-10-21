@@ -20,6 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix defaults for unspecified ARNs in the Fargate Agent - [#1634](https://github.com/PrefectHQ/prefect/pull/1634)
+- Fix ShellTask return value on empty stdout - [#1632](https://github.com/PrefectHQ/prefect/pull/1632)
 
 ### Deprecations
 
@@ -31,7 +32,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Tobias Schmidt](https://github.com/royalts)
 
 ## 0.6.7 <Badge text="beta" type="success"/>
 
