@@ -117,6 +117,6 @@ There are numerous ways to create flow run:
 - via the UI
 - via the Prefect Client
 
-All of these are described in the corresponding [Cloud concept documentation](concepts/flow_runs.html).
+All of these are described in the corresponding [Cloud concept documentation](concepts/flow_runs.html).  Note that the `name` parameter is _always required_ on our Flow, so any attempt at creating a flow run must provide a value for this parameter.
 
 Once a flow run has been created in a `Scheduled` state, all active Agents will now see it and only one will be able to submit it for execution.  For reference material on running Prefect Agents, see the [Up and Running documentation](upandrunning.html#start-local-agent) and the [Agent overview documentation](agent/overview.html).
