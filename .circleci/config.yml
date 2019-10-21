@@ -1,10 +1,11 @@
-version: 2
+version: 2.1
 
 references:
   workspace_root: &workspace_root /tmp/workspace
   attach_workspace: &attach_workspace
     attach_workspace:
       at: *workspace_root
+
 
 jobs:
   # ----------------------------------
@@ -147,7 +148,7 @@ jobs:
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
 
-  test-3.5:
+  test-35:
     docker:
       - image: python:3.5
 
@@ -176,7 +177,7 @@ jobs:
           paths:
             - coverage
 
-  test-3.6:
+  test-36:
     docker:
       - image: python:3.6
     steps:
@@ -204,7 +205,7 @@ jobs:
           paths:
             - coverage
 
-  test-3.7:
+  test-37:
     docker:
       - image: python:3.7
     steps:
@@ -266,41 +267,74 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
-  build_image:
+  build-docker-image:
     docker:
       - image: docker
+    parameters:
+      python-version:
+        type: string
+      tag-latest:
+        type: boolean
+        default: false
+    environment:
+      PYTHON_VERSION: << parameters.python-version >>
+      PYTHON_TAG: python<< parameters.python-version >>
     steps:
-      - setup_remote_docker
       - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
       - run:
-          name: Docker Build
-          command: docker build -t prefecthq/prefect .
+          name: Build image
+          command: >-
+            docker build 
+            --build-arg GIT_SHA=$CIRCLE_SHA1 
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            --build-arg PREFECT_VERSION=$CIRCLE_TAG 
+            -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
+            -t prefecthq/prefect:$PYTHON_TAG
+            .
+      - when:
+          condition: << parameters.tag-latest >>
+          steps:
+            - run:
+                name: Tag latest image
+                command: |
+                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:latest
       - run:
           name: Test image
           command: |
             docker run -dit prefecthq/prefect /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
-          name: Authenticate with Docker Hub and push
+          name: Push versioned tags
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect
+            docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
+            docker push prefecthq/prefect:$PYTHON_TAG
+      - when:
+          condition: << parameters.tag-latest >>
+          steps:
+            - run:
+                name: Push latest tag
+                command: |
+                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+                  docker push prefecthq/prefect:latest
 
 workflows:
   version: 2
 
   "Run tests":
     jobs:
-      - test-3.5
-      - test-3.6
-      - test-3.7
+      - test-35
+      - test-36
+      - test-37
       - test-lower-prefect
       - test-vanilla-prefect
       - test-py352-import-prefect
       - test-airflow
       - upload-coverage:
           requires:
-            - test-3.5
-            - test-3.6
+            - test-35
+            - test-36
             - test-vanilla-prefect
             - test-airflow
 
@@ -312,7 +346,25 @@ workflows:
 
   "Build docker images":
     jobs:
-      - build_image:
+      - build-docker-image:
+          python-version: "3.5"
           filters:
             branches:
               only: master
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build-docker-image:
+          python-version: "3.6"
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build-docker-image:
+          python-version: "3.7"
+          tag-latest: true
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
