@@ -38,7 +38,7 @@ class FargateAgent(Agent):
             `register_task_definition` and `run_task`
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         name: str = None,
         aws_access_key_id: str = None,
@@ -99,7 +99,6 @@ class FargateAgent(Agent):
 
         run_kwarg_list = [
             "cluster",
-            "taskDefinition",
             "count",
             "startedBy",
             "group",

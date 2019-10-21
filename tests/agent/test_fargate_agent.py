@@ -12,7 +12,7 @@ pytest.importorskip("botocore")
 from botocore.exceptions import ClientError
 
 
-def test_ecs_agent_init(monkeypatch, runner_token):
+def test_fargate_agent_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -21,56 +21,202 @@ def test_ecs_agent_init(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_ecs_agent_config_options_default(monkeypatch, runner_token):
+def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
     agent = FargateAgent()
     assert agent
     assert agent.name == "agent"
-    assert agent.cluster == "default"
-    assert not agent.subnets
-    assert not agent.security_groups
-    assert not agent.repository_credentials
-    assert agent.task_role_arn == ""
-    assert agent.execution_role_arn == ""
-    assert agent.assign_public_ip == "ENABLED"
-    assert agent.task_cpu == "256"
-    assert agent.task_memory == "512"
+    assert agent.task_definition_kwargs == {}
+    assert agent.task_run_kwargs == {}
     assert agent.boto3_client
 
 
-def test_ecs_agent_config_options_init(monkeypatch, runner_token):
+def test_parse_task_definition_kwargs(runner_token):
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+    }
+
+    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+
+    assert task_definition_kwargs == kwarg_dict
+    assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
+
+
+def test_parse_task_run_kwargs(runner_token):
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementConstraints": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "tags": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+
+    assert task_run_kwargs == kwarg_dict
+    assert task_definition_kwargs == {"placementConstraints": "test", "tags": "test"}
+
+
+def test_parse_task_definition_and_run_kwargs(runner_token):
+    agent = FargateAgent()
+
+    def_kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+    }
+
+    run_kwarg_dict = {
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementConstraints": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "tags": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+
+    assert task_definition_kwargs == def_kwarg_dict
+    assert task_run_kwargs == run_kwarg_dict
+
+
+def test_parse_task_kwargs_invalid_value_removed(runner_token):
+    agent = FargateAgent()
+
+    kwarg_dict = {"test": "not_real"}
+
+    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+
+    assert task_definition_kwargs == {}
+    assert task_run_kwargs == {}
+
+
+def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    def_kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+    }
+
+    run_kwarg_dict = {
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementConstraints": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "tags": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
 
     agent = FargateAgent(
         name="test",
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
-        task_role_arn="task_role_arn",
-        execution_role_arn="execution_role_arn",
         region_name="region",
-        cluster="cluster",
-        subnets=["subnet"],
-        security_groups=["security_group"],
-        repository_credentials="repo",
-        assign_public_ip="DISABLED",
-        task_cpu="1",
-        task_memory="2",
+        **kwarg_dict
     )
     assert agent
     assert agent.name == "test"
-    assert agent.task_role_arn == "task_role_arn"
-    assert agent.execution_role_arn == "execution_role_arn"
-    assert agent.cluster == "cluster"
-    assert agent.subnets == ["subnet"]
-    assert agent.security_groups == ["security_group"]
-    assert agent.repository_credentials == "repo"
-    assert agent.assign_public_ip == "DISABLED"
-    assert agent.task_cpu == "1"
-    assert agent.task_memory == "2"
+    assert agent.task_definition_kwargs == def_kwarg_dict
+    assert agent.task_run_kwargs == run_kwarg_dict
 
     boto3_client.assert_called_with(
         "ecs",
@@ -81,31 +227,70 @@ def test_ecs_agent_config_options_init(monkeypatch, runner_token):
     )
 
 
-def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
+def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
+    def_kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+    }
+
+    run_kwarg_dict = {
+        "cluster": "test",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementConstraints": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": "test",
+        "tags": "test",
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    # Client args
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "token")
-    monkeypatch.setenv("TASK_ROLE_ARN", "task_role_arn")
-    monkeypatch.setenv("EXECUTION_ROLE_ARN", "execution_role_arn")
     monkeypatch.setenv("REGION_NAME", "region")
-    monkeypatch.setenv("CLUSTER", "cluster")
-    monkeypatch.setenv("REPOSITORY_CREDENTIALS", "repo")
-    monkeypatch.setenv("ASSIGN_PUBLIC_IP", "DISABLED")
-    monkeypatch.setenv("TASK_CPU", "1")
-    monkeypatch.setenv("TASK_MEMORY", "2")
+
+    # Def / run args
+    monkeypatch.setenv("taskRoleArn", "test")
+    monkeypatch.setenv("executionRoleArn", "test")
+    monkeypatch.setenv("volumes", "test")
+    monkeypatch.setenv("placementConstraints", "test")
+    monkeypatch.setenv("cpu", "test")
+    monkeypatch.setenv("memory", "test")
+    monkeypatch.setenv("tags", "test")
+    monkeypatch.setenv("pidMode", "test")
+    monkeypatch.setenv("ipcMode", "test")
+    monkeypatch.setenv("proxyConfiguration", "test")
+    monkeypatch.setenv("inferenceAccelerators", "test")
+    monkeypatch.setenv("cluster", "test")
+    monkeypatch.setenv("count", "test")
+    monkeypatch.setenv("startedBy", "test")
+    monkeypatch.setenv("group", "test")
+    monkeypatch.setenv("placementStrategy", "test")
+    monkeypatch.setenv("platformVersion", "test")
+    monkeypatch.setenv("networkConfiguration", "test")
+    monkeypatch.setenv("enableECSManagedTags", "test")
+    monkeypatch.setenv("propagateTags", "test")
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
-    assert agent.execution_role_arn == "execution_role_arn"
-    assert agent.task_role_arn == "task_role_arn"
-    assert agent.cluster == "cluster"
-    assert agent.repository_credentials == "repo"
-    assert agent.assign_public_ip == "DISABLED"
-    assert agent.task_cpu == "1"
-    assert agent.task_memory == "2"
+    assert agent.task_definition_kwargs == def_kwarg_dict
+    assert agent.task_run_kwargs == run_kwarg_dict
 
     boto3_client.assert_called_with(
         "ecs",
@@ -114,20 +299,6 @@ def test_ecs_agent_config_env_vars(monkeypatch, runner_token):
         aws_session_token="token",
         region_name="region",
     )
-
-
-def test_default_subnets(monkeypatch, runner_token):
-    boto3_client = MagicMock()
-    boto3_client.describe_subnets.return_value = {
-        "Subnets": [
-            {"MapPublicIpOnLaunch": False, "SubnetId": "id"},
-            {"MapPublicIpOnLaunch": True, "SubnetId": "id2"},
-        ]
-    }
-    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
-
-    agent = FargateAgent()
-    assert agent.subnets == ["id"]
 
 
 def test_deploy_flows(monkeypatch, runner_token):
@@ -159,7 +330,6 @@ def test_deploy_flows(monkeypatch, runner_token):
 
     assert boto3_client.describe_task_definition.called
     assert boto3_client.run_task.called
-    assert boto3_client.run_task.call_args[1]["cluster"] == "default"
 
 
 def test_deploy_flows_all_args(monkeypatch, runner_token):
@@ -170,20 +340,41 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "test",
+        "memory": "test",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+        "cluster": "cluster",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": ["subnet"],
+                "assignPublicIp": "DISABLED",
+                "securityGroups": ["security_group"],
+            }
+        },
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
-        task_role_arn="task_role_arn",
-        execution_role_arn="execution_role_arn",
         region_name="region",
-        cluster="cluster",
-        subnets=["subnet"],
-        security_groups=["security_group"],
-        repository_credentials="repo",
-        assign_public_ip="DISABLED",
-        task_cpu="1",
-        task_memory="2",
+        **kwarg_dict
     )
     agent.deploy_flows(
         flow_runs=[
@@ -225,41 +416,6 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
             "assignPublicIp": "DISABLED",
             "securityGroups": ["security_group"],
         }
-    }
-
-
-def test_deploy_flows_no_security_group(monkeypatch, runner_token):
-    boto3_client = MagicMock()
-
-    boto3_client.describe_task_definition.return_value = {}
-    boto3_client.run_task.return_value = {}
-
-    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
-
-    agent = FargateAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                }
-            )
-        ]
-    )
-
-    assert boto3_client.describe_task_definition.called
-    assert boto3_client.run_task.called
-    assert boto3_client.run_task.call_args[1]["cluster"] == "default"
-    assert boto3_client.run_task.call_args[1]["networkConfiguration"] == {
-        "awsvpcConfiguration": {"subnets": [], "assignPublicIp": "ENABLED"}
     }
 
 
@@ -308,20 +464,41 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "1",
+        "memory": "2",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+        "cluster": "cluster",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": ["subnet"],
+                "assignPublicIp": "DISABLED",
+                "securityGroups": ["security_group"],
+            }
+        },
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
     agent = FargateAgent(
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="token",
-        task_role_arn="task_role_arn",
-        execution_role_arn="execution_role_arn",
         region_name="region",
-        cluster="cluster",
-        subnets=["subnet"],
-        security_groups=["security_group"],
-        repository_credentials="repo",
-        assign_public_ip="DISABLED",
-        task_cpu="1",
-        task_memory="2",
+        **kwarg_dict
     )
     agent.deploy_flows(
         flow_runs=[
@@ -369,7 +546,6 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
                 },
             ],
             "essential": True,
-            "repositoryCredentials": {"credentialsParameter": "repo"},
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
