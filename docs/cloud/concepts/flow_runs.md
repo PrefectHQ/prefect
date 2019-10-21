@@ -12,7 +12,17 @@ To create a flow run for a specific flow with the Core client:
 client.create_flow_run(flow_id="<flow id>")
 ```
 
-The client method takes a number of optional arguments, including scheduled start time and an idempotency key. See the API reference for complete detail.
+The client method takes a number of optional arguments, including scheduled start time, parameters and an idempotency key. See the API reference for complete detail.
+
+### Core CLI
+
+You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name:
+
+```
+prefect run cloud -n "My Flow Name" -p "Hello, World!"
+```
+
+Similarly to the Client call, you can optionally provide parameters here as well.
 
 ### GraphQL <Badge text="GQL"/>
 
