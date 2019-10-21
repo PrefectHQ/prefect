@@ -92,6 +92,7 @@ class ShellTask(prefect.Task):
                 [self.shell, tmp.name], stdout=PIPE, stderr=STDOUT, env=current_env
             )
             lines = []
+            line = None
             for raw_line in iter(sub_process.stdout.readline, b""):
                 line = raw_line.decode("utf-8").rstrip()
                 if self.return_all:
@@ -109,4 +110,4 @@ class ShellTask(prefect.Task):
         if self.return_all:
             return lines
         else:
-            return lines[-1]
+            return line
