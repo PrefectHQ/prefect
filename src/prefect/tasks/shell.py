@@ -70,10 +70,9 @@ class ShellTask(prefect.Task):
                 the subprocess
 
         Returns:
-            - last line of stdout (string) if any and return_all is True, None
-                otherwise. All lines of stdout (array of strings) if return_all is
-                False: returns (last line of) stdout, which is useful for passing
-                result of shell command to other downstream tasks.
+            - stdout (string): if `return_all` is `False` (the default), only the last line of stdout
+                is returned, otherwise all lines are returned, which is useful for passing
+                result of shell command to other downstream tasks. If there is no output, `None` is returned.
 
         Raises:
             - prefect.engine.signals.FAIL: if command has an exit code other
