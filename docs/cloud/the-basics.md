@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-# Prefect Cloud: First Steps
+# Prefect Cloud: The Basics
 
 Welcome to Prefect Cloud! Now that you have an account, this guide will help you orient yourself and understand the minor adjustments required to deploy your Flows to Cloud.
 

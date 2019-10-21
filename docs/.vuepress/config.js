@@ -60,7 +60,7 @@ module.exports = {
       },
       {
         text: "Prefect Cloud",
-        link: "/cloud/first-steps"
+        link: "/cloud/the-basics"
       },
       {
         text: "API Reference",
@@ -140,7 +140,7 @@ module.exports = {
         {
           title: "Welcome",
           collapsable: false,
-          children: ["first-steps", "dataflow", "faq", "upandrunning"]
+          children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "faq"]
         },
         {
           title: "Cloud Concepts",
