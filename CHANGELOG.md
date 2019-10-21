@@ -11,7 +11,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
-- Adds an "Ask for help" button with a link to the prefect.io support page [#1637](https://github.com/PrefectHQ/prefect/pull/1637)
 
 ### Task Library
 
@@ -27,7 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Fargate Agent now takes in all boto3 camel case arguments instead of specific snake case options - [#1649](https://github.com/PrefectHQ/prefect/pull/1649)
 
 ### Contributors
 
