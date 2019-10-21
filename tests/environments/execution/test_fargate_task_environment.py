@@ -216,6 +216,7 @@ def test_setup_definition_register(monkeypatch):
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     environment = FargateTaskEnvironment(
+        family="test",
         containerDefinitions=[
             {
                 "name": "flow",
@@ -224,17 +225,14 @@ def test_setup_definition_register(monkeypatch):
                 "environment": [],
                 "essential": True,
             }
-        ]
+        ],
     )
 
     environment.setup(Docker(registry_url="test", image_name="image", image_tag="tag"))
 
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.called
-    assert (
-        boto3_client.register_task_definition.call_args[1]["family"]
-        == "prefect-task-unknown-custom"
-    )
+    assert boto3_client.register_task_definition.call_args[1]["family"] == "test"
     assert boto3_client.register_task_definition.call_args[1][
         "containerDefinitions"
     ] == [
@@ -272,7 +270,9 @@ def test_execute_run_task(monkeypatch):
     boto3_client.run_task.return_value = {}
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    environment = FargateTaskEnvironment(cluster="test")
+    environment = FargateTaskEnvironment(
+        cluster="test", family="test", taskDefinition="test"
+    )
 
     environment.execute(
         storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
@@ -280,10 +280,7 @@ def test_execute_run_task(monkeypatch):
     )
 
     assert boto3_client.run_task.called
-    assert (
-        boto3_client.run_task.call_args[1]["taskDefinition"]
-        == "prefect-task-unknown-custom"
-    )
+    assert boto3_client.run_task.call_args[1]["taskDefinition"] == "test"
     assert boto3_client.run_task.call_args[1]["overrides"] == {
         "containerOverrides": [
             {
@@ -395,6 +392,8 @@ def test_entire_environment_process_together(monkeypatch):
                 }
             ],
             cluster="test",
+            family="test",
+            taskDefinition="test",
         )
 
         assert environment
@@ -406,10 +405,7 @@ def test_entire_environment_process_together(monkeypatch):
 
         assert boto3_client.describe_task_definition.called
         assert boto3_client.register_task_definition.called
-        assert (
-            boto3_client.register_task_definition.call_args[1]["family"]
-            == "prefect-task-id-custom"
-        )
+        assert boto3_client.register_task_definition.call_args[1]["family"] == "test"
         assert boto3_client.register_task_definition.call_args[1][
             "containerDefinitions"
         ] == [
@@ -444,10 +440,7 @@ def test_entire_environment_process_together(monkeypatch):
         environment.execute(storage=storage, flow_location=".prefect/flows")
 
         assert boto3_client.run_task.called
-        assert (
-            boto3_client.run_task.call_args[1]["taskDefinition"]
-            == "prefect-task-id-custom"
-        )
+        assert boto3_client.run_task.call_args[1]["taskDefinition"] == "test"
         assert boto3_client.run_task.call_args[1]["overrides"] == {
             "containerOverrides": [
                 {

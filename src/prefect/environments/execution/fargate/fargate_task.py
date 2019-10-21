@@ -43,6 +43,8 @@ class FargateTaskEnvironment(Environment):
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 
+    Note: You must provide `family` and `taskDefinition` with the same string so they match on run of the task.
+
     The secrets and kwargs that are provided at initialization time of this environment
     are not serialized and will only ever exist on this object.
 
@@ -200,10 +202,7 @@ class FargateTaskEnvironment(Environment):
                 "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
             ]
 
-            boto3_c.register_task_definition(
-                family="prefect-task-{}-custom".format(flow_run_id[:8]),
-                **self.task_definition_kwargs
-            )
+            boto3_c.register_task_definition(**self.task_definition_kwargs)
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -245,7 +244,6 @@ class FargateTaskEnvironment(Environment):
         )
 
         boto3_c.run_task(
-            taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8]),
             overrides={"containerOverrides": container_overrides},
             launchType="FARGATE",
             **self.task_run_kwargs
