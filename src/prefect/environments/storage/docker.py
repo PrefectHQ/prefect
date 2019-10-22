@@ -82,7 +82,7 @@ class Docker(Storage):
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url or default_url
         self.local_image = local_image
-        self.extra_commands = []
+        self.extra_commands = []  # type: List[str]
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
