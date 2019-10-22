@@ -57,7 +57,7 @@ jobs:
   # test a standard install of prefect
   # is importable in python 3.5.2
   # there was a typing bug in 3.5.2 that this attempts to catch
-  test-py352-import-prefect:
+  test_py352_import_prefect:
     docker:
       - image: python:3.5.2
 
@@ -75,7 +75,7 @@ jobs:
   # test a standard install of prefect
   # with all requriements pinned to their lowest allowed versions
   # to ensure our requirements.txt file is accurate
-  test-lower-prefect:
+  test_lower_prefect:
     docker:
       - image: python:3.5.2
 
@@ -115,7 +115,7 @@ jobs:
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
   # caused by many package dependency options
-  test-vanilla-prefect:
+  test_vanilla_prefect:
     docker:
       - image: python:3.6
 
@@ -148,7 +148,7 @@ jobs:
   # Run unit tests in Python 3.5-3.7
   # ----------------------------------
 
-  test-35:
+  test_35:
     docker:
       - image: python:3.5
 
@@ -177,7 +177,7 @@ jobs:
           paths:
             - coverage
 
-  test-36:
+  test_36:
     docker:
       - image: python:3.6
     steps:
@@ -205,7 +205,7 @@ jobs:
           paths:
             - coverage
 
-  test-37:
+  test_37:
     docker:
       - image: python:3.7
     steps:
@@ -227,7 +227,7 @@ jobs:
           name: Run tests
           command: pytest -rfEsx .
 
-  test-airflow:
+  test_airflow:
     docker:
       - image: continuumio/miniconda3:4.6.14
     steps:
@@ -258,7 +258,7 @@ jobs:
           paths:
             - coverage
 
-  upload-coverage:
+  upload_coverage:
     docker:
       - image: python:3.6
     steps:
@@ -267,21 +267,22 @@ jobs:
           name: Upload Coverage
           command: bash <(curl -s https://codecov.io/bash) -cF python -s "/tmp/workspace/coverage/"
 
-  build-docker-image:
+  build_docker_image:
     docker:
       - image: docker
     parameters:
-      python-version:
+      python_version:
         type: string
-      tag-latest:
+      tag_latest:
         type: boolean
         default: false
     environment:
-      PYTHON_VERSION: << parameters.python-version >>
-      PYTHON_TAG: python<< parameters.python-version >>
+      PYTHON_VERSION: << parameters.python_version >>
+      PYTHON_TAG: python<< parameters.python_version >>
     steps:
       - checkout
       - run:
+          # todo: is there a better way to ensure that this is a commit on master?
           name: Master branch check
           command: |
             apk add git
@@ -302,7 +303,7 @@ jobs:
             -t prefecthq/prefect:$PYTHON_TAG
             .
       - when:
-          condition: << parameters.tag-latest >>
+          condition: << parameters.tag_latest >>
           steps:
             - run:
                 name: Tag latest image
@@ -319,7 +320,7 @@ jobs:
             docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
             docker push prefecthq/prefect:$PYTHON_TAG
       - when:
-          condition: << parameters.tag-latest >>
+          condition: << parameters.tag_latest >>
           steps:
             - run:
                 name: Push latest tag
@@ -332,19 +333,19 @@ workflows:
 
   "Run tests":
     jobs:
-      - test-35
-      - test-36
-      - test-37
-      - test-lower-prefect
-      - test-vanilla-prefect
-      - test-py352-import-prefect
-      - test-airflow
-      - upload-coverage:
+      - test_35
+      - test_36
+      - test_37
+      - test_lower_prefect
+      - test_vanilla_prefect
+      - test_py352_import_prefect
+      - test_airflow
+      - upload_coverage:
           requires:
-            - test-35
-            - test-36
-            - test-vanilla-prefect
-            - test-airflow
+            - test_35
+            - test_36
+            - test_vanilla_prefect
+            - test_airflow
 
   "Check code style and docs":
     jobs:
@@ -354,23 +355,23 @@ workflows:
 
   "Build docker images":
     jobs:
-      - build-docker-image:
-          python-version: "3.5"
+      - build_docker_image:
+          python_version: "3.5"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build-docker-image:
-          python-version: "3.6"
+      - build_docker_image:
+          python_version: "3.6"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build-docker-image:
-          python-version: "3.7"
-          tag-latest: true
+      - build_docker_image:
+          python_version: "3.7"
+          tag_latest: true
           filters:
             branches:
               ignore: /.*/
