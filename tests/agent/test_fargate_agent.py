@@ -33,7 +33,10 @@ def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_parse_task_definition_kwargs(runner_token):
+def test_parse_task_definition_kwargs(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
     agent = FargateAgent()
 
     kwarg_dict = {
@@ -56,7 +59,10 @@ def test_parse_task_definition_kwargs(runner_token):
     assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
 
 
-def test_parse_task_run_kwargs(runner_token):
+def test_parse_task_run_kwargs(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
     agent = FargateAgent()
 
     kwarg_dict = {
@@ -79,7 +85,10 @@ def test_parse_task_run_kwargs(runner_token):
     assert task_definition_kwargs == {"placementConstraints": "test", "tags": "test"}
 
 
-def test_parse_task_definition_and_run_kwargs(runner_token):
+def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
     agent = FargateAgent()
 
     def_kwarg_dict = {
@@ -139,7 +148,10 @@ def test_parse_task_definition_and_run_kwargs(runner_token):
     assert task_run_kwargs == run_kwarg_dict
 
 
-def test_parse_task_kwargs_invalid_value_removed(runner_token):
+def test_parse_task_kwargs_invalid_value_removed(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
     agent = FargateAgent()
 
     kwarg_dict = {"test": "not_real"}
