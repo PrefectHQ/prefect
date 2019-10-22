@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-# Prefect Cloud: First Steps
+# Prefect Cloud: The Basics
 
 Welcome to Prefect Cloud! Now that you have an account, this guide will help you orient yourself and understand the minor adjustments required to deploy your Flows to Cloud.
 
@@ -113,7 +113,7 @@ A tutorial on how to debug such issues can be found [here](https://docs.prefect.
 Now that your Flow has all the required attributes, it's time to deploy to Cloud! All that you have to do now is:
 
 ```python
-flow.deploy(project="My Prefect Cloud Project Name")
+flow.deploy(project_name="My Prefect Cloud Project Name")
 ```
 
 [This convenience method](https://docs.prefect.io/api/unreleased/core/flow.html#prefect-core-flow-flow-deploy) will proceed to build your Docker image, layer Prefect on top, serialize your Flow into the image, perform a "health check" that your Flow can be properly deserialized within the image and finally push the image to your registry of choice. It will then send the corresponding _metadata_ to Prefect Cloud. As above, note that `flow.deploy` also accepts initialization keyword arguments for `Docker` storage if you want to avoid creating that object yourself.
