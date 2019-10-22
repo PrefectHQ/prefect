@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import tempfile
 from unittest.mock import MagicMock
@@ -386,9 +387,20 @@ def test_create_dockerfile_from_everything():
             with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
                 output = dockerfile.read()
 
+            print(output)
+
             assert "FROM test3" in output
             assert "COPY test ./test2" in output
-            assert "ENV test=1" in output
+
+            # ensure there is a "ENV ... test=1" in the output
+            results = re.search(
+                r"ENV(\s+[a-zA-Z0-9_]*\=[^\\]*\\\s*$)*\s*(?P<result>test=1)",
+                output,
+                re.MULTILINE,
+            )
+            assert results != None
+            assert results.group("result") == "test=1"
+
             assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
             assert "COPY test.flow /root/.prefect/test.prefect" in output
             assert "COPY other.flow /root/.prefect/other.prefect" in output
