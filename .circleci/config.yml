@@ -281,6 +281,14 @@ jobs:
       PYTHON_TAG: python<< parameters.python-version >>
     steps:
       - checkout
+      - run:
+          name: Master branch check
+          command: |
+            apk add git
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
@@ -350,14 +358,14 @@ workflows:
           python-version: "3.5"
           filters:
             branches:
-              only: master
+              ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build-docker-image:
           python-version: "3.6"
           filters:
             branches:
-              only: master
+              ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build-docker-image:
@@ -365,6 +373,6 @@ workflows:
           tag-latest: true
           filters:
             branches:
-              only: master
+              ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/

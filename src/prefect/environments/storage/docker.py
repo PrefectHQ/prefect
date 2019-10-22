@@ -95,7 +95,6 @@ class Docker(Storage):
                 sys.version_info.major, sys.version_info.minor
             )
             if re.match("^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
-                # note: this does not necessarily mean that we have built/pushed all previous prefect versions to dockerhub
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
