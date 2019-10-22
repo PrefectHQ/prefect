@@ -387,8 +387,6 @@ def test_create_dockerfile_from_everything():
             with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
                 output = dockerfile.read()
 
-            print(output)
-
             assert "FROM test3" in output
             assert "COPY test ./test2" in output
 
