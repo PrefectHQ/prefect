@@ -6,7 +6,7 @@ sidebarDepth: 1
 
 Now that you understand the basic building blocks of Prefect Cloud and have locally authenticated with the Cloud API, let's walk through a real flow deployment.  Before we begin, make sure:
 - you have a working Python 3.5.2+ environment with the latest version of Prefect installed
-- your have [Docker](https://www.docker.com) up and running, and have authenticated with a Docker registry that you have push access to
+- you have [Docker](https://www.docker.com) up and running, and have authenticated with a Docker registry that you have push access to
 
 ## Write a Flow
 
