@@ -142,6 +142,10 @@ class FargateTaskEnvironment(Environment):
 
         return task_definition_kwargs, task_run_kwargs
 
+    @property
+    def dependencies(self) -> list:
+        return ["boto3", "botocore"]
+
     def setup(self, storage: "Docker") -> None:  # type: ignore
         """
         Register the task definition if it does not already exist.

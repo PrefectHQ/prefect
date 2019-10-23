@@ -88,6 +88,10 @@ class DaskKubernetesEnvironment(Environment):
 
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
+    @property
+    def dependencies(self) -> list:
+        return ["kubernetes"]
+
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
             from kubernetes import client, config
