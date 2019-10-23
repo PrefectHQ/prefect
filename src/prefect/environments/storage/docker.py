@@ -2,6 +2,7 @@ import filecmp
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -35,7 +36,8 @@ class Docker(Storage):
 
     Args:
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
-        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to `python:3.6`
+        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image 
+            matching your python version and prefect core library version used at runtime.
         - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (str, optional): name of the image to use when building, populated with a UUID after build
         - image_tag (str, optional): tag of the image to use when building, populated with a UUID after build
@@ -63,14 +65,6 @@ class Docker(Storage):
     ) -> None:
         self.registry_url = registry_url
 
-        if base_image is None:
-            python_version = "{}.{}".format(
-                sys.version_info.major, sys.version_info.minor
-            )
-            self.base_image = "python:{}".format(python_version)
-        else:
-            self.base_image = base_image
-
         if sys.platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
         else:
@@ -79,18 +73,48 @@ class Docker(Storage):
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
+        self.python_dependencies.append("wheel")
+
         self.env_vars = env_vars or {}
+        self.env_vars["PREFECT__USER_CONFIG_PATH"] = "/root/.prefect/config.toml"
+
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
         self.base_url = base_url or default_url
         self.local_image = local_image
+        self.extra_commands = []  # type: List[str]
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
             self.prefect_version = "master" if len(version) > 1 else version[0]
         else:
             self.prefect_version = prefect_version
+
+        if base_image is None:
+            python_version = "{}.{}".format(
+                sys.version_info.major, sys.version_info.minor
+            )
+            if re.match("^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
+                self.base_image = "prefecthq/prefect:{}-python{}".format(
+                    self.prefect_version, python_version
+                )
+            elif self.prefect_version == "master":
+                # use the latest image for the given python version
+                self.base_image = "prefecthq/prefect:python{}".format(python_version)
+            else:
+                # create an image from python:*-slim directly
+                self.base_image = "python:{}-slim".format(python_version)
+                self.extra_commands.extend(
+                    [
+                        "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
+                            self.prefect_version
+                        ),
+                    ]
+                )
+        else:
+            self.base_image = base_image
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
@@ -311,11 +335,11 @@ class Docker(Storage):
 
         with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
 
-            # Generate RUN pip install commands for python dependencies
-            pip_installs = ""
+            # Generate single pip install command for python dependencies
+            pip_installs = "RUN pip install "
             if self.python_dependencies:
                 for dependency in self.python_dependencies:
-                    pip_installs += "RUN pip install {}\n".format(dependency)
+                    pip_installs += "{} ".format(dependency)
 
             # Generate ENV variables to load into the image
             env_vars = ""
@@ -355,6 +379,11 @@ class Docker(Storage):
                     source="{}.flow".format(clean_name), dest=flow_location
                 )
 
+            # Write all extra commands that should be run in the image
+            extra_commands = ""
+            for cmd in self.extra_commands:
+                extra_commands += "RUN {}\n".format(cmd)
+
             # Write a healthcheck script into the image
             with open(
                 os.path.join(os.path.dirname(__file__), "_healthcheck.py"), "r"
@@ -369,28 +398,24 @@ class Docker(Storage):
                 FROM {base_image}
 
                 RUN pip install pip --upgrade
-                RUN pip install wheel
+                {extra_commands}
                 {pip_installs}
 
-                RUN mkdir /root/.prefect/
+                RUN mkdir -p /root/.prefect/
                 {copy_flows}
                 COPY healthcheck.py /root/.prefect/healthcheck.py
                 {copy_files}
 
-                ENV PREFECT__USER_CONFIG_PATH="/root/.prefect/config.toml"
                 {env_vars}
-
-                # update version if base image already has prefect installed
-                RUN pip install -U git+https://github.com/PrefectHQ/prefect.git@{version}#egg=prefect[kubernetes]
 
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
+                    extra_commands=extra_commands,
                     base_image=self.base_image,
                     pip_installs=pip_installs,
                     copy_flows=copy_flows,
                     copy_files=copy_files,
                     env_vars=env_vars,
-                    version=self.prefect_version,
                     flow_file_paths=", ".join(
                         ['"{}"'.format(k) for k in self.flows.values()]
                     ),

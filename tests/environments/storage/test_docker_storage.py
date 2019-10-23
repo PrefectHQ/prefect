@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import tempfile
 from unittest.mock import MagicMock
@@ -47,11 +48,13 @@ def test_empty_docker_storage(monkeypatch, platform, url):
     storage = Docker()
 
     assert not storage.registry_url
-    assert storage.base_image.startswith("python:")
+    assert storage.base_image.startswith("prefecthq/prefect:python")
     assert not storage.image_name
     assert not storage.image_tag
-    assert not storage.python_dependencies
-    assert not storage.env_vars
+    assert storage.python_dependencies == ["wheel"]
+    assert storage.env_vars == {
+        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml"
+    }
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
@@ -63,7 +66,7 @@ def test_docker_init_responds_to_python_version(monkeypatch, version_info):
     version_mock = MagicMock(major=version_info[0], minor=version_info[1])
     monkeypatch.setattr(sys, "version_info", version_mock)
     storage = Docker()
-    assert storage.base_image == "python:{}.{}".format(*version_info)
+    assert storage.base_image == "prefecthq/prefect:python{}.{}".format(*version_info)
 
 
 @pytest.mark.parametrize(
@@ -97,8 +100,11 @@ def test_initialized_docker_storage():
     assert storage.base_image == "test3"
     assert storage.image_name == "test4"
     assert storage.image_tag == "test5"
-    assert storage.python_dependencies == ["test"]
-    assert storage.env_vars == {"test": "1"}
+    assert storage.python_dependencies == ["test", "wheel"]
+    assert storage.env_vars == {
+        "test": "1",
+        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml",
+    }
     assert storage.base_url == "test_url"
     assert storage.prefect_version == "my-branch"
     assert storage.local_image
@@ -301,8 +307,26 @@ def test_create_dockerfile_from_base_image():
         assert "FROM python:3.6" in output
 
 
-def test_create_dockerfile_from_prefect_version():
-    storage = Docker(prefect_version="master")
+@pytest.mark.parametrize(
+    "prefect_version",
+    [
+        ("0.5.3", ("FROM prefecthq/prefect:0.5.3-python3.6",)),
+        ("master", ("FROM prefecthq/prefect:python3.6",)),
+        (
+            "424be6b5ed8d3be85064de4b95b5c3d7cb665510",
+            (
+                "FROM python:3.6-slim",
+                "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                "pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[kubernetes]",
+            ),
+        ),
+    ],
+)
+def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
+    version_mock = MagicMock(major=3, minor=6)
+    monkeypatch.setattr(sys, "version_info", version_mock)
+
+    storage = Docker(prefect_version=prefect_version[0])
 
     with tempfile.TemporaryDirectory() as tempdir:
         storage.create_dockerfile_object(directory=tempdir)
@@ -310,7 +334,8 @@ def test_create_dockerfile_from_prefect_version():
         with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
             output = dockerfile.read()
 
-        assert "prefect.git@master" in output
+        for content in prefect_version[1]:
+            assert content in output
 
 
 def test_create_dockerfile_with_weird_flow_name():
@@ -364,7 +389,16 @@ def test_create_dockerfile_from_everything():
 
             assert "FROM test3" in output
             assert "COPY test ./test2" in output
-            assert "ENV test=1" in output
+
+            # ensure there is a "ENV ... test=1" in the output
+            results = re.search(
+                r"ENV(\s+[a-zA-Z0-9_]*\=[^\\]*\\\s*$)*\s*(?P<result>test=1)",
+                output,
+                re.MULTILINE,
+            )
+            assert results != None
+            assert results.group("result") == "test=1"
+
             assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
             assert "COPY test.flow /root/.prefect/test.prefect" in output
             assert "COPY other.flow /root/.prefect/other.prefect" in output
