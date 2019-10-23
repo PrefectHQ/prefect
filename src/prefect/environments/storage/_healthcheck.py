@@ -93,6 +93,36 @@ def result_handler_check(flows: list):
     print("Result Handler check: OK")
 
 
+def environment_requirement_check(flows: list):
+    from prefect import environments
+
+    # Tests for imports that are required by certain environments
+    for flow in flows:
+        if isinstance(
+            flow.environment, environments.DaskKubernetesEnvironment
+        ) or isinstance(flow.environment, environments.KubernetesJobEnvironment):
+            try:
+                import kubernetes
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "Using {} requires the `kubernetes` dependency.".format(
+                        flow.environment.__class__.__name__
+                    )
+                )
+        elif isinstance(flow.environment, environments.FargateTaskEnvironment):
+            try:
+                import boto3
+                import botocore
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "Using {} requires both `boto3` and `botocore` dependencies.".format(
+                        flow.environment.__class__.__name__
+                    )
+                )
+
+    print("Environment requirement check: OK")
+
+
 if __name__ == "__main__":
     flow_file_path, python_version = sys.argv[1:3]
 
@@ -100,4 +130,5 @@ if __name__ == "__main__":
     system_check(python_version)
     flows = cloudpickle_deserialization_check(flow_file_path)
     result_handler_check(flows)
+    environment_requirement_check(flows)
     print("All health checks passed.")
