@@ -187,6 +187,9 @@ class TestEnvironmentDependencyCheck:
 
         assert healthchecks.environment_dependency_check([flow]) is None
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 6), reason="3.5 does not support ModuleNotFoundError"
+    )
     def test_raise_on_missing_imports(self, monkeypatch):
         class NewEnvironment(Environment):
             @property
