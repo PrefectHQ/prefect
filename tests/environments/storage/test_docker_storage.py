@@ -44,11 +44,12 @@ def test_add_flow_to_docker():
 )
 def test_empty_docker_storage(monkeypatch, platform, url):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
 
     storage = Docker()
 
     assert not storage.registry_url
-    assert storage.base_image.startswith("prefecthq/prefect:python")
+    assert storage.base_image == "python:3.6-slim"
     assert not storage.image_name
     assert not storage.image_tag
     assert storage.python_dependencies == ["wheel"]
@@ -66,7 +67,7 @@ def test_docker_init_responds_to_python_version(monkeypatch, version_info):
     version_mock = MagicMock(major=version_info[0], minor=version_info[1])
     monkeypatch.setattr(sys, "version_info", version_mock)
     storage = Docker()
-    assert storage.base_image == "prefecthq/prefect:python{}.{}".format(*version_info)
+    assert storage.base_image == "python:{}.{}-slim".format(*version_info)
 
 
 @pytest.mark.parametrize(
@@ -311,7 +312,13 @@ def test_create_dockerfile_from_base_image():
     "prefect_version",
     [
         ("0.5.3", ("FROM prefecthq/prefect:0.5.3-python3.6",)),
-        ("master", ("FROM prefecthq/prefect:python3.6",)),
+        (
+            "master",
+            (
+                "FROM python:3.6-slim",
+                "pip install git+https://github.com/PrefectHQ/prefect.git@master",
+            ),
+        ),
         (
             "424be6b5ed8d3be85064de4b95b5c3d7cb665510",
             (
@@ -323,8 +330,7 @@ def test_create_dockerfile_from_base_image():
     ],
 )
 def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
-    version_mock = MagicMock(major=3, minor=6)
-    monkeypatch.setattr(sys, "version_info", version_mock)
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
 
     storage = Docker(prefect_version=prefect_version[0])
 
