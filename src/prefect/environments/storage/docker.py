@@ -108,7 +108,7 @@ class Docker(Storage):
                 self.extra_commands.extend(
                     [
                         "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
-                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect".format(
+                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}".format(
                             self.prefect_version
                         ),
                     ]
