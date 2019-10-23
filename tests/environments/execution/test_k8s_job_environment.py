@@ -63,6 +63,11 @@ def test_create_k8s_job_callbacks():
         assert environment.on_exit is f
 
 
+def test_k8s_job_environment_dependencies():
+    environment = KubernetesJobEnvironment()
+    assert environment.dependencies == ["kubernetes"]
+
+
 def test_create_k8s_job_environment_identifier_label():
     with tempfile.TemporaryDirectory() as directory:
 

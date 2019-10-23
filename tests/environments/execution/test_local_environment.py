@@ -28,6 +28,11 @@ def test_create_environment_populated():
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
+def test_environment_dependencies():
+    environment = LocalEnvironment()
+    assert environment.dependencies == []
+
+
 def test_setup_environment_passes():
     environment = LocalEnvironment()
     environment.setup(storage=Docker())

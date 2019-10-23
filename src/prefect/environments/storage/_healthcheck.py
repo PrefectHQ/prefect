@@ -5,6 +5,7 @@ deployment issues early on.
 """
 
 import ast
+import importlib
 import sys
 import warnings
 
@@ -94,29 +95,17 @@ def result_handler_check(flows: list):
 
 
 def environment_requirement_check(flows: list):
-    from prefect import environments
-
-    # Tests for imports that are required by certain environments
+    # Test for imports that are required by certain environments
     for flow in flows:
-        if isinstance(
-            flow.environment, environments.DaskKubernetesEnvironment
-        ) or isinstance(flow.environment, environments.KubernetesJobEnvironment):
+        # Load all required dependencies for an environment
+        required_imports = flow.environment.dependencies if flow.environment else []
+        for requirement in required_imports:
             try:
-                import kubernetes
+                importlib.import_module(requirement)
             except ModuleNotFoundError:
                 raise ModuleNotFoundError(
-                    "Using {} requires the `kubernetes` dependency.".format(
-                        flow.environment.__class__.__name__
-                    )
-                )
-        elif isinstance(flow.environment, environments.FargateTaskEnvironment):
-            try:
-                import boto3
-                import botocore
-            except ModuleNotFoundError:
-                raise ModuleNotFoundError(
-                    "Using {} requires both `boto3` and `botocore` dependencies.".format(
-                        flow.environment.__class__.__name__
+                    "Using {} requires the `{}` dependency".format(
+                        flow.environment.__class__.__name__, requirement
                     )
                 )
 
