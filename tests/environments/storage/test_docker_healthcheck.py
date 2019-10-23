@@ -179,6 +179,14 @@ class TestEnvironmentDependencyCheck:
 
         assert healthchecks.environment_dependency_check([flow]) is None
 
+    def test_no_raise_on_missing_dependencies_property(self):
+        class NewEnvironment(Environment):
+            pass
+
+        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
+
+        assert healthchecks.environment_dependency_check([flow]) is None
+
     def test_raise_on_missing_imports(self, monkeypatch):
         class NewEnvironment(Environment):
             @property

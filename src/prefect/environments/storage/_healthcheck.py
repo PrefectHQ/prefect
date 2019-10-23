@@ -98,7 +98,10 @@ def environment_dependency_check(flows: list):
     # Test for imports that are required by certain environments
     for flow in flows:
         # Load all required dependencies for an environment
-        required_imports = flow.environment.dependencies if flow.environment else []
+        if not hasattr(flow.environment, "dependencies"):
+            continue
+
+        required_imports = flow.environment.dependencies
         for dependency in required_imports:
             try:
                 importlib.import_module(dependency)
