@@ -153,8 +153,8 @@ class Agent:
                     )
                 )
 
-                # self.update_states(flow_runs)
-                # self.deploy_flows(flow_runs)
+                self.update_states(flow_runs)
+                self.deploy_flows(flow_runs)
                 self.logger.info(
                     "Submitted {} flow run(s) for execution.".format(len(flow_runs))
                 )
