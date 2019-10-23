@@ -31,6 +31,12 @@ prefect.context.setdefault("secrets", {}) # to make sure context has a secrets a
 prefect.context.secrets["MY_KEY"] = "MY_VALUE"
 ```
 
+or specify the secret via environment variable:
+
+```bash
+export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
+```
+
 ::: tip
 When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
 :::

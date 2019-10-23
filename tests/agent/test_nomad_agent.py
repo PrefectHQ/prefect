@@ -12,13 +12,15 @@ def test_nomad_agent_init(runner_token):
     agent = NomadAgent()
     assert agent
     assert agent.labels is None
+    assert agent.name == "agent"
 
 
 def test_nomad_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = NomadAgent(labels=["test"])
+        agent = NomadAgent(name="test", labels=["test"])
         assert agent
         assert agent.labels == ["test"]
+        assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
 

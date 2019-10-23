@@ -55,6 +55,18 @@ def test_agent_start_verbose(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_name(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    docker_client = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "--name", "test_agent"])
+    assert result.exit_code == 0
+
+
 def test_agent_start_local_context_vars(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)

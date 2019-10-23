@@ -36,22 +36,24 @@ class Agent:
     environment variable or in your user configuration file.
 
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, labels: Iterable[str] = None) -> None:
+    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+        self.name = name or config.cloud.agent.get("name", "agent")
+        self.labels = labels or config.cloud.agent.get("labels")
+        if not self.labels:
+            self.labels = None
 
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
         self._verify_token(token)
 
-        self.labels = labels or config.cloud.agent.get("labels")
-        if not self.labels:
-            self.labels = None
-
-        logger = logging.getLogger("agent")
+        logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
         ch = logging.StreamHandler()
         formatter = logging.Formatter(

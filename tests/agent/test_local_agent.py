@@ -16,6 +16,7 @@ def test_local_agent_init(monkeypatch, runner_token):
     agent = LocalAgent()
     assert agent
     assert agent.labels is None
+    assert agent.name == "agent"
 
 
 def test_local_agent_config_options(monkeypatch, runner_token):
@@ -24,8 +25,9 @@ def test_local_agent_config_options(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.platform", "osx")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent(labels=["test"])
+        agent = LocalAgent(name="test", labels=["test"])
         assert agent.labels == ["test"]
+        assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert not agent.no_pull

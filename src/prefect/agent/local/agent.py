@@ -16,19 +16,25 @@ class LocalAgent(Agent):
     Local Agent can be found at https://docs.prefect.io/cloud/agent/local.html
 
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
         - no_pull (bool, optional): Flag on whether or not to pull flow images.
             Defaults to `False` if not provided here or in context.
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
     """
 
     def __init__(
-        self, base_url: str = None, no_pull: bool = None, labels: Iterable[str] = None
+        self,
+        name: str = None,
+        labels: Iterable[str] = None,
+        base_url: str = None,
+        no_pull: bool = None,
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(name=name, labels=labels)
 
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
@@ -66,7 +72,7 @@ class LocalAgent(Agent):
             - flow_runs (list): A list of GraphQLResult flow run objects
         """
         for flow_run in flow_runs:
-            self.logger.debug(
+            self.logger.info(
                 "Deploying flow run {}".format(flow_run.id)  # type: ignore
             )
 
@@ -80,13 +86,16 @@ class LocalAgent(Agent):
             env_vars = self.populate_env_vars(flow_run=flow_run)
 
             if not self.no_pull and storage.registry_url:
-                self.logger.debug("Pulling image {}...".format(storage.name))
+                self.logger.info("Pulling image {}...".format(storage.name))
                 try:
                     pull_output = self.docker_client.pull(
                         storage.name, stream=True, decode=True
                     )
                     for line in pull_output:
                         self.logger.debug(line)
+                    self.logger.info(
+                        "Successfully pulled image {}...".format(storage.name)
+                    )
                 except docker.errors.APIError as exc:
                     self.logger.error("Issue pulling image {}".format(storage.name))
 

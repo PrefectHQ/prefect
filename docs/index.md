@@ -17,12 +17,13 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
                 Get the code
             </button>
         </a>
+        <a href="https://prefect.io/support" target="_blank" >
+            <button class="action-button">
+                Ask for help
+            </button>
+        </a>
     </div>
 </div>
-
-
-
-
 
 <div class="features">
 <div class="feature">

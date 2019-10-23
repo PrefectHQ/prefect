@@ -1,11 +1,8 @@
-from typing import Any, List
-
-import cloudpickle
+from typing import Any, Callable, List
 
 from prefect import config
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Storage
-from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -33,6 +30,8 @@ class RemoteEnvironment(Environment):
             the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
     """
 
     def __init__(
@@ -40,10 +39,12 @@ class RemoteEnvironment(Environment):
         executor: str = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
     ) -> None:
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
-        super().__init__(labels=labels)
+        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any
@@ -58,6 +59,11 @@ class RemoteEnvironment(Environment):
             - flow_location (str): the location of the Flow to execute
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
         try:
             from prefect.engine import (
                 get_default_executor_class,
@@ -77,3 +83,7 @@ class RemoteEnvironment(Environment):
                 "Unexpected error raised during flow run: {}".format(exc)
             )
             raise exc
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()

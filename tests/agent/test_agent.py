@@ -19,7 +19,27 @@ def test_agent_config_options(runner_token):
         agent = Agent()
         assert agent.labels is None
         assert agent.client.get_auth_token() == "TEST_TOKEN"
+        assert agent.name == "agent"
         assert agent.logger
+        assert agent.logger.name == "agent"
+
+
+def test_agent_name_set_options(runner_token, monkeypatch):
+    # Default
+    agent = Agent()
+    assert agent.name == "agent"
+    assert agent.logger.name == "agent"
+
+    # Init arg
+    agent = Agent(name="test1")
+    assert agent.name == "test1"
+    assert agent.logger.name == "test1"
+
+    # Config
+    with set_temporary_config({"cloud.agent.name": "test2"}):
+        agent = Agent()
+        assert agent.name == "test2"
+        assert agent.logger.name == "test2"
 
 
 def test_agent_log_level(runner_token):

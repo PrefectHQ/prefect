@@ -14,112 +14,131 @@ class FargateAgent(Agent):
     long as the proper access configuration variables are set.  Information on using the
     Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
 
+    All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
+    and `run_task`. For information on the kwargs supported visit the following links:
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
             `AWS_SECRET_ACCESS_KEY`.
+        - aws_session_token (str, optional): AWS session key for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_SESSION_TOKEN`.
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME`.
-        - cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the
-            value set in the environment variable `CLUSTER`.
-        - subnets (list, optional): A list of AWS VPC subnets to use for the tasks that
-            are deployed on Fargate. Defaults to the subnets found which have
-            `MapPublicIpOnLaunch` disabled.
-        - security_groups (list, optional): A list of security groups to associate with
-            the deployed tasks. Defaults to the default security group of the VPC.
-        - repository_credentials (str, optional): An Amazon Resource Name (ARN) of the
-            secret containing the private repository credentials. Defaults to the value
-            set in the environment variable `REPOSITORY_CREDENTIALS`.
-        - assign_public_ip (str, optional): Whether the task's elastic network interface
-            receives a public IP address. Defaults to the value set in the environment
-            variable `ASSIGN_PUBLIC_IP` or `ENABLED` otherwise.
-        - task_cpu (str, optional): The number of cpu units reserved for the container.
-            Defaults to the value set in the environment variable `TASK_CPU` or `256`
-            otherwise.
-        - task_memory (str, optional): The hard limit (in MiB) of memory to present to
-            the container. Defaults to the value set in the environment variable
-            `TASK_MEMORY` or `512` otherwise.
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
+        - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
+            `register_task_definition` and `run_task`
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
+        name: str = None,
+        labels: Iterable[str] = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
+        aws_session_token: str = None,
         region_name: str = None,
-        cluster: str = None,
-        subnets: list = None,
-        security_groups: list = None,
-        repository_credentials: str = None,
-        assign_public_ip: str = None,
-        task_cpu: str = None,
-        task_memory: str = None,
-        labels: Iterable[str] = None,
+        **kwargs
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(name=name, labels=labels)
 
         from boto3 import client as boto3_client
 
         # Config used for boto3 client initialization
-        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
+        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID", "")
         aws_secret_access_key = aws_secret_access_key or os.getenv(
-            "AWS_SECRET_ACCESS_KEY"
+            "AWS_SECRET_ACCESS_KEY", ""
         )
-        region_name = region_name or os.getenv("REGION_NAME")
+        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN", "")
+        region_name = region_name or os.getenv("REGION_NAME", "")
 
-        # Agent task config
-        self.cluster = cluster or os.getenv("CLUSTER", "default")
-        self.logger.debug("Cluster {}".format(self.cluster))
-
-        self.subnets = subnets or []
-        self.logger.debug("Subnets {}".format(self.subnets))
-
-        self.security_groups = security_groups or []
-        self.logger.debug("Security groups {}".format(self.security_groups))
-
-        self.repository_credentials = repository_credentials or os.getenv(
-            "REPOSITORY_CREDENTIALS"
-        )
-        self.logger.debug(
-            "Repository credentials {}".format(self.repository_credentials)
-        )
-
-        self.assign_public_ip = assign_public_ip or os.getenv(
-            "ASSIGN_PUBLIC_IP", "ENABLED"
-        )
-        self.logger.debug("Assign public IP {}".format(self.assign_public_ip))
-
-        self.task_cpu = task_cpu or os.getenv("TASK_CPU", "256")
-        self.logger.debug("Task CPU {}".format(self.task_cpu))
-
-        self.task_memory = task_memory or os.getenv("TASK_MEMORY", "512")
-        self.logger.debug("Task Memory {}".format(self.task_memory))
+        # Parse accepted kwargs for definition and run
+        self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
         # Client initialization
         self.boto3_client = boto3_client(
             "ecs",
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
             region_name=region_name,
         )
 
-        # Look for default subnets with `MapPublicIpOnLaunch` disabled
-        if not subnets:
-            self.logger.debug("No subnets provided, finding defaults")
-            ec2 = boto3_client(
-                "ec2",
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=region_name,
-            )
-            for subnet in ec2.describe_subnets()["Subnets"]:
-                if not subnet.get("MapPublicIpOnLaunch"):
-                    self.subnets.append(subnet.get("SubnetId"))
-                    self.logger.debug("Subnet {} found".format(subnet.get("SubnetId")))
+    def _parse_kwargs(self, user_kwargs: dict) -> tuple:
+        """
+        Parse the kwargs passed in and separate them out for `register_task_definition`
+        and `run_task`. This is required because boto3 does not allow extra kwargs
+        and if they are provided it will raise botocore.exceptions.ParamValidationError.
+
+        Args:
+            - user_kwargs (dict): The kwargs passed to the initialization of the environment
+
+        Returns:
+            tuple: a tuple of two dictionaries (task_definition_kwargs, task_run_kwargs)
+        """
+        definition_kwarg_list = [
+            "taskRoleArn",
+            "executionRoleArn",
+            "volumes",
+            "placementConstraints",
+            "cpu",
+            "memory",
+            "tags",
+            "pidMode",
+            "ipcMode",
+            "proxyConfiguration",
+            "inferenceAccelerators",
+        ]
+
+        run_kwarg_list = [
+            "cluster",
+            "count",
+            "startedBy",
+            "group",
+            "placementConstraints",
+            "placementStrategy",
+            "platformVersion",
+            "networkConfiguration",
+            "tags",
+            "enableECSManagedTags",
+            "propagateTags",
+        ]
+
+        task_definition_kwargs = {}
+        for key, item in user_kwargs.items():
+            if key in definition_kwarg_list:
+                task_definition_kwargs.update({key: item})
+                self.logger.debug("{} = {}".format(key, item))
+
+        task_run_kwargs = {}
+        for key, item in user_kwargs.items():
+            if key in run_kwarg_list:
+                task_run_kwargs.update({key: item})
+                self.logger.debug("{} = {}".format(key, item))
+
+        # Check environment if keys were not provided
+        for key in definition_kwarg_list:
+            if not task_definition_kwargs.get(key) and os.getenv(key):
+                task_definition_kwargs.update({key: os.getenv(key)})
+                self.logger.debug("{} from environment variable".format(key))
+
+        for key in run_kwarg_list:
+            if not task_run_kwargs.get(key) and os.getenv(key):
+                task_run_kwargs.update({key: os.getenv(key)})
+                self.logger.debug("{} from environment variable".format(key))
+
+        return task_definition_kwargs, task_run_kwargs
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
@@ -154,7 +173,7 @@ class FargateAgent(Agent):
         Check if a task definition already exists for the flow
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult representing a flow run object
 
         Returns:
             - bool: whether or not a preexisting task definition is found for this flow
@@ -216,13 +235,6 @@ class FargateAgent(Agent):
             }
         ]
 
-        # Assign repository credentials if they are specified
-        if self.repository_credentials:
-            self.logger.debug("Assigning repository credentials")
-            container_definitions[0]["repositoryCredentials"] = {
-                "credentialsParameter": self.repository_credentials
-            }
-
         # Register task definition
         self.logger.debug(
             "Registering task definition {}".format(
@@ -234,8 +246,7 @@ class FargateAgent(Agent):
             containerDefinitions=container_definitions,
             requiresCompatibilities=["FARGATE"],
             networkMode="awsvpc",
-            cpu=self.task_cpu,
-            memory=self.task_memory,
+            **self.task_definition_kwargs
         )
 
     def _run_task(self, flow_run: GraphQLResult) -> None:
@@ -261,20 +272,6 @@ class FargateAgent(Agent):
             }
         ]
 
-        network_configuration = {
-            "awsvpcConfiguration": {
-                "subnets": self.subnets,
-                "assignPublicIp": self.assign_public_ip,
-            }
-        }
-
-        # Asssign task security groups if they are specified
-        if self.security_groups:
-            self.logger.debug("Assigning security groups")
-            network_configuration["awsvpcConfiguration"][
-                "securityGroups"
-            ] = self.security_groups
-
         # Run task
         self.logger.debug(
             "Running task using task definition {}".format(
@@ -282,13 +279,12 @@ class FargateAgent(Agent):
             )
         )
         self.boto3_client.run_task(
-            cluster=self.cluster,
             taskDefinition="prefect-task-{}".format(
                 flow_run.flow.id[:8]  # type: ignore
             ),
             overrides={"containerOverrides": container_overrides},
             launchType="FARGATE",
-            networkConfiguration=network_configuration,
+            **self.task_run_kwargs
         )
 
 

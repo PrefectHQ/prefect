@@ -19,12 +19,14 @@ class NomadAgent(Agent):
     `NOMAD_HOST` environment variable.
 
     Args:
+        - name (str, optional): An optional name to give this agent. Can also be set through
+            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, labels: Iterable[str] = None) -> None:
-        super().__init__(labels=labels)
+    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+        super().__init__(name=name, labels=labels)
 
     def deploy_flows(self, flow_runs: list) -> None:
         """
