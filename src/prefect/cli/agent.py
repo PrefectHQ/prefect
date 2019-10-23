@@ -106,6 +106,7 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
         with context(no_pull=no_pull, base_url=base_url):
             from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
 
+
 @agent.command(hidden=True)
 @click.argument("name", default="kubernetes")
 @click.option(

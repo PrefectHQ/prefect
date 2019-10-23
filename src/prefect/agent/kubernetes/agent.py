@@ -42,6 +42,7 @@ class KubernetesAgent(Agent):
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
+
     def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
         super().__init__(name=name, labels=labels)
 

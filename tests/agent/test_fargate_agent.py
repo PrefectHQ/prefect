@@ -34,6 +34,7 @@ def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     assert agent.task_run_kwargs == {}
     assert agent.boto3_client
 
+
 def test_fargate_agent_config_options(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
@@ -48,6 +49,7 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
         assert agent.task_definition_kwargs == {}
         assert agent.task_run_kwargs == {}
         assert agent.boto3_client
+
 
 def test_parse_task_definition_kwargs(monkeypatch, runner_token):
     boto3_client = MagicMock()
