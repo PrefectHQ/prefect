@@ -22,6 +22,7 @@ def test_k8s_agent_init(monkeypatch, runner_token):
 
     agent = KubernetesAgent()
     assert agent
+    assert agent.labels == []
     assert agent.name == "agent"
     assert agent.batch_client
 
@@ -31,8 +32,9 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = KubernetesAgent(name="test")
+        agent = KubernetesAgent(name="test", labels=["test"])
         assert agent
+        assert agent.labels == ["test"]
         assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
@@ -250,6 +252,30 @@ def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
+
+    assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
+
+
+def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        labels=["test_label1", "test_label2"],
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert agent_env[0]["value"] == "test_token"
+    assert agent_env[1]["value"] == "test_api"
+    assert agent_env[2]["value"] == "test_namespace"
+    assert agent_env[4]["value"] == "['test_label1', 'test_label2']"
 
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 

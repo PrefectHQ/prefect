@@ -4,6 +4,7 @@ import pytest
 
 from prefect.agent.fargate import FargateAgent
 from prefect.environments.storage import Docker
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 pytest.importorskip("boto3")
@@ -27,6 +28,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
     agent = FargateAgent()
     assert agent
+    assert agent.labels == []
     assert agent.name == "agent"
     assert agent.cluster == "default"
     assert not agent.subnets
@@ -38,6 +40,20 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
     assert agent.task_cpu == "256"
     assert agent.task_memory == "512"
     assert agent.boto3_client
+
+
+def test_k8s_agent_config_options(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = FargateAgent(name="test", labels=["test"])
+        assert agent
+        assert agent.labels == ["test"]
+        assert agent.name == "test"
+        assert agent.client.get_auth_token() == "TEST_TOKEN"
+        assert agent.logger
+        assert agent.boto3_client
 
 
 def test_ecs_agent_config_options_init(monkeypatch, runner_token):

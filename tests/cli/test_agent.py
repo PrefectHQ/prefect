@@ -81,6 +81,20 @@ def test_agent_start_local_context_vars(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_local_labels(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    docker_client = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        agent, ["start", "-t", "test", "--label", "label1", "-l", "label2"]
+    )
+    assert result.exit_code == 0
+
+
 def test_agent_start_fails(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
@@ -130,6 +144,10 @@ def test_agent_install_passes_args():
             "--resource-manager",
             "--image-pull-secrets",
             "secret-test",
+            "--label",
+            "test_label1",
+            "-l",
+            "test_label2",
         ],
     )
     assert result.exit_code == 0
@@ -138,6 +156,8 @@ def test_agent_install_passes_args():
     assert "TEST_NAMESPACE" in result.output
     assert "resource-manager" in result.output
     assert "secret-test" in result.output
+    assert "test_label1" in result.output
+    assert "test_label2" in result.output
 
 
 def test_agent_install_no_resource_manager():

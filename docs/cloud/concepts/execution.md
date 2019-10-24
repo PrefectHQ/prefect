@@ -88,3 +88,47 @@ The two main environment functions are `setup` and `execute`. The `setup` functi
 ### Environment Callbacks
 
 Each Prefect environment has two optional arugments `on_start` and `on_exit` that function as callbacks which act as extra customizable functionality outside of infrastructure or flow related processes. Users can provide an `on_start` function which will execute before the flow starts in the main process and an `on_exit` function which will execute after the flow finishes.
+
+### Labels
+
+Environments expose a configurable list of `labels` that allow you to label your flows to determine where they get executed. This is in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agent/overview.html).
+
+#### Label Example
+
+Labels work in a way in which the Agent's labels must be a superset of the labels provided on the environment for the flow. This means that if you have a flow's environment labels as `["dev"]` and an Agent with labels set to `["dev", "staging"]` then it will run that flow because the _dev_ label is a subset of the labels provided to the Agent.
+
+```python
+from prefect.environments import RemoteEnvironment
+
+f = Flow("example-label")
+f.environment = RemoteEnvironment(labels=["dev"])
+```
+
+```python
+from prefect.agent import LocalAgent
+
+LocalAgent(labels=["dev", "staging"]).start()
+
+# Flow will be picked up by this agent
+```
+
+On the other hand if you deploy a flow that has environment labels set to `["dev", "staging"]` and run an Agent with the labels `["dev"]` then it will not pick up the flow because there exists labels in the environment which were not provided to the agent.
+
+```python
+from prefect.environments import RemoteEnvironment
+
+f = Flow("example-label")
+f.environment = RemoteEnvironment(labels=["dev", "staging"])
+```
+
+```python
+from prefect.agent import LocalAgent
+
+LocalAgent(labels=["dev"]).start()
+
+# Flow will NOT be picked up by this agent
+```
+
+:::tip Empty Labels
+An empty label list is effectively considered a label. This means that if you deploy a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
+:::

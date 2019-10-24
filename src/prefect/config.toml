@@ -14,10 +14,14 @@ heartbeat_interval = 30.0
 queue_interval = 30.0
 
     [cloud.agent]
+    name = "agent"
+    labels = "[]"
+
+    # Set to `DEBUG` for verbose logging
+    level = "INFO"
+
     # Agents require different API tokens
     auth_token = ""
-    level = "INFO"
-    name = "agent"
 
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers

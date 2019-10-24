@@ -15,6 +15,7 @@ def test_local_agent_init(monkeypatch, runner_token):
 
     agent = LocalAgent()
     assert agent
+    assert agent.labels == []
     assert agent.name == "agent"
 
 

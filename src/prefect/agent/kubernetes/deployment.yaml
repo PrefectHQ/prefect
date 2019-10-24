@@ -31,6 +31,8 @@ spec:
               value: "default"
             - name: IMAGE_PULL_SECRETS
               value: ""
+            - name: PREFECT__CLOUD__AGENT__LABELS
+              value: "[]"
           resources:
             limits:
               memory: "128Mi"
