@@ -22,7 +22,7 @@ def test_k8s_agent_init(monkeypatch, runner_token):
 
     agent = KubernetesAgent()
     assert agent
-    assert agent.labels is None
+    assert agent.labels == []
     assert agent.name == "agent"
     assert agent.batch_client
 

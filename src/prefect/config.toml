@@ -15,7 +15,7 @@ queue_interval = 30.0
 
     [cloud.agent]
     name = "agent"
-    labels = []
+    labels = "[]"
 
     # Set to `DEBUG` for verbose logging
     level = "INFO"

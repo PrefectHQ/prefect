@@ -28,7 +28,7 @@ def test_ecs_agent_config_options_default(monkeypatch, runner_token):
 
     agent = FargateAgent()
     assert agent
-    assert agent.labels is None
+    assert agent.labels == []
     assert agent.name == "agent"
     assert agent.cluster == "default"
     assert not agent.subnets
