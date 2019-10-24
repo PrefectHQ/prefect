@@ -38,6 +38,11 @@ def test_create_fargate_task_environment_callbacks():
     assert environment.on_exit is f
 
 
+def test_fargate_task_environment_dependencies():
+    environment = FargateTaskEnvironment()
+    assert environment.dependencies == ["boto3", "botocore"]
+
+
 def test_create_fargate_task_environment_aws_creds_provided():
     environment = FargateTaskEnvironment(
         labels=["foo"],

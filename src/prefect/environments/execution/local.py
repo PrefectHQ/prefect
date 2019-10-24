@@ -27,6 +27,10 @@ class LocalEnvironment(Environment):
     ) -> None:
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
+    @property
+    def dependencies(self) -> list:
+        return []
+
     def execute(self, storage: "Storage", flow_location: str, **kwargs: Any) -> None:
         """
         Executes the flow for this environment from the storage parameter,

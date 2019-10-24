@@ -40,6 +40,11 @@ def test_create_remote_environment_populated():
     assert environment.on_exit is f
 
 
+def test_remote_environment_dependencies():
+    environment = RemoteEnvironment()
+    assert environment.dependencies == []
+
+
 def test_environment_execute():
     with tempfile.TemporaryDirectory() as directory:
 
