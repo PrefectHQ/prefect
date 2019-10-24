@@ -59,6 +59,10 @@ class KubernetesJobEnvironment(Environment):
 
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
+    @property
+    def dependencies(self) -> list:
+        return ["kubernetes"]
+
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
     ) -> None:

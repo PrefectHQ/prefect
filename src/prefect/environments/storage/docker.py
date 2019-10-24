@@ -99,16 +99,13 @@ class Docker(Storage):
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
-            elif self.prefect_version == "master":
-                # use the latest image for the given python version
-                self.base_image = "prefecthq/prefect:python{}".format(python_version)
             else:
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.extra_commands.extend(
                     [
                         "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
-                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
+                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}".format(
                             self.prefect_version
                         ),
                     ]

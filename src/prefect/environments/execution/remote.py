@@ -46,6 +46,10 @@ class RemoteEnvironment(Environment):
         self.executor_kwargs = executor_kwargs or dict()
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
+    @property
+    def dependencies(self) -> list:
+        return []
+
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any
     ) -> None:

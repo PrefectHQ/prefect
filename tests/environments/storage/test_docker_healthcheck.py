@@ -2,11 +2,13 @@ import datetime
 import os
 import sys
 import tempfile
+from unittest.mock import MagicMock
 
 import cloudpickle
 import pytest
 
 from prefect import Flow, Task, task
+from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import _healthcheck as healthchecks
 
 
@@ -154,3 +156,47 @@ class TestResultHandlerCheck:
             result = down(upstream_tasks=[up])
 
         assert healthchecks.result_handler_check([f]) is None
+
+
+class TestEnvironmentDependencyCheck:
+    def test_no_raise_on_normal_flow(self):
+        flow = Flow("THIS IS A TEST")
+
+        assert healthchecks.environment_dependency_check([flow]) is None
+
+    def test_no_raise_on_remote_env(self):
+        flow = Flow("THIS IS A TEST", environment=RemoteEnvironment())
+
+        assert healthchecks.environment_dependency_check([flow]) is None
+
+    def test_no_raise_on_proper_imports(self):
+        class NewEnvironment(Environment):
+            @property
+            def dependencies(self) -> list:
+                return ["prefect"]
+
+        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
+
+        assert healthchecks.environment_dependency_check([flow]) is None
+
+    def test_no_raise_on_missing_dependencies_property(self):
+        class NewEnvironment(Environment):
+            pass
+
+        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
+
+        assert healthchecks.environment_dependency_check([flow]) is None
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 6), reason="3.5 does not support ModuleNotFoundError"
+    )
+    def test_raise_on_missing_imports(self, monkeypatch):
+        class NewEnvironment(Environment):
+            @property
+            def dependencies(self) -> list:
+                return ["TEST"]
+
+        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
+
+        with pytest.raises(ModuleNotFoundError):
+            healthchecks.environment_dependency_check([flow])
