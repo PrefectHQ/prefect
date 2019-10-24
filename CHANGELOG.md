@@ -33,7 +33,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Tobias Schmidt](https://github.com/royalts)
 
 ## 0.6.7 <Badge text="beta" type="success"/>
 
