@@ -46,7 +46,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
     with set_temporary_config(
         {"cloud.use_local_secrets": False, "cloud.auth_token": None}
     ):
-        with prefect.context(secrets=dict(test=42)):
+        with prefect.context(secrets=dict()):
             with pytest.raises(ClientError):
                 secret.get()
 
@@ -62,6 +62,36 @@ def test_secrets_use_client(monkeypatch):
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()
+    assert val == "1234"
+
+
+def test_cloud_secrets_use_context_first(monkeypatch):
+    response = {"data": {"secretValue": '"1234"'}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+    ):
+        with prefect.context(secrets={"the-key": "foo"}):
+            my_secret = Secret(name="the-key")
+            val = my_secret.get()
+    assert val == "foo"
+
+
+def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
+    response = {"data": {"secretValue": '"1234"'}}
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config(
+        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+    ):
+        with prefect.context(secrets={}):
+            my_secret = Secret(name="the-key")
+            val = my_secret.get()
     assert val == "1234"
 
 

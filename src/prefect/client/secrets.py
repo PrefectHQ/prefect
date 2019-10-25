@@ -91,33 +91,29 @@ class Secret:
                 "Secrets should only be retrieved during a Flow run, not while building a Flow."
             )
 
-        if prefect.context.config.cloud.use_local_secrets is True:
-            secrets = prefect.context.get("secrets", {})
-            try:
-                value = secrets[self.name]
-            except KeyError:
+        secrets = prefect.context.get("secrets", {})
+        try:
+            value = secrets[self.name]
+        except KeyError:
+            if prefect.context.config.cloud.use_local_secrets is False:
+                client = Client()
+                result = client.graphql(
+                    """
+                    query($name: String!) {
+                        secretValue(name: $name)
+                    }
+                    """,
+                    variables=dict(name=self.name),
+                )
+                # the result object is a Box, so we recursively restore builtin
+                # dict/list classes
+                result_dict = result.to_dict()
+                value = result_dict["data"]["secretValue"]
+            else:
                 raise ValueError(
                     'Local Secret "{}" was not found.'.format(self.name)
                 ) from None
-            try:
-                return json.loads(value)
-            except (json.JSONDecodeError, TypeError):
-                return value
-        else:
-            client = Client()
-            result = client.graphql(
-                """
-                query($name: String!) {
-                    secretValue(name: $name)
-                }
-                """,
-                variables=dict(name=self.name),
-            )
-            # the result object is a Box, so we recursively restore builtin
-            # dict/list classes
-            result_dict = result.to_dict()
-            value = result_dict["data"]["secretValue"]
-            try:
-                return json.loads(value)
-            except (json.JSONDecodeError, TypeError):
-                return value
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return value
