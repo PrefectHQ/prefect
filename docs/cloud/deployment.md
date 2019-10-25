@@ -46,16 +46,23 @@ Prefect's Docker storage abstraction also exposes the ability to set environment
 
 ## Data Handling
 
-### Results and Result Handlers
+Data can be exchanged between Prefect Tasks as a first class operation.  This is achieved by creating tasks which accept inputs and return values (using Python's standard `return` statement).  Note that this section is _only_ focused on this type of data exchange.  Prefect does not track data which is handled _within_ your tasks (e.g., if your task extracts data from some third-party location or writes to some persisted storage but never returns this data).
 
-### Retries and resuming from failure
+### Result Handlers
+
+During normal execution, the data exchanged between tasks is usually passed in memory.  However, there are [many situations](dataflow.html#when-is-data-persisted) in which this data needs to be _persisted_ somewhere.  Data is only persisted in Prefect Cloud using a [Result Handler](../core/concepts/results.html). Note that unless you turn [checkpointing](../core/concepts/persistence.html#checkpointing) on for your local Core flows, Result Handlers are never exercised in Core.
+
+You want to choose a result handler that matches both your Task's data type as well as your preferred location for tracking the data.  For example, the `JSONResultHandler` is only capable of handling JSON-compatible data, whereas the `GCSResultHandler` can handle any `cloudpickle`-able Python object.  You can also always write a completely custom handler for your Flows and Tasks to use.
+
+::: tip Debugging
+If you experience a Task failure with the message:
+```python
+AssertionError: Result has no ResultHandler
+```
+it means that _something_ triggered Cloud to persist data, but neither your Task nor your Flow had a result handler to use.
+:::
 
 ### Secrets
 
-### Logging
+If your Flow relies on the use of Prefect Secrets, you will need to communicate those Secrets to Prefect Cloud via one of Prefect's [APIs](concepts/secrets.html#cloud-execution).  We are currently working on a more pluggable version of Secrets that will allow you to more easily swap out Prefect's Secret storage with your favorite secret provider.
 
-## Infrastructure
-
-### Agents
-
-### Dask
