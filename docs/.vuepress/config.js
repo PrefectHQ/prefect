@@ -140,7 +140,7 @@ module.exports = {
         {
           title: "Welcome",
           collapsable: false,
-          children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "faq"]
+          children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "deployment", "faq"]
         },
         {
           title: "Cloud Concepts",
