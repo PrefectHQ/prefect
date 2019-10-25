@@ -10,7 +10,7 @@ There are many considerations that need to be made when moving from a local work
 
 ## Docker
 
-Prefect Cloud requires the use of Docker containers.  Docker provides an excellent industry-standard abstraction for packaging up code along with all of its dependencies for runtime consistency in diverse environments.  Ultimately, to deploy a Flow to Cloud it needs to be "packaged up" inside a Docker image that is then pushed to a registry of your choosing.  
+Prefect Cloud requires the use of Docker containers.  Docker provides an excellent industry-standard abstraction for shipping code along with all of its dependencies for runtime consistency in diverse environments.  Ultimately, to deploy a Flow to Cloud it needs to be "packaged up" inside a Docker image that is then pushed to a registry of your choosing.  
 
 ### How are Prefect Flows stored inside Docker containers?
 
