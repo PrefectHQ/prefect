@@ -91,12 +91,11 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
     """
-    with set_temporary_config(
-        {
-            "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
-            "cloud.agent.level": "INFO" if not verbose else "DEBUG",
-        }
-    ):
+    tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
+    if verbose:
+        tmp_config["cloud.agent.level"] = "DEBUG"
+
+    with set_temporary_config(tmp_config):
         retrieved_agent = _agents.get(agent_option, None)
 
         if not retrieved_agent:
