@@ -66,3 +66,13 @@ it means that _something_ triggered Cloud to persist data, but neither your Task
 
 If your Flow relies on the use of Prefect Secrets, you will need to communicate those Secrets to Prefect Cloud via one of Prefect's [APIs](concepts/secrets.html#cloud-execution).  We are currently working on a more pluggable version of Secrets that will allow you to more easily swap out Prefect's Secret storage with your favorite secret provider.
 
+## Infrastructure
+
+Prefect Cloud workflows are executed inside Docker containers running in the execution environment of your choosing.  The only requirement for Prefect Cloud and its Agents are the ability to pull Docker images and "submit" them for execution in some fashion. This means that you may need to reconsider references to local filepaths, ensure certain environment variables are set, and make sure you understand any networking configurations that you rely on. 
+
+Prefect makes it easy to control:
+- all aspects of the Docker image your Flow is stored within
+- what types of [Prefect Agents](agent/overview.html) can submit your Flows for execution
+- what [execution environment](../api/unreleased/environments/execution.html) your Flow runs
+
+Note that different workflows will have different resource requirements during execution.  For example, if you run a CPU intensive Flow using a Kubernetes Agent you should make sure your Kubernetes cluster has a sufficiently large node pool to run on.
