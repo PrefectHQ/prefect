@@ -116,4 +116,8 @@ class Secret:
             # the result object is a Box, so we recursively restore builtin
             # dict/list classes
             result_dict = result.to_dict()
-            return result_dict["data"]["secretValue"]
+            value = result_dict["data"]["secretValue"]
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
