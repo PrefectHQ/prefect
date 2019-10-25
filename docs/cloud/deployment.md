@@ -16,9 +16,9 @@ Prefect Cloud requires the use of Docker containers.  Docker provides an excelle
 
 Whenever you call `flow.deploy` or build a [Docker storage object](../api/unreleased/environments/storage.html#docker) yourself, Prefect will perform the following actions:
 
-- call `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
-- store these bytes inside the Docker image in the `/root/.prefect/` directory
-- run various health checks on your Flow inside the image to try and catch any issues
+- calls `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
+- stores these bytes inside the Docker image in the `/root/.prefect/` directory
+- runs various health checks on your Flow inside the image to try and catch any issues
 
 ::: warning cloudpickle
 [cloudpickle](https://github.com/cloudpipe/cloudpickle) is an excellent alternative to the standard libary's Pickle protocol for converting Python objects to a serialized byte representation.  Note that cloudpickle typically stores _imported objects_ as importable references.  So, for example, if you used a function `foo` that you imported as `from my_file import foo`, cloudpickle (and consequently Prefect) will assume this same import can take place inside the Docker container.  For this reason, it is considered best practice in Prefect to ensure all utility scripts and custom Python code be accessible on your Docker image's system `PATH`.
