@@ -18,6 +18,15 @@ def test_secret_requires_name_at_init():
 def test_create_secret():
     secret = Secret(name="test")
     assert secret.name == "test"
+    assert secret.max_retries == 2
+    assert secret.retry_delay.total_seconds() == 1.0
+
+
+def test_create_secret_with_different_retry_settings():
+    secret = Secret(name="test", max_retries=0, retry_delay=None)
+    assert secret.name == "test"
+    assert secret.max_retries == 0
+    assert secret.retry_delay is None
 
 
 def test_secret_raises_if_doesnt_exist():
