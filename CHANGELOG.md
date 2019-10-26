@@ -6,6 +6,44 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- Flow Affinity: Environments and Agents now support labeling for execution specification - [#1651](https://github.com/PrefectHQ/prefect/pull/1651)
+
+### Enhancements
+
+- Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
+- Adds an "Ask for help" button with a link to the prefect.io support page - [#1637](https://github.com/PrefectHQ/prefect/pull/1637)
+- Reduces the size of the `prefecthq/prefect` Docker image by ~400MB, which is now the base Docker image used in Flows - [#1648](https://github.com/PrefectHQ/prefect/pull/1648)
+- Add a new healthcheck for environment dependencies - [#1653](https://github.com/PrefectHQ/prefect/pull/1653)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix defaults for unspecified ARNs in the Fargate Agent - [#1634](https://github.com/PrefectHQ/prefect/pull/1634)
+- Fix ShellTask return value on empty stdout - [#1632](https://github.com/PrefectHQ/prefect/pull/1632)
+- Fix issue with some Cloud Secrets not being converted from strings - [#1655](https://github.com/PrefectHQ/prefect/pull/1655)
+- Fix issue with Agent logging config setting not working - [#1657](https://github.com/PrefectHQ/prefect/pull/1657)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- `kubernetes` is no longer installed by default in deployed flow images - [#1653](https://github.com/PrefectHQ/prefect/pull/1653)
+
+### Contributors
+
+- [Tobias Schmidt](https://github.com/royalts)
+
+## 0.6.7 <Badge text="beta" type="success"/>
+
+Released October 16, 2019
+
+### Features
+
 - Environments now allow for optional `on_start` and `on_exit` callbacks - [#1610](https://github.com/PrefectHQ/prefect/pull/1610)
 
 ### Enhancements
@@ -18,11 +56,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Agents can accept an optional `name` for logging and debugging - [#1612](https://github.com/PrefectHQ/prefect/pull/1612)
 - Added AWS configuration options for Fargate Agent (task_role_arn, execution_role_arn) - [#1614](https://github.com/PrefectHQ/prefect/pull/1614)
 - Change EmailTask to accept SMTP server settings as well as an email_from kwarg - [#1619](https://github.com/PrefectHQ/prefect/pull/1619)
+- Add the ability to delete task tag limits using the client - [#1622](https://github.com/PrefectHQ/prefect/pull/1622)
 
 ### Task Library
 
 - Add `return_all` kwarg to `ShellTask` for optionally returning all lines of stdout - [#1598](https://github.com/PrefectHQ/prefect/pull/1598)
-- Add `CosmosDBCreateItem`, `CosmosDBReadItems`, `CosmosDBQueryItems` and  for interacting with data stored on Azure Cosmos DB - [#1617](https://github.com/PrefectHQ/prefect/pull/1617)
+- Add `CosmosDBCreateItem`, `CosmosDBReadItems`, `CosmosDBQueryItems` and for interacting with data stored on Azure Cosmos DB - [#1617](https://github.com/PrefectHQ/prefect/pull/1617)
 
 ### Fixes
 

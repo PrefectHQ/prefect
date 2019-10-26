@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 from os import path
+from typing import Iterable
 
 import pendulum
 import yaml
@@ -38,10 +39,12 @@ class KubernetesAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
     """
 
-    def __init__(self, name: str = None) -> None:
-        super().__init__(name=name)
+    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+        super().__init__(name=name, labels=labels)
 
         from kubernetes import client, config
 
@@ -146,6 +149,7 @@ class KubernetesAgent(Agent):
         namespace: str = None,
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
+        labels: Iterable[str] = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -160,6 +164,8 @@ class KubernetesAgent(Agent):
                 for Prefect jobs
             - resource_manager_enabled (bool, optional): Whether to include the resource
                 manager as part of the YAML. Defaults to `False`
+            - labels (List[str], optional): a list of labels, which are arbitrary string
+                identifiers used by Prefect Agents when polling for work
 
         Returns:
             - str: A string representation of the generated YAML
@@ -169,6 +175,7 @@ class KubernetesAgent(Agent):
         token = token or ""
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
+        labels = labels or []
 
         version = prefect.__version__.split("+")
         image_version = "latest" if len(version) > 1 else version[0]
@@ -183,6 +190,7 @@ class KubernetesAgent(Agent):
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
+        agent_env[4]["value"] = str(labels)
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][

@@ -1,4 +1,5 @@
 import os
+from typing import Iterable
 
 from prefect import config
 from prefect.agent import Agent
@@ -16,6 +17,8 @@ class FargateAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
@@ -59,6 +62,7 @@ class FargateAgent(Agent):
     def __init__(
         self,
         name: str = None,
+        labels: Iterable[str] = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -73,7 +77,7 @@ class FargateAgent(Agent):
         task_cpu: str = None,
         task_memory: str = None,
     ) -> None:
-        super().__init__(name=name)
+        super().__init__(name=name, labels=labels)
 
         from boto3 import client as boto3_client
 
@@ -86,14 +90,12 @@ class FargateAgent(Agent):
         region_name = region_name or os.getenv("REGION_NAME")
 
         # Agent task config
-        self.task_role_arn = task_role_arn or os.getenv("TASK_ROLE_ARN")
+        self.task_role_arn = task_role_arn or os.getenv("TASK_ROLE_ARN", "")
         self.logger.debug("Task role arn {}".format(self.task_role_arn))
 
-        self.execution_role_arn = execution_role_arn or os.getenv("EXECUTION_ROLE_ARN")
-        if not self.execution_role_arn:
-            self.logger.warning(
-                "Fargate requires task definition to have execution role ARN to support ECR images"
-            )
+        self.execution_role_arn = execution_role_arn or os.getenv(
+            "EXECUTION_ROLE_ARN", ""
+        )
         self.logger.debug("Execution role arn {}".format(self.execution_role_arn))
 
         self.cluster = cluster or os.getenv("CLUSTER", "default")

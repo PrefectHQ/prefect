@@ -40,6 +40,11 @@ def test_create_dask_environment_callbacks():
     assert environment.on_exit is f
 
 
+def test_dask_environment_dependencies():
+    environment = DaskKubernetesEnvironment()
+    assert environment.dependencies == ["kubernetes"]
+
+
 def test_create_dask_environment_identifier_label():
     environment = DaskKubernetesEnvironment()
     assert environment.identifier_label

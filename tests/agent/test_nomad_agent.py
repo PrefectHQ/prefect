@@ -11,6 +11,7 @@ from prefect.utilities.graphql import GraphQLResult
 def test_nomad_agent_init(runner_token):
     agent = NomadAgent()
     assert agent
+    assert agent.labels == []
     assert agent.name == "agent"
 
 

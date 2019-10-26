@@ -29,6 +29,11 @@ def test_create_environment_callbacks():
     assert environment.on_exit is f
 
 
+def test_environment_dependencies():
+    environment = Environment()
+    assert environment.dependencies == []
+
+
 def test_setup_environment_passes():
     environment = Environment()
     environment.setup(storage=Docker())

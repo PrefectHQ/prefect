@@ -2,8 +2,6 @@
 
 [[toc]]
 
-## Prefect Cloud
-
 ### Does Prefect have a UI, and if so, how can I use it?
 
 Prefect absolutely has a User Interface (UI). The [Prefect Core Engine](https://github.com/PrefectHQ/prefect) is designed for building and testing your Prefect workflows locally, and consequently does not require a database or any other sort of monitoring service running (which is what any UI _requires_ in order to expose stateful information!). Prefect Cloud is our recommended persistent orchestration layer for monitoring and orchestrating workflows in a production setting, and the Cloud API is what drives our UI. To gain access to Cloud, please [contact us](https://www.prefect.io/lighthouse-partners).
@@ -65,3 +63,7 @@ Yes! Prefect can integrate with any service and we have a growing Task Library o
 People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others!
 
 The same holds true for alerting and metrics collection services - a common way of hooking into these is through the use of Prefect state handlers or logging handlers, which can be completely customized with your own logic and code.
+
+### Does Prefect support backfills?
+
+Yes! Because Prefect makes no assumptions about the relationship of your workflow to time, performing a backfill depends largely on the nature of your workflow.  If one of your tasks is responsive to time (e.g., a templated SQL query), it is best practice to rely on _either_ Prefect [Parameters](../core/concepts/parameters.html) or Prefect [Context](../core/concepts/execution.html#context) for inferring time-based information.  Because both Parameters and Context values can be provided on an individual run basis, performing a backfill is as simple as looping over the desired values and creating individual flow runs for each value.
