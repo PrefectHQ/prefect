@@ -342,22 +342,6 @@ if __name__ == "__main__":
         shutil.rmtree("api/unreleased", ignore_errors=True)
         os.makedirs("api/unreleased", exist_ok=True)
 
-        ## write link to hosted coverage reports
-        with open("api/unreleased/coverage.md", "w+") as f:
-            f.write(
-                textwrap.dedent(
-                    """
-                ---
-                title: Test Coverage
-                ---
-
-                # Unit test coverage report
-
-                To view test coverage reports, <a href="https://codecov.io/gh/PrefectHQ/prefect">click here</a>.
-                """
-                ).lstrip()
-            )
-
         ## UPDATE README
         with open("api/unreleased/README.md", "w+") as f:
             f.write(
