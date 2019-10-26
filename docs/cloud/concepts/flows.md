@@ -39,7 +39,7 @@ mutation($flow: JSON!) {
 
 ## Flow Versions and Archiving <Badge text="GQL"/>
 
-Flows with the same name in the same Project are considered "versions" of each other.  Anytime you deploy a flow to a project which contains a flow of the same name, Prefect Cloud will automatically "archive" the old version in place of the newly deployed flow.  Archiving means that the old version's schedule is set to "Paused", no new flow runs can be created and it is not as visible in the UI.  You can always revisit old versions and unarchive them, if for example you want the same Flow to run on two distinct schedules.  To archive or unarchive a flow, use the following GraphQL mutations:
+Flows with the same name in the same Project are considered "versions" of each other.  Anytime you deploy a flow to a project which contains a flow of the same name, Prefect Cloud will automatically "archive" the old version in place of the newly deployed flow.  Archiving means that the old version's schedule is set to "Paused" and no new flow runs can be created.  You can always revisit old versions and unarchive them, if for example you want the same Flow to run on two distinct schedules.  To archive or unarchive a flow, use the following GraphQL mutations:
 
 ```graphql
 mutation {
