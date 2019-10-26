@@ -16,6 +16,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
+    SecretResultHandler,
 )
 from prefect.utilities.configuration import set_temporary_config
 
@@ -343,3 +344,46 @@ class TestAzureResultHandler:
                     handler = AzureResultHandler(container="foo")
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, AzureResultHandler)
+
+
+class TestSecretHandler:
+    @pytest.fixture
+    def secret_task(self):
+        return prefect.tasks.secrets.Secret(name="test")
+
+    def test_secret_handler_requires_secret_task_at_init(self):
+        with pytest.raises(TypeError, match="missing 1 required position"):
+            handler = SecretResultHandler()
+
+    def test_secret_handler_initializes_with_secret_task(self, secret_task):
+        handler = SecretResultHandler(secret_task=secret_task)
+        assert isinstance(handler.secret_task, prefect.tasks.secrets.Secret)
+        assert handler.secret_task.name == "test"
+
+    @pytest.mark.parametrize("res", [42, "stringy", None, dict(blah=lambda x: None)])
+    def test_secret_handler_writes_by_only_returning_name(self, res, secret_task):
+        handler = SecretResultHandler(secret_task)
+        out = handler.write(res)
+        assert out == "test"
+
+    @pytest.mark.parametrize("res", [42, "stringy", None])
+    def test_secret_handler_writes_and_reads(self, res, secret_task):
+        handler = SecretResultHandler(secret_task)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(test=res)):
+                final = handler.read(handler.write(res))
+        assert final == res
+
+    def test_secret_handler_can_use_any_secret_type(self):
+        class MySecret(prefect.tasks.secrets.Secret):
+            def run(self):
+                return "boo"
+
+        handler = SecretResultHandler(MySecret(name="foo"))
+        assert handler.write(123089123) == "foo"
+        assert handler.read(lambda x: None) == "boo"
+
+    def test_secret_handler_is_pickleable(self, secret_task):
+        handler = SecretResultHandler(secret_task)
+        new = cloudpickle.loads(cloudpickle.dumps(handler))
+        assert isinstance(new, SecretResultHandler)
