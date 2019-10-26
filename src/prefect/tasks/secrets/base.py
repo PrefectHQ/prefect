@@ -2,6 +2,7 @@ import datetime
 
 from prefect.core.task import Task
 from prefect.client.secrets import Secret as _Secret
+from prefect.engine.result_handlers import SecretResultHandler
 
 
 class Secret(Task):
@@ -21,6 +22,7 @@ class Secret(Task):
         kwargs["name"] = name
         kwargs.setdefault("max_retries", 2)
         kwargs.setdefault("retry_delay", datetime.timedelta(seconds=1))
+        kwargs["result_handler"] = SecretResultHandler(secret_task=self)
         super().__init__(**kwargs)
 
     def run(self):

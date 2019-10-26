@@ -1,8 +1,10 @@
 import box
+import cloudpickle
 import pytest
 from unittest.mock import MagicMock
 
 import prefect
+from prefect.engine.result_handlers import SecretResultHandler
 from prefect.tasks.secrets import Secret
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
@@ -20,6 +22,7 @@ def test_create_secret():
     assert secret.name == "test"
     assert secret.max_retries == 2
     assert secret.retry_delay.total_seconds() == 1.0
+    assert isinstance(secret.result_handler, SecretResultHandler)
 
 
 def test_create_secret_with_different_retry_settings():
@@ -27,6 +30,11 @@ def test_create_secret_with_different_retry_settings():
     assert secret.name == "test"
     assert secret.max_retries == 0
     assert secret.retry_delay is None
+
+
+def test_create_secret_with_result_handler():
+    secret = Secret(name="test", result_handler=lambda x: None)
+    assert isinstance(secret.result_handler, SecretResultHandler)
 
 
 def test_secret_raises_if_doesnt_exist():
@@ -156,3 +164,12 @@ def test_local_secrets_remain_plain_dictionaries():
             val = secret.run()
             assert val == {"x": 42}
             assert isinstance(val, dict) and not isinstance(val, box.Box)
+
+
+def test_secret_is_pickleable():
+    secret = Secret(name="long name")
+    new = cloudpickle.loads(cloudpickle.dumps(secret))
+    assert new.name == "long name"
+    assert new.max_retries == 2
+    assert new.retry_delay.total_seconds() == 1.0
+    assert isinstance(new.result_handler, SecretResultHandler)

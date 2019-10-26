@@ -11,6 +11,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
+    SecretResultHandler,
 )
 from prefect.serialization.result_handlers import (
     CustomResultHandlerSchema,
@@ -169,6 +170,22 @@ class TestGCSResultHandler:
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "bucket3"
         assert handler.credentials_secret == "FOO"
+
+
+class TestSecretResultHandler:
+    @pytest.fixture
+    def secret_task(self):
+        return prefect.tasks.secrets.Secret(name="foo")
+
+    def test_serialize(self, secret_task):
+        serialized = ResultHandlerSchema().dump(SecretResultHandler(secret_task))
+        assert isinstance(serialized, dict)
+        assert serialized["type"] == "SecretResultHandler"
+        assert serialized["name"] == "foo"
+
+    def test_deserialize_from_dict(self):
+        handler = ResultHandlerSchema().load({"type": "SecretResultHandler"})
+        assert isinstance(handler, ResultHandler)
 
 
 class TestJSONResultHandler:
