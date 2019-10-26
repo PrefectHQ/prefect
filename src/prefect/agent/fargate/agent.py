@@ -1,4 +1,5 @@
 import os
+from typing import Iterable
 
 from prefect import config
 from prefect.agent import Agent
@@ -23,6 +24,8 @@ class FargateAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID`.
@@ -41,13 +44,14 @@ class FargateAgent(Agent):
     def __init__(  # type: ignore
         self,
         name: str = None,
+        labels: Iterable[str] = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
         **kwargs
     ) -> None:
-        super().__init__(name=name)
+        super().__init__(name=name, labels=labels)
 
         from boto3 import client as boto3_client
 

@@ -1,4 +1,5 @@
 from sys import platform
+from typing import Iterable
 
 import docker
 
@@ -17,6 +18,8 @@ class LocalAgent(Agent):
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
+            Agents when polling for work
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -25,9 +28,13 @@ class LocalAgent(Agent):
     """
 
     def __init__(
-        self, name: str = None, base_url: str = None, no_pull: bool = None
+        self,
+        name: str = None,
+        labels: Iterable[str] = None,
+        base_url: str = None,
+        no_pull: bool = None,
     ) -> None:
-        super().__init__(name=name)
+        super().__init__(name=name, labels=labels)
 
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
