@@ -48,6 +48,14 @@ def test_agent_log_level(runner_token):
         assert agent.logger.level == 20
 
 
+def test_agent_log_level_responds_to_config(runner_token):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+    ):
+        agent = Agent()
+        assert agent.logger.level == 10
+
+
 def test_agent_labels(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(labels=["test", "2"])
