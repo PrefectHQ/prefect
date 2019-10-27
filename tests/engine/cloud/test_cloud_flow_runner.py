@@ -11,7 +11,11 @@ import prefect
 from prefect.client import Client
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.result_handlers import (
+    JSONResultHandler,
+    ResultHandler,
+    SecretResultHandler,
+)
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -379,6 +383,33 @@ def test_task_failure_caches_inputs_automatically(client):
     last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
     assert isinstance(last_state, Retrying)
     assert last_state.cached_inputs["p"] == exp_res
+
+
+def test_task_failure_with_upstream_secrets_doesnt_store_secret_value(client):
+    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    def is_p_three(p):
+        if p == 3:
+            raise ValueError("No thank you.")
+
+    with prefect.Flow("test") as f:
+        p = prefect.tasks.secrets.Secret("p")
+        res = is_p_three(p)
+
+    with prefect.context(secrets=dict(p=3)):
+        state = CloudFlowRunner(flow=f).run(return_tasks=[res])
+
+    assert state.is_running()
+    assert isinstance(state.result[res], Retrying)
+
+    exp_res = Result(3, result_handler=SecretResultHandler(p))
+    assert not state.result[res].cached_inputs["p"] == exp_res
+    exp_res.store_safe_value()
+    assert state.result[res].cached_inputs["p"] == exp_res
+
+    last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
+    assert isinstance(last_state, Retrying)
+    assert last_state.cached_inputs["p"] == exp_res
+    assert last_state.cached_inputs["p"].safe_value.value == "p"
 
 
 def test_state_handler_failures_are_handled_appropriately(client):
