@@ -14,10 +14,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Adds an "Ask for help" button with a link to the prefect.io support page - [#1637](https://github.com/PrefectHQ/prefect/pull/1637)
 - Reduces the size of the `prefecthq/prefect` Docker image by ~400MB, which is now the base Docker image used in Flows - [#1648](https://github.com/PrefectHQ/prefect/pull/1648)
 - Add a new healthcheck for environment dependencies - [#1653](https://github.com/PrefectHQ/prefect/pull/1653)
+- Add new Secret Tasks for a pluggable and reusable Secrets API - [#1346](https://github.com/PrefectHQ/prefect/issues/1346), [#1587](https://github.com/PrefectHQ/prefect/issues/1587)
 
 ### Task Library
 
-- None
+- Add new Secret Tasks for a pluggable and reusable Secrets API - [#1346](https://github.com/PrefectHQ/prefect/issues/1346), [#1587](https://github.com/PrefectHQ/prefect/issues/1587)
 
 ### Fixes
 
