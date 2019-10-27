@@ -409,6 +409,11 @@ def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recomp
     exp_res.store_safe_value()
     assert state.result[res].cached_inputs["p"] == exp_res
 
+    ## here we set the result of the secret to a saferesult, ensuring
+    ## it will get converted to a "true" result
+    ## moreover, we make the safe result value 3 and we expect
+    ## that the upstream value will actually get recomputed from context
+    ## through the SecretResultHandler
     safe = SafeResult(3, result_handler=SecretResultHandler(p))
     state.result[p] = Success(result=safe)
     state.result[res].start_time = pendulum.now("utc")
