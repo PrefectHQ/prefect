@@ -16,12 +16,17 @@ class Secret(Task):
     Args:
         - name (str): The name of the underlying secret
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
+
+    Raises:
+        - ValueError: if a `result_handler` keyword is passed
     """
 
     def __init__(self, name, **kwargs):
         kwargs["name"] = name
         kwargs.setdefault("max_retries", 2)
         kwargs.setdefault("retry_delay", datetime.timedelta(seconds=1))
+        if kwargs.get("result_handler"):
+            raise ValueError("Result Handlers for Secrets are not configurable.")
         kwargs["result_handler"] = SecretResultHandler(secret_task=self)
         super().__init__(**kwargs)
 

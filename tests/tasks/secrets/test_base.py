@@ -33,8 +33,8 @@ def test_create_secret_with_different_retry_settings():
 
 
 def test_create_secret_with_result_handler():
-    secret = Secret(name="test", result_handler=lambda x: None)
-    assert isinstance(secret.result_handler, SecretResultHandler)
+    with pytest.raises(ValueError):
+        secret = Secret(name="test", result_handler=lambda x: None)
 
 
 def test_secret_raises_if_doesnt_exist():
