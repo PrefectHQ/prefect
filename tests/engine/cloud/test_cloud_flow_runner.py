@@ -385,11 +385,14 @@ def test_task_failure_caches_inputs_automatically(client):
     assert last_state.cached_inputs["p"] == exp_res
 
 
-def test_task_failure_with_upstream_secrets_doesnt_store_secret_value(client):
+def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recompute_if_necessary(
+    client
+):
     @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
+        return p
 
     with prefect.Flow("test") as f:
         p = prefect.tasks.secrets.Secret("p")
@@ -406,10 +409,18 @@ def test_task_failure_with_upstream_secrets_doesnt_store_secret_value(client):
     exp_res.store_safe_value()
     assert state.result[res].cached_inputs["p"] == exp_res
 
-    last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
-    assert isinstance(last_state, Retrying)
-    assert last_state.cached_inputs["p"] == exp_res
-    assert last_state.cached_inputs["p"].safe_value.value == "p"
+    safe = SafeResult(3, result_handler=SecretResultHandler(p))
+    state.result[p] = Success(result=safe)
+    state.result[res].start_time = pendulum.now("utc")
+    state.result[res].cached_inputs = dict(p=safe)
+
+    with prefect.context(secrets=dict(p=4)):
+        new_state = CloudFlowRunner(flow=f).run(
+            return_tasks=[res], task_states=state.result
+        )
+
+    assert new_state.is_successful()
+    assert new_state.result[res].result == 4
 
 
 def test_state_handler_failures_are_handled_appropriately(client):
