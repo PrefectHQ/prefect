@@ -44,4 +44,4 @@ class TestSnowflakeQuery:
         )
 
         with pytest.raises(sf.errors.DatabaseError, match="Invalid query"):
-            task.run("SELECT * FROM foo")
+            task.run(query="SELECT * FROM foo")
