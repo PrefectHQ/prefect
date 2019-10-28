@@ -20,7 +20,11 @@ from prefect.engine.cache_validators import (
     partial_parameters_only,
 )
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.result_handlers import (
+    JSONResultHandler,
+    ResultHandler,
+    SecretResultHandler,
+)
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -767,6 +771,24 @@ class TestGetTaskInputs:
             upstream_states={Edge(Task(result_handler=new_handler), 2, key="x"): state},
         )
         res = Result(value=["foo", "bar", "baz"], result_handler=new_handler)
+        res.safe_value = result
+        assert inputs == {"x": res}
+
+    def test_get_inputs_from_upstream_reads_secret_results(self):
+        secret_handler = SecretResultHandler(prefect.tasks.secrets.Secret(name="foo"))
+
+        result = SafeResult("1", result_handler=JSONResultHandler())
+        state = Success(result=result)
+
+        with prefect.context(secrets=dict(foo=42)):
+            inputs = TaskRunner(task=Task()).get_task_inputs(
+                state=Pending(),
+                upstream_states={
+                    Edge(Task(result_handler=secret_handler), 2, key="x"): state
+                },
+            )
+
+        res = Result(value=42, result_handler=secret_handler)
         res.safe_value = result
         assert inputs == {"x": res}
 

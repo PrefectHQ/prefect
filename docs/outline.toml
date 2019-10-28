@@ -156,7 +156,7 @@ classes = ["Result", "SafeResult", "NoResultType"]
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler"]
+classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"
@@ -304,6 +304,11 @@ classes = ["RedisSet", "RedisGet", "RedisExecute"]
 title = "RSS Tasks"
 module = "prefect.tasks.rss"
 classes = ["ParseRSSFeed"]
+
+[pages.tasks.secrets]
+title = "Secret Tasks"
+module = "prefect.tasks.secrets"
+classes = ["Secret"]
 
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"
