@@ -89,7 +89,7 @@ module.exports = {
       "/api/unreleased/": [
         { title: "API Reference", path: "/api/unreleased/" },
         "changelog",
-        "coverage",
+        { title: "Test Coverage", path: "https://codecov.io/gh/PrefectHQ/prefect" },
         {
           title: "prefect",
           collapsable: true,

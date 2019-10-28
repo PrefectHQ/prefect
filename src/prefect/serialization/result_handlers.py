@@ -10,6 +10,7 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
+    SecretResultHandler,
 )
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -32,6 +33,18 @@ class CustomResultHandlerSchema(ObjectSchema):
     type = fields.Function(
         lambda handler: to_qualified_name(type(handler)), lambda x: x
     )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> ResultHandler:
+        """Because we cannot deserialize a custom class, just return `None`"""
+        return ResultHandler()
+
+
+class SecretResultHandlerSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: ResultHandler
+
+    name = fields.Function(lambda handler: handler.secret_task.name, lambda x: x)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> ResultHandler:
@@ -88,6 +101,7 @@ class ResultHandlerSchema(OneOfSchema):
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
         "AzureResultHandler": AzureResultHandlerSchema,
+        "SecretResultHandler": SecretResultHandlerSchema,
         "CustomResultHandler": CustomResultHandlerSchema,
     }
 

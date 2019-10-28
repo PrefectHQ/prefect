@@ -10,7 +10,7 @@ To deploy a flow from Prefect Core, simply use its `deploy()` method:
 flow.deploy(project_name="<a project name>")
 ```
 
-Note that this assumes you have already [authenticated](auth.md) with Prefect Cloud.
+Note that this assumes you have already [authenticated](auth.md) with Prefect Cloud.  For more information on Flow deployment see [here](../flow-deploy.html).
 
 ## Deploying a flow <Badge text="GQL"/>
 
@@ -34,5 +34,25 @@ mutation($flow: JSON!) {
 // graphql variables
 {
     serializedFlow: <the serialized flow JSON>
+}
+```
+
+## Flow Versions and Archiving <Badge text="GQL"/>
+
+Flows with the same name in the same Project are considered "versions" of each other.  Anytime you deploy a flow to a project which contains a flow of the same name, Prefect Cloud will automatically "archive" the old version in place of the newly deployed flow.  Archiving means that the old version's schedule is set to "Paused" and no new flow runs can be created.  You can always revisit old versions and unarchive them, if for example you want the same Flow to run on two distinct schedules.  To archive or unarchive a flow, use the following GraphQL mutations:
+
+```graphql
+mutation {
+  archiveFlow( input: { flowId: "your-flow-id-here" }) {
+    id
+  }
+}
+```
+
+```graphql
+mutation {
+  unarchiveFlow( input: { flowId: "your-flow-id-here" }) {
+    id
+  }
 }
 ```
