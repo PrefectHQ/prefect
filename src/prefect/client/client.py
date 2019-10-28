@@ -275,11 +275,11 @@ class Client:
         )
         session.mount("https://", HTTPAdapter(max_retries=retries))
         if method == "GET":
-            response = session.get(url, headers=headers, params=params)
+            response = session.get(url, headers=headers, params=params, timeout=30)
         elif method == "POST":
-            response = session.post(url, headers=headers, json=params)
+            response = session.post(url, headers=headers, json=params, timeout=30)
         elif method == "DELETE":
-            response = session.delete(url, headers=headers)
+            response = session.delete(url, headers=headers, timeout=30)
         else:
             raise ValueError("Invalid method: {}".format(method))
 
