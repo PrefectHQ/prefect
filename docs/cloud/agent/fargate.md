@@ -4,7 +4,7 @@ The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargat
 
 ### Requirements
 
-Running the Fargate Agent requires that you provide a `REGION_NAME` and `CLUSTER`. Optionally, you may provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` (specific to temporary credentials). If these three items are not explicitly defined, boto3 will default to environment variables or your credentials file. Having the `REGION_NAME` defined along with the appropriate credentials stored per aws expectations are required to initialize the [boto3 client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#client) while the `CLUSTER` tells the agent where to run Fargate Tasks. For more information on properly setting your credentials, check out the boto3 documentation [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
+When running the Fargate you may optionally provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` (specific to temporary credentials). If these three items are not explicitly defined, boto3 will default to environment variables or your credentials file. Having the `REGION_NAME` defined along with the appropriate credentials stored per aws expectations are required to initialize the [boto3 client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#client). For more information on properly setting your credentials, check out the boto3 documentation [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
 
 ### Usage
 
@@ -46,7 +46,6 @@ $ export AWS_ACCESS_KEY_ID=MY_ACCESS
 $ export AWS_SECRET_ACCESS_KEY=MY_SECRET
 $ export AWS_SESSION_TOKEN=MY_SESSION
 $ export REGION_NAME=MY_REGION
-$ export CLUSTER=MY_CLUSTER
 $ prefect agent start fargate
 ```
 
@@ -60,7 +59,6 @@ agent = FargateAgent(
         aws_secret_access_key="MY_SECRET",
         aws_session_token="MY_SESSION",
         region_name="MY_REGION",
-        cluster="MY_CLUSTER"
         )
 
 agent.start()
@@ -87,28 +85,44 @@ When the flow run is found and the Task is run the logs of the agent should refl
 
 The Fargate Task run should be created and it will start in a `PENDING` state. Once the resources are provisioned it will enter a `RUNNING` state and on completion it will finish as `COMPLETED`.
 
-:::warning Resources
-The current default resource usage of a prefect-task has a limit for CPU of `256` and a limit for memory of `512`. Make sure you are aware of the resource usage of your Tasks. You may adjust the CPU and memory for the Tasks on the agent through `task_cpu` and `task_memory` or through the environment variables `TASK_CPU` and `TASK_MEMORY`
-:::
-
 ### Configuration
 
-The Fargate Agent allows for a set of AWS configuration options to be set or provided. All of these options can be provided at initialization of the `FargateAgent` class or through an environment variable.
+The Fargate Agent allows for a set of AWS configuration options to be set or provided in order to initialize the boto3 client. All of these options can be provided at initialization of the `FargateAgent` class or through an environment variable:
 
 - aws_access_key_id (str, optional): AWS access key id for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_ACCESS_KEY_ID`.
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
-- task_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf. Defaults to the value set in the environment variable `TASK_ROLE_ARN`.
-- execution_role_arn (str, optional): AWS Amazon Resource Name (ARN) of the task execution role that containers in this task can assume. Defaults to the value set in the environment variable `EXECUTION_ROLE_ARN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
-- cluster (str, optional): The Fargate cluster to deploy tasks. Defaults to the value set in the environment variable `CLUSTER`.
-- subnets (list, optional): A list of AWS VPC subnets to use for the tasks that are deployed on Fargate. Defaults to the value set in the environment variable `SUBNETS`.
-- security_groups (list, optional): A list of security groups to associate with the deployed tasks. Defaults to the value set in the environment variable `SECURITY_GROUPS`.
-- repository_credentials (str, optional): An Amazon Resource Name (ARN) of the secret containing the private repository credentials. Defaults to the value set in the environment variable `REPOSITORY_CREDENTIALS`.
-- assign_public_ip (str, optional): Whether the task's elastic network interface receives a public IP address. Defaults to the value set in the environment variable `ASSIGN_PUBLIC_IP` or `ENABLED` otherwise.
-- task_cpu (str, optional): The number of cpu units reserved for the container. Defaults to the value set in the environment variable `TASK_CPU` or `256` otherwise.
-- task_memory (str, optional): The hard limit (in MiB) of memory to present to the container. Defaults to the value set in the environment variable `TASK_MEMORY` or `512` otherwise.
+
+While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions. All of these options can be provided at initialization of the `FargateAgent` class or through an environment variable.
+
+:::tip Case Sensitive Environment Variables
+Please note that when setting the boto3 configuration for the `register_task_definition` and `run_task` the keys are case sensitive. For example: if setting placement constraints through an environment variable it must match boto3's case sensitive `placementConstraints`.
+:::
+
+Below is a minimal example which specifies information for connecting to boto3 as well as the task's resource requests and network configuration.
+
+```python
+from prefect.agent.fargate import FargateAgent
+
+agent = FargateAgent(
+    aws_access_key_id="...",
+    aws_secret_access_key="...",
+    region_name="us-east-1",
+    cpu="256",
+    memory="512",
+    networkConfiguration={
+        "awsvpcConfiguration": {
+            "assignPublicIp": "ENABLED",
+            "subnets": ["my_subnet_id"],
+            "securityGroups": []
+        }
+    }
+)
+
+agent.start()
+```
 
 :::tip boto3
-For more information on using Fargate with boto3 and what these configuration options represent please visit the [relevant API documentation.](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html) Most importantly the functions [register_task_definition()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)and [run_task()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task).
+For more information on using Fargate with boto3 and to see the list of supported configuration options please visit the [relevant API documentation.](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html) Most importantly the functions [register_task_definition()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)and [run_task()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task).
 :::
