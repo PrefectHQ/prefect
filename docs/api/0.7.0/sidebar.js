@@ -19,7 +19,6 @@ const getChildren = function(parent_path, dir) {
 sidebar = [
         { title: "API Reference", path: "/api/0.7.0/" },
         "changelog",
-        "coverage",
         {
           title: "prefect",
           collapsable: true,
