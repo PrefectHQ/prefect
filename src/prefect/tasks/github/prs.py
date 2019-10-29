@@ -1,8 +1,8 @@
 import json
+import warnings
 from typing import Any, List
 
 import requests
-
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
@@ -21,8 +21,7 @@ class CreateGitHubPR(Task):
             be provided to the `run` method
         - base (str, optional): the name of the branch you want the changes pulled into; can also
             be provided to the `run` method
-        - token_secret (str, optional): the name of the Prefect Secret containing your GitHub Access Token;
-            defaults to "GITHUB_ACCESS_TOKEN"
+        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -33,7 +32,7 @@ class CreateGitHubPR(Task):
         body: str = None,
         head: str = None,
         base: str = None,
-        token_secret: str = "GITHUB_ACCESS_TOKEN",
+        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
@@ -41,6 +40,12 @@ class CreateGitHubPR(Task):
         self.body = body
         self.head = head
         self.base = base
+        if token_secret is not None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
         self.token_secret = token_secret
         super().__init__(**kwargs)
 
@@ -52,6 +57,7 @@ class CreateGitHubPR(Task):
         body: str = None,
         head: str = None,
         base: str = None,
+        token: str = None,
     ) -> None:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
@@ -66,6 +72,7 @@ class CreateGitHubPR(Task):
                 defaults to the one provided at initialization
             - base (str, optional): the name of the branch you want the changes pulled into;
                 defaults to the one provided at initialization
+            - token (str): a GitHub API token
 
         Raises:
             - ValueError: if a `repo` was never provided
@@ -78,7 +85,13 @@ class CreateGitHubPR(Task):
             raise ValueError("A GitHub repository must be provided.")
 
         ## prepare the request
-        token = Secret(self.token_secret).get()
+        if token is None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            token = Secret(self.token_secret).get()
         url = "https://api.github.com/repos/{}/pulls".format(repo)
         headers = {
             "AUTHORIZATION": "token {}".format(token),
