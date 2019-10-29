@@ -31,4 +31,13 @@ class Secret(Task):
         super().__init__(**kwargs)
 
     def run(self):
+        """
+        The run method for Secret Tasks.  This method actually retrieves and returns the underlying secret value
+        using the `Secret.get()` method.  Note that this method first checks context for the secret value, and if not
+        found either raises an error or queries Prefect Cloud, depending on whether `config.cloud.use_local_secrets`
+        is `True` or `False`.
+
+        Returns:
+            - Any: the underlying value of the Prefect Secret
+        """
         return _Secret(self.name).get()
