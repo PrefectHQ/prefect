@@ -279,6 +279,7 @@ jobs:
     environment:
       PYTHON_VERSION: << parameters.python_version >>
       PYTHON_TAG: python<< parameters.python_version >>
+    steps:
       - checkout
       - run:
           # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
