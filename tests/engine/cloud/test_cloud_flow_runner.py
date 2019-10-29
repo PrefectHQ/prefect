@@ -134,7 +134,7 @@ def test_flow_runner_raises_endrun_if_client_cant_retrieve_state(monkeypatch):
 
 
 def test_flow_runner_raises_endrun_with_correct_state_if_client_cant_retrieve_state(
-    monkeypatch
+    monkeypatch,
 ):
     flow = prefect.Flow(name="test")
     get_flow_run_info = MagicMock(side_effect=SyntaxError)
@@ -386,7 +386,7 @@ def test_task_failure_caches_inputs_automatically(client):
 
 
 def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recompute_if_necessary(
-    client
+    client,
 ):
     @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
     def is_p_three(p):
@@ -497,7 +497,7 @@ def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
 
 
 def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config(
-    monkeypatch
+    monkeypatch,
 ):
     """
     This test is meant to simulate the behavior of running a Cloud Flow against an external

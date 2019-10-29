@@ -176,7 +176,7 @@ def test_build_respects_user_provided_image_name_and_tag(monkeypatch):
 
 
 def test_build_respects_user_provided_image_name_and_tag_for_multiple_flows(
-    monkeypatch
+    monkeypatch,
 ):
     storage = Docker(registry_url="reg", image_name="CUSTOM", image_tag="TAG")
     storage.add_flow(Flow("test"))
