@@ -20,7 +20,6 @@ class TestInitialization:
         assert task.bucket == ""
         assert task.blob is None
         assert task.encryption_key_secret is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
         assert task.project is None
         assert task.create_bucket is False
 
@@ -34,23 +33,14 @@ class TestInitialization:
         with pytest.raises(TypeError, match="bucket"):
             task = klass()
 
-    @pytest.mark.parametrize(
-        "attr", ["blob", "encryption_key_secret", "credentials_secret", "project"]
-    )
+    @pytest.mark.parametrize("attr", ["blob", "project"])
     def test_download_initializes_attr_from_kwargs(self, attr):
         task = GCSDownload(bucket="bucket", **{attr: "my-value"})
         assert task.bucket == "bucket"
         assert getattr(task, attr) == "my-value"
 
     @pytest.mark.parametrize(
-        "attr",
-        [
-            "blob",
-            "encryption_key_secret",
-            "credentials_secret",
-            "project",
-            "create_bucket",
-        ],
+        "attr", ["blob", "project", "create_bucket",],
     )
     def test_upload_initializes_attr_from_kwargs(self, attr):
         task = GCSUpload(bucket="bucket", **{attr: "my-value"})
@@ -58,42 +48,25 @@ class TestInitialization:
         assert getattr(task, attr) == "my-value"
 
 
-class TestCredentialsandProjects:
+# Deprecated tests
+class TestCredentialsandProjects_DEPRECATED:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch, klass):
-        task = klass(bucket="test")
+        task = klass(bucket="test", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-                task.run(**{run_arg: "empty"})
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
+            task.run(**{run_arg: "empty"})
 
         assert creds_loader.from_service_account_info.call_args[0][0] == 42
-
-    def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch, klass):
-        task = klass(bucket="test", credentials_secret="TEST")
-        run_arg = "data" if isinstance(task, GCSUpload) else "blob"
-
-        creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST='"42"', RUN={})):
-                task.run(**{run_arg: "empty"})
-                task.run(**{run_arg: "empty", "credentials_secret": "RUN"})
-
-        first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == "42"
-        assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch, klass
     ):
-        task = klass(bucket="test")
+        task = klass(bucket="test", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
         task_proj = klass(bucket="test", project="test-init")
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
@@ -105,11 +78,10 @@ class TestCredentialsandProjects:
         )
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", client)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run(**{run_arg: "empty"})
-                task_proj.run(**{run_arg: "empty"})
-                task_proj.run(**{run_arg: "empty", "project": "run-time"})
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
+            task.run(**{run_arg: "empty"})
+            task_proj.run(**{run_arg: "empty"})
+            task_proj.run(**{run_arg: "empty", "project": "run-time"})
 
         x, y, z = client.call_args_list
 
@@ -130,10 +102,8 @@ class TestBuckets:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run(**{run_arg: "empty"})
-                task.run(**{run_arg: "empty", "bucket": "run"})
+        task.run(**{run_arg: "empty"}, credentials={})
+        task.run(**{run_arg: "empty", "bucket": "run"}, credentials={})
 
         first, second = client.get_bucket.call_args_list
         assert first[0][0] == "test"
@@ -150,10 +120,8 @@ class TestBuckets:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                with pytest.raises(NotFound, match="no bucket"):
-                    task.run(**{run_arg: "empty"})
+        with pytest.raises(NotFound, match="no bucket"):
+            task.run(**{run_arg: "empty"}, credentials={})
 
     def test_bucket_doesnt_exist_can_be_created_on_upload(self, monkeypatch):
         task = GCSUpload(bucket="test", create_bucket=True)
@@ -165,10 +133,8 @@ class TestBuckets:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run(data="empty")
-                task.run(data="empty", bucket="run")
+        task.run(data="empty", credentials={})
+        task.run(data="empty", bucket="run", credentials={})
 
         assert client.create_bucket.called
         assert client.create_bucket.call_args_list[0][0][0] == "test"
@@ -177,7 +143,7 @@ class TestBuckets:
 
 class TestBlob:
     def test_encryption_key_is_pulled_from_secret_at_runtime(self, monkeypatch, klass):
-        task = klass(bucket="test", encryption_key_secret="encrypt")
+        task = klass(bucket="test", encryption_key_secret="encrypt",)
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
         blob = MagicMock()
@@ -188,14 +154,11 @@ class TestBlob:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(
-                    encrypt='"42"', two='"2"', GOOGLE_APPLICATION_CREDENTIALS={}
-                )
-            ):
-                task.run(**{run_arg: "empty"})
-                task.run(**{run_arg: "empty", "encryption_key_secret": "two"})
+        with prefect.context(
+            secrets=dict(encrypt='"42"', two='"2"', GOOGLE_APPLICATION_CREDENTIALS={})
+        ):
+            task.run(**{run_arg: "empty"})
+            task.run(**{run_arg: "empty", "encryption_key_secret": "two"})
 
         first, second = blob.call_args_list
         assert first[1]["encryption_key"] == "42"
@@ -212,12 +175,8 @@ class TestBlob:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS={})
-            ):
-                task.run(data="empty")
-                task.run(data="empty", blob="run-time")
+        task.run(data="empty", credentials={})
+        task.run(data="empty", blob="run-time", credentials={})
 
         first, second = blob.call_args_list
         assert first[0] == ("blobber",)
@@ -234,10 +193,6 @@ class TestBlob:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(encrypt="42", GOOGLE_APPLICATION_CREDENTIALS={})
-            ):
-                task.run(blob="run-time")
+        task.run(blob="run-time", credentials={})
 
         assert blob.call_args[0] == ("run-time",)

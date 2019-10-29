@@ -1,12 +1,11 @@
 from typing import Any
+import warnings
 
 import airtable
 
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
-
-DEFAULT_CREDENTIAL_NAME = "AIRTABLE_API_KEY"
 
 
 class WriteAirtableRow(Task):
@@ -18,8 +17,7 @@ class WriteAirtableRow(Task):
     Args:
         - base_key (str): the Airtable base key
         - table_name (str): the table name
-        - credentials_secret (str): the name of a secret that contains an Airtable API key.
-            Defaults to "AIRTABLE_API_KEY"
+        - credentials_secret (str, DEPRECATED): the name of a secret that contains an Airtable API key.
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -27,7 +25,7 @@ class WriteAirtableRow(Task):
         self,
         base_key: str = None,
         table_name: str = None,
-        credentials_secret: str = DEFAULT_CREDENTIAL_NAME,
+        credentials_secret: str = None,
         **kwargs: Any
     ):
         self.base_key = base_key
@@ -41,6 +39,7 @@ class WriteAirtableRow(Task):
         data: dict,
         base_key: str = None,
         table_name: str = None,
+        api_key: str = None,
         credentials_secret: str = None,
     ) -> dict:
         """
@@ -51,12 +50,18 @@ class WriteAirtableRow(Task):
                 each column name to a value.
             - base_key (str): the Airtable base key
             - table_name (str): the table name
-            - credentials_secret (str): the name of a secret that contains an Airtable API key.
-                Defaults to "AIRTABLE_API_KEY"
+            - api_key (str): an Airtable API key. This can be provided via a Prefect Secret
+            - credentials_secret (str, DEPRECATED): the name of a secret that contains an Airtable API key.
 
         Returns:
             - a dictionary containing information about the successful insert
         """
-        api_key = Secret(credentials_secret).get()
+        if credentials_secret is not None:
+            warnings.warn(
+                "The `credentials_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            api_key = Secret(credentials_secret).get()
         table = airtable.Airtable(base_key, table_name, api_key)
         return table.insert(data)

@@ -15,7 +15,6 @@ class TestInitialization:
         assert task.source_blob is None
         assert task.dest_bucket is None
         assert task.dest_blob is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
         assert task.project is None
 
     def test_additional_kwargs_passed_upstream(self):
@@ -64,49 +63,35 @@ class TestRuntimeValidation:
             )
 
 
-class TestCredentialsandProjects:
+# deprecated tests of `credentials_secret`
+class TestCredentialsandProjects_DEPRECATED:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = GCSCopy(
-            source_bucket="s", source_blob="s", dest_bucket="d", dest_blob="d"
-        )
-
-        creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-                task.run()
-
-        assert creds_loader.from_service_account_info.call_args[0][0] == 42
-
-    def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch):
         task = GCSCopy(
             source_bucket="s",
             source_blob="s",
             dest_bucket="d",
             dest_blob="d",
-            credentials_secret="TEST",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST='"42"', RUN={})):
-                task.run()
-                task.run(**{"credentials_secret": "RUN"})
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
+            task.run()
 
-        first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == "42"
-        assert second_call[0][0] == {}
+        assert creds_loader.from_service_account_info.call_args[0][0] == 42
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
         task = GCSCopy(
-            source_bucket="s", source_blob="s", dest_bucket="d", dest_blob="d"
+            source_bucket="s",
+            source_blob="s",
+            dest_bucket="d",
+            dest_blob="d",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
         task_proj = GCSCopy(
             source_bucket="s",
@@ -114,6 +99,7 @@ class TestCredentialsandProjects:
             dest_bucket="d",
             dest_blob="d",
             project="test-init",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         client = MagicMock()
@@ -124,11 +110,10 @@ class TestCredentialsandProjects:
         )
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", client)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run()
-                task_proj.run()
-                task_proj.run(**{"project": "run-time"})
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
+            task.run()
+            task_proj.run()
+            task_proj.run(**{"project": "run-time"})
 
         x, y, z = client.call_args_list
 

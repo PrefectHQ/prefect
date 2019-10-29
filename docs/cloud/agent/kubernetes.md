@@ -2,6 +2,8 @@
 
 The Kubernetes Agent is an agent designed to interact directly with a Kubernetes API server to run workflows as jobs on a Kubernetes cluster. This agent is intended to be deployed to a cluster where it uses in-cluster communication to create jobs; however it can also run by accessing whichever cluster is currently active in a kubeconfig.
 
+[[toc]]
+
 ### Requirements
 
 Running the Kubernetes Agent inside a cluster requires permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if necessary.
@@ -59,17 +61,21 @@ $ prefect agent install --help
 Usage: prefect agent install [OPTIONS] [NAME]
 
   Install an agent. Outputs configuration text which can be used to install
-  on various platforms.
+  on various platforms. The Prefect image version will default to your local
+  `prefect.__version__`
 
   Arguments:
-      name                TEXT    The name of an agent to start (e.g. `kubernetes`)
-                                  Defaults to `kubernetes`
+      name                        TEXT    The name of an agent to start (e.g. `kubernetes`)
+                                          Defaults to `kubernetes`
 
   Options:
-      --token, -t         TEXT    A Prefect Cloud API token
-      --api, -a           TEXT    A Prefect Cloud API URL
-      --namespace, -n     TEXT    Agent namespace to launch workloads
-      --resource-manager          Enable resource manager on install
+      --token, -t                 TEXT    A Prefect Cloud API token
+      --api, -a                   TEXT    A Prefect Cloud API URL
+      --namespace, -n             TEXT    Agent namespace to launch workloads
+      --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
+      --resource-manager                  Enable resource manager on install
+      --label, -l                 TEXT    Labels the agent will use to query for flow runs
+                                          Multiple values supported e.g. `-l label1 -l label2`
 
 Options:
   -h, --help  Show this message and exit.
@@ -105,6 +111,21 @@ prefect-agent-845798bb59-s7wxg   1/1     Running   0          5s
 ```
 
 You are now ready to run some flows!
+
+#### Labels
+
+To specify a set of labels for a Kubernetes Agent during install you may specify various `--label` arguments.
+
+```
+$ prefect agent install kubernetes -t MY_TOKEN --label dev --label staging
+```
+
+This will update the `PREFECT__CLOUD__AGENT__LABELS` environment variable on the Agent deployment YAML to include a string representation of a the list of labels. This means that providing the `dev` and `staging` labels above would be represented as:
+
+```yaml
+- name: PREFECT__CLOUD__AGENT__LABELS
+  value: "['dev', 'staging']"
+```
 
 ### Process
 

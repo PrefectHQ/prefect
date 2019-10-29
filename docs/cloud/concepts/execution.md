@@ -2,6 +2,8 @@
 
 Executing your flows using Prefect Cloud is accomplished through two powerful abstractions—storage and environments. By combining Prefect's concepts of storage and environments, flows are able to be saved, shared, and executed across various supported platforms.
 
+[[toc]]
+
 ## Storage
 
 [Storage](https://docs.prefect.io/api/unreleased/environments/storage.html) objects are pieces of functionality which define how and where a flow should be stored. Prefect currently has support for storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.

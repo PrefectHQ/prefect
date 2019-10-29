@@ -12,26 +12,25 @@ class TestWriteAirtableRow:
         task = WriteAirtableRow()
         assert task.base_key is None
         assert task.table_name is None
-        assert task.credentials_secret == "AIRTABLE_API_KEY"
 
     def test_initialize_kwargs_are_processed(self):
         task = WriteAirtableRow(checkpoint=True, name="test")
         assert task.name == "test"
         assert task.checkpoint is True
 
-    @pytest.mark.parametrize("attr", ["base_key", "table_name", "credentials_secret"])
+    @pytest.mark.parametrize("attr", ["base_key", "table_name"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = WriteAirtableRow(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
 
+    # DEPRECATED FEATURE
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = WriteAirtableRow()
+        task = WriteAirtableRow(credentials_secret="AIRTABLE_API_KEY")
 
         airtable = MagicMock()
         monkeypatch.setattr("prefect.tasks.airtable.airtable.airtable", airtable)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(AIRTABLE_API_KEY="key")):
-                task.run({}, base_key="a", table_name="b")
+        with prefect.context(secrets=dict(AIRTABLE_API_KEY="key")):
+            task.run({}, base_key="a", table_name="b")
 
         assert airtable.Airtable.call_args[0] == ("a", "b", "key")
