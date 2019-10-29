@@ -181,9 +181,7 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
         if duration_only(state, inputs, parameters) is False:
             return False
         elif validate_on is None:
-            return (
-                True
-            )  # if you dont want to validate on anything, then the cache is valid
+            return True  # if you dont want to validate on anything, then the cache is valid
         else:
             cached = state.cached_parameters or {}
             partial_provided = {
@@ -259,9 +257,7 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         if duration_only(state, inputs, parameters) is False:
             return False
         elif validate_on is None:
-            return (
-                True
-            )  # if you dont want to validate on anything, then the cache is valid
+            return True  # if you dont want to validate on anything, then the cache is valid
         else:
             cached = {
                 key: res.value for key, res in (state.cached_inputs or {}).items()
