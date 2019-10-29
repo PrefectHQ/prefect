@@ -12,7 +12,7 @@ That's why we built [**Prefect Core**](https://github.com/prefecthq/prefect), an
 
 Prefect is a framework for taking any code and transforming it into a robust, distributed workflow. It includes the tools to design, build, test, and run powerful data applications. As an engine and an API, it codifies the best practices of data engineering.
 
-Along with **Prefect Cloud** (coming soon), the Prefect platform represents a full negative engineering solution for data scientists and engineers.
+Along with [**Prefect Cloud**](https://www.prefect.io/cloud-access), the Prefect platform represents a full negative engineering solution for data scientists and engineers.
 
 ## Positive and negative engineering
 

@@ -1751,7 +1751,7 @@ def test_task_runner_performs_mapping(executor):
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
 def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_children(
-    executor
+    executor,
 ):
     add = AddTask(trigger=prefect.triggers.all_failed)
     ex = Edge(SuccessTask(), add, key="x")

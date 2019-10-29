@@ -166,7 +166,7 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
 
 
 def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(
-    monkeypatch
+    monkeypatch,
 ):
     @prefect.task(name="test")
     def raise_error():
@@ -270,7 +270,7 @@ def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
 
 
 def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
-    client
+    client,
 ):
     class Handler(ResultHandler):
         def read(self, val):
@@ -305,7 +305,7 @@ def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_tas
 
 
 def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
-    client
+    client,
 ):
     class Handler(ResultHandler):
         def read(self, val):
@@ -360,7 +360,7 @@ def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypa
 
 
 def test_task_runner_raises_endrun_with_correct_state_if_client_cant_receive_state_updates(
-    monkeypatch
+    monkeypatch,
 ):
     task = Task(name="test")
     get_task_run_info = MagicMock(side_effect=SyntaxError)

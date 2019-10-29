@@ -28,7 +28,7 @@ Prefect is the first step toward making that true.
 
 ## The Prefect Platform
 
-Open-sourcing the Prefect Core engine is a major milestone and completes the first stage of the Prefect platform rollout. Soon, we will expand that platform with **Prefect Cloud**. In both its free and paid versions, Prefect Cloud will automatically extend the Core engine with:
+Open-sourcing the Prefect Core engine is a major milestone and completes the first stage of the Prefect platform rollout. In both its [free](https://www.prefect.io/products/cloud-scheduler) and [paid](https://www.prefect.io/cloud-access) versions, Prefect Cloud automatically extends the Core engine with:
 
 - a full GraphQL API
 - a complete UI for flows and jobs

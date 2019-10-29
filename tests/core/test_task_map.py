@@ -632,7 +632,7 @@ def test_reduce_task_properly_applies_trigger_across_all_mapped_states(executor)
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
 def test_reduce_task_properly_applies_trigger_across_all_mapped_states_for_deep_pipelines(
-    executor
+    executor,
 ):
     @prefect.task
     def ll():

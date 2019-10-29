@@ -108,7 +108,7 @@ class TestClientConfig:
                     assert toml.load(f)["api_token"] == "b"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self
+        self,
     ):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):
@@ -119,7 +119,7 @@ class TestClientConfig:
                 assert client._api_token == "a"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self
+        self,
     ):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):

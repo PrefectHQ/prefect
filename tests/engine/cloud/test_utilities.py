@@ -55,7 +55,7 @@ def test_preparing_state_for_cloud_passes_if_cached_inputs_dont_exist(cls):
     "cls", [s for s in cached_input_states if issubclass(s, Failed)]
 )
 def test_preparing_state_for_cloud_passes_if_cached_inputs_have_no_handler_for_failed(
-    cls
+    cls,
 ):
     xres = Result(3, result_handler=None)
     state = prepare_state_for_cloud(cls(cached_inputs=dict(x=xres)))

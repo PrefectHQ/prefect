@@ -527,7 +527,7 @@ class TestRunFlowStep:
         assert new_state.message == "Very specific error message"
 
     def test_determine_final_state_preserves_running_states_when_tasks_still_running(
-        self
+        self,
     ):
         task = Task()
         flow = Flow(name="test", tasks=[task])
@@ -559,8 +559,8 @@ class TestInputCaching:
 
         a_state = first_state.result[a_res]
         a_state.result = (
-            NoResult
-        )  # remove the result to see if the cached results are picked up
+            NoResult  # remove the result to see if the cached results are picked up
+        )
         b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
@@ -588,8 +588,8 @@ class TestInputCaching:
 
         a_state = first_state.result[a_res]
         a_state.result = (
-            NoResult
-        )  # remove the result to see if the cached results are picked up
+            NoResult  # remove the result to see if the cached results are picked up
+        )
         b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
@@ -1370,7 +1370,7 @@ class TestContext:
         assert flow_state.result[grab_key].result == 42
 
     def test_flow_runner_passes_along_its_init_context_to_tasks_after_serialization(
-        self
+        self,
     ):
         @prefect.task
         def grab_key():
@@ -1400,7 +1400,7 @@ class TestContext:
         )
 
     def test_flow_runner_does_override_scheduled_start_time_when_running_off_schedule(
-        self
+        self,
     ):
         @prefect.task
         def return_scheduled_start_time():
@@ -1414,7 +1414,7 @@ class TestContext:
         assert res.result[return_scheduled_start_time].result == 42
 
     def test_flow_runner_doesnt_override_scheduled_start_time_when_running_on_schedule(
-        self
+        self,
     ):
         @prefect.task
         def return_scheduled_start_time():
