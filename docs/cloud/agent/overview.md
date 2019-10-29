@@ -61,7 +61,7 @@ LocalAgent().start()
 
 Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
 
-### Labels
+### Flow Affinity: Labels
 
 Agents have an optional `labels` argument which allows for separation of execution when using multiple Agents. This is especially useful for teams who have various clusters running and they want different flows to run on specific clusters. For more information on labels and how to use them visit [Environments](../concepts/execution.html#labels).
 
