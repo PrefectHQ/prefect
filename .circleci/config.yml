@@ -281,6 +281,16 @@ jobs:
       PYTHON_TAG: python<< parameters.python_version >>
     steps:
       - checkout
+      - run:
+          # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
+          # todo: is there a better way to ensure that this is a commit on master?
+          name: Master branch check
+          command: |
+            apk add git
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
@@ -293,7 +303,7 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} \
-              -t prefecthq/prefect:$PYTHON_TAG \
+              -t prefecthq/prefect:latest-${PYTHON_TAG} \
               .
       - when:
           condition: << parameters.tag_latest >>
@@ -311,7 +321,7 @@ jobs:
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
-            docker push prefecthq/prefect:$PYTHON_TAG
+            docker push prefecthq/prefect:latest-${PYTHON_TAG}
       - when:
           condition: << parameters.tag_latest >>
           steps:
