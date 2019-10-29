@@ -2340,3 +2340,18 @@ def test_starting_at_arbitrary_loop_index():
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 10
     assert flow_state.result[final].result == 100
+
+
+class TestSaveLoad:
+    def test_save_saves_and_load_loads(self):
+        f = Flow("test")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "save"), "wb") as tmp:
+                assert f.save(tmp.name) is None
+
+            new_obj = Flow.load(tmp.name)
+
+        assert isinstance(new_obj, Flow)
+        assert new_obj.tasks == set()
+        assert new_obj.name == "test"
