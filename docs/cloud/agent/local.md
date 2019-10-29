@@ -2,6 +2,8 @@
 
 The Local Agent is designed to work in all environments with access to a Docker daemon. Local agents are most commonly used on personal machines for testing flow run deployments, but the local agent is by no means only useful for testing. In fact, it creates flow runs that interact with Prefect Cloud in the same way that it would on any other platform. This allows the Local Agent to be a fully functioning method of executing flows in conjunction with Prefect Cloud.
 
+[[toc]]
+
 ### Requirements
 
 ::: warning Docker Daemon
