@@ -6,6 +6,34 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success">
+
+Released October 29, 2019
+
+### Features
+
 - Flow Affinity: Environments and Agents now support labeling for execution specification - [#1651](https://github.com/PrefectHQ/prefect/pull/1651)
 - Add new Secret Tasks for a pluggable and reusable Secrets API - [#1346](https://github.com/PrefectHQ/prefect/issues/1346), [#1587](https://github.com/PrefectHQ/prefect/issues/1587)
 
@@ -44,7 +72,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - [Tobias Schmidt](https://github.com/royalts)
 
-## 0.6.7 <Badge text="beta" type="success"/>
+## 0.6.7 Oh Six Seven <Badge text="beta" type="success"/>
 
 Released October 16, 2019
 
@@ -88,7 +116,7 @@ Released October 16, 2019
 - [Mark McDonald](https://github.com/mhmcdonal)
 - [Sherman K](https://github.com/shrmnk)
 
-## 0.6.6 <Badge text="beta" type="success"/>
+## 0.6.6 Wait For It <Badge text="beta" type="success"/>
 
 Released October 3, 2019
 
@@ -131,7 +159,7 @@ Released October 3, 2019
 
 - [Fredrik Sannholm](https://github.com/frsann)
 
-## 0.6.5 <Badge text="beta" type="success"/>
+## 0.6.5 Agents of Environmental Change <Badge text="beta" type="success"/>
 
 Released September 20, 2019
 
@@ -173,7 +201,7 @@ Released September 20, 2019
 
 - [Braun Reyes](https://github.com/braunreyes)
 
-## 0.6.4 <Badge text="beta" type="success"/>
+## 0.6.4 I installed Docker on a Windows machine and all I got was this release <Badge text="beta" type="success"/>
 
 Released September 10, 2019
 
@@ -216,15 +244,17 @@ Released September 10, 2019
 - [Joe Schmid](https://github.com/joeschmid)
 - [Brett Naul](https://github.com/bnaul)
 
-## 0.6.3 <Badge text="beta" type="success"/>
+## 0.6.3 Retry Release <Badge text="beta" type="success"/>
 
 Released August 30, 2019
+
+Maintenance release.
 
 ### Fixes
 
 - Fix issue with reduced mapped tasks not respecting retries - [#1436](https://github.com/PrefectHQ/prefect/issues/1436)
 
-## 0.6.2 <Badge text="beta" type="success"/>
+## 0.6.2 Onboards and Upwards <Badge text="beta" type="success"/>
 
 Released August 30, 2019
 
@@ -276,7 +306,7 @@ Released August 30, 2019
 
 - [Alex Kravetz](http://github.com/akravetz)
 
-## 0.6.1 <Badge text="beta" type="success"/>
+## 0.6.1 Prefect Timing <Badge text="beta" type="success"/>
 
 Released August 8, 2019
 
@@ -316,7 +346,7 @@ Released August 8, 2019
 
 - None
 
-## 0.6.0 <Badge text="beta" type="success"/>
+## 0.6.0 Cloud Ready <Badge text="beta" type="success"/>
 
 Released July 16, 2019
 
@@ -373,7 +403,13 @@ Released July 16, 2019
 - [Kwangyoun Jung](https://github.com/initialkommit)
 - [Anes Benmerzoug](https://github.com/AnesBenmerzoug)
 
-## 0.5.4 <Badge text="beta" type="success"/>
+## 0.5.5 Season 8 <Badge text="beta" type="success"/>
+
+Released May 31, 2019
+
+Bugfix to address an unpinned dependency
+
+## 0.5.4 A Release Has No Name <Badge text="beta" type="success"/>
 
 Released May 28, 2019
 
@@ -424,7 +460,7 @@ Released May 28, 2019
 - [Jeremiah Lewis](https://github.com/jlewis91)
 - [Dave Hirschfeld](https://github.com/dhirschfeld)
 
-## 0.5.3 <Badge text="beta" type="success"/>
+## 0.5.3 The Release is Bright and Full of Features <Badge text="beta" type="success"/>
 
 Released May 7, 2019
 
@@ -472,7 +508,7 @@ Released May 7, 2019
 
 - None
 
-## 0.5.2 <Badge text="beta" type="success"/>
+## 0.5.2 Unredacted <Badge text="beta" type="success"/>
 
 Released April 19, 2019
 
@@ -509,7 +545,7 @@ Released April 19, 2019
 
 - None
 
-## 0.5.1 <Badge text="beta" type="success"/>
+## 0.5.1 It Takes a Village <Badge text="beta" type="success"/>
 
 Released April 4, 2019
 
@@ -555,7 +591,7 @@ Released April 4, 2019
 - [Miloš Garunović](https://github.com/milosgarunovic)
 - [Nash Taylor](https://github.com/ntaylorwss)
 
-## 0.5.0 <Badge text="beta" type="success"/>
+## 0.5.0 Open Source Launch! <Badge text="beta" type="success"/>
 
 Released March 24, 2019
 
