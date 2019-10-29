@@ -20,6 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Add new Secret Tasks for a pluggable and reusable Secrets API - [#1346](https://github.com/PrefectHQ/prefect/issues/1346), [#1587](https://github.com/PrefectHQ/prefect/issues/1587)
+- Add support for directly passing credentials to task library tasks, instead of passing secret names - [#1667](https://github.com/PrefectHQ/prefect/pull/1673)
 
 ### Fixes
 
@@ -31,11 +32,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- None
+- Tasks that accepted the name of a secret (often `credentials_secret`) will raise a deprecation warning - [#1667](https://github.com/PrefectHQ/prefect/pull/1673)
 
 ### Breaking Changes
 
 - Fargate Agent now takes in all boto3 camel case arguments instead of specific snake case options - [#1649](https://github.com/PrefectHQ/prefect/pull/1649)
+- `kubernetes` is no longer installed by default in deployed flow images - [#1653](https://github.com/PrefectHQ/prefect/pull/1653)
+- Tasks that accepted the name of a secret (often `credentials_secret`) no longer have a default value for that argument, as it has been deprecated - [#1667](https://github.com/PrefectHQ/prefect/pull/1673)
 
 ### Contributors
 

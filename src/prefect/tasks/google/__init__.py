@@ -1,9 +1,6 @@
 """
 Tasks that interface with various components of Google Cloud Platform.
 
-Tasks in this collection require a Prefect Secret called `"GOOGLE_APPLICATION_CREDENTIALS"` that contains
-valid Google Credentials in a JSON document.
-
 Note that these tasks allow for a wide range of custom usage patterns, such as:
 
 - Initialize a task with all settings for one time use

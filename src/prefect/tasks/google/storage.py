@@ -1,4 +1,5 @@
 import uuid
+import warnings
 
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
@@ -13,7 +14,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 class GCSBaseTask(Task):
     def __init__(
         self,
-        bucket: str,
+        bucket: str = None,
         blob: str = None,
         project: str = None,
         credentials_secret: str = None,
@@ -25,19 +26,43 @@ class GCSBaseTask(Task):
         self.blob = blob
         self.project = project
         self.create_bucket = create_bucket
-        if credentials_secret is None:
-            self.credentials_secret = "GOOGLE_APPLICATION_CREDENTIALS"
-        else:
-            self.credentials_secret = credentials_secret
+        if credentials_secret is not None:
+            warnings.warn(
+                "The `credentials_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+        self.credentials_secret = credentials_secret
+        if encryption_key_secret is not None:
+            warnings.warn(
+                "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the key value at runtime instead.",
+                UserWarning,
+            )
         self.encryption_key_secret = encryption_key_secret
         super().__init__(**kwargs)
 
-    def _load_client(self, project: str, credentials_secret: str):
-        "Creates and returns a GCS Client instance"
-        creds = Secret(credentials_secret).get()
-        credentials = Credentials.from_service_account_info(creds)
-        project = project or credentials.project_id
-        client = storage.Client(project=project, credentials=credentials)
+    def _get_client(
+        self, project: str, credentials: dict, credentials_secret: str = None
+    ):
+        """
+        Creates and returns a GCS Client instance
+        """
+        if credentials_secret is not None:
+            warnings.warn(
+                "The `credentials_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            creds = Secret(credentials_secret).get()
+            credentials = Credentials.from_service_account_info(creds)
+            project = project or credentials.project_id
+
+        if credentials is not None:
+            project = project or credentials.get("project")
+            client = storage.Client(project=project, credentials=credentials)
+        else:
+            client = storage.Client(project=project)
         return client
 
     def _retrieve_bucket(self, client, bucket: str, create_bucket: bool):
@@ -52,16 +77,25 @@ class GCSBaseTask(Task):
                 raise exc
         return bucket
 
-    def _get_blob(self, bucket: str, blob: str, encryption_key_secret: str):
+    def _get_blob(
+        self,
+        bucket: str,
+        blob: str,
+        encryption_key: str = None,
+        encryption_key_secret: str = None,
+    ):
         "Retrieves blob based on user settings."
         if blob is None:
             blob = "prefect-" + context.get("task_run_id", "no-id-" + str(uuid.uuid4()))
 
         ## pull encryption_key if requested
         if encryption_key_secret is not None:
+            warnings.warn(
+                "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
             encryption_key = Secret(encryption_key_secret).get()
-        else:
-            encryption_key = None
 
         return bucket.blob(blob, encryption_key=encryption_key)
 
@@ -75,10 +109,9 @@ class GCSDownload(GCSBaseTask):
         - blob (str, optional): default blob name to download.
         - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
-        - credentials_secret (str, optional): the name of the Prefect Secret
+        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
-            Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
-        - encryption_key_secret (str, optional): the name of the Prefect Secret
+        - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             storing an optional `encryption_key` to be used when downloading the Blob
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
@@ -113,6 +146,8 @@ class GCSDownload(GCSBaseTask):
         bucket: str = None,
         blob: str = None,
         project: str = None,
+        credentials: dict = None,
+        encryption_key: str = None,
         credentials_secret: str = None,
         encryption_key_secret: str = None,
     ) -> str:
@@ -128,10 +163,12 @@ class GCSDownload(GCSBaseTask):
             - blob (str, optional): blob name to download from
             - project (str, optional): Google Cloud project to work within.
                 If not provided here or at initialization, will be inferred from your Google Cloud credentials
-            - credentials_secret (str, optional): the name of the Prefect Secret
+            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
+                You should provide these at runtime with an upstream Secret task.
+            - encryption_key (str, optional): an encryption key
+            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
                 that stores a JSON represenation of your Google Cloud credentials
-                `GOOGLE_APPLICATION_CREDENTIALS` will be used.
-            - encryption_key_secret (str, optional): the name of the Prefect Secret
+            - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob
 
         Returns:
@@ -144,7 +181,9 @@ class GCSDownload(GCSBaseTask):
 
         """
         ## create client
-        client = self._load_client(project, credentials_secret)
+        client = self._get_client(
+            project, credentials=credentials, credentials_secret=credentials_secret
+        )
 
         ## retrieve bucket
         bucket = self._retrieve_bucket(
@@ -152,7 +191,12 @@ class GCSDownload(GCSBaseTask):
         )
 
         ## identify blob name
-        gcs_blob = self._get_blob(bucket, blob, encryption_key_secret)
+        gcs_blob = self._get_blob(
+            bucket,
+            blob,
+            encryption_key=encryption_key,
+            encryption_key_secret=encryption_key_secret,
+        )
         data = gcs_blob.download_as_string()
         return data
 
@@ -168,12 +212,11 @@ class GCSUpload(GCSBaseTask):
             beginning with `prefect-` and containing the Task Run ID will be used
         - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
-        - credentials_secret (str, optional): the name of the Prefect Secret
+        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             which stores a JSON represenation of your Google Cloud credentials.
-            Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - create_bucket (bool, optional): boolean specifying whether to create the bucket if it does not exist,
             otherwise an Exception is raised. Defaults to `False`.
-        - encryption_key_secret (str, optional): the name of the Prefect Secret
+        - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             storing an optional `encryption_key` to be used when uploading the Blob
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
@@ -217,6 +260,8 @@ class GCSUpload(GCSBaseTask):
         bucket: str = None,
         blob: str = None,
         project: str = None,
+        credentials: dict = None,
+        encryption_key: str = None,
         credentials_secret: str = None,
         create_bucket: bool = False,
         encryption_key_secret: str = None,
@@ -235,12 +280,14 @@ class GCSUpload(GCSBaseTask):
                 a string beginning with `prefect-` and containing the Task Run ID will be used
             - project (str, optional): Google Cloud project to work within. Can be inferred
                 from credentials if not provided.
-            - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a JSON represenation of your Google Cloud credentials.
-                Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
+            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
+                You should provide these at runtime with an upstream Secret task.
+            - encryption_key (str, optional): an encryption key
+            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+                that stores a JSON represenation of your Google Cloud credentials
             - create_bucket (bool, optional): boolean specifying whether to create the bucket
                 if it does not exist, otherwise an Exception is raised. Defaults to `False`.
-            - encryption_key_secret (str, optional): the name of the Prefect Secret
+            - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob.
 
         Raises:
@@ -250,7 +297,9 @@ class GCSUpload(GCSBaseTask):
             - str: the blob name that now stores the provided data
         """
         ## create client
-        client = self._load_client(project, credentials_secret)
+        client = self._get_client(
+            project, credentials=credentials, credentials_secret=credentials_secret
+        )
 
         ## retrieve bucket
         bucket = self._retrieve_bucket(
@@ -258,12 +307,17 @@ class GCSUpload(GCSBaseTask):
         )
 
         ## identify blob name
-        gcs_blob = self._get_blob(bucket, blob, encryption_key_secret)
+        gcs_blob = self._get_blob(
+            bucket,
+            blob,
+            encryption_key=encryption_key,
+            encryption_key_secret=encryption_key_secret,
+        )
         gcs_blob.upload_from_string(data)
         return gcs_blob.name
 
 
-class GCSCopy(Task):
+class GCSCopy(GCSBaseTask):
     """
     Task template for copying data from one Google Cloud Storage bucket to another, without
     downloading it locally.
@@ -278,9 +332,8 @@ class GCSCopy(Task):
         - dest_blob (str, optional): default destination blob name.
         - project (str, optional): default Google Cloud project to work within.
             If not provided, will be inferred from your Google Cloud credentials
-        - credentials_secret (str, optional): the name of the Prefect Secret
+        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
-            Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
 
@@ -303,13 +356,10 @@ class GCSCopy(Task):
         self.source_blob = source_blob
         self.dest_bucket = dest_bucket
         self.dest_blob = dest_blob
-        self.project = project
-        if credentials_secret is None:
-            self.credentials_secret = "GOOGLE_APPLICATION_CREDENTIALS"
-        else:
-            self.credentials_secret = credentials_secret
 
-        super().__init__(**kwargs)
+        super().__init__(
+            project=project, credentials_secret=credentials_secret, **kwargs
+        )
 
     @defaults_from_attrs(
         "source_bucket",
@@ -326,6 +376,7 @@ class GCSCopy(Task):
         dest_bucket: str = None,
         dest_blob: str = None,
         project: str = None,
+        credentials: dict = None,
         credentials_secret: str = None,
     ) -> str:
         """
@@ -342,9 +393,10 @@ class GCSCopy(Task):
             - dest_blob (str, optional): default destination blob name.
             - project (str, optional): default Google Cloud project to work within.
                 If not provided, will be inferred from your Google Cloud credentials
-            - credentials_secret (str, optional): the name of the Prefect Secret
-                which stores a JSON representation of your Google Cloud credentials.
-                Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
+            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
+                You should provide these at runtime with an upstream Secret task.
+            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+                that stores a JSON represenation of your Google Cloud credentials
 
         Returns:
             - str: the name of the destination blob
@@ -360,10 +412,11 @@ class GCSCopy(Task):
             raise ValueError("Source and destination are identical.")
 
         ## create client
-        creds = Secret(credentials_secret).get()
-        credentials = Credentials.from_service_account_info(creds)
-        project = project or credentials.project_id
-        client = storage.Client(project=project, credentials=credentials)
+        client = self._get_client(
+            project=project,
+            credentials=credentials,
+            credentials_secret=credentials_secret,
+        )
 
         # get source bucket and blob
         source_bucket_obj = client.get_bucket(source_bucket)

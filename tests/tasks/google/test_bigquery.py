@@ -21,7 +21,7 @@ class TestBigQueryInitialization:
         assert task.project is None
         assert task.location == "US"
         assert task.dry_run_max_bytes is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_dest is None
         assert task.table_dest is None
         assert task.job_config == dict()
@@ -69,7 +69,7 @@ class TestBigQueryStreamingInsertInitialization:
         task = BigQueryStreamingInsert()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
 
@@ -100,7 +100,7 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         task = BigQueryLoadGoogleCloudStorage()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
         assert task.uri is None
@@ -131,7 +131,7 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
 
 class TestBigQueryCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryTask()
+        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -139,37 +139,18 @@ class TestBigQueryCredentialsandProjects:
             "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
-            ):
-                task.run(query="SELECT *")
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
+            task.run(query="SELECT *")
 
         assert creds_loader.from_service_account_info.call_args[0][0] == {"key": 42}
-
-    def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch):
-        task = BigQueryTask(credentials_secret="TEST")
-
-        creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
-        monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
-        )
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST=dict(key="42"), RUN=dict())):
-                task.run(query="SELECT *")
-                task.run(query="SELECT *", credentials_secret="RUN")
-
-        first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == {"key": "42"}
-        assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
-        task = BigQueryTask()
-        task_proj = BigQueryTask(project="test-init")
+        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
+        task_proj = BigQueryTask(
+            project="test-init", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS"
+        )
 
         client = MagicMock()
         service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
@@ -179,11 +160,10 @@ class TestBigQueryCredentialsandProjects:
         )
         monkeypatch.setattr("prefect.tasks.google.bigquery.bigquery.Client", client)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=dict())):
-                task.run(query="SELECT *")
-                task_proj.run(query="SELECT *")
-                task_proj.run(query="SELECT *", project="run-time")
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=dict())):
+            task.run(query="SELECT *")
+            task_proj.run(query="SELECT *")
+            task_proj.run(query="SELECT *", project="run-time")
 
         x, y, z = client.call_args_list
 
@@ -194,7 +174,11 @@ class TestBigQueryCredentialsandProjects:
 
 class TestBigQueryStreamingInsertCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryStreamingInsert(dataset_id="id", table="table")
+        task = BigQueryStreamingInsert(
+            dataset_id="id",
+            table="table",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
+        )
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -202,38 +186,24 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
             "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-                task.run(records=[])
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
+            task.run(records=[])
 
         assert creds_loader.from_service_account_info.call_args[0][0] == 42
-
-    def test_creds_secret_name_can_be_overwritten_at_anytime(self, monkeypatch):
-        task = BigQueryStreamingInsert(
-            dataset_id="id", table="table", credentials_secret="TEST"
-        )
-
-        creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
-        monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.bigquery.Client", MagicMock()
-        )
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(TEST='"42"', RUN={})):
-                task.run(records=[])
-                task.run(records=[], credentials_secret="RUN")
-
-        first_call, second_call = creds_loader.from_service_account_info.call_args_list
-        assert first_call[0][0] == "42"
-        assert second_call[0][0] == {}
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
-        task = BigQueryStreamingInsert(dataset_id="id", table="table")
+        task = BigQueryStreamingInsert(
+            dataset_id="id",
+            table="table",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
+        )
         task_proj = BigQueryStreamingInsert(
-            dataset_id="id", table="table", project="test-init"
+            dataset_id="id",
+            table="table",
+            project="test-init",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         client = MagicMock()
@@ -244,11 +214,10 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
         )
         monkeypatch.setattr("prefect.tasks.google.bigquery.bigquery.Client", client)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run(records=[])
-                task_proj.run(records=[])
-                task_proj.run(records=[], project="run-time")
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
+            task.run(records=[])
+            task_proj.run(records=[])
+            task_proj.run(records=[], project="run-time")
 
         x, y, z = client.call_args_list
 
@@ -270,9 +239,8 @@ class TestDryRuns:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                task.run(query="SELECT *")
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
+            task.run(query="SELECT *")
 
     def test_dry_run_raises_if_limit_is_exceeded(self, monkeypatch):
         task = BigQueryTask(dry_run_max_bytes=1200)
@@ -286,20 +254,19 @@ class TestDryRuns:
             MagicMock(return_value=client),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-                with pytest.raises(
-                    ValueError,
-                    match="Query will process 21836427 bytes which is above the set maximum of 1200 for this task",
-                ):
-                    task.run(query="SELECT *")
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
+            with pytest.raises(
+                ValueError,
+                match="Query will process 21836427 bytes which is above the set maximum of 1200 for this task",
+            ):
+                task.run(query="SELECT *")
 
 
 class TestCreateBigQueryTableInitialization:
     def test_initializes_with_nothing_and_sets_defaults(self):
         task = CreateBigQueryTable()
         assert task.project is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset is None
         assert task.table is None
         assert task.schema is None
@@ -335,16 +302,15 @@ class TestCreateBigQueryTableInitialization:
         )
         task = CreateBigQueryTable()
         with pytest.raises(prefect.engine.signals.SUCCESS) as exc:
-            with set_temporary_config({"cloud.use_local_secrets": True}):
-                with prefect.context(
-                    secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
-                ):
-                    task.run()
+            with prefect.context(
+                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
+            ):
+                task.run()
 
         assert "already exists" in str(exc.value)
 
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = CreateBigQueryTable()
+        task = CreateBigQueryTable(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -355,10 +321,7 @@ class TestCreateBigQueryTableInitialization:
             ),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
-            ):
-                task.run()
+        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
+            task.run()
 
         assert creds_loader.from_service_account_info.call_args[0][0] == {"key": 42}

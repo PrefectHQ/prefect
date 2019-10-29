@@ -1,12 +1,11 @@
 from typing import Any
+import warnings
 
 import tweepy
 
 from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.tasks import defaults_from_attrs
-
-DEFAULT_CREDENTIALS_SECRET = "TWITTER_API_CREDENTIALS"
 
 
 class LoadTweetReplies(Task):
@@ -34,7 +33,7 @@ class LoadTweetReplies(Task):
         self,
         user: str = None,
         tweet_id: str = None,
-        credentials_secret: str = DEFAULT_CREDENTIALS_SECRET,
+        credentials_secret: str = None,
         **kwargs: Any
     ):
         self.user = user
@@ -44,18 +43,34 @@ class LoadTweetReplies(Task):
 
     @defaults_from_attrs("user", "tweet_id", "credentials_secret")
     def run(
-        self, user: str = None, tweet_id: str = None, credentials_secret: str = None
+        self,
+        user: str = None,
+        tweet_id: str = None,
+        credentials: dict = None,
+        credentials_secret: str = None,
     ) -> list:
         """
         Args:
             - user (str): a Twitter user
             - tweet_id (str): a tweet ID; replies to this tweet will be retrieved
-            - credentials_secret (str): the name of a secret that contains Twitter API credentials.
+            - credentials(dict): a JSON document with four keys:
+                "api_key", "api_secret", "access_token", and "access_token_secret".
+            - credentials_secret (str, DEPRECATED): the name of a secret that contains Twitter API credentials.
                 The secret must be formatted as a JSON document with four keys:
                 "api_key", "api_secret", "access_token", and "access_token_secret"
         """
         # auth
-        credentials = Secret(credentials_secret).get()
+        if credentials_secret is not None:
+            warnings.warn(
+                "The `credentials_secret` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            credentials = Secret(credentials_secret).get()
+
+        if credentials is None:
+            raise ValueError("Credentials dictionary wasn't provided.")
+
         auth = tweepy.OAuthHandler(credentials["api_key"], credentials["api_secret"])
         auth.set_access_token(
             credentials["access_token"], credentials["access_token_secret"]

@@ -1,3 +1,4 @@
+import warnings
 import json
 from typing import Any, List
 
@@ -17,8 +18,7 @@ class GetRepoInfo(Task):
             form `organization/repo_name` or `user/repo_name`; can also be provided to the `run` method
         - info_keys (List[str], optional): a list of repo attributes to pull (e.g., `["stargazers_count", "subscribers_count"]`).
             A full list of available keys can be found in the official [GitHub documentation](https://developer.github.com/v3/repos/)
-        - token_secret (str, optional): the name of the Prefect Secret containing your GitHub Access Token;
-            defaults to "GITHUB_ACCESS_TOKEN"
+        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token;
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -26,16 +26,26 @@ class GetRepoInfo(Task):
         self,
         repo: str = None,
         info_keys: List[str] = None,
-        token_secret: str = "GITHUB_ACCESS_TOKEN",
+        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
         self.info_keys = info_keys or []
+
+        if token_secret is not None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+
         self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "info_keys")
-    def run(self, repo: str = None, info_keys: List[str] = None) -> None:
+    def run(
+        self, repo: str = None, info_keys: List[str] = None, token: str = None
+    ) -> None:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
@@ -45,6 +55,7 @@ class GetRepoInfo(Task):
                 form `organization/repo_name`; defaults to the one provided at initialization
             - info_keys (List[str], optional): a list of repo attributes to pull (e.g., `["stargazers_count", "subscribers_count"]`).
                 A full list of available keys can be found in the official [GitHub documentation](https://developer.github.com/v3/repos/)
+            - token (str): a GitHub access token
 
         Raises:
             - ValueError: if a `repo` was never provided
@@ -57,7 +68,13 @@ class GetRepoInfo(Task):
             raise ValueError("A GitHub repository must be provided.")
 
         ## prepare the request
-        token = Secret(self.token_secret).get()
+        if token is None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            token = Secret(self.token_secret).get()
         url = "https://api.github.com/repos/{}".format(repo)
         headers = {
             "AUTHORIZATION": "token {}".format(token),
@@ -82,8 +99,7 @@ class CreateBranch(Task):
         - base (str, optional): the name of the branch you want to branch off; can also
             be provided to the `run` method.  Defaults to "master".
         - branch_name (str, optional): the name of the new branch; can also be provided to the `run` method
-        - token_secret (str, optional): the name of the Prefect Secret containing your GitHub Access Token;
-            defaults to "GITHUB_ACCESS_TOKEN"
+        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token;
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -92,17 +108,30 @@ class CreateBranch(Task):
         repo: str = None,
         base: str = "master",
         branch_name: str = None,
-        token_secret: str = "GITHUB_ACCESS_TOKEN",
+        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
         self.base = base
         self.branch_name = branch_name
+
+        if token_secret is not None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
         self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "base", "branch_name")
-    def run(self, repo: str = None, base: str = None, branch_name: str = None) -> dict:
+    def run(
+        self,
+        repo: str = None,
+        base: str = None,
+        branch_name: str = None,
+        token: str = None,
+    ) -> dict:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
@@ -114,6 +143,7 @@ class CreateBranch(Task):
                 defaults to the one set at initialization
             - branch_name (str, optional): the name of the new branch; if not provided here, defaults to
                 the one set at initialization
+            - token (str): a GitHub access token
 
         Raises:
             - ValueError: if a `repo` or `branch_name` was never provided, or if the base branch wasn't found
@@ -129,7 +159,13 @@ class CreateBranch(Task):
             raise ValueError("A GitHub repository must be provided.")
 
         ## prepare the request
-        token = Secret(self.token_secret).get()
+        if token is None:
+            warnings.warn(
+                "The `token` argument is deprecated. Use a `Secret` task "
+                "to pass the credentials value at runtime instead.",
+                UserWarning,
+            )
+            token = Secret(self.token_secret).get()
         url = "https://api.github.com/repos/{}/git/refs".format(repo)
         headers = {
             "AUTHORIZATION": "token {}".format(token),

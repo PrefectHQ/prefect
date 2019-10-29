@@ -15,7 +15,6 @@ class TestCreateGitHubPRInitialization:
         assert task.title is None
         assert task.head is None
         assert task.base is None
-        assert task.token_secret == "GITHUB_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
         task = CreateGitHubPR(name="test-task", checkpoint=True, tags=["bob"])
@@ -23,9 +22,7 @@ class TestCreateGitHubPRInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["repo", "body", "title", "head", "base", "token_secret"]
-    )
+    @pytest.mark.parametrize("attr", ["repo", "body", "title", "head", "base"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = CreateGitHubPR(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -38,25 +35,12 @@ class TestCreateGitHubPRInitialization:
 
 class TestCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = CreateGitHubPR()
+        task = CreateGitHubPR(token_secret="GITHUB_ACCESS_TOKEN")
 
         req = MagicMock()
         monkeypatch.setattr("prefect.tasks.github.prs.requests", req)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-                task.run(repo="org/repo")
-
-        assert req.post.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-    def test_creds_secret_can_be_overwritten(self, monkeypatch):
-        task = CreateGitHubPR(token_secret="MY_SECRET")
-
-        req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.github.prs.requests", req)
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
-                task.run(repo="org/repo")
+        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
+            task.run(repo="org/repo")
 
         assert req.post.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
