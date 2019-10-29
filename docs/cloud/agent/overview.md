@@ -4,6 +4,8 @@ The Prefect Agent is a small process that is spun up on supported platforms to o
 
 Prefect Cloud is designed to follow a hybrid approach to workflow execution. This means that Prefect processes run inside tenant infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect Agent and all Prefect Flows which run using Cloud follow this communication pattern.
 
+[[toc]]
+
 ### Agent Process
 
 Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent will then periodically query Prefect Cloud for flow runs that need to be started on that agent's platform.
@@ -59,6 +61,32 @@ LocalAgent().start()
 
 Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
 
-### Labels
+### Flow Affinity: Labels
 
 Agents have an optional `labels` argument which allows for separation of execution when using multiple Agents. This is especially useful for teams who have various clusters running and they want different flows to run on specific clusters. For more information on labels and how to use them visit [Environments](../concepts/execution.html#labels).
+
+By default Agents have no set labels and will therefore only pick up runs from flows which also have no specified Environment Labels. To set labels on your Agent they can be provided through a few methods:
+
+- Initialization of the Agent class:
+
+```python
+from prefect.agent import LocalAgent
+
+LocalAgent(labels=["dev", "staging"]).start()
+```
+
+- Arguments to the CLI:
+
+```
+$ prefect agent start --label dev --label staging
+```
+
+- As an environment variable:
+
+```
+$ export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
+```
+
+:::tip Environment Variable
+Setting labels through the `PREFECT__CLOUD__AGENT__LABELS` environment variable will make those labels the default unless overridden through initialization of an Agent class or through the CLI's `agent start` command.
+:::
