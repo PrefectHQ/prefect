@@ -117,7 +117,9 @@ class Agent:
             - str: The current tenant id
         """
         print(ascii_name)
-        self.logger.info("Starting {} with labels {}".format(type(self).__name__, self.labels))
+        self.logger.info(
+            "Starting {} with labels {}".format(type(self).__name__, self.labels)
+        )
         self.logger.info(
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
