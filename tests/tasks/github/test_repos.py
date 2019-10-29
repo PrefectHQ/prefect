@@ -12,7 +12,6 @@ class TestGetRepoInfoInitialization:
         task = GetRepoInfo()
         assert task.repo is None
         assert task.info_keys == []
-        assert task.token_secret == "GITHUB_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
         task = GetRepoInfo(name="test-task", checkpoint=True, tags=["bob"])
@@ -20,7 +19,7 @@ class TestGetRepoInfoInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize("attr", ["repo", "info_keys", "token_secret"])
+    @pytest.mark.parametrize("attr", ["repo", "info_keys",])
     def test_initializes_attr_from_kwargs(self, attr):
         task = GetRepoInfo(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -37,7 +36,6 @@ class TestCreateBranchInitialization:
         assert task.repo is None
         assert task.base == "master"
         assert task.branch_name is None
-        assert task.token_secret == "GITHUB_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
         task = CreateBranch(name="test-task", checkpoint=True, tags=["bob"])
@@ -45,7 +43,7 @@ class TestCreateBranchInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize("attr", ["repo", "base", "branch_name", "token_secret"])
+    @pytest.mark.parametrize("attr", ["repo", "base", "branch_name",])
     def test_initializes_attr_from_kwargs(self, attr):
         task = CreateBranch(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -122,9 +120,7 @@ def test_base_name_is_filtered_for(monkeypatch):
     )
     monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
 
-    with set_temporary_config({"cloud.use_local_secrets": True}):
-        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-            task.run(repo="org/repo")
+    task.run(repo="org/repo", token={"key": 42})
 
     assert req.post.call_args[1]["json"] == {
         "ref": "refs/heads/NEWBRANCH",

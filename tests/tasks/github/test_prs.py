@@ -15,7 +15,6 @@ class TestCreateGitHubPRInitialization:
         assert task.title is None
         assert task.head is None
         assert task.base is None
-        assert task.token_secret == "GITHUB_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
         task = CreateGitHubPR(name="test-task", checkpoint=True, tags=["bob"])
@@ -23,9 +22,7 @@ class TestCreateGitHubPRInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["repo", "body", "title", "head", "base", "token_secret"]
-    )
+    @pytest.mark.parametrize("attr", ["repo", "body", "title", "head", "base"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = CreateGitHubPR(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"

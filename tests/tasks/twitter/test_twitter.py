@@ -12,14 +12,13 @@ class TestLoadTweetReplies:
         task = LoadTweetReplies()
         assert task.user is None
         assert task.tweet_id is None
-        assert task.credentials_secret == "TWITTER_API_CREDENTIALS"
 
     def test_initialize_kwargs_are_processed(self):
         task = LoadTweetReplies(checkpoint=True, name="test")
         assert task.name == "test"
         assert task.checkpoint is True
 
-    @pytest.mark.parametrize("attr", ["user", "tweet_id", "credentials_secret"])
+    @pytest.mark.parametrize("attr", ["user", "tweet_id"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = LoadTweetReplies(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"

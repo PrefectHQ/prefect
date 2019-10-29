@@ -21,7 +21,7 @@ class TestBigQueryInitialization:
         assert task.project is None
         assert task.location == "US"
         assert task.dry_run_max_bytes is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_dest is None
         assert task.table_dest is None
         assert task.job_config == dict()
@@ -69,7 +69,7 @@ class TestBigQueryStreamingInsertInitialization:
         task = BigQueryStreamingInsert()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
 
@@ -100,7 +100,7 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         task = BigQueryLoadGoogleCloudStorage()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
         assert task.uri is None
@@ -131,7 +131,7 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
 
 class TestBigQueryCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryTask()
+        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -168,8 +168,10 @@ class TestBigQueryCredentialsandProjects:
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
-        task = BigQueryTask()
-        task_proj = BigQueryTask(project="test-init")
+        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
+        task_proj = BigQueryTask(
+            project="test-init", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS"
+        )
 
         client = MagicMock()
         service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
@@ -194,7 +196,11 @@ class TestBigQueryCredentialsandProjects:
 
 class TestBigQueryStreamingInsertCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryStreamingInsert(dataset_id="id", table="table")
+        task = BigQueryStreamingInsert(
+            dataset_id="id",
+            table="table",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
+        )
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)
@@ -231,9 +237,16 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch
     ):
-        task = BigQueryStreamingInsert(dataset_id="id", table="table")
+        task = BigQueryStreamingInsert(
+            dataset_id="id",
+            table="table",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
+        )
         task_proj = BigQueryStreamingInsert(
-            dataset_id="id", table="table", project="test-init"
+            dataset_id="id",
+            table="table",
+            project="test-init",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         client = MagicMock()
@@ -299,7 +312,7 @@ class TestCreateBigQueryTableInitialization:
     def test_initializes_with_nothing_and_sets_defaults(self):
         task = CreateBigQueryTable()
         assert task.project is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert task.credentials_secret is None
         assert task.dataset is None
         assert task.table is None
         assert task.schema is None
@@ -344,7 +357,7 @@ class TestCreateBigQueryTableInitialization:
         assert "already exists" in str(exc.value)
 
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = CreateBigQueryTable()
+        task = CreateBigQueryTable(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
 
         creds_loader = MagicMock()
         monkeypatch.setattr("prefect.tasks.google.bigquery.Credentials", creds_loader)

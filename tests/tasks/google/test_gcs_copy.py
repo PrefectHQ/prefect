@@ -15,7 +15,6 @@ class TestInitialization:
         assert task.source_blob is None
         assert task.dest_bucket is None
         assert task.dest_blob is None
-        assert task.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
         assert task.project is None
 
     def test_additional_kwargs_passed_upstream(self):
@@ -64,10 +63,15 @@ class TestRuntimeValidation:
             )
 
 
-class TestCredentialsandProjects:
+# deprecated tests of `credentials_secret`
+class TestCredentialsandProjects_DEPRECATED:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
         task = GCSCopy(
-            source_bucket="s", source_blob="s", dest_bucket="d", dest_blob="d"
+            source_bucket="s",
+            source_blob="s",
+            dest_bucket="d",
+            dest_blob="d",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         creds_loader = MagicMock()
@@ -106,7 +110,11 @@ class TestCredentialsandProjects:
         self, monkeypatch
     ):
         task = GCSCopy(
-            source_bucket="s", source_blob="s", dest_bucket="d", dest_blob="d"
+            source_bucket="s",
+            source_blob="s",
+            dest_bucket="d",
+            dest_blob="d",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
         task_proj = GCSCopy(
             source_bucket="s",
@@ -114,6 +122,7 @@ class TestCredentialsandProjects:
             dest_bucket="d",
             dest_blob="d",
             project="test-init",
+            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
         )
 
         client = MagicMock()

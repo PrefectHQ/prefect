@@ -14,7 +14,6 @@ class TestOpenGithubIssueInitialization:
         assert task.title is None
         assert task.body is None
         assert task.labels == []
-        assert task.token_secret == "GITHUB_ACCESS_TOKEN"
 
     def test_additional_kwargs_passed_upstream(self):
         task = OpenGitHubIssue(name="test-task", checkpoint=True, tags=["bob"])
@@ -22,9 +21,7 @@ class TestOpenGithubIssueInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["repo", "body", "title", "labels", "token_secret"]
-    )
+    @pytest.mark.parametrize("attr", ["repo", "body", "title", "labels"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = OpenGitHubIssue(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
