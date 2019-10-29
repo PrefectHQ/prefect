@@ -34,25 +34,12 @@ class TestOpenGithubIssueInitialization:
 
 class TestCredentialsandProjects:
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = OpenGitHubIssue()
+        task = OpenGitHubIssue(token_secret="GITHUB_ACCESS_TOKEN")
 
         req = MagicMock()
         monkeypatch.setattr("prefect.tasks.github.issues.requests", req)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-                task.run(repo="org/repo")
-
-        assert req.post.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-    def test_creds_secret_can_be_overwritten(self, monkeypatch):
-        task = OpenGitHubIssue(token_secret="MY_SECRET")
-
-        req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.github.issues.requests", req)
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
-                task.run(repo="org/repo")
+        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
+            task.run(repo="org/repo")
 
         assert req.post.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"

@@ -68,6 +68,9 @@ class LoadTweetReplies(Task):
             )
             credentials = Secret(credentials_secret).get()
 
+        if credentials is None:
+            raise ValueError("Credentials dictionary wasn't provided.")
+
         auth = tweepy.OAuthHandler(credentials["api_key"], credentials["api_secret"])
         auth.set_access_token(
             credentials["access_token"], credentials["access_token_secret"]

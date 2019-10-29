@@ -59,54 +59,28 @@ class TestCreateBranchInitialization:
             task.run()
 
 
-class TestCredentials:
+# deprecated
+class TestCredentialsSecret:
     def test_creds_are_pulled_from_secret_at_runtime_repo_info(self, monkeypatch):
-        task = GetRepoInfo()
+        task = GetRepoInfo(token_secret="GITHUB_ACCESS_TOKEN")
 
         req = MagicMock()
         monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-                task.run(repo="org/repo")
+        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
+            task.run(repo="org/repo")
 
         assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
 
     def test_creds_are_pulled_from_secret_at_runtime_create_branch(self, monkeypatch):
-        task = CreateBranch()
+        task = CreateBranch(token_secret="GITHUB_ACCESS_TOKEN")
 
         req = MagicMock()
         monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-                with pytest.raises(ValueError, match="not found"):
-                    task.run(repo="org/repo", branch_name="new")
-
-        assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-    def test_creds_secret_can_be_overwritten_repo_info(self, monkeypatch):
-        task = GetRepoInfo(token_secret="MY_SECRET")
-
-        req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
-                task.run(repo="org/repo")
-
-        assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-    def test_creds_secret_can_be_overwritten_create_branch(self, monkeypatch):
-        task = CreateBranch(token_secret="MY_SECRET")
-
-        req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.github.repos.requests", req)
-
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(MY_SECRET={"key": 42})):
-                with pytest.raises(ValueError):
-                    task.run(repo="org/repo", branch_name="new")
+        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
+            with pytest.raises(ValueError, match="not found"):
+                task.run(repo="org/repo", branch_name="new")
 
         assert req.get.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
 

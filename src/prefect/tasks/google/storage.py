@@ -57,10 +57,9 @@ class GCSBaseTask(Task):
             creds = Secret(credentials_secret).get()
             credentials = Credentials.from_service_account_info(creds)
             project = project or credentials.project_id
-        else:
-            project = project or credentials.get("project")
 
         if credentials is not None:
+            project = project or credentials.get("project")
             client = storage.Client(project=project, credentials=credentials)
         else:
             client = storage.Client(project=project)

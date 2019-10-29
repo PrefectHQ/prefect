@@ -24,22 +24,21 @@ class TestLoadTweetReplies:
         assert getattr(task, attr) == "my-value"
 
     def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = LoadTweetReplies()
+        task = LoadTweetReplies(credentials_secret="TWITTER_API_CREDENTIALS")
 
         tweepy = MagicMock()
         monkeypatch.setattr("prefect.tasks.twitter.twitter.tweepy", tweepy)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(
-                    TWITTER_API_CREDENTIALS={
-                        "api_key": "a",
-                        "api_secret": "b",
-                        "access_token": "c",
-                        "access_token_secret": "d",
-                    }
-                )
-            ):
-                task.run(user="")
+        with prefect.context(
+            secrets=dict(
+                TWITTER_API_CREDENTIALS={
+                    "api_key": "a",
+                    "api_secret": "b",
+                    "access_token": "c",
+                    "access_token_secret": "d",
+                }
+            )
+        ):
+            task.run(user="")
 
         assert tweepy.OAuthHandler.call_args[0] == ("a", "b")
