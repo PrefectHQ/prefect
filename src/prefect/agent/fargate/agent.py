@@ -132,24 +132,24 @@ class FargateAgent(Agent):
         for key in definition_kwarg_list:
             if not task_definition_kwargs.get(key) and os.getenv(key):
                 self.logger.debug("{} from environment variable".format(key))
-                env_value = os.getenv(key)
+                def_env_value = os.getenv(key)
                 try:
                     # Parse env var if needed
-                    env_value = literal_eval(env_value)  # type: ignore
+                    def_env_value = literal_eval(def_env_value)  # type: ignore
                 except ValueError:
                     pass
-                task_definition_kwargs.update({key: env_value})
+                task_definition_kwargs.update({key: def_env_value})
 
         for key in run_kwarg_list:
             if not task_run_kwargs.get(key) and os.getenv(key):
                 self.logger.debug("{} from environment variable".format(key))
-                env_value = os.getenv(key)
+                run_env_value = os.getenv(key)
                 try:
                     # Parse env var if needed
-                    env_value = literal_eval(env_value)  # type: ignore
+                    run_env_value = literal_eval(run_env_value)  # type: ignore
                 except ValueError:
                     pass
-                task_definition_kwargs.update({key: env_value})
+                task_run_kwargs.update({key: run_env_value})
 
         return task_definition_kwargs, task_run_kwargs
 
