@@ -38,6 +38,13 @@ def test_run_secret_without_env_var_set_returns_none(monkeypatch):
     assert e.run() is None
 
 
+def test_run_secret_without_env_var_set_raises(monkeypatch):
+    monkeypatch.delenv("FOO", raising=False)
+    e = EnvVarSecret(env_var="FOO", raise_if_missing=True)
+    with pytest.raises(ValueError, match="variable not set"):
+        e.run()
+
+
 def test_run_secret_with_cast(monkeypatch):
     monkeypatch.setenv("FOO", "1")
     e = EnvVarSecret(env_var="FOO", cast=int)
@@ -48,6 +55,13 @@ def test_run_secret_without_env_var_set_returns_none_even_if_cast_set(monkeypatc
     monkeypatch.delenv("FOO", raising=False)
     e = EnvVarSecret(env_var="FOO", cast=int)
     assert e.run() is None
+
+
+def test_run_secret_without_env_var_set_raises_with_cast(monkeypatch):
+    monkeypatch.delenv("FOO", raising=False)
+    e = EnvVarSecret(env_var="FOO", raise_if_missing=True, cast=int)
+    with pytest.raises(ValueError, match="variable not set"):
+        e.run()
 
 
 def test_run_secret_with_cast_datetime(monkeypatch):
