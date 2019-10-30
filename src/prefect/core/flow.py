@@ -1,3 +1,4 @@
+import cloudpickle
 import collections
 import copy
 import functools
@@ -1179,6 +1180,28 @@ class Flow:
         return serialized
 
     # Deployment ------------------------------------------------------------------
+
+    @classmethod
+    def load(cls, fpath: str) -> "Flow":
+        """
+        Reads a Flow from a file that was created with `flow.save()`.
+
+        Args:
+            - fpath (str): the filepath where your Flow will be loaded from
+        """
+        with open(fpath, "rb") as f:
+            return cloudpickle.load(f)
+
+    def save(self, fpath: str) -> None:
+        """
+        Saves the Flow to a file by serializing it with cloudpickle.  This method is
+        recommended if you wish to separate out the building of your Flow from its deployment.
+
+        Args:
+            - fpath (str): the filepath where your Flow will be saved
+        """
+        with open(fpath, "wb") as f:
+            cloudpickle.dump(self, f)
 
     def deploy(
         self,
