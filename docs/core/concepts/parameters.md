@@ -23,7 +23,7 @@ While parameters can have any name, there can only be one parameter with that na
 
 ## Type-casting Parameter values
 
-`Parameters` accept an optional keyword argument, `cast`, that can be used to modify its result. This is important because `Parameters` typically receive input as a string (via env var) or JSON (via API). To supply a cast function, simply provide it at initialization:
+`Parameters` accept an optional keyword argument, `cast`, that can be used to modify its result. This is important because `Parameters` typically receive input as JSON (for example, via the Prefect Cloud API). To supply a cast function, simply provide it at initialization:
 
 ```python
 import pendulum
@@ -38,3 +38,15 @@ with Flow('Parameter casts') as flow:
 
 flow.run(parameters=dict(x='2019-01-01')) # prints 2020-01-01T00:00:00+00:00
 ```
+
+::: tip Example: loading parameter values from environment variables
+
+You can take advantage of the `cast` keyword to load a parameterized value from an environment variable:
+
+```python
+Parameter("Env Var Parameter", cast=os.getenv)
+```
+
+(Note: there are other, possibly preferable ways to do this, including passing the parameterized string to a task that loads an environment variable)
+
+:::
