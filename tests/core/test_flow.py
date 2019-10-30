@@ -2344,7 +2344,7 @@ def test_starting_at_arbitrary_loop_index():
 
 class TestSaveLoad:
     def test_save_saves_and_load_loads(self):
-        f = Flow("test")
+        f = Flow("test", tasks=[Task(name="foo")])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "save"), "wb") as tmp:
@@ -2353,5 +2353,6 @@ class TestSaveLoad:
             new_obj = Flow.load(tmp.name)
 
         assert isinstance(new_obj, Flow)
-        assert new_obj.tasks == set()
+        assert len(new_obj.tasks) == 1
+        assert list(new_obj.tasks)[0].name == "foo"
         assert new_obj.name == "test"
