@@ -28,15 +28,15 @@ class FargateAgent(Agent):
             Agents when polling for work
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID`.
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY`.
+            `AWS_SECRET_ACCESS_KEY` or `None`
         - aws_session_token (str, optional): AWS session key for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_SESSION_TOKEN`.
+            `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
-            Defaults to the value set in the environment variable `REGION_NAME`.
+            Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
