@@ -35,7 +35,7 @@ def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_k8s_agent_config_options(monkeypatch, runner_token):
+def test_fargate_agent_config_options(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 

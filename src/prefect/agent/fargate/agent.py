@@ -56,12 +56,12 @@ class FargateAgent(Agent):
         from boto3 import client as boto3_client
 
         # Config used for boto3 client initialization
-        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID", "")
+        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
         aws_secret_access_key = aws_secret_access_key or os.getenv(
-            "AWS_SECRET_ACCESS_KEY", ""
+            "AWS_SECRET_ACCESS_KEY"
         )
-        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN", "")
-        region_name = region_name or os.getenv("REGION_NAME", "")
+        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
+        region_name = region_name or os.getenv("REGION_NAME")
 
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
