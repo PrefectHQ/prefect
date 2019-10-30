@@ -35,9 +35,20 @@ def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_k8s_agent_config_options(monkeypatch, runner_token):
+def test_fargate_agent_config_options(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    # Client args
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "")
+    monkeypatch.setenv("REGION_NAME", "")
+
+    monkeypatch.delenv("AWS_ACCESS_KEY_ID")
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY")
+    monkeypatch.delenv("AWS_SESSION_TOKEN")
+    monkeypatch.delenv("REGION_NAME")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = FargateAgent(name="test", labels=["test"])
@@ -47,6 +58,14 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.boto3_client
+
+        boto3_client.assert_called_with(
+            "ecs",
+            aws_access_key_id=None,
+            aws_secret_access_key=None,
+            aws_session_token=None,
+            region_name=None,
+        )
 
 
 def test_parse_task_definition_kwargs(monkeypatch, runner_token):
@@ -314,6 +333,45 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("networkConfiguration", "test")
     monkeypatch.setenv("enableECSManagedTags", "test")
     monkeypatch.setenv("propagateTags", "test")
+
+    agent = FargateAgent(subnets=["subnet"])
+    assert agent
+    assert agent.task_definition_kwargs == def_kwarg_dict
+    assert agent.task_run_kwargs == run_kwarg_dict
+
+    boto3_client.assert_called_with(
+        "ecs",
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+    )
+
+
+def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    def_kwarg_dict = {
+        "placementConstraints": ["test"],
+        "proxyConfiguration": {"test": "test"},
+    }
+
+    run_kwarg_dict = {
+        "placementConstraints": ["test"],
+        "networkConfiguration": {"test": "test"},
+    }
+
+    # Client args
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "token")
+    monkeypatch.setenv("REGION_NAME", "region")
+
+    # Def / run args
+    monkeypatch.setenv("placementConstraints", "['test']")
+    monkeypatch.setenv("proxyConfiguration", "{'test': 'test'}")
+    monkeypatch.setenv("networkConfiguration", "{'test': 'test'}")
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
