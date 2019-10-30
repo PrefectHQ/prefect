@@ -17,6 +17,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - None
 
+### Fixes
+
+- Fix Fargate Agent access defaults and environment variable support - [#1687](https://github.com/PrefectHQ/prefect/pull/1687)
+
 ### Deprecations
 
 - None
