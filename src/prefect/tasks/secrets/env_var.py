@@ -15,9 +15,6 @@ class EnvVarSecret(Secret):
             value to coerce it to a type.
         - raise_if_missing (bool): if True, an error will be raised if the env var is not found.
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
-
-    Raises:
-        - ValueError: if a `result_handler` keyword is passed
     """
 
     def __init__(

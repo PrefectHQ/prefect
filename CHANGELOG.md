@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add a `save`/`load` interface to Flows - [#1685](https://github.com/PrefectHQ/prefect/pull/1685)
 - Add option to specify `aws_session_token` for the `FargateTaskEnvironment` - [#1688](https://github.com/PrefectHQ/prefect/pull/1688)
+- Add `EnvVarSecrets` for loading sensitive information from environment variables - [#1683](https://github.com/PrefectHQ/prefect/pull/1683)
 
 ### Task Library
 
@@ -49,7 +50,6 @@ Released October 29, 2019
 - Reduces the size of the `prefecthq/prefect` Docker image by ~400MB, which is now the base Docker image used in Flows - [#1648](https://github.com/PrefectHQ/prefect/pull/1648)
 - Add a new healthcheck for environment dependencies - [#1653](https://github.com/PrefectHQ/prefect/pull/1653)
 - Add default 30 second timeout to Client requests - [#1672](https://github.com/PrefectHQ/prefect/pull/1672)
-- Add `EnvVarSecrets` for loading sensitive information from environment variables - [#1683](https://github.com/PrefectHQ/prefect/pull/1683)
 
 ### Task Library
 
