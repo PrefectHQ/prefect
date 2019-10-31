@@ -180,7 +180,10 @@ class TestTenantAuth:
         )
         client = Client(api_token="api")
         client.login_to_tenant(tenant_id=tenant_id)
-        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer api",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_login_uses_api_token_when_access_token_is_set(self, patch_post):
         tenant_id = str(uuid.uuid4())
@@ -200,7 +203,10 @@ class TestTenantAuth:
         client._access_token = "access"
         client.login_to_tenant(tenant_id=tenant_id)
         assert client.get_auth_token() == "ACCESS_TOKEN"
-        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer api",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_graphql_uses_access_token_after_login(self, patch_post):
         tenant_id = str(uuid.uuid4())
@@ -219,12 +225,18 @@ class TestTenantAuth:
         client = Client(api_token="api")
         client.graphql({})
         assert client.get_auth_token() == "api"
-        assert post.call_args[1]["headers"] == dict(Authorization="Bearer api")
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer api",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
         client.login_to_tenant(tenant_id=tenant_id)
         client.graphql({})
         assert client.get_auth_token() == "ACCESS_TOKEN"
-        assert post.call_args[1]["headers"] == dict(Authorization="Bearer ACCESS_TOKEN")
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer ACCESS_TOKEN",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_login_to_tenant_writes_tenant_and_reloads_it_when_token_is_reloaded(
         self, patch_post
@@ -364,7 +376,10 @@ class TestTenantAuth:
         client = Client()
         client._refresh_token = "refresh"
         client._refresh_access_token()
-        assert post.call_args[1]["headers"] == dict(Authorization="Bearer refresh")
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer refresh",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_get_available_tenants(self, patch_post):
         tenants = [
@@ -466,6 +481,7 @@ class TestPassingHeadersAndTokens:
         assert get.call_args[1]["headers"] == {
             "x": "y",
             "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
     def test_headers_are_passed_to_post(self, monkeypatch):
@@ -482,6 +498,7 @@ class TestPassingHeadersAndTokens:
         assert post.call_args[1]["headers"] == {
             "x": "y",
             "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
     def test_headers_are_passed_to_graphql(self, monkeypatch):
@@ -498,6 +515,7 @@ class TestPassingHeadersAndTokens:
         assert post.call_args[1]["headers"] == {
             "x": "y",
             "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
         }
 
     def test_tokens_are_passed_to_get(self, monkeypatch):
@@ -509,7 +527,10 @@ class TestPassingHeadersAndTokens:
             client = Client()
         client.get("/foo/bar", token="secret_token")
         assert get.called
-        assert get.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}
+        assert get.call_args[1]["headers"] == {
+            "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_tokens_are_passed_to_post(self, monkeypatch):
         post = MagicMock()
@@ -520,7 +541,10 @@ class TestPassingHeadersAndTokens:
             client = Client()
         client.post("/foo/bar", token="secret_token")
         assert post.called
-        assert post.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
 
     def test_tokens_are_passed_to_graphql(self, monkeypatch):
         post = MagicMock()
@@ -531,4 +555,7 @@ class TestPassingHeadersAndTokens:
             client = Client()
         client.graphql("query {}", token="secret_token")
         assert post.called
-        assert post.call_args[1]["headers"] == {"Authorization": "Bearer secret_token"}
+        assert post.call_args[1]["headers"] == {
+            "Authorization": "Bearer secret_token",
+            "X-PREFECT-CORE-VERSION": str(prefect.__version__),
+        }
