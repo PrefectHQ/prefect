@@ -48,18 +48,21 @@ def test_create_fargate_task_environment_aws_creds_provided():
         labels=["foo"],
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="session",
         region_name="region",
     )
     assert environment
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
+    assert environment.aws_session_token == "session"
     assert environment.region_name == "region"
 
 
 def test_create_fargate_task_environment_aws_creds_environment(monkeypatch):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
     environment = FargateTaskEnvironment(labels=["foo"])
@@ -67,6 +70,7 @@ def test_create_fargate_task_environment_aws_creds_environment(monkeypatch):
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
+    assert environment.aws_session_token == "session"
     assert environment.region_name == "region"
 
 
@@ -380,6 +384,7 @@ def test_entire_environment_process_together(monkeypatch):
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
     with prefect.context({"flow_run_id": "id"}):
@@ -404,6 +409,7 @@ def test_entire_environment_process_together(monkeypatch):
         assert environment
         assert environment.aws_access_key_id == "id"
         assert environment.aws_secret_access_key == "secret"
+        assert environment.aws_session_token == "session"
         assert environment.region_name == "region"
 
         environment.setup(storage=storage)

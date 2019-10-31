@@ -51,12 +51,15 @@ class FargateTaskEnvironment(Environment):
     Args:
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID`.
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY`.
+            `AWS_SECRET_ACCESS_KEY` or `None`
+        - aws_session_token (str, optional): AWS session key for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
-            Defaults to the value set in the environment variable `REGION_NAME`.
+            Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -69,6 +72,7 @@ class FargateTaskEnvironment(Environment):
         self,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
+        aws_session_token: str = None,
         region_name: str = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -80,6 +84,7 @@ class FargateTaskEnvironment(Environment):
         self.aws_secret_access_key = aws_secret_access_key or os.getenv(
             "AWS_SECRET_ACCESS_KEY"
         )
+        self.aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         self.region_name = region_name or os.getenv("REGION_NAME")
 
         # Parse accepted kwargs for definition and run
@@ -162,6 +167,7 @@ class FargateTaskEnvironment(Environment):
             "ecs",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
             region_name=self.region_name,
         )
 
@@ -244,6 +250,7 @@ class FargateTaskEnvironment(Environment):
             "ecs",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
             region_name=self.region_name,
         )
 

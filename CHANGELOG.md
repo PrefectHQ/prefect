@@ -10,11 +10,16 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add a `save`/`load` interface to Flows - [#1685](https://github.com/PrefectHQ/prefect/pull/1685)
+- Add option to specify `aws_session_token` for the `FargateTaskEnvironment` - [#1688](https://github.com/PrefectHQ/prefect/pull/1688)
 
 ### Task Library
 
 - None
+
+### Fixes
+
+- Fix Fargate Agent access defaults and environment variable support - [#1687](https://github.com/PrefectHQ/prefect/pull/1687)
 
 ### Deprecations
 
