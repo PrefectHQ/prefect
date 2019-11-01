@@ -53,7 +53,7 @@ class CloudHandler(logging.StreamHandler):
                 log = self.queue.get(False)
                 logs.append(log)
         except Empty:
-            print(logs)
+            self.client.write_run_logs(logs)
 
     def _monitor(self):
         while not self._flush:
