@@ -42,9 +42,10 @@ class CloudHandler(logging.StreamHandler):
         return self._queue
 
     def flush(self):
-        self._flush = True
-        self.batch_upload()
-        self._thread.join()
+        if self.client is not None:
+            self._flush = True
+            self.batch_upload()
+            self._thread.join()
 
     def batch_upload(self):
         logs = []
@@ -61,7 +62,7 @@ class CloudHandler(logging.StreamHandler):
             time.sleep(3)
 
     def __del__(self):
-        if hasattr(self, "_thread"):
+        if hasattr(self, "_thread") and self.client is not None:
             self.flush()
             atexit.unregister(self.flush)
         return super().__del__()
