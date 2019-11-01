@@ -42,8 +42,8 @@ class CloudHandler(logging.StreamHandler):
         return self._queue
 
     def flush(self):
+        self._flush = True
         if self.client is not None:
-            self._flush = True
             self.batch_upload()
             self._thread.join()
 
