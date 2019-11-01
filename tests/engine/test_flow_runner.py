@@ -1536,7 +1536,6 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     with prefect.utilities.configuration.set_temporary_config(
         {
             "logging.log_to_cloud": True,
-            "logging.heartbeat": 0.25,
             "special_key": 42,
             "cloud.auth_token": "original",
         }

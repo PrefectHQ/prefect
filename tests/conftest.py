@@ -12,9 +12,9 @@ from prefect.utilities import configuration, debug
 
 
 @pytest.fixture(autouse=True)
-def atexit_patch(monkeypatch):
-    monkeypatch.setattr("prefect.utilities.logging.atexit.register", MagicMock())
-    yield
+def logging_heartbeat():
+    with configuration.set_temporary_config({"logging.heartbeat": 0.15}):
+        yield
 
 
 @pytest.fixture(autouse=True)
