@@ -61,8 +61,9 @@ class CloudHandler(logging.StreamHandler):
             time.sleep(3)
 
     def __del__(self):
-        self.flush()
-        atexit.unregister(self.flush)
+        if hasattr(self, "_thread"):
+            self.flush()
+            atexit.unregister(self.flush)
         return super().__del__()
 
     def start(self):
@@ -94,7 +95,7 @@ class CloudHandler(logging.StreamHandler):
             log["taskRunId"] = prefect.context.get("task_run_id", None)
             log["timestamp"] = pendulum.from_timestamp(
                 record_dict.get("created", time.time())
-            )
+            ).isoformat()
             log["name"] = record_dict.get("name", None)
             log["message"] = record_dict.get("message", None)
             log["level"] = record_dict.get("levelname", None)
