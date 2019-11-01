@@ -34,20 +34,20 @@ class CloudHandler(logging.StreamHandler):
         self.logger.setLevel(context.config.logging.level)
 
     @property
-    def queue(self):
+    def queue(self) -> Queue:
         if not hasattr(self, "_queue"):
-            self._queue = Queue()
+            self._queue = Queue()  # type: Queue
             self._flush = False
             self.start()
         return self._queue
 
-    def flush(self):
+    def flush(self) -> None:
         self._flush = True
         if self.client is not None:
             self.batch_upload()
             self._thread.join()
 
-    def batch_upload(self):
+    def batch_upload(self) -> None:
         logs = []
         try:
             while True:
@@ -56,23 +56,24 @@ class CloudHandler(logging.StreamHandler):
         except Empty:
             if logs:
                 try:
+                    assert self.client is not None
                     self.client.write_run_logs(logs)
                 except Exception as exc:
                     self.logger.critical(
                         "Failed to write log with error: {}".format(str(exc))
                     )
 
-    def _monitor(self):
+    def _monitor(self) -> None:
         while not self._flush:
             self.batch_upload()
             time.sleep(self.heartbeat)
 
-    def __del__(self):
-        if hasattr(self, "_thread") and self.client is not None:
+    def __del__(self) -> None:
+        if hasattr(self, "_thread"):
             self.flush()
             atexit.unregister(self.flush)
 
-    def start(self):
+    def start(self) -> None:
         if not hasattr(self, "_thread"):
             self.heartbeat = context.config.logging.heartbeat
             self._thread = t = threading.Thread(target=self._monitor)
@@ -80,7 +81,7 @@ class CloudHandler(logging.StreamHandler):
             t.start()
             atexit.register(self.flush)
 
-    def put(self, log):
+    def put(self, log: dict) -> None:
         self.queue.put(log)
 
     def emit(self, record) -> None:  # type: ignore
