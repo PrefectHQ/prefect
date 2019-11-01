@@ -266,6 +266,7 @@ class Client:
         headers = headers or {}
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
+        headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
         session = requests.Session()
         retries = Retry(
