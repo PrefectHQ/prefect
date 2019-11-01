@@ -54,7 +54,8 @@ class CloudHandler(logging.StreamHandler):
                 log = self.queue.get(False)
                 logs.append(log)
         except Empty:
-            self.client.write_run_logs(logs)
+            if logs:
+                self.client.write_run_logs(logs)
 
     def _monitor(self):
         while not self._flush:
@@ -65,7 +66,6 @@ class CloudHandler(logging.StreamHandler):
         if hasattr(self, "_thread") and self.client is not None:
             self.flush()
             atexit.unregister(self.flush)
-        return super().__del__()
 
     def start(self):
         if not hasattr(self, "_thread"):

@@ -12,6 +12,12 @@ from prefect.utilities import configuration, debug
 
 
 @pytest.fixture(autouse=True)
+def atexit_patch(monkeypatch):
+    monkeypatch.setattr("prefect.utilities.logging.atexit.register", MagicMock())
+    yield
+
+
+@pytest.fixture(autouse=True)
 def prefect_home_dir():
     """
     Sets a temporary home directory
