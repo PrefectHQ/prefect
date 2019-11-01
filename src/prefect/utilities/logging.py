@@ -60,6 +60,11 @@ class CloudHandler(logging.StreamHandler):
             self.batch_upload()
             time.sleep(3)
 
+    def __del__(self):
+        self.flush()
+        atexit.unregister(self.flush)
+        return super().__del__()
+
     def start(self):
         if not hasattr(self, "_thread"):
             self._thread = t = threading.Thread(target=self._monitor)
