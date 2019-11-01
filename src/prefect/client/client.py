@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import uuid
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
@@ -1052,7 +1053,7 @@ class Client:
         info: Any = None,
     ) -> None:
         """
-        Writes a log to Cloud
+        Uploads a log to Cloud.
 
         Args:
             - flow_run_id (str): the flow run id
@@ -1067,6 +1068,10 @@ class Client:
         Raises:
             - ValueError: if writing the log fails
         """
+        warnings.warn(
+            "DEPRECATED: Client.write_run_log is deprecated, use Client.write_run_logs instead",
+            UserWarning,
+        )
         mutation = {
             "mutation($input: writeRunLogInput!)": {
                 "writeRunLog(input: $input)": {"success"}
@@ -1093,3 +1098,26 @@ class Client:
 
         if not result.data.writeRunLog.success:
             raise ValueError("Writing log failed.")
+
+    def write_run_logs(self, logs: List[Dict]) -> None:
+        """
+        Uploads a collection of logs to Cloud.
+
+        Args:
+            - logs (List[Dict]): a list of log entries to add
+
+        Raises:
+            - ValueError: if uploading the logs fail
+        """
+        mutation = {
+            "mutation($input: writeRunLogsInput!)": {
+                "writeRunLogs(input: $input)": {"success"}
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(logs=logs))
+        )  # type: Any
+
+        if not result.data.writeRunLogs.success:
+            raise ValueError("Writing logs failed.")

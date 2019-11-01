@@ -89,28 +89,22 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
-            flow_run_id = prefect.context.get("flow_run_id", None)
-            task_run_id = prefect.context.get("task_run_id", None)
-            timestamp = pendulum.from_timestamp(record_dict.get("created", time.time()))
-            name = record_dict.get("name", None)
-            message = record_dict.get("message", None)
-            level = record_dict.get("levelname", None)
+            log = dict()
+            log["flowRunId"] = prefect.context.get("flow_run_id", None)
+            log["taskRunId"] = prefect.context.get("task_run_id", None)
+            log["timestamp"] = pendulum.from_timestamp(
+                record_dict.get("created", time.time())
+            )
+            log["name"] = record_dict.get("name", None)
+            log["message"] = record_dict.get("message", None)
+            log["level"] = record_dict.get("levelname", None)
 
             if record_dict.get("exc_text") is not None:
-                message += "\n" + record_dict["exc_text"]
+                log["message"] += "\n" + record_dict["exc_text"]
                 record_dict.pop("exc_info", None)
 
-            self.put(record_dict)
-
-        #            self.client.write_run_log(
-        #                flow_run_id=flow_run_id,
-        #                task_run_id=task_run_id,
-        #                timestamp=timestamp,
-        #                name=name,
-        #                message=message,
-        #                level=level,
-        #                info=record_dict,
-        #            )
+            log["info"] = record_dict
+            self.put(log)
         except Exception as exc:
             self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
