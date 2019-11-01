@@ -8,8 +8,11 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+import atexit
 import logging
+import threading
 import time
+from queue import Queue, Empty
 from typing import Any
 
 import pendulum
@@ -29,6 +32,43 @@ class CloudHandler(logging.StreamHandler):
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         self.logger.setLevel(context.config.logging.level)
+
+    @property
+    def queue(self):
+        if not hasattr(self, "_queue"):
+            self._queue = Queue()
+            self._flush = False
+            self.start()
+        return self._queue
+
+    def flush(self):
+        self._flush = True
+        self.batch_upload()
+        self._thread.join()
+
+    def batch_upload(self):
+        logs = []
+        try:
+            while True:
+                log = self.queue.get(False)
+                logs.append(log)
+        except Empty:
+            print(logs)
+
+    def _monitor(self):
+        while not self._flush:
+            self.batch_upload()
+            time.sleep(3)
+
+    def start(self):
+        if not hasattr(self, "_thread"):
+            self._thread = t = threading.Thread(target=self._monitor)
+            t.daemon = True
+            t.start()
+            atexit.register(self.flush)
+
+    def put(self, log):
+        self.queue.put(log)
 
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
@@ -55,15 +95,17 @@ class CloudHandler(logging.StreamHandler):
                 message += "\n" + record_dict["exc_text"]
                 record_dict.pop("exc_info", None)
 
-            self.client.write_run_log(
-                flow_run_id=flow_run_id,
-                task_run_id=task_run_id,
-                timestamp=timestamp,
-                name=name,
-                message=message,
-                level=level,
-                info=record_dict,
-            )
+            self.put(record_dict)
+
+        #            self.client.write_run_log(
+        #                flow_run_id=flow_run_id,
+        #                task_run_id=task_run_id,
+        #                timestamp=timestamp,
+        #                name=name,
+        #                message=message,
+        #                level=level,
+        #                info=record_dict,
+        #            )
         except Exception as exc:
             self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
