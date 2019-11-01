@@ -55,12 +55,17 @@ class CloudHandler(logging.StreamHandler):
                 logs.append(log)
         except Empty:
             if logs:
-                self.client.write_run_logs(logs)
+                try:
+                    self.client.write_run_logs(logs)
+                except Exception as exc:
+                    self.logger.critical(
+                        "Failed to write log with error: {}".format(str(exc))
+                    )
 
     def _monitor(self):
         while not self._flush:
             self.batch_upload()
-            time.sleep(3)
+            time.sleep(self.heartbeat)
 
     def __del__(self):
         if hasattr(self, "_thread") and self.client is not None:
@@ -69,6 +74,7 @@ class CloudHandler(logging.StreamHandler):
 
     def start(self):
         if not hasattr(self, "_thread"):
+            self.heartbeat = context.config.logging.heartbeat
             self._thread = t = threading.Thread(target=self._monitor)
             t.daemon = True
             t.start()
