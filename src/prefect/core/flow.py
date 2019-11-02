@@ -1195,7 +1195,7 @@ class Flow:
         if not os.path.isabs(fpath):
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
             fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
-        with open(fpath, "rb") as f:
+        with open(str(fpath), "rb") as f:
             return cloudpickle.load(f)
 
     def save(self, fpath: str = None) -> None:
@@ -1214,7 +1214,7 @@ class Flow:
             )
             assert fpath is not None  # mypy assert
             fpath.parent.mkdir(exist_ok=True, parents=True)
-        with open(fpath, "wb") as f:
+        with open(str(fpath), "wb") as f:
             cloudpickle.dump(self, f)
 
     def deploy(
