@@ -1222,6 +1222,24 @@ class Flow:
 
         return str(fpath)
 
+    def cloud(self, executor=None):
+        ## get an agent token
+        token = prefect.config.cloud.agent.auth_token
+        client = prefect.Client(api_token=token)
+
+        while True:
+            flow_runs = client.query_flow_runs()
+
+            for flow_run in flow_runs:
+                ## kick off the run
+                with prefect.context(flow_run_id=flow_run_id):
+                    with set_temporary_config({}):
+                        runner_cls = prefect.engine.cloud.flow_runner.CloudFlowRunner
+                        runner_cls(flow=flow).run(executor=executor)
+
+            if not flow_runs:
+                time.sleep(5)
+
     def deploy(
         self,
         project_name: str,

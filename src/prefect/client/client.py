@@ -1094,3 +1094,36 @@ class Client:
 
         if not result.data.writeRunLog.success:
             raise ValueError("Writing log failed.")
+
+    def query_flow_runs(self, labels: list = None) -> list:
+        """
+        Query Prefect Cloud for flow runs which need to be deployed and executed
+
+        Args:
+            - tenant_id (str): The tenant id to use in the query
+
+        Returns:
+            - list: A list of GraphQLResult flow run objects
+        """
+        self.logger.debug("Querying for flow runs")
+
+        # Get scheduled flow runs from queue
+        mutation = {
+            "mutation($input: getRunsInQueueInput!)": {
+                "getRunsInQueue(input: $input)": {"flow_run_ids"}
+            }
+        }
+
+        now = pendulum.now("UTC")
+        result = self.graphql(
+            mutation,
+            variables={
+                "input": {
+                    "tenantId": str(uuid.uuid4()),
+                    "before": now.isoformat(),
+                    "labels": labels,
+                }
+            },
+        )
+        flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
+        return flow_run_ids
