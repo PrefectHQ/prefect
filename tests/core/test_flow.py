@@ -2344,7 +2344,8 @@ def test_starting_at_arbitrary_loop_index():
 
 class TestSaveLoad:
     def test_save_saves_and_load_loads(self):
-        f = Flow("test", tasks=[Task(name="foo")])
+        t = Task(name="foo")
+        f = Flow("test", tasks=[t])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "save"), "wb") as tmp:
@@ -2355,10 +2356,12 @@ class TestSaveLoad:
         assert isinstance(new_obj, Flow)
         assert len(new_obj.tasks) == 1
         assert list(new_obj.tasks)[0].name == "foo"
+        assert list(new_obj.tasks)[0].slug == t.slug
         assert new_obj.name == "test"
 
     def test_save_saves_has_a_default(self):
-        f = Flow("test", tasks=[Task(name="foo")])
+        t = Task(name="foo")
+        f = Flow("test", tasks=[t])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with set_temporary_config({"home_dir": tmpdir}):
@@ -2369,4 +2372,28 @@ class TestSaveLoad:
         assert isinstance(new_obj, Flow)
         assert len(new_obj.tasks) == 1
         assert list(new_obj.tasks)[0].name == "foo"
+        assert list(new_obj.tasks)[0].slug == t.slug
         assert new_obj.name == "test"
+
+    def test_load_accepts_name_and_sluggified_name(self):
+        t = Task(name="foo")
+        f = Flow("I aM a-test!", tasks=[t])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with set_temporary_config({"home_dir": tmpdir}):
+                assert f.save() is None
+
+                new_obj_from_name = Flow.load("I aM a-test!")
+                new_obj_from_slug = Flow.load("i-am-a-test")
+
+        assert isinstance(new_obj_from_name, Flow)
+        assert len(new_obj_from_name.tasks) == 1
+        assert list(new_obj_from_name.tasks)[0].name == "foo"
+        assert list(new_obj_from_name.tasks)[0].slug == t.slug
+        assert new_obj_from_name.name == "I aM a-test!"
+
+        assert isinstance(new_obj_from_slug, Flow)
+        assert len(new_obj_from_slug.tasks) == 1
+        assert list(new_obj_from_slug.tasks)[0].name == "foo"
+        assert list(new_obj_from_slug.tasks)[0].slug == t.slug
+        assert new_obj_from_slug.name == "I aM a-test!"

@@ -1189,8 +1189,12 @@ class Flow:
         Reads a Flow from a file that was created with `flow.save()`.
 
         Args:
-            - fpath (str): the filepath where your Flow will be loaded from
+            - fpath (str): either the absolute filepath where your Flow will be loaded from,
+                or the name of the Flow you wish to load
         """
+        if not os.path.isabs(fpath):
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
         with open(fpath, "rb") as f:
             return cloudpickle.load(f)
 
@@ -1205,9 +1209,10 @@ class Flow:
         """
         if fpath is None:
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
                 slugify(self.name)
             )
+            assert fpath is not None  # mypy assert
             fpath.parent.mkdir(exist_ok=True, parents=True)
         with open(fpath, "wb") as f:
             cloudpickle.dump(self, f)
