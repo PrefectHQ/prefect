@@ -6,3 +6,4 @@ class for interacting with other secret providers. Secrets always use a special 
 prevents the persistence of sensitive information.
 """
 from .base import Secret
+from .env_var import EnvVarSecret

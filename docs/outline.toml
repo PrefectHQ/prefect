@@ -197,10 +197,10 @@ classes = ["S3Download", "S3Upload", "LambdaCreate", "LambdaDelete" , "LambdaInv
 [pages.tasks.azure]
 title = "Azure Tasks"
 module = "prefect.tasks.azure"
-classes = ["BlobStorageDownload", 
-           "BlobStorageUpload", 
-           "CosmosDBCreateItem", 
-           "CosmosDBReadItems", 
+classes = ["BlobStorageDownload",
+           "BlobStorageUpload",
+           "CosmosDBCreateItem",
+           "CosmosDBReadItems",
            "CosmosDBQueryItems"]
 
 [pages.tasks.azureml]
@@ -308,7 +308,7 @@ classes = ["ParseRSSFeed"]
 [pages.tasks.secrets]
 title = "Secret Tasks"
 module = "prefect.tasks.secrets"
-classes = ["Secret"]
+classes = ["Secret", "EnvVarSecret"]
 
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"
