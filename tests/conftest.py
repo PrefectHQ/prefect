@@ -13,7 +13,7 @@ from prefect.utilities import configuration, debug
 
 @pytest.fixture(autouse=True)
 def logging_heartbeat():
-    with configuration.set_temporary_config({"logging.heartbeat": 0.15}):
+    with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
         yield
 
 

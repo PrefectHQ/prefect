@@ -50,18 +50,22 @@ class CloudHandler(logging.StreamHandler):
     def batch_upload(self) -> None:
         logs = []
         try:
-            while True:
+            i = 0
+            while i < 100:
                 log = self.queue.get(False)
                 logs.append(log)
+                i += 1
         except Empty:
-            if logs:
-                try:
-                    assert self.client is not None
-                    self.client.write_run_logs(logs)
-                except Exception as exc:
-                    self.logger.critical(
-                        "Failed to write log with error: {}".format(str(exc))
-                    )
+            pass
+
+        if logs:
+            try:
+                assert self.client is not None
+                self.client.write_run_logs(logs)
+            except Exception as exc:
+                self.logger.critical(
+                    "Failed to write log with error: {}".format(str(exc))
+                )
 
     def _monitor(self) -> None:
         while not self._flush:
@@ -75,7 +79,7 @@ class CloudHandler(logging.StreamHandler):
 
     def start(self) -> None:
         if not hasattr(self, "_thread"):
-            self.heartbeat = context.config.logging.heartbeat
+            self.heartbeat = context.config.cloud.logging_heartbeat
             self._thread = t = threading.Thread(target=self._monitor)
             t.daemon = True
             t.start()
@@ -102,11 +106,11 @@ class CloudHandler(logging.StreamHandler):
             log["flowRunId"] = prefect.context.get("flow_run_id", None)
             log["taskRunId"] = prefect.context.get("task_run_id", None)
             log["timestamp"] = pendulum.from_timestamp(
-                record_dict.get("created", time.time())
+                record_dict.pop("created", time.time())
             ).isoformat()
-            log["name"] = record_dict.get("name", None)
-            log["message"] = record_dict.get("message", None)
-            log["level"] = record_dict.get("levelname", None)
+            log["name"] = record_dict.pop("name", None)
+            log["message"] = record_dict.pop("message", None)
+            log["level"] = record_dict.pop("levelname", None)
 
             if record_dict.get("exc_text") is not None:
                 log["message"] += "\n" + record_dict["exc_text"]

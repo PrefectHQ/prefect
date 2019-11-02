@@ -47,7 +47,7 @@ def test_remote_handler_captures_errors_and_logs_them(caplog):
             child_logger = logger.getChild("sub-test")
             child_logger.critical("this should raise an error in the handler")
 
-            time.sleep(0.75)  # wait for batch upload to occur
+            time.sleep(1)  # wait for batch upload to occur
             critical_logs = [r for r in caplog.records if r.levelname == "CRITICAL"]
             assert len(critical_logs) == 2
 
