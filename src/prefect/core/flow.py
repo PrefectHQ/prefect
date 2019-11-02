@@ -1198,7 +1198,7 @@ class Flow:
         with open(str(fpath), "rb") as f:
             return cloudpickle.load(f)
 
-    def save(self, fpath: str = None) -> None:
+    def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
         recommended if you wish to separate out the building of your Flow from its deployment.
@@ -1206,6 +1206,9 @@ class Flow:
         Args:
             - fpath (str, optional): the filepath where your Flow will be saved; defaults to
                 `~/.prefect/flows/FLOW-NAME.prefect`
+
+        Returns:
+            - str: the full location the Flow was saved to
         """
         if fpath is None:
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
@@ -1216,6 +1219,8 @@ class Flow:
             fpath.parent.mkdir(exist_ok=True, parents=True)
         with open(str(fpath), "wb") as f:
             cloudpickle.dump(self, f)
+
+        return str(fpath)
 
     def deploy(
         self,

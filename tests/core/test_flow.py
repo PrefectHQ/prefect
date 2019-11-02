@@ -976,7 +976,7 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
-            with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
+            with pytest.raises(ImportError, match=r"pip install 'prefect\[viz\]'"):
                 f.visualize()
 
     def test_visualize_raises_informative_error_without_sys_graphviz(self, monkeypatch):
@@ -2349,7 +2349,7 @@ class TestSaveLoad:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "save"), "wb") as tmp:
-                assert f.save(tmp.name) is None
+                assert f.save(tmp.name) == tmp.name
 
             new_obj = Flow.load(tmp.name)
 
@@ -2365,7 +2365,7 @@ class TestSaveLoad:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with set_temporary_config({"home_dir": tmpdir}):
-                assert f.save() is None
+                f.save()
 
             new_obj = Flow.load(os.path.join(tmpdir, "flows", "test.prefect"))
 
@@ -2381,7 +2381,7 @@ class TestSaveLoad:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with set_temporary_config({"home_dir": tmpdir}):
-                assert f.save() is None
+                f.save()
 
                 new_obj_from_name = Flow.load("I aM a-test!")
                 new_obj_from_slug = Flow.load("i-am-a-test")
