@@ -50,11 +50,9 @@ class CloudHandler(logging.StreamHandler):
     def batch_upload(self) -> None:
         logs = []
         try:
-            i = 0
-            while i < 100:
+            while True:
                 log = self.queue.get(False)
                 logs.append(log)
-                i += 1
         except Empty:
             pass
 
