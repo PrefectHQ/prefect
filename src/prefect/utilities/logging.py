@@ -113,7 +113,7 @@ class CloudHandler(logging.StreamHandler):
             log["level"] = record_dict.pop("levelname", None)
 
             if record_dict.get("exc_text") is not None:
-                log["message"] += "\n" + record_dict["exc_text"]
+                log["message"] += "\n" + record_dict.pop("exc_text", "")
                 record_dict.pop("exc_info", None)
 
             log["info"] = record_dict
