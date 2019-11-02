@@ -10,6 +10,8 @@ import time
 import uuid
 import warnings
 from collections import Counter
+from pathlib import Path
+from slugify import slugify
 from typing import (
     Any,
     Callable,
@@ -1192,14 +1194,21 @@ class Flow:
         with open(fpath, "rb") as f:
             return cloudpickle.load(f)
 
-    def save(self, fpath: str) -> None:
+    def save(self, fpath: str = None) -> None:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
         recommended if you wish to separate out the building of your Flow from its deployment.
 
         Args:
-            - fpath (str): the filepath where your Flow will be saved
+            - fpath (str, optional): the filepath where your Flow will be saved; defaults to
+                `~/.prefect/flows/FLOW-NAME.prefect`
         """
+        if fpath is None:
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(
+                slugify(self.name)
+            )
+            fpath.parent.mkdir(exist_ok=True, parents=True)
         with open(fpath, "wb") as f:
             cloudpickle.dump(self, f)
 
