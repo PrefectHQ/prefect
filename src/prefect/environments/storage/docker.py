@@ -36,7 +36,7 @@ class Docker(Storage):
 
     Args:
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
-        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image 
+        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image
             matching your python version and prefect core library version used at runtime.
         - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (str, optional): name of the image to use when building, populated with a UUID after build
@@ -179,7 +179,7 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "/root/.prefect/{}.prefect".format(slugify(flow.name))
+        flow_path = "/root/.prefect/flows/{}.prefect".format(slugify(flow.name))
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path

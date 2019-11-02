@@ -30,9 +30,9 @@ def test_add_flow_to_docker():
     storage = Docker()
     f = Flow("test")
     assert f not in storage
-    assert storage.add_flow(f) == "/root/.prefect/test.prefect"
+    assert storage.add_flow(f) == "/root/.prefect/flows/test.prefect"
     assert f.name in storage
-    assert storage.flows[f.name] == "/root/.prefect/test.prefect"
+    assert storage.flows[f.name] == "/root/.prefect/flows/test.prefect"
 
 
 @pytest.mark.parametrize(
@@ -361,7 +361,8 @@ def test_create_dockerfile_with_weird_flow_name():
                 output = dockerfile.read()
 
             assert (
-                "COPY what-is-this.flow /root/.prefect/what-is-this.prefect" in output
+                "COPY what-is-this.flow /root/.prefect/flows/what-is-this.prefect"
+                in output
             )
 
 
@@ -406,8 +407,8 @@ def test_create_dockerfile_from_everything():
             assert results.group("result") == "test=1"
 
             assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
-            assert "COPY test.flow /root/.prefect/test.prefect" in output
-            assert "COPY other.flow /root/.prefect/other.prefect" in output
+            assert "COPY test.flow /root/.prefect/flows/test.prefect" in output
+            assert "COPY other.flow /root/.prefect/flows/other.prefect" in output
 
 
 def test_pull_image(capsys, monkeypatch):

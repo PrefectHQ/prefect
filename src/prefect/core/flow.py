@@ -10,6 +10,8 @@ import time
 import uuid
 import warnings
 from collections import Counter
+from pathlib import Path
+from slugify import slugify
 from typing import (
     Any,
     Callable,
@@ -1187,21 +1189,38 @@ class Flow:
         Reads a Flow from a file that was created with `flow.save()`.
 
         Args:
-            - fpath (str): the filepath where your Flow will be loaded from
+            - fpath (str): either the absolute filepath where your Flow will be loaded from,
+                or the name of the Flow you wish to load
         """
-        with open(fpath, "rb") as f:
+        if not os.path.isabs(fpath):
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
+        with open(str(fpath), "rb") as f:
             return cloudpickle.load(f)
 
-    def save(self, fpath: str) -> None:
+    def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
         recommended if you wish to separate out the building of your Flow from its deployment.
 
         Args:
-            - fpath (str): the filepath where your Flow will be saved
+            - fpath (str, optional): the filepath where your Flow will be saved; defaults to
+                `~/.prefect/flows/FLOW-NAME.prefect`
+
+        Returns:
+            - str: the full location the Flow was saved to
         """
-        with open(fpath, "wb") as f:
+        if fpath is None:
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
+                slugify(self.name)
+            )
+            assert fpath is not None  # mypy assert
+            fpath.parent.mkdir(exist_ok=True, parents=True)
+        with open(str(fpath), "wb") as f:
             cloudpickle.dump(self, f)
+
+        return str(fpath)
 
     def deploy(
         self,
