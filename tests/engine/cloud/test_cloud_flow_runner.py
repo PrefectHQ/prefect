@@ -525,8 +525,8 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     calls = []
 
     class Client(MagicMock):
-        def write_run_log(self, *args, **kwargs):
-            calls.append(kwargs)
+        def write_run_logs(self, *args, **kwargs):
+            calls.append(args)
 
         def set_task_run_state(self, *args, **kwargs):
             return kwargs.get("state")
@@ -556,14 +556,17 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
-    assert len(calls) == 6
 
-    loggers = [c["name"] for c in calls]
+    time.sleep(0.75)
+    logs = [log for call in calls for log in call[0]]
+    assert len(logs) == 6  # actual number of logs
+
+    loggers = [c["name"] for c in logs]
     assert set(loggers) == {
         "prefect.CloudTaskRunner",
         "prefect.CustomFlowRunner",
         "prefect.Task: log_stuff",
     }
 
-    task_run_ids = [c["task_run_id"] for c in calls if c["task_run_id"]]
+    task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
     assert task_run_ids == ["TESTME"] * 3
