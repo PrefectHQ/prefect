@@ -1249,6 +1249,9 @@ class Flow:
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
+        if isinstance(self.storage, prefect.environments.storage.Local):
+            self.environment.labels.add(slugify(self.name))
+
         client = prefect.Client()
         deployed_flow = client.deploy(
             flow=self,
