@@ -2179,6 +2179,29 @@ class TestFlowDeploy:
 
         assert isinstance(f.storage, prefect.environments.storage.Local)
         assert "test-me-i-should-get-labeled" in f.environment.labels
+        assert "local" in f.environment.labels
+
+    def test_flow_deploy_doesnt_overwrite_labels_if_local_storage_is_used(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(
+            name="test",
+            environment=prefect.environments.RemoteEnvironment(labels=["foo"]),
+        )
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
+            }
+        ):
+            f.deploy("My-project")
+
+        assert isinstance(f.storage, prefect.environments.storage.Local)
+        assert "test" in f.environment.labels
+        assert "foo" in f.environment.labels
+        assert "local" in f.environment.labels
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

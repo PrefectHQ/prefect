@@ -1250,6 +1250,7 @@ class Flow:
             self.storage = get_default_storage_class()(**kwargs)
 
         if isinstance(self.storage, prefect.environments.storage.Local):
+            self.environment.labels.add("local")
             self.environment.labels.add(slugify(self.name))
 
         client = prefect.Client()
