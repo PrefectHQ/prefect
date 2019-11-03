@@ -12,6 +12,12 @@ from prefect.utilities import configuration, debug
 
 
 @pytest.fixture(autouse=True)
+def logging_heartbeat():
+    with configuration.set_temporary_config({"cloud.logging_heartbeat": 0.15}):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def prefect_home_dir():
     """
     Sets a temporary home directory
