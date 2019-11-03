@@ -38,6 +38,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import logging
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
@@ -1222,20 +1223,24 @@ class Flow:
 
         return str(fpath)
 
-    def cloud(self, executor=None):
-        ## get an agent token
-        token = prefect.config.cloud.agent.auth_token
-        client = prefect.Client(api_token=token)
+    def run_agent(self, executor=None):
+        agent = prefect.agent.agent.Agent(labels=["local", slugify(self.name)])
 
         while True:
-            flow_runs = client.query_flow_runs()
-
+            flow_runs = agent.query_flow_runs(str(uuid.uuid4()))
             for flow_run in flow_runs:
-                ## kick off the run
-                with prefect.context(flow_run_id=flow_run_id):
-                    with set_temporary_config({}):
+                agent.update_states([flow_run])
+                agent.deploy_flows([flow_run])
+                with prefect.context(flow_run_id=flow_run.id):
+                    with set_temporary_config(
+                        {
+                            "cloud.use_local_secrets": False,
+                            "logging.log_to_cloud": True,
+                            "cloud.auth_token": agent.client._api_token,
+                        }
+                    ):
                         runner_cls = prefect.engine.cloud.flow_runner.CloudFlowRunner
-                        runner_cls(flow=flow).run(executor=executor)
+                        runner_cls(flow=self).run(executor=executor)
 
             if not flow_runs:
                 time.sleep(5)
