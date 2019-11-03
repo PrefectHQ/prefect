@@ -1519,8 +1519,8 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     calls = []
 
     class Client:
-        def write_run_log(self, *args, **kwargs):
-            calls.append(kwargs)
+        def write_run_logs(self, *args, **kwargs):
+            calls.append(args)
 
     monkeypatch.setattr("prefect.client.Client", Client)
 
@@ -1548,9 +1548,13 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
-    assert len(calls) == 6
 
-    loggers = [c["name"] for c in calls]
+    time.sleep(0.75)
+    assert len(calls) == 1
+    assert len(calls[0][0]) == 6  # actual number of logs
+
+    logs = calls[0][0]
+    loggers = [c["name"] for c in logs]
     assert set(loggers) == {
         "prefect.TaskRunner",
         "prefect.CustomFlowRunner",
