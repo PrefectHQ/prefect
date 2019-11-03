@@ -1223,8 +1223,17 @@ class Flow:
 
         return str(fpath)
 
-    def run_agent(self, executor=None):
-        agent = prefect.agent.agent.Agent(labels=["local", slugify(self.name)])
+    def run_agent(self, executor=None, labels: list = None):
+        """
+        Runs a Cloud agent in-process.
+
+        Args:
+            - executor (executor, optional): Prefect executor to pass to each run
+            - labels (list, optional): a list of labels to run the Agent with; defaults to
+                "local" along with a safe version of the current Flow's name
+        """
+        labels = labels or ["local", slugify(self.name)]
+        agent = prefect.agent.agent.Agent(labels=labels)
 
         while True:
             flow_runs = agent.query_flow_runs(str(uuid.uuid4()))
