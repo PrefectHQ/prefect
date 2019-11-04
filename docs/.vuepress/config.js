@@ -151,6 +151,11 @@ module.exports = {
           children: getChildren('docs/cloud', 'concepts')
         },
         {
+          title: "Cloud Execution",
+          collapsable: true,
+          children: getChildren("docs/cloud", "execution")
+        },
+        {
           title: 'Agent',
           collapsable: true,
           children: [
@@ -159,7 +164,7 @@ module.exports = {
             'agent/kubernetes',
             'agent/fargate',
           ]
-        },
+        }
       ],
       "/core/": [
         "/core/",
