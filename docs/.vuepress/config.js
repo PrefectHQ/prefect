@@ -1,7 +1,3 @@
-const sidebar54 = require('../api/0.5.4/sidebar')
-const sidebar60 = require('../api/0.6.0/sidebar')
-const sidebar61 = require('../api/0.6.1/sidebar')
-const sidebar62 = require('../api/0.6.2/sidebar')
 const sidebar64 = require('../api/0.6.4/sidebar')
 const sidebar65 = require('../api/0.6.5/sidebar')
 const sidebar66 = require('../api/0.6.6/sidebar')
@@ -72,18 +68,10 @@ module.exports = {
           { text: "0.6.6", link: "/api/0.6.6/" },
           { text: "0.6.5", link: "/api/0.6.5/" },
           { text: "0.6.4", link: "/api/0.6.4/" },
-          { text: "0.6.2 / 0.6.3", link: "/api/0.6.2/" },
-          { text: "0.6.1", link: "/api/0.6.1/" },
-          { text: "0.6.0", link: "/api/0.6.0/" },
-          { text: "0.5.4", link: "/api/0.5.4/" }
         ]
       }
     ],
     sidebar: {
-      "/api/0.5.4/": sidebar54.sidebar,
-      "/api/0.6.0/": sidebar60.sidebar,
-      "/api/0.6.1/": sidebar61.sidebar,
-      "/api/0.6.2/": sidebar62.sidebar,
       "/api/0.6.4/": sidebar64.sidebar,
       "/api/0.6.5/": sidebar65.sidebar,
       "/api/0.6.6/": sidebar66.sidebar,
