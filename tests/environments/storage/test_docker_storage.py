@@ -316,7 +316,7 @@ def test_create_dockerfile_from_base_image():
             "master",
             (
                 "FROM python:3.6-slim",
-                "pip install git+https://github.com/PrefectHQ/prefect.git@master",
+                "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@master",
             ),
         ),
         (
@@ -324,7 +324,7 @@ def test_create_dockerfile_from_base_image():
             (
                 "FROM python:3.6-slim",
                 "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
-                "pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[kubernetes]",
+                "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[kubernetes]",
             ),
         ),
     ],
