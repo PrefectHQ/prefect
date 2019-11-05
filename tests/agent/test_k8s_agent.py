@@ -229,7 +229,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
 @pytest.mark.parametrize(
     "version",
     [
-        ("0.6.3", "0.6.3"),
+        ("0.6.3", "0.6.3-python3.6"),
         ("0.5.3+114.g35bc7ba4", "latest"),
         ("0.5.2+999.gr34343.dirty", "latest"),
     ],
