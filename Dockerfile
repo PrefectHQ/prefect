@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+ARG PYTHON_VERSION=${PYTHON_VERSION}
 FROM python:${PYTHON_VERSION}-slim
 
 RUN apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*
