@@ -1233,7 +1233,10 @@ class Flow:
                 "local" along with a safe version of the current Flow's name
         """
         labels = labels or ["local", slugify(self.name)]
-        agent = prefect.agent.agent.Agent(labels=labels)
+        with set_temporary_config(
+            {"cloud.agent.auth_token": prefect.config.cloud.auth_token}
+        ):
+            agent = prefect.agent.agent.Agent(labels=labels)
 
         while True:
             flow_runs = agent.query_flow_runs(str(uuid.uuid4()))
@@ -1245,7 +1248,6 @@ class Flow:
                         {
                             "cloud.use_local_secrets": False,
                             "logging.log_to_cloud": True,
-                            "cloud.auth_token": agent.client._api_token,
                         }
                     ):
                         runner_cls = prefect.engine.cloud.flow_runner.CloudFlowRunner
