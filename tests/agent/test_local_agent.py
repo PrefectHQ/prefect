@@ -116,6 +116,31 @@ def test_populate_env_vars(monkeypatch, runner_token):
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
+            "PREFECT__CLOUD__AGENT__LABELS": "[]",
+            "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+            "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__LOGGING__LEVEL": "DEBUG",
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+        }
+
+        assert env_vars == expected_vars
+
+
+def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
+
+    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+        agent = LocalAgent(labels=["42", "marvin"])
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+
+        expected_vars = {
+            "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
+            "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",

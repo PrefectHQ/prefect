@@ -619,6 +619,113 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
+                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                {
+                    "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudFlowRunner",
+                },
+                {
+                    "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudTaskRunner",
+                },
+            ],
+            "essential": True,
+        }
+    ]
+    assert boto3_client.register_task_definition.call_args[1][
+        "requiresCompatibilities"
+    ] == ["FARGATE"]
+    assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
+    assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
+    assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
+
+
+def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+
+    boto3_client.describe_task_definition.side_effect = ClientError({}, None)
+    boto3_client.run_task.return_value = {}
+    boto3_client.register_task_definition.return_value = {}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    kwarg_dict = {
+        "taskRoleArn": "test",
+        "executionRoleArn": "test",
+        "volumes": "test",
+        "placementConstraints": "test",
+        "cpu": "1",
+        "memory": "2",
+        "tags": "test",
+        "pidMode": "test",
+        "ipcMode": "test",
+        "proxyConfiguration": "test",
+        "inferenceAccelerators": "test",
+        "cluster": "cluster",
+        "count": "test",
+        "startedBy": "test",
+        "group": "test",
+        "placementStrategy": "test",
+        "platformVersion": "test",
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": ["subnet"],
+                "assignPublicIp": "DISABLED",
+                "securityGroups": ["security_group"],
+            }
+        },
+        "enableECSManagedTags": "test",
+        "propagateTags": "test",
+    }
+
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        labels=["aws", "staging"],
+        **kwarg_dict
+    )
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Docker(
+                                registry_url="test", image_name="name", image_tag="tag"
+                            ).serialize(),
+                            "id": "id",
+                        }
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.called
+    assert (
+        boto3_client.register_task_definition.call_args[1]["family"]
+        == "prefect-task-id"
+    )
+    assert boto3_client.register_task_definition.call_args[1][
+        "containerDefinitions"
+    ] == [
+        {
+            "name": "flow",
+            "image": "test/name:tag",
+            "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
+            "environment": [
+                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {
+                    "name": "PREFECT__CLOUD__AGENT__LABELS",
+                    "value": "['aws', 'staging']",
+                },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
@@ -683,6 +790,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
                 {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
