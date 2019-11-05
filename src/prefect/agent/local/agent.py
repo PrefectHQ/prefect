@@ -44,33 +44,6 @@ class LocalAgent(Agent):
                 )
                 continue
 
-            env_vars = self.populate_env_vars(flow_run=flow_run)
-
-            if not self.no_pull and storage.registry_url:
-                self.logger.info("Pulling image {}...".format(storage.name))
-                try:
-                    pull_output = self.docker_client.pull(
-                        storage.name, stream=True, decode=True
-                    )
-                    for line in pull_output:
-                        self.logger.debug(line)
-                    self.logger.info(
-                        "Successfully pulled image {}...".format(storage.name)
-                    )
-                except docker.errors.APIError as exc:
-                    self.logger.error("Issue pulling image {}".format(storage.name))
-
-            # Create a container
-            self.logger.debug("Creating Docker container {}".format(storage.name))
-            container = self.docker_client.create_container(
-                storage.name, command="prefect execute cloud-flow", environment=env_vars
-            )
-
-            # Start the container
-            self.logger.debug(
-                "Starting Docker container with ID {}".format(container.get("Id"))
-            )
-            self.docker_client.start(container=container.get("Id"))
 
 
 if __name__ == "__main__":
