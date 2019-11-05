@@ -54,19 +54,11 @@ After the Dask cluster has been created the Flow will be run using the [Dask Exe
 
 #### Dask Kubernetes Environment w/ Min & Max Workers
 
-```python
-```
-
-#### Dask Kubernetes Environment w/ Custom Worker YAML
-
-```python
-```
-
-The following example is the same functionality as deploying a Flow to Prefect Cloud without specifying an Environment because the `RemoteEnvironment` using the `LocalExecutor` is the default.
+The following example will execute your Flow on an auto-scaling Dask cluster in Kubernetes. The cluster will start with a single worker and dynamically scale up to—at most—five workers if needed.
 
 ```python
 from prefect import task, Flow
-from prefect.environments import RemoteEnvironment
+from prefect.environments import DaskKubernetesEnvironment
 
 
 @task
@@ -80,20 +72,55 @@ def output_value(value):
 
 
 flow = Flow(
-    "Local Executor Remote Example",
-    environment=RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor"),
+    "Min / Max Workers Dask Kubernetes Example",
+    environment=DaskKubernetesEnvironment(min_workers=1, max_workers=3),
 )
 
 # set task dependencies using imperative API
 output_value.set_upstream(get_value, flow=flow)
 output_value.bind(value=get_value, flow=flow)
+
 ```
 
-#### Remote Environment w/ Dask Executor
+#### Dask Kubernetes Environment w/ Custom Worker YAML
+
+In this example we specify a custom worker specification. There are a few things to note here that may not be obvious.
+
+The worker YAML is contained in a file called `worker_spec.yaml` which exists in the same directory as the Flow and it is loaded on our environment with `worker_spec_file="worker_spec.yaml"`.
+
+The Flow's storage is set to have a registry url, image name, and image tag as `gcr.io/dev/dask-k8s-flow:0.1.0`. Note that this is the same image specified in the YAML.
+
+The worker spec has `replicas: 2` which means that on creation of the Dask cluster there will be two worker pods for executing the Tasks of your Flow.
+
+```yaml
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+spec:
+  replicas: 2
+  restartPolicy: Never
+  containers:
+  - image: gcr.io/dev/dask-k8s-flow:0.1.0
+    imagePullPolicy: IfNotPresent
+    args: [dask-worker, --nthreads, '2', --no-bokeh, --memory-limit, 4GB]
+    name: dask-worker
+    env:
+      - name: EXTRA_PIP_PACKAGES
+        value: fastparquet git+https://github.com/dask/distributed
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2G
+      requests:
+        cpu: "2"
+        memory: 4G
+```
 
 ```python
 from prefect import task, Flow
-from prefect.environments import RemoteEnvironment
+from prefect.environments import DaskKubernetesEnvironment
+from prefect.environments.storage import Docker
 
 
 @task
@@ -107,16 +134,16 @@ def output_value(value):
 
 
 flow = Flow(
-    "Dask Executor Remote Example",
-    environment=RemoteEnvironment(
-        executor="prefect.engine.executors.DaskExecutor",
-        executor_kwargs={
-            "address": "tcp://127.0.0.1:8786"  # Address of a Dask scheduler
-        },
+    "Custom Worker Spec Dask Kubernetes Example",
+    environment=DaskKubernetesEnvironment(worker_spec_file="worker_spec.yaml"),
+    storage=Docker(
+        registry_url="gcr.io/dev/", image_name="dask-k8s-flow", image_tag="0.1.0"
     ),
 )
 
 # set task dependencies using imperative API
 output_value.set_upstream(get_value, flow=flow)
 output_value.bind(value=get_value, flow=flow)
+
 ```
+
