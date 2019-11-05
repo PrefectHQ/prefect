@@ -232,6 +232,10 @@ class FargateAgent(Agent):
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",
                     },
+                    {
+                        "name": "PREFECT__CLOUD__AGENT__LABELS",
+                        "value": str(self.labels),
+                    },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
