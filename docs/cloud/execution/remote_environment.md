@@ -6,7 +6,7 @@
 
 The Remote Environment is the default environment for all Flows that are deployed to Prefect Cloud. This environment is meant to be a simple and minimally configurable execution environment for Flow runs. The Remote Environment functions as a way to execute Flows without any pre-existing infrastructure requirements and instead opts to run Flows directly in process. The only needed configuration for the Remote Environment is the specification of an [Executor](/core/concepts/engine.html#executors) however if it is not specified then it defaults to the [LocalExecutor](/api/unreleased/engine/executors.html#localexecutor).
 
-For more information on the Remote Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#remoteenvironment).
+*For more information on the Remote Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#remoteenvironment).*
 
 ## Process
 

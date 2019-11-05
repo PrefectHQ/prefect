@@ -4,9 +4,9 @@
 
 ## Overview
 
-The Dask Kubernetes Environment is an environment that uses the [dask-kubernetes]() library for dynamically spawning Dask clusters on Kubernetes. This environment is intended for use in cases where users do not want to have a static, long-standing Dask cluster and instead opt for having one temporarily created for each Flow run. The Dask Kubernetes Environment has a few low-configuration options to quickly get up and running however it also provides the ability to specify completely custom [Pod]() specifications for the Dask scheduler and workers.
+The Dask Kubernetes Environment is an environment that uses the [dask-kubernetes](https://kubernetes.dask.org/en/latest/) library for dynamically spawning Dask clusters on Kubernetes. This environment is intended for use in cases where users do not want to have a static, long-standing Dask cluster and instead opt for having one temporarily created for each Flow run. The Dask Kubernetes Environment has a few low-configuration options to quickly get up and running however it also provides the ability to specify completely custom [Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) specifications for the Dask scheduler and workers.
 
-For more information on the Dask Kubernetes Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#daskkubernetesenvironment).
+*For more information on the Dask Kubernetes Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#daskkubernetesenvironment).*
 
 ## Process
 
@@ -22,7 +22,7 @@ If you do not want your Dask cluster to automatically scale the amount of worker
 
 If you are deploying your flows to a private container registry then you will want to set the `private_registry` kwarg to `True`—defaults to false. You will also want to provide the name of a Prefect Secret to the `docker_secret` kwarg—defaults to _DOCKER_REGISTRY_CREDENTIALS_. This secret should be a dictionary containing the following keys: `"docker-server"`, `"docker-username"`, `"docker-password"`, and `"docker-email"`. This is needed because the relevant Kubernetes `imagePullSecret` will be automatically created if it does not already exist.
 
-For more information on setting Prefect Secrets go [here]().
+*For more information on setting Prefect Secrets visit the relevant [concept documentation](/core/concepts/secrets.html#overview).*
 
 **Custom Configuration:**
 
@@ -35,20 +35,22 @@ If you choose to provide any custom YAML spec files they will take precedence ov
 :::
 
 :::warning Image
-When using the custom YAML spec files you must make sure that the `image` is the same image name and tag that was built for your Flow on deployment.
+When using the custom YAML spec files it is recommended that you make sure the `image` is the same image name and tag that was built for your Flow on deployment. This is to ensure consistency of dependencies for your Flow's execution.
 
-e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec must contain `- image: gcr.io/dev/etl-flow:0.1.0`
+e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec should contain `- image: gcr.io/dev/etl-flow:0.1.0`.
 :::
 
 #### Setup
 
-The Dask Kubernetes Environment setup step is responsible for checking the existence of a [Kubernetes Secret]() for a provided `docker_secret` only if `private_registry=True`. If the secret is not found then it will attempt to create one based off of the value set in the Prefect Secret matching the name specified for `docker_secret`.
+The Dask Kubernetes Environment setup step is responsible for checking the existence of a [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) for a provided `docker_secret` only if `private_registry=True`. If the secret is not found then it will attempt to create one based off of the value set in the Prefect Secret matching the name specified for `docker_secret`.
+
+*For more information on how Docker registry credentials are used as Kubernetes imagePullSecrets go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).*
 
 #### Execute
 
-Create a new [Kubernetes Job]() with the configuration provided at initialization of this environment. That Job is responsible for creating a `KubeCluster` object from the `dask_kubernetes` library with the provided configuration. This is where the min/max workers or custom worker YAML comes into play because `dask_kubernetes` will take care of automatic worker creation based on this specification.
+Create a new [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) with the configuration provided at initialization of this environment. That Job is responsible for creating a `KubeCluster` object from the `dask_kubernetes` library with the provided configuration. This is where the min/max workers or custom worker YAML comes into play because `dask_kubernetes` will take care of automatic worker creation based on this specification.
 
-After the Dask cluster has been created the Flow will be run using the [Dask Executor]() pointing to the newly created Dask cluster. All Task execution will take place on the Dask worker pods.
+After the Dask cluster has been created the Flow will be run using the [Dask Executor](/api/unreleased/engine/executors.html#daskexecutor) pointing to the newly created Dask cluster. All Task execution will take place on the Dask worker pods.
 
 ## Examples
 
@@ -146,4 +148,3 @@ output_value.set_upstream(get_value, flow=flow)
 output_value.bind(value=get_value, flow=flow)
 
 ```
-
