@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add an informative version header to all Cloud client requests - [#1690](https://github.com/PrefectHQ/prefect/pull/1690)
 - Auto-label Flow environments when using Local storage - [#1696](https://github.com/PrefectHQ/prefect/pull/1696)
 - Batch upload logs to Cloud in a background thread for improved performance - [#1691](https://github.com/PrefectHQ/prefect/pull/1691)
+- Attempt to install prefect in any docker image (if it is not already installed) - [#1704](https://github.com/PrefectHQ/prefect/pull/1704)
 
 ### Task Library
 
