@@ -264,9 +264,12 @@ class Agent:
             }
         }
 
-        self.logger.debug("Querying flow run metadata")
-        result = self.client.graphql(query)
-        return result.data.flow_run  # type: ignore
+        if flow_run_ids:
+            self.logger.debug("Querying flow run metadata")
+            result = self.client.graphql(query)
+            return result.data.flow_run  # type: ignore
+        else:
+            return []
 
     def update_states(self, flow_runs: list) -> None:
         """
