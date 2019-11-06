@@ -175,6 +175,20 @@ class KubernetesJobEnvironment(Environment):
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
 
+        # Create metadata label fields if they do not exist
+        if not yaml_obj.get("metadata"):
+            yaml_obj["metadata"] = {}
+
+        if not yaml_obj["metadata"].get("labels"):
+            yaml_obj["metadata"]["labels"] = {}
+
+        if not yaml_obj["spec"]["template"].get("metadata"):
+            yaml_obj["spec"]["template"]["metadata"] = {}
+
+        if not yaml_obj["spec"]["template"]["metadata"].get("labels"):
+            yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
+
+        # Populate metadata label fields
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
         yaml_obj["spec"]["template"]["metadata"]["labels"][
@@ -209,16 +223,29 @@ class KubernetesJobEnvironment(Environment):
 
         # set environment variables on all containers
         for container in yaml_obj["spec"]["template"]["spec"]["containers"]:
+            if not container.get("env"):
+                container["env"] = []
             container["env"].extend(env_values)
 
         # set image on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("image"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = ""
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
 
-        # set run command on first container
+        # set command on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("command"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = []
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = [
             "/bin/sh",
             "-c",
         ]
+
+        # set args on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("args"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
             "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
         ]
