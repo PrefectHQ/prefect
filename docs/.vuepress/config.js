@@ -171,6 +171,11 @@ module.exports = {
             'agent/kubernetes',
             'agent/fargate',
           ]
+        },
+        {
+          title: "Deployment Recipes",
+          collapsable: true,
+          children: getChildren("docs/cloud", "recipes")
         }
       ],
       "/core/": [
