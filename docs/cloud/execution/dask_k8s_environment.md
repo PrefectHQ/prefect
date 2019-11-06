@@ -113,10 +113,10 @@ spec:
     resources:
       limits:
         cpu: "2"
-        memory: 2G
+        memory: 4G
       requests:
         cpu: "2"
-        memory: 4G
+        memory: 2G
 ```
 
 ```python
