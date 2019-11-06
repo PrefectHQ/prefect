@@ -31,8 +31,14 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: my-prefect-job
+  labels:
+    identifier: ""
+    flow_run_id: ""
 spec:
   template:
+    metadata:
+      labels:
+        identifier: ""
     spec:
       containers:
       - name: flow-container
@@ -46,7 +52,8 @@ spec:
 
 In the above YAML block `flow-container` will have a few aspects changed during execution.
 
-- `image` will become the *registry_url/image_name:image_tag* of your Flow's storage.
+- The metadata labels `identifier` and `flow_run_id` will be replaced with a unique identifier for this run and the id of this Flow run respectively
+- `image` will become the *registry_url/image_name:image_tag* of your Flow's storage
 - `command` and `args` will take the form of:
 
 ```bash
