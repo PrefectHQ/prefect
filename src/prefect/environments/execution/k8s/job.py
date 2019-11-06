@@ -142,7 +142,7 @@ class KubernetesJobEnvironment(Environment):
             ) as f:
                 flow = cloudpickle.load(f)
 
-                runner_cls = get_default_flow_runner_class()
+                runner_cls = get_default_flow_runner_class()()
                 executor_cls = get_default_executor_class()
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
