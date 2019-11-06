@@ -63,7 +63,7 @@ Users have seen great performance in using [Task IAM Roles](https://docs.aws.ama
 
 #### Setup
 
-The Kubernetes Job Environment has no setup step because there are not any infrastructure requirements that are needed for using this environment.
+The Fargate Task Environment setup step
 
 #### Execute
 

@@ -194,16 +194,32 @@ class FargateTaskEnvironment(Environment):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             ]
 
-            # Populate all env vars
-            for definition in self.task_definition_kwargs.get("containerDefinitions"):
+            # create containerDefinitions if they do not exist
+            if not self.task_definition_kwargs.get("containerDefinitions"):
+                self.task_definition_kwargs["containerDefinitions"] = []
+                self.task_definition_kwargs["containerDefinitions"].append({})
+
+            # set environment variables for all containers
+            for definition in self.task_definition_kwargs["containerDefinitions"]:
+                if not definition.get("environment"):
+                    definition["environment"] = []
                 definition["environment"].extend(env_values)
 
-            # Populate storage
+            # set image on first container
+            # raise ValueError("{}".format(self.task_definition_kwargs))
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("image"):
+                self.task_definition_kwargs["containerDefinitions"][0]["image"] = ""
+
             self.task_definition_kwargs.get("containerDefinitions")[0][
                 "image"
             ] = storage.name
 
-            # Replace command
+            # set command on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get(
+                "command"
+            ):
+                self.task_definition_kwargs["containerDefinitions"][0]["command"] = []
+
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",

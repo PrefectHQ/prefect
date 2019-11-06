@@ -274,6 +274,49 @@ def test_setup_definition_register(monkeypatch):
     ]
 
 
+def test_setup_definition_register_no_defintions(monkeypatch):
+    boto3_client = MagicMock()
+    boto3_client.describe_task_definition.side_effect = ClientError({}, None)
+    boto3_client.register_task_definition.return_value = {}
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    environment = FargateTaskEnvironment(family="test",)
+
+    environment.setup(Docker(registry_url="test", image_name="image", image_tag="tag"))
+
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.called
+    assert boto3_client.register_task_definition.call_args[1]["family"] == "test"
+    assert boto3_client.register_task_definition.call_args[1][
+        "containerDefinitions"
+    ] == [
+        {
+            "environment": [
+                {
+                    "name": "PREFECT__CLOUD__GRAPHQL",
+                    "value": prefect.config.cloud.graphql,
+                },
+                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {
+                    "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudFlowRunner",
+                },
+                {
+                    "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudTaskRunner",
+                },
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            ],
+            "image": "test/image:tag",
+            "command": [
+                "/bin/sh",
+                "-c",
+                "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+            ],
+        }
+    ]
+
+
 def test_execute_run_task(monkeypatch):
     boto3_client = MagicMock()
     boto3_client.run_task.return_value = {}
