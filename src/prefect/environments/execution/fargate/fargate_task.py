@@ -205,8 +205,15 @@ class FargateTaskEnvironment(Environment):
                     definition["environment"] = []
                 definition["environment"].extend(env_values)
 
+            # set name on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("name"):
+                self.task_definition_kwargs["containerDefinitions"][0]["name"] = ""
+
+            self.task_definition_kwargs.get("containerDefinitions")[0][
+                "name"
+            ] = "flow-container"
+
             # set image on first container
-            # raise ValueError("{}".format(self.task_definition_kwargs))
             if not self.task_definition_kwargs["containerDefinitions"][0].get("image"):
                 self.task_definition_kwargs["containerDefinitions"][0]["image"] = ""
 

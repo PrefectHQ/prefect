@@ -228,7 +228,7 @@ def test_setup_definition_register(monkeypatch):
         family="test",
         containerDefinitions=[
             {
-                "name": "flow",
+                "name": "flow-container",
                 "image": "image",
                 "command": [],
                 "environment": [],
@@ -246,7 +246,7 @@ def test_setup_definition_register(monkeypatch):
         "containerDefinitions"
     ] == [
         {
-            "name": "flow",
+            "name": "flow-container",
             "image": "test/image:tag",
             "command": [
                 "/bin/sh",
@@ -307,6 +307,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             ],
+            "name": "flow-container",
             "image": "test/image:tag",
             "command": [
                 "/bin/sh",
@@ -437,7 +438,7 @@ def test_entire_environment_process_together(monkeypatch):
         environment = FargateTaskEnvironment(
             containerDefinitions=[
                 {
-                    "name": "flow",
+                    "name": "flow-container",
                     "image": "image",
                     "command": [],
                     "environment": [],
@@ -464,7 +465,7 @@ def test_entire_environment_process_together(monkeypatch):
             "containerDefinitions"
         ] == [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "image": "test/image:tag",
                 "command": [
                     "/bin/sh",

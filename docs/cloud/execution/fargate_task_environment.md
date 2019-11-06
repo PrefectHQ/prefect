@@ -63,66 +63,52 @@ Users have seen great performance in using [Task IAM Roles](https://docs.aws.ama
 
 #### Setup
 
-The Fargate Task Environment setup step
+The Fargate Task Environment setup step is responsible for registering the Fargate Task if it does not already exist. First it checks for the existence of a task definition based on the `family` that was provided at initialization of this Environment. If the task definition is not found then it is created. This means that if a Flow is run multiple times the task definition will only need to be created once.
 
 #### Execute
 
-Create a new [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) with the configuration provided at initialization of this environment. That Job is responsible for running the Flow.
+Create a new Fargate Task with the configuration provided at initialization of this Environment. That task is responsible for running the Flow.
 
-#### Job Spec Configuration
+#### Task Spec Configuration
 
-There are a few caveats to using the Kubernetes Job Environment that revolve around the format of the provided Job YAML. In the Job specification that you provide the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `execute` step of this Environment.
+There are a few caveats to using the Fargate Task Environment that revolve around the provided boto3 kwargs. In the `containerDefinitions` that you provide the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `setup` step of this Environment.
 
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: my-prefect-job
-  labels:
-    identifier: ""
-    flow_run_id: ""
-spec:
-  template:
-    metadata:
-      labels:
-        identifier: ""
-    spec:
-      containers:
-      - name: flow-container
-        image: ""
-        command: []
-        args: []
-        env:
-          - name: MY_ENV
-            value: foo
+```python
+containerDefinitions=[
+    {
+        "name": "flow",
+        "image": "image",
+        "command": [],
+        "environment": [],
+        "essential": True,
+    }
+],
 ```
 
-In the above YAML block `flow-container` will have a few aspects changed during execution.
+In the above dictionary the `flow` container will have a few aspects changed during setup.
 
-- The metadata labels `identifier` and `flow_run_id` will be replaced with a unique identifier for this run and the id of this Flow run respectively
 - `image` will become the *registry_url/image_name:image_tag* of your Flow's storage
-- `command` and `args` will take the form of:
+- `command` will take the form of:
 
-```bash
-/bin/sh -c 'python -c "from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()"'
+```python
+[
+    "/bin/sh",
+    "-c",
+    "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+]
 ```
 
-- `env` will have some extra variables automatically appended to it for Cloud-based Flow runs:
+- `environment` will have some extra variables automatically appended to it for Cloud-based Flow runs:
 
 ```
 PREFECT__CLOUD__GRAPHQL
-PREFECT__CLOUD__AUTH_TOKEN
-PREFECT__CONTEXT__FLOW_RUN_ID
-PREFECT__CONTEXT__NAMESPACE
-PREFECT__CONTEXT__IMAGE
-PREFECT__CONTEXT__FLOW_FILE_PATH
 PREFECT__CLOUD__USE_LOCAL_SECRETS
 PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
 PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
 ```
 
-All other aspects of your Job will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the YAML block above.
+All other aspects of your `containerDefinitions` will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the code block above.
 
 ## Examples
 
