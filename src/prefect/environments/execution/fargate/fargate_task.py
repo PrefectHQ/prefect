@@ -24,7 +24,6 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
-    - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
@@ -251,7 +250,7 @@ class FargateTaskEnvironment(Environment):
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
         container_overrides = [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",

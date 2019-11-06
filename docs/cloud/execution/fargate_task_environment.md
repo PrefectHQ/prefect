@@ -87,6 +87,7 @@ containerDefinitions=[
 
 In the above dictionary the `flow` container will have a few aspects changed during setup.
 
+- `name` will become _flow-container_
 - `image` will become the *registry_url/image_name:image_tag* of your Flow's storage
 - `command` will take the form of:
 
@@ -110,48 +111,24 @@ PREFECT__LOGGING__LOG_TO_CLOUD
 
 All other aspects of your `containerDefinitions` will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the code block above.
 
+During the execute step of your Environment the following container overrides will be set for boto3's `run_task`:
+
+```
+PREFECT__CLOUD__AUTH_TOKEN
+PREFECT__CONTEXT__FLOW_RUN_ID
+PREFECT__CONTEXT__IMAGE
+PREFECT__CONTEXT__FLOW_FILE_PATH
+```
+
 ## Examples
 
-#### Kubernetes Job Environment w/ Resource Requests & Limits
+#### Fargate Task Environment w/ Resources
 
-The following example will execute your Flow using the custom Job specification with user provided resource requests and limits.
-
-The Job spec YAML is contained in a file called `job_spec.yaml` which exists in the same directory as the Flow and it is loaded on our environment with `job_spec_file="job_spec.yaml"`.
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: my-prefect-job
-  labels:
-    identifier: ""
-spec:
-  template:
-    metadata:
-      labels:
-        identifier: ""
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: flow-container
-        image: ""
-        command: []
-        args: []
-        env:
-          - name: MY_ENV
-            value: foo
-        resources:
-          limits:
-            cpu: "2"
-            memory: 4G
-          requests:
-            cpu: "1"
-            memory: 2G
-```
+The following example will execute your Flow using the Fargate Task Environment with the provided Task specification—taking advantage of resource requests. This example also makes use of an `aws_session_token` and [IAM Role for task execution](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html).
 
 ```python
 from prefect import task, Flow
-from prefect.environments import KubernetesJobEnvironment
+from prefect.environments import FargateTaskEnvironment
 from prefect.environments.storage import Docker
 
 
@@ -166,10 +143,32 @@ def output_value(value):
 
 
 flow = Flow(
-    "Kubernetes Job Environment w/ Resource Requests & Limits",
-    environment=KubernetesJobEnvironment(job_spec_file="job_spec.yaml"),
-    storage=Docker(
-        registry_url="joshmeek18", image_name="flows"
+    "Fargate Task Environment",
+    environment=FargateTaskEnvironment(
+        aws_session_token="MY_AWS_SESSION_TOKEN",
+        region="us-east-1",
+        cpu="256",
+        memory="512",
+        networkConfiguration={
+            "awsvpcConfiguration": {
+                "assignPublicIp": "ENABLED",
+                "subnets": ["MY_SUBNET_ID"],
+                "securityGroups": ["MY_SECURITY_GROUP"],
+            }
+        },
+        family="my_flow",
+        taskRoleArn="MY_TASK_ROLE_ARN",
+        executionRoleArn="MY_EXECUTION_ROLE_ARN",
+        containerDefinitions={
+            "name": "flow-container",
+            "image": "image",
+            "command": [],
+            "environment": [],
+            "essential": True,
+        }
+    ),
+    storage=storage=Docker(
+        registry_url="gcr.io/dev/", image_name="fargate-task-flow", image_tag="0.1.0"
     ),
 )
 
