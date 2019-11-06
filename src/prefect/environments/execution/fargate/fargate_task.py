@@ -171,12 +171,10 @@ class FargateTaskEnvironment(Environment):
             region_name=self.region_name,
         )
 
-        flow_run_id = prefect.context.get("flow_run_id", "unknown")
-
         definition_exists = True
         try:
             boto3_c.describe_task_definition(
-                taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8])
+                taskDefinition=self.task_definition_kwargs.get("family")
             )
         except ClientError:
             definition_exists = False
