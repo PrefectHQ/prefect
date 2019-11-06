@@ -153,7 +153,13 @@ module.exports = {
         {
           title: "Cloud Execution",
           collapsable: true,
-          children: getChildren("docs/cloud", "execution")
+          children: [
+            "execution/overview",
+            "execution/remote_environment",
+            "execution/dask_k8s_environment",
+            "execution/k8s_job_environment",
+            "execution/fargate_task_environment",
+          ]
         },
         {
           title: 'Agent',

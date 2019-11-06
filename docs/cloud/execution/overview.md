@@ -1,4 +1,4 @@
-# Execution
+# Execution Overview
 
 Executing your flows using Prefect Cloud is accomplished through two powerful abstractions—storage and environments. By combining Prefect's concepts of storage and environments, flows are able to be saved, shared, and executed across various supported platforms.
 
@@ -83,6 +83,10 @@ f = Flow("example-env")
 f.environment = RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor")
 ```
 
+:::tip Not executed on run
+Calling `flow.run()` does not execute the steps in your Environment. An Environment is an outside concept of which a Flow is run inside of it (usually during the `execute` step).
+:::
+
 ### Setup & Execute
 
 The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the flow is executed. This could take the form of functionality such as spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the flow where and how it needs to run. This could take the form of functionality such as running the flow in process, as per the [`RemoteEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html##remoteenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html#fargatetaskenvironment).
@@ -90,6 +94,49 @@ The two main environment functions are `setup` and `execute`. The `setup` functi
 ### Environment Callbacks
 
 Each Prefect environment has two optional arugments `on_start` and `on_exit` that function as callbacks which act as extra customizable functionality outside of infrastructure or flow related processes. Users can provide an `on_start` function which will execute before the flow starts in the main process and an `on_exit` function which will execute after the flow finishes.
+
+#### Callback Example
+
+In this example let's say we have a function called `report_cluster_metrics` which when run on a Kubernetes cluster gathers information about current resource usage and we want to track resource usage both before and after a Flow run.
+
+```python
+from prefect import Flow, task
+from prefect.environments import RemoteEnvironment
+
+
+# Report cluster metrics that we will use before and after Flow run
+def report_cluster_metrics():
+    get_me_some_metrics()
+
+
+@task
+def extract():
+    """Get a list of data"""
+    return [1, 2, 3]
+
+
+@task
+def transform(data):
+    """Multiply the input by 10"""
+    return [i * 10 for i in data]
+
+
+@task
+def load(data):
+    """Print the data to indicate it was received"""
+    print("Here's your data: {}".format(data))
+
+
+# Attach out metrics reporting callbacks
+environment = RemoteEnvironment(on_start=report_cluster_metrics,
+                                on_exit=report_cluster_metrics)
+
+
+with Flow("Callback-Example", environment=environment) as flow:
+    e = extract()
+    t = transform(e)
+    l = load(t)
+```
 
 ### Labels
 
