@@ -83,6 +83,8 @@ All other aspects of your Job will remain untouched. In some cases it is easiest
 
 The following example will execute your Flow using the custom Job specification with user provided resource requests and limits.
 
+The Job spec YAML is contained in a file called `job_spec.yaml` which exists in the same directory as the Flow and it is loaded on our environment with `job_spec_file="job_spec.yaml"`.
+
 ```yaml
 apiVersion: batch/v1
 kind: Job
@@ -141,6 +143,4 @@ flow = Flow(
 # set task dependencies using imperative API
 output_value.set_upstream(get_value, flow=flow)
 output_value.bind(value=get_value, flow=flow)
-
-flow.deploy(project_name="Demo")
 ```
