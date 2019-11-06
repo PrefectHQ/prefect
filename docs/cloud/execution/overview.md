@@ -95,6 +95,8 @@ The two main environment functions are `setup` and `execute`. The `setup` functi
 
 Each Prefect environment has two optional arugments `on_start` and `on_exit` that function as callbacks which act as extra customizable functionality outside of infrastructure or flow related processes. Users can provide an `on_start` function which will execute before the flow starts in the main process and an `on_exit` function which will execute after the flow finishes.
 
+*For more information on the design behind Environment Callbacks visit [PIN 12](/core/PINs/PIN-12-Environment-Callbacks.html).*
+
 #### Callback Example
 
 In this example let's say we have a function called `report_cluster_metrics` which when run on a Kubernetes cluster gathers information about current resource usage and we want to track resource usage both before and after a Flow run.

@@ -58,7 +58,7 @@ output_value.bind(value=get_value, flow=flow)
 ```python
 from prefect import task, Flow
 from prefect.environments import RemoteEnvironment
-
+from prefect.environments.storage import Docker
 
 @task
 def get_value():
@@ -77,6 +77,9 @@ flow = Flow(
         executor_kwargs={
             "address": "tcp://127.0.0.1:8786"  # Address of a Dask scheduler
         },
+    ),
+    storage=Docker(
+        registry_url="gcr.io/dev/", image_name="k8s-job-flow", image_tag="0.1.0"
     ),
 )
 
