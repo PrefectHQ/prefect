@@ -337,7 +337,7 @@ def test_execute_run_task(monkeypatch):
     assert boto3_client.run_task.call_args[1]["overrides"] == {
         "containerOverrides": [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
@@ -499,7 +499,7 @@ def test_entire_environment_process_together(monkeypatch):
         assert boto3_client.run_task.call_args[1]["overrides"] == {
             "containerOverrides": [
                 {
-                    "name": "flow",
+                    "name": "flow-container",
                     "environment": [
                         {
                             "name": "PREFECT__CLOUD__AUTH_TOKEN",
