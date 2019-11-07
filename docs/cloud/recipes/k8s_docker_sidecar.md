@@ -1,7 +1,6 @@
-
 # Docker Sidecar on Kubernetes
 
-This recipe is for a Flow deployed to Kubernetes which makes use of a Docker sidecar container to pull an image and run a container. This is an adaptation of the [Docker Pipeline](core/examples/imperative_docker.html) example where the `prefecthq/prefect:latest` image is pulled and a container is started using that image to run another Flow inside that container.
+This recipe is for a Flow deployed to Kubernetes, making use of a Docker sidecar container to pull an image and run a container. This is an adaptation of the [Docker Pipeline](core/examples/imperative_docker.html) example where the `prefecthq/prefect:latest` image is pulled and a container is started using that image to run another Flow inside that container.
 
 [[toc]]
 
@@ -24,25 +23,25 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-      - name: flow-container
-        image: ""
-        command: []
-        args: []
-        env:
-          - name: DOCKER_HOST
-            value: tcp://localhost:2375
-      - name: dind-daemon
-        image: docker:18.09.4-dind
-        env: []
-        resources:
-          requests:
-            cpu: 20m
-            memory: 512Mi
-        securityContext:
-          privileged: true
-        volumeMounts:
-          - name: docker-graph-store
-            mountPath: /var/lib/docker
+        - name: flow-container
+          image: ""
+          command: []
+          args: []
+          env:
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375
+        - name: dind-daemon
+          image: docker:18.09.4-dind
+          env: []
+          resources:
+            requests:
+              cpu: 20m
+              memory: 512Mi
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: docker-graph-store
+              mountPath: /var/lib/docker
       volumes:
         - name: docker-graph-store
           emptyDir: {}

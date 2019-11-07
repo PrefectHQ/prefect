@@ -1,7 +1,6 @@
-
 # Dask Cluster on Kubernetes
 
-This recipe is for a Flow deployed to Kubernetes which uses a static Dask cluster. The Dask cluster lives on the same Kubernetes cluster that the Flow runs on.
+This recipe is for a Flow deployed to Kubernetes using a static Dask cluster. This Dask cluster lives on the same Kubernetes cluster that the Flow runs on.
 
 [[toc]]
 
@@ -27,18 +26,18 @@ spec:
         app: dask-scheduler
     spec:
       containers:
-      - name: dask-scheduler
-        image: prefecthq/prefect:latest
-        args:
-          - dask-scheduler
-          - --port
-          - '8786'
-        env:
-          - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
-            value: "False"
-        ports:
-          - containerPort: 8786
-        resources: {}
+        - name: dask-scheduler
+          image: prefecthq/prefect:latest
+          args:
+            - dask-scheduler
+            - --port
+            - "8786"
+          env:
+            - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
+              value: "False"
+          ports:
+            - containerPort: 8786
+          resources: {}
 ```
 
 `dask_worker.yaml` is the deployment that runs the Dask workers. Notice that setting `replicas: 2` means that there will be two workers in this Dask cluster.
@@ -61,15 +60,24 @@ spec:
         app: dask-worker
     spec:
       containers:
-      - image: prefecthq/prefect:latest
-        args: [dask-worker, dask-scheduler:8786, --no-bokeh, --nthreads, "2", --nprocs, "2"]
-        name: dask-worker
-        env:
-          - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
-            value: "['feed', 'run_function']"
-          - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
-            value: "False"
-        resources: {}
+        - image: prefecthq/prefect:latest
+          args:
+            [
+              dask-worker,
+              dask-scheduler:8786,
+              --no-bokeh,
+              --nthreads,
+              "2",
+              --nprocs,
+              "2",
+            ]
+          name: dask-worker
+          env:
+            - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
+              value: "['feed', 'run_function']"
+            - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
+              value: "False"
+          resources: {}
 ```
 
 `dask_service.yaml` is the service that makes the Dask scheduler accessible over `dask-scheduler:8786`.
@@ -83,8 +91,8 @@ spec:
   selector:
     app: dask-scheduler
   ports:
-  - port: 8786
-    targetPort: 8786
+    - port: 8786
+      targetPort: 8786
 ```
 
 :::warning Dependencies

@@ -2,11 +2,11 @@
 
 [[toc]]
 
-Prefect Environments allow for completely custom user created Environments. The only requirements is that your custom environment inherits from the base `Environment` class.
+Prefect Environments allow for completely custom, user-created Environments. The only requirement is that your custom Environment inherit from the base `Environment` class.
 
 ### Process
 
-When you write a custom Environment all you need to do to use it for your Flow is attach it as you would any preexisting Prefect Environment. When your Flow is stored in a Docker container that custom Environment is packaged along with it. It will never be sent to Prefect Cloud and will only exist inside your Flow's Docker storage.
+Custom Environments can be attached to Flows in the same manner as any preexisting Prefect Environment, and are stored in Docker alongside your flow. It will never be sent to Prefect Cloud and will only exist inside your Flow's Docker storage.
 
 ### Custom Environment Example
 
@@ -20,7 +20,7 @@ from prefect.environments.storage import Storage
 
 class MyCustomEnvironment(Environment):
     """
-    MyCustomEnvironment is my environment that simply uses the default executor to run a Flow.
+    MyCustomEnvironment is my Environment that simply uses the default executor to run a Flow.
 
     Args:
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect Agents when polling for work
@@ -44,7 +44,7 @@ class MyCustomEnvironment(Environment):
 
     def setup(self, storage: "Storage") -> None:
         """
-        Sets up any infrastructure needed for this environment
+        Sets up any infrastructure needed for this Environment
 
         Args:
             - storage (Storage): the Storage object that contains the flow
