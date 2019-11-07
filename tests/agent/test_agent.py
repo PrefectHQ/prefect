@@ -9,12 +9,12 @@ from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_agent_init(runner_token):
+def test_agent_init():
     agent = Agent()
     assert agent
 
 
-def test_agent_config_options(runner_token):
+def test_agent_config_options():
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.labels == []
@@ -24,7 +24,7 @@ def test_agent_config_options(runner_token):
         assert agent.logger.name == "agent"
 
 
-def test_agent_name_set_options(runner_token, monkeypatch):
+def test_agent_name_set_options(monkeypatch):
     # Default
     agent = Agent()
     assert agent.name == "agent"
@@ -42,13 +42,13 @@ def test_agent_name_set_options(runner_token, monkeypatch):
         assert agent.logger.name == "test2"
 
 
-def test_agent_log_level(runner_token):
+def test_agent_log_level():
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.logger.level == 20
 
 
-def test_agent_log_level_responds_to_config(runner_token):
+def test_agent_log_level_responds_to_config():
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
     ):
@@ -56,19 +56,19 @@ def test_agent_log_level_responds_to_config(runner_token):
         assert agent.logger.level == 10
 
 
-def test_agent_labels(runner_token):
+def test_agent_labels():
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(labels=["test", "2"])
         assert agent.labels == ["test", "2"]
 
 
-def test_agent_labels_from_config_var(runner_token):
+def test_agent_labels_from_config_var():
     with set_temporary_config({"cloud.agent.labels": "['test', '2']"}):
         agent = Agent()
         assert agent.labels == ["test", "2"]
 
 
-def test_agent_log_level_debug(runner_token):
+def test_agent_log_level_debug():
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
     ):
@@ -99,7 +99,7 @@ def test_agent_fails_no_runner_token(monkeypatch):
         agent.query_tenant_id()
 
 
-def test_query_tenant_id(monkeypatch, runner_token):
+def test_query_tenant_id(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
@@ -114,7 +114,7 @@ def test_query_tenant_id(monkeypatch, runner_token):
     assert tenant_id == "id"
 
 
-def test_query_tenant_id_not_found(monkeypatch, runner_token):
+def test_query_tenant_id_not_found(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(tenant=[]))))
     )
@@ -127,7 +127,7 @@ def test_query_tenant_id_not_found(monkeypatch, runner_token):
     assert not tenant_id
 
 
-def test_query_flow_runs(monkeypatch, runner_token):
+def test_query_flow_runs(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -144,7 +144,7 @@ def test_query_flow_runs(monkeypatch, runner_token):
     assert flow_runs == [{"id": "id"}]
 
 
-def test_update_states_passes_empty(monkeypatch, runner_token):
+def test_update_states_passes_empty(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -158,7 +158,7 @@ def test_update_states_passes_empty(monkeypatch, runner_token):
     assert not agent.update_states(flow_runs=[])
 
 
-def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
+def test_update_states_passes_no_task_runs(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -183,7 +183,7 @@ def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
     )
 
 
-def test_update_states_passes_task_runs(monkeypatch, runner_token):
+def test_update_states_passes_task_runs(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -216,17 +216,17 @@ def test_update_states_passes_task_runs(monkeypatch, runner_token):
     )
 
 
-def test_deploy_flows_passes_base_agent(runner_token):
+def test_deploy_flows_passes_base_agent():
     agent = Agent()
     assert not agent.deploy_flows([])
 
 
-def test_heartbeat_passes_base_agent(runner_token):
+def test_heartbeat_passes_base_agent():
     agent = Agent()
     assert not agent.heartbeat()
 
 
-def test_agent_connect(monkeypatch, runner_token):
+def test_agent_connect(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
@@ -240,7 +240,7 @@ def test_agent_connect(monkeypatch, runner_token):
     assert agent.agent_connect() == "id"
 
 
-def test_agent_connect_no_tenant_id(monkeypatch, runner_token):
+def test_agent_connect_no_tenant_id(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(tenant=[dict(id=None)])))
@@ -255,7 +255,7 @@ def test_agent_connect_no_tenant_id(monkeypatch, runner_token):
         assert agent.agent_connect()
 
 
-def test_agent_process(monkeypatch, runner_token):
+def test_agent_process(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -292,7 +292,7 @@ def test_agent_process(monkeypatch, runner_token):
     assert agent.agent_process("id")
 
 
-def test_agent_process_no_runs_found(monkeypatch, runner_token):
+def test_agent_process_no_runs_found(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -312,7 +312,7 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
     assert not agent.agent_process("id")
 
 
-def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
+def test_agent_logs_flow_run_exceptions(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
     )
@@ -349,7 +349,7 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
     )
 
 
-def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch, runner_token):
+def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
     )
@@ -363,7 +363,7 @@ def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch, runner_token):
     assert not client.write_run_log.called
 
 
-def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
+def test_agent_process_raises_exception_and_logs(monkeypatch):
     client = MagicMock()
     client.return_value.graphql.side_effect = ValueError("Error")
     monkeypatch.setattr("prefect.agent.agent.Client", client)

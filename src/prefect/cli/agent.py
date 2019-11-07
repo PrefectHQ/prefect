@@ -6,7 +6,7 @@ from prefect.utilities.serialization import from_qualified_name
 
 _agents = {
     "fargate": "prefect.agent.fargate.FargateAgent",
-    "local": "prefect.agent.local.LocalAgent",
+    "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
     "nomad": "prefect.agent.nomad.NomadAgent",
 }
@@ -43,7 +43,7 @@ def agent():
 
 
 @agent.command(hidden=True)
-@click.argument("agent-option", default="local")
+@click.argument("agent-option", default="docker")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
@@ -73,8 +73,8 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `fargate`, `nomad`)
-                                Defaults to `local`
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `fargate`, `nomad`)
+                                Defaults to `docker`
 
     \b
     Options:
