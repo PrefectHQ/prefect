@@ -179,7 +179,7 @@ class KubernetesAgent(Agent):
         labels = labels or []
 
         version = prefect.__version__.split("+")
-        image_version = "latest" if len(version) > 1 else version[0]
+        image_version = "latest" if len(version) > 1 else (version[0] + "-python3.6")
 
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"

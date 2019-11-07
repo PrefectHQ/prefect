@@ -1,4 +1,9 @@
-"""
+---
+sidebarDepth: 2
+editLink: false
+---
+# Context
+---
 This module implements the Prefect context that is available when tasks run.
 
 Tasks can import prefect.context and access attributes that will be overwritten
@@ -52,74 +57,18 @@ In addition, Prefect Cloud supplies some additional context variables:
 | `task_run_version` | the state version of the current task run |
 
 Users can also provide values to context at runtime.
-"""
+ ## Context
+ <div class='class-sig' id='prefect-utilities-context-context'><p class="prefect-sig">class </p><p class="prefect-class">prefect.utilities.context.Context</p>(*args, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/utilities/context.py#L65">[source]</a></span></div>
 
-import contextlib
-import threading
-from typing import Any, Iterator, MutableMapping
+A thread safe context store for Prefect data.
 
-from prefect.configuration import Config, config
-from prefect.utilities.collections import DotDict, merge_dicts
+The `Context` is a `DotDict` subclass, and can be instantiated the same way.
 
-
-class Context(DotDict, threading.local):
-    """
-    A thread safe context store for Prefect data.
-
-    The `Context` is a `DotDict` subclass, and can be instantiated the same way.
-
-    Args:
-        - *args (Any): arguments to provide to the `DotDict` constructor (e.g.,
-            an initial dictionary)
-        - **kwargs (Any): any key / value pairs to initialize this context with
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if "context" in config:
-            self.update(config.context)
-        self["config"] = merge_dicts(config, self.get("config", {}))  # order matters
-
-    def __getstate__(self) -> None:
-        """
-        Because we dynamically update context during runs, we don't ever want to pickle
-        or "freeze" the contents of context.  Consequently it should always be accessed
-        as an attribute of the prefect module.
-        """
-        raise TypeError(
-            "\n".join(
-                [
-                    "Pickling context objects is explicitly not supported.",
-                    "You should always access context as an attribute of the `prefect` module, as in `prefect.context`",
-                ]
-            )
-        )
-
-    def __repr__(self) -> str:
-        return "<Context>"
-
-    @contextlib.contextmanager
-    def __call__(self, *args: MutableMapping, **kwargs: Any) -> Iterator["Context"]:
-        """
-        A context manager for setting / resetting the Prefect context
-
-        Example:
-            import prefect.context
-            with prefect.context(dict(a=1, b=2), c=3):
-                print(prefect.context.a) # 1
-        """
-        previous_context = self.copy()
-        try:
-            new_context = dict(*args, **kwargs)
-            if "config" in new_context:
-                new_context["config"] = merge_dicts(
-                    self.get("config", {}), new_context["config"]
-                )
-            self.update(new_context)  # type: ignore
-            yield self
-        finally:
-            self.clear()
-            self.update(previous_context)
+**Args**:     <ul class="args"><li class="args">`*args (Any)`: arguments to provide to the `DotDict` constructor (e.g.,         an initial dictionary)     </li><li class="args">`**kwargs (Any)`: any key / value pairs to initialize this context with</li></ul>
 
 
-context = Context()
+---
+<br>
+
+
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on November 7, 2019 at 02:18 UTC</p>
