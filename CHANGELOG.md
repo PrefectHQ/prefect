@@ -10,6 +10,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.1 <Badge text="beta" type="success"/>
+
+Released on Nov 5, 2019
+
+### Features
+
+- None
+
+### Enhancements
+
 - Add a `save`/`load` interface to Flows - [#1685](https://github.com/PrefectHQ/prefect/pull/1685), [#1695](https://github.com/PrefectHQ/prefect/pull/1695)
 - Add option to specify `aws_session_token` for the `FargateTaskEnvironment` - [#1688](https://github.com/PrefectHQ/prefect/pull/1688)
 - Add `EnvVarSecrets` for loading sensitive information from environment variables - [#1683](https://github.com/PrefectHQ/prefect/pull/1683)
