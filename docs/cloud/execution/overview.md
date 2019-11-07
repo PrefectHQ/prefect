@@ -83,10 +83,6 @@ f = Flow("example-env")
 f.environment = RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor")
 ```
 
-:::tip Not executed on run
-Calling `flow.run()` does not execute the steps in your Environment. An Environment is an outside concept of which a Flow is run inside of it (usually during the `execute` step).
-:::
-
 ### Setup & Execute
 
 The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the flow is executed. This could take the form of functionality such as spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the flow where and how it needs to run. This could take the form of functionality such as running the flow in process, as per the [`RemoteEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html##remoteenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html#fargatetaskenvironment).

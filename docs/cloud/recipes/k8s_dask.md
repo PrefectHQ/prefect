@@ -67,7 +67,7 @@ spec:
               dask-scheduler:8786,
               --no-bokeh,
               --nthreads,
-              "2",
+              "1",
               --nprocs,
               "2",
             ]
