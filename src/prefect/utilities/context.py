@@ -80,7 +80,7 @@ class Context(DotDict, threading.local):
             self.update(config.context)
         self["config"] = merge_dicts(config, self.get("config", {}))  # order matters
 
-    def __getstate__(self):
+    def __getstate__(self) -> None:
         """
         Because we dynamically update context during runs, we don't ever want to pickle
         or "freeze" the contents of context.  Consequently it should always be accessed
