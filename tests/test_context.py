@@ -1,3 +1,4 @@
+import cloudpickle
 import queue
 import threading
 import time
@@ -181,3 +182,10 @@ def test_contexts_are_thread_safe():
         results.add(result_queue.get(block=False))
 
     assert results == set(range(len(threads)))
+
+
+def test_context_raises_informative_error_if_pickled():
+    c = Context()
+
+    with pytest.raises(TypeError, match="prefect.context"):
+        cloudpickle.dumps(c)

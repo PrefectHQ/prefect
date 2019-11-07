@@ -10,11 +10,45 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.1 <Badge text="beta" type="success"/>
+
+Released on Nov 5, 2019
+
+### Features
+
+- None
+
+### Enhancements
+
 - Add a `save`/`load` interface to Flows - [#1685](https://github.com/PrefectHQ/prefect/pull/1685), [#1695](https://github.com/PrefectHQ/prefect/pull/1695)
 - Add option to specify `aws_session_token` for the `FargateTaskEnvironment` - [#1688](https://github.com/PrefectHQ/prefect/pull/1688)
 - Add `EnvVarSecrets` for loading sensitive information from environment variables - [#1683](https://github.com/PrefectHQ/prefect/pull/1683)
 - Add an informative version header to all Cloud client requests - [#1690](https://github.com/PrefectHQ/prefect/pull/1690)
+- Auto-label Flow environments when using Local storage - [#1696](https://github.com/PrefectHQ/prefect/pull/1696)
 - Batch upload logs to Cloud in a background thread for improved performance - [#1691](https://github.com/PrefectHQ/prefect/pull/1691)
+- Include agent labels within each flow's configuration environment - [#1671](https://github.com/PrefectHQ/prefect/issues/1671)
 
 ### Task Library
 
@@ -23,6 +57,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix Fargate Agent access defaults and environment variable support - [#1687](https://github.com/PrefectHQ/prefect/pull/1687)
+- Removed default python version for docker builds - [#1705](https://github.com/PrefectHQ/prefect/pull/1705)
+- Attempt to install prefect in any docker image (if it is not already installed) - [#1704](https://github.com/PrefectHQ/prefect/pull/1704)
+- Kubernetes Agent deployment yaml now respects new `prefecthq/prefect` image tagging convention - [#1707](https://github.com/PrefectHQ/prefect/pull/1707)
 
 ### Deprecations
 

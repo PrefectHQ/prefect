@@ -105,8 +105,7 @@ with variables:
 ```json
 {
   "state": {
-    "x": 1,
-    "y": 2
+    "type": "Scheduled",
   }
 }
 ```
