@@ -313,6 +313,8 @@ def test_populate_job_yaml_no_defaults():
         with open(path.join(file_path, "job.yaml")) as job_file:
             job = yaml.safe_load(job_file)
             job["spec"]["template"]["spec"]["containers"][0] = {}
+            del job["metadata"]
+            del job["spec"]["template"]["metadata"]
 
         with set_temporary_config(
             {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
