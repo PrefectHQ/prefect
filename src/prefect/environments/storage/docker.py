@@ -76,7 +76,9 @@ class Docker(Storage):
         self.python_dependencies.append("wheel")
 
         self.env_vars = env_vars or {}
-        self.env_vars["PREFECT__USER_CONFIG_PATH"] = "/root/.prefect/config.toml"
+        self.env_vars.setdefault(
+            "PREFECT__USER_CONFIG_PATH", "/root/.prefect/config.toml"
+        )
 
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]

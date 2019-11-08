@@ -111,6 +111,14 @@ def test_initialized_docker_storage():
     assert storage.local_image
 
 
+def test_docker_storage_allows_for_user_provided_config_locations():
+    storage = Docker(env_vars={"PREFECT__USER_CONFIG_PATH": "1"},)
+
+    assert storage.env_vars == {
+        "PREFECT__USER_CONFIG_PATH": "1",
+    }
+
+
 def test_files_not_absolute_path():
     with pytest.raises(ValueError):
         storage = Docker(files={"test": "test"})
