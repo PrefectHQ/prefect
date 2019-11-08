@@ -64,7 +64,7 @@ class KubernetesJobEnvironment(Environment):
 
     @property
     def identifier_label(self) -> str:
-        if not hasattr(self, "_identifier_label"):
+        if not hasattr(self, "_identifier_label") or not self._identifier_label:
             self._identifier_label = str(uuid.uuid4())
         return self._identifier_label
 
