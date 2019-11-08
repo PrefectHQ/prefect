@@ -10,7 +10,7 @@ Prefect Cloud is designed to follow a hybrid approach to workflow execution. Thi
 
 Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent will then periodically query Prefect Cloud for flow runs that need to be started on that agent's platform.
 
-Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant which this flow run belongs to will then see that there us work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Local Agent or a job in the case of a Kubernetes Agent.
+Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant which this flow run belongs to will then see that there us work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker Agent or a job in the case of a Kubernetes Agent.
 
 Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute. That flow run that was submitted for execution is now set to a `Submitted` state.
 
@@ -52,9 +52,9 @@ Options:
 All Prefect Agents are also extendable as Python objects and can be used programatically!
 
 ```python
-from prefect.agent import LocalAgent
+from prefect.agent import DockerAgent
 
-LocalAgent().start()
+DockerAgent().start()
 ```
 
 ### Tokens
@@ -70,9 +70,9 @@ By default Agents have no set labels and will therefore only pick up runs from f
 - Initialization of the Agent class:
 
 ```python
-from prefect.agent import LocalAgent
+from prefect.agent import DockerAgent
 
-LocalAgent(labels=["dev", "staging"]).start()
+DockerAgent(labels=["dev", "staging"]).start()
 ```
 
 - Arguments to the CLI:

@@ -146,7 +146,7 @@ module.exports = {
           collapsable: true,
           children: [
             'agent/overview',
-            'agent/local',
+            'agent/docker',
             'agent/kubernetes',
             'agent/fargate',
           ]
