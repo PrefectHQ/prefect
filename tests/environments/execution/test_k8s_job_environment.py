@@ -80,6 +80,19 @@ def test_create_k8s_job_environment_identifier_label():
         assert environment.identifier_label
 
 
+def test_create_k8s_job_environment_identifier_label_none():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml")
+        )
+        environment._identifier_label = None
+        assert environment.identifier_label
+
+
 def test_setup_k8s_job_environment_passes():
     with tempfile.TemporaryDirectory() as directory:
 
