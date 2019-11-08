@@ -13,7 +13,7 @@ pytest.importorskip("botocore")
 from botocore.exceptions import ClientError
 
 
-def test_fargate_agent_init(monkeypatch, runner_token):
+def test_fargate_agent_init(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -22,7 +22,7 @@ def test_fargate_agent_init(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_fargate_agent_config_options_default(monkeypatch, runner_token):
+def test_fargate_agent_config_options_default(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -35,7 +35,7 @@ def test_fargate_agent_config_options_default(monkeypatch, runner_token):
     assert agent.boto3_client
 
 
-def test_fargate_agent_config_options(monkeypatch, runner_token):
+def test_fargate_agent_config_options(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -68,7 +68,7 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
         )
 
 
-def test_parse_task_definition_kwargs(monkeypatch, runner_token):
+def test_parse_task_definition_kwargs(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -94,7 +94,7 @@ def test_parse_task_definition_kwargs(monkeypatch, runner_token):
     assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
 
 
-def test_parse_task_run_kwargs(monkeypatch, runner_token):
+def test_parse_task_run_kwargs(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -120,7 +120,7 @@ def test_parse_task_run_kwargs(monkeypatch, runner_token):
     assert task_definition_kwargs == {"placementConstraints": "test", "tags": "test"}
 
 
-def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
+def test_parse_task_definition_and_run_kwargs(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -183,7 +183,7 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
     assert task_run_kwargs == run_kwarg_dict
 
 
-def test_parse_task_kwargs_invalid_value_removed(monkeypatch, runner_token):
+def test_parse_task_kwargs_invalid_value_removed(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -197,7 +197,7 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, runner_token):
     assert task_run_kwargs == {}
 
 
-def test_fargate_agent_config_options_init(monkeypatch, runner_token):
+def test_fargate_agent_config_options_init(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -274,7 +274,7 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     )
 
 
-def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
+def test_fargate_agent_config_env_vars(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -348,7 +348,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     )
 
 
-def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
+def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
@@ -387,7 +387,7 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     )
 
 
-def test_deploy_flows(monkeypatch, runner_token):
+def test_deploy_flows(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
@@ -418,7 +418,7 @@ def test_deploy_flows(monkeypatch, runner_token):
     assert boto3_client.run_task.called
 
 
-def test_deploy_flows_all_args(monkeypatch, runner_token):
+def test_deploy_flows_all_args(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
@@ -505,7 +505,7 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
     }
 
 
-def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
+def test_deploy_flows_register_task_definition(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -541,7 +541,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
     )
 
 
-def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_token):
+def test_deploy_flows_register_task_definition_all_args(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -643,7 +643,7 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
-def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch, runner_token):
+def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -750,7 +750,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch, runner_t
 
 
 def test_deploy_flows_register_task_definition_no_repo_credentials(
-    monkeypatch, runner_token
+    monkeypatch
 ):
     boto3_client = MagicMock()
 

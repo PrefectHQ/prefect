@@ -8,14 +8,14 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_nomad_agent_init(runner_token):
+def test_nomad_agent_init():
     agent = NomadAgent()
     assert agent
     assert agent.labels == []
     assert agent.name == "agent"
 
 
-def test_nomad_agent_config_options(runner_token):
+def test_nomad_agent_config_options():
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = NomadAgent(name="test")
         assert agent
@@ -24,7 +24,7 @@ def test_nomad_agent_config_options(runner_token):
         assert agent.logger
 
 
-def test_nomad_agent_deploy_flows(monkeypatch, runner_token):
+def test_nomad_agent_deploy_flows(monkeypatch):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
@@ -51,7 +51,7 @@ def test_nomad_agent_deploy_flows(monkeypatch, runner_token):
     assert requests.post.call_args[1]["json"]
 
 
-def test_nomad_agent_deploy_flows_continues(monkeypatch, runner_token):
+def test_nomad_agent_deploy_flows_continues(monkeypatch):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
@@ -70,7 +70,7 @@ def test_nomad_agent_deploy_flows_continues(monkeypatch, runner_token):
     assert not requests.post.called
 
 
-def test_nomad_agent_replace_yaml(runner_token):
+def test_nomad_agent_replace_yaml():
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {
