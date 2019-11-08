@@ -99,6 +99,16 @@ class DaskKubernetesEnvironment(Environment):
             self._identifier_label = str(uuid.uuid4())
         return self._identifier_label
 
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        # Ensure _identifier_label is not persisted
+        if "_identifier_label" in state:
+            del state["_identifier_label"]
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
             from kubernetes import client, config
