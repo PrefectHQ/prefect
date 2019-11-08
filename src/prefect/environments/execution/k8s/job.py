@@ -51,7 +51,6 @@ class KubernetesJobEnvironment(Environment):
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
-        self.identifier_label = str(uuid.uuid4())
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
 
         # Load specs from file if path given, store on object
@@ -62,6 +61,12 @@ class KubernetesJobEnvironment(Environment):
     @property
     def dependencies(self) -> list:
         return ["kubernetes"]
+
+    @property
+    def identifier_label(self) -> str:
+        if not hasattr(self, "_identifier_label"):
+            self._identifier_label = str(uuid.uuid4())
+        return self._identifier_label
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any

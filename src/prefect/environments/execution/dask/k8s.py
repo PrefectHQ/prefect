@@ -74,7 +74,6 @@ class DaskKubernetesEnvironment(Environment):
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
-        self.identifier_label = str(uuid.uuid4())
         self.private_registry = private_registry
         if self.private_registry:
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
@@ -91,6 +90,12 @@ class DaskKubernetesEnvironment(Environment):
     @property
     def dependencies(self) -> list:
         return ["kubernetes"]
+
+    @property
+    def identifier_label(self) -> str:
+        if not hasattr(self, "_identifier_label"):
+            self._identifier_label = str(uuid.uuid4())
+        return self._identifier_label
 
     def setup(self, storage: "Docker") -> None:  # type: ignore
         if self.private_registry:
