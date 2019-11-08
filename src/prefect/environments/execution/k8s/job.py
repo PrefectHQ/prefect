@@ -56,6 +56,8 @@ class KubernetesJobEnvironment(Environment):
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
 
+        self._identifier_label = ""
+
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     @property
