@@ -86,7 +86,7 @@ output_value.bind(value=get_value, flow=flow)
 
 #### Dask Kubernetes Environment w/ Custom Worker YAML
 
-- In this example we specify a custom worker specification. There are a few things of note here:
+In this example we specify a custom worker specification. There are a few things of note here:
 
 - The worker YAML is contained in a file called `worker_spec.yaml`. This YAML is placed in the same directory as the Flow and is loaded in your Environment with `worker_spec_file="worker_spec.yaml"`.
 
