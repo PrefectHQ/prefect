@@ -52,29 +52,6 @@ def test_heartbeat_logs_if_first_call_fails(caplog):
     assert "zombie" in log.message
 
 
-def test_heartbeat_logs_if_first_call_fails(caplog):
-    class A:
-        def __init__(self):
-            self.logger = prefect.utilities.logging.get_logger("A")
-
-        def _heartbeat(self):
-            raise SyntaxError("oops")
-
-        @run_with_heartbeat
-        def run(self):
-            pass
-
-    a = A()
-    a.run()
-
-    assert caplog.records
-
-    log = caplog.records[0]
-    assert log.name == "prefect.A"
-    assert "Heartbeat" in log.message
-    assert "zombie" in log.message
-
-
 def test_heartbeat_logs_if_thread_dies(caplog):
     class A:
         def __init__(self):
