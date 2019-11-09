@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Kubernetes Job Environment is an Environment that runs a Flow on a completely custom [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/). This Environment is intended for use in cases where users want complete control over the Job their Flow runs on. We see this Environment commonly used for resource management, node allocation, sidecar containers, etc.
+The Kubernetes Job Environment is an Environment that runs a Flow on a completely custom [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/). This Environment is intended for use in cases where you want complete control over the Job your Flow runs on. This Environment is commonly used for resource management, node allocation, and sidecar containers.
 
 _For more information on the Kubernetes Job Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#kubernetesjobenvironment)._
 
@@ -12,11 +12,11 @@ _For more information on the Kubernetes Job Environment visit the relevant [API 
 
 #### Initialization
 
-The `KubernetesJobEnvironment` accepts an argument `job_spec_file` which is a string representation of a path to a Kubernetes Job YAML file. On initialization that Job spec file is loaded and stored on the Environment. It will never be sent to Prefect Cloud and will only exist inside your Flow's Docker storage.
+The `KubernetesJobEnvironment` accepts an argument `job_spec_file` which is a string representation of a path to a Kubernetes Job YAML file. On initialization that Job spec file is loaded and stored in the Environment. It will _never be sent to Prefect Cloud_ and will only exist inside your Flow's Docker storage.
 
 #### Setup
 
-The Kubernetes Job Environment has no setup step because there are not any infrastructure requirements that are needed for using this Environment.
+The Kubernetes Job Environment has no setup step because there are no infrastructure requirements needed to use this Environment.
 
 #### Execute
 
@@ -24,7 +24,7 @@ Create a new [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/cont
 
 #### Job Spec Configuration
 
-There are a few caveats to using the Kubernetes Job Environment that revolve around the format of the provided Job YAML. In the Job specification that you provide the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `execute` step of this Environment.
+There are a few caveats to using the Kubernetes Job Environment that revolve around the format of the provided Job YAML. In the Job specification that you provide, the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `execute` step of this Environment.
 
 ```yaml
 apiVersion: batch/v1
@@ -50,7 +50,7 @@ spec:
               value: foo
 ```
 
-In the above YAML block `flow-container` will have a few aspects changed during execution.
+In the above YAML block, `flow-container` will be changed during execution:
 
 - The metadata labels `identifier` and `flow_run_id` will be replaced with a unique identifier for this run and the id of this Flow run respectively
 - `image` will become the _registry_url/image_name:image_tag_ of your Flow's storage
@@ -83,7 +83,7 @@ All other aspects of your Job will remain untouched. In some cases it is easiest
 
 The following example will execute your Flow using the custom Job specification with user provided resource requests and limits.
 
-The Job spec YAML is contained in a file called `job_spec.yaml` which exists in the same directory as the Flow and it is loaded on our Environment with `job_spec_file="job_spec.yaml"`.
+The Job spec YAML is contained in a file called `job_spec.yaml` which should be placed in the same directory as the Flow and is loaded in your Environment with `job_spec_file="job_spec.yaml"`.
 
 ```yaml
 apiVersion: batch/v1

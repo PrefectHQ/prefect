@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Fargate Task Environment runs a Flow on a completely custom [Fargate Task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html). This Environment is intended for use in cases where users want complete control over the Fargate Task their Flow runs on.
+The Fargate Task Environment runs a Flow on a completely custom [Fargate Task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html). This Environment is intended for use in cases where you want complete control over the Fargate Task your Flow runs on.
 
 _For more information on the Fargate Task Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#fargatetaskenvironment)._
 
@@ -14,9 +14,9 @@ _For more information on the Fargate Task Environment visit the relevant [API do
 
 The `FargateTaskEnvironment` has two groups of keyword arguments: boto3-related arguments and task-related arguments. All of this configuration revolves around how the [boto3]() library communicates with AWS. The design of this Environment is meant to be open to all access methodologies for AWS instead of adhering to a single mode of authentication.
 
-This Environment accepts similar arguments to how boto3 authenticates with AWS: `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, and `region_name`. These arguments are directly passed to the [boto3 client]() which means you should initialize this Environment in that same way you would normally use boto3.
+This Environment accepts similar arguments to how boto3 authenticates with AWS: `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, and `region_name`. These arguments are directly passed to the [boto3 client]() which means you should initialize this Environment in the same way you would normally use boto3.
 
-After specifying credentials for the boto3 client the other group of kwargs falls into the category of any arguments you would pass into boto3 for [registering](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition) a task definition and [running](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task) that task.
+The other group of kwargs are those you would pass into boto3 for [registering](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition) a task definition and [running](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task) that task.
 
 Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition):
 
@@ -55,7 +55,7 @@ enableECSManagedTags        boolean
 propagateTags               string
 ```
 
-All of these kwargs will be loaded and stored upon initialization of the Environment. It will never be sent to Prefect Cloud and will only exist inside your Flow's Docker storage.
+All of these kwargs will be loaded and stored upon initialization of the Environment. It will _never be sent to Prefect Cloud_ and will only exist inside your Flow's Docker storage object.
 
 :::tip Task IAM Roles
 Users have seen great performance in using [Task IAM Roles](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html) for their Flow execution.
@@ -67,11 +67,11 @@ The Fargate Task Environment setup step is responsible for registering the Farga
 
 #### Execute
 
-Create a new Fargate Task with the configuration provided at initialization of this Environment. That task is responsible for running the Flow.
+Create a new Fargate Task with the configuration provided at initialization of this Environment. That task is responsible for running your flow.
 
 #### Task Spec Configuration
 
-There are a few caveats to using the Fargate Task Environment that revolve around the provided boto3 kwargs. In the `containerDefinitions` that you provide the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `setup` step of this Environment.
+There are a few caveats to using the Fargate Task Environment that revolve around the provided boto3 kwargs. In the `containerDefinitions` that you provide, the **first container** listed will be the container that is used to run the Flow. This means that the first container will always be overridden during the `setup` step of this Environment.
 
 ```python
 containerDefinitions=[
@@ -85,7 +85,7 @@ containerDefinitions=[
 ],
 ```
 
-In the above dictionary the `flow` container will have a few aspects changed during setup.
+The container dictionary above will be changed during setup:
 
 - `name` will become _flow-container_
 - `image` will become the _registry_url/image_name:image_tag_ of your Flow's storage
@@ -124,7 +124,7 @@ PREFECT__CONTEXT__FLOW_FILE_PATH
 
 #### Fargate Task Environment w/ Resources
 
-The following example will execute your Flow using the Fargate Task Environment with the provided Task specification—taking advantage of resource requests. This example also makes use of an `aws_session_token` and [IAM Role for task execution](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html).
+The following example will execute your Flow using the Fargate Task Environment with the provided Task specification taking advantage of resource requests. This example also makes use of an `aws_session_token` and [IAM Role for task execution](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html).
 
 ```python
 from prefect import task, Flow

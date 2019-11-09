@@ -1,7 +1,7 @@
 
 # Multi Flow Storage
 
-This recipe is for storing multiple Flows inside a single [Docker storage](api/unreleased/environments/storage.html#docker). This is useful when users have a suite of Flows that they may deploy off of some CI/CD process or they simply want to reduce the amount of images stored in their container registry. For this recipe we are going to put two example Flows—[ETL](/core/examples/etl.html) and [Map Reduce](/core/examples/map_reduce.html)—inside of the same Docker storage.
+This recipe is for storing multiple Flows inside a single [Docker storage object](/api/unreleased/environments/storage.html#docker). This is useful when you have a suite of Flows that deploys off of a CI/CD process or if you want to reduce the number of images stored in a container registry. For this recipe we are going to put two example Flows — [ETL](/core/examples/etl.html) and [Map Reduce](/core/examples/map_reduce.html) — inside of the same Docker storage object.
 
 [[toc]]
 
@@ -58,7 +58,7 @@ with Flow("Map / Reduce 🤓") as mr_flow:
 
 ### Adding Flows to Storage
 
-In this code block we manually add our two Flows to the same Docker storage object. Then the storage is built a single time and that new Docker storage is assigned to both Flows. When the Flows are deployed to Prefect Cloud `build=False` so the storage is not built again.
+In this code block we manually add our two Flows to the same Docker storage object. Then the storage is built once and that new Docker storage object is assigned to both Flows. When the Flows are deployed to Prefect Cloud, build is set to false (`build=False`) so the storage object is not built again.
 
 ```python
 from prefect.environments.storage import Docker
