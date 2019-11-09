@@ -96,7 +96,7 @@ spec:
 ```
 
 :::warning Dependencies
-One thing to note in this recipe is the fact that the Dask scheduler and worker pods use the base `prefecthq/prefect:latest` image. This is because our Flow has no external dependencies besides Prefect. When running Dask on Kubernetes you will want to make sure that your image contains the same dependencies as your Flow will need to execute. This could happen in ways such as using the Flow's Docker storage as the image for Dask or building a custom image with all the required dependencies.
+One thing to note in this recipe is the fact that the Dask scheduler and worker pods use the base `prefecthq/prefect:latest` image; this is because our Flow has no external dependencies besides Prefect. When running Dask on Kubernetes you should ensure your image contains the dependencies your Flow needs to execute, either by using the Flow's Docker storage as the image for Dask or by building a custom image with all the required dependencies.
 :::
 
 ### Flow Source
