@@ -631,7 +631,7 @@ class Client:
                 will return the ID of the originally created run (no new run will be created after the first).
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
-            - run_name (str, optional): The name to which to append a flow run iterable, e.g. "MyFlowRun_[1...n]" where run_name = "MyFlowRun_"
+            - run_name (str, optional): The name assigned to this flow run
 
         Returns:
             - str: the ID of the newly-created flow run
