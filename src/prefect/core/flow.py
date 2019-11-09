@@ -107,6 +107,7 @@ class Flow:
 
     Args:
         - name (str): The name of the flow. Cannot be `None` or an empty string
+        - run_name (str): The name to which to append a flow run iterable, e.g. "MyFlowRun_[1...n]" where run_name = "MyFlowRun"
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
            that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
