@@ -153,6 +153,7 @@ class Task(metaclass=SignatureValidator):
     def __init__(
         self,
         name: str = None,
+        run_name: str = None,
         slug: str = None,
         tags: Iterable[str] = None,
         max_retries: int = None,
@@ -170,6 +171,7 @@ class Task(metaclass=SignatureValidator):
     ):
 
         self.name = name or type(self).__name__
+        self.run_name = run_name
         self.slug = slug or str(uuid.uuid4())
 
         self.logger = logging.get_logger("Task: {}".format(self.name))
