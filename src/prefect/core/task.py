@@ -102,7 +102,6 @@ class Task(metaclass=SignatureValidator):
 
     Args:
         - name (str, optional): The name of this task
-        - run_name (str): The name to which to append a task run iterable, e.g. "MyTaskRun_[1...n]" where run_name = "MyTaskRun"
         - slug (str, optional): The slug for this task. Slugs are required and must be unique
             within any flow; if not provided a random UUID will be generated.
         - tags ([str], optional): A list of tags for this task
@@ -154,7 +153,6 @@ class Task(metaclass=SignatureValidator):
     def __init__(
         self,
         name: str = None,
-        run_name: str = None,
         slug: str = None,
         tags: Iterable[str] = None,
         max_retries: int = None,
