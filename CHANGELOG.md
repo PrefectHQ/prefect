@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+- Add informative logs in the event that a heartbeat thread dies - [#1721](https://github.com/PrefectHQ/prefect/pull/1721)
 
 ### Task Library
 
