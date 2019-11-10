@@ -51,6 +51,9 @@ def cloud_flow():
     }
 
     client = Client()
+    click.echo(f"{client._api_token}")
+    click.echo(f"{client.api_server}")
+    click.echo(f"{flow_run_id}")
     result = client.graphql(query)
     flow_run = result.data.flow_run
 

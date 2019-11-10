@@ -29,6 +29,12 @@ class LocalAgent(Agent):
         for idx, process in enumerate(self.processes):
             if process.poll() is not None:
                 self.processes.pop(idx)
+                if process.returncode:
+                    self.logger.info(
+                        "Process PID {} returned non-zero exit code".format(process.pid)
+                    )
+                    for raw_line in iter(process.stdout.readline, b""):
+                        self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
     def deploy_flows(self, flow_runs: list) -> None:
@@ -61,6 +67,9 @@ class LocalAgent(Agent):
                 env=current_env,
             )
             self.processes.append(p)
+            self.logger.debug(
+                "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
+            )
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
@@ -74,7 +83,7 @@ class LocalAgent(Agent):
         """
         return {
             "PREFECT__CLOUD__API": config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+            "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",

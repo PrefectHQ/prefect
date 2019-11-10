@@ -234,9 +234,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch):
         ("0.5.2+999.gr34343.dirty", "latest"),
     ],
 )
-def test_k8s_agent_generate_deployment_yaml_local_version(
-    monkeypatch, version
-):
+def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, version):
     monkeypatch.setattr(prefect, "__version__", version[0])
 
     k8s_config = MagicMock()
@@ -259,9 +257,7 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
     assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
-def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
-    monkeypatch
-):
+def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -305,9 +301,7 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch):
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
-def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
-    monkeypatch
-):
+def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -321,9 +315,7 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
     assert deployment["spec"]["template"]["spec"].get("imagePullSecrets") is None
 
 
-def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
-    monkeypatch
-):
+def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 

@@ -749,9 +749,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch):
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
-def test_deploy_flows_register_task_definition_no_repo_credentials(
-    monkeypatch
-):
+def test_deploy_flows_register_task_definition_no_repo_credentials(monkeypatch):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)

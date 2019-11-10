@@ -22,7 +22,7 @@ queue_interval = 30.0
     labels = "[]"
 
     # Set to `DEBUG` for verbose logging
-    level = "INFO"
+    level = "DEBUG"
 
     # Agents require different API tokens
     auth_token = ""

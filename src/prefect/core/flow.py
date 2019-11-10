@@ -1233,28 +1233,8 @@ class Flow:
                 "local" along with a safe version of the current Flow's name
         """
         labels = labels or ["local", slugify(self.name)]
-        with set_temporary_config(
-            {"cloud.agent.auth_token": prefect.config.cloud.auth_token}
-        ):
-            agent = prefect.agent.agent.Agent(labels=labels)
-
-        while True:
-            flow_runs = agent.query_flow_runs(str(uuid.uuid4()))
-            for flow_run in flow_runs:
-                agent.update_states([flow_run])
-                agent.deploy_flows([flow_run])
-                with prefect.context(flow_run_id=flow_run.id):
-                    with set_temporary_config(
-                        {
-                            "cloud.use_local_secrets": False,
-                            "logging.log_to_cloud": True,
-                        }
-                    ):
-                        runner_cls = prefect.engine.cloud.flow_runner.CloudFlowRunner
-                        runner_cls(flow=self).run(executor=executor)
-
-            if not flow_runs:
-                time.sleep(5)
+        agent = prefect.agent.local.LocalAgent(labels=labels)
+        agent.start()
 
     def deploy(
         self,
