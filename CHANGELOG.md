@@ -11,6 +11,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+- Loosen Job spec requirements for `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Loosen `containerDefinitions` requirements for `FargateTaskEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
 
 ### Task Library
 
@@ -18,6 +20,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- `FargateTaskEnvironment` now uses provided `family` for task definition naming - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Fix executor initialization missing `self` in `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
 - Fix `identifier_label` not being generated on each run for Kubernetes based environments - [#1718](https://github.com/PrefectHQ/prefect/pull/1718)
 - Fix issue where users could not override their user config path when deploying Docker to Cloud - [#1719](https://github.com/PrefectHQ/prefect/pull/1719)
 

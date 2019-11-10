@@ -24,7 +24,6 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
-    - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
@@ -171,12 +170,10 @@ class FargateTaskEnvironment(Environment):
             region_name=self.region_name,
         )
 
-        flow_run_id = prefect.context.get("flow_run_id", "unknown")
-
         definition_exists = True
         try:
             boto3_c.describe_task_definition(
-                taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8])
+                taskDefinition=self.task_definition_kwargs.get("family")
             )
         except ClientError:
             definition_exists = False
@@ -196,16 +193,39 @@ class FargateTaskEnvironment(Environment):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             ]
 
-            # Populate all env vars
-            for definition in self.task_definition_kwargs.get("containerDefinitions"):
+            # create containerDefinitions if they do not exist
+            if not self.task_definition_kwargs.get("containerDefinitions"):
+                self.task_definition_kwargs["containerDefinitions"] = []
+                self.task_definition_kwargs["containerDefinitions"].append({})
+
+            # set environment variables for all containers
+            for definition in self.task_definition_kwargs["containerDefinitions"]:
+                if not definition.get("environment"):
+                    definition["environment"] = []
                 definition["environment"].extend(env_values)
 
-            # Populate storage
+            # set name on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("name"):
+                self.task_definition_kwargs["containerDefinitions"][0]["name"] = ""
+
+            self.task_definition_kwargs.get("containerDefinitions")[0][
+                "name"
+            ] = "flow-container"
+
+            # set image on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("image"):
+                self.task_definition_kwargs["containerDefinitions"][0]["image"] = ""
+
             self.task_definition_kwargs.get("containerDefinitions")[0][
                 "image"
             ] = storage.name
 
-            # Replace command
+            # set command on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get(
+                "command"
+            ):
+                self.task_definition_kwargs["containerDefinitions"][0]["command"] = []
+
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
@@ -230,7 +250,7 @@ class FargateTaskEnvironment(Environment):
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
         container_overrides = [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
