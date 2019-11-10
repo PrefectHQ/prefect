@@ -23,6 +23,8 @@ class LocalAgent(Agent):
 
     def __init__(self, name: str = None, labels: Iterable[str] = None,) -> None:
         self.processes = []
+        if "local" not in self.labels:
+            self.labels.append("local")
         super().__init__(name=name, labels=labels)
 
     def heartbeat(self) -> None:

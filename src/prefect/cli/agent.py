@@ -8,6 +8,7 @@ _agents = {
     "fargate": "prefect.agent.fargate.FargateAgent",
     "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+    "local": "prefect.agent.local.LocalAgent",
     "nomad": "prefect.agent.nomad.NomadAgent",
 }
 
