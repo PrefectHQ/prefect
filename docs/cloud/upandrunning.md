@@ -1,10 +1,10 @@
 # Prefect Cloud: Up and Running
 
-In this guide, we will look at a minimal and quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build its Docker storage, deploy to Prefect Cloud, and orchestrate a run with the Local Agent. No extra infrastructure required!
+In this guide, we will look at a minimal and quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build its Docker storage, deploy to Prefect Cloud, and orchestrate a run with the Docker Agent. No extra infrastructure required!
 
 ### Prerequisites
 
-In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate a `RUNNER` token and save that in a secure place because we will use it later when creating our Local Agent. 
+In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate a `RUNNER` token and save that in a secure place because we will use it later when creating our Docker Agent.
 
 For information on how to create a `RUNNER` token visit the [Tokens](concepts/tokens.html) page.
 
@@ -59,12 +59,12 @@ NAME        VERSION    PROJECT NAME    AGE
 my-flow     1          Demo            a few seconds ago
 ```
 
-### Start Local Agent
+### Start Docker Agent
 
 In order to orchestrate runs of your flow we will need to boot up a Prefect Agent which will look for flow runs to execute. This is where the `RUNNER` token you generated earlier will become useful.
 
 ```
-$ prefect agent start -t RUNNER_TOKEN
+$ prefect agent start docker -t RUNNER_TOKEN
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -73,17 +73,17 @@ $ prefect agent start -t RUNNER_TOKEN
 |_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
                                            |___/
 
-2019-09-01 13:11:58,202 - agent - INFO - Starting LocalAgent
+2019-09-01 13:11:58,202 - agent - INFO - Starting DockerAgent
 2019-09-01 13:11:58,203 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
 2019-09-01 13:11:58,453 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 13:11:58,453 - agent - INFO - Waiting for flow runs...
 ```
 
-Here we use the Prefect CLI to start a Local Agent. The `RUNNER` token that was generated earlier is specified through the `--token` argument.
+Here we use the Prefect CLI to start a Docker Agent. The `RUNNER` token that was generated earlier is specified through the `--token` argument.
 
 ### Create a Flow Run
 
-Now that the Local Agent is running we want to create a flow run in Prefect Cloud that the agent can pick up and execute! If you recall, we named our flow `my-flow` and deployed it to the `Hello, World!` project. We are going to use these two names in order to create the flow run with the Prefect CLI.
+Now that the Docker Agent is running we want to create a flow run in Prefect Cloud that the agent can pick up and execute! If you recall, we named our flow `my-flow` and deployed it to the `Hello, World!` project. We are going to use these two names in order to create the flow run with the Prefect CLI.
 
 ```
 $ prefect run cloud -n my-flow -p "Hello, World!"
