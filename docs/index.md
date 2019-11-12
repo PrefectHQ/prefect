@@ -19,7 +19,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
         </a>
         <a href="https://prefect.io/support" target="_blank" >
             <button class="action-button">
-                Ask for help
+                Ask us anything
             </button>
         </a>
     </div>
