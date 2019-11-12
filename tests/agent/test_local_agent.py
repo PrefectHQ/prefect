@@ -189,6 +189,7 @@ def test_local_agent_deploy_flows(monkeypatch, runner_token):
 
 def test_local_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
 
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
     api = MagicMock()
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
@@ -200,7 +201,11 @@ def test_local_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
-                {"flow": GraphQLResult({"storage": Local().serialize()}), "id": "id"}
+                {
+                    "flow": GraphQLResult({"storage": Local().serialize()}),
+                    "id": "id",
+                    "version": "version",
+                }
             )
         ]
     )
