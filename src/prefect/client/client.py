@@ -656,7 +656,7 @@ class Client:
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
         if run_name is not None:
-                inputs.update(
+            inputs.update(
                 runName=run_name
             )  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
