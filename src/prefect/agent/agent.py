@@ -2,7 +2,7 @@ import ast
 import logging
 import signal
 import time
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import pendulum
 
@@ -65,8 +65,8 @@ class Agent:
         self.logger = logger
         self.add_signal_handlers()
 
-    def add_signal_handlers(self):
-        def _exit(*args, **kwargs):
+    def add_signal_handlers(self) -> None:
+        def _exit(*args: Any, **kwargs: Any) -> None:
             self.is_running = False
             print("Agent is shutting down.")
 
