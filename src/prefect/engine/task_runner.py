@@ -599,12 +599,6 @@ class TaskRunner(Runner):
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
-        task_inputs.update(
-            {
-                key: Result(value=val, result_handler=ResultHandler())
-                for key, val in self.task.constants.items()
-            }
-        )
         return task_inputs
 
     @call_state_handlers

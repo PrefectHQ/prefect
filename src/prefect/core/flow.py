@@ -166,6 +166,7 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.constants = collections.defaultdict(dict)
 
         for t in tasks or []:
             self.add_task(t)
@@ -816,7 +817,7 @@ class Flow:
                     mapped=is_mapped,
                 )
             else:
-                task.constants[key] = t
+                self.constants[task].update({key: t})
 
     # Execution  ---------------------------------------------------------------
 

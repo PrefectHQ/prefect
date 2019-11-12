@@ -16,6 +16,8 @@ import pendulum
 import prefect
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
+from prefect.engine.result import Result
+from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Failed,
@@ -415,6 +417,18 @@ class FlowRunner(Runner):
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
+                    )
+
+                # augment edges with upstream constants
+                for key, val in self.flow.constants[task].items():
+                    edge = Edge(
+                        upstream_task=prefect.tasks.core.constants.Constant(val),
+                        downstream_task=task,
+                        key=key,
+                    )
+                    upstream_states[edge] = Success(
+                        "Auto-generated succcess state",
+                        result=Result(val, result_handler=ResultHandler()),
                     )
 
                 # -- run the task

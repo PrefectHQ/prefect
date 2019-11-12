@@ -324,7 +324,7 @@ def test_client_is_always_called_even_during_failures(client):
     with prefect.Flow(name="test") as flow:
         final = raise_me(4, 7)
 
-    assert len(flow.tasks) == 3
+    assert len(flow.tasks) == 1
 
     res = flow.run(state=Pending())
 
