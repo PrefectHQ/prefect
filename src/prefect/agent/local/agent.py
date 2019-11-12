@@ -5,6 +5,7 @@ import docker
 
 from prefect import config, context
 from prefect.agent import Agent
+from prefect.engine.state import Failed
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
@@ -78,9 +79,13 @@ class LocalAgent(Agent):
 
             storage = StorageSchema().load(flow_run.flow.storage)
             if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
+                msg = "Storage for flow run {} is not of type Docker.".format(
+                    flow_run.id
                 )
+                self.client.set_flow_run_state(
+                    flow_run.id, version=flow_run.version, state=Failed(msg)
+                )
+                self.logger.error(msg)
                 continue
 
             env_vars = self.populate_env_vars(flow_run=flow_run)
@@ -97,7 +102,11 @@ class LocalAgent(Agent):
                         "Successfully pulled image {}...".format(storage.name)
                     )
                 except docker.errors.APIError as exc:
-                    self.logger.error("Issue pulling image {}".format(storage.name))
+                    msg = "Issue pulling image {}".format(storage.name)
+                    self.client.set_flow_run_state(
+                        flow_run.id, version=flow_run.version, state=Failed(msg)
+                    )
+                    self.logger.error(msg)
 
             # Create a container
             self.logger.debug("Creating Docker container {}".format(storage.name))
