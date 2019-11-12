@@ -68,7 +68,7 @@ class Agent:
     def add_signal_handlers(self) -> None:
         def _exit(*args: Any, **kwargs: Any) -> None:
             self.is_running = False
-            print("Agent is shutting down.")
+            self.logger.info("Keyboard Interrupt received: Agent is shutting down.")
 
         signal.signal(signal.SIGINT, _exit)
 
