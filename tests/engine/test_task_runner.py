@@ -750,6 +750,17 @@ class TestGetTaskInputs:
         )
         assert inputs == {"x": Result(1)}
 
+    def test_get_inputs_from_constants(self):
+        t = Task()
+        t.constants = dict(y=55)
+        inputs = TaskRunner(task=t).get_task_inputs(
+            state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
+        )
+        assert inputs == {
+            "x": Result(1),
+            "y": Result(55, result_handler=ResultHandler()),
+        }
+
     def test_get_inputs_from_upstream_reads_results(self):
         result = SafeResult("1", result_handler=JSONResultHandler())
         state = Success(result=result)

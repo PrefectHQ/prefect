@@ -240,6 +240,7 @@ class Task(metaclass=SignatureValidator):
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
         self.auto_generated = False
+        self.constants = dict()
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -307,6 +308,7 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
+        new.constants = dict()
 
         # ensure new slug is provided
         if "slug" not in task_args:

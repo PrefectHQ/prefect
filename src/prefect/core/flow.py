@@ -806,15 +806,17 @@ class Flow:
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t, flow=self)
-            assert isinstance(t, Task)  # mypy assert
-            self.add_edge(
-                upstream_task=t,
-                downstream_task=task,
-                key=key,
-                validate=validate,
-                mapped=is_mapped,
-            )
+            t = as_task(t, flow=self, convert_constants=False)
+            if isinstance(t, Task):
+                self.add_edge(
+                    upstream_task=t,
+                    downstream_task=task,
+                    key=key,
+                    validate=validate,
+                    mapped=is_mapped,
+                )
+            else:
+                task.constants[key] = t
 
     # Execution  ---------------------------------------------------------------
 

@@ -204,7 +204,7 @@ def test_set_dependencies_adds_all_arguments_to_flow():
     assert f.tasks == set([t1, t2, t3, t4])
 
 
-def test_set_dependencies_converts_arguments_to_tasks():
+def test_set_dependencies_converts_unkeyed_arguments_to_tasks():
     class ArgTask(Task):
         def run(self, x):
             return x
@@ -218,7 +218,8 @@ def test_set_dependencies_converts_arguments_to_tasks():
     f.set_dependencies(
         task=t1, upstream_tasks=[t2], downstream_tasks=[t3], keyword_tasks={"x": t4}
     )
-    assert len(f.tasks) == 4
+    assert len(f.tasks) == 3
+    assert t1.constants == dict(x=4)
 
 
 def test_set_dependencies_creates_mapped_edges():

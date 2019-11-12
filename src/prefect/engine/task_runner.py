@@ -25,7 +25,7 @@ from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import JSONResultHandler
+from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -599,6 +599,12 @@ class TaskRunner(Runner):
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
+        task_inputs.update(
+            {
+                key: Result(value=val, result_handler=ResultHandler())
+                for key, val in self.task.constants.items()
+            }
+        )
         return task_inputs
 
     @call_state_handlers
