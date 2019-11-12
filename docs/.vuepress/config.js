@@ -1,12 +1,9 @@
-const sidebar54 = require('../api/0.5.4/sidebar')
-const sidebar60 = require('../api/0.6.0/sidebar')
-const sidebar61 = require('../api/0.6.1/sidebar')
-const sidebar62 = require('../api/0.6.2/sidebar')
 const sidebar64 = require('../api/0.6.4/sidebar')
 const sidebar65 = require('../api/0.6.5/sidebar')
 const sidebar66 = require('../api/0.6.6/sidebar')
 const sidebar67 = require('../api/0.6.7/sidebar')
 const sidebar70 = require('../api/0.7.0/sidebar')
+const sidebar71 = require('../api/0.7.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -67,28 +64,22 @@ module.exports = {
         text: "API Reference",
         items: [
           { text: "Unreleased", link: "/api/unreleased/" },
+          { text: "0.7.1", link: "/api/0.7.1/" },
           { text: "0.7.0", link: "/api/0.7.0/" },
           { text: "0.6.7", link: "/api/0.6.7/" },
           { text: "0.6.6", link: "/api/0.6.6/" },
           { text: "0.6.5", link: "/api/0.6.5/" },
           { text: "0.6.4", link: "/api/0.6.4/" },
-          { text: "0.6.2 / 0.6.3", link: "/api/0.6.2/" },
-          { text: "0.6.1", link: "/api/0.6.1/" },
-          { text: "0.6.0", link: "/api/0.6.0/" },
-          { text: "0.5.4", link: "/api/0.5.4/" }
         ]
       }
     ],
     sidebar: {
-      "/api/0.5.4/": sidebar54.sidebar,
-      "/api/0.6.0/": sidebar60.sidebar,
-      "/api/0.6.1/": sidebar61.sidebar,
-      "/api/0.6.2/": sidebar62.sidebar,
       "/api/0.6.4/": sidebar64.sidebar,
       "/api/0.6.5/": sidebar65.sidebar,
       "/api/0.6.6/": sidebar66.sidebar,
       "/api/0.6.7/": sidebar67.sidebar,
       "/api/0.7.0/": sidebar70.sidebar,
+      "/api/0.7.1/": sidebar71.sidebar,
       "/api/unreleased/": [
         { title: "API Reference", path: "/api/unreleased/" },
         "changelog",
@@ -151,6 +142,18 @@ module.exports = {
           children: getChildren('docs/cloud', 'concepts')
         },
         {
+          title: "Cloud Execution",
+          collapsable: true,
+          children: [
+            "execution/overview",
+            "execution/remote_environment",
+            "execution/dask_k8s_environment",
+            "execution/k8s_job_environment",
+            "execution/fargate_task_environment",
+            "execution/custom_environment",
+          ]
+        },
+        {
           title: 'Agent',
           collapsable: true,
           children: [
@@ -160,6 +163,11 @@ module.exports = {
             'agent/fargate',
           ]
         },
+        {
+          title: "Deployment Recipes",
+          collapsable: true,
+          children: getChildren("docs/cloud", "recipes")
+        }
       ],
       "/core/": [
         "/core/",

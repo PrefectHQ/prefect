@@ -173,6 +173,31 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
     assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
 
 
+def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+
+    agent = KubernetesAgent(labels=["foo", "bar"])
+    job = agent.replace_job_spec_yaml(flow_run)
+    env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert env[4]["value"] == "['foo', 'bar']"
+
+
 def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
@@ -204,7 +229,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
 @pytest.mark.parametrize(
     "version",
     [
-        ("0.6.3", "0.6.3"),
+        ("0.6.3", "0.6.3-python3.6"),
         ("0.5.3+114.g35bc7ba4", "latest"),
         ("0.5.2+999.gr34343.dirty", "latest"),
     ],

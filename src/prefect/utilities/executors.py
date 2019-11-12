@@ -39,16 +39,22 @@ def run_with_heartbeat(
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
+        timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
+        timer.daemon = True
         try:
-            timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
-            timer.daemon = True
             try:
                 self._heartbeat()
-            except:
-                pass
+            except Exception as exc:
+                self.logger.exception(
+                    "Heartbeat failed.  This could result in a zombie run."
+                )
             timer.start()
             return runner_method(self, *args, **kwargs)
         finally:
+            if not timer.is_alive():
+                self.logger.exception(
+                    "Heartbeat thread died.  This could result in a zombie run."
+                )
             timer.cancel()
             timer.join()
 

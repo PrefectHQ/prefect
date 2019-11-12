@@ -27,6 +27,8 @@ spec:
               value: PREFECT__CONTEXT__FLOW_RUN_ID
             - name: PREFECT__CONTEXT__NAMESPACE
               value: PREFECT__CONTEXT__NAMESPACE
+            - name: PREFECT__CLOUD__AGENT__LABELS
+              value: PREFECT__CLOUD__AGENT__LABELS
             - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
               value: "false"
             - name: PREFECT__LOGGING__LOG_TO_CLOUD

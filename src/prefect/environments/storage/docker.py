@@ -76,7 +76,9 @@ class Docker(Storage):
         self.python_dependencies.append("wheel")
 
         self.env_vars = env_vars or {}
-        self.env_vars["PREFECT__USER_CONFIG_PATH"] = "/root/.prefect/config.toml"
+        self.env_vars.setdefault(
+            "PREFECT__USER_CONFIG_PATH", "/root/.prefect/config.toml"
+        )
 
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
@@ -102,16 +104,19 @@ class Docker(Storage):
             else:
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
-                self.extra_commands.extend(
-                    [
-                        "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
-                        "pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
-                            self.prefect_version
-                        ),
-                    ]
+                self.extra_commands.append(
+                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
                 )
         else:
             self.base_image = base_image
+
+        # we should always try to install prefect, unless it is already installed. We can't determine this until
+        # image build time.
+        self.extra_commands.append(
+            "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
+                self.prefect_version
+            ),
+        )
 
         not_absolute = [
             file_path for file_path in self.files if not os.path.isabs(file_path)
