@@ -1227,6 +1227,7 @@ class Flow:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        version_group_id: str = None,
         **kwargs: Any
     ) -> str:
         """
@@ -1240,6 +1241,9 @@ class Flow:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
             - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
                 will be passed to the initialization method of the default Storage class
 
@@ -1259,6 +1263,7 @@ class Flow:
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
         )
         return deployed_flow
 

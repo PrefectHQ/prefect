@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import tempfile
+import uuid
 from unittest.mock import MagicMock, mock_open
 
 import marshmallow
@@ -107,7 +108,10 @@ def test_client_deploy(patch_post, compressed):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
     flow_id = client.deploy(
-        flow, project_name="my-default-project", compressed=compressed
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        version_group_id=str(uuid.uuid4()),
     )
     assert flow_id == "long-id"
 
