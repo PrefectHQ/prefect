@@ -166,7 +166,9 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
-        self.constants = collections.defaultdict(dict)
+        self.constants = collections.defaultdict(
+            dict
+        )  # type: Dict[Task, Dict[str, Any]]
 
         for t in tasks or []:
             self.add_task(t)
