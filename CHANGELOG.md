@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+- Add an option to pass in `run_name` to a flow run to override the auto-generated names when calling `create_flow_run` [#1661](https://github.com/PrefectHQ/cloud/pull/1661)
 
 ### Task Library
 
