@@ -82,8 +82,9 @@ class LocalAgent(Agent):
                 msg = "Storage for flow run {} is not of type Docker.".format(
                     flow_run.id
                 )
+                state_msg = "Agent {} failed to run flow: ".format(self.name) + msg
                 self.client.set_flow_run_state(
-                    flow_run.id, version=flow_run.version, state=Failed(msg)
+                    flow_run.id, version=flow_run.version, state=Failed(state_msg)
                 )
                 self.logger.error(msg)
                 continue
@@ -103,6 +104,10 @@ class LocalAgent(Agent):
                     )
                 except docker.errors.APIError as exc:
                     msg = "Issue pulling image {}".format(storage.name)
+                    state_msg = (
+                        "Agent {} failed to pull image for flow: ".format(self.name)
+                        + msg
+                    )
                     self.client.set_flow_run_state(
                         flow_run.id, version=flow_run.version, state=Failed(msg)
                     )
