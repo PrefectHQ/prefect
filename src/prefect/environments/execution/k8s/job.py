@@ -51,17 +51,34 @@ class KubernetesJobEnvironment(Environment):
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
-        self.identifier_label = str(uuid.uuid4())
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
+
+        self._identifier_label = ""
 
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     @property
     def dependencies(self) -> list:
         return ["kubernetes"]
+
+    @property
+    def identifier_label(self) -> str:
+        if not hasattr(self, "_identifier_label") or not self._identifier_label:
+            self._identifier_label = str(uuid.uuid4())
+        return self._identifier_label
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        # Ensure _identifier_label is not persisted
+        if "_identifier_label" in state:
+            del state["_identifier_label"]
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
     def execute(  # type: ignore
         self, storage: "Docker", flow_location: str, **kwargs: Any
@@ -143,7 +160,7 @@ class KubernetesJobEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()
+                executor_cls = get_default_executor_class()()
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(
@@ -175,6 +192,20 @@ class KubernetesJobEnvironment(Environment):
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
 
+        # Create metadata label fields if they do not exist
+        if not yaml_obj.get("metadata"):
+            yaml_obj["metadata"] = {}
+
+        if not yaml_obj["metadata"].get("labels"):
+            yaml_obj["metadata"]["labels"] = {}
+
+        if not yaml_obj["spec"]["template"].get("metadata"):
+            yaml_obj["spec"]["template"]["metadata"] = {}
+
+        if not yaml_obj["spec"]["template"]["metadata"].get("labels"):
+            yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
+
+        # Populate metadata label fields
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
         yaml_obj["spec"]["template"]["metadata"]["labels"][
@@ -209,16 +240,29 @@ class KubernetesJobEnvironment(Environment):
 
         # set environment variables on all containers
         for container in yaml_obj["spec"]["template"]["spec"]["containers"]:
+            if not container.get("env"):
+                container["env"] = []
             container["env"].extend(env_values)
 
         # set image on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("image"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = ""
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
 
-        # set run command on first container
+        # set command on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("command"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = []
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["command"] = [
             "/bin/sh",
             "-c",
         ]
+
+        # set args on first container
+        if not yaml_obj["spec"]["template"]["spec"]["containers"][0].get("args"):
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
+
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
             "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
         ]
