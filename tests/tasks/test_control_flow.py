@@ -223,10 +223,16 @@ def test_merge_with_list():
 
 
 def test_merge_order():
+    @task
+    def x():
+        return "x"
+
+    @task
+    def y():
+        return "y"
+
     with Flow(name="test") as flow:
-        x = "x"
-        y = "y"
-        merge_task = merge("x", "y")
+        merge_task = merge(x(), y())
 
     state = flow.run()
     assert state.result[merge_task].result == "x"
