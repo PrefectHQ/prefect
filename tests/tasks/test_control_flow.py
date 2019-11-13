@@ -222,6 +222,16 @@ def test_merge_with_list():
         assert state.result[merge_task].result == [1, 2]
 
 
+def test_merge_order():
+    with Flow(name="test") as flow:
+        x = 'x'
+        y = 'y'
+        merge_task = merge('x', 'y')
+
+    state = flow.run()
+    assert state.result[merge_task].result == "x"
+
+
 class TestFilterTask:
     def test_empty_initialization(self):
         task = FilterTask()
