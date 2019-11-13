@@ -1,5 +1,6 @@
 import click
 
+import prefect
 from prefect import config, context
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
@@ -42,7 +43,10 @@ def agent():
     pass
 
 
-@agent.command(hidden=True)
+@agent.command(
+    hidden=True,
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True,),
+)
 @click.argument("agent-option", default="local")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
@@ -67,7 +71,8 @@ def agent():
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
-def start(agent_option, token, name, verbose, label, no_pull, base_url):
+@click.pass_context
+def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
     """
     Start an agent.
 
@@ -90,7 +95,19 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
         --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
+
+    \b
+    Fargate Agent Options:
+        Any of the configuration options outlined in the docs can be provided here
+        https://docs.prefect.io/cloud/agent/fargate.html#configuration
     """
+
+    # Split context
+    kwargs = dict()
+    for item in ctx.args:
+        item = item.replace("--", "")
+        kwargs.update([item.split("=")])
+
     tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
@@ -102,7 +119,17 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
             click.secho("{} is not a valid agent".format(agent_option), fg="red")
             return
 
-        with context(no_pull=no_pull, base_url=base_url):
+        _agent = from_qualified_name(retrieved_agent)
+
+        if agent_option == "local":
+            from_qualified_name(retrieved_agent)(
+                name=name, labels=list(label), base_url=base_url, no_pull=no_pull,
+            ).start()
+        elif agent_option == "fargate":
+            from_qualified_name(retrieved_agent)(
+                name=name, labels=list(label), **kwargs
+            ).start()
+        else:
             from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
 
 
