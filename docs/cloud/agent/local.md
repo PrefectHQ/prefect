@@ -72,7 +72,7 @@ $ prefect agent start local -t TOKEN -l welcome-flow
 2019-11-11 13:26:41,638 - agent - INFO - Waiting for flow runs...
 ```
 
-The agent is started with the `-l/--label` _welcome-flow_. All Flows stored locally will exist with a slugified name and in this example _Welcome Flow_ becomes _welcome-flow_.
+The agent is started with the `-l/--label` _welcome-flow_. All Flows stored locally will exist with a slugified name and in this example _Welcome Flow_ becomes _welcome-flow_. This means that you can set your Local Agent to run multiple local Flows by providing a label for each Flow's slugified name.
 
 ::: tip Tokens
 There are a few ways in which you can specify a `RUNNER` API token:
