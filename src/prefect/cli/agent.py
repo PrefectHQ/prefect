@@ -1,7 +1,6 @@
 import click
 
-import prefect
-from prefect import config, context
+from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
 
