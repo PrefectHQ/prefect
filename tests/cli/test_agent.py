@@ -1,8 +1,13 @@
 from unittest.mock import MagicMock
 
 from click.testing import CliRunner
+import pytest
 
 from prefect.cli.agent import agent
+
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+pytest.importorskip("kubernetes")
 
 
 def test_agent_init():
