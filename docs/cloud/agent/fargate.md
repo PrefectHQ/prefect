@@ -204,7 +204,7 @@ If you encounter issues with Fargate raising errors in cases of client timeouts 
 
 #### Prefect CLI Using Kwargs
 
-All configuration options for the Fargate Agent can also be provided to the `prefect agent start fargate` CLI command. They must match the camel casing used by boto3.
+All configuration options for the Fargate Agent can also be provided to the `prefect agent start fargate` CLI command. They must match the camel casing used by boto3 but both the single kwarg as well as with the standard prefix of `--` are accepted. This means that `taskRoleArn=""` is the same as `--taskRoleArn=""`.
 
 ```bash
 $ export AWS_ACCESS_KEY_ID=...
