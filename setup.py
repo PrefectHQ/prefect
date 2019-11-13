@@ -20,7 +20,7 @@ extras = {
     "dropbox": ["dropbox ~= 9.0"],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
-        "google-cloud-storage >= 1.13, < 2.0",
+        "google-cloud-storage >= 1.13, < 1.23.0",
     ],
     "kubernetes": ["kubernetes >= 9.0.0a1, < 10.0", "dask-kubernetes >= 0.8.0"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
