@@ -55,6 +55,88 @@ def test_agent_start_verbose(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_local(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    docker_client = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "local"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_kubernetes(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
+
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "kubernetes"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
+
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "kubernetes", "test_kwarg=ignored"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_fargate(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
+
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "fargate"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_fargate_kwargs(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
+
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "fargate", "taskRoleArn=test"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
+
+    fargate_agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.FargateAgent", fargate_agent)
+
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        agent, ["start", "fargate", "taskRoleArn=arn", "--volumes=vol"]
+    )
+    assert result.exit_code == 0
+
+    assert fargate_agent.called
+    fargate_agent.assert_called_with(
+        labels=[], name=None, taskRoleArn="arn", volumes="vol"
+    )
+
+
 def test_agent_start_name(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
@@ -67,7 +149,7 @@ def test_agent_start_name(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_local_context_vars(monkeypatch, runner_token):
+def test_agent_start_local_vars(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
 
