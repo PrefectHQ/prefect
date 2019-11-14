@@ -5,6 +5,7 @@ from typing import Iterable
 
 from prefect import config, context
 from prefect.agent import Agent
+from prefect.engine.state import Failed
 from prefect.environments.storage import Local
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
@@ -59,30 +60,39 @@ class LocalAgent(Agent):
                 "Deploying flow run {}".format(flow_run.id)  # type: ignore
             )
 
-            storage = StorageSchema().load(flow_run.flow.storage)
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Local):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Local.".format(flow_run.id)
+            try:
+                storage = StorageSchema().load(flow_run.flow.storage)
+                if not isinstance(StorageSchema().load(flow_run.flow.storage), Local):
+                    self.logger.error(
+                        "Storage for flow run {} is not of type Local.".format(
+                            flow_run.id
+                        )
+                    )
+                    continue
+
+                env_vars = self.populate_env_vars(flow_run=flow_run)
+                current_env = os.environ.copy()
+                current_env.update(env_vars)
+
+                current_env.setdefault("PYTHONPATH", current_env["PWD"])
+                if self.import_paths:
+                    current_env["PYTHONPATH"] += os.pathsep.join(self.import_paths)
+                p = Popen(
+                    ["prefect", "execute", "cloud-flow"],
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    env=current_env,
                 )
-                continue
-
-            env_vars = self.populate_env_vars(flow_run=flow_run)
-            current_env = os.environ.copy()
-            current_env.update(env_vars)
-
-            current_env.setdefault("PYTHONPATH", current_env["PWD"])
-            if self.import_paths:
-                current_env["PYTHONPATH"] += os.pathsep.join(self.import_paths)
-            p = Popen(
-                ["prefect", "execute", "cloud-flow"],
-                stdout=PIPE,
-                stderr=STDOUT,
-                env=current_env,
-            )
-            self.processes.append(p)
-            self.logger.debug(
-                "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
-            )
+                self.processes.append(p)
+                self.logger.debug(
+                    "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
+                )
+            except Exception as exc:
+                self.client.set_flow_run_state(
+                    flow_run_id=flow_run.id,
+                    version=flow_run.version,
+                    state=Failed(message=str(exc)),
+                )
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
