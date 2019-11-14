@@ -189,7 +189,7 @@ class Agent:
                 "input": {
                     "tenantId": tenant_id,
                     "before": now.isoformat(),
-                    "labels": self.labels,
+                    "labels": list(self.labels),
                 }
             },
         )
