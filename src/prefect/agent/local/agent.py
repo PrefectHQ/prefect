@@ -62,6 +62,7 @@ class LocalAgent(Agent):
             current_env = os.environ.copy()
             current_env.update(env_vars)
 
+            current_env.setdefault("PYTHONPATH", current_env["PWD"])
             p = Popen(
                 ["prefect", "execute", "cloud-flow"],
                 stdout=PIPE,
