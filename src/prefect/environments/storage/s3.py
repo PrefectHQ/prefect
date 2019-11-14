@@ -2,7 +2,10 @@ import os
 import io
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 
+import uuid
+
 import cloudpickle
+import pendulum
 from slugify import slugify
 
 import prefect
@@ -32,8 +35,11 @@ class S3(Storage):
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
+        bucket: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
+        self.bucket = bucket
+
         from boto3 import client as boto3_client
 
         self.boto3_client = boto3_client(
@@ -59,27 +65,21 @@ class S3(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        # if not flow_location in self.flows.values():
-        #     raise ValueError("Flow is not contained in this Storage")
+        if not flow_location in self.flows.values():
+            raise ValueError("Flow is not contained in this Storage")
 
         stream = io.BytesIO()
 
         ## download
         self.boto3_client.download_fileobj(
-            Bucket="flows", Key=flow_location, Fileobj=stream
+            Bucket=self.bucket, Key=flow_location, Fileobj=stream
         )
 
         ## prepare data and return
         stream.seek(0)
         output = stream.read()
 
-        print(output)
-
-        import cloudpickle
         return cloudpickle.loads(output)
-        # return output.decode()
-
-        # return prefect.core.flow.Flow.load(flow_location)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -101,27 +101,24 @@ class S3(Storage):
                 )
             )
 
-        import cloudpickle
-        import uuid
-
+        # Pickle Flow
         data = cloudpickle.dumps(flow)
-        key = "test"
-        if key is None:
-            key = str(uuid.uuid4())
 
+        # Write pickled Flow to stream
         try:
             stream = io.BytesIO(data)
         except TypeError:
             stream = io.BytesIO(data.encode())
 
-        self.boto3_client.upload_fileobj(stream, Bucket="flows", Key=key)
+        # Create key
+        # UUID or Datetime?
+        key = "{}/{}".format(
+            slugify(flow.name), slugify(pendulum.now("utc").isoformat())
+        )
 
-        # return "asdf"
+        # Upload stream to S3
+        self.boto3_client.upload_fileobj(stream, Bucket=self.bucket, Key=key)
 
-        # flow_location = os.path.join(
-        #     self.directory, "{}.prefect".format(slugify(flow.name))
-        # )
-        # flow_location = flow.save(flow_location)
         self.flows[flow.name] = key
         return key
 
