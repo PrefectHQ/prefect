@@ -19,6 +19,11 @@ def test_create_docker_storage():
     assert storage
 
 
+def test_cant_create_docker_with_both_base_image_and_dockerfile():
+    with pytest.raises(ValueError):
+        Docker(dockerfile="path/to/file", base_image="python:3.6")
+
+
 def test_serialize_docker_storage():
     storage = Docker()
     serialized_storage = storage.serialize()
@@ -314,6 +319,27 @@ def test_create_dockerfile_from_base_image():
             output = dockerfile.read()
 
         assert "FROM python:3.6" in output
+
+
+def test_create_dockerfile_from_dockerfile():
+    myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "myfile"), "w") as tmp:
+            tmp.write(myfile)
+
+        storage = Docker(dockerfile=os.path.join(directory, "myfile"))
+        storage.create_dockerfile_object(directory=directory)
+
+        with open(os.path.join(directory, "Dockerfile"), "r") as dockerfile:
+            output = dockerfile.read()
+
+    assert output.startswith("\n" + myfile)
+
+    # test proper indentation
+    assert all(
+        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+    )
 
 
 @pytest.mark.parametrize(

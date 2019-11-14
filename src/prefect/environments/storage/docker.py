@@ -38,6 +38,7 @@ class Docker(Storage):
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
         - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image
             matching your python version and prefect core library version used at runtime.
+        - dockerfile (str, optional): a path to a Dockerfile to use in building this storage
         - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (str, optional): name of the image to use when building, populated with a UUID after build
         - image_tag (str, optional): tag of the image to use when building, populated with a UUID after build
@@ -48,12 +49,17 @@ class Docker(Storage):
             you want installed into the container; defaults to the version you are currently using or `"master"` if your version is ahead of
             the latest tag
         - local_image(bool, optional): an optional flag whether or not to use a local docker image, if True then a pull will not be attempted
+
+    Raises:
+        - ValueError: if both `base_image` and `dockerfile` are provided
+
     """
 
     def __init__(
         self,
         registry_url: str = None,
         base_image: str = None,
+        dockerfile: str = None,
         python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
@@ -93,7 +99,7 @@ class Docker(Storage):
         else:
             self.prefect_version = prefect_version
 
-        if base_image is None:
+        if base_image is None and dockerfile is None:
             python_version = "{}.{}".format(
                 sys.version_info.major, sys.version_info.minor
             )
@@ -107,9 +113,14 @@ class Docker(Storage):
                 self.extra_commands.append(
                     "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
                 )
+        elif base_image and dockerfile:
+            raise ValueError(
+                "Only one of `base_image` and `dockerfile` can be provided."
+            )
         else:
-            self.base_image = base_image
+            self.base_image = base_image  # type: ignore
 
+        self.dockerfile = dockerfile
         # we should always try to install prefect, unless it is already installed. We can't determine this until
         # image build time.
         self.extra_commands.append(
@@ -395,9 +406,17 @@ class Docker(Storage):
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
                 health_file.write(healthcheck)
 
+            if self.dockerfile:
+                with open(self.dockerfile, "r") as contents:
+                    base_commands = textwrap.indent(
+                        "\n" + contents.read(), prefix=" " * 16
+                    )
+            else:
+                base_commands = "FROM {base_image}".format(base_image=self.base_image)
+
             file_contents = textwrap.dedent(
                 """\
-                FROM {base_image}
+                {base_commands}
 
                 RUN pip install pip --upgrade
                 {extra_commands}
@@ -412,8 +431,8 @@ class Docker(Storage):
 
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
+                    base_commands=base_commands,
                     extra_commands=extra_commands,
-                    base_image=self.base_image,
                     pip_installs=pip_installs,
                     copy_flows=copy_flows,
                     copy_files=copy_files,
