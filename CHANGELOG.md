@@ -14,6 +14,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add informative logs in the event that a heartbeat thread dies - [#1721](https://github.com/PrefectHQ/prefect/pull/1721)
 - Loosen Job spec requirements for `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
 - Loosen `containerDefinitions` requirements for `FargateTaskEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Local Docker agent proactively fails flow runs if image cannot be pulled - [#1395](https://github.com/PrefectHQ/prefect/issues/1395)
+- Add graceful keyboard interrupt shutdown for all agents - [#1731](https://github.com/PrefectHQ/prefect/pull/1731)
+- `agent start` CLI command now allows for Agent kwargs - [#1737](https://github.com/PrefectHQ/prefect/pull/1737)
 
 ### Task Library
 
@@ -25,6 +28,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix executor initialization missing `self` in `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
 - Fix `identifier_label` not being generated on each run for Kubernetes based environments - [#1718](https://github.com/PrefectHQ/prefect/pull/1718)
 - Fix issue where users could not override their user config path when deploying Docker to Cloud - [#1719](https://github.com/PrefectHQ/prefect/pull/1719)
+- Respect order of inputs in merge - [#1736](https://github.com/~/1736)
 
 ### Deprecations
 
