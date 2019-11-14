@@ -74,7 +74,7 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `fargate`, `nomad`)
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
                                 Defaults to `docker`
 
     \b

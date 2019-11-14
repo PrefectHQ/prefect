@@ -22,8 +22,14 @@ class LocalAgent(Agent):
             Agents when polling for work
     """
 
-    def __init__(self, name: str = None, labels: Iterable[str] = None,) -> None:
+    def __init__(
+        self,
+        name: str = None,
+        labels: Iterable[str] = None,
+        import_paths: Iterable[str] = None,
+    ) -> None:
         self.processes = []
+        self.import_paths = import_paths or []
         super().__init__(name=name, labels=labels)
         hostname = socket.gethostname()
         if hostname not in self.labels:
@@ -65,6 +71,8 @@ class LocalAgent(Agent):
             current_env.update(env_vars)
 
             current_env.setdefault("PYTHONPATH", current_env["PWD"])
+            if self.import_paths:
+                current_env["PYTHONPATH"] += os.pathsep.join(self.import_paths)
             p = Popen(
                 ["prefect", "execute", "cloud-flow"],
                 stdout=PIPE,

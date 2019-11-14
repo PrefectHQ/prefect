@@ -1224,17 +1224,11 @@ class Flow:
 
         return str(fpath)
 
-    def run_agent(self, executor=None, labels: list = None):
+    def run_agent(self):
         """
-        Runs a Cloud agent in-process.
-
-        Args:
-            - executor (executor, optional): Prefect executor to pass to each run
-            - labels (list, optional): a list of labels to run the Agent with; defaults to
-                "local" along with a safe version of the current Flow's name
+        Runs a Cloud agent for this Flow in-process.
         """
-        labels = set(labels or [])
-        labels.add(socket.gethostname())
+        labels = self.environment.labels
         agent = prefect.agent.local.LocalAgent(labels=labels)
         agent.start()
 
