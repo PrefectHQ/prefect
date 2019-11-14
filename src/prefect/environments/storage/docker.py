@@ -54,6 +54,7 @@ class Docker(Storage):
         self,
         registry_url: str = None,
         base_image: str = None,
+        dockerfile: str = None,
         python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
@@ -93,7 +94,7 @@ class Docker(Storage):
         else:
             self.prefect_version = prefect_version
 
-        if base_image is None:
+        if base_image is None and dockerfile is None:
             python_version = "{}.{}".format(
                 sys.version_info.major, sys.version_info.minor
             )
@@ -107,9 +108,14 @@ class Docker(Storage):
                 self.extra_commands.append(
                     "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
                 )
+        elif base_image and dockerfile:
+            raise ValueError(
+                "Only one of `base_image` and `dockerfile` can be provided."
+            )
         else:
             self.base_image = base_image
 
+        self.dockerfile = dockerfile
         # we should always try to install prefect, unless it is already installed. We can't determine this until
         # image build time.
         self.extra_commands.append(
@@ -395,9 +401,17 @@ class Docker(Storage):
             with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
                 health_file.write(healthcheck)
 
+            if self.dockerfile:
+                with open(self.dockerfile, "r") as contents:
+                    base_commands = textwrap.indent(
+                        "\n" + contents.read(), prefix=" " * 16
+                    )
+            else:
+                base_commands = "FROM {base_image}".format(base_image=self.base_image)
+
             file_contents = textwrap.dedent(
                 """\
-                FROM {base_image}
+                {base_commands}
 
                 RUN pip install pip --upgrade
                 {extra_commands}
@@ -412,6 +426,7 @@ class Docker(Storage):
 
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
+                    base_commands=base_commands,
                     extra_commands=extra_commands,
                     base_image=self.base_image,
                     pip_installs=pip_installs,
