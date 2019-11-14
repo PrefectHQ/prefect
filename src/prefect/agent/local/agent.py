@@ -90,7 +90,7 @@ class LocalAgent(Agent):
             except Exception as exc:
                 self.client.set_flow_run_state(
                     flow_run_id=flow_run.id,
-                    version=flow_run.version,
+                    version=flow_run.version + 1,
                     state=Failed(message=str(exc)),
                 )
 
