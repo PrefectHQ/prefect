@@ -1,4 +1,5 @@
 import os
+import socket
 from subprocess import PIPE, STDOUT, Popen
 from typing import Iterable
 
@@ -24,8 +25,9 @@ class LocalAgent(Agent):
     def __init__(self, name: str = None, labels: Iterable[str] = None,) -> None:
         self.processes = []
         super().__init__(name=name, labels=labels)
-        if "local" not in self.labels:
-            self.labels.append("local")
+        hostname = socket.gethostname()
+        if hostname not in self.labels:
+            self.labels.append(hostname)
 
     def heartbeat(self) -> None:
         for idx, process in enumerate(self.processes):

@@ -5,6 +5,7 @@ import functools
 import inspect
 import json
 import os
+import socket
 import tempfile
 import time
 import uuid
@@ -1232,7 +1233,8 @@ class Flow:
             - labels (list, optional): a list of labels to run the Agent with; defaults to
                 "local" along with a safe version of the current Flow's name
         """
-        labels = labels or ["local", slugify(self.name)]
+        labels = set(labels or [])
+        labels.add(socket.gethostname())
         agent = prefect.agent.local.LocalAgent(labels=labels)
         agent.start()
 
@@ -1240,6 +1242,7 @@ class Flow:
         self,
         project_name: str,
         build: bool = True,
+        labels: list = None,
         set_schedule_active: bool = True,
         **kwargs: Any
     ) -> str:
@@ -1264,8 +1267,10 @@ class Flow:
             self.storage = get_default_storage_class()(**kwargs)
 
         if isinstance(self.storage, prefect.environments.storage.Local):
-            self.environment.labels.add("local")
-            self.environment.labels.add(slugify(self.name))
+            self.environment.labels.add(socket.gethostname())
+
+        if labels:
+            self.environment.labels.add(labels)
 
         client = prefect.Client()
         deployed_flow = client.deploy(
