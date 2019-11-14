@@ -2443,3 +2443,17 @@ class TestSaveLoad:
         assert list(new_obj_from_slug.tasks)[0].name == "foo"
         assert list(new_obj_from_slug.tasks)[0].slug == t.slug
         assert new_obj_from_slug.name == "I aM a-test!"
+
+
+def test_auto_generation_of_collection_tasks_is_robust():
+    @task
+    def do_nothing(arg):
+        pass
+
+    with Flow("constants") as flow:
+        do_nothing({"x": 1, "y": [9, 10]})
+
+    assert len(flow.tasks) == 5
+
+    flow_state = flow.run()
+    assert flow_state.is_successful()
