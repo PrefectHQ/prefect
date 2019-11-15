@@ -159,12 +159,12 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager, l
     \b
     Options:
         --token, -t                 TEXT    A Prefect Cloud API token
-        --api, -a                   TEXT    A Prefect Cloud API URL
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
                                             Multiple values supported e.g. `-l label1 -l label2`
 
     \b
     Kubernetes Agent Options:
+        --api, -a                   TEXT    A Prefect Cloud API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
@@ -196,7 +196,6 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager, l
     elif name =="local":
         conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
             token=token,
-            api=api,
             labels=list(label),
             import_paths=list(import_path),
         )

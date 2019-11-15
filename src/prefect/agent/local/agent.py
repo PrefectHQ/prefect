@@ -119,7 +119,6 @@ class LocalAgent(Agent):
     @staticmethod
     def generate_supervisor_conf(
         token: str = None,
-        api: str = None,
         labels: Iterable[str] = None,
         import_paths: Iterable[str] = None,
     ) -> str:
@@ -128,8 +127,6 @@ class LocalAgent(Agent):
 
         Args:
             - token (str, optional): A `RUNNER` token to give the agent
-            - api (str, optional): A URL pointing to the Prefect API. Defaults to
-                `https://api.prefect.io`
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
@@ -139,7 +136,6 @@ class LocalAgent(Agent):
 
         # Use defaults if not provided
         token = token or ""
-        api = api or "https://api.prefect.io"
         labels = labels or []
         import_paths = import_paths or []
 
@@ -149,7 +145,6 @@ class LocalAgent(Agent):
             conf = conf_file.read()
 
         conf = conf.replace("{{TOKEN_CMD}}", "-t {token}".format(token=token) if token else "")
-        conf = conf.replace("{{API_CMD}}", "-a {api}".format(api=api))
         label_cmd = " ".join("-l {label}".format(label=label) for label in labels) if labels else ""
 #        conf.replace("{{PATH_CMD}}",
         conf = conf.replace("{{LABEL_CMD}}", label_cmd)
