@@ -621,6 +621,7 @@ class Client:
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
+        run_name: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
@@ -635,6 +636,7 @@ class Client:
                 will return the ID of the originally created run (no new run will be created after the first).
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
+            - run_name (str, optional): The name assigned to this flow run
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -658,6 +660,8 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
+        if run_name is not None:
+            inputs.update(flowRunName=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 
