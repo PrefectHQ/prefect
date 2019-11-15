@@ -45,13 +45,18 @@ def tags(*tags: str) -> Iterator[None]:
         yield
 
 
-def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
+def as_task(
+    x: Any, flow: Optional["Flow"] = None, convert_constants: bool = True
+) -> "prefect.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type.
 
     Args:
         - x (object): any Python object to convert to a prefect Task
         - flow (Flow, optional): Flow to which the prefect Task will be bound
+        - convert_constants (bool, optional): a boolean specifying whether all passed Python
+            objects should be converted; if `False`, only collection types will be handled.
+            Defaults to `True`.
 
     Returns:
         - a prefect Task representing the passed object
@@ -79,8 +84,10 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
         )
 
     # constants
-    else:
+    elif convert_constants:
         return_task = prefect.tasks.core.constants.Constant(value=x)
+    else:
+        return x
 
     return_task.auto_generated = True
     return return_task

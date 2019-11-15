@@ -34,6 +34,7 @@ Note that we could also optionally override the `__init__` method of our class i
 """
 
 from prefect.engine.result_handlers.result_handler import ResultHandler
+from prefect.engine.result_handlers.constant_result_handler import ConstantResultHandler
 from prefect.engine.result_handlers.json_result_handler import JSONResultHandler
 from prefect.engine.result_handlers.local_result_handler import LocalResultHandler
 from prefect.engine.result_handlers.secret_result_handler import SecretResultHandler

@@ -491,6 +491,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        version_group_id: str = None,
         compressed: bool = True,
     ) -> str:
         """
@@ -504,6 +505,9 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
 
@@ -569,6 +573,7 @@ class Client:
                     projectId=project[0].id,
                     serializedFlow=serialized_flow,
                     setScheduleActive=set_schedule_active,
+                    versionGroupId=version_group_id,
                 )
             ),
         )  # type: Any

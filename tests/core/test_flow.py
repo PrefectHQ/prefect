@@ -204,7 +204,7 @@ def test_set_dependencies_adds_all_arguments_to_flow():
     assert f.tasks == set([t1, t2, t3, t4])
 
 
-def test_set_dependencies_converts_arguments_to_tasks():
+def test_set_dependencies_converts_unkeyed_arguments_to_tasks():
     class ArgTask(Task):
         def run(self, x):
             return x
@@ -218,7 +218,8 @@ def test_set_dependencies_converts_arguments_to_tasks():
     f.set_dependencies(
         task=t1, upstream_tasks=[t2], downstream_tasks=[t3], keyword_tasks={"x": t4}
     )
-    assert len(f.tasks) == 4
+    assert len(f.tasks) == 3
+    assert f.constants[t1] == dict(x=4)
 
 
 def test_set_dependencies_creates_mapped_edges():
@@ -329,8 +330,7 @@ def test_calling_a_task_returns_a_copy():
 
     with Flow(name="test") as f:
         t.bind(4, 2)
-        with pytest.warns(UserWarning):
-            t2 = t(9, 0)
+        t2 = t(9, 0)
 
     assert isinstance(t2, AddTask)
     assert t != t2
@@ -1035,7 +1035,9 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" shape=box' in graph.source
         assert "label=a_list_task shape=ellipse" in graph.source
         assert "label=x style=dashed" in graph.source
-        assert "label=y style=dashed" in graph.source
+        assert (
+            "label=y style=dashed" not in graph.source
+        )  # constants are no longer represented
 
     @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
     def test_viz_if_flow_state_provided(self, state):
@@ -1063,7 +1065,7 @@ class TestFlowVisualize:
         map_state = Mapped(map_states=[Success(), Failed()])
         with patch.dict("sys.modules", IPython=ipython):
             with Flow(name="test") as f:
-                res = add.map(x=list_task, y=8)
+                res = add.map(x=list_task, y=prefect.tasks.core.constants.Constant(8))
             graph = f.visualize(
                 flow_state=Success(result={res: map_state, list_task: Success()})
             )
@@ -1353,12 +1355,15 @@ class TestReplace:
 
     def test_replace_converts_new_collections_to_tasks(self):
         add = AddTask()
+
         with Flow(name="test") as f:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
+
         f.replace(x, [55, 56])
         f.replace(y, [1, 2])
-        assert len(f.tasks) == 7
+
+        assert len(f.tasks) == 3
         state = f.run()
         assert state.is_successful()
         assert state.result[res].result == [55, 56, 1, 2]
@@ -2438,3 +2443,17 @@ class TestSaveLoad:
         assert list(new_obj_from_slug.tasks)[0].name == "foo"
         assert list(new_obj_from_slug.tasks)[0].slug == t.slug
         assert new_obj_from_slug.name == "I aM a-test!"
+
+
+def test_auto_generation_of_collection_tasks_is_robust():
+    @task
+    def do_nothing(arg):
+        pass
+
+    with Flow("constants") as flow:
+        do_nothing({"x": 1, "y": [9, 10]})
+
+    assert len(flow.tasks) == 5
+
+    flow_state = flow.run()
+    assert flow_state.is_successful()
