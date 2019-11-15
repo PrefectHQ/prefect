@@ -66,9 +66,16 @@ def agent():
     help="Labels the agent will use to query for flow runs.",
     hidden=True,
 )
+@click.option(
+    "--import-path",
+    "-p",
+    multiple=True,
+    help="Import paths the local agent will add to all flow runs.",
+    hidden=True,
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
-def start(agent_option, token, name, verbose, label, no_pull, base_url):
+def start(agent_option, token, name, verbose, label, no_pull, base_url, import_path):
     """
     Start an agent.
 
@@ -88,9 +95,11 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
 
     \b
     Local Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull               Pull images for a LocalAgent
-                                Defaults to pulling if not provided
+        --base-url, -b      TEXT    A Docker daemon host URL for a LocalAgent
+        --no-pull                   Pull images for a LocalAgent
+                                    Defaults to pulling if not provided
+        --import-path, -p   TEXT    Absolute import paths to provide to the local agent.
+                                    Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
     """
     tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
     if verbose:
@@ -104,7 +113,14 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
             return
 
         with context(no_pull=no_pull, base_url=base_url):
-            from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
+            if name == "local":
+                from_qualified_name(retrieved_agent)(
+                    name=name, labels=list(label)
+                ).start()
+            else:
+                from_qualified_name(retrieved_agent)(
+                    name=name, labels=list(label), import_paths=list(import_path)
+                ).start()
 
 
 @agent.command(hidden=True)
@@ -146,7 +162,16 @@ def start(agent_option, token, name, verbose, label, no_pull, base_url):
     help="Import paths the local agent will add to all flow runs.",
     hidden=True,
 )
-def install(name, token, api, namespace, image_pull_secrets, resource_manager, label, import_path):
+def install(
+    name,
+    token,
+    api,
+    namespace,
+    image_pull_secrets,
+    resource_manager,
+    label,
+    import_path,
+):
     """
     Install an agent. Outputs configuration text which can be used to install on various
     platforms. The Prefect image version will default to your local `prefect.__version__`
@@ -175,7 +200,10 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager, l
                                             Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
     """
 
-    supported_agents = {"kubernetes": "prefect.agent.kubernetes.KubernetesAgent", "local": "prefect.agent.local.LocalAgent"}
+    supported_agents = {
+        "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+        "local": "prefect.agent.local.LocalAgent",
+    }
 
     retrieved_agent = supported_agents.get(name, None)
 
@@ -193,11 +221,8 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager, l
             labels=list(label),
         )
         click.echo(deployment)
-    elif name =="local":
+    elif name == "local":
         conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
-            token=token,
-            labels=list(label),
-            import_paths=list(import_path),
+            token=token, labels=list(label), import_paths=list(import_path),
         )
         click.echo(conf)
-
