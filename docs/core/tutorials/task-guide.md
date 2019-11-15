@@ -257,26 +257,24 @@ To see some of these subtleties in action, let's work out a more complicated exa
 f = Flow("add-example")
 
 f.set_dependencies(add_task, keyword_tasks={"x": 1, "y": 2})
-print(f.tasks) # {<Task: add_task>, <Task: 2>, <Task: 1>}
+print(f.tasks) # {<Task: add_task>}
 ```
-
-The first thing to observe here is that _three_ tasks were added to our flow!  This is because, in Prefect, _every single piece of data that is passed around_ must be represented as a Prefect Task.  In this case, the constants 1 and 2 were auto-converted to Tasks which simply return these values when run.
 
 Now, let's switch our attention to the functional API and reproduce the above example exactly:
 ```python
 with Flow("add-example-v2") as f:
     result = add_task(x=1, y=2)
 
-print(f.tasks) # {<Task: add_task>, <Task: 2>, <Task: 1>}
+print(f.tasks) # {<Task: add_task>}
 
 add_task in f.tasks # False
 result in f.tasks # True
 ```
 
-As before, the constants were auto-converted to Prefect Tasks, and we see that a _copy_ of the `add_task` was created and added to the Flow.
+We see here that a _copy_ of the `add_task` was created and added to the Flow.
 
-::: warning Auto-generation is granular
-Note that Prefect unpacks Python collections at a very granular level; so, for example, adding a dictionary to a Flow will actually create Tasks for all of the dictionary's keys and its values.
+::: warning Auto-generation of Tasks
+Note that Prefect will autogenerate Tasks to represent Python collections; so, for example, adding a dictionary to a Flow will actually create Tasks for the dictionary's keys and its values.
 
 ```python
 from prefect import task, Flow
@@ -290,11 +288,6 @@ with Flow("constants") as flow:
 
 flow.tasks
 
-# {<Task: 'x'>,
-#  <Task: 'y'>,
-#  <Task: 10>,
-#  <Task: 1>,
-#  <Task: 9>,
 #  <Task: Dict>,
 #  <Task: List>, # corresponding to [9, 10]
 #  <Task: List>, # corresponding to the dictionary keys
@@ -302,7 +295,7 @@ flow.tasks
 #  <Task: do_nothing>}
 ```
 
-This can be burdensome for very large Python collections.  To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
+This can be burdensome for deeply nested Python collections.  To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
 
 ```python
 from prefect.tasks.core.constants import Constant

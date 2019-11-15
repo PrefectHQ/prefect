@@ -1073,7 +1073,9 @@ def test_improper_use_of_unmapped_fails_gracefully():
     add = AddTask()
     x = Parameter("x", default=[1, 2, 3])
     with Flow(name="test") as f:
-        res = add.map(x, y=8)  # incorrect, should use `unmapped`
+        res = add.map(
+            x, y=prefect.tasks.core.constants.Constant(8)
+        )  # incorrect, should use `unmapped`
 
     state = FlowRunner(flow=f).run(return_tasks=f.tasks)
     assert state.is_failed()

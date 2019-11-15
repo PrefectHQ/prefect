@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Allow users to provide a custom version group ID for controlling Cloud versioning - [#1665](https://github.com/PrefectHQ/prefect/issues/1665)
+- Stop autogenerating constant tasks - [#1730](https://github.com/PrefectHQ/prefect/pull/1730)
 
 ### Enhancements
 
