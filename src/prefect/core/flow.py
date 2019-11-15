@@ -1266,7 +1266,7 @@ class Flow:
             self.environment.labels.add(slugify(self.name))
 
         if labels:
-            self.environment.labels.add(labels)
+            self.environment.labels.update(labels)
 
         client = prefect.Client()
         deployed_flow = client.deploy(
