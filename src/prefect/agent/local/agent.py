@@ -116,6 +116,45 @@ class LocalAgent(Agent):
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
 
+    @staticmethod
+    def generate_supervisor_conf(
+        token: str = None,
+        api: str = None,
+        labels: Iterable[str] = None,
+        import_paths: Iterable[str] = None,
+    ) -> str:
+        """
+        Generate and output an installable supervisorctl configuration file for the agent.
+
+        Args:
+            - token (str, optional): A `RUNNER` token to give the agent
+            - api (str, optional): A URL pointing to the Prefect API. Defaults to
+                `https://api.prefect.io`
+            - labels (List[str], optional): a list of labels, which are arbitrary string
+                identifiers used by Prefect Agents when polling for work
+
+        Returns:
+            - str: A string representation of the generated configuration file
+        """
+
+        # Use defaults if not provided
+        token = token or ""
+        api = api or "https://api.prefect.io"
+        labels = labels or []
+        import_paths = import_paths or []
+
+        with open(
+            os.path.join(os.path.dirname(__file__), "supervisord.conf"), "r"
+        ) as conf_file:
+            conf = conf_file.read()
+
+        conf = conf.replace("{{TOKEN_CMD}}", "-t {token}".format(token=token) if token else "")
+        conf = conf.replace("{{API_CMD}}", "-a {api}".format(api=api))
+        label_cmd = " ".join("-l {label}".format(label=label) for label in labels) if labels else ""
+#        conf.replace("{{PATH_CMD}}",
+        conf = conf.replace("{{LABEL_CMD}}", label_cmd)
+        return conf
+
 
 if __name__ == "__main__":
     LocalAgent().start()
