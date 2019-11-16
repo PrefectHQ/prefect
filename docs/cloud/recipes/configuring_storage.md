@@ -37,18 +37,23 @@ Without going into unnecessary detail, this is because the default base image fo
 
 ```
 FROM prefecthq/prefect:0.7.1-python3.6
+
+# install some base utilities
 RUN apt update && apt install build-essential -y build-essential unixodbc-dev && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install curl -y
+
+# install mssql-tools
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-
 RUN curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
-
 RUN apt-get update && ACCEPT_EULA=Y apt-get install msodbcsql17 -y
 RUN ACCEPT_EULA=Y apt-get install mssql-tools -y
+
+# update bash configuration
 RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
 RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
 RUN apt-get install unixodbc-dev -y
 
+# update OpenSSL configuration file
 RUN sed -i 's/TLSv1\.2/TLSv1.0/g' /etc/ssl/openssl.cnf
 RUN sed -i 's/DEFAULT@SECLEVEL=2/DEFAULT@SECLEVEL=1/g' /etc/ssl/openssl.cnf
 ```
@@ -85,5 +90,5 @@ storage = Docker(registry_url="gcr.io/dev/",
 
 Another common situation is when your Flow imports objects or functions from other Python files that are not included in a publicly available Python package.  Unsurprisingly, your Flow will need to be able to make the same imports within your Docker image.  In order to accomodate this, you generally have two options:
 
-1. Package your scripts up into a true [Python package](https://realpython.com/python-modules-packages/).  You will most likely need to use the `COPY` instruction to put your package into the image, and then the `RUN` instruction to install it.  This pattern will generally require using an intermediate base image so that you have full control over your [docker context](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/).
+1. Package your scripts up into a true [Python package](https://realpython.com/python-modules-packages/).  You will most likely need to use the `COPY` instruction to put your package into the image, and then the `RUN` instruction to install it.  This pattern will generally require using an intermediate base image so that you have full control over your [docker build context](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/).
 2. Use the `files` keyword argument to Prefect's Docker storage object to copy individual files into your image, and then add these files to your image's `PYTHONPATH` environment variable (either through the `env_vars` keyword argument or by building a base image and using the `ENV` docker instruction).  This ensures these scripts can be imported from regardless of the present working directory of your Flow.
