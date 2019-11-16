@@ -51,7 +51,6 @@ RUN ACCEPT_EULA=Y apt-get install mssql-tools -y
 # update bash configuration
 RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
 RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
-RUN apt-get install unixodbc-dev -y
 
 # update OpenSSL configuration file
 RUN sed -i 's/TLSv1\.2/TLSv1.0/g' /etc/ssl/openssl.cnf
