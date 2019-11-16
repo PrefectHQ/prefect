@@ -6,7 +6,7 @@ This recipe is for configuring your Flow's [Docker storage object](/api/unreleas
 - special environment variables
 - special configuration files
 - subprocess calls to non-Python CLIs
-- special properity Python scripts or packages
+- special proprietary Python scripts or packages
 
 Then you most likely will need to configure the Docker image in which your Flow lives.
 
