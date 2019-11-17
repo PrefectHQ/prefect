@@ -79,9 +79,6 @@ class LocalAgent(Agent):
                     current_env["PYTHONPATH"] = ":".join(
                         [current_env["PYTHONPATH"]] + self.import_paths
                     )
-                    from IPython import embed
-
-                    embed()
                 p = Popen(
                     ["prefect", "execute", "cloud-flow"],
                     stdout=PIPE,
@@ -150,9 +147,9 @@ class LocalAgent(Agent):
             conf = conf_file.read()
 
         add_opts = ""
-        add_opts += "-t {token}".format(token=token) if token else ""
+        add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += (
-            " ".join("-l {label}".format(label=label) for label in labels)
+            " ".join("-l {label} ".format(label=label) for label in labels)
             if labels
             else ""
         )
