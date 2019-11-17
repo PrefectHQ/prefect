@@ -6,11 +6,21 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Allow users to provide a custom version group ID for controlling Cloud versioning - [#1665](https://github.com/PrefectHQ/prefect/issues/1665)
+- Stop autogenerating constant tasks - [#1730](https://github.com/PrefectHQ/prefect/pull/1730)
 
 ### Enhancements
 
 - Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+- Add an option to pass in `run_name` to a flow run to override the auto-generated names when calling `create_flow_run` [#1661](https://github.com/PrefectHQ/cloud/pull/1661)
+- Add informative logs in the event that a heartbeat thread dies - [#1721](https://github.com/PrefectHQ/prefect/pull/1721)
+- Loosen Job spec requirements for `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Loosen `containerDefinitions` requirements for `FargateTaskEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Local Docker agent proactively fails flow runs if image cannot be pulled - [#1395](https://github.com/PrefectHQ/prefect/issues/1395)
+- Add graceful keyboard interrupt shutdown for all agents - [#1731](https://github.com/PrefectHQ/prefect/pull/1731)
+- `agent start` CLI command now allows for Agent kwargs - [#1737](https://github.com/PrefectHQ/prefect/pull/1737)
+- Add users to specify a custom Dockerfile for Docker storage - [#1738](https://github.com/PrefectHQ/prefect/pull/1738)
+- Expose `labels` kwarg in `flow.deploy` for convenient labeling of Flows - [#1742](https://github.com/PrefectHQ/prefect/pull/1742)
 
 ### Task Library
 
@@ -18,7 +28,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- `FargateTaskEnvironment` now uses provided `family` for task definition naming - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Fix executor initialization missing `self` in `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Fix `identifier_label` not being generated on each run for Kubernetes based environments - [#1718](https://github.com/PrefectHQ/prefect/pull/1718)
+- Fix issue where users could not override their user config path when deploying Docker to Cloud - [#1719](https://github.com/PrefectHQ/prefect/pull/1719)
+- Respect order of inputs in merge - [#1736](https://github.com/~/1736)
 
 ### Deprecations
 
@@ -30,7 +44,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Brett Naul](https://github.com/bnaul)
 
 ## 0.7.1 <Badge text="beta" type="success"/>
 

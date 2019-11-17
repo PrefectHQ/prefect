@@ -2,7 +2,7 @@
 name: Bug report
 about: '"I''ve seen it. It''s rubbish."'
 title: ''
-labels: bug
+labels: ''
 assignees: ''
 
 ---

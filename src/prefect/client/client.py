@@ -491,6 +491,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        version_group_id: str = None,
         compressed: bool = True,
     ) -> str:
         """
@@ -504,6 +505,9 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
 
@@ -569,6 +573,7 @@ class Client:
                     projectId=project[0].id,
                     serializedFlow=serialized_flow,
                     setScheduleActive=set_schedule_active,
+                    versionGroupId=version_group_id,
                 )
             ),
         )  # type: Any
@@ -616,6 +621,7 @@ class Client:
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
+        run_name: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
@@ -630,6 +636,7 @@ class Client:
                 will return the ID of the originally created run (no new run will be created after the first).
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
+            - run_name (str, optional): The name assigned to this flow run
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -653,6 +660,8 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
+        if run_name is not None:
+            inputs.update(flowRunName=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 

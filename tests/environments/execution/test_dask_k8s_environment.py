@@ -50,6 +50,12 @@ def test_create_dask_environment_identifier_label():
     assert environment.identifier_label
 
 
+def test_create_dask_environment_identifier_label_none():
+    environment = DaskKubernetesEnvironment()
+    environment._identifier_label = None
+    assert environment.identifier_label
+
+
 def test_setup_dask_environment_passes():
     environment = DaskKubernetesEnvironment()
     environment.setup(storage=Docker())
@@ -419,3 +425,9 @@ def test_roundtrip_cloudpickle():
         assert isinstance(new, DaskKubernetesEnvironment)
         assert new._scheduler_spec == "scheduler"
         assert new._worker_spec == "worker"
+
+        # Identifer labels do not persist
+        assert environment.identifier_label
+        assert new.identifier_label
+
+        assert environment.identifier_label != new.identifier_label

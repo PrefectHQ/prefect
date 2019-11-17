@@ -1,7 +1,8 @@
 import ast
 import logging
+import signal
 import time
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import pendulum
 
@@ -61,19 +62,28 @@ class Agent:
         logger.addHandler(ch)
 
         self.logger = logger
+        self.add_signal_handlers()
+
+    def add_signal_handlers(self) -> None:
+        def _exit(*args: Any, **kwargs: Any) -> None:
+            self.is_running = False
+            self.logger.info("Keyboard Interrupt received: Agent is shutting down.")
+
+        signal.signal(signal.SIGINT, _exit)
 
     def start(self) -> None:
         """
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
+        self.is_running = True
         tenant_id = self.agent_connect()
 
         # Loop intervals for query sleep backoff
         loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
 
         index = 0
-        while True:
+        while self.is_running:
             self.heartbeat()
 
             runs = self.agent_process(tenant_id)

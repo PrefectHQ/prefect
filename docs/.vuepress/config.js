@@ -142,6 +142,18 @@ module.exports = {
           children: getChildren('docs/cloud', 'concepts')
         },
         {
+          title: "Cloud Execution",
+          collapsable: true,
+          children: [
+            "execution/overview",
+            "execution/remote_environment",
+            "execution/dask_k8s_environment",
+            "execution/k8s_job_environment",
+            "execution/fargate_task_environment",
+            "execution/custom_environment",
+          ]
+        },
+        {
           title: 'Agent',
           collapsable: true,
           children: [
@@ -152,6 +164,11 @@ module.exports = {
             'agent/fargate',
           ]
         },
+        {
+          title: "Deployment Recipes",
+          collapsable: true,
+          children: getChildren("docs/cloud", "recipes")
+        }
       ],
       "/core/": [
         "/core/",
