@@ -31,7 +31,7 @@ def get_default_storage_class() -> type:
     `prefect.config.flows.defaults.storage.default_class`. If the value is a string, it will
     attempt to load the already-imported object. Otherwise, the value is returned.
 
-    Defaults to `Docker` if the string config value can not be loaded
+    Defaults to `Local` if the string config value can not be loaded
     """
     config_value = config.flows.defaults.storage.default_class
     if isinstance(config_value, str):
@@ -40,8 +40,8 @@ def get_default_storage_class() -> type:
         except ValueError:
             warn(
                 "Could not import {}; using "
-                "prefect.environments.storage.Docker instead.".format(config_value)
+                "prefect.environments.storage.Local instead.".format(config_value)
             )
-            return Docker
+            return Local
     else:
         return config_value

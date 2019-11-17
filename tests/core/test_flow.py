@@ -2183,8 +2183,7 @@ class TestFlowDeploy:
             f.deploy("My-project")
 
         assert isinstance(f.storage, prefect.environments.storage.Local)
-        assert "test-me-i-should-get-labeled" in f.environment.labels
-        assert "local" in f.environment.labels
+        assert len(f.environment.labels) == 1  # for hostname
 
     def test_flow_deploy_doesnt_overwrite_labels_if_local_storage_is_used(
         self, monkeypatch
@@ -2204,9 +2203,8 @@ class TestFlowDeploy:
             f.deploy("My-project")
 
         assert isinstance(f.storage, prefect.environments.storage.Local)
-        assert "test" in f.environment.labels
         assert "foo" in f.environment.labels
-        assert "local" in f.environment.labels
+        assert len(f.environment.labels) == 2
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():
