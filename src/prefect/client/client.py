@@ -294,6 +294,7 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
+    @property
     def _local_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
@@ -308,16 +309,16 @@ class Client:
         """
         Writes settings to local storage
         """
-        self._local_settings_path().parent.mkdir(exist_ok=True, parents=True)
-        with self._local_settings_path().open("w+") as f:
+        self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
+        with self._local_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
         """
-        if self._local_settings_path().exists():
-            with self._local_settings_path().open("r") as f:
+        if self._local_settings_path.exists():
+            with self._local_settings_path.open("r") as f:
                 return toml.load(f)  # type: ignore
         return {}
 
