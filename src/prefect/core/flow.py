@@ -1229,7 +1229,7 @@ class Flow:
 
         return str(fpath)
 
-    def run_agent(self):
+    def run_agent(self) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
         """

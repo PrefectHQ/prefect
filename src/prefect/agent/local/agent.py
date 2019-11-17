@@ -1,7 +1,7 @@
 import os
 import socket
 from subprocess import PIPE, STDOUT, Popen
-from typing import Iterable
+from typing import Iterable, List
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -32,14 +32,15 @@ class LocalAgent(Agent):
         self,
         name: str = None,
         labels: Iterable[str] = None,
-        import_paths: Iterable[str] = None,
+        import_paths: List[str] = None,
         hostname_label: bool = True,
     ) -> None:
-        self.processes = []
+        self.processes = []  # type: list
         self.import_paths = import_paths or []
         super().__init__(name=name, labels=labels)
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
+            assert isinstance(self.labels, list)
             self.labels.append(hostname)
 
     def heartbeat(self) -> None:
@@ -126,9 +127,7 @@ class LocalAgent(Agent):
 
     @staticmethod
     def generate_supervisor_conf(
-        token: str = None,
-        labels: Iterable[str] = None,
-        import_paths: Iterable[str] = None,
+        token: str = None, labels: Iterable[str] = None, import_paths: List[str] = None,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
@@ -137,6 +136,8 @@ class LocalAgent(Agent):
             - token (str, optional): A `RUNNER` token to give the agent
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
+                useful for Flows which import from locally hosted scripts or packages
 
         Returns:
             - str: A string representation of the generated configuration file
