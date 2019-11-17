@@ -70,41 +70,6 @@ class LocalAgent(Agent):
                         )
                     )
                     continue
-            storage = StorageSchema().load(flow_run.flow.storage)
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                msg = "Storage for flow run {} is not of type Docker.".format(
-                    flow_run.id
-                )
-                state_msg = "Agent {} failed to run flow: ".format(self.name) + msg
-                self.client.set_flow_run_state(
-                    flow_run.id, version=flow_run.version, state=Failed(state_msg)
-                )
-                self.logger.error(msg)
-                continue
-
-            env_vars = self.populate_env_vars(flow_run=flow_run)
-
-            if not self.no_pull and storage.registry_url:
-                self.logger.info("Pulling image {}...".format(storage.name))
-                try:
-                    pull_output = self.docker_client.pull(
-                        storage.name, stream=True, decode=True
-                    )
-                    for line in pull_output:
-                        self.logger.debug(line)
-                    self.logger.info(
-                        "Successfully pulled image {}...".format(storage.name)
-                    )
-                except docker.errors.APIError as exc:
-                    msg = "Issue pulling image {}".format(storage.name)
-                    state_msg = (
-                        "Agent {} failed to pull image for flow: ".format(self.name)
-                        + msg
-                    )
-                    self.client.set_flow_run_state(
-                        flow_run.id, version=flow_run.version, state=Failed(msg)
-                    )
-                    self.logger.error(msg)
 
                 env_vars = self.populate_env_vars(flow_run=flow_run)
                 current_env = os.environ.copy()

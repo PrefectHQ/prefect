@@ -79,7 +79,9 @@ def agent():
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.pass_context
-def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url, import_path):
+def start(
+    ctx, agent_option, token, name, verbose, label, no_pull, base_url, import_path
+):
     """
     Start an agent.
 
@@ -141,7 +143,6 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url, imp
             ).start()
         else:
             from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
-
 
 
 @agent.command(hidden=True)
