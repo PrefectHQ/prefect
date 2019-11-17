@@ -47,7 +47,7 @@ def agent():
     hidden=True,
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True,),
 )
-@click.argument("agent-option", default="local")
+@click.argument("agent-option", default="docker")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
@@ -106,6 +106,9 @@ def start(
                                     Defaults to pulling if not provided
         --import-path, -p   TEXT    Absolute import paths to provide to the local agent.
                                     Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+
+    \b
+    Docker Agent Options:
         --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
         --no-pull               Pull images for a LocalAgent
                                 Defaults to pulling if not provided
@@ -134,6 +137,10 @@ def start(
             return
 
         if agent_option == "local":
+            from_qualified_name(retrieved_agent)(
+                name=name, labels=list(label), import_paths=list(import_path),
+            ).start()
+        elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
                 name=name, labels=list(label), base_url=base_url, no_pull=no_pull,
             ).start()
