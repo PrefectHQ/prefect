@@ -1,6 +1,7 @@
 import datetime
 import signal
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
@@ -19,12 +20,27 @@ if TYPE_CHECKING:
 StateList = Union["State", List["State"]]
 
 
-class Heartbeat(threading.Timer):
-    def run(self) -> None:
-        self.finished.wait(self.interval)  # type: ignore
-        while not self.finished.is_set():  # type: ignore
-            self.function(*self.args, **self.kwargs)  # type: ignore
-            self.finished.wait(self.interval)  # type: ignore
+class Heartbeat:
+    def __init__(self, interval, function):
+        self.interval = int(interval)
+        self.function = function
+        self._exit = False
+
+    def start(self) -> None:
+        def looper():
+            iters = 0
+            while not self._exit:
+                if iters % self.interval == 0:
+                    self.function()
+                iters = (iters + 1) % self.interval
+                time.sleep(1)
+
+        self.executor = ThreadPoolExecutor(max_workers=2)
+        self.fut = self.executor.submit(looper)
+
+    def cancel(self):
+        self._exit = True
+        self.executor.shutdown()
 
 
 def run_with_heartbeat(
@@ -40,7 +56,6 @@ def run_with_heartbeat(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
         timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
-        timer.daemon = True
         try:
             try:
                 self._heartbeat()
@@ -51,12 +66,7 @@ def run_with_heartbeat(
             timer.start()
             return runner_method(self, *args, **kwargs)
         finally:
-            if not timer.is_alive():
-                self.logger.exception(
-                    "Heartbeat thread died.  This could result in a zombie run."
-                )
             timer.cancel()
-            timer.join()
 
     return inner
 
