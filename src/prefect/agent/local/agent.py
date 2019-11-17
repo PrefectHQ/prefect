@@ -14,14 +14,18 @@ from prefect.utilities.graphql import GraphQLResult
 
 class LocalAgent(Agent):
     """
-    Agent which deploys flow runs locally as Docker containers. Information on using the
-    Docker Agent can be found at https://docs.prefect.io/cloud/agent/local.html
+    Agent which deploys flow runs locally as subprocesses.
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
+            useful for Flows which import from locally hosted scripts or packages
+        - hostname_label (boolean, optional): a boolean specifying whether this agent should auto-label itself
+            with the hostname of the machine it is running on.  Useful for flows which are stored on the local
+            filesystem.
     """
 
     def __init__(
@@ -29,12 +33,13 @@ class LocalAgent(Agent):
         name: str = None,
         labels: Iterable[str] = None,
         import_paths: Iterable[str] = None,
+        hostname_label: bool = True,
     ) -> None:
         self.processes = []
         self.import_paths = import_paths or []
         super().__init__(name=name, labels=labels)
         hostname = socket.gethostname()
-        if hostname not in self.labels:
+        if hostname_label and (hostname not in self.labels):
             self.labels.append(hostname)
 
     def heartbeat(self) -> None:
