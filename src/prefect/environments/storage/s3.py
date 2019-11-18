@@ -17,17 +17,25 @@ if TYPE_CHECKING:
 
 class S3(Storage):
     """
-    Local storage class.  This class represents the Storage
-    interface for Flows stored as bytes in the local filesystem.
-    Note that if you deploy a Flow to Prefect Cloud using this storage,
-    your flow's environment will automatically be labeled with two labels:
-    "local" and your flow's name.  This ensures that only agents who are
-    known to be running on the same filesystem can run your flow.
+    S3 storage class.  This class represents the Storage interface for Flows stored as
+    bytes in an S3 bucket.
+
+    This storage class optionally takes a `key` which will be the name of the Flow object
+    when stored in S3. If this key is not provided the Flow upload name will take the form
+    `slugified-flow-name/slugified-current-timestamp`.
 
     Args:
-        - directory (str, optional): the directory the flows will be stored in;
-            defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be
-            created for you.
+        - aws_access_key_id (str, optional): AWS access key id for connecting to S3.
+            Defaults to the value set in the environment variable
+            `AWS_ACCESS_KEY_ID` or `None`
+        - aws_secret_access_key (str, optional): AWS secret access key for connecting to S3.
+            Defaults to the value set in the environment variable
+            `AWS_SECRET_ACCESS_KEY` or `None`
+        - aws_session_token (str, optional): AWS session key for connecting to S3
+            Defaults to the value set in the environment variable
+            `AWS_SESSION_TOKEN` or `None`
+        - bucket (str, optional): the name of the S3 Bucket to store the Flow
+        - key (str, optional): a unique key to use for uploading this Flow to S3
     """
 
     def __init__(
@@ -36,18 +44,15 @@ class S3(Storage):
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         bucket: str = None,
+        key: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self.bucket = bucket
+        self.bucket = bucket or ""
+        self.key = key
 
-        from boto3 import client as boto3_client
-
-        self.boto3_client = boto3_client(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-        )
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
 
         super().__init__()
 
@@ -70,8 +75,8 @@ class S3(Storage):
 
         stream = io.BytesIO()
 
-        ## download
-        self.boto3_client.download_fileobj(
+        ## Download stream from S3
+        self._boto3_client.download_fileobj(
             Bucket=self.bucket, Key=flow_location, Fileobj=stream
         )
 
@@ -110,14 +115,13 @@ class S3(Storage):
         except TypeError:
             stream = io.BytesIO(data.encode())
 
-        # Create key
-        # UUID or Datetime?
-        key = "{}/{}".format(
+        # Create key for Flow that uniquely identifies Flow object in S3
+        key = self.key or "{}/{}".format(
             slugify(flow.name), slugify(pendulum.now("utc").isoformat())
         )
 
         # Upload stream to S3
-        self.boto3_client.upload_fileobj(stream, Bucket=self.bucket, Key=key)
+        self._boto3_client.upload_fileobj(stream, Bucket=self.bucket, Key=key)
 
         self.flows[flow.name] = key
         return key
@@ -139,3 +143,14 @@ class S3(Storage):
                 each flow is stored
         """
         return self
+
+    @property
+    def _boto3_client(self):  # type: ignore
+        from boto3 import client as boto3_client
+
+        return boto3_client(
+            "s3",
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
+        )
