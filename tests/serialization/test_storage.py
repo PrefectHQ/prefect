@@ -11,6 +11,7 @@ from prefect.serialization.storage import (
     DockerSchema,
     LocalSchema,
     MemorySchema,
+    S3Schema,
 )
 
 
@@ -79,6 +80,63 @@ def test_docker_serialize_with_flows():
     assert serialized["flows"] == {"test": "/root/.prefect/flows/test.prefect"}
 
     deserialized = DockerSchema().load(serialized)
+    assert f.name in deserialized
+
+
+def test_s3_empty_serialize():
+    s3 = storage.S3()
+    serialized = S3Schema().dump(s3)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert not serialized["aws_access_key_id"]
+    assert not serialized["aws_secret_access_key"]
+    assert not serialized["aws_session_token"]
+    assert not serialized["bucket"]
+    assert not serialized["key"]
+
+
+def test_s3_full_serialize():
+    s3 = storage.S3(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="session",
+        bucket="bucket",
+        key="key",
+    )
+    serialized = S3Schema().dump(s3)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["aws_access_key_id"] == "id"
+    assert serialized["aws_secret_access_key"] == "secret"
+    assert serialized["aws_session_token"] == "session"
+    assert serialized["bucket"] == "bucket"
+    assert serialized["key"] == "key"
+
+
+def test_s3_serialize_with_flows():
+    s3 = storage.S3(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="session",
+        bucket="bucket",
+        key="key",
+    )
+    f = prefect.Flow("test")
+    s3.flows["test"] = "key"
+    serialized = S3Schema().dump(s3)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["aws_access_key_id"] == "id"
+    assert serialized["aws_secret_access_key"] == "secret"
+    assert serialized["aws_session_token"] == "session"
+    assert serialized["bucket"] == "bucket"
+    assert serialized["key"] == "key"
+    assert serialized["flows"] == {"test": "key"}
+
+    deserialized = S3Schema().load(serialized)
     assert f.name in deserialized
 
 
