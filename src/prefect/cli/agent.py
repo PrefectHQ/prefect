@@ -88,7 +88,7 @@ def start(
     \b
     Arguments:
         agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
-                                Defaults to `doclocalker`
+                                Defaults to `local`
 
     \b
     Options:
