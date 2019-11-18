@@ -39,12 +39,12 @@ class TestClientConfig:
         assert client._api_token == "token"
 
     def test_client_settings_path_is_path_object(self):
-        assert isinstance(Client()._local_settings_path(), Path)
+        assert isinstance(Client()._local_settings_path, Path)
 
     def test_client_settings_path_depends_on_api_server(self, prefect_home_dir):
         path = Client(
             api_server="https://a-test-api.prefect.test/subdomain"
-        )._local_settings_path()
+        )._local_settings_path
         expected = os.path.join(
             prefect_home_dir,
             "client",
@@ -55,7 +55,7 @@ class TestClientConfig:
 
     def test_client_settings_path_depends_on_home_dir(self):
         with set_temporary_config(dict(home_dir="abc/def")):
-            path = Client(api_server="xyz")._local_settings_path()
+            path = Client(api_server="xyz")._local_settings_path
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
