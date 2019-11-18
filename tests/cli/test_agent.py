@@ -44,7 +44,7 @@ def test_agent_start_token(monkeypatch):
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "-t", "test"])
+    result = runner.invoke(agent, ["start", "docker", "-t", "test"])
     assert result.exit_code == 0
 
 
@@ -56,23 +56,23 @@ def test_agent_start_verbose(monkeypatch):
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "-v"])
+    result = runner.invoke(agent, ["start", "docker", "-v"])
     assert result.exit_code == 0
 
 
-def test_agent_start_local(monkeypatch, runner_token):
+def test_agent_start_docker(monkeypatch):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "local"])
+    result = runner.invoke(agent, ["start", "docker"])
     assert result.exit_code == 0
 
 
-def test_agent_start_kubernetes(monkeypatch, runner_token):
+def test_agent_start_kubernetes(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
 
@@ -84,7 +84,7 @@ def test_agent_start_kubernetes(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
+def test_agent_start_kubernetes_kwargs_ignored(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
 
@@ -96,7 +96,7 @@ def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate(monkeypatch, runner_token):
+def test_agent_start_fargate(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -108,7 +108,7 @@ def test_agent_start_fargate(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate_kwargs(monkeypatch, runner_token):
+def test_agent_start_fargate_kwargs(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -120,7 +120,7 @@ def test_agent_start_fargate_kwargs(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
+def test_agent_start_fargate_kwargs_received(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -142,52 +142,52 @@ def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
     )
 
 
-def test_agent_start_name(monkeypatch, runner_token):
+def test_agent_start_name(monkeypatch):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.DockerAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "--name", "test_agent"])
+    result = runner.invoke(agent, ["start", "docker", "--name", "test_agent"])
     assert result.exit_code == 0
 
 
-def test_agent_start_local_vars(monkeypatch, runner_token):
+def test_agent_start_local_vars(monkeypatch):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.DockerAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(
-        agent, ["start", "-t", "test", "--base-url", "url", "--no-pull"]
+        agent, ["start", "docker", "-t", "test", "--base-url", "url", "--no-pull"]
     )
     assert result.exit_code == 0
 
 
-def test_agent_start_local_labels(monkeypatch, runner_token):
+def test_agent_start_local_labels(monkeypatch):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.DockerAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(
-        agent, ["start", "-t", "test", "--label", "label1", "-l", "label2"]
+        agent, ["start", "docker", "-t", "test", "--label", "label1", "-l", "label2"]
     )
     assert result.exit_code == 0
 
 
 def test_agent_start_fails(monkeypatch):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.DockerAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(agent, ["start", "TEST"])

@@ -47,7 +47,7 @@ def agent():
     hidden=True,
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True,),
 )
-@click.argument("agent-option", default="docker")
+@click.argument("agent-option", default="local")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
@@ -88,7 +88,7 @@ def start(
     \b
     Arguments:
         agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
-                                Defaults to `docker`
+                                Defaults to `doclocalker`
 
     \b
     Options:
