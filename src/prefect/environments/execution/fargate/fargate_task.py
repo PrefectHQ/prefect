@@ -229,7 +229,7 @@ class FargateTaskEnvironment(Environment):
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
-                "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+                "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'",
             ]
 
             boto3_c.register_task_definition(**self.task_definition_kwargs)

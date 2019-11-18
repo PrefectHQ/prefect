@@ -264,7 +264,7 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
 
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'from prefect.environments import KubernetesJobEnvironment; KubernetesJobEnvironment().run_flow()'"
+            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
         return yaml_obj
