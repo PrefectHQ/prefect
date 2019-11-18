@@ -294,6 +294,7 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
+    @property
     def _local_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
@@ -308,16 +309,16 @@ class Client:
         """
         Writes settings to local storage
         """
-        self._local_settings_path().parent.mkdir(exist_ok=True, parents=True)
-        with self._local_settings_path().open("w+") as f:
+        self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
+        with self._local_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
         """
-        if self._local_settings_path().exists():
-            with self._local_settings_path().open("r") as f:
+        if self._local_settings_path.exists():
+            with self._local_settings_path.open("r") as f:
                 return toml.load(f)  # type: ignore
         return {}
 
@@ -621,6 +622,7 @@ class Client:
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
+        run_name: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
@@ -635,6 +637,7 @@ class Client:
                 will return the ID of the originally created run (no new run will be created after the first).
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
+            - run_name (str, optional): The name assigned to this flow run
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -658,6 +661,8 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
+        if run_name is not None:
+            inputs.update(flowRunName=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 

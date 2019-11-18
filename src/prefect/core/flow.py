@@ -166,6 +166,9 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.constants = collections.defaultdict(
+            dict
+        )  # type: Dict[Task, Dict[str, Any]]
 
         for t in tasks or []:
             self.add_task(t)
@@ -806,15 +809,17 @@ class Flow:
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t, flow=self)
-            assert isinstance(t, Task)  # mypy assert
-            self.add_edge(
-                upstream_task=t,
-                downstream_task=task,
-                key=key,
-                validate=validate,
-                mapped=is_mapped,
-            )
+            t = as_task(t, flow=self, convert_constants=False)
+            if isinstance(t, Task):
+                self.add_edge(
+                    upstream_task=t,
+                    downstream_task=task,
+                    key=key,
+                    validate=validate,
+                    mapped=is_mapped,
+                )
+            else:
+                self.constants[task].update({key: t})
 
     # Execution  ---------------------------------------------------------------
 
@@ -1226,6 +1231,7 @@ class Flow:
         self,
         project_name: str,
         build: bool = True,
+        labels: List[str] = None,
         set_schedule_active: bool = True,
         version_group_id: str = None,
         **kwargs: Any
@@ -1238,6 +1244,8 @@ class Flow:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
@@ -1256,6 +1264,9 @@ class Flow:
         if isinstance(self.storage, prefect.environments.storage.Local):
             self.environment.labels.add("local")
             self.environment.labels.add(slugify(self.name))
+
+        if labels:
+            self.environment.labels.update(labels)
 
         client = prefect.Client()
         deployed_flow = client.deploy(
