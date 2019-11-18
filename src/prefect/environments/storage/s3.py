@@ -1,8 +1,6 @@
-import os
 import io
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict
 
-import uuid
 
 import cloudpickle
 import pendulum
@@ -75,7 +73,7 @@ class S3(Storage):
 
         stream = io.BytesIO()
 
-        ## Download stream from S3
+        # Download stream from S3
         self._boto3_client.download_fileobj(
             Bucket=self.bucket, Key=flow_location, Fileobj=stream
         )
