@@ -59,12 +59,16 @@ class CloudTaskRunner(TaskRunner):
             task=task, state_handlers=state_handlers, result_handler=result_handler
         )
 
-    def _heartbeat(self) -> None:
+    def _heartbeat(self) -> bool:
         try:
             task_run_id = self.task_run_id  # type: ignore
             self.client.update_task_run_heartbeat(task_run_id)  # type: ignore
-        except:
-            warnings.warn("Heartbeat failed for Task '{}'".format(self.task.name))
+            return True
+        except Exception as exc:
+            self.logger.exception(
+                "Heartbeat failed for Task '{}'".format(self.task.name)
+            )
+            return False
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

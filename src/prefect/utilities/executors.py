@@ -21,26 +21,28 @@ StateList = Union["State", List["State"]]
 
 
 class Heartbeat:
-    def __init__(self, interval, function):
-        self.interval = int(interval)
+    def __init__(self, interval: int, function: Callable) -> None:
+        self.interval = interval
+        self.rate = min(interval, 1)
         self.function = function
         self._exit = False
 
     def start(self) -> None:
-        def looper():
+        def looper() -> None:
             iters = 0
             while not self._exit:
-                if iters % self.interval == 0:
+                if round(iters % self.rate) == 0:
                     self.function()
                 iters = (iters + 1) % self.interval
-                time.sleep(1)
+                time.sleep(self.rate)
 
         self.executor = ThreadPoolExecutor(max_workers=2)
         self.fut = self.executor.submit(looper)
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._exit = True
-        self.executor.shutdown()
+        if hasattr(self, "executor"):
+            self.executor.shutdown()
 
 
 def run_with_heartbeat(
@@ -58,12 +60,12 @@ def run_with_heartbeat(
         timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
         try:
             try:
-                self._heartbeat()
+                if self._heartbeat():
+                    timer.start()
             except Exception as exc:
                 self.logger.exception(
-                    "Heartbeat failed.  This could result in a zombie run."
+                    "Heartbeat failed to start.  This could result in a zombie run."
                 )
-            timer.start()
             return runner_method(self, *args, **kwargs)
         finally:
             timer.cancel()
