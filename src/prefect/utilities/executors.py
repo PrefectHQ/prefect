@@ -31,7 +31,7 @@ class Heartbeat:
         def looper() -> None:
             iters = 0
             while not self._exit:
-                if round(iters % self.rate) == 0:
+                if round(iters % self.interval) == 0:
                     self.function()
                 iters = (iters + 1) % self.interval
                 time.sleep(self.rate)
