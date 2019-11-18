@@ -154,7 +154,7 @@ def start(
 
 
 @agent.command(hidden=True)
-@click.argument("name", default="kubernetes")
+@click.argument("name")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
@@ -208,8 +208,7 @@ def install(
 
     \b
     Arguments:
-        name                        TEXT    The name of an agent to start (e.g. `kubernetes`)
-                                            Defaults to `kubernetes`
+        name                        TEXT    The name of an agent to start (e.g. `kubernetes`, `local`)
 
     \b
     Options:

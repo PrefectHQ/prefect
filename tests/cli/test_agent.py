@@ -195,11 +195,11 @@ def test_agent_start_fails(monkeypatch):
     assert "TEST is not a valid agent" in result.output
 
 
-def test_agent_install():
+def test_agent_install_local():
     runner = CliRunner()
-    result = runner.invoke(agent, ["install"])
+    result = runner.invoke(agent, ["install", "local"])
     assert result.exit_code == 0
-    assert "apiVersion" in result.output
+    assert "supervisord" in result.output
 
 
 def test_agent_install_kubernetes():
@@ -216,12 +216,13 @@ def test_agent_install_fails_non_valid_agent():
     assert "fake_agent is not a supported agent for `install`" in result.output
 
 
-def test_agent_install_passes_args():
+def test_agent_install_k8s_asses_args():
     runner = CliRunner()
     result = runner.invoke(
         agent,
         [
             "install",
+            "kubernetes",
             "--token",
             "TEST_TOKEN",
             "--api",
@@ -247,12 +248,13 @@ def test_agent_install_passes_args():
     assert "test_label2" in result.output
 
 
-def test_agent_install_no_resource_manager():
+def test_agent_install_k8s_no_resource_manager():
     runner = CliRunner()
     result = runner.invoke(
         agent,
         [
             "install",
+            "kubernetes",
             "--token",
             "TEST_TOKEN",
             "--api",
