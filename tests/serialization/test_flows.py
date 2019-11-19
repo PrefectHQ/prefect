@@ -5,6 +5,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
+from prefect.engine.result_handlers import JSONResultHandler
 from prefect.serialization.flow import FlowSchema
 from prefect.serialization.task import ParameterSchema
 
@@ -16,6 +17,7 @@ def test_serialize_empty_dict():
 def test_serialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     assert serialized["name"] == "n"
+    assert serialized["has_result_handler"] is False
 
 
 def test_deserialize_flow():
@@ -132,6 +134,13 @@ def test_serialize_container_environment():
     )
     assert isinstance(deserialized.storage, prefect.environments.storage.Docker)
     assert deserialized.storage.registry_url == storage.registry_url
+
+
+def test_serialize_result_handler():
+    serialized = FlowSchema().dump(Flow(name="n", result_handler=JSONResultHandler()))
+    assert serialized["has_result_handler"] is True
+    deserialized = FlowSchema().load(serialized)
+    assert deserialized.has_result_handler is True
 
 
 def test_deserialize_serialized_flow_after_build():

@@ -133,6 +133,8 @@ class Flow:
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default
             to the one specified in your config
+        - has_result_handler (bool, optional): Whether the flow has a result handler attached; if not provided,
+            the value will auto-populate based on the result_handler argument
 
     """
 
@@ -149,6 +151,7 @@ class Flow:
         on_failure: Callable = None,
         validate: bool = None,
         result_handler: ResultHandler = None,
+        has_result_handler: bool = None,
     ):
         self._cache = {}  # type: dict
 
@@ -163,7 +166,7 @@ class Flow:
         self.result_handler = (
             result_handler or prefect.engine.get_default_result_handler_class()()
         )
-
+        self.has_result_handler = has_result_handler or bool(result_handler)
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
         self.constants = collections.defaultdict(
