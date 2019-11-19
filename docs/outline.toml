@@ -109,7 +109,7 @@ classes = [
             "Mapped",
             "Skipped",
             "Failed",
-            "Aborted",
+            "Cancelled",
             "TriggerFailed",
             "TimedOut",
         ]
