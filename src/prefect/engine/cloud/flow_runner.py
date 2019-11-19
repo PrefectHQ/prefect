@@ -61,12 +61,16 @@ class CloudFlowRunner(FlowRunner):
             flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
 
-    def _heartbeat(self) -> None:
+    def _heartbeat(self) -> bool:
         try:
             flow_run_id = prefect.context.get("flow_run_id")
             self.client.update_flow_run_heartbeat(flow_run_id)
-        except:
-            warnings.warn("Heartbeat failed for Flow '{}'".format(self.flow.name))
+            return True
+        except Exception as exc:
+            self.logger.exception(
+                "Heartbeat failed for Flow '{}'".format(self.flow.name)
+            )
+            return False
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

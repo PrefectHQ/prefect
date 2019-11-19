@@ -455,28 +455,30 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
 
 
 class TestHeartBeats:
-    def test_heartbeat_traps_errors_caused_by_client(self, monkeypatch):
+    def test_heartbeat_traps_errors_caused_by_client(self, caplog, monkeypatch):
         client = MagicMock(update_task_run_heartbeat=MagicMock(side_effect=SyntaxError))
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         runner = CloudTaskRunner(task=Task(name="bad"))
         runner.task_run_id = None
-        with pytest.warns(UserWarning) as warning:
-            res = runner._heartbeat()
-        assert res is None
+        res = runner._heartbeat()
+        assert res is False
         assert client.update_task_run_heartbeat.called
-        w = warning.pop()
-        assert "Heartbeat failed for Task 'bad'" in repr(w.message)
 
-    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, monkeypatch):
+        log = caplog.records[0]
+        assert log.levelname == "ERROR"
+        assert "Heartbeat failed for Task 'bad'" in log.message
+
+    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, caplog, monkeypatch):
         monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", MagicMock())
         runner = CloudTaskRunner(task=Task())
-        with pytest.warns(UserWarning) as warning:
-            res = runner._heartbeat()
-        assert res is None
-        w = warning.pop()
-        assert "Heartbeat failed for Task 'Task'" in repr(w.message)
+        res = runner._heartbeat()
+        assert res is False
+
+        log = caplog.records[0]
+        assert log.levelname == "ERROR"
+        assert "Heartbeat failed for Task 'Task'" in log.message
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -488,6 +490,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             @prefect.task
             def sleeper():
@@ -525,6 +528,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             @prefect.task(timeout=1)
             def sleeper():
@@ -566,6 +570,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             def multiprocessing_helper(executor):
                 set_task_run_state = MagicMock(
@@ -577,7 +582,7 @@ class TestHeartBeats:
                     MagicMock(return_value=client),
                 )
                 runner = CloudTaskRunner(task=Task())
-                runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
+                runner.cache_result = lambda *args, **kwargs: time.sleep(0.25)
                 runner._heartbeat = update
                 with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
                     return runner.run(executor=executor)
@@ -589,7 +594,7 @@ class TestHeartBeats:
             with open(fname, "r") as g:
                 results = g.read()
 
-        assert len(results.split()) == 1
+        assert len(results.split()) == 2
 
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
         set_task_run_state = MagicMock(
