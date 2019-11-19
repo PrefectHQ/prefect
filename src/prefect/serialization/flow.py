@@ -51,6 +51,7 @@ class FlowSchema(ObjectSchema):
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
     storage = fields.Nested(StorageSchema, allow_none=True)
+    has_result_handler = fields.Boolean(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> prefect.core.Flow:
