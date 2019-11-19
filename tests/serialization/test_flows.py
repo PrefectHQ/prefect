@@ -17,7 +17,7 @@ def test_serialize_empty_dict():
 def test_serialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     assert serialized["name"] == "n"
-    assert serialized["has_result_handler"] is False
+    assert serialized["result_handler"] is None
 
 
 def test_deserialize_flow():
@@ -138,9 +138,9 @@ def test_serialize_container_environment():
 
 def test_serialize_result_handler():
     serialized = FlowSchema().dump(Flow(name="n", result_handler=JSONResultHandler()))
-    assert serialized["has_result_handler"] is True
+    assert serialized["result_handler"]["type"] == "JSONResultHandler"
     deserialized = FlowSchema().load(serialized)
-    assert deserialized.has_result_handler is True
+    assert deserialized.result_handler
 
 
 def test_deserialize_serialized_flow_after_build():
