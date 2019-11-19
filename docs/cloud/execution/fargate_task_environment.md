@@ -95,7 +95,7 @@ The container dictionary above will be changed during setup:
 [
     "/bin/sh",
     "-c",
-    "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'",
+    "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
 ]
 ```
 

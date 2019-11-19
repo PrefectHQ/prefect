@@ -57,7 +57,7 @@ In the above YAML block, `flow-container` will be changed during execution:
 - `command` and `args` will take the form of:
 
 ```bash
-/bin/sh -c "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+/bin/sh -c "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
 ```
 
 - `env` will have some extra variables automatically appended to it for Cloud-based Flow runs:

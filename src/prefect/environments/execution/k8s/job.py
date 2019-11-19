@@ -34,7 +34,7 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__LOGGING__LOG_TO_CLOUD`
 
     Additionally, the following command will be applied to the first container:
-    `$ /bin/sh -c "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
@@ -264,7 +264,7 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
 
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
         return yaml_obj

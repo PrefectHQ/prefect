@@ -307,7 +307,7 @@ def test_populate_job_yaml():
             "-c",
         ]
         assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
 
@@ -367,7 +367,7 @@ def test_populate_job_yaml_no_defaults():
             "-c",
         ]
         assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
 
@@ -431,7 +431,7 @@ def test_populate_job_yaml_multiple_containers():
             "-c",
         ]
         assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
         # Assert Second Container
@@ -450,7 +450,7 @@ def test_populate_job_yaml_multiple_containers():
         )
 
         assert yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"] != [
-            "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
         ]
 
 

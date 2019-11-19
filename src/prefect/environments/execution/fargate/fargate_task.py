@@ -33,7 +33,7 @@ class FargateTaskEnvironment(Environment):
 
     Additionally, the following command will be applied to the first container:
 
-    `$ /bin/sh -c "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -229,7 +229,7 @@ class FargateTaskEnvironment(Environment):
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
-                "python -c 'import prefect; from prefect.environments.storage import Docker; Docker().get_flow(prefect.context.flow_file_path).environment.run_flow()'",
+                "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ]
 
             boto3_c.register_task_definition(**self.task_definition_kwargs)
