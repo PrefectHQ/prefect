@@ -95,7 +95,7 @@ The container dictionary above will be changed during setup:
 [
     "/bin/sh",
     "-c",
-    "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+    "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
 ]
 ```
 
