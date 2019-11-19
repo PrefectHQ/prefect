@@ -348,19 +348,20 @@ def test_client_is_always_called_even_during_failures(client):
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
-def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
+def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     client = MagicMock(update_flow_run_heartbeat=MagicMock(side_effect=SyntaxError))
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     runner = CloudFlowRunner(flow=prefect.Flow(name="bad"))
-    with pytest.warns(UserWarning) as warning:
-        res = runner._heartbeat()
+    res = runner._heartbeat()
 
-    assert res is None
+    assert res is False
     assert client.update_flow_run_heartbeat.called
-    w = warning.pop()
-    assert "Heartbeat failed for Flow 'bad'" in repr(w.message)
+
+    log = caplog.records[0]
+    assert log.levelname == "ERROR"
+    assert "Heartbeat failed for Flow 'bad'" in log.message
 
 
 def test_task_failure_caches_inputs_automatically(client):
