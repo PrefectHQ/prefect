@@ -17,7 +17,6 @@ def test_serialize_empty_dict():
 def test_serialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     assert serialized["name"] == "n"
-    assert serialized["result_handler"] is None
 
 
 def test_deserialize_flow():
@@ -139,6 +138,27 @@ def test_serialize_container_environment():
 def test_serialize_result_handler():
     serialized = FlowSchema().dump(Flow(name="n", result_handler=JSONResultHandler()))
     assert serialized["result_handler"]["type"] == "JSONResultHandler"
+    deserialized = FlowSchema().load(serialized)
+    assert deserialized.result_handler
+
+
+def test_serialize_flow_without_result_handler():
+    serialized = FlowSchema().dump(Flow(name="n"))
+    assert serialized["result_handler"] is None
+    deserialized = FlowSchema().load(serialized)
+    assert deserialized.result_handler is None
+
+
+def test_deserialize_older_flow_with_result_handler():
+    serialized = {
+        "name": "n",
+        "__version__": "0.6.5",
+        "result_handler": {
+            "__version__": "0.6.5",
+            "type": "JSONResultHandler",
+            "__len__": 2,
+        },
+    }
     deserialized = FlowSchema().load(serialized)
     assert deserialized.result_handler
 
