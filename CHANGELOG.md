@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Serialize the presence of result handlers on flows - [#1755](https://github.com/PrefectHQ/prefect/pull/1755)
 
 ### Task Library
 
