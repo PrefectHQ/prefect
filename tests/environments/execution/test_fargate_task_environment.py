@@ -251,7 +251,7 @@ def test_setup_definition_register(monkeypatch):
             "command": [
                 "/bin/sh",
                 "-c",
-                "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
+                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ],
             "environment": [
                 {
@@ -312,7 +312,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
             "command": [
                 "/bin/sh",
                 "-c",
-                "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
+                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ],
         }
     ]
@@ -470,7 +470,7 @@ def test_entire_environment_process_together(monkeypatch):
                 "command": [
                     "/bin/sh",
                     "-c",
-                    "python -c 'import prefect; from prefect import Flow; Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
+                    "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
                 ],
                 "environment": [
                     {
