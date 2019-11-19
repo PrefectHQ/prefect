@@ -21,6 +21,16 @@ StateList = Union["State", List["State"]]
 
 
 class Heartbeat:
+    """
+    Class for calling a function on an interval in a background thread.
+
+    Args:
+        - interval: the interval (in seconds) on which to call the function;
+            sub-second intervals are supported
+        - function (callable): the function to call; this function is assumed
+            to not require arguments
+    """
+
     def __init__(self, interval: int, function: Callable) -> None:
         self.interval = interval
         self.rate = min(interval, 1)
@@ -28,8 +38,19 @@ class Heartbeat:
         self._exit = False
 
     def start(self) -> None:
+        """
+        Calling this method initiates the function calls in the background.
+        """
+
         def looper() -> None:
             iters = 0
+
+            ## we use the self._exit attribute as a way of communicating
+            ## that the loop should cease; because we want to respond to this
+            ## "exit signal" quickly, we loop every `rate` seconds and check
+            ## whether we should exit.  Every `interval` number of calls, we
+            ## actually call the function.  The rounding logic is here to
+            ## support sub-second intervals.
             while not self._exit:
                 if round(iters % self.interval) == 0:
                     self.function()
@@ -40,6 +61,10 @@ class Heartbeat:
         self.fut = self.executor.submit(looper)
 
     def cancel(self) -> None:
+        """
+        Calling this method after `start()` has been called will cleanup
+        the background thread and cease calling the function.
+        """
         self._exit = True
         if hasattr(self, "executor"):
             self.executor.shutdown()
