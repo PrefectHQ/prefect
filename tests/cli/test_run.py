@@ -303,6 +303,44 @@ def test_run_cloud_param_string(monkeypatch):
         assert mock_client.create_flow_run.call_args[1]["parameters"] == {"test": 42}
 
 
+def test_run_cloud_run_name(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    mock_client = MagicMock()
+    mock_client.create_flow_run.return_value = "id"
+    monkeypatch.setattr("prefect.cli.run.Client", MagicMock(return_value=mock_client))
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            run,
+            [
+                "cloud",
+                "--name",
+                "flow",
+                "--project",
+                "project",
+                "--version",
+                "2",
+                "--run-name",
+                "NAME",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Flow Run ID" in result.output
+        assert mock_client.create_flow_run.called
+        assert mock_client.create_flow_run.call_args[1]["run_name"] == "NAME"
+
+
 def test_run_cloud_param_string_overwrites(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(

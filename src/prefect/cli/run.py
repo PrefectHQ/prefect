@@ -54,8 +54,9 @@ def run():
     type=click.Path(exists=True),
 )
 @click.option(
-    "--parameters-string", "--ps", help="A parameters JSON string.", hidden=True
+    "--parameters-string", "-ps", help="A parameters JSON string.", hidden=True
 )
+@click.option("--run-name", "-rn", help="A name to assign for this run.", hidden=True)
 @click.option(
     "--watch",
     "-w",
@@ -66,7 +67,9 @@ def run():
 @click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
-def cloud(name, project, version, parameters_file, parameters_string, watch, logs):
+def cloud(
+    name, project, version, parameters_file, parameters_string, run_name, watch, logs
+):
     """
     Run a deployed flow in Prefect Cloud.
 
@@ -77,6 +80,7 @@ def cloud(name, project, version, parameters_file, parameters_string, watch, log
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
         --parameters-string, -ps    TEXT        A string of JSON parameters
+        --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
 
@@ -142,7 +146,7 @@ def cloud(name, project, version, parameters_file, parameters_string, watch, log
         string_params = json.loads(parameters_string)
 
     flow_run_id = client.create_flow_run(
-        flow_id=flow_id, parameters={**file_params, **string_params}
+        flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
     )
     click.echo("Flow Run ID: {}".format(flow_run_id))
 
