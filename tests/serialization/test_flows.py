@@ -163,6 +163,15 @@ def test_deserialize_older_flow_with_result_handler():
     assert deserialized.result_handler
 
 
+def test_deserialize_older_flow_without_result_handler():
+    serialized = {
+        "name": "n",
+        "__version__": "0.6.5",
+    }
+    deserialized = FlowSchema().load(serialized)
+    assert deserialized.result_handler is None
+
+
 def test_deserialize_serialized_flow_after_build():
     flow = Flow(name="test", storage=prefect.environments.storage.Memory())
     serialized_flow = flow.serialize(build=True)
