@@ -5,6 +5,7 @@ from marshmallow import fields, post_load, utils
 import prefect
 from prefect.serialization.edge import EdgeSchema
 from prefect.serialization.environment import EnvironmentSchema
+from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.storage import StorageSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
@@ -51,7 +52,7 @@ class FlowSchema(ObjectSchema):
     )
     environment = fields.Nested(EnvironmentSchema, allow_none=True)
     storage = fields.Nested(StorageSchema, allow_none=True)
-    has_result_handler = fields.Boolean(allow_none=True)
+    result_handler = fields.Nested(ResultHandlerSchema, allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> prefect.core.Flow:

@@ -11,7 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Serialize the presence of result handlers on flows - [#1755](https://github.com/PrefectHQ/prefect/pull/1755)
+- Serialize result handlers on flows - [#1755](https://github.com/PrefectHQ/prefect/pull/1755)
 
 ### Breaking Changes
 
