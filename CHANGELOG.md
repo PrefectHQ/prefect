@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
 
 ### Task Library
 

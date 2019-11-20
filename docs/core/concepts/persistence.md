@@ -1,7 +1,7 @@
 # Persistence and Caching
 
 Out of the box, Prefect Core does not persist data in a permanent fashion.  All data, results, _and_ cached states are stored in memory within the
-Python process running the Flow.  However, Prefect Core provides all of the necssary hooks for persisting / retrieving your data in external locations.  If you require an out-of-the-box persistence layer, you might consider [Prefect Cloud](../../cloud/faq.html#what-is-the-difference-between-prefect-core-and-prefect-cloud).
+Python process running the Flow.  However, Prefect Core provides all of the necessary hooks for persisting / retrieving your data in external locations.  If you require an out-of-the-box persistence layer, you might consider [Prefect Cloud](../../cloud/faq.html#what-is-the-difference-between-prefect-core-and-prefect-cloud).
 
 
 Prefect provides a few ways to work with cached data. Wherever possible, caching is handled automatically or with minimal user input.
