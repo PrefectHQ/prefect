@@ -246,22 +246,6 @@ class LocalDaskExecutor(Executor):
             results.append(self.submit(fn, *args_i))
         return results
 
-    def cancel(self, futures: Any) -> Any:
-        """
-        Cancels futures, if possible.
-
-        Args:
-            - futures (Any): iterable of futures to compute
-
-        Returns:
-            - Any: an iterable of resolved futures
-        """
-        for fut in futures:
-            try:
-                fut.cancel(force=True)
-            except Exception:
-                pass
-
     def wait(self, futures: Any) -> Any:
         """
         Resolves a `dask.delayed` object to its values. Blocks until the computation is complete.
