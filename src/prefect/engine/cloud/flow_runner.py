@@ -64,9 +64,8 @@ class CloudFlowRunner(FlowRunner):
 
     def _heartbeat(self) -> bool:
         try:
-            flow_run_id = prefect.context.get(
-                "flow_run_id", ""
-            )  # type: use empty string for testing purposes
+            # use empty string for testing purposes
+            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
             self.client.update_flow_run_heartbeat(flow_run_id)
             query = 'query{flow_run_by_pk(id: "' + flow_run_id + '"){state}}'
             state = self.client.graphql(query).data.flow_run_by_pk.state

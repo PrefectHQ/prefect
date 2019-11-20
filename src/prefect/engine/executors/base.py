@@ -58,6 +58,18 @@ class Executor:
         """
         raise NotImplementedError()
 
+    def cancel(self, futures: Any) -> Any:
+        """
+        Cancels futures, if possible.
+
+        Args:
+            - futures (Any): iterable of futures to compute
+
+        Returns:
+            - Any: an iterable of resolved futures
+        """
+        pass
+
     def wait(self, futures: Any) -> Any:
         """
         Resolves futures to their values. Blocks until the future is complete.
