@@ -1,5 +1,6 @@
 import copy
 import datetime
+import _thread
 import time
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
@@ -63,6 +64,14 @@ class CloudTaskRunner(TaskRunner):
         try:
             task_run_id = self.task_run_id  # type: ignore
             self.client.update_task_run_heartbeat(task_run_id)  # type: ignore
+
+            # use empty string for testing purposes
+            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
+            query = 'query{flow_run_by_pk(id: "' + flow_run_id + '"){state}}'
+            state = self.client.graphql(query).data.flow_run_by_pk.state
+            if state == "Cancelled":
+                _thread.interrupt_main()
+                return False
             return True
         except Exception as exc:
             self.logger.exception(
