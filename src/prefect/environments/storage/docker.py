@@ -279,9 +279,11 @@ class Docker(Storage):
         assert isinstance(self.image_tag, str), "An image tag must be provided"
 
         # Make temporary directory to hold serialized flow, healthcheck script, and dockerfile
-        # note that we create the temporary directory within the current working directory
-        # to preserve the user's build context
-        with tempfile.TemporaryDirectory(dir=".") as tempdir:
+        # note that if the user provides a custom dockerfile, we create the temporary directory
+        # within the current working directory to preserve their build context
+        with tempfile.TemporaryDirectory(
+            dir="." if self.dockerfile else None
+        ) as tempdir:
 
             # Build the dockerfile
             if self.base_image and not self.local_image:
@@ -305,7 +307,7 @@ class Docker(Storage):
             # Use the docker client to build the image
             logging.info("Building the flow's Docker storage...")
             output = client.build(
-                path=".",
+                path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
                 forcerm=True,
