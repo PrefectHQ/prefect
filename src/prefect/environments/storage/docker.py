@@ -19,7 +19,6 @@ from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
-from prefect.utilities.exceptions import SerializationError
 
 
 class Docker(Storage):
@@ -274,6 +273,7 @@ class Docker(Storage):
             - tuple: generated UUID strings `image_name`, `image_tag`
 
         Raises:
+            - ValueError: if the image fails to build
             - InterruptedError: if either pushing or pulling the image fails
         """
         assert isinstance(self.image_name, str), "Image name must be provided"
