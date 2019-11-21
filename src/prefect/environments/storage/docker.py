@@ -38,7 +38,8 @@ class Docker(Storage):
         - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
         - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image
             matching your python version and prefect core library version used at runtime.
-        - dockerfile (str, optional): a path to a Dockerfile to use in building this storage
+        - dockerfile (str, optional): a path to a Dockerfile to use in building this storage; note that, if provided,
+            your present working directory will be used as the build context
         - python_dependencies (List[str], optional): list of pip installable dependencies for the image
         - image_name (str, optional): name of the image to use when building, populated with a UUID after build
         - image_tag (str, optional): tag of the image to use when building, populated with a UUID after build
