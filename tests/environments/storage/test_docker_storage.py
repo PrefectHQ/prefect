@@ -11,7 +11,6 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments.storage import Docker
-from prefect.utilities.exceptions import SerializationError
 
 
 def test_create_docker_storage():
@@ -215,7 +214,7 @@ def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
-def test_build_image_fails_deserialization(monkeypatch):
+def test_build_image_fails_with_value_error(monkeypatch):
     flow = Flow("test")
     storage = Docker(
         registry_url="reg",
@@ -227,17 +226,17 @@ def test_build_image_fails_deserialization(monkeypatch):
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(flow)
 
 
-def test_build_image_fails_deserialization_no_registry(monkeypatch):
+def test_build_image_fails_no_registry(monkeypatch):
     storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(push=False)
 
 

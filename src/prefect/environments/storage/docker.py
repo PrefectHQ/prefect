@@ -279,13 +279,15 @@ class Docker(Storage):
         assert isinstance(self.image_tag, str), "An image tag must be provided"
 
         # Make temporary directory to hold serialized flow, healthcheck script, and dockerfile
-        with tempfile.TemporaryDirectory() as tempdir:
+        # note that we create the temporary directory within the current working directory
+        # to preserve the user's build context
+        with tempfile.TemporaryDirectory(dir=".") as tempdir:
 
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
 
-            self.create_dockerfile_object(directory=tempdir)
+            dockerfile_path = self.create_dockerfile_object(directory=tempdir)
             client = docker.APIClient(base_url=self.base_url, version="auto")
 
             # Verify that a registry url has been provided for images that should be pushed
@@ -303,15 +305,16 @@ class Docker(Storage):
             # Use the docker client to build the image
             logging.info("Building the flow's Docker storage...")
             output = client.build(
-                path=tempdir,
+                path=".",
+                dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
                 forcerm=True,
             )
             self._parse_generator_output(output)
 
             if len(client.images(name=full_name)) == 0:
-                raise SerializationError(
-                    "Your flow failed one of its deployment health checks! Please ensure that all necessary files and dependencies have been included."
+                raise ValueError(
+                    "Your docker image failed to build!  Your flow might failed one of its deployment health checks - please ensure that all necessary files and dependencies have been included."
                 )
 
             # Push the image if requested
@@ -329,7 +332,7 @@ class Docker(Storage):
     # Dockerfile Creation
     ########################
 
-    def create_dockerfile_object(self, directory: str = None) -> None:
+    def create_dockerfile_object(self, directory: str) -> str:
         """
         Writes a dockerfile to the provided directory using the specified
         arguments on this Docker storage object.
@@ -343,108 +346,106 @@ class Docker(Storage):
         Args:
             - directory (str, optional): A directory where the Dockerfile will be created,
                 if no directory is specified is will be created in the current working directory
+
+        Returns:
+            - str: the absolute file path to the Dockerfile
         """
-        directory = directory or "./"
+        # Generate single pip install command for python dependencies
+        pip_installs = "RUN pip install "
+        if self.python_dependencies:
+            for dependency in self.python_dependencies:
+                pip_installs += "{} ".format(dependency)
 
-        with open(os.path.join(directory, "Dockerfile"), "w+") as dockerfile:
-
-            # Generate single pip install command for python dependencies
-            pip_installs = "RUN pip install "
-            if self.python_dependencies:
-                for dependency in self.python_dependencies:
-                    pip_installs += "{} ".format(dependency)
-
-            # Generate ENV variables to load into the image
-            env_vars = ""
-            if self.env_vars:
-                white_space = " " * 20
-                env_vars = "ENV " + " \ \n{}".format(white_space).join(
-                    "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
-                )
-
-            # Copy user specified files into the image
-            copy_files = ""
-            if self.files:
-                for src, dest in self.files.items():
-                    fname = os.path.basename(src)
-                    full_fname = os.path.join(directory, fname)
-                    if (
-                        os.path.exists(full_fname)
-                        and filecmp.cmp(src, full_fname) is False
-                    ):
-                        raise ValueError(
-                            "File {fname} already exists in {directory}".format(
-                                fname=full_fname, directory=directory
-                            )
-                        )
-                    else:
-                        shutil.copy2(src, full_fname)
-                    copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
-
-            # Write all flows to file and load into the image
-            copy_flows = ""
-            for flow_name, flow_location in self.flows.items():
-                clean_name = slugify(flow_name)
-                flow_path = os.path.join(directory, "{}.flow".format(clean_name))
-                with open(flow_path, "wb") as f:
-                    cloudpickle.dump(self._flows[flow_name], f)
-                copy_flows += "COPY {source} {dest}\n".format(
-                    source="{}.flow".format(clean_name), dest=flow_location
-                )
-
-            # Write all extra commands that should be run in the image
-            extra_commands = ""
-            for cmd in self.extra_commands:
-                extra_commands += "RUN {}\n".format(cmd)
-
-            # Write a healthcheck script into the image
-            with open(
-                os.path.join(os.path.dirname(__file__), "_healthcheck.py"), "r"
-            ) as healthscript:
-                healthcheck = healthscript.read()
-
-            with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
-                health_file.write(healthcheck)
-
-            if self.dockerfile:
-                with open(self.dockerfile, "r") as contents:
-                    base_commands = textwrap.indent(
-                        "\n" + contents.read(), prefix=" " * 16
-                    )
-            else:
-                base_commands = "FROM {base_image}".format(base_image=self.base_image)
-
-            file_contents = textwrap.dedent(
-                """\
-                {base_commands}
-
-                RUN pip install pip --upgrade
-                {extra_commands}
-                {pip_installs}
-
-                RUN mkdir -p /root/.prefect/
-                {copy_flows}
-                COPY healthcheck.py /root/.prefect/healthcheck.py
-                {copy_files}
-
-                {env_vars}
-
-                RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
-                """.format(
-                    base_commands=base_commands,
-                    extra_commands=extra_commands,
-                    pip_installs=pip_installs,
-                    copy_flows=copy_flows,
-                    copy_files=copy_files,
-                    env_vars=env_vars,
-                    flow_file_paths=", ".join(
-                        ['"{}"'.format(k) for k in self.flows.values()]
-                    ),
-                    python_version=(sys.version_info.major, sys.version_info.minor),
-                )
+        # Generate ENV variables to load into the image
+        env_vars = ""
+        if self.env_vars:
+            white_space = " " * 20
+            env_vars = "ENV " + " \ \n{}".format(white_space).join(
+                "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
             )
 
+        # Copy user specified files into the image
+        copy_files = ""
+        if self.files:
+            for src, dest in self.files.items():
+                fname = os.path.basename(src)
+                full_fname = os.path.join(directory, fname)
+                if os.path.exists(full_fname) and filecmp.cmp(src, full_fname) is False:
+                    raise ValueError(
+                        "File {fname} already exists in {directory}".format(
+                            fname=full_fname, directory=directory
+                        )
+                    )
+                else:
+                    shutil.copy2(src, full_fname)
+                copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
+
+        # Write all flows to file and load into the image
+        copy_flows = ""
+        for flow_name, flow_location in self.flows.items():
+            clean_name = slugify(flow_name)
+            flow_path = os.path.join(directory, "{}.flow".format(clean_name))
+            with open(flow_path, "wb") as f:
+                cloudpickle.dump(self._flows[flow_name], f)
+            copy_flows += "COPY {source} {dest}\n".format(
+                source="{}.flow".format(clean_name), dest=flow_location
+            )
+
+        # Write all extra commands that should be run in the image
+        extra_commands = ""
+        for cmd in self.extra_commands:
+            extra_commands += "RUN {}\n".format(cmd)
+
+        # Write a healthcheck script into the image
+        with open(
+            os.path.join(os.path.dirname(__file__), "_healthcheck.py"), "r"
+        ) as healthscript:
+            healthcheck = healthscript.read()
+
+        with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
+            health_file.write(healthcheck)
+
+        if self.dockerfile:
+            with open(self.dockerfile, "r") as contents:
+                base_commands = textwrap.indent("\n" + contents.read(), prefix=" " * 16)
+        else:
+            base_commands = "FROM {base_image}".format(base_image=self.base_image)
+
+        file_contents = textwrap.dedent(
+            """\
+            {base_commands}
+
+            RUN pip install pip --upgrade
+            {extra_commands}
+            {pip_installs}
+
+            RUN mkdir -p /root/.prefect/
+            {copy_flows}
+            COPY healthcheck.py /root/.prefect/healthcheck.py
+            {copy_files}
+
+            {env_vars}
+
+            RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
+            """.format(
+                base_commands=base_commands,
+                extra_commands=extra_commands,
+                pip_installs=pip_installs,
+                copy_flows=copy_flows,
+                copy_files=copy_files,
+                env_vars=env_vars,
+                flow_file_paths=", ".join(
+                    ['"{}"'.format(k) for k in self.flows.values()]
+                ),
+                python_version=(sys.version_info.major, sys.version_info.minor),
+            )
+        )
+
+        file_contents = "\n".join(line.lstrip() for line in file_contents.split("\n"))
+        dockerfile_path = os.path.join(directory, "Dockerfile")
+        with open(dockerfile_path, "w+") as dockerfile:
             dockerfile.write(file_contents)
+        return dockerfile_path
 
     ########################
     # Docker Utilities
@@ -500,6 +501,8 @@ class Docker(Storage):
             item = item.decode("utf-8")
             for line in item.split("\n"):
                 if line:
-                    output = json.loads(line).get("stream")
+                    output = json.loads(line).get("stream") or json.loads(line).get(
+                        "errorDetail", {}
+                    ).get("message")
                     if output and output != "\n":
                         print(output.strip("\n"))
