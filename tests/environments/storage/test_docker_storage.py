@@ -312,9 +312,9 @@ def test_create_dockerfile_from_base_image():
     storage = Docker(base_image="python:3.6")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         assert "FROM python:3.6" in output
@@ -328,9 +328,9 @@ def test_create_dockerfile_from_dockerfile():
             tmp.write(myfile)
 
         storage = Docker(dockerfile=os.path.join(directory, "myfile"))
-        storage.create_dockerfile_object(directory=directory)
+        dpath = storage.create_dockerfile_object(directory=directory)
 
-        with open(os.path.join(directory, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
     assert output.startswith("\n" + myfile)
@@ -368,9 +368,9 @@ def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
     storage = Docker(prefect_version=prefect_version[0])
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         for content in prefect_version[1]:
@@ -388,9 +388,9 @@ def test_create_dockerfile_with_weird_flow_name():
             storage = Docker(registry_url="test1", base_image="test3")
             f = Flow("WHAT IS THIS !!! ~~~~")
             storage.add_flow(f)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert (
@@ -422,9 +422,9 @@ def test_create_dockerfile_from_everything():
             g = Flow("other")
             storage.add_flow(f)
             storage.add_flow(g)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert "FROM test3" in output
