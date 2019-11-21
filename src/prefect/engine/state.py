@@ -700,9 +700,9 @@ class Failed(Finished):
         self.cached_inputs = cached_inputs
 
 
-class Aborted(Failed):
+class Cancelled(Failed):
     """
-    Finished state indicating that a user aborted the flow run manually.
+    Finished state indicating that a user cancelled the flow run manually, mid-run.
 
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the

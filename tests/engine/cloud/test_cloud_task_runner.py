@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import uuid
+from box import Box
 from unittest.mock import MagicMock
 
 import cloudpickle
@@ -20,6 +21,7 @@ from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cached,
+    Cancelled,
     ClientFailed,
     Failed,
     Finished,
@@ -982,3 +984,25 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
 
     # ensures result handler was called and persisted
     assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
+
+
+def test_db_cancelled_states_interrupt_task_run(client, monkeypatch):
+    calls = dict(count=0)
+
+    def heartbeat_counter(*args, **kwargs):
+        if calls["count"] == 3:
+            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+        calls["count"] += 1
+        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+
+    client.graphql = heartbeat_counter
+
+    @prefect.task
+    def sleeper():
+        time.sleep(3)
+
+    with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+        state = CloudTaskRunner(task=sleeper).run()
+
+    assert isinstance(state, Cancelled)
+    assert "interrupt" in state.message.lower()

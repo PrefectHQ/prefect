@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add graceful cancellation hooks to Flow and Task runners - [#1757](https://github.com/PrefectHQ/prefect/pull/1757)
 
 ### Enhancements
 
