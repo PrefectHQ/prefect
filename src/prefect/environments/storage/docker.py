@@ -381,7 +381,9 @@ class Docker(Storage):
                     )
                 else:
                     shutil.copy2(src, full_fname)
-                copy_files += "COPY {fname} {dest}\n".format(fname=fname, dest=dest)
+                copy_files += "COPY {fname} {dest}\n".format(
+                    fname=full_fname if self.dockerfile else fname, dest=dest
+                )
 
         # Write all flows to file and load into the image
         copy_flows = ""
@@ -391,7 +393,8 @@ class Docker(Storage):
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(self._flows[flow_name], f)
             copy_flows += "COPY {source} {dest}\n".format(
-                source="{}.flow".format(clean_name), dest=flow_location
+                source=flow_path if self.dockerfile else "{}.flow".format(clean_name),
+                dest=flow_location,
             )
 
         # Write all extra commands that should be run in the image

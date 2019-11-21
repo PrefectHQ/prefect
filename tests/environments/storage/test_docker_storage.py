@@ -341,6 +341,46 @@ def test_create_dockerfile_from_dockerfile():
     )
 
 
+def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
+    myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            with open(os.path.join(directory, "myfile"), "w") as tmp:
+                tmp.write(myfile)
+
+            storage = Docker(
+                dockerfile=os.path.join(directory, "myfile"),
+                files={os.path.join(tempdir_outside, "test"): "./test2"},
+            )
+            storage.add_flow(Flow("foo"))
+            dpath = storage.create_dockerfile_object(directory=directory)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "COPY {} /root/.prefect/flows/foo.prefect".format(
+                    os.path.join(directory, "foo.flow")
+                )
+                in output
+            ), output
+            assert (
+                "COPY {} ./test2".format(os.path.join(directory, "test")) in output
+            ), output
+
+    assert output.startswith("\n" + myfile)
+
+    # test proper indentation
+    assert all(
+        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+    )
+
+
 @pytest.mark.parametrize(
     "prefect_version",
     [
