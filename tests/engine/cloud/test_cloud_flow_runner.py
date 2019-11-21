@@ -1,6 +1,7 @@
 import datetime
 import time
 import uuid
+from box import Box
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -18,6 +19,7 @@ from prefect.engine.result_handlers import (
     SecretResultHandler,
 )
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Finished,
     Pending,
@@ -594,3 +596,27 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
     assert task_run_ids == ["TESTME"] * 3
+
+
+def test_db_cancelled_states_interrupt_flow_run(client, monkeypatch):
+    calls = dict(count=0)
+
+    def heartbeat_counter(*args, **kwargs):
+        if calls["count"] == 3:
+            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+        calls["count"] += 1
+        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+
+    client.graphql = heartbeat_counter
+
+    @prefect.task
+    def sleeper():
+        time.sleep(3)
+
+    f = prefect.Flow("test", tasks=[sleeper])
+
+    with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+        state = CloudFlowRunner(flow=f).run(return_tasks=[sleeper])
+
+    assert isinstance(state, Cancelled)
+    assert "interrupt" in state.message.lower()

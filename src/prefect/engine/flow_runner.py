@@ -20,6 +20,7 @@ from prefect.engine.result import Result
 from prefect.engine.result_handlers import ConstantResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Mapped,
     Pending,
@@ -257,6 +258,10 @@ class FlowRunner(Runner):
 
         except ENDRUN as exc:
             state = exc.state
+
+        except KeyboardInterrupt:
+            self.logger.exception("Interrupt signal raised, cancelling Flow run.")
+            state = Cancelled(message="Interrupt signal raised, cancelling flow run.")
 
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
