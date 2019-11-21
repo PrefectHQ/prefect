@@ -317,7 +317,7 @@ class Docker(Storage):
 
             if len(client.images(name=full_name)) == 0:
                 raise ValueError(
-                    "Your docker image failed to build!  Your flow might failed one of its deployment health checks - please ensure that all necessary files and dependencies have been included."
+                    "Your docker image failed to build!  Your flow might have failed one of its deployment health checks - please ensure that all necessary files and dependencies have been included."
                 )
 
             # Push the image if requested
