@@ -408,7 +408,8 @@ class Docker(Storage):
         ) as healthscript:
             healthcheck = healthscript.read()
 
-        with open(os.path.join(directory, "healthcheck.py"), "w") as health_file:
+        healthcheck_loc = os.path.join(directory, "healthcheck.py")
+        with open(healthcheck_loc, "w") as health_file:
             health_file.write(healthcheck)
 
         if self.dockerfile:
@@ -427,7 +428,7 @@ class Docker(Storage):
 
             RUN mkdir -p /root/.prefect/
             {copy_flows}
-            COPY healthcheck.py /root/.prefect/healthcheck.py
+            COPY {healthcheck_loc} /root/.prefect/healthcheck.py
             {copy_files}
 
             {env_vars}
@@ -438,6 +439,9 @@ class Docker(Storage):
                 extra_commands=extra_commands,
                 pip_installs=pip_installs,
                 copy_flows=copy_flows,
+                healthcheck_loc=healthcheck_loc
+                if self.dockerfile
+                else "healthcheck.py",
                 copy_files=copy_files,
                 env_vars=env_vars,
                 flow_file_paths=", ".join(

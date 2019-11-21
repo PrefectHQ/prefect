@@ -372,6 +372,12 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
             assert (
                 "COPY {} ./test2".format(os.path.join(directory, "test")) in output
             ), output
+            assert (
+                "COPY {} /root/.prefect/healthcheck.py".format(
+                    os.path.join(directory, "healthcheck.py")
+                )
+                in output
+            )
 
     assert output.startswith("\n" + myfile)
 
