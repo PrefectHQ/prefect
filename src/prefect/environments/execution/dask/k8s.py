@@ -411,6 +411,10 @@ class DaskKubernetesEnvironment(Environment):
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
 
+        yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
+            self.identifier_label
+        )
+
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
         yaml_obj["spec"]["template"]["metadata"]["labels"][
