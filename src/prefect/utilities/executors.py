@@ -37,7 +37,7 @@ class Heartbeat:
         self.function = function
         self._exit = False
 
-    def start(self) -> None:
+    def start(self, name_prefix: str = None) -> None:
         """
         Calling this method initiates the function calls in the background.
         """
@@ -57,7 +57,9 @@ class Heartbeat:
                 iters = (iters + 1) % self.interval
                 time.sleep(self.rate)
 
-        self.executor = ThreadPoolExecutor(max_workers=2)
+        self.executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=name_prefix
+        )
         self.fut = self.executor.submit(looper)
 
     def cancel(self) -> None:
@@ -83,17 +85,28 @@ def run_with_heartbeat(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
         timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
+        obj = getattr(self, "task", None) or getattr(self, "flow", None)
+        thread_name = "PrefectHeartbeat-{}".format(getattr(obj, "name", "unknown"))
         try:
             try:
                 if self._heartbeat():
-                    timer.start()
+                    timer.start(name_prefix=thread_name)
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
                 )
             return runner_method(self, *args, **kwargs)
         finally:
+            heartbeat_thread = [
+                t for t in threading.enumerate() if t.name.startswith(thread_name)
+            ]
             timer.cancel()
+            if not heartbeat_thread or not all(
+                [t.is_alive() for t in heartbeat_thread]
+            ):
+                self.logger.warning(
+                    "Heartbeat thread appears to have died.  This could result in a zombie run."
+                )
 
     return inner
 
