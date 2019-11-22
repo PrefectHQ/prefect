@@ -405,6 +405,10 @@ def test_populate_custom_scheduler_spec_yaml():
                 yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
+    assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(
+        environment.identifier_label
+    )
+
     env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
     assert env[0]["value"] == "gql_test"
