@@ -37,7 +37,7 @@ class Heartbeat:
         self.function = function
         self._exit = False
 
-    def start(self, name_prefix: str = None) -> None:
+    def start(self, name_prefix: str = "") -> None:
         """
         Calling this method initiates the function calls in the background.
         """
@@ -62,14 +62,26 @@ class Heartbeat:
         )
         self.fut = self.executor.submit(looper)
 
-    def cancel(self) -> None:
+    def cancel(self) -> bool:
         """
         Calling this method after `start()` has been called will cleanup
         the background thread and cease calling the function.
+
+        Returns:
+            - bool: indicating whether the background thread was still
+                running at time of cancellation
         """
-        self._exit = True
+        running = True
         if hasattr(self, "executor"):
+            # there is a possible race condition wherein a FlowRunner can
+            # raise a KeyboardInterrupt from its heartbeat thread the exact
+            # moment after the executor is created for a TaskRunner but before
+            # the future is actually submitted to the executor
+            if hasattr(self, "fut"):
+                running = self.fut.running()
+            self._exit = True
             self.executor.shutdown()
+        return running
 
 
 def run_with_heartbeat(
@@ -87,23 +99,31 @@ def run_with_heartbeat(
         timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
         obj = getattr(self, "task", None) or getattr(self, "flow", None)
         thread_name = "PrefectHeartbeat-{}".format(getattr(obj, "name", "unknown"))
+        heartbeat_threads = []
         try:
             try:
                 if self._heartbeat():
                     timer.start(name_prefix=thread_name)
+                    heartbeat_threads.extend(
+                        [
+                            t
+                            for t in threading.enumerate()
+                            if t.name.startswith(thread_name)
+                        ]
+                    )
+                    if not heartbeat_threads:
+                        self.logger.exception(
+                            "Heartbeat failed to start.  This could result in a zombie run."
+                        )
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
                 )
             return runner_method(self, *args, **kwargs)
         finally:
-            heartbeat_thread = [
-                t for t in threading.enumerate() if t.name.startswith(thread_name)
-            ]
-            timer.cancel()
-            if not heartbeat_thread or not all(
-                [t.is_alive() for t in heartbeat_thread]
-            ):
+            was_alive = all([t.is_alive() for t in heartbeat_threads])
+            was_running = timer.cancel()
+            if not (was_alive and was_running):
                 self.logger.warning(
                     "Heartbeat thread appears to have died.  This could result in a zombie run."
                 )

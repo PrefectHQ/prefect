@@ -64,6 +64,7 @@ def test_heartbeat_logs_if_thread_dies(caplog):
         def _heartbeat(self):
             if self.calls == 1:
                 raise SyntaxError("oops")
+            return True
 
         @run_with_heartbeat
         def run(self):
