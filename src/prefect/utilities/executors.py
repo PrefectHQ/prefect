@@ -1,5 +1,6 @@
 import datetime
 import signal
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -67,9 +68,10 @@ class Heartbeat:
                     )
                 time.sleep(self.rate / 2)
 
-        self.executor = ThreadPoolExecutor(
-            max_workers=2, thread_name_prefix=name_prefix
-        )
+        kwargs = dict(max_workers=2)
+        if sys.version.minor != 5:
+            kwargs.update(thread_name_prefix=name_prefix)
+        self.executor = ThreadPoolExecutor(**kwargs)
         self.fut = self.executor.submit(looper)
         self.executor.submit(monitor)
 
