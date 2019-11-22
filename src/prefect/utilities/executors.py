@@ -66,6 +66,7 @@ class Heartbeat:
                     self.logger.warning(
                         "Heartbeat thread appears to have died.  This could result in a zombie run."
                     )
+                    return
                 time.sleep(self.rate / 2)
 
         kwargs = dict(max_workers=2)
