@@ -127,7 +127,7 @@ def run_with_heartbeat(
                             if t.name.startswith(thread_name)
                         ]
                     )
-                    if not heartbeat_threads:
+                    if not heartbeat_threads and sys.version_info.minor != 5:
                         self.logger.exception(
                             "Heartbeat failed to start.  This could result in a zombie run."
                         )
