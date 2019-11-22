@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
 - Add `work_stealing` option to `DaskKubernetesEnvironment` - [#1760](https://github.com/PrefectHQ/prefect/pull/1760)
+- Improve heartbeat thread management - [#1770](https://github.com/PrefectHQ/prefect/pull/1770)
 
 ### Task Library
 

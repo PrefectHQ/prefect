@@ -24,7 +24,7 @@ def test_heartbeat_calls_function_on_interval(interval, sleeptime):
             return True
 
     a = A()
-    timer = Heartbeat(interval, a)
+    timer = Heartbeat(interval, a, None)
     timer.start()
     time.sleep(sleeptime)
     timer.cancel()
@@ -52,6 +52,34 @@ def test_heartbeat_logs_if_first_call_fails(caplog):
     log = caplog.records[0]
     assert log.name == "prefect.A"
     assert "Heartbeat" in log.message
+    assert "zombie" in log.message
+
+
+def test_heartbeat_logs_if_thread_dies(caplog):
+    class A:
+        def __init__(self):
+            self.calls = 0
+            self.logger = prefect.utilities.logging.get_logger("A")
+
+        def _heartbeat(self):
+            if self.calls == 1:
+                raise SyntaxError("oops")
+            return True
+
+        @run_with_heartbeat
+        def run(self):
+            self.calls = 1
+            time.sleep(1)
+
+    a = A()
+    with set_temporary_config({"cloud.heartbeat_interval": 0.25}):
+        a.run()
+
+    assert caplog.records
+
+    log = caplog.records[0]
+    assert log.name == "prefect.A"
+    assert "Heartbeat thread appears to have died" in log.message
     assert "zombie" in log.message
 
 

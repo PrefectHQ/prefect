@@ -78,7 +78,9 @@ class CloudHandler(logging.StreamHandler):
     def start(self) -> None:
         if not hasattr(self, "_thread"):
             self.heartbeat = context.config.cloud.logging_heartbeat
-            self._thread = t = threading.Thread(target=self._monitor)
+            self._thread = t = threading.Thread(
+                target=self._monitor, name="PrefectCloudLoggingThread"
+            )
             t.daemon = True
             t.start()
             atexit.register(self.flush)
