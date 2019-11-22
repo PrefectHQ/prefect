@@ -11,7 +11,6 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments.storage import Docker
-from prefect.utilities.exceptions import SerializationError
 
 
 def test_create_docker_storage():
@@ -215,7 +214,7 @@ def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
-def test_build_image_fails_deserialization(monkeypatch):
+def test_build_image_fails_with_value_error(monkeypatch):
     flow = Flow("test")
     storage = Docker(
         registry_url="reg",
@@ -227,17 +226,17 @@ def test_build_image_fails_deserialization(monkeypatch):
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(flow)
 
 
-def test_build_image_fails_deserialization_no_registry(monkeypatch):
+def test_build_image_fails_no_registry(monkeypatch):
     storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(push=False)
 
 
@@ -313,9 +312,9 @@ def test_create_dockerfile_from_base_image():
     storage = Docker(base_image="python:3.6")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         assert "FROM python:3.6" in output
@@ -329,10 +328,56 @@ def test_create_dockerfile_from_dockerfile():
             tmp.write(myfile)
 
         storage = Docker(dockerfile=os.path.join(directory, "myfile"))
-        storage.create_dockerfile_object(directory=directory)
+        dpath = storage.create_dockerfile_object(directory=directory)
 
-        with open(os.path.join(directory, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
+
+    assert output.startswith("\n" + myfile)
+
+    # test proper indentation
+    assert all(
+        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+    )
+
+
+def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
+    myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            with open(os.path.join(directory, "myfile"), "w") as tmp:
+                tmp.write(myfile)
+
+            storage = Docker(
+                dockerfile=os.path.join(directory, "myfile"),
+                files={os.path.join(tempdir_outside, "test"): "./test2"},
+            )
+            storage.add_flow(Flow("foo"))
+            dpath = storage.create_dockerfile_object(directory=directory)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "COPY {} /root/.prefect/flows/foo.prefect".format(
+                    os.path.join(directory, "foo.flow")
+                )
+                in output
+            ), output
+            assert (
+                "COPY {} ./test2".format(os.path.join(directory, "test")) in output
+            ), output
+            assert (
+                "COPY {} /root/.prefect/healthcheck.py".format(
+                    os.path.join(directory, "healthcheck.py")
+                )
+                in output
+            )
 
     assert output.startswith("\n" + myfile)
 
@@ -369,9 +414,9 @@ def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
     storage = Docker(prefect_version=prefect_version[0])
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         for content in prefect_version[1]:
@@ -389,9 +434,9 @@ def test_create_dockerfile_with_weird_flow_name():
             storage = Docker(registry_url="test1", base_image="test3")
             f = Flow("WHAT IS THIS !!! ~~~~")
             storage.add_flow(f)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert (
@@ -423,9 +468,9 @@ def test_create_dockerfile_from_everything():
             g = Flow("other")
             storage.add_flow(f)
             storage.add_flow(g)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert "FROM test3" in output
