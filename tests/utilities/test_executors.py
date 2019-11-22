@@ -12,21 +12,24 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import Heartbeat, timeout_handler, run_with_heartbeat
 
 
-def test_heartbeat_calls_function_on_interval():
+@pytest.mark.parametrize("interval", [0.2, 1])
+@pytest.mark.parametrize("sleeptime", [1, 2])
+def test_heartbeat_calls_function_on_interval(interval, sleeptime):
     class A:
         def __init__(self):
             self.called = 0
 
         def __call__(self):
             self.called += 1
+            return True
 
     a = A()
-    timer = Heartbeat(0.09, a)
+    timer = Heartbeat(interval, a, None)
     timer.start()
-    time.sleep(0.2)
+    time.sleep(sleeptime)
     timer.cancel()
-    timer.join()
-    assert a.called == 2
+    assert a.called >= sleeptime / interval
+    assert a.called <= sleeptime / interval + 1
 
 
 def test_heartbeat_logs_if_first_call_fails(caplog):
@@ -61,6 +64,7 @@ def test_heartbeat_logs_if_thread_dies(caplog):
         def _heartbeat(self):
             if self.calls == 1:
                 raise SyntaxError("oops")
+            return True
 
         @run_with_heartbeat
         def run(self):
@@ -75,7 +79,7 @@ def test_heartbeat_logs_if_thread_dies(caplog):
 
     log = caplog.records[0]
     assert log.name == "prefect.A"
-    assert "Heartbeat thread died" in log.message
+    assert "Heartbeat thread appears to have died" in log.message
     assert "zombie" in log.message
 
 

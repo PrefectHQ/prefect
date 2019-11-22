@@ -11,7 +11,7 @@ import prefect
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
-    Aborted,
+    Cancelled,
     Cached,
     ClientFailed,
     Failed,
@@ -359,8 +359,8 @@ class TestStateHierarchy:
     def test_failed_is_finished(self):
         assert issubclass(Failed, Finished)
 
-    def test_aborted_is_failed(self):
-        assert issubclass(Aborted, Failed)
+    def test_cancelled_is_failed(self):
+        assert issubclass(Cancelled, Failed)
 
     def test_trigger_failed_is_finished(self):
         assert issubclass(TriggerFailed, Finished)
@@ -384,7 +384,7 @@ class TestStateHierarchy:
 @pytest.mark.parametrize(
     "state_check",
     [
-        dict(state=Aborted(), assert_true={"is_finished", "is_failed"}),
+        dict(state=Cancelled(), assert_true={"is_finished", "is_failed"}),
         dict(state=Cached(), assert_true={"is_cached", "is_finished", "is_successful"}),
         dict(state=ClientFailed(), assert_true={"is_meta_state"}),
         dict(state=Failed(), assert_true={"is_finished", "is_failed"}),

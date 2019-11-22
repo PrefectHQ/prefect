@@ -6,6 +6,42 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- Add graceful cancellation hooks to Flow and Task runners - [#1757](https://github.com/PrefectHQ/prefect/pull/1757)
+
+### Enhancements
+
+- Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
+- Add `work_stealing` option to `DaskKubernetesEnvironment` - [#1760](https://github.com/PrefectHQ/prefect/pull/1760)
+- Improve heartbeat thread management - [#1770](https://github.com/PrefectHQ/prefect/pull/1770)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with heartbeat thread deadlocking dask execution when using a `worker_client` - [#1750](https://github.com/PrefectHQ/prefect/pull/1750)
+- Fix issue with Environments not calling `run_flow` on Environment stored on Flow object - [#1752](https://github.com/PrefectHQ/prefect/pull/1752)
+- Fix issue with Docker build context when providing custom docker files - [#1762](https://github.com/PrefectHQ/prefect/pull/1762)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.2 <Badge text="beta" type="success"/>
+
+Released on Nov 15, 2019.
+
+### Features
+
 - Allow users to provide a custom version group ID for controlling Cloud versioning - [#1665](https://github.com/PrefectHQ/prefect/issues/1665)
 - Stop autogenerating constant tasks - [#1730](https://github.com/PrefectHQ/prefect/pull/1730)
 

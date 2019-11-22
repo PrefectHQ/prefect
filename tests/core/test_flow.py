@@ -16,9 +16,11 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
+from prefect.engine.executors import LocalExecutor
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError, FAIL, LOOP
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Finished,
     Mapped,
@@ -2131,6 +2133,20 @@ class TestFlowRunMethod:
         )
         f.run()
         assert REPORTED_START_TIMES == start_times
+
+    def test_flow_dot_run_handles_keyboard_signals_gracefully(self):
+        class BadExecutor(LocalExecutor):
+            def submit(self, *args, **kwargs):
+                raise KeyboardInterrupt
+
+        @task
+        def do_something():
+            pass
+
+        f = Flow("test", tasks=[do_something])
+        state = f.run(executor=BadExecutor())
+        assert isinstance(state, Cancelled)
+        assert "interrupt" in state.message.lower()
 
 
 class TestFlowDeploy:

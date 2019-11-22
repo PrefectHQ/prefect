@@ -1,3 +1,4 @@
+import _thread
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -61,12 +62,22 @@ class CloudFlowRunner(FlowRunner):
             flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
 
-    def _heartbeat(self) -> None:
+    def _heartbeat(self) -> bool:
         try:
-            flow_run_id = prefect.context.get("flow_run_id")
+            # use empty string for testing purposes
+            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
             self.client.update_flow_run_heartbeat(flow_run_id)
-        except:
-            warnings.warn("Heartbeat failed for Flow '{}'".format(self.flow.name))
+            query = 'query{flow_run_by_pk(id: "' + flow_run_id + '"){state}}'
+            state = self.client.graphql(query).data.flow_run_by_pk.state
+            if state == "Cancelled":
+                _thread.interrupt_main()
+                return False
+            return True
+        except Exception as exc:
+            self.logger.exception(
+                "Heartbeat failed for Flow '{}'".format(self.flow.name)
+            )
+            return False
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """

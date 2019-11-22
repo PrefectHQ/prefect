@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import uuid
+from box import Box
 from unittest.mock import MagicMock
 
 import cloudpickle
@@ -20,6 +21,7 @@ from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cached,
+    Cancelled,
     ClientFailed,
     Failed,
     Finished,
@@ -455,28 +457,30 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
 
 
 class TestHeartBeats:
-    def test_heartbeat_traps_errors_caused_by_client(self, monkeypatch):
+    def test_heartbeat_traps_errors_caused_by_client(self, caplog, monkeypatch):
         client = MagicMock(update_task_run_heartbeat=MagicMock(side_effect=SyntaxError))
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         runner = CloudTaskRunner(task=Task(name="bad"))
         runner.task_run_id = None
-        with pytest.warns(UserWarning) as warning:
-            res = runner._heartbeat()
-        assert res is None
+        res = runner._heartbeat()
+        assert res is False
         assert client.update_task_run_heartbeat.called
-        w = warning.pop()
-        assert "Heartbeat failed for Task 'bad'" in repr(w.message)
 
-    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, monkeypatch):
+        log = caplog.records[0]
+        assert log.levelname == "ERROR"
+        assert "Heartbeat failed for Task 'bad'" in log.message
+
+    def test_heartbeat_traps_errors_caused_by_bad_attributes(self, caplog, monkeypatch):
         monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", MagicMock())
         runner = CloudTaskRunner(task=Task())
-        with pytest.warns(UserWarning) as warning:
-            res = runner._heartbeat()
-        assert res is None
-        w = warning.pop()
-        assert "Heartbeat failed for Task 'Task'" in repr(w.message)
+        res = runner._heartbeat()
+        assert res is False
+
+        log = caplog.records[0]
+        assert log.levelname == "ERROR"
+        assert "Heartbeat failed for Task 'Task'" in log.message
 
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
@@ -488,6 +492,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             @prefect.task
             def sleeper():
@@ -525,6 +530,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             @prefect.task(timeout=1)
             def sleeper():
@@ -566,6 +572,7 @@ class TestHeartBeats:
             def update(*args, **kwargs):
                 with open(fname, "a") as f:
                     f.write("called\n")
+                return True
 
             def multiprocessing_helper(executor):
                 set_task_run_state = MagicMock(
@@ -577,7 +584,7 @@ class TestHeartBeats:
                     MagicMock(return_value=client),
                 )
                 runner = CloudTaskRunner(task=Task())
-                runner.cache_result = lambda *args, **kwargs: time.sleep(0.2)
+                runner.cache_result = lambda *args, **kwargs: time.sleep(0.25)
                 runner._heartbeat = update
                 with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
                     return runner.run(executor=executor)
@@ -589,7 +596,7 @@ class TestHeartBeats:
             with open(fname, "r") as g:
                 results = g.read()
 
-        assert len(results.split()) == 1
+        assert len(results.split()) == 2
 
     def test_task_runner_has_a_heartbeat_with_task_run_id(self, monkeypatch):
         set_task_run_state = MagicMock(
@@ -977,3 +984,25 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
 
     # ensures result handler was called and persisted
     assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
+
+
+def test_db_cancelled_states_interrupt_task_run(client, monkeypatch):
+    calls = dict(count=0)
+
+    def heartbeat_counter(*args, **kwargs):
+        if calls["count"] == 3:
+            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+        calls["count"] += 1
+        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+
+    client.graphql = heartbeat_counter
+
+    @prefect.task
+    def sleeper():
+        time.sleep(3)
+
+    with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+        state = CloudTaskRunner(task=sleeper).run()
+
+    assert isinstance(state, Cancelled)
+    assert "interrupt" in state.message.lower()
