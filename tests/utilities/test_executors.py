@@ -24,7 +24,7 @@ def test_heartbeat_calls_function_on_interval(interval, sleeptime):
             return True
 
     a = A()
-    timer = Heartbeat(interval, a)
+    timer = Heartbeat(interval, a, None)
     timer.start()
     time.sleep(sleeptime)
     timer.cancel()

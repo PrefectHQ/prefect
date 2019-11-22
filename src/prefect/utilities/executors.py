@@ -5,6 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
+from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import dask
@@ -31,10 +32,11 @@ class Heartbeat:
             to not require arguments
     """
 
-    def __init__(self, interval: int, function: Callable) -> None:
+    def __init__(self, interval: int, function: Callable, logger: Logger) -> None:
         self.interval = interval
         self.rate = min(interval, 1)
         self.function = function
+        self.logger = logger
         self._exit = False
 
     def start(self, name_prefix: str = "") -> None:
@@ -57,10 +59,19 @@ class Heartbeat:
                 iters = (iters + 1) % self.interval
                 time.sleep(self.rate)
 
+        def monitor() -> None:
+            while not self._exit:
+                if not self.fut.running():
+                    self.logger.warning(
+                        "Heartbeat thread appears to have died.  This could result in a zombie run."
+                    )
+                time.sleep(self.rate / 2)
+
         self.executor = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix=name_prefix
+            max_workers=2, thread_name_prefix=name_prefix
         )
         self.fut = self.executor.submit(looper)
+        self.executor.submit(monitor)
 
     def cancel(self) -> bool:
         """
@@ -96,7 +107,9 @@ def run_with_heartbeat(
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
-        timer = Heartbeat(prefect.config.cloud.heartbeat_interval, self._heartbeat)
+        timer = Heartbeat(
+            prefect.config.cloud.heartbeat_interval, self._heartbeat, self.logger
+        )
         obj = getattr(self, "task", None) or getattr(self, "flow", None)
         thread_name = "PrefectHeartbeat-{}".format(getattr(obj, "name", "unknown"))
         heartbeat_threads = []
