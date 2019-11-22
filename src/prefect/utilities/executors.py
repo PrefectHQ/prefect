@@ -69,9 +69,9 @@ class Heartbeat:
                     return
                 time.sleep(self.rate / 2)
 
-        kwargs = dict(max_workers=2)
-        if sys.version.minor != 5:
-            kwargs.update(thread_name_prefix=name_prefix)
+        kwargs = dict(max_workers=2)  # type: Dict[str, Any]
+        if sys.version_info.minor != 5:
+            kwargs.update(dict(thread_name_prefix=name_prefix))
         self.executor = ThreadPoolExecutor(**kwargs)
         self.fut = self.executor.submit(looper)
         self.executor.submit(monitor)
