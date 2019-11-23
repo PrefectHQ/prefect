@@ -117,31 +117,18 @@ def run_with_heartbeat(
         )
         obj = getattr(self, "task", None) or getattr(self, "flow", None)
         thread_name = "PrefectHeartbeat-{}".format(getattr(obj, "name", "unknown"))
-        heartbeat_threads = []
         try:
             try:
                 if self._heartbeat():
                     timer.start(name_prefix=thread_name)
-                    heartbeat_threads.extend(
-                        [
-                            t
-                            for t in threading.enumerate()
-                            if t.name.startswith(thread_name)
-                        ]
-                    )
-                    if not heartbeat_threads and sys.version_info.minor != 5:
-                        self.logger.exception(
-                            "Heartbeat failed to start.  This could result in a zombie run."
-                        )
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
                 )
             return runner_method(self, *args, **kwargs)
         finally:
-            was_alive = all([t.is_alive() for t in heartbeat_threads])
             was_running = timer.cancel()
-            if not (was_alive and was_running):
+            if not was_running:
                 self.logger.warning(
                     "Heartbeat thread appears to have died.  This could result in a zombie run."
                 )
