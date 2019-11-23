@@ -45,7 +45,7 @@ class Heartbeat:
         Calling this method initiates the function calls in the background.
         """
 
-        def looper() -> None:
+        def looper(ctx) -> None:
             iters = 0
 
             ## we use the self._exit attribute as a way of communicating
@@ -54,27 +54,29 @@ class Heartbeat:
             ## whether we should exit.  Every `interval` number of calls, we
             ## actually call the function.  The rounding logic is here to
             ## support sub-second intervals.
-            while not self._exit:
-                if round(iters % self.interval) == 0:
-                    self.function()
-                iters = (iters + 1) % self.interval
-                time.sleep(self.rate)
+            with prefect.context(ctx):
+                while not self._exit:
+                    if round(iters % self.interval) == 0:
+                        self.function()
+                    iters = (iters + 1) % self.interval
+                    time.sleep(self.rate)
 
-        def monitor() -> None:
-            while not self._exit:
-                if not self.fut.running():
-                    self.logger.warning(
-                        "Heartbeat thread appears to have died.  This could result in a zombie run."
-                    )
-                    return
-                time.sleep(self.rate / 2)
+        def monitor(ctx) -> None:
+            with prefect.context(ctx):
+                while not self._exit:
+                    if not self.fut.running():
+                        self.logger.warning(
+                            "Heartbeat thread appears to have died.  This could result in a zombie run."
+                        )
+                        return
+                    time.sleep(self.rate / 2)
 
         kwargs = dict(max_workers=2)  # type: Dict[str, Any]
         if sys.version_info.minor != 5:
             kwargs.update(dict(thread_name_prefix=name_prefix))
         self.executor = ThreadPoolExecutor(**kwargs)
-        self.fut = self.executor.submit(looper)
-        self.executor.submit(monitor)
+        self.fut = self.executor.submit(looper, prefect.context.to_dict())
+        self.executor.submit(monitor, prefect.context.to_dict())
 
     def cancel(self) -> bool:
         """
