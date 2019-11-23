@@ -45,7 +45,7 @@ class Heartbeat:
         Calling this method initiates the function calls in the background.
         """
 
-        def looper(ctx) -> None:
+        def looper(ctx: dict) -> None:
             iters = 0
 
             ## we use the self._exit attribute as a way of communicating
@@ -61,7 +61,7 @@ class Heartbeat:
                     iters = (iters + 1) % self.interval
                     time.sleep(self.rate)
 
-        def monitor(ctx) -> None:
+        def monitor(ctx: dict) -> None:
             with prefect.context(ctx):
                 while not self._exit:
                     if not self.fut.running():
