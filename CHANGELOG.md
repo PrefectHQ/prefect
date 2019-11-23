@@ -6,13 +6,14 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- Add graceful cancellation hooks to Flow and Task runners - [#1757](https://github.com/PrefectHQ/prefect/pull/1757)
+- Add graceful cancellation hooks to Flow and Task runners - [#1758](https://github.com/PrefectHQ/prefect/pull/1758)
 
 ### Enhancements
 
 - Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
 - Add `work_stealing` option to `DaskKubernetesEnvironment` - [#1760](https://github.com/PrefectHQ/prefect/pull/1760)
 - Improve heartbeat thread management - [#1770](https://github.com/PrefectHQ/prefect/pull/1770)
+- Add unique scheduler Job name to `DaskKubernetesEnvironment` - [#1772](https://github.com/PrefectHQ/prefect/pull/1772)
 
 ### Task Library
 
