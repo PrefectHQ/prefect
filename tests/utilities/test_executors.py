@@ -27,9 +27,47 @@ def test_heartbeat_calls_function_on_interval(interval, sleeptime):
     timer = Heartbeat(interval, a, None)
     timer.start()
     time.sleep(sleeptime)
-    timer.cancel()
+    assert timer.cancel()
     assert a.called >= sleeptime / interval
     assert a.called <= sleeptime / interval + 1
+
+
+def test_heartbeat_cancel_returns_false_if_exception_raised():
+    class A:
+        def __init__(self):
+            self.data = dict()
+
+        def __call__(self):
+            raise ValueError()
+
+    a = A()
+    timer = Heartbeat(0.025, a, None)
+    timer.start()
+    time.sleep(0.025)
+    assert not timer.cancel()
+
+
+def test_heartbeat_preserves_context():
+    class A:
+        def __init__(self):
+            self.data = dict()
+
+        def __call__(self):
+            self.data["key"] = prefect.context["foo"]
+
+    a = A()
+    timer = Heartbeat(0.025, a, None)
+    timer.start()
+    time.sleep(0.025)
+    assert not timer.cancel()
+
+    timer = Heartbeat(0.025, a, None)
+    with prefect.context(foo="bar"):
+        timer.start()
+        time.sleep(0.025)
+        assert timer.cancel()
+
+    assert a.data == dict(key="bar")
 
 
 def test_heartbeat_logs_if_first_call_fails(caplog):
