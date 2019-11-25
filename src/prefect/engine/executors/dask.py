@@ -195,6 +195,8 @@ class LocalDaskExecutor(Executor):
     An executor that runs all functions locally using `dask` and a configurable dask scheduler.  Note that
     this executor is known to occasionally run tasks twice when using multi-level mapping.
 
+    Prefect's mapping feature will not work in conjunction with setting `scheduler="processes"`.
+
     Args:
         - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "synchronous".
         - **kwargs (Any): Additional keyword arguments to pass to dask config
