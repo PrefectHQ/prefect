@@ -241,6 +241,11 @@ class LocalDaskExecutor(Executor):
             - List[dask.delayed]: the result of computating the function over the arguments
 
         """
+        if self.scheduler == "processes":
+            raise RuntimeError(
+                "LocalDaskExecutor cannot map if scheduler='processes'. Please set to either 'synchronous' or 'threads'."
+            )
+
         results = []
         for args_i in zip(*args):
             results.append(self.submit(fn, *args_i))
