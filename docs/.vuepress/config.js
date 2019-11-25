@@ -1,26 +1,26 @@
-const sidebar64 = require('../api/0.6.4/sidebar')
-const sidebar65 = require('../api/0.6.5/sidebar')
-const sidebar66 = require('../api/0.6.6/sidebar')
-const sidebar67 = require('../api/0.6.7/sidebar')
-const sidebar70 = require('../api/0.7.0/sidebar')
-const sidebar71 = require('../api/0.7.1/sidebar')
-const sidebar72 = require('../api/0.7.2/sidebar')
-const glob = require('glob')
+const sidebar64 = require("../api/0.6.4/sidebar");
+const sidebar65 = require("../api/0.6.5/sidebar");
+const sidebar66 = require("../api/0.6.6/sidebar");
+const sidebar67 = require("../api/0.6.7/sidebar");
+const sidebar70 = require("../api/0.7.0/sidebar");
+const sidebar71 = require("../api/0.7.1/sidebar");
+const sidebar72 = require("../api/0.7.2/sidebar");
+const glob = require("glob");
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
-    .sync(parent_path + '/' + dir + '/**/*.md')
+    .sync(parent_path + "/" + dir + "/**/*.md")
     .map(path => {
       // remove "parent_path" and ".md"
-      path = path.slice(parent_path.length + 1, -3)
+      path = path.slice(parent_path.length + 1, -3);
       // remove README
-      if (path.endsWith('README')) {
-        path = path.slice(0, -6)
+      if (path.endsWith("README")) {
+        path = path.slice(0, -6);
       }
-      return path
+      return path;
     })
-    .sort()
+    .sort();
 };
 
 module.exports = {
@@ -44,8 +44,8 @@ module.exports = {
   ],
   themeConfig: {
     algolia: {
-      apiKey: '553c75634e1d4f09c84f7a513f9cc4f9',
-      indexName: 'prefect'
+      apiKey: "553c75634e1d4f09c84f7a513f9cc4f9",
+      indexName: "prefect"
     },
     repo: "PrefectHQ/prefect",
     docsDir: "docs",
@@ -71,7 +71,7 @@ module.exports = {
           { text: "0.6.7", link: "/api/0.6.7/" },
           { text: "0.6.6", link: "/api/0.6.6/" },
           { text: "0.6.5", link: "/api/0.6.5/" },
-          { text: "0.6.4", link: "/api/0.6.4/" },
+          { text: "0.6.4", link: "/api/0.6.4/" }
         ]
       }
     ],
@@ -86,7 +86,10 @@ module.exports = {
       "/api/unreleased/": [
         { title: "API Reference", path: "/api/unreleased/" },
         "changelog",
-        { title: "Test Coverage", path: "https://codecov.io/gh/PrefectHQ/prefect" },
+        {
+          title: "Test Coverage",
+          path: "https://codecov.io/gh/PrefectHQ/prefect"
+        },
         {
           title: "prefect",
           collapsable: true,
@@ -137,12 +140,20 @@ module.exports = {
         {
           title: "Welcome",
           collapsable: false,
-          children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "deployment", "faq"]
+          children: [
+            "the-basics",
+            "upandrunning",
+            "flow-deploy",
+            "dataflow",
+            "deployment",
+            "other-considerations",
+            "faq"
+          ]
         },
         {
           title: "Cloud Concepts",
           collapsable: true,
-          children: getChildren('docs/cloud', 'concepts')
+          children: getChildren("docs/cloud", "concepts")
         },
         {
           title: "Cloud Execution",
@@ -153,17 +164,17 @@ module.exports = {
             "execution/dask_k8s_environment",
             "execution/k8s_job_environment",
             "execution/fargate_task_environment",
-            "execution/custom_environment",
+            "execution/custom_environment"
           ]
         },
         {
-          title: 'Agent',
+          title: "Agent",
           collapsable: true,
           children: [
-            'agent/overview',
-            'agent/local',
-            'agent/kubernetes',
-            'agent/fargate',
+            "agent/overview",
+            "agent/local",
+            "agent/kubernetes",
+            "agent/fargate"
           ]
         },
         {

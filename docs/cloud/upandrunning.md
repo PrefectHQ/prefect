@@ -2,24 +2,30 @@
 
 In this guide, we will look at a minimal and quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build its Docker storage, deploy to Prefect Cloud, and orchestrate a run with the Local Agent. No extra infrastructure required!
 
+You might also want to look at the Running A Flow tutorial that is in the "Tutorials" section of the UI. (Accessed via the menu button at the top-left of the dashboard.)
+
 ### Prerequisites
 
-In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token which we will use to log into Prefect Cloud. We are also going to want to generate a `RUNNER` token and save that in a secure place because we will use it later when creating our Local Agent. 
+In order to start using Prefect Cloud we need to set up our authentication. Head to the UI and retrieve a `USER` API token from the user settings section (click on the button at the top left of the dashboard to find it). We will use the `USER` token to log into Prefect Cloud. We are also going to want to generate a `RUNNER` token (available in the team settings section of the UI) and save that in a secure place because we will use it later when creating our Local Agent.
 
-For information on how to create a `RUNNER` token visit the [Tokens](concepts/tokens.html) page.
+For more information on how to create a `USER` or `RUNNER` token visit the [Tokens](concepts/tokens.html) page.
 
 Let's use the Prefect CLI to log into Cloud. Run this command, replacing `$PREFECT_USER_TOKEN` with the `USER` token you generated a moment ago:
+
 ```
 $ prefect auth login --token $PREFECT_USER_TOKEN
 Login successful!
 ```
 
 Now you should be able to begin working with Prefect Cloud! Verify that you have a default project by running:
+
 ```
 $ prefect get projects
 NAME            FLOW COUNT  AGE         DESCRIPTION
 Hello, World!   0           1 day ago
 ```
+
+If you don't have a project set up, you can do so from the dashboard in the UI.
 
 ### Write a Flow
 
@@ -91,18 +97,22 @@ Flow Run ID: 43a6624a-c5ce-43f3-a652-55e9c0b20527
 ```
 
 Our flow run has been created! We should be able to see this picked up in the agent logs:
+
 ```
 2019-09-01 13:11:58,716 - agent - INFO - Found 1 flow run(s) to submit for execution.
 2019-09-01 13:12:00,534 - agent - INFO - Submitted 1 flow run(s) for execution.
 ```
 
-Now the agent has submitted the flow run and created a Docker container locally. We may be able to catch it in the act with `docker ps` but our flow doesn't do anything so it may run too fast for us! (Another option: Kitematic is a great tool for interacting with containers while they are live)
-
 You can check on your flow run using Prefect Cloud:
+
 ```
 $ prefect get flow-runs
 NAME                FLOW NAME       STATE    AGE                START TIME
 super-bat           my-flow         Success  a few seconds ago  2019-09-01 13:12:02
 ```
 
-Congratulations! You ran a flow using Prefect Cloud! Now you can take it a step further and deploy a Prefect Agent on a high availability platform such as [Kubernetes](agent/kubernetes.html).
+You should also be able to see your flow in the UI.
+
+Congratulations! You ran a flow using Prefect Cloud! Now you can take it a step further and follow our example for deploying a flow.
+
+You could also deploy a Prefect Agent on a high availability platform such as [Kubernetes](agent/kubernetes.html).
