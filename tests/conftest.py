@@ -105,3 +105,8 @@ def patch_post(monkeypatch):
         return post
 
     return patch
+
+
+@pytest.fixture()
+def runner_token(monkeypatch):
+    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())

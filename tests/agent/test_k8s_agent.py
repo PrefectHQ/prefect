@@ -16,7 +16,7 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_k8s_agent_init(monkeypatch):
+def test_k8s_agent_init(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -27,7 +27,7 @@ def test_k8s_agent_init(monkeypatch):
     assert agent.batch_client
 
 
-def test_k8s_agent_config_options(monkeypatch):
+def test_k8s_agent_config_options(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -41,7 +41,7 @@ def test_k8s_agent_config_options(monkeypatch):
         assert agent.batch_client
 
 
-def test_k8s_agent_deploy_flows(monkeypatch):
+def test_k8s_agent_deploy_flows(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -80,7 +80,7 @@ def test_k8s_agent_deploy_flows(monkeypatch):
     )
 
 
-def test_k8s_agent_deploy_flows_continues(monkeypatch):
+def test_k8s_agent_deploy_flows_continues(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -105,7 +105,7 @@ def test_k8s_agent_deploy_flows_continues(monkeypatch):
     assert not agent.batch_client.create_namespaced_job.called
 
 
-def test_k8s_agent_replace_yaml(monkeypatch):
+def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -149,7 +149,7 @@ def test_k8s_agent_replace_yaml(monkeypatch):
         )
 
 
-def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch):
+def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -173,7 +173,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch):
     assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
 
 
-def test_k8s_agent_includes_agent_labels_in_job(monkeypatch):
+def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -198,7 +198,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch):
     assert env[4]["value"] == "['foo', 'bar']"
 
 
-def test_k8s_agent_generate_deployment_yaml(monkeypatch):
+def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -234,7 +234,9 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch):
         ("0.5.2+999.gr34343.dirty", "latest"),
     ],
 )
-def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, version):
+def test_k8s_agent_generate_deployment_yaml_local_version(
+    monkeypatch, version, runner_token
+):
     monkeypatch.setattr(prefect, "__version__", version[0])
 
     k8s_config = MagicMock()
@@ -257,7 +259,9 @@ def test_k8s_agent_generate_deployment_yaml_local_version(monkeypatch, version):
     assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
-def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch):
+def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
+    monkeypatch, runner_token
+):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -277,7 +281,7 @@ def test_k8s_agent_generate_deployment_yaml_no_resource_manager(monkeypatch):
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
-def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch):
+def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -301,7 +305,9 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch):
     assert len(deployment["spec"]["template"]["spec"]["containers"]) == 1
 
 
-def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(monkeypatch):
+def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
+    monkeypatch, runner_token
+):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -315,7 +321,9 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(monkeypatch):
     assert deployment["spec"]["template"]["spec"].get("imagePullSecrets") is None
 
 
-def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(monkeypatch):
+def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
+    monkeypatch, runner_token
+):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -335,7 +343,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(monkeypa
     )
 
 
-def test_k8s_agent_heartbeat_creates_file(monkeypatch):
+def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -352,7 +360,7 @@ def test_k8s_agent_heartbeat_creates_file(monkeypatch):
         assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
 
 
-def test_k8s_agent_heartbeat_modifies(monkeypatch):
+def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -381,7 +389,7 @@ def test_k8s_agent_heartbeat_modifies(monkeypatch):
         assert second > first
 
 
-def test_k8s_agent_heartbeat_check(monkeypatch):
+def test_k8s_agent_heartbeat_check(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
