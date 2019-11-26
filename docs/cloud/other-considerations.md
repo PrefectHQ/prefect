@@ -10,15 +10,18 @@ Now that you have an account, this guide will talk you through the components of
 
 Before you can deploy Prefect flows from Prefect Cloud you must stand up a Prefect Agent on your desired platform. For more agent documentation visit the [Agent](agent/overview.html) section of the Cloud docs.
 
-## Create a Project
+## Authentication
 
 Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API. To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu. You can use [Prefect's CLI](https://docs.prefect.io/core/concepts/cli.html#auth) to persist your token locally.
+
+## Create a Project
 
 Prior to deploying your first Flow you should create a Project in Prefect Cloud. Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
 
 There are three simple ways of creating projects, depending on your personal preference:
 
 **The UI**
+
 Simply head to the dashboard page of the UI and click on the projects page. Select "New Project" and enter a name.
 
 **Python**
@@ -29,6 +32,10 @@ from prefect import Client
 c = Client()
 c.create_project(project_name="My Project")
 ```
+
+**CLI**
+
+`prefect create project "My Project"`
 
 **GraphQL**
 

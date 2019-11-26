@@ -25,7 +25,7 @@ NAME            FLOW COUNT  AGE         DESCRIPTION
 Hello, World!   0           1 day ago
 ```
 
-If you don't have a project set up, you can do so from the dashboard in the UI.
+If you don't have a project set up, you can do so from the dashboard in the UI or by using the create command in the CLI `prefect create project "My Project"` (where "My Project" is your project name).
 
 ### Write a Flow
 
