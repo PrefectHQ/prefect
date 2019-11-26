@@ -5,6 +5,7 @@ const sidebar67 = require('../api/0.6.7/sidebar')
 const sidebar70 = require('../api/0.7.0/sidebar')
 const sidebar71 = require('../api/0.7.1/sidebar')
 const sidebar72 = require('../api/0.7.2/sidebar')
+const sidebar73 = require('../api/0.7.3/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -65,6 +66,7 @@ module.exports = {
         text: 'API Reference',
         items: [
           { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: '0.7.3', link: '/api/0.7.3/' },
           { text: '0.7.2', link: '/api/0.7.2/' },
           { text: '0.7.1', link: '/api/0.7.1/' },
           { text: '0.7.0', link: '/api/0.7.0/' },
@@ -83,6 +85,7 @@ module.exports = {
       '/api/0.7.0/': sidebar70.sidebar,
       '/api/0.7.1/': sidebar71.sidebar,
       '/api/0.7.2/': sidebar72.sidebar,
+      '/api/0.7.3/': sidebar73.sidebar,
       '/api/unreleased/': [
         { title: 'API Reference', path: '/api/unreleased/' },
         'changelog',
