@@ -70,6 +70,7 @@ class Agent:
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
+        self._verify_token(token)
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -81,6 +82,25 @@ class Agent:
         logger.addHandler(ch)
 
         self.logger = logger
+
+    def _verify_token(self, token: str) -> None:
+        """
+        Checks whether a token with a `RUNNER` scope was provided
+        Args:
+            - token (str): The provided agent token to verify
+        Raises:
+            - AuthorizationError: if token is empty or does not have a RUNNER role
+        """
+        if not token:
+            raise AuthorizationError("No agent API token provided.")
+
+        # Check if RUNNER role
+        result = self.client.graphql(query="query { authInfo { apiTokenScope } }")
+        if (
+            not result.data  # type: ignore
+            or result.data.authInfo.apiTokenScope != "RUNNER"  # type: ignore
+        ):
+            raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
     def start(self) -> None:
         """
