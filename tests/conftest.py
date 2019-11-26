@@ -37,8 +37,11 @@ def prefect_home_dir():
 @pytest.fixture(scope="session")
 def mthread():
     "Multi-threaded executor"
-    with Client(processes=False) as client:
-        yield DaskExecutor(client.scheduler.address)
+    try:
+        with Client(processes=False, dashboard_address=None) as client:
+            yield DaskExecutor(client.scheduler.address)
+    except Exception:
+        pass
 
 
 @pytest.fixture()
@@ -56,8 +59,11 @@ def sync():
 @pytest.fixture(scope="session")
 def mproc():
     "Multi-processing executor"
-    with Client(processes=True) as client:
-        yield DaskExecutor(client.scheduler.address, local_processes=True)
+    try:
+        with Client(processes=True, dashboard_address=None) as client:
+            yield DaskExecutor(client.scheduler.address, local_processes=True)
+    except Exception:
+        pass
 
 
 @pytest.fixture()
