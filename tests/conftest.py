@@ -60,7 +60,10 @@ def sync():
 def mproc():
     "Multi-processing executor"
     try:
-        with Client(processes=True, dashboard_address=None) as client:
+        kwargs = dict(processes=True)
+        if sys.version_info.minor != 5:
+            kwargs.update(dashboard_address=None)
+        with Client(**kwargs) as client:
             yield DaskExecutor(client.scheduler.address, local_processes=True)
     except Exception:
         pass
