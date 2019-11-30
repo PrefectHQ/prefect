@@ -1041,6 +1041,25 @@ class TestFlowVisualize:
             "label=y style=dashed" not in graph.source
         )  # constants are no longer represented
 
+    def test_viz_can_handle_skipped_mapped_tasks(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                t = Task(name="a_list_task")
+                res = AddTask(name="a_nice_task").map(x=t, y=8)
+
+            graph = f.visualize(
+                flow_state=Success(result={t: Success(), res: Skipped()})
+            )
+        assert 'label="a_nice_task <map>" color="#62757f80"' in graph.source
+        assert 'label=a_list_task color="#28a74580"' in graph.source
+        assert "label=x style=dashed" in graph.source
+        assert (
+            "label=y style=dashed" not in graph.source
+        )  # constants are no longer represented
+
     @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
     def test_viz_if_flow_state_provided(self, state):
         import graphviz
