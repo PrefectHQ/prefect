@@ -11,7 +11,7 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 """
 import datetime
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import pendulum
 
@@ -86,6 +86,16 @@ class State:
             self._result = value
         else:
             self._result = Result(value=value)
+
+    @classmethod
+    def children(cls) -> "List[Type[State]]":
+        children = []
+        for state in cls.__subclasses__():
+            # hide "private" state types
+            if not state.__name__.startswith("_"):
+                children.append(state)
+            children.extend(state.children())
+        return children
 
     def is_pending(self) -> bool:
         """
