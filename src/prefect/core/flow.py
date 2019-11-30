@@ -1116,10 +1116,9 @@ class Flow:
                 or any(edge.mapped for edge in self.edges_to(e.downstream_task))
             ) and flow_state:
                 assert isinstance(flow_state.result, dict)
-                if flow_state.result[t].is_mapped():
-                    for map_index, _ in enumerate(
-                        flow_state.result[e.downstream_task].map_states
-                    ):
+                down_state = flow_state.result[e.downstream_task]
+                if down_state.is_mapped():
+                    for map_index, _ in enumerate(down_state.map_states):
                         upstream_id = str(id(e.upstream_task))
                         if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
                             upstream_id += str(map_index)
