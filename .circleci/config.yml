@@ -101,7 +101,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install "pytest==5.0" pytest-cov pytest-env
+          command: pip install pytest pytest-cov pytest-env
 
       - run:
           name: Run tests
