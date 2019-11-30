@@ -97,6 +97,18 @@ class State:
             children.extend(state.children())
         return children
 
+    @classmethod
+    def parents(cls) -> "List[Type[State]]":
+        parents = []
+        for state in cls.mro():
+            if state in [object, cls]:
+                continue
+
+            # hide "private" state types
+            if not state.__name__.startswith("_"):
+                parents.append(state)
+        return parents
+
     def is_pending(self) -> bool:
         """
         Checks if the state is currently in a pending state

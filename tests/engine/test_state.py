@@ -440,5 +440,17 @@ def test_children_method_on_leaf_state_returns_empty():
 
 
 def test_children_method_on_success():
-    expected = set([Cached, Mapped, Skipped])
+    expected = {Cached, Mapped, Skipped}
     assert set(Success.children()) == expected
+
+
+def test_parent_method_on_base_state():
+    assert State.parents() == []
+
+
+def test_children_method_on_leaf_state_returns_hierarchy():
+    assert set(TriggerFailed.parents()) == {Finished, Failed, State}
+
+
+def test_parents_method_on_success():
+    assert set(Success.parents()) == {Finished, State}
