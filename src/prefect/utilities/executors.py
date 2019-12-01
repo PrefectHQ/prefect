@@ -136,6 +136,39 @@ def run_with_heartbeat(
     return inner
 
 
+def main_thread_timeout(
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
+) -> Any:
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - **kwargs (Any): keyword arguments to pass to the function
+    Returns:
+        - the result of `f(*args, **kwargs)`
+    Raises:
+        - TimeoutError: if function execution exceeds the allowed timeout
+        - ValueError: if run from outside the main thread
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+
+    def error_handler(signum, frame):  # type: ignore
+        raise TimeoutError("Execution timed out.")
+
+    try:
+        signal.signal(signal.SIGALRM, error_handler)
+        signal.alarm(timeout)
+        return fn(*args, **kwargs)
+    finally:
+        signal.alarm(0)
+
+
 def timeout_handler(
     fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
@@ -158,6 +191,9 @@ def timeout_handler(
     """
     if timeout is None:
         return fn(*args, **kwargs)
+
+    if threading.current_thread() is threading.main_thread():
+        return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
 
     executor = ThreadPoolExecutor()
 
