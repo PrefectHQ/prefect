@@ -4,6 +4,8 @@ import signal
 import sys
 import threading
 import time
+import warnings
+
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
@@ -247,6 +249,13 @@ def timeout_handler(
     elif multiprocessing.current_process().daemon is False:
         return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
 
+    msg = (
+        "This task is running in a daemonic subprocess; "
+        "consequently Prefect can only enforce a soft timeout limit, i.e., "
+        "if your Task reaches its timeout limit it will entire a TimedOut state "
+        "but continue running in the background."
+    )
+    warnings.warn(msg)
     executor = ThreadPoolExecutor()
 
     def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:

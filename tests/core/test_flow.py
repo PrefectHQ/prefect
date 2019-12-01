@@ -2495,9 +2495,7 @@ def test_auto_generation_of_collection_tasks_is_robust():
     assert flow_state.is_successful()
 
 
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mthread", "mproc"], indirect=True
-)
+@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
 def test_timeout_actually_stops_execution(executor):
     with tempfile.TemporaryDirectory() as call_dir:
         FILE = os.path.join(call_dir, "test.txt")
