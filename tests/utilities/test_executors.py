@@ -1,6 +1,8 @@
+import os
 import multiprocessing
 import sys
 import threading
+import tempfile
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -125,6 +127,31 @@ def test_timeout_handler_times_out():
     slow_fn = lambda: time.sleep(2)
     with pytest.raises(TimeoutError):
         timeout_handler(slow_fn, timeout=1)
+
+
+def test_timeout_handler_actually_stops_execution():
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 6 times"
+            iters = 0
+            while iters < 6:
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+                time.sleep(0.25)
+
+        with pytest.raises(TimeoutError):
+            # allow for at most 3 writes
+            timeout_handler(slow_fn, timeout=0.6)
+
+        # if it continued running, would run for 1 more second
+        time.sleep(1)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 3
 
 
 def test_timeout_handler_passes_args_and_kwargs_and_returns():
