@@ -225,7 +225,7 @@ def timeout_handler(
     Helper function for implementing timeouts on function executions.
 
     The exact implementation varies depending on whether this function is being run
-    in the main thread or a non-daemonic subprocess.  If this is run from a daemonic subprocess,
+    in the main thread or a non-daemonic subprocess.  If this is run from a daemonic subprocess or on Windows,
     the task is run in a `ThreadPoolExecutor` and only a soft timeout is enforced, meaning
     a `TimeoutError` is raised at the appropriate time but the task continues running in the background.
 
@@ -248,19 +248,26 @@ def timeout_handler(
 
     # if we are running the main thread, use a signal to stop execution at the appropriate time;
     # else if we are running in a non-daemonic process, spawn a subprocess to kill at the appropriate time
-    if threading.current_thread() is threading.main_thread() and not sys.platform.startswith(
-        "win"
-    ):
-        return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
-    elif multiprocessing.current_process().daemon is False:
-        return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
+    if not sys.platform.startswith("win"):
+        if threading.current_thread() is threading.main_thread():
+            return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
+        elif multiprocessing.current_process().daemon is False:
+            return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
 
-    msg = (
-        "This task is running in a daemonic subprocess; "
-        "consequently Prefect can only enforce a soft timeout limit, i.e., "
-        "if your Task reaches its timeout limit it will entire a TimedOut state "
-        "but continue running in the background."
-    )
+        msg = (
+            "This task is running in a daemonic subprocess; "
+            "consequently Prefect can only enforce a soft timeout limit, i.e., "
+            "if your Task reaches its timeout limit it will enter a TimedOut state "
+            "but continue running in the background."
+        )
+    else:
+        msg = (
+            "This task is running on Windows; "
+            "consequently Prefect can only enforce a soft timeout limit, i.e., "
+            "if your Task reaches its timeout limit it will enter a TimedOut state "
+            "but continue running in the background."
+        )
+
     warnings.warn(msg)
     executor = ThreadPoolExecutor()
 

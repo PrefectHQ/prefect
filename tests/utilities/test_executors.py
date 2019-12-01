@@ -129,6 +129,9 @@ def test_timeout_handler_times_out():
         timeout_handler(slow_fn, timeout=1)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 def test_timeout_handler_actually_stops_execution():
     with tempfile.TemporaryDirectory() as call_dir:
         FILE = os.path.join(call_dir, "test.txt")

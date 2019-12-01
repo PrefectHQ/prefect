@@ -2495,6 +2495,9 @@ def test_auto_generation_of_collection_tasks_is_robust():
     assert flow_state.is_successful()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
 def test_timeout_actually_stops_execution(executor):
     with tempfile.TemporaryDirectory() as call_dir:

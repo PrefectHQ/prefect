@@ -300,6 +300,9 @@ def test_task_runner_accepts_dictionary_of_edges():
     assert state.result == 2
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
