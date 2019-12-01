@@ -557,6 +557,8 @@ class Flow:
                     validate=validate,
                 )
 
+        self.constants.update(flow.constants or {})
+
     @cache
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
