@@ -59,7 +59,7 @@ def test_not_all_skipped_with_all_success():
 
 
 def test_not_all_skipped_with_all_skipped():
-    with pytest.raises(signals.SKIP):
+    with pytest.raises(signals.SKIP) as exc:
         assert triggers.not_all_skipped(generate_states(skipped=3))
 
 
