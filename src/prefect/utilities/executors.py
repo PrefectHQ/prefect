@@ -195,16 +195,19 @@ def multiprocessing_timeout(
         return fn(*args, **kwargs)
 
     def retrieve_value(
-        *args: Any, _container: multiprocessing.Queue, **kwargs: Any
+        *args: Any, _container: multiprocessing.Queue, _ctx_dict: dict, **kwargs: Any
     ) -> None:
         """Puts the return value in a multiprocessing-safe container"""
         try:
-            _container.put(fn(*args, **kwargs))
+            with prefect.context(_ctx_dict):
+                val = fn(*args, **kwargs)
+            _container.put(val)
         except Exception as exc:
             _container.put(exc)
 
     q = multiprocessing.Queue()  # type: multiprocessing.Queue
     kwargs["_container"] = q
+    kwargs["_ctx_dict"] = prefect.context.to_dict()
     p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
     p.start()
     p.join(timeout)
