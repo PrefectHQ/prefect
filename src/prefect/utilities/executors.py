@@ -1,4 +1,5 @@
 import datetime
+import multiprocessing
 import signal
 import sys
 import threading
@@ -169,6 +170,52 @@ def main_thread_timeout(
         signal.alarm(0)
 
 
+def multiprocessing_timeout(
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
+) -> Any:
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - **kwargs (Any): keyword arguments to pass to the function
+    Returns:
+        - the result of `f(*args, **kwargs)`
+    Raises:
+        - AssertionError: if run from a daemonic process
+        - TimeoutError: if function execution exceeds the allowed timeout
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+
+    def retrieve_value(
+        *args: Any, _container: multiprocessing.Queue, **kwargs: Any
+    ) -> None:
+        """Puts the return value in a multiprocessing-safe container"""
+        try:
+            _container.put(fn(*args, **kwargs))
+        except Exception as exc:
+            _container.put(exc)
+
+    q = multiprocessing.Queue()  # type: multiprocessing.Queue
+    kwargs["_container"] = q
+    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+    p.start()
+    p.join(timeout)
+    p.terminate()
+    if not q.empty():
+        res = q.get()
+        if isinstance(res, Exception):
+            raise res
+        return res
+    else:
+        raise TimeoutError("Execution timed out.")
+
+
 def timeout_handler(
     fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
@@ -189,11 +236,16 @@ def timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
+    # if no timeout, just run the function
     if timeout is None:
         return fn(*args, **kwargs)
 
+    # if we are running the main thread, use a signal to stop execution at the appropriate time;
+    # else if we are running in a non-daemonic process, spawn a subprocess to kill at the appropriate time
     if threading.current_thread() is threading.main_thread():
         return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
+    elif multiprocessing.current_process().daemon is False:
+        return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
 
     executor = ThreadPoolExecutor()
 

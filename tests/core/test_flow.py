@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -2492,3 +2493,32 @@ def test_auto_generation_of_collection_tasks_is_robust():
 
     flow_state = flow.run()
     assert flow_state.is_successful()
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mthread", "mproc"], indirect=True
+)
+def test_timeout_actually_stops_execution(executor):
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        @prefect.task(timeout=1)
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 7 times"
+            iters = 0
+            while iters < 6:
+                time.sleep(0.25)
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+
+        flow = Flow("timeouts", tasks=[slow_fn])
+        state = flow.run(executor=executor)
+
+        # if it continued running, would run for 1 more second
+        time.sleep(0.5)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 4
+    assert state.is_failed()

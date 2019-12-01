@@ -312,10 +312,10 @@ def test_timeout_actually_stops_execution(executor):
             "Runs for 1.5 seconds, writes to file 6 times"
             iters = 0
             while iters < 6:
+                sleep(0.25)
                 with open(FILE, "a") as f:
                     f.write("called\n")
                 iters += 1
-                sleep(0.25)
 
         state = TaskRunner(slow_fn).run(executor=executor)
 
