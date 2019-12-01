@@ -248,7 +248,9 @@ def timeout_handler(
 
     # if we are running the main thread, use a signal to stop execution at the appropriate time;
     # else if we are running in a non-daemonic process, spawn a subprocess to kill at the appropriate time
-    if threading.current_thread() is threading.main_thread():
+    if threading.current_thread() is threading.main_thread() and not sys.platform.startswith(
+        "win"
+    ):
         return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
     elif multiprocessing.current_process().daemon is False:
         return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
