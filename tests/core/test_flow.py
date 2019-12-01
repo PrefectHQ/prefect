@@ -726,6 +726,19 @@ def test_update():
     assert len(f2.edges) == 2
 
 
+def test_update_with_constants():
+    with Flow("math") as f:
+        x = Parameter("x")
+        d = x["d"] + 4
+
+    new_flow = Flow("test")
+    new_flow.update(f)
+
+    flow_state = new_flow.run(x=dict(d=42))
+    assert flow_state.is_successful()
+    assert flow_state.result[d].result == 46
+
+
 def test_update_with_mapped_edges():
     t1 = Task()
     t2 = Task()
