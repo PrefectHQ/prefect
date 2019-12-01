@@ -53,6 +53,33 @@ def test_all_successful_with_some_failed():
         triggers.all_successful(generate_states(failed=3, success=1))
 
 
+def test_not_all_skipped_with_all_success():
+    # True when all successful
+    assert triggers.not_all_skipped(generate_states(success=3))
+
+
+def test_not_all_skipped_with_all_skipped():
+    with pytest.raises(signals.SKIP):
+        assert triggers.not_all_skipped(generate_states(skipped=3))
+
+
+def test_not_all_skipped_with_all_success_or_skipped():
+    # True when all successful or skipped
+    assert triggers.not_all_skipped(generate_states(success=3, skipped=3))
+
+
+def test_not_all_skipped_with_all_failed():
+    # Fail when all fail
+    with pytest.raises(signals.TRIGGERFAIL):
+        triggers.not_all_skipped(generate_states(failed=3))
+
+
+def test_not_all_skipped_with_some_failed():
+    # Fail when some fail
+    with pytest.raises(signals.TRIGGERFAIL):
+        triggers.not_all_skipped(generate_states(failed=3, success=1))
+
+
 def test_all_failed_with_all_failed():
     assert triggers.all_failed(generate_states(failed=3))
 
