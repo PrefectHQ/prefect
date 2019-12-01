@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import sys
 import tempfile
 import time
 import uuid
@@ -560,6 +561,10 @@ class TestHeartBeats:
         assert isinstance(res, TimedOut)
         assert len(results.split()) >= 30
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Randomly fails on Windows and Windows is not currently fully supported for Cloud Deployments",
+    )
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
