@@ -223,7 +223,11 @@ def timeout_handler(
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented via `concurrent.futures.ThreadPoolExecutor`.
+
+    The exact implementation varies depending on whether this function is being run
+    in the main thread or a non-daemonic subprocess.  If this is run from a daemonic subprocess,
+    the task is run in a `ThreadPoolExecutor` and only a soft timeout is enforced, meaning
+    a `TimeoutError` is raised at the appropriate time but the task continues running in the background.
 
     Args:
         - fn (callable): the function to execute
