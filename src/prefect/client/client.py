@@ -499,7 +499,7 @@ class Client:
         Push a new flow to Prefect Cloud
 
         Args:
-            - flow (Flow): a flow to depregisterloy
+            - flow (Flow): a flow to register
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
