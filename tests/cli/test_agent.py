@@ -36,7 +36,7 @@ def test_agent_start_fails_no_token(monkeypatch):
     assert result.exit_code == 1
 
 
-def test_agent_start_token(monkeypatch):
+def test_agent_start_token(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -48,7 +48,7 @@ def test_agent_start_token(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_verbose(monkeypatch):
+def test_agent_start_verbose(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -60,7 +60,7 @@ def test_agent_start_verbose(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_docker(monkeypatch):
+def test_agent_start_docker(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -72,7 +72,7 @@ def test_agent_start_docker(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_kubernetes(monkeypatch):
+def test_agent_start_kubernetes(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
 
@@ -84,7 +84,7 @@ def test_agent_start_kubernetes(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_kubernetes_kwargs_ignored(monkeypatch):
+def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
 
@@ -96,7 +96,7 @@ def test_agent_start_kubernetes_kwargs_ignored(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate(monkeypatch):
+def test_agent_start_fargate(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -108,7 +108,7 @@ def test_agent_start_fargate(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate_kwargs(monkeypatch):
+def test_agent_start_fargate_kwargs(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -120,7 +120,7 @@ def test_agent_start_fargate_kwargs(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_fargate_kwargs_received(monkeypatch):
+def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.fargate.FargateAgent.start", start)
 
@@ -142,7 +142,7 @@ def test_agent_start_fargate_kwargs_received(monkeypatch):
     )
 
 
-def test_agent_start_name(monkeypatch):
+def test_agent_start_name(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -154,7 +154,7 @@ def test_agent_start_name(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_local_vars(monkeypatch):
+def test_agent_start_local_vars(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -168,7 +168,7 @@ def test_agent_start_local_vars(monkeypatch):
     assert result.exit_code == 0
 
 
-def test_agent_start_local_labels(monkeypatch):
+def test_agent_start_local_labels(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 

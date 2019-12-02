@@ -14,19 +14,19 @@ from prefect.engine import state
 
 def is_serializable(obj: Any, raise_on_error: bool = False) -> bool:
     """
-    Checks whether a given object can be deployed to Prefect Cloud.  This requires
+    Checks whether a given object can be registered with Prefect Cloud.  This requires
     that the object can be serialized in the current process and deserialized in a fresh process.
 
     Args:
         - obj (Any): the object to check
         - raise_on_error(bool, optional): if `True`, raises the `CalledProcessError` for inspection;
-            the `output` attribute of this exception can contain useful information about why the object is not deployable
+            the `output` attribute of this exception can contain useful information about why the object is not registrable
 
     Returns:
-        - bool: `True` if deployable, `False` otherwise
+        - bool: `True` if registrable, `False` otherwise
 
     Raises:
-        - subprocess.CalledProcessError: if `raise_on_error=True` and the object is not deployable
+        - subprocess.CalledProcessError: if `raise_on_error=True` and the object is not registrable
     """
     if sys.platform == "win32":
         raise OSError("is_serializable is not supported on Windows")

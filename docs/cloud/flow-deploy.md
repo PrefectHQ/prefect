@@ -2,15 +2,15 @@
 sidebarDepth: 1
 ---
 
-# Prefect Cloud: Deploying a Flow
+# Prefect Cloud: Registering a Flow
 
-Now that you understand the basic building blocks of Prefect Cloud and have locally authenticated with the Cloud API, let's walk through a real flow deployment.  Before we begin, make sure:
+Now that you understand the basic building blocks of Prefect Cloud and have locally authenticated with the Cloud API, let's walk through a real flow registration.  Before we begin, make sure:
 - you have a working Python 3.5.2+ environment with the latest version of Prefect installed
 - you have [Docker](https://www.docker.com) up and running, and have authenticated with a Docker registry that you have push access to
 
 ## Write a Flow
 
-The first step in flow deployment is obviously to write a flow!  We've prepared the following parametrized flow for you to edit as you wish.  Note that it relies on the [`pyfiglet` Python package](https://github.com/pwaller/pyfiglet) which is not included in a standard install of Prefect.
+The first step in flow registration is obviously to write a flow!  We've prepared the following parametrized flow for you to edit as you wish.  Note that it relies on the [`pyfiglet` Python package](https://github.com/pwaller/pyfiglet) which is not included in a standard install of Prefect.
 
 ```python
 import pyfiglet
@@ -34,13 +34,13 @@ You can now run this flow locally by passing the `name` parameter directly to `f
 
 ```python
 flow.run(name="Marvin")
-# or 
+# or
 flow.run(parameters={"name": "Marvin"})
 ```
 
 ## Dockerize your Flow
 
-In order to deploy this flow to Prefect Cloud, we need to create a Docker image containing the flow.  There are two ways of doing this:
+In order to register this flow with Prefect Cloud, we need to create a Docker image containing the flow.  There are two ways of doing this:
 
 ### Create a Docker storage object
 
@@ -73,18 +73,18 @@ with Flow("Greetings Flow", storage=storage) as flow:
     name = Parameter("name")
     say_hello(name)
 
-# or 
+# or
 
 flow.storage = storage
 ```
 
-### Provide configuration settings at deploy time
+### Provide configuration settings at registration time
 
-Alternatively, Prefect simplifies this interface by allowing you provide _all Docker storage initialization keyword arguments_ at deploy time via `flow.deploy`:
+Alternatively, Prefect simplifies this interface by allowing you provide _all Docker storage initialization keyword arguments_ at registration time via `flow.register`:
 
 ```python
 ## this accomplishes the exact same thing as our example above:
-flow.deploy(
+flow.register(
     "My Project",
     base_image="python:3.6",
     python_dependencies=["pyfiglet"],
@@ -94,12 +94,12 @@ flow.deploy(
 )
 ```
 
-## Deploy your Flow 
+## Registering your Flow
 
-Now that we have our flow built, all that's left is to deploy it using `flow.deploy`!  Whenever you deploy a flow, you always need to provide a project name for a pre-existing [Cloud project](concepts/projects.html#creating-a-new-project).  In this case, assuming we have created a `Docker` storage object explicitly, we can simply call:
+Now that we have our flow built, all that's left is to register it using `flow.register`!  Whenever you register a flow, you always need to provide a project name for a pre-existing [Cloud project](concepts/projects.html#creating-a-new-project).  In this case, assuming we have created a `Docker` storage object explicitly, we can simply call:
 
 ```python
-flow.deploy("My Project")
+flow.register("My Project")
 ```
 and watch Prefect build and push our Docker image, followed by sending the appropriate metadata to Prefect Cloud.  This method will return the Cloud ID for this flow, which is useful information when interacting with Cloud's GraphQL API.
 
@@ -109,7 +109,7 @@ Note that your Flow code is stored in your Docker image alone.  This gives you f
 
 ## Run your Flow using an Agent
 
-"Deploying" a Prefect Flow to Cloud is essentially registering it with Cloud.  If we had included a [Prefect Schedule](../core/concepts/schedules.html) on our Flow, the Prefect Scheduler would immediately begin creating scheduled runs for execution (this can be avoided by setting `set_schedule_active=False` in `flow.deploy`).  Because we did not provide a schedule, our flow will only run when we create a flow run for it.
+"Registering" with Prefect Flow to Cloud is essentially registering it with Cloud.  If we had included a [Prefect Schedule](../core/concepts/schedules.html) on our Flow, the Prefect Scheduler would immediately begin creating scheduled runs for execution (this can be avoided by setting `set_schedule_active=False` in `flow.register`).  Because we did not provide a schedule, our flow will only run when we create a flow run for it.
 
 There are numerous ways to create flow run:
 - via GraphQL
