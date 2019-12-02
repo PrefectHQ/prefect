@@ -135,6 +135,11 @@ module.exports = {
       ],
       "/cloud/": [
         {
+          title: "Go",
+          collapsable: false,
+          children: ["go/what", "go/configure", "go/first", "go/register", "go/agent"]
+        },
+        {
           title: "Welcome",
           collapsable: false,
           children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "deployment", "faq"]
