@@ -363,7 +363,7 @@ class Agent:
             self.client.write_run_logs(
                 [
                     dict(
-                        flow_run_id=flow_run.id,  # type: ignore
+                        flowRunId=flow_run.id,  # type: ignore
                         name="agent",
                         message=str(exc),
                         level="ERROR",
