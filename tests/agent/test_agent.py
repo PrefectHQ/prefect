@@ -314,10 +314,10 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
 
 def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
     gql_return = MagicMock(
-        return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
+        return_value=MagicMock(data=MagicMock(writeRunLogs=MagicMock(success=True)))
     )
     client = MagicMock()
-    client.return_value.write_run_log = gql_return
+    client.return_value.write_run_logs = gql_return
     monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
 
     agent = Agent()
@@ -343,9 +343,9 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
         exc=ValueError("Error Here"),
     )
 
-    assert client.write_run_log.called
-    client.write_run_log.assert_called_with(
-        flow_run_id="id", level="ERROR", message="Error Here", name="agent"
+    assert client.write_run_logs.called
+    client.write_run_logs.assert_called_with(
+        [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
 
 
