@@ -57,7 +57,7 @@ flow.deploy("My Project")
 This Flow is deployed to Prefect Cloud with the actual Flow code stored in your local `~/.prefect/flows` directory. Now we can start a Local Agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
 
 ```
-$ prefect agent start local -t TOKEN -l welcome-flow
+$ prefect agent start -t TOKEN -l welcome-flow
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
