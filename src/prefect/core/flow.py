@@ -1188,7 +1188,7 @@ class Flow:
 
         return serialized
 
-    # Deployment ------------------------------------------------------------------
+    # Registration ----------------------------------------------------------------
 
     @classmethod
     def load(cls, fpath: str) -> "Flow":
@@ -1208,7 +1208,7 @@ class Flow:
     def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
-        recommended if you wish to separate out the building of your Flow from its deployment.
+        recommended if you wish to separate out the building of your Flow from its registration.
 
         Args:
             - fpath (str, optional): the filepath where your Flow will be saved; defaults to
@@ -1237,7 +1237,7 @@ class Flow:
         agent = prefect.agent.local.LocalAgent(labels=labels)
         agent.start()
 
-    def deploy(
+    def register(
         self,
         project_name: str,
         build: bool = True,
@@ -1247,7 +1247,7 @@ class Flow:
         **kwargs: Any
     ) -> str:
         """
-        Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
         will be used and initialized with `**kwargs`.
 
         Args:
@@ -1266,7 +1266,7 @@ class Flow:
                 will be passed to the initialization method of the default Storage class
 
         Returns:
-            - str: the ID of the flow that was deployed
+            - str: the ID of the flow that was registered
         """
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
@@ -1278,14 +1278,14 @@ class Flow:
             self.environment.labels.update(labels)
 
         client = prefect.Client()
-        deployed_flow = client.deploy(
+        registered_flow = client.register(
             flow=self,
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
         )
-        return deployed_flow
+        return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"
