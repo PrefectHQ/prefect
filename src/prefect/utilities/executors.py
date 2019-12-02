@@ -1,8 +1,11 @@
 import datetime
+import multiprocessing
 import signal
 import sys
 import threading
 import time
+import warnings
+
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
@@ -136,12 +139,98 @@ def run_with_heartbeat(
     return inner
 
 
+def main_thread_timeout(
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
+) -> Any:
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by setting a `signal` alarm on a timer. Must be run in the main thread.
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - **kwargs (Any): keyword arguments to pass to the function
+    Returns:
+        - the result of `f(*args, **kwargs)`
+    Raises:
+        - TimeoutError: if function execution exceeds the allowed timeout
+        - ValueError: if run from outside the main thread
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+
+    def error_handler(signum, frame):  # type: ignore
+        raise TimeoutError("Execution timed out.")
+
+    try:
+        signal.signal(signal.SIGALRM, error_handler)
+        signal.alarm(timeout)
+        return fn(*args, **kwargs)
+    finally:
+        signal.alarm(0)
+
+
+def multiprocessing_timeout(
+    fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
+) -> Any:
+    """
+    Helper function for implementing timeouts on function executions.
+    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+    Args:
+        - fn (callable): the function to execute
+        - *args (Any): arguments to pass to the function
+        - timeout (int): the length of time to allow for
+            execution before raising a `TimeoutError`, represented as an integer in seconds
+        - **kwargs (Any): keyword arguments to pass to the function
+    Returns:
+        - the result of `f(*args, **kwargs)`
+    Raises:
+        - AssertionError: if run from a daemonic process
+        - TimeoutError: if function execution exceeds the allowed timeout
+    """
+
+    if timeout is None:
+        return fn(*args, **kwargs)
+
+    def retrieve_value(
+        *args: Any, _container: multiprocessing.Queue, _ctx_dict: dict, **kwargs: Any
+    ) -> None:
+        """Puts the return value in a multiprocessing-safe container"""
+        try:
+            with prefect.context(_ctx_dict):
+                val = fn(*args, **kwargs)
+            _container.put(val)
+        except Exception as exc:
+            _container.put(exc)
+
+    q = multiprocessing.Queue()  # type: multiprocessing.Queue
+    kwargs["_container"] = q
+    kwargs["_ctx_dict"] = prefect.context.to_dict()
+    p = multiprocessing.Process(target=retrieve_value, args=args, kwargs=kwargs)
+    p.start()
+    p.join(timeout)
+    p.terminate()
+    if not q.empty():
+        res = q.get()
+        if isinstance(res, Exception):
+            raise res
+        return res
+    else:
+        raise TimeoutError("Execution timed out.")
+
+
 def timeout_handler(
     fn: Callable, *args: Any, timeout: int = None, **kwargs: Any
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented via `concurrent.futures.ThreadPoolExecutor`.
+
+    The exact implementation varies depending on whether this function is being run
+    in the main thread or a non-daemonic subprocess.  If this is run from a daemonic subprocess or on Windows,
+    the task is run in a `ThreadPoolExecutor` and only a soft timeout is enforced, meaning
+    a `TimeoutError` is raised at the appropriate time but the task continues running in the background.
 
     Args:
         - fn (callable): the function to execute
@@ -156,9 +245,33 @@ def timeout_handler(
     Raises:
         - TimeoutError: if function execution exceeds the allowed timeout
     """
+    # if no timeout, just run the function
     if timeout is None:
         return fn(*args, **kwargs)
 
+    # if we are running the main thread, use a signal to stop execution at the appropriate time;
+    # else if we are running in a non-daemonic process, spawn a subprocess to kill at the appropriate time
+    if not sys.platform.startswith("win"):
+        if threading.current_thread() is threading.main_thread():
+            return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
+        elif multiprocessing.current_process().daemon is False:
+            return multiprocessing_timeout(fn, *args, timeout=timeout, **kwargs)
+
+        msg = (
+            "This task is running in a daemonic subprocess; "
+            "consequently Prefect can only enforce a soft timeout limit, i.e., "
+            "if your Task reaches its timeout limit it will enter a TimedOut state "
+            "but continue running in the background."
+        )
+    else:
+        msg = (
+            "This task is running on Windows; "
+            "consequently Prefect can only enforce a soft timeout limit, i.e., "
+            "if your Task reaches its timeout limit it will enter a TimedOut state "
+            "but continue running in the background."
+        )
+
+    warnings.warn(msg)
     executor = ThreadPoolExecutor()
 
     def run_with_ctx(*args: Any, _ctx_dict: dict, **kwargs: Any) -> Any:

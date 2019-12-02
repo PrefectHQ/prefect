@@ -1,6 +1,8 @@
+import os
 import multiprocessing
 import sys
 import threading
+import tempfile
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -127,6 +129,33 @@ def test_timeout_handler_times_out():
         timeout_handler(slow_fn, timeout=1)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_timeout_handler_actually_stops_execution():
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 6 times"
+            iters = 0
+            while iters < 6:
+                time.sleep(0.26)
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+
+        with pytest.raises(TimeoutError):
+            # allow for at most 3 writes
+            timeout_handler(slow_fn, timeout=1)
+
+        time.sleep(0.5)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 4
+
+
 def test_timeout_handler_passes_args_and_kwargs_and_returns():
     def do_nothing(x, y=None):
         return x, y
@@ -178,9 +207,7 @@ def test_timeout_handler_allows_function_to_spawn_new_thread():
 
 
 def test_timeout_handler_doesnt_do_anything_if_no_timeout(monkeypatch):
-    monkeypatch.delattr(prefect.utilities.executors, "ThreadPoolExecutor")
-    with pytest.raises(NameError):  # to test the test's usefulness...
-        timeout_handler(lambda: 4, timeout=1)
+    assert timeout_handler(lambda: 4, timeout=1) == 4
     assert timeout_handler(lambda: 4) == 4
 
 
