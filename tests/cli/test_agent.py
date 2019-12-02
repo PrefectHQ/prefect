@@ -60,6 +60,24 @@ def test_agent_start_verbose(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_local(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "local"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_local_import_paths(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "local", "-p", "test"])
+    assert result.exit_code == 0
+
+
 def test_agent_start_docker(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
@@ -182,7 +200,7 @@ def test_agent_start_local_labels(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
-def test_agent_start_fails(monkeypatch):
+def test_agent_start_fails(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
@@ -271,3 +289,27 @@ def test_agent_install_k8s_no_resource_manager():
     assert "TEST_NAMESPACE" in result.output
     assert not "resource-manager" in result.output
     assert "secret-test" in result.output
+
+
+def test_agent_install_local_asses_args():
+    runner = CliRunner()
+    result = runner.invoke(
+        agent,
+        [
+            "install",
+            "local",
+            "--token",
+            "TEST_TOKEN",
+            "--label",
+            "test_label1",
+            "-l",
+            "test_label2",
+            "--import-path",
+            "my_path",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "TEST_TOKEN" in result.output
+    assert "test_label1" in result.output
+    assert "test_label2" in result.output
+    assert "my_path" in result.output
