@@ -1,6 +1,6 @@
 # Prefect Cloud: Up and Running
 
-In this guide, we will look at a minimal and quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build its Docker storage, deploy to Prefect Cloud, and orchestrate a run with the Docker Agent. No extra infrastructure required!
+In this guide, we will look at a minimal and quick way to get Prefect Cloud flow deployments up and running on your local machine. We will write a simple flow, build its Docker storage, register with Prefect Cloud, and orchestrate a run with the Docker Agent. No extra infrastructure required!
 
 ### Prerequisites
 
@@ -31,16 +31,16 @@ from prefect import Flow
 flow = Flow("my-flow") # empty dummy flow
 ```
 
-### Deploying Flow to Cloud
+### Registering Flow with Cloud
 
 ::: tip Docker
 Make sure that you have Docker installed and running in order for this step to work!
 :::
 
-Now that the flow is written and we want to call the `deploy` function which will build our flow's default Docker storage and then send some metadata to Prefect Cloud! Note that in this step no flow code or images ever leave your machine. We are going to deploy this flow to the Prefect Cloud project that we saw at the beginning of this guide.
+Now that the flow is written and we want to call the `register` function which will build our flow's default Docker storage and then send some metadata to Prefect Cloud! Note that in this step no flow code or images ever leave your machine. We are going to register this flow with the Prefect Cloud project that we saw at the beginning of this guide.
 
 ```python
-flow.deploy(project_name="Hello, World!")
+flow.register(project_name="Hello, World!")
 ```
 
 A few things are happening in this step. First your flow will be serialized and placed into a local Docker image. By not providing a registry url, the step to push your image to a container registry is skipped entirely. Once the image finished building a small metadata description of the structure of your flow will be sent to Prefect Cloud.
@@ -51,7 +51,7 @@ The decision to not push our image to a container registry is entirely for the p
 
 You should now be able to see the flow's Docker image on your machine if you would like by running `docker image list` in your command line.
 
-After this deployment is complete you should be able to see your flow now exists in Prefect Cloud!
+After this registration is complete you should be able to see your flow now exists in Prefect Cloud!
 
 ```
 $ prefect get flows
@@ -83,7 +83,7 @@ Here we use the Prefect CLI to start a Docker Agent. The `RUNNER` token that was
 
 ### Create a Flow Run
 
-Now that the Docker Agent is running we want to create a flow run in Prefect Cloud that the agent can pick up and execute! If you recall, we named our flow `my-flow` and deployed it to the `Hello, World!` project. We are going to use these two names in order to create the flow run with the Prefect CLI.
+Now that the Docker Agent is running we want to create a flow run in Prefect Cloud that the agent can pick up and execute! If you recall, we named our flow `my-flow` and registered it with the `Hello, World!` project. We are going to use these two names in order to create the flow run with the Prefect CLI.
 
 ```
 $ prefect run cloud -n my-flow -p "Hello, World!"

@@ -1188,7 +1188,7 @@ class Flow:
 
         return serialized
 
-    # Deployment ------------------------------------------------------------------
+    # Registration ----------------------------------------------------------------
 
     @classmethod
     def load(cls, fpath: str) -> "Flow":
@@ -1208,7 +1208,7 @@ class Flow:
     def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
-        recommended if you wish to separate out the building of your Flow from its deployment.
+        recommended if you wish to separate out the building of your Flow from its registration.
 
         Args:
             - fpath (str, optional): the filepath where your Flow will be saved; defaults to
@@ -1247,7 +1247,9 @@ class Flow:
         **kwargs: Any
     ) -> str:
         """
-        Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        *Note*: This function will be deprecated soon and should be replaced with `flow.register`
+
+        Deploy a flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
         will be used and initialized with `**kwargs`.
 
         Args:
@@ -1268,6 +1270,48 @@ class Flow:
         Returns:
             - str: the ID of the flow that was deployed
         """
+        warnings.warn("flow.deploy() will be deprecated in an upcoming release. Please use flow.register()", UserWarning)
+
+        return self.register(
+            project_name=project_name,
+            build=build,
+            labels=labels,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+            **kwargs
+        )
+
+    def register(
+        self,
+        project_name: str,
+        build: bool = True,
+        labels: List[str] = None,
+        set_schedule_active: bool = True,
+        version_group_id: str = None,
+        **kwargs: Any
+    ) -> str:
+        """
+        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        will be used and initialized with `**kwargs`.
+
+        Args:
+            - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
+            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
+                will be passed to the initialization method of the default Storage class
+
+        Returns:
+            - str: the ID of the flow that was registered
+        """
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
@@ -1278,14 +1322,14 @@ class Flow:
             self.environment.labels.update(labels)
 
         client = prefect.Client()
-        deployed_flow = client.deploy(
+        registered_flow = client.register(
             flow=self,
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
         )
-        return deployed_flow
+        return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"

@@ -2,7 +2,7 @@
 
 In conjunction with both the GraphQL API and the UI, Prefect offers a fully integrated CLI for working with Prefect Cloud. With the GraphQL API being the backbone for communicating with Prefect Cloud, we have designed the CLI to operate as a wrapper for GraphQL queries and mutations.
 
-In this current state the Prefect CLI functions mainly as a way to read Prefect Cloud metadata as well as a lightweight way to perform some more functional operations such as running a flow that was deployed to Cloud.
+In this current state the Prefect CLI functions mainly as a way to read Prefect Cloud metadata as well as a lightweight way to perform some more functional operations such as running a flow that was registered with Cloud.
 
 ::: warning Commands subject to change!
 The CLI is being built to comply with Cloud user demands on what is deemed useful. Therefore the names and outputs of some of these are subject to change during the Cloud rollout process.

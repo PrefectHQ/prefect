@@ -35,7 +35,7 @@ If you choose to provide any custom YAML spec files they will take precedence ov
 :::
 
 :::warning Image
-When using the custom YAML spec files it is recommended that you ensure the `image` is the same image name and tag that was built for your Flow on deployment. This is to ensure consistency of dependencies for your Flow's execution.
+When using the custom YAML spec files it is recommended that you ensure the `image` is the same image name and tag that was built for your Flow on registration. This is to ensure consistency of dependencies for your Flow's execution.
 
 e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec should contain `- image: gcr.io/dev/etl-flow:0.1.0`.
 :::
