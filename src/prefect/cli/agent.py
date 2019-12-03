@@ -76,11 +76,27 @@ def agent():
     help="Import paths the local agent will add to all flow runs.",
     hidden=True,
 )
+@click.option(
+    "--show-flow-logs",
+    "-f",
+    help="Display logging output from flows run by the agent.",
+    hidden=True,
+    is_flag=True,
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.pass_context
 def start(
-    ctx, agent_option, token, name, verbose, label, no_pull, base_url, import_path
+    ctx,
+    agent_option,
+    token,
+    name,
+    verbose,
+    label,
+    no_pull,
+    base_url,
+    import_path,
+    show_flow_logs,
 ):
     """
     Start an agent.
@@ -107,6 +123,7 @@ def start(
         --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
                                     Used for Flows which might import from scripts or local packages.
                                     Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f        Display logging output from flows run by the agent
 
     \b
     Docker Agent Options:
@@ -139,7 +156,10 @@ def start(
 
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), import_paths=list(import_path)
+                name=name,
+                labels=list(label),
+                import_paths=list(import_path),
+                show_flow_logs=show_flow_logs,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
@@ -192,6 +212,13 @@ def start(
     help="Import paths the local agent will add to all flow runs.",
     hidden=True,
 )
+@click.option(
+    "--show-flow-logs",
+    "-f",
+    help="Display logging output from flows run by the agent.",
+    hidden=True,
+    is_flag=True,
+)
 def install(
     name,
     token,
@@ -201,6 +228,7 @@ def install(
     resource_manager,
     label,
     import_path,
+    show_flow_logs,
 ):
     """
     Install an agent. Outputs configuration text which can be used to install on various
@@ -227,6 +255,7 @@ def install(
     Local Agent Options:
         --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
                                             Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f                Display logging output from flows run by the agent
     """
 
     supported_agents = {
@@ -252,6 +281,9 @@ def install(
         click.echo(deployment)
     elif name == "local":
         conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
-            token=token, labels=list(label), import_paths=list(import_path)
+            token=token,
+            labels=list(label),
+            import_paths=list(import_path),
+            show_flow_logs=show_flow_logs,
         )
         click.echo(conf)

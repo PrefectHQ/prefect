@@ -1,4 +1,5 @@
 import os
+import sys
 import socket
 from subprocess import PIPE, STDOUT, Popen
 from typing import Iterable, List
@@ -33,10 +34,12 @@ class LocalAgent(Agent):
         name: str = None,
         labels: Iterable[str] = None,
         import_paths: List[str] = None,
+        show_flow_logs: bool = False,
         hostname_label: bool = True,
     ) -> None:
         self.processes = []  # type: list
         self.import_paths = import_paths or []
+        self.show_flow_logs = show_flow_logs
         super().__init__(name=name, labels=labels)
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
@@ -51,8 +54,9 @@ class LocalAgent(Agent):
                     self.logger.info(
                         "Process PID {} returned non-zero exit code".format(process.pid)
                     )
-                    for raw_line in iter(process.stdout.readline, b""):
-                        self.logger.info(raw_line.decode("utf-8").rstrip())
+                    if not self.show_flow_logs:
+                        for raw_line in iter(process.stdout.readline, b""):
+                            self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
     def deploy_flows(self, flow_runs: list) -> None:
@@ -87,12 +91,16 @@ class LocalAgent(Agent):
                     current_env["PYTHONPATH"] = ":".join(
                         [current_env["PYTHONPATH"]] + self.import_paths
                     )
+
+                stdout = sys.stdout if self.show_flow_logs else PIPE
+
                 p = Popen(
                     ["prefect", "execute", "cloud-flow"],
-                    stdout=PIPE,
+                    stdout=stdout,
                     stderr=STDOUT,
                     env=current_env,
                 )
+
                 self.processes.append(p)
                 self.logger.debug(
                     "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
@@ -103,6 +111,7 @@ class LocalAgent(Agent):
                     version=flow_run.version + 1,
                     state=Failed(message=str(exc)),
                 )
+                self.logger.error("Error while deploying flow: {}".format(repr(exc)))
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
@@ -127,7 +136,10 @@ class LocalAgent(Agent):
 
     @staticmethod
     def generate_supervisor_conf(
-        token: str = None, labels: Iterable[str] = None, import_paths: List[str] = None,
+        token: str = None,
+        labels: Iterable[str] = None,
+        import_paths: List[str] = None,
+        show_flow_logs: bool = False,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
@@ -155,6 +167,7 @@ class LocalAgent(Agent):
 
         add_opts = ""
         add_opts += "-t {token} ".format(token=token) if token else ""
+        add_opts += "-f " if show_flow_logs else ""
         add_opts += (
             " ".join("-l {label} ".format(label=label) for label in labels)
             if labels

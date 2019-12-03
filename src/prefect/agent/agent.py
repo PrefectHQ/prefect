@@ -13,6 +13,7 @@ from prefect.engine.state import Submitted
 from prefect.serialization import state
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
+from prefect.utilities.context import context
 
 ascii_name = r"""
  ____            __           _        _                    _
@@ -75,9 +76,8 @@ class Agent:
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
         ch = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter(context.config.logging.format)
+        formatter.converter = time.gmtime  # type: ignore
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 

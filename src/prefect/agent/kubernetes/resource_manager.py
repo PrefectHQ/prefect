@@ -8,6 +8,7 @@ from requests.exceptions import HTTPError
 
 from prefect import Client
 from prefect import config as prefect_config
+from prefect.utilities.context import context
 
 if TYPE_CHECKING:
     import kubernetes
@@ -31,9 +32,8 @@ class ResourceManager:
         logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter(context.config.logging.format)
+        formatter.converter = time.gmtime  # type: ignore
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
