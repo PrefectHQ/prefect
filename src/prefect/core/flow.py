@@ -1237,6 +1237,50 @@ class Flow:
         agent = prefect.agent.local.LocalAgent(labels=labels)
         agent.start()
 
+    def deploy(
+        self,
+        project_name: str,
+        build: bool = True,
+        labels: List[str] = None,
+        set_schedule_active: bool = True,
+        version_group_id: str = None,
+        **kwargs: Any
+    ) -> str:
+        """
+        *Note*: This function will be deprecated soon and should be replaced with `flow.register`
+
+        Deploy a flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        will be used and initialized with `**kwargs`.
+
+        Args:
+            - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
+            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
+                will be passed to the initialization method of the default Storage class
+
+        Returns:
+            - str: the ID of the flow that was deployed
+        """
+        warnings.warn("flow.deploy() will be deprecated in an upcoming release. Please use flow.register()", UserWarning)
+
+        return self.register(
+            project_name=project_name,
+            build=build,
+            labels=labels,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+            **kwargs
+        )
+
     def register(
         self,
         project_name: str,
