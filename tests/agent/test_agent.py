@@ -345,7 +345,7 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
 
     assert client.write_run_logs.called
     client.write_run_logs.assert_called_with(
-        [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
+        [dict(flowRunId="id", level="ERROR", message="Error Here", name="agent")]
     )
 
 
