@@ -360,11 +360,15 @@ class Agent:
                     flow_run.id  # type: ignore
                 )
             )
-            self.client.write_run_log(
-                flow_run_id=flow_run.id,  # type: ignore
-                name="agent",
-                message=str(exc),
-                level="ERROR",
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flowRunId=flow_run.id,  # type: ignore
+                        name="agent",
+                        message=str(exc),
+                        level="ERROR",
+                    )
+                ]
             )
 
     def deploy_flows(self, flow_runs: list) -> None:
