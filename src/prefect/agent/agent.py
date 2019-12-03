@@ -1,6 +1,7 @@
 import ast
 import logging
 import signal
+import sys
 import time
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Iterable, Union
@@ -75,7 +76,7 @@ class Agent:
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        ch = logging.StreamHandler()
+        ch = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
         ch.setFormatter(formatter)

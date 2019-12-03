@@ -1270,7 +1270,10 @@ class Flow:
         Returns:
             - str: the ID of the flow that was deployed
         """
-        warnings.warn("flow.deploy() will be deprecated in an upcoming release. Please use flow.register()", UserWarning)
+        warnings.warn(
+            "flow.deploy() will be deprecated in an upcoming release. Please use flow.register()",
+            UserWarning,
+        )
 
         return self.register(
             project_name=project_name,

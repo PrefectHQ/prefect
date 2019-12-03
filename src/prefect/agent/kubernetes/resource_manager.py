@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 from typing import TYPE_CHECKING
 
@@ -30,7 +31,7 @@ class ResourceManager:
 
         logger = logging.getLogger("resource-manager")
         logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
+        ch = logging.StreamHandler(sys.stdout)
         ch.setLevel(logging.DEBUG)
         formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
