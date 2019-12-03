@@ -1,6 +1,6 @@
 # Projects
 
-Projects are used to organize flows that have been deployed to Prefect Cloud. Each flow is contained within a single project.
+Projects are used to organize flows that have been registered with Prefect Cloud. Each flow is contained within a single project.
 
 ## Querying for projects <Badge text="GQL"/>
 

@@ -4,17 +4,17 @@ sidebarDepth: 0
 
 # Prefect Cloud: The Basics
 
-Welcome to Prefect Cloud! Now that you have an account, this guide will help you orient yourself and understand the minor adjustments required to deploy your Flows to Cloud.
+Welcome to Prefect Cloud! Now that you have an account, this guide will help you orient yourself and understand the minor adjustments required to register your Flows with Cloud.
 
 ## Prefect Agent
 
-Before you can deploy Prefect flows from Prefect Cloud you must stand up a Prefect Agent on your desired platform. For more agent documentation visit the [Agent](agent/overview.html) section of the Cloud docs.
+Before you can register Prefect flows with Prefect Cloud you must stand up a Prefect Agent on your desired platform. For more agent documentation visit the [Agent](agent/overview.html) section of the Cloud docs.
 
 ## Create a Project
 
 Before you can interact with Prefect Cloud you need to be able to authenticate with Prefect Cloud's API. To do so, visit the Cloud UI and retrieve an Authorization Token from the upper right hand corner menu. Either follow the instructions from the UI, or use [Prefect's CLI](https://docs.prefect.io/core/concepts/cli.html#auth) to persist your token locally.
 
-Prior to deploying your first Flow you should create a Project in Prefect Cloud. Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
+Prior to registering your first Flow you should create a Project in Prefect Cloud. Recall that Projects are simply an organizational tool for your Flows, and can be thought of as a directory structure.
 
 There are two simple ways of creating projects, depending on your personal preference:
 
@@ -40,11 +40,11 @@ mutation {
 }
 ```
 
-## Deployment
+## Registration
 
-To deploy your Flow to Cloud requires that you have [Docker](https://www.docker.com/) running locally and that you have have access to a Docker registry that you are comfortable pushing your code to. Additionally, note that your Prefect Agent (which runs within your infrastructure and _not_ within Prefect Cloud) will require access to this registry as well.
+To register your Flow to Cloud requires that you have [Docker](https://www.docker.com/) running locally and that you have have access to a Docker registry that you are comfortable pushing your code to. Additionally, note that your Prefect Agent (which runs within your infrastructure and _not_ within Prefect Cloud) will require access to this registry as well.
 
-Now that you have Docker running and have your Prefect Cloud auth token ready, there are two small changes to your Flow that are required prior to deployment: specifying an _execution environment_ and your _Docker storage metadata_.
+Now that you have Docker running and have your Prefect Cloud auth token ready, there are two small changes to your Flow that are required prior to registration: specifying an _execution environment_ and your _Docker storage metadata_.
 
 ### Execution Environments
 
@@ -88,7 +88,7 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
-For added convenience, `flow.deploy` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object for you at deploy-time:
+For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object for you at registration-time:
 
 ```python
 from prefect import Flow
@@ -96,7 +96,7 @@ from prefect import Flow
 f = Flow("example-easy-storage")
 
 # all other init kwargs to `Docker` are accepted here
-f.deploy("My First Project", registry_url="prefecthq/storage-example")
+f.register("My First Project", registry_url="prefecthq/storage-example")
 ```
 
 ::: warning Serialization
@@ -108,18 +108,18 @@ A common issue when first onboarding to Cloud is understanding how Flow serializ
 A tutorial on how to debug such issues can be found [here](https://docs.prefect.io/core/tutorials/local-debugging.html#locally-check-your-flow-s-docker-storage).
 :::
 
-### `flow.deploy`
+### `flow.register`
 
-Now that your Flow has all the required attributes, it's time to deploy to Cloud! All that you have to do now is:
+Now that your Flow has all the required attributes, it's time to register it with Cloud! All that you have to do now is:
 
 ```python
-flow.deploy(project_name="My Prefect Cloud Project Name")
+flow.register(project_name="My Prefect Cloud Project Name")
 ```
 
-[This convenience method](https://docs.prefect.io/api/unreleased/core/flow.html#prefect-core-flow-flow-deploy) will proceed to build your Docker image, layer Prefect on top, serialize your Flow into the image, perform a "health check" that your Flow can be properly deserialized within the image and finally push the image to your registry of choice. It will then send the corresponding _metadata_ to Prefect Cloud. As above, note that `flow.deploy` also accepts initialization keyword arguments for `Docker` storage if you want to avoid creating that object yourself.
+[This convenience method](https://docs.prefect.io/api/unreleased/core/flow.html#prefect-core-flow-flow-register) will proceed to build your Docker image, layer Prefect on top, serialize your Flow into the image, perform a "health check" that your Flow can be properly deserialized within the image and finally push the image to your registry of choice. It will then send the corresponding _metadata_ to Prefect Cloud. As above, note that `flow.register` also accepts initialization keyword arguments for `Docker` storage if you want to avoid creating that object yourself.
 
 ::: tip GraphQL
-Advanced users who manually build their own images and perform their own serialization can actually deploy Flows via pure GraphQL (assuming they have pushed their image already). Most people will never do this, but it highlights the minimal amount of information that Cloud requires to function. Using our storage example above, the corresponding GraphQL call is simply:
+Advanced users who manually build their own images and perform their own serialization can actually register Flows via pure GraphQL (assuming they have pushed their image already). Most people will never do this, but it highlights the minimal amount of information that Cloud requires to function. Using our storage example above, the corresponding GraphQL call is simply:
 
 ```graphql
 mutation($input: createFlowInput!) {
@@ -156,4 +156,4 @@ where `$input` is:
 which you may recognize as the output of `f.serialize()`
 :::
 
-Congratulations, you have now deployed your first Flow!
+Congratulations, you have now registered your first Flow!

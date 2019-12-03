@@ -71,7 +71,7 @@ def cloud(
     name, project, version, parameters_file, parameters_string, run_name, watch, logs
 ):
     """
-    Run a deployed flow in Prefect Cloud.
+    Run a registered flow in Prefect Cloud.
 
     \b
     Options:

@@ -45,7 +45,7 @@ def agent():
 
 @agent.command(
     hidden=True,
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True,),
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.argument("agent-option", default="local")
 @click.option(
@@ -139,11 +139,11 @@ def start(
 
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), import_paths=list(import_path),
+                name=name, labels=list(label), import_paths=list(import_path)
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), base_url=base_url, no_pull=no_pull,
+                name=name, labels=list(label), base_url=base_url, no_pull=no_pull
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
@@ -208,7 +208,7 @@ def install(
 
     \b
     Arguments:
-        name                        TEXT    The name of an agent to start (e.g. `kubernetes`, `local`)
+        name                        TEXT    The name of an agent to install (e.g. `kubernetes`, `local`)
 
     \b
     Options:
@@ -252,6 +252,6 @@ def install(
         click.echo(deployment)
     elif name == "local":
         conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
-            token=token, labels=list(label), import_paths=list(import_path),
+            token=token, labels=list(label), import_paths=list(import_path)
         )
         click.echo(conf)

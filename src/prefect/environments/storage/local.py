@@ -15,7 +15,7 @@ class Local(Storage):
     """
     Local storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
-    Note that if you deploy a Flow to Prefect Cloud using this storage,
+    Note that if you register a Flow with Prefect Cloud using this storage,
     your flow's environment will automatically be labeled with two labels:
     "local" and your flow's name.  This ensures that only agents who are
     known to be running on the same filesystem can run your flow.

@@ -66,22 +66,22 @@ Note that the _only_ universal requirement for your Flow's Docker images are tha
 Prefect attempts to infer sensible defaults for as much as it can, including the version of Python you are using and the version of Prefect.  Additionally, Prefect attempts to run various "healthchecks" which ensure your Flow's Docker image is compatible with your Flow code.  However, there is only so much Prefect can infer - if your Flow requires complicated dependencies you may need to experiment with various Docker images.
 :::
 
-For completeness sake, we would perform the following steps to deploy this Flow using a configured Docker storage object:
+For completeness sake, we would perform the following steps to register this Flow using a configured Docker storage object:
 - save the above Dockerfile script into a file called `Dockerfile`
 - run a command like `docker build . -t myregistryurl/imagename:imagetag`
 - provide `myregistryurl/imagename:imagetag` as the `base_image` to `Docker` storage above
 
-Note that you don't necessarily need to push your custom base image to a registry; as long as it resides on the machine that you deploy from, your Docker daemon will be able to use it as your Flow's base image.
+Note that you don't necessarily need to push your custom base image to a registry; as long as it resides on the machine that you register from, your Docker daemon will be able to use it as your Flow's base image.
 
 ### Providing the Dockerfile <Badge text="0.7.2+"/>
 
-The `base_image` pattern above is maximally useful when you deploy multiple Flows that share a common set of dependencies.  However, as of Prefect 0.7.2 you don't have to build an intermediate image to configure your Flow's storage!  Using the above example, we can avoid the intermediate step by storing the `Dockerfile` and pointing to its location using the `dockerfile` keyword argument:
+The `base_image` pattern above is maximally useful when you register multiple Flows that share a common set of dependencies.  However, as of Prefect 0.7.2 you don't have to build an intermediate image to configure your Flow's storage!  Using the above example, we can avoid the intermediate step by storing the `Dockerfile` and pointing to its location using the `dockerfile` keyword argument:
 ```python
 from prefect.environments.storage import Docker
 
 # Create our Docker storage object
-storage = Docker(registry_url="gcr.io/dev/", 
-                 python_dependencies=["pyodbc"], 
+storage = Docker(registry_url="gcr.io/dev/",
+                 python_dependencies=["pyodbc"],
                  dockerfile="/path/to/Dockerfile")
 ```
 

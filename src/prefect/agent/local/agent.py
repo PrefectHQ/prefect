@@ -82,7 +82,7 @@ class LocalAgent(Agent):
                 current_env.update(env_vars)
 
                 if current_env.get("PWD"):
-                    current_env.setdefault("PYTHONPATH", current_env.get("PWD"))
+                    current_env.setdefault("PYTHONPATH", current_env.get("PWD"))  # type: ignore
                 if self.import_paths:
                     current_env["PYTHONPATH"] = ":".join(
                         [current_env["PYTHONPATH"]] + self.import_paths

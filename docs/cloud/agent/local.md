@@ -25,8 +25,8 @@ def welcome():
 
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
-# Deploy Flow to Prefect Cloud
-flow.deploy("My Project")
+# Register Flow to Prefect Cloud
+flow.register("My Project")
 
 # Spawn a local agent and run in process
 flow.run_agent()
@@ -50,14 +50,14 @@ def welcome():
 
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
-# Deploy Flow to Prefect Cloud
-flow.deploy("My Project")
+# Register Flow to Prefect Cloud
+flow.register("My Project")
 ```
 
-This Flow is deployed to Prefect Cloud with the actual Flow code stored in your local `~/.prefect/flows` directory. Now we can start a Local Agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
+This Flow is registered with Prefect Cloud with the actual Flow code stored in your local `~/.prefect/flows` directory. Now we can start a Local Agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
 
 ```
-$ prefect agent start local -t TOKEN -l welcome-flow
+$ prefect agent start -t TOKEN -l welcome-flow
 
  ____            __           _        _                    _
 |  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
@@ -86,4 +86,4 @@ There are a few ways in which you can specify a `RUNNER` API token:
 
 When started, the Local Agent will use [Environment Labels](/cloud/execution/overview.html#environments) to watch for scheduled Flow runs that partain to a particular flow. This means that starting a Local Agent by calling `flow.run_agent()` will only pick up runs of that specific Flow.
 
-The Local Agent periodically polls for new Flow runs to execute. When a Flow run is retrieved from Prefect Cloud, the Agent confirms that the Flow was deployed with a Local storage option and runs that Flow in a subprocess.
+The Local Agent periodically polls for new Flow runs to execute. When a Flow run is retrieved from Prefect Cloud, the Agent confirms that the Flow was registered with a Local storage option and runs that Flow in a subprocess.
