@@ -137,7 +137,7 @@ module.exports = {
         {
           title: "Go",
           collapsable: false,
-          children: ["go/what", "go/configure", "go/first", "go/register", "go/agent"]
+          children: ["go/what", "go/configure", "go/first", "go/execution", "go/agent"]
         },
         {
           title: "Welcome",
