@@ -2,7 +2,7 @@
 
 Prefect introduces a flexible map/reduce model for dynamically executing parallel tasks.
 
-Classic "map/reduce" is a powerful two-stage programming model that can be used to distribute and parallelize work (the "map" phase) before collecting and processing all the reuslts (the "reduce" phase).
+Classic "map/reduce" is a powerful two-stage programming model that can be used to distribute and parallelize work (the "map" phase) before collecting and processing all the results (the "reduce" phase).
 
 A typical map/reduce setup requires three things:
 
