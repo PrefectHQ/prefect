@@ -1,3 +1,4 @@
+import os
 import socket
 from unittest.mock import MagicMock
 
@@ -152,8 +153,7 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
 
 
 def test_local_agent_deploy_pwd(monkeypatch, runner_token):
-
-    monkeypatch.setenv("PWD", "pwd")
+    monkeypatch.setattr(os, "getcwd", lambda: "pwd")
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -178,6 +178,59 @@ def test_local_agent_deploy_pwd(monkeypatch, runner_token):
 
 
 def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"])
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "paths" in popen.call_args[1]["env"]["PYTHONPATH"]
+
+
+def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token):
+    monkeypatch.setenv("PYTHONPATH", "cool:python:path")
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"])
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    python_path = popen.call_args[1]["env"]["PYTHONPATH"]
+
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "cool:python:path" in python_path
+    assert "paths" in python_path
+
+
+def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
@@ -231,7 +284,9 @@ def test_generate_supervisor_conf(runner_token):
         ),
     ),
 )
-def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
+def test_local_agent_heartbeat(
+    monkeypatch, runner_token, returncode, show_flow_logs, logs
+):
     popen = MockPopen()
     # expect a process to be called with the following command (with specified behavior)
     popen.set_command(

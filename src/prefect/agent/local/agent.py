@@ -85,12 +85,16 @@ class LocalAgent(Agent):
                 current_env = os.environ.copy()
                 current_env.update(env_vars)
 
-                if current_env.get("PWD"):
-                    current_env.setdefault("PYTHONPATH", current_env.get("PWD"))  # type: ignore
+                python_path = []
+                if current_env.get("PYTHONPATH"):
+                    python_path.append(current_env.get("PYTHONPATH"))
+
+                python_path.append(os.getcwd())
+
                 if self.import_paths:
-                    current_env["PYTHONPATH"] = ":".join(
-                        [current_env["PYTHONPATH"]] + self.import_paths
-                    )
+                    python_path += self.import_paths
+
+                current_env["PYTHONPATH"] = ":".join(python_path)
 
                 stdout = sys.stdout if self.show_flow_logs else PIPE
 
