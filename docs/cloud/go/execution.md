@@ -56,5 +56,6 @@ Agents are responsible for partitioning the necessary infrastructural resources 
 
 _For more information on Agents visit the relevant [Agent Overview](/cloud/agent/overview.html) doc._
 
-## How Everything Fits Together
+#### What's Next
 
+Now that you have registered your first Flow, executed it with an in-process Local Agent, and read through the fundamental building blocks of Flow deployment with Prefect Cloud the next step is to learn about standing up a Local Agent with supervisor!
