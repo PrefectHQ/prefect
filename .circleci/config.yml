@@ -101,7 +101,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install .[test]
+          command: pip install -r test-requirements.txt
 
       - run:
           name: Run tests
@@ -133,7 +133,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install .[test]
+          command: pip install -r test-requirements.txt
 
       - run:
           name: Run tests
