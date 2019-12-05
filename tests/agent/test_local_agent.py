@@ -1,6 +1,10 @@
 import socket
 from unittest.mock import MagicMock
 
+import pytest
+from testfixtures.mock import call
+from testfixtures.popen import MockPopen
+from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
 from prefect.environments.storage import Docker, Local
@@ -206,3 +210,78 @@ def test_generate_supervisor_conf(runner_token):
     assert "-t token" in conf
     assert "-l label" in conf
     assert "-p path" in conf
+
+
+@pytest.mark.parametrize(
+    "returncode,show_flow_logs,logs",
+    (
+        (0, False, None),
+        (
+            1,
+            False,
+            (
+                ("agent", "INFO", "Process PID 1234 returned non-zero exit code"),
+                ("agent", "INFO", "awesome output!blerg, eRroR!"),
+            ),
+        ),
+        (
+            1,
+            True,
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
+        ),
+    ),
+)
+def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
+    popen = MockPopen()
+    # expect a process to be called with the following command (with specified behavior)
+    popen.set_command(
+        "prefect execute cloud-flow",
+        stdout=b"awesome output!",
+        stderr=b"blerg, eRroR!",
+        returncode=returncode,
+        poll_count=2,
+    )
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"], show_flow_logs=show_flow_logs)
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    process = agent.processes[0]
+    process_call = process.root_call
+
+    with LogCapture() as logcap:
+        agent.heartbeat()
+        agent.heartbeat()
+        agent.heartbeat()
+
+    # ensure the expected logs exist (or the absense of logs)
+    if logs:
+        logcap.check(*logs)
+    else:
+        logcap.check()
+
+    # ensure the process was opened and was polled
+    compare(
+        popen.all_calls,
+        expected=[
+            process_call,
+            process_call.poll(),
+            process_call.poll(),
+            process_call.poll(),
+        ],
+    )
+
+    # the heartbeat should stop tracking upon exit
+    compare(process.returncode, returncode)
+    assert len(agent.processes) == 0

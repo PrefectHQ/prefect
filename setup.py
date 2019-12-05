@@ -7,6 +7,7 @@ import versioneer
 ## base requirements
 install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("dev-requirements.txt").read().strip().split("\n")
+test_requires = open("test-requirements.txt").read().strip().split("\n")
 
 extras = {
     "airtable": ["airtable-python-wrapper >= 0.11, < 0.12"],
@@ -23,12 +24,13 @@ extras = {
         "google-cloud-storage >= 1.13, < 2.0",
     ],
     "kubernetes": ["kubernetes >= 9.0.0a1, < 10.0", "dask-kubernetes >= 0.8.0"],
-    "rss": ["feedparser >= 5.0.1, < 6.0"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
-    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
     "redis": ["redis >= 3.2.1"],
+    "rss": ["feedparser >= 5.0.1, < 6.0"],
+    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
+    "test": test_requires,
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
 }

@@ -48,7 +48,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Install prefect
-          command: pip install -e ".[dev]"
+          command: pip install -e ".[dev,test]"
 
       - run:
           name: Run documentation tests
@@ -101,7 +101,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install "pytest==5.0" pytest-cov pytest-env
+          command: pip install .[test]
 
       - run:
           name: Run tests
@@ -133,7 +133,7 @@ jobs:
 
       - run:
           name: Install testing packages
-          command: pip install "pytest>=4.3,<5.0" pytest-cov pytest-env
+          command: pip install .[test]
 
       - run:
           name: Run tests
