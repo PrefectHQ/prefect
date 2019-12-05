@@ -96,13 +96,72 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
 
-While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions. All of these options can be provided at initialization of the `FargateAgent` class or through an environment variable.
+While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
-:::tip Case Sensitive Environment Variables
+Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition):
+
+```
+taskRoleArn                 string
+executionRoleArn            string
+volumes                     list
+placementConstraints        list
+cpu                         string
+memory                      string
+tags                        list
+pidMode                     string
+ipcMode                     string
+proxyConfiguration          dict
+inferenceAccelerators       list
+```
+
+Accepted kwargs for [`run_task`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task):
+
+```
+cluster                     string
+count                       integer
+startedBy                   string
+group                       string
+placementConstraints        list
+placementStrategy           list
+platformVersion             string
+networkConfiguration        dict
+tags                        list
+enableECSManagedTags        boolean
+propagateTags               string
+```
+
+:::tip boto3 kwargs
+For more information on using Fargate with boto3 and to see the list of supported configuration options please visit the [relevant API documentation.](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html) Most importantly the functions [register_task_definition()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)and [run_task()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task).
+:::
+
+All of these options can be provided at initialization of the `FargateAgent` class or through an environment variable. This means that the environment variables will need to be string representations of the values they represent.
+
+For example, the `networkConfiguration` kwarg accepts a dictionary and if provided through an environment variable it will need to be a string representation of that dictionary.
+
+```python
+networkConfiguration={
+    "awsvpcConfiguration": {
+        "assignPublicIp": "ENABLED",
+        "subnets": ["my_subnet_id"],
+        "securityGroups": []
+    }
+}
+```
+
+```bash
+networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+```
+
+
+:::warning Case Sensitive Environment Variables
 Please note that when setting the boto3 configuration for the `register_task_definition` and `run_task` the keys are case sensitive. For example: if setting placement constraints through an environment variable it must match boto3's case sensitive `placementConstraints`.
 :::
 
-Below is a minimal example which specifies information for connecting to boto3 as well as the task's resource requests and network configuration.
+### Configuration Examples
+
+Below are two minimal examples which specify information for connecting to boto3 as well as the task's resource requests and network configuration. The first example initializes a `FargateAgent` with kwargs passed in and the second example uses the Prefect CLI to start the Fargate Agent with kwargs being loaded from environment variables.
+
+#### Python Script
 
 ```python
 from prefect.agent.fargate import FargateAgent
@@ -125,6 +184,45 @@ agent = FargateAgent(
 agent.start()
 ```
 
-:::tip boto3
-For more information on using Fargate with boto3 and to see the list of supported configuration options please visit the [relevant API documentation.](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html) Most importantly the functions [register_task_definition()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition)and [run_task()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task).
+#### Prefect CLI
+
+```bash
+$ export AWS_ACCESS_KEY_ID=...
+$ export AWS_SECRET_ACCESS_KEY=...
+$ export REGION_NAME=us-east-1
+$ export cpu=256
+$ export memory=512
+$ export networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+
+$ prefect agent start fargate
+```
+
+
+:::warning Outbound Traffic
+If you encounter issues with Fargate raising errors in cases of client timeouts or inability to pull containers then you may need to adjust your `networkConfiguration`. Visit [this discussion thread](https://github.com/aws/amazon-ecs-agent/issues/1128#issuecomment-351545461) for more information on configuring AWS security groups.
 :::
+
+#### Prefect CLI Using Kwargs
+
+All configuration options for the Fargate Agent can also be provided to the `prefect agent start fargate` CLI command. They must match the camel casing used by boto3 but both the single kwarg as well as with the standard prefix of `--` are accepted. This means that `taskRoleArn=""` is the same as `--taskRoleArn=""`.
+
+```bash
+$ export AWS_ACCESS_KEY_ID=...
+$ export AWS_SECRET_ACCESS_KEY=...
+$ export REGION_NAME=us-east-1
+
+$ prefect agent start fargate cpu=256 memory=512 networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+```
+
+Kwarg values can also be provided through environment variables. This is useful in situations where case sensitive environment variables are desired or when using templating tools like Terraform to deploy your Agent.
+
+```bash
+$ export AWS_ACCESS_KEY_ID=...
+$ export AWS_SECRET_ACCESS_KEY=...
+$ export REGION_NAME=us-east-1
+$ export CPU=256
+$ export MEMORY=512
+$ export NETWORK_CONFIGURATION="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+
+$ prefect agent start fargate cpu=$CPU memory=$MEMORY networkConfiguration=$NETWORK_CONFIGURATION
+```

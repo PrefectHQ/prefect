@@ -17,12 +17,31 @@ from prefect.utilities.configuration import set_temporary_config
 def test_create_dask_environment():
     environment = DaskKubernetesEnvironment()
     assert environment
+    assert environment.min_workers == 1
+    assert environment.max_workers == 2
+    assert environment.work_stealing is False
     assert environment.private_registry is False
     assert environment.docker_secret is None
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
     assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
+
+
+def test_create_dask_environment_args():
+    environment = DaskKubernetesEnvironment(
+        min_workers=5,
+        max_workers=6,
+        work_stealing=True,
+        private_registry=True,
+        docker_secret="docker",
+    )
+    assert environment
+    assert environment.min_workers == 5
+    assert environment.max_workers == 6
+    assert environment.work_stealing is True
+    assert environment.private_registry is True
+    assert environment.docker_secret == "docker"
 
 
 def test_create_dask_environment_labels():
@@ -47,6 +66,12 @@ def test_dask_environment_dependencies():
 
 def test_create_dask_environment_identifier_label():
     environment = DaskKubernetesEnvironment()
+    assert environment.identifier_label
+
+
+def test_create_dask_environment_identifier_label_none():
+    environment = DaskKubernetesEnvironment()
+    environment._identifier_label = None
     assert environment.identifier_label
 
 
@@ -227,7 +252,7 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
 
 def test_populate_job_yaml():
-    environment = DaskKubernetesEnvironment()
+    environment = DaskKubernetesEnvironment(work_stealing=True)
 
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
@@ -260,6 +285,7 @@ def test_populate_job_yaml():
     assert env[3]["value"] == "namespace_test"
     assert env[4]["value"] == "test1/test2:test3"
     assert env[5]["value"] == "test4"
+    assert env[13]["value"] == "True"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -379,6 +405,10 @@ def test_populate_custom_scheduler_spec_yaml():
                 yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
 
+    assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(
+        environment.identifier_label
+    )
+
     env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
 
     assert env[0]["value"] == "gql_test"
@@ -419,3 +449,9 @@ def test_roundtrip_cloudpickle():
         assert isinstance(new, DaskKubernetesEnvironment)
         assert new._scheduler_spec == "scheduler"
         assert new._worker_spec == "worker"
+
+        # Identifer labels do not persist
+        assert environment.identifier_label
+        assert new.identifier_label
+
+        assert environment.identifier_label != new.identifier_label

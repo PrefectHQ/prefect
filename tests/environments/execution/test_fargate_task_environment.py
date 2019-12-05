@@ -48,18 +48,21 @@ def test_create_fargate_task_environment_aws_creds_provided():
         labels=["foo"],
         aws_access_key_id="id",
         aws_secret_access_key="secret",
+        aws_session_token="session",
         region_name="region",
     )
     assert environment
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
+    assert environment.aws_session_token == "session"
     assert environment.region_name == "region"
 
 
 def test_create_fargate_task_environment_aws_creds_environment(monkeypatch):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
     environment = FargateTaskEnvironment(labels=["foo"])
@@ -67,6 +70,7 @@ def test_create_fargate_task_environment_aws_creds_environment(monkeypatch):
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
+    assert environment.aws_session_token == "session"
     assert environment.region_name == "region"
 
 
@@ -224,7 +228,7 @@ def test_setup_definition_register(monkeypatch):
         family="test",
         containerDefinitions=[
             {
-                "name": "flow",
+                "name": "flow-container",
                 "image": "image",
                 "command": [],
                 "environment": [],
@@ -242,12 +246,12 @@ def test_setup_definition_register(monkeypatch):
         "containerDefinitions"
     ] == [
         {
-            "name": "flow",
+            "name": "flow-container",
             "image": "test/image:tag",
             "command": [
                 "/bin/sh",
                 "-c",
-                "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ],
             "environment": [
                 {
@@ -266,6 +270,50 @@ def test_setup_definition_register(monkeypatch):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             ],
             "essential": True,
+        }
+    ]
+
+
+def test_setup_definition_register_no_defintions(monkeypatch):
+    boto3_client = MagicMock()
+    boto3_client.describe_task_definition.side_effect = ClientError({}, None)
+    boto3_client.register_task_definition.return_value = {}
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    environment = FargateTaskEnvironment(family="test",)
+
+    environment.setup(Docker(registry_url="test", image_name="image", image_tag="tag"))
+
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.called
+    assert boto3_client.register_task_definition.call_args[1]["family"] == "test"
+    assert boto3_client.register_task_definition.call_args[1][
+        "containerDefinitions"
+    ] == [
+        {
+            "environment": [
+                {
+                    "name": "PREFECT__CLOUD__GRAPHQL",
+                    "value": prefect.config.cloud.graphql,
+                },
+                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {
+                    "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudFlowRunner",
+                },
+                {
+                    "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                    "value": "prefect.engine.cloud.CloudTaskRunner",
+                },
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            ],
+            "name": "flow-container",
+            "image": "test/image:tag",
+            "command": [
+                "/bin/sh",
+                "-c",
+                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
+            ],
         }
     ]
 
@@ -289,7 +337,7 @@ def test_execute_run_task(monkeypatch):
     assert boto3_client.run_task.call_args[1]["overrides"] == {
         "containerOverrides": [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
@@ -380,6 +428,7 @@ def test_entire_environment_process_together(monkeypatch):
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
     with prefect.context({"flow_run_id": "id"}):
@@ -389,7 +438,7 @@ def test_entire_environment_process_together(monkeypatch):
         environment = FargateTaskEnvironment(
             containerDefinitions=[
                 {
-                    "name": "flow",
+                    "name": "flow-container",
                     "image": "image",
                     "command": [],
                     "environment": [],
@@ -404,6 +453,7 @@ def test_entire_environment_process_together(monkeypatch):
         assert environment
         assert environment.aws_access_key_id == "id"
         assert environment.aws_secret_access_key == "secret"
+        assert environment.aws_session_token == "session"
         assert environment.region_name == "region"
 
         environment.setup(storage=storage)
@@ -415,12 +465,12 @@ def test_entire_environment_process_together(monkeypatch):
             "containerDefinitions"
         ] == [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "image": "test/image:tag",
                 "command": [
                     "/bin/sh",
                     "-c",
-                    "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+                    "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
                 ],
                 "environment": [
                     {
@@ -449,7 +499,7 @@ def test_entire_environment_process_together(monkeypatch):
         assert boto3_client.run_task.call_args[1]["overrides"] == {
             "containerOverrides": [
                 {
-                    "name": "flow",
+                    "name": "flow-container",
                     "environment": [
                         {
                             "name": "PREFECT__CLOUD__AUTH_TOKEN",

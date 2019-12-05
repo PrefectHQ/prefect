@@ -910,3 +910,16 @@ def test_all_tasks_only_called_once(capsys, executor):
     printed_lines = [line for line in captured.out.split("\n") if line != ""]
 
     assert len(printed_lines) == 15
+
+
+def test_mapping_over_constants():
+    @prefect.task
+    def add_one(x):
+        return x + 1
+
+    with Flow("constants") as f:
+        output = add_one.map(x=[1, 2, 3, 4])
+
+    flow_state = f.run()
+    assert flow_state.is_successful()
+    assert flow_state.result[output].result == [2, 3, 4, 5]

@@ -24,7 +24,6 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
-    - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
@@ -34,7 +33,7 @@ class FargateTaskEnvironment(Environment):
 
     Additionally, the following command will be applied to the first container:
 
-    `$ /bin/sh -c 'python -c "from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()"'`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -51,12 +50,15 @@ class FargateTaskEnvironment(Environment):
     Args:
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID`.
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY`.
+            `AWS_SECRET_ACCESS_KEY` or `None`
+        - aws_session_token (str, optional): AWS session key for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
-            Defaults to the value set in the environment variable `REGION_NAME`.
+            Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -69,6 +71,7 @@ class FargateTaskEnvironment(Environment):
         self,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
+        aws_session_token: str = None,
         region_name: str = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -80,6 +83,7 @@ class FargateTaskEnvironment(Environment):
         self.aws_secret_access_key = aws_secret_access_key or os.getenv(
             "AWS_SECRET_ACCESS_KEY"
         )
+        self.aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         self.region_name = region_name or os.getenv("REGION_NAME")
 
         # Parse accepted kwargs for definition and run
@@ -162,15 +166,14 @@ class FargateTaskEnvironment(Environment):
             "ecs",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
             region_name=self.region_name,
         )
-
-        flow_run_id = prefect.context.get("flow_run_id", "unknown")
 
         definition_exists = True
         try:
             boto3_c.describe_task_definition(
-                taskDefinition="prefect-task-{}-custom".format(flow_run_id[:8])
+                taskDefinition=self.task_definition_kwargs.get("family")
             )
         except ClientError:
             definition_exists = False
@@ -190,20 +193,43 @@ class FargateTaskEnvironment(Environment):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             ]
 
-            # Populate all env vars
-            for definition in self.task_definition_kwargs.get("containerDefinitions"):
+            # create containerDefinitions if they do not exist
+            if not self.task_definition_kwargs.get("containerDefinitions"):
+                self.task_definition_kwargs["containerDefinitions"] = []
+                self.task_definition_kwargs["containerDefinitions"].append({})
+
+            # set environment variables for all containers
+            for definition in self.task_definition_kwargs["containerDefinitions"]:
+                if not definition.get("environment"):
+                    definition["environment"] = []
                 definition["environment"].extend(env_values)
 
-            # Populate storage
+            # set name on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("name"):
+                self.task_definition_kwargs["containerDefinitions"][0]["name"] = ""
+
+            self.task_definition_kwargs.get("containerDefinitions")[0][
+                "name"
+            ] = "flow-container"
+
+            # set image on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get("image"):
+                self.task_definition_kwargs["containerDefinitions"][0]["image"] = ""
+
             self.task_definition_kwargs.get("containerDefinitions")[0][
                 "image"
             ] = storage.name
 
-            # Replace command
+            # set command on first container
+            if not self.task_definition_kwargs["containerDefinitions"][0].get(
+                "command"
+            ):
+                self.task_definition_kwargs["containerDefinitions"][0]["command"] = []
+
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
-                "python -c 'from prefect.environments import FargateTaskEnvironment; FargateTaskEnvironment().run_flow()'",
+                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ]
 
             boto3_c.register_task_definition(**self.task_definition_kwargs)
@@ -224,7 +250,7 @@ class FargateTaskEnvironment(Environment):
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
         container_overrides = [
             {
-                "name": "flow",
+                "name": "flow-container",
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
@@ -244,6 +270,7 @@ class FargateTaskEnvironment(Environment):
             "ecs",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
             region_name=self.region_name,
         )
 

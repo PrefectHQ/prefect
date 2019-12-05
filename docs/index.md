@@ -19,7 +19,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
         </a>
         <a href="https://prefect.io/support" target="_blank" >
             <button class="action-button">
-                Ask for help
+                Ask us anything
             </button>
         </a>
     </div>
@@ -57,7 +57,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://join.slack.com/t/prefect-public/shared_invite/enQtNzE5OTU3OTQwNzc1LTQ5M2FkZmQzZjI0ODg1ZTBmOTc0ZjVjYWFjMWExZDAyYzBmYjVmMTE1NTQ1Y2IxZTllOTc4MmI3NzYxMDlhYWU)!
+Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE)!
 
 ### Hello, world! 👋
 

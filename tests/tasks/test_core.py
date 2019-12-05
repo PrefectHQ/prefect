@@ -202,9 +202,7 @@ class TestCollections:
             identity.bind(x=dict(a=x, b=y))
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert (
-            len(f.tasks) == 8
-        )  # 2 params, identity, Dict, 2 Lists for Dict, "a" and "b"
+        assert len(f.tasks) == 6  # 2 params, identity, Dict, 2 Lists for Dict
         assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
         assert state.result[identity].result == dict(a=1, b=2)
 
@@ -217,9 +215,7 @@ class TestCollections:
         identity.bind(x=dict(a=x, b=y), flow=f)
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert (
-            len(f.tasks) == 8
-        )  # 2 params, identity, Dict, 2 Lists for Dict, "a" and "b"
+        assert len(f.tasks) == 6  # 2 params, identity, Dict, 2 Lists for Dict
         assert sum(isinstance(t, collections.Dict) for t in f.tasks) == 1
         assert state.result[identity].result == dict(a=1, b=2)
 
@@ -231,7 +227,7 @@ class TestCollections:
             identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))))
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert len(f.tasks) == 15
+        assert len(f.tasks) == 12
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))
 
     def test_nested_collection_automatically_applied_to_callargs_imperative(self):
@@ -243,5 +239,5 @@ class TestCollections:
         identity.bind(x=dict(a=[x, dict(y=y)], b=(y, set([x]))), flow=f)
         state = f.run(parameters=dict(x=1, y=2))
 
-        assert len(f.tasks) == 15
+        assert len(f.tasks) == 12
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))

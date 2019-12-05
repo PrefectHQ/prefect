@@ -11,12 +11,16 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments.storage import Docker
-from prefect.utilities.exceptions import SerializationError
 
 
 def test_create_docker_storage():
     storage = Docker()
     assert storage
+
+
+def test_cant_create_docker_with_both_base_image_and_dockerfile():
+    with pytest.raises(ValueError):
+        Docker(dockerfile="path/to/file", base_image="python:3.6")
 
 
 def test_serialize_docker_storage():
@@ -30,9 +34,9 @@ def test_add_flow_to_docker():
     storage = Docker()
     f = Flow("test")
     assert f not in storage
-    assert storage.add_flow(f) == "/root/.prefect/test.prefect"
+    assert storage.add_flow(f) == "/root/.prefect/flows/test.prefect"
     assert f.name in storage
-    assert storage.flows[f.name] == "/root/.prefect/test.prefect"
+    assert storage.flows[f.name] == "/root/.prefect/flows/test.prefect"
 
 
 @pytest.mark.parametrize(
@@ -109,6 +113,14 @@ def test_initialized_docker_storage():
     assert storage.base_url == "test_url"
     assert storage.prefect_version == "my-branch"
     assert storage.local_image
+
+
+def test_docker_storage_allows_for_user_provided_config_locations():
+    storage = Docker(env_vars={"PREFECT__USER_CONFIG_PATH": "1"},)
+
+    assert storage.env_vars == {
+        "PREFECT__USER_CONFIG_PATH": "1",
+    }
 
 
 def test_files_not_absolute_path():
@@ -202,7 +214,7 @@ def test_build_sets_informative_image_name_for_weird_name_flows(monkeypatch):
     assert output.image_tag.startswith(str(pendulum.now("utc").year))
 
 
-def test_build_image_fails_deserialization(monkeypatch):
+def test_build_image_fails_with_value_error(monkeypatch):
     flow = Flow("test")
     storage = Docker(
         registry_url="reg",
@@ -214,17 +226,17 @@ def test_build_image_fails_deserialization(monkeypatch):
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(flow)
 
 
-def test_build_image_fails_deserialization_no_registry(monkeypatch):
+def test_build_image_fails_no_registry(monkeypatch):
     storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
 
     client = MagicMock()
     monkeypatch.setattr("docker.APIClient", client)
 
-    with pytest.raises(SerializationError):
+    with pytest.raises(ValueError, match="failed to build"):
         image_name, image_tag = storage._build_image(push=False)
 
 
@@ -300,12 +312,79 @@ def test_create_dockerfile_from_base_image():
     storage = Docker(base_image="python:3.6")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         assert "FROM python:3.6" in output
+
+
+def test_create_dockerfile_from_dockerfile():
+    myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "myfile"), "w") as tmp:
+            tmp.write(myfile)
+
+        storage = Docker(dockerfile=os.path.join(directory, "myfile"))
+        dpath = storage.create_dockerfile_object(directory=directory)
+
+        with open(dpath, "r") as dockerfile:
+            output = dockerfile.read()
+
+    assert output.startswith("\n" + myfile)
+
+    # test proper indentation
+    assert all(
+        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+    )
+
+
+def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
+    myfile = "FROM my-own-image:latest\n\nRUN echo 'hi'"
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            with open(os.path.join(directory, "myfile"), "w") as tmp:
+                tmp.write(myfile)
+
+            storage = Docker(
+                dockerfile=os.path.join(directory, "myfile"),
+                files={os.path.join(tempdir_outside, "test"): "./test2"},
+            )
+            storage.add_flow(Flow("foo"))
+            dpath = storage.create_dockerfile_object(directory=directory)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "COPY {} /root/.prefect/flows/foo.prefect".format(
+                    os.path.join(directory, "foo.flow")
+                )
+                in output
+            ), output
+            assert (
+                "COPY {} ./test2".format(os.path.join(directory, "test")) in output
+            ), output
+            assert (
+                "COPY {} /root/.prefect/healthcheck.py".format(
+                    os.path.join(directory, "healthcheck.py")
+                )
+                in output
+            )
+
+    assert output.startswith("\n" + myfile)
+
+    # test proper indentation
+    assert all(
+        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+    )
 
 
 @pytest.mark.parametrize(
@@ -316,7 +395,7 @@ def test_create_dockerfile_from_base_image():
             "master",
             (
                 "FROM python:3.6-slim",
-                "pip install git+https://github.com/PrefectHQ/prefect.git@master",
+                "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@master",
             ),
         ),
         (
@@ -324,7 +403,7 @@ def test_create_dockerfile_from_base_image():
             (
                 "FROM python:3.6-slim",
                 "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
-                "pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[kubernetes]",
+                "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[kubernetes]",
             ),
         ),
     ],
@@ -335,9 +414,9 @@ def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
     storage = Docker(prefect_version=prefect_version[0])
 
     with tempfile.TemporaryDirectory() as tempdir:
-        storage.create_dockerfile_object(directory=tempdir)
+        dpath = storage.create_dockerfile_object(directory=tempdir)
 
-        with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+        with open(dpath, "r") as dockerfile:
             output = dockerfile.read()
 
         for content in prefect_version[1]:
@@ -355,13 +434,14 @@ def test_create_dockerfile_with_weird_flow_name():
             storage = Docker(registry_url="test1", base_image="test3")
             f = Flow("WHAT IS THIS !!! ~~~~")
             storage.add_flow(f)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert (
-                "COPY what-is-this.flow /root/.prefect/what-is-this.prefect" in output
+                "COPY what-is-this.flow /root/.prefect/flows/what-is-this.prefect"
+                in output
             )
 
 
@@ -388,9 +468,9 @@ def test_create_dockerfile_from_everything():
             g = Flow("other")
             storage.add_flow(f)
             storage.add_flow(g)
-            storage.create_dockerfile_object(directory=tempdir)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
 
-            with open(os.path.join(tempdir, "Dockerfile"), "r") as dockerfile:
+            with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
             assert "FROM test3" in output
@@ -406,8 +486,8 @@ def test_create_dockerfile_from_everything():
             assert results.group("result") == "test=1"
 
             assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
-            assert "COPY test.flow /root/.prefect/test.prefect" in output
-            assert "COPY other.flow /root/.prefect/other.prefect" in output
+            assert "COPY test.flow /root/.prefect/flows/test.prefect" in output
+            assert "COPY other.flow /root/.prefect/flows/other.prefect" in output
 
 
 def test_pull_image(capsys, monkeypatch):

@@ -134,6 +134,7 @@ class KubernetesAgent(Agent):
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
+        env[4]["value"] = str(self.labels)
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
@@ -178,7 +179,7 @@ class KubernetesAgent(Agent):
         labels = labels or []
 
         version = prefect.__version__.split("+")
-        image_version = "latest" if len(version) > 1 else version[0]
+        image_version = "latest" if len(version) > 1 else (version[0] + "-python3.6")
 
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"

@@ -24,6 +24,10 @@ Whenever you call `flow.deploy` or build a [Docker storage object](../api/unrele
 [cloudpickle](https://github.com/cloudpipe/cloudpickle) is an excellent alternative to the standard libary's Pickle protocol for converting Python objects to a serialized byte representation.  Note that cloudpickle typically stores _imported objects_ as importable references.  So, for example, if you used a function `foo` that you imported as `from my_file import foo`, cloudpickle (and consequently Prefect) will assume this same import can take place inside the Docker container.  For this reason, it is considered best practice in Prefect to ensure all utility scripts and custom Python code be accessible on your Docker image's system `PATH`.
 :::
 
+::: tip Flows have a save / load interface
+Oftentimes users want to separate their flow's build logic from its deploy logic.  Because of the nature of `cloudpickle` and relative imports, instead of importing your Flow object from another file it is recommended that you save your Flow to disk using `flow.save`, and then load it using `Flow.load` prior to deployment.
+:::
+
 ### How are Prefect Flows run inside Docker containers?
 
 Whenever a Prefect Cloud flow run is created and submitted for execution, Prefect performs the following actions inside your Flow's Docker image:

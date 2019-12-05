@@ -32,7 +32,7 @@ most recently:
 query {
   task_run(
     where: { state: { _eq: "Failed" } }
-    order_by: { timestamp: desc }
+    order_by: { state_timestamp: desc }
     limit: 5
   ) {
     name
@@ -105,8 +105,7 @@ with variables:
 ```json
 {
   "state": {
-    "x": 1,
-    "y": 2
+    "type": "Scheduled",
   }
 }
 ```

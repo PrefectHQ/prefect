@@ -119,6 +119,17 @@ class TestAsTask:
         assert res.is_successful()
         assert res.result[val].result == obj
 
+    def test_as_task_toggles_constants(self):
+        with Flow("test") as f:
+            t = tasks.as_task(4)
+            s = tasks.as_task(5, convert_constants=False)
+
+        assert isinstance(t, Task)
+        assert t.name == "4"
+
+        assert not isinstance(s, Task)
+        assert s == 5
+
     def test_as_task_doesnt_label_tasks_as_auto_generated(self):
         t = Task()
         assert t.auto_generated is False

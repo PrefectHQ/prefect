@@ -11,10 +11,143 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add type-casting for `Parameters` - [#1682](https://github.com/PrefectHQ/prefect/pull/1682)
+- Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
 
 ### Task Library
 
 - None
+
+### Fixes
+
+- Fix issue with `flow.visualize()` for mapped tasks which are skipped - [#1765](https://github.com/PrefectHQ/prefect/issues/1765)
+- Fix issue with timeouts only being softly enforced - [#1145](https://github.com/PrefectHQ/prefect/issues/1145), [#1686](https://github.com/PrefectHQ/prefect/issues/1686)
+- Fix issue with `flow.update()` not transferring constants - [#1785](https://github.com/PrefectHQ/prefect/pull/1785)
+- Log agent errors using `write_run_logs` instead of the deprecated `write_run_log` - [#1791](https://github.com/PrefectHQ/prefect/pull/1791)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.3 <Badge text="beta" type="success"/>
+
+Released on Nov 26, 2019.
+
+### Features
+
+- Add graceful cancellation hooks to Flow and Task runners - [#1758](https://github.com/PrefectHQ/prefect/pull/1758)
+
+### Enhancements
+
+- Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
+- Add `work_stealing` option to `DaskKubernetesEnvironment` - [#1760](https://github.com/PrefectHQ/prefect/pull/1760)
+- Improve heartbeat thread management - [#1770](https://github.com/PrefectHQ/prefect/pull/1770)
+- Add unique scheduler Job name to `DaskKubernetesEnvironment` - [#1772](https://github.com/PrefectHQ/prefect/pull/1772)
+- Add informative error when trying to map with the `LocalDaskExecutor` using processes - [#1777](https://github.com/PrefectHQ/prefect/pull/1777)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with heartbeat thread deadlocking dask execution when using a `worker_client` - [#1750](https://github.com/PrefectHQ/prefect/pull/1750)
+- Fix issue with Environments not calling `run_flow` on Environment stored on Flow object - [#1752](https://github.com/PrefectHQ/prefect/pull/1752)
+- Fix issue with Docker build context when providing custom docker files - [#1762](https://github.com/PrefectHQ/prefect/pull/1762)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.2 <Badge text="beta" type="success"/>
+
+Released on Nov 15, 2019.
+
+### Features
+
+- Allow users to provide a custom version group ID for controlling Cloud versioning - [#1665](https://github.com/PrefectHQ/prefect/issues/1665)
+- Stop autogenerating constant tasks - [#1730](https://github.com/PrefectHQ/prefect/pull/1730)
+
+### Enhancements
+
+- Raise an informative error when context objects are pickled - [#1710](https://github.com/PrefectHQ/prefect/issues/1710)
+- Add an option to pass in `run_name` to a flow run to override the auto-generated names when calling `create_flow_run` [#1661](https://github.com/PrefectHQ/cloud/pull/1661)
+- Add informative logs in the event that a heartbeat thread dies - [#1721](https://github.com/PrefectHQ/prefect/pull/1721)
+- Loosen Job spec requirements for `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Loosen `containerDefinitions` requirements for `FargateTaskEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Local Docker agent proactively fails flow runs if image cannot be pulled - [#1395](https://github.com/PrefectHQ/prefect/issues/1395)
+- Add graceful keyboard interrupt shutdown for all agents - [#1731](https://github.com/PrefectHQ/prefect/pull/1731)
+- `agent start` CLI command now allows for Agent kwargs - [#1737](https://github.com/PrefectHQ/prefect/pull/1737)
+- Add users to specify a custom Dockerfile for Docker storage - [#1738](https://github.com/PrefectHQ/prefect/pull/1738)
+- Expose `labels` kwarg in `flow.deploy` for convenient labeling of Flows - [#1742](https://github.com/PrefectHQ/prefect/pull/1742)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- `FargateTaskEnvironment` now uses provided `family` for task definition naming - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Fix executor initialization missing `self` in `KubernetesJobEnvironment` - [#1713](https://github.com/PrefectHQ/prefect/pull/1713)
+- Fix `identifier_label` not being generated on each run for Kubernetes based environments - [#1718](https://github.com/PrefectHQ/prefect/pull/1718)
+- Fix issue where users could not override their user config path when deploying Docker to Cloud - [#1719](https://github.com/PrefectHQ/prefect/pull/1719)
+- Respect order of inputs in merge - [#1736](https://github.com/~/1736)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Brett Naul](https://github.com/bnaul)
+
+## 0.7.1 <Badge text="beta" type="success"/>
+
+Released on Nov 5, 2019
+
+### Features
+
+- None
+
+### Enhancements
+
+- Add a `save`/`load` interface to Flows - [#1685](https://github.com/PrefectHQ/prefect/pull/1685), [#1695](https://github.com/PrefectHQ/prefect/pull/1695)
+- Add option to specify `aws_session_token` for the `FargateTaskEnvironment` - [#1688](https://github.com/PrefectHQ/prefect/pull/1688)
+- Add `EnvVarSecrets` for loading sensitive information from environment variables - [#1683](https://github.com/PrefectHQ/prefect/pull/1683)
+- Add an informative version header to all Cloud client requests - [#1690](https://github.com/PrefectHQ/prefect/pull/1690)
+- Auto-label Flow environments when using Local storage - [#1696](https://github.com/PrefectHQ/prefect/pull/1696)
+- Batch upload logs to Cloud in a background thread for improved performance - [#1691](https://github.com/PrefectHQ/prefect/pull/1691)
+- Include agent labels within each flow's configuration environment - [#1671](https://github.com/PrefectHQ/prefect/issues/1671)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix Fargate Agent access defaults and environment variable support - [#1687](https://github.com/PrefectHQ/prefect/pull/1687)
+- Removed default python version for docker builds - [#1705](https://github.com/PrefectHQ/prefect/pull/1705)
+- Attempt to install prefect in any docker image (if it is not already installed) - [#1704](https://github.com/PrefectHQ/prefect/pull/1704)
+- Kubernetes Agent deployment yaml now respects new `prefecthq/prefect` image tagging convention - [#1707](https://github.com/PrefectHQ/prefect/pull/1707)
 
 ### Deprecations
 

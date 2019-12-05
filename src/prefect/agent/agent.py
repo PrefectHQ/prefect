@@ -1,7 +1,9 @@
 import ast
 import logging
+import signal
 import time
-from typing import Iterable, Union
+from contextlib import contextmanager
+from typing import Any, Callable, Generator, Iterable, Union
 
 import pendulum
 
@@ -20,6 +22,24 @@ ascii_name = r"""
 |_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
                                            |___/
 """
+
+
+def _exit(agent: "Agent") -> Callable:
+    def _exit_handler(*args: Any, **kwargs: Any) -> None:
+        agent.is_running = False
+        agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
+
+    return _exit_handler
+
+
+@contextmanager
+def keyboard_handler(agent: "Agent") -> Generator:
+    original = signal.getsignal(signal.SIGINT)
+    try:
+        signal.signal(signal.SIGINT, _exit(agent))
+        yield
+    finally:
+        signal.signal(signal.SIGINT, original)
 
 
 class Agent:
@@ -89,25 +109,29 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
-        tenant_id = self.agent_connect()
+        with keyboard_handler(self):
+            self.is_running = True
+            tenant_id = self.agent_connect()
 
-        # Loop intervals for query sleep backoff
-        loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
+            # Loop intervals for query sleep backoff
+            loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
 
-        index = 0
-        while True:
-            self.heartbeat()
+            index = 0
+            while self.is_running:
+                self.heartbeat()
 
-            runs = self.agent_process(tenant_id)
-            if runs:
-                index = 0
-            elif index < max(loop_intervals.keys()):
-                index += 1
+                runs = self.agent_process(tenant_id)
+                if runs:
+                    index = 0
+                elif index < max(loop_intervals.keys()):
+                    index += 1
 
-            self.logger.debug(
-                "Next query for flow runs in {} seconds".format(loop_intervals[index])
-            )
-            time.sleep(loop_intervals[index])
+                self.logger.debug(
+                    "Next query for flow runs in {} seconds".format(
+                        loop_intervals[index]
+                    )
+                )
+                time.sleep(loop_intervals[index])
 
     def agent_connect(self) -> str:
         """
@@ -264,9 +288,12 @@ class Agent:
             }
         }
 
-        self.logger.debug("Querying flow run metadata")
-        result = self.client.graphql(query)
-        return result.data.flow_run  # type: ignore
+        if flow_run_ids:
+            self.logger.debug("Querying flow run metadata")
+            result = self.client.graphql(query)
+            return result.data.flow_run  # type: ignore
+        else:
+            return []
 
     def update_states(self, flow_runs: list) -> None:
         """
@@ -333,11 +360,15 @@ class Agent:
                     flow_run.id  # type: ignore
                 )
             )
-            self.client.write_run_log(
-                flow_run_id=flow_run.id,  # type: ignore
-                name="agent",
-                message=str(exc),
-                level="ERROR",
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flowRunId=flow_run.id,  # type: ignore
+                        name="agent",
+                        message=str(exc),
+                        level="ERROR",
+                    )
+                ]
             )
 
     def deploy_flows(self, flow_runs: list) -> None:

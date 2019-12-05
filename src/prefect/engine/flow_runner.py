@@ -16,8 +16,11 @@ import pendulum
 import prefect
 from prefect.core import Edge, Flow, Task
 from prefect.engine import signals
+from prefect.engine.result import Result
+from prefect.engine.result_handlers import ConstantResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Mapped,
     Pending,
@@ -256,6 +259,10 @@ class FlowRunner(Runner):
         except ENDRUN as exc:
             state = exc.state
 
+        except KeyboardInterrupt:
+            self.logger.exception("Interrupt signal raised, cancelling Flow run.")
+            state = Cancelled(message="Interrupt signal raised, cancelling flow run.")
+
         # All other exceptions are trapped and turned into Failed states
         except Exception as exc:
             self.logger.exception(
@@ -415,6 +422,18 @@ class FlowRunner(Runner):
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
+                    )
+
+                # augment edges with upstream constants
+                for key, val in self.flow.constants[task].items():
+                    edge = Edge(
+                        upstream_task=prefect.tasks.core.constants.Constant(val),
+                        downstream_task=task,
+                        key=key,
+                    )
+                    upstream_states[edge] = Success(
+                        "Auto-generated constant value",
+                        result=Result(val, result_handler=ConstantResultHandler(val)),
                     )
 
                 # -- run the task

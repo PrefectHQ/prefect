@@ -8,8 +8,11 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+import atexit
 import logging
+import threading
 import time
+from queue import Queue, Empty
 from typing import Any
 
 import pendulum
@@ -30,6 +33,61 @@ class CloudHandler(logging.StreamHandler):
         self.logger.addHandler(handler)
         self.logger.setLevel(context.config.logging.level)
 
+    @property
+    def queue(self) -> Queue:
+        if not hasattr(self, "_queue"):
+            self._queue = Queue()  # type: Queue
+            self._flush = False
+            self.start()
+        return self._queue
+
+    def flush(self) -> None:
+        self._flush = True
+        if self.client is not None:
+            self.batch_upload()
+            self._thread.join()
+
+    def batch_upload(self) -> None:
+        logs = []
+        try:
+            while True:
+                log = self.queue.get(False)
+                logs.append(log)
+        except Empty:
+            pass
+
+        if logs:
+            try:
+                assert self.client is not None
+                self.client.write_run_logs(logs)
+            except Exception as exc:
+                self.logger.critical(
+                    "Failed to write log with error: {}".format(str(exc))
+                )
+
+    def _monitor(self) -> None:
+        while not self._flush:
+            self.batch_upload()
+            time.sleep(self.heartbeat)
+
+    def __del__(self) -> None:
+        if hasattr(self, "_thread"):
+            self.flush()
+            atexit.unregister(self.flush)
+
+    def start(self) -> None:
+        if not hasattr(self, "_thread"):
+            self.heartbeat = context.config.cloud.logging_heartbeat
+            self._thread = t = threading.Thread(
+                target=self._monitor, name="PrefectCloudLoggingThread"
+            )
+            t.daemon = True
+            t.start()
+            atexit.register(self.flush)
+
+    def put(self, log: dict) -> None:
+        self.queue.put(log)
+
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
         if not prefect.context.config.logging.log_to_cloud:
@@ -44,26 +102,22 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
-            flow_run_id = prefect.context.get("flow_run_id", None)
-            task_run_id = prefect.context.get("task_run_id", None)
-            timestamp = pendulum.from_timestamp(record_dict.get("created", time.time()))
-            name = record_dict.get("name", None)
-            message = record_dict.get("message", None)
-            level = record_dict.get("levelname", None)
+            log = dict()
+            log["flowRunId"] = prefect.context.get("flow_run_id", None)
+            log["taskRunId"] = prefect.context.get("task_run_id", None)
+            log["timestamp"] = pendulum.from_timestamp(
+                record_dict.pop("created", time.time())
+            ).isoformat()
+            log["name"] = record_dict.pop("name", None)
+            log["message"] = record_dict.pop("message", None)
+            log["level"] = record_dict.pop("levelname", None)
 
             if record_dict.get("exc_text") is not None:
-                message += "\n" + record_dict["exc_text"]
+                log["message"] += "\n" + record_dict.pop("exc_text", "")
                 record_dict.pop("exc_info", None)
 
-            self.client.write_run_log(
-                flow_run_id=flow_run_id,
-                task_run_id=task_run_id,
-                timestamp=timestamp,
-                name=name,
-                message=message,
-                level=level,
-                info=record_dict,
-            )
+            log["info"] = record_dict
+            self.put(log)
         except Exception as exc:
             self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 

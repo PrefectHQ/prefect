@@ -15,6 +15,10 @@ class Local(Storage):
     """
     Local storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
+    Note that if you deploy a Flow to Prefect Cloud using this storage,
+    your flow's environment will automatically be labeled with two labels:
+    "local" and your flow's name.  This ensures that only agents who are
+    known to be running on the same filesystem can run your flow.
 
     Args:
         - directory (str, optional): the directory the flows will be stored in;
@@ -48,9 +52,7 @@ class Local(Storage):
         if not flow_location in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
-        with open(flow_location, "rb") as f:
-            flow = cloudpickle.load(f)
-        return flow
+        return prefect.core.flow.Flow.load(flow_location)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -75,8 +77,7 @@ class Local(Storage):
         flow_location = os.path.join(
             self.directory, "{}.prefect".format(slugify(flow.name))
         )
-        with open(flow_location, "wb") as f:
-            cloudpickle.dump(flow, f)
+        flow_location = flow.save(flow_location)
         self.flows[flow.name] = flow_location
         return flow_location
 

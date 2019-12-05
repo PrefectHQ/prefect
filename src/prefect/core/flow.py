@@ -1,3 +1,4 @@
+import cloudpickle
 import collections
 import copy
 import functools
@@ -9,6 +10,8 @@ import time
 import uuid
 import warnings
 from collections import Counter
+from pathlib import Path
+from slugify import slugify
 from typing import (
     Any,
     Callable,
@@ -163,6 +166,9 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.constants = collections.defaultdict(
+            dict
+        )  # type: Dict[Task, Dict[str, Any]]
 
         for t in tasks or []:
             self.add_task(t)
@@ -551,6 +557,8 @@ class Flow:
                     validate=validate,
                 )
 
+        self.constants.update(flow.constants or {})
+
     @cache
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
@@ -803,15 +811,17 @@ class Flow:
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t, flow=self)
-            assert isinstance(t, Task)  # mypy assert
-            self.add_edge(
-                upstream_task=t,
-                downstream_task=task,
-                key=key,
-                validate=validate,
-                mapped=is_mapped,
-            )
+            t = as_task(t, flow=self, convert_constants=False)
+            if isinstance(t, Task):
+                self.add_edge(
+                    upstream_task=t,
+                    downstream_task=task,
+                    key=key,
+                    validate=validate,
+                    mapped=is_mapped,
+                )
+            else:
+                self.constants[task].update({key: t})
 
     # Execution  ---------------------------------------------------------------
 
@@ -1078,13 +1088,21 @@ class Flow:
             name = "{} <map>".format(t.name) if is_mapped else t.name
             if is_mapped and flow_state:
                 assert isinstance(flow_state.result, dict)
-                for map_index, _ in enumerate(flow_state.result[t].map_states):
+                if flow_state.result[t].is_mapped():
+                    for map_index, _ in enumerate(flow_state.result[t].map_states):
+                        kwargs = dict(
+                            color=get_color(t, map_index=map_index),
+                            style="filled",
+                            colorscheme="svg",
+                        )
+                        graph.node(
+                            str(id(t)) + str(map_index), name, shape=shape, **kwargs
+                        )
+                else:
                     kwargs = dict(
-                        color=get_color(t, map_index=map_index),
-                        style="filled",
-                        colorscheme="svg",
+                        color=get_color(t), style="filled", colorscheme="svg",
                     )
-                    graph.node(str(id(t)) + str(map_index), name, shape=shape, **kwargs)
+                    graph.node(str(id(t)), name, shape=shape, **kwargs)
             else:
                 kwargs = (
                     {}
@@ -1100,15 +1118,22 @@ class Flow:
                 or any(edge.mapped for edge in self.edges_to(e.downstream_task))
             ) and flow_state:
                 assert isinstance(flow_state.result, dict)
-                for map_index, _ in enumerate(
-                    flow_state.result[e.downstream_task].map_states
-                ):
-                    upstream_id = str(id(e.upstream_task))
-                    if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
-                        upstream_id += str(map_index)
+                down_state = flow_state.result[e.downstream_task]
+                if down_state.is_mapped():
+                    for map_index, _ in enumerate(down_state.map_states):
+                        upstream_id = str(id(e.upstream_task))
+                        if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
+                            upstream_id += str(map_index)
+                        graph.edge(
+                            upstream_id,
+                            str(id(e.downstream_task)) + str(map_index),
+                            e.key,
+                            style=style,
+                        )
+                else:
                     graph.edge(
-                        upstream_id,
-                        str(id(e.downstream_task)) + str(map_index),
+                        str(id(e.upstream_task)),
+                        str(id(e.downstream_task)),
                         e.key,
                         style=style,
                     )
@@ -1180,11 +1205,52 @@ class Flow:
 
     # Deployment ------------------------------------------------------------------
 
+    @classmethod
+    def load(cls, fpath: str) -> "Flow":
+        """
+        Reads a Flow from a file that was created with `flow.save()`.
+
+        Args:
+            - fpath (str): either the absolute filepath where your Flow will be loaded from,
+                or the name of the Flow you wish to load
+        """
+        if not os.path.isabs(fpath):
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
+        with open(str(fpath), "rb") as f:
+            return cloudpickle.load(f)
+
+    def save(self, fpath: str = None) -> str:
+        """
+        Saves the Flow to a file by serializing it with cloudpickle.  This method is
+        recommended if you wish to separate out the building of your Flow from its deployment.
+
+        Args:
+            - fpath (str, optional): the filepath where your Flow will be saved; defaults to
+                `~/.prefect/flows/FLOW-NAME.prefect`
+
+        Returns:
+            - str: the full location the Flow was saved to
+        """
+        if fpath is None:
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
+                slugify(self.name)
+            )
+            assert fpath is not None  # mypy assert
+            fpath.parent.mkdir(exist_ok=True, parents=True)
+        with open(str(fpath), "wb") as f:
+            cloudpickle.dump(self, f)
+
+        return str(fpath)
+
     def deploy(
         self,
         project_name: str,
         build: bool = True,
+        labels: List[str] = None,
         set_schedule_active: bool = True,
+        version_group_id: str = None,
         **kwargs: Any
     ) -> str:
         """
@@ -1195,9 +1261,14 @@ class Flow:
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
             - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
                 will be passed to the initialization method of the default Storage class
 
@@ -1207,12 +1278,20 @@ class Flow:
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
+        if isinstance(self.storage, prefect.environments.storage.Local):
+            self.environment.labels.add("local")
+            self.environment.labels.add(slugify(self.name))
+
+        if labels:
+            self.environment.labels.update(labels)
+
         client = prefect.Client()
         deployed_flow = client.deploy(
             flow=self,
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
         )
         return deployed_flow
 

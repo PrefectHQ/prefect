@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -16,9 +17,11 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
+from prefect.engine.executors import LocalExecutor
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError, FAIL, LOOP
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Finished,
     Mapped,
@@ -204,7 +207,7 @@ def test_set_dependencies_adds_all_arguments_to_flow():
     assert f.tasks == set([t1, t2, t3, t4])
 
 
-def test_set_dependencies_converts_arguments_to_tasks():
+def test_set_dependencies_converts_unkeyed_arguments_to_tasks():
     class ArgTask(Task):
         def run(self, x):
             return x
@@ -218,7 +221,8 @@ def test_set_dependencies_converts_arguments_to_tasks():
     f.set_dependencies(
         task=t1, upstream_tasks=[t2], downstream_tasks=[t3], keyword_tasks={"x": t4}
     )
-    assert len(f.tasks) == 4
+    assert len(f.tasks) == 3
+    assert f.constants[t1] == dict(x=4)
 
 
 def test_set_dependencies_creates_mapped_edges():
@@ -329,8 +333,7 @@ def test_calling_a_task_returns_a_copy():
 
     with Flow(name="test") as f:
         t.bind(4, 2)
-        with pytest.warns(UserWarning):
-            t2 = t(9, 0)
+        t2 = t(9, 0)
 
     assert isinstance(t2, AddTask)
     assert t != t2
@@ -723,6 +726,19 @@ def test_update():
     assert len(f2.edges) == 2
 
 
+def test_update_with_constants():
+    with Flow("math") as f:
+        x = Parameter("x")
+        d = x["d"] + 4
+
+    new_flow = Flow("test")
+    new_flow.update(f)
+
+    flow_state = new_flow.run(x=dict(d=42))
+    assert flow_state.is_successful()
+    assert flow_state.result[d].result == 46
+
+
 def test_update_with_mapped_edges():
     t1 = Task()
     t2 = Task()
@@ -976,7 +992,7 @@ class TestFlowVisualize:
 
         with monkeypatch.context() as m:
             m.setattr(sys, "path", "")
-            with pytest.raises(ImportError, match="pip install 'prefect\[viz\]'"):
+            with pytest.raises(ImportError, match=r"pip install 'prefect\[viz\]'"):
                 f.visualize()
 
     def test_visualize_raises_informative_error_without_sys_graphviz(self, monkeypatch):
@@ -1035,7 +1051,28 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" shape=box' in graph.source
         assert "label=a_list_task shape=ellipse" in graph.source
         assert "label=x style=dashed" in graph.source
-        assert "label=y style=dashed" in graph.source
+        assert (
+            "label=y style=dashed" not in graph.source
+        )  # constants are no longer represented
+
+    def test_viz_can_handle_skipped_mapped_tasks(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                t = Task(name="a_list_task")
+                res = AddTask(name="a_nice_task").map(x=t, y=8)
+
+            graph = f.visualize(
+                flow_state=Success(result={t: Success(), res: Skipped()})
+            )
+        assert 'label="a_nice_task <map>" color="#62757f80"' in graph.source
+        assert 'label=a_list_task color="#28a74580"' in graph.source
+        assert "label=x style=dashed" in graph.source
+        assert (
+            "label=y style=dashed" not in graph.source
+        )  # constants are no longer represented
 
     @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
     def test_viz_if_flow_state_provided(self, state):
@@ -1063,7 +1100,7 @@ class TestFlowVisualize:
         map_state = Mapped(map_states=[Success(), Failed()])
         with patch.dict("sys.modules", IPython=ipython):
             with Flow(name="test") as f:
-                res = add.map(x=list_task, y=8)
+                res = add.map(x=list_task, y=prefect.tasks.core.constants.Constant(8))
             graph = f.visualize(
                 flow_state=Success(result={res: map_state, list_task: Success()})
             )
@@ -1353,12 +1390,15 @@ class TestReplace:
 
     def test_replace_converts_new_collections_to_tasks(self):
         add = AddTask()
+
         with Flow(name="test") as f:
             x, y = Parameter("x"), Parameter("y")
             res = add(x, y)
+
         f.replace(x, [55, 56])
         f.replace(y, [1, 2])
-        assert len(f.tasks) == 7
+
+        assert len(f.tasks) == 3
         state = f.run()
         assert state.is_successful()
         assert state.result[res].result == [55, 56, 1, 2]
@@ -2127,6 +2167,20 @@ class TestFlowRunMethod:
         f.run()
         assert REPORTED_START_TIMES == start_times
 
+    def test_flow_dot_run_handles_keyboard_signals_gracefully(self):
+        class BadExecutor(LocalExecutor):
+            def submit(self, *args, **kwargs):
+                raise KeyboardInterrupt
+
+        @task
+        def do_something():
+            pass
+
+        f = Flow("test", tasks=[do_something])
+        state = f.run(executor=BadExecutor())
+        assert isinstance(state, Cancelled)
+        assert "interrupt" in state.message.lower()
+
 
 class TestFlowDeploy:
     @pytest.mark.parametrize(
@@ -2161,6 +2215,47 @@ class TestFlowDeploy:
         assert f.storage.registry_url == "FOO"
         assert f.storage.image_name == "BAR"
         assert f.storage.image_tag == "BIG"
+        assert f.environment.labels == set()
+
+    def test_flow_deploy_auto_labels_environment_if_local_storage_used(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="Test me!! I should get labeled")
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
+            }
+        ):
+            f.deploy("My-project")
+
+        assert isinstance(f.storage, prefect.environments.storage.Local)
+        assert "test-me-i-should-get-labeled" in f.environment.labels
+        assert "local" in f.environment.labels
+
+    def test_flow_deploy_doesnt_overwrite_labels_if_local_storage_is_used(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(
+            name="test",
+            environment=prefect.environments.RemoteEnvironment(labels=["foo"]),
+        )
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
+            }
+        ):
+            f.deploy("My-project")
+
+        assert isinstance(f.storage, prefect.environments.storage.Local)
+        assert "test" in f.environment.labels
+        assert "foo" in f.environment.labels
+        assert "local" in f.environment.labels
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():
@@ -2340,3 +2435,104 @@ def test_starting_at_arbitrary_loop_index():
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 10
     assert flow_state.result[final].result == 100
+
+
+class TestSaveLoad:
+    def test_save_saves_and_load_loads(self):
+        t = Task(name="foo")
+        f = Flow("test", tasks=[t])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "save"), "wb") as tmp:
+                assert f.save(tmp.name) == tmp.name
+
+            new_obj = Flow.load(tmp.name)
+
+        assert isinstance(new_obj, Flow)
+        assert len(new_obj.tasks) == 1
+        assert list(new_obj.tasks)[0].name == "foo"
+        assert list(new_obj.tasks)[0].slug == t.slug
+        assert new_obj.name == "test"
+
+    def test_save_saves_has_a_default(self):
+        t = Task(name="foo")
+        f = Flow("test", tasks=[t])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with set_temporary_config({"home_dir": tmpdir}):
+                f.save()
+
+            new_obj = Flow.load(os.path.join(tmpdir, "flows", "test.prefect"))
+
+        assert isinstance(new_obj, Flow)
+        assert len(new_obj.tasks) == 1
+        assert list(new_obj.tasks)[0].name == "foo"
+        assert list(new_obj.tasks)[0].slug == t.slug
+        assert new_obj.name == "test"
+
+    def test_load_accepts_name_and_sluggified_name(self):
+        t = Task(name="foo")
+        f = Flow("I aM a-test!", tasks=[t])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with set_temporary_config({"home_dir": tmpdir}):
+                f.save()
+
+                new_obj_from_name = Flow.load("I aM a-test!")
+                new_obj_from_slug = Flow.load("i-am-a-test")
+
+        assert isinstance(new_obj_from_name, Flow)
+        assert len(new_obj_from_name.tasks) == 1
+        assert list(new_obj_from_name.tasks)[0].name == "foo"
+        assert list(new_obj_from_name.tasks)[0].slug == t.slug
+        assert new_obj_from_name.name == "I aM a-test!"
+
+        assert isinstance(new_obj_from_slug, Flow)
+        assert len(new_obj_from_slug.tasks) == 1
+        assert list(new_obj_from_slug.tasks)[0].name == "foo"
+        assert list(new_obj_from_slug.tasks)[0].slug == t.slug
+        assert new_obj_from_slug.name == "I aM a-test!"
+
+
+def test_auto_generation_of_collection_tasks_is_robust():
+    @task
+    def do_nothing(arg):
+        pass
+
+    with Flow("constants") as flow:
+        do_nothing({"x": 1, "y": [9, 10]})
+
+    assert len(flow.tasks) == 5
+
+    flow_state = flow.run()
+    assert flow_state.is_successful()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
+def test_timeout_actually_stops_execution(executor):
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        @prefect.task(timeout=1)
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 7 times"
+            iters = 0
+            while iters < 6:
+                time.sleep(0.25)
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+
+        flow = Flow("timeouts", tasks=[slow_fn])
+        state = flow.run(executor=executor)
+
+        # if it continued running, would run for 1 more second
+        time.sleep(0.5)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 4
+    assert state.is_failed()

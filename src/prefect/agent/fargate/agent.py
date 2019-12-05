@@ -1,3 +1,4 @@
+from ast import literal_eval
 import os
 from typing import Iterable
 
@@ -28,15 +29,15 @@ class FargateAgent(Agent):
             Agents when polling for work
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID`.
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_secret_access_key (str, optional): AWS secret access key for connecting
             the boto3 client. Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY`.
+            `AWS_SECRET_ACCESS_KEY` or `None`
         - aws_session_token (str, optional): AWS session key for connecting the boto3
             client. Defaults to the value set in the environment variable
-            `AWS_SESSION_TOKEN`.
+            `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
-            Defaults to the value set in the environment variable `REGION_NAME`.
+            Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -56,12 +57,12 @@ class FargateAgent(Agent):
         from boto3 import client as boto3_client
 
         # Config used for boto3 client initialization
-        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID", "")
+        aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
         aws_secret_access_key = aws_secret_access_key or os.getenv(
-            "AWS_SECRET_ACCESS_KEY", ""
+            "AWS_SECRET_ACCESS_KEY"
         )
-        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN", "")
-        region_name = region_name or os.getenv("REGION_NAME", "")
+        aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
+        region_name = region_name or os.getenv("REGION_NAME")
 
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
@@ -130,13 +131,25 @@ class FargateAgent(Agent):
         # Check environment if keys were not provided
         for key in definition_kwarg_list:
             if not task_definition_kwargs.get(key) and os.getenv(key):
-                task_definition_kwargs.update({key: os.getenv(key)})
                 self.logger.debug("{} from environment variable".format(key))
+                def_env_value = os.getenv(key)
+                try:
+                    # Parse env var if needed
+                    def_env_value = literal_eval(def_env_value)  # type: ignore
+                except ValueError:
+                    pass
+                task_definition_kwargs.update({key: def_env_value})
 
         for key in run_kwarg_list:
             if not task_run_kwargs.get(key) and os.getenv(key):
-                task_run_kwargs.update({key: os.getenv(key)})
                 self.logger.debug("{} from environment variable".format(key))
+                run_env_value = os.getenv(key)
+                try:
+                    # Parse env var if needed
+                    run_env_value = literal_eval(run_env_value)  # type: ignore
+                except ValueError:
+                    pass
+                task_run_kwargs.update({key: run_env_value})
 
         return task_definition_kwargs, task_run_kwargs
 
@@ -218,6 +231,10 @@ class FargateAgent(Agent):
                     {
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",
+                    },
+                    {
+                        "name": "PREFECT__CLOUD__AGENT__LABELS",
+                        "value": str(self.labels),
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},

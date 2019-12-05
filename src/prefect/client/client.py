@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import uuid
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
@@ -265,6 +266,7 @@ class Client:
         headers = headers or {}
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
+        headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
         session = requests.Session()
         retries = Retry(
@@ -292,6 +294,7 @@ class Client:
     # Auth
     # -------------------------------------------------------------------------
 
+    @property
     def _local_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
@@ -306,16 +309,16 @@ class Client:
         """
         Writes settings to local storage
         """
-        self._local_settings_path().parent.mkdir(exist_ok=True, parents=True)
-        with self._local_settings_path().open("w+") as f:
+        self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
+        with self._local_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
         """
-        if self._local_settings_path().exists():
-            with self._local_settings_path().open("r") as f:
+        if self._local_settings_path.exists():
+            with self._local_settings_path.open("r") as f:
                 return toml.load(f)  # type: ignore
         return {}
 
@@ -489,6 +492,7 @@ class Client:
         project_name: str,
         build: bool = True,
         set_schedule_active: bool = True,
+        version_group_id: str = None,
         compressed: bool = True,
     ) -> str:
         """
@@ -502,6 +506,9 @@ class Client:
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
 
@@ -567,6 +574,7 @@ class Client:
                     projectId=project[0].id,
                     serializedFlow=serialized_flow,
                     setScheduleActive=set_schedule_active,
+                    versionGroupId=version_group_id,
                 )
             ),
         )  # type: Any
@@ -614,6 +622,7 @@ class Client:
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
+        run_name: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
@@ -628,6 +637,7 @@ class Client:
                 will return the ID of the originally created run (no new run will be created after the first).
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
+            - run_name (str, optional): The name assigned to this flow run
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -651,6 +661,8 @@ class Client:
             inputs.update(
                 scheduledStartTime=scheduled_start_time.isoformat()
             )  # type: ignore
+        if run_name is not None:
+            inputs.update(flowRunName=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
         return res.data.createFlowRun.flow_run.id  # type: ignore
 
@@ -1052,7 +1064,7 @@ class Client:
         info: Any = None,
     ) -> None:
         """
-        Writes a log to Cloud
+        Uploads a log to Cloud.
 
         Args:
             - flow_run_id (str): the flow run id
@@ -1067,6 +1079,10 @@ class Client:
         Raises:
             - ValueError: if writing the log fails
         """
+        warnings.warn(
+            "DEPRECATED: Client.write_run_log is deprecated, use Client.write_run_logs instead",
+            UserWarning,
+        )
         mutation = {
             "mutation($input: writeRunLogInput!)": {
                 "writeRunLog(input: $input)": {"success"}
@@ -1093,3 +1109,26 @@ class Client:
 
         if not result.data.writeRunLog.success:
             raise ValueError("Writing log failed.")
+
+    def write_run_logs(self, logs: List[Dict]) -> None:
+        """
+        Uploads a collection of logs to Cloud.
+
+        Args:
+            - logs (List[Dict]): a list of log entries to add
+
+        Raises:
+            - ValueError: if uploading the logs fail
+        """
+        mutation = {
+            "mutation($input: writeRunLogsInput!)": {
+                "writeRunLogs(input: $input)": {"success"}
+            }
+        }
+
+        result = self.graphql(
+            mutation, variables=dict(input=dict(logs=logs))
+        )  # type: Any
+
+        if not result.data.writeRunLogs.success:
+            raise ValueError("Writing logs failed.")

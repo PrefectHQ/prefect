@@ -1,6 +1,7 @@
 import datetime
 import time
 import uuid
+from box import Box
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -12,11 +13,13 @@ from prefect.client import Client
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
+    ConstantResultHandler,
     JSONResultHandler,
     ResultHandler,
     SecretResultHandler,
 )
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Finished,
     Pending,
@@ -324,7 +327,7 @@ def test_client_is_always_called_even_during_failures(client):
     with prefect.Flow(name="test") as flow:
         final = raise_me(4, 7)
 
-    assert len(flow.tasks) == 3
+    assert len(flow.tasks) == 1
 
     res = flow.run(state=Pending())
 
@@ -347,19 +350,20 @@ def test_client_is_always_called_even_during_failures(client):
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
-def test_heartbeat_traps_errors_caused_by_client(monkeypatch):
+def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     client = MagicMock(update_flow_run_heartbeat=MagicMock(side_effect=SyntaxError))
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     runner = CloudFlowRunner(flow=prefect.Flow(name="bad"))
-    with pytest.warns(UserWarning) as warning:
-        res = runner._heartbeat()
+    res = runner._heartbeat()
 
-    assert res is None
+    assert res is False
     assert client.update_flow_run_heartbeat.called
-    w = warning.pop()
-    assert "Heartbeat failed for Flow 'bad'" in repr(w.message)
+
+    log = caplog.records[0]
+    assert log.levelname == "ERROR"
+    assert "Heartbeat failed for Flow 'bad'" in log.message
 
 
 def test_task_failure_caches_inputs_automatically(client):
@@ -376,6 +380,28 @@ def test_task_failure_caches_inputs_automatically(client):
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
     exp_res = Result(3, result_handler=JSONResultHandler())
+    assert not state.result[res].cached_inputs["p"] == exp_res
+    exp_res.store_safe_value()
+    assert state.result[res].cached_inputs["p"] == exp_res
+
+    last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
+    assert isinstance(last_state, Retrying)
+    assert last_state.cached_inputs["p"] == exp_res
+
+
+def test_task_failure_caches_constant_inputs_automatically(client):
+    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    def is_p_three(p):
+        if p == 3:
+            raise ValueError("No thank you.")
+
+    with prefect.Flow("test") as f:
+        res = is_p_three(3)
+
+    state = CloudFlowRunner(flow=f).run(return_tasks=[res])
+    assert state.is_running()
+    assert isinstance(state.result[res], Retrying)
+    exp_res = Result(3, result_handler=ConstantResultHandler(3))
     assert not state.result[res].cached_inputs["p"] == exp_res
     exp_res.store_safe_value()
     assert state.result[res].cached_inputs["p"] == exp_res
@@ -525,8 +551,8 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     calls = []
 
     class Client(MagicMock):
-        def write_run_log(self, *args, **kwargs):
-            calls.append(kwargs)
+        def write_run_logs(self, *args, **kwargs):
+            calls.append(args)
 
         def set_task_run_state(self, *args, **kwargs):
             return kwargs.get("state")
@@ -556,14 +582,41 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
-    assert len(calls) == 6
 
-    loggers = [c["name"] for c in calls]
+    time.sleep(0.75)
+    logs = [log for call in calls for log in call[0]]
+    assert len(logs) == 6  # actual number of logs
+
+    loggers = [c["name"] for c in logs]
     assert set(loggers) == {
         "prefect.CloudTaskRunner",
         "prefect.CustomFlowRunner",
         "prefect.Task: log_stuff",
     }
 
-    task_run_ids = [c["task_run_id"] for c in calls if c["task_run_id"]]
+    task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
     assert task_run_ids == ["TESTME"] * 3
+
+
+def test_db_cancelled_states_interrupt_flow_run(client, monkeypatch):
+    calls = dict(count=0)
+
+    def heartbeat_counter(*args, **kwargs):
+        if calls["count"] == 3:
+            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+        calls["count"] += 1
+        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+
+    client.graphql = heartbeat_counter
+
+    @prefect.task
+    def sleeper():
+        time.sleep(3)
+
+    f = prefect.Flow("test", tasks=[sleeper])
+
+    with set_temporary_config({"cloud.heartbeat_interval": 0.025}):
+        state = CloudFlowRunner(flow=f).run(return_tasks=[sleeper])
+
+    assert isinstance(state, Cancelled)
+    assert "interrupt" in state.message.lower()
