@@ -41,7 +41,18 @@ module.exports = {
         ga: 'UA-115585378-1'
       }
     ],
-    ['vuepress-plugin-code-copy', true]
+    ['vuepress-plugin-code-copy', true],
+    [
+      'vuepress-plugin-selected-text-popup',
+      {
+        github: true,
+        githubOwner: 'prefecthq',
+        githubRepo: 'prefect',
+        githubIssueTitle: 'Docs Issue',
+        labels: ['docs'],
+        twitter: true
+      }
+    ]
   ],
   themeConfig: {
     algolia: {
