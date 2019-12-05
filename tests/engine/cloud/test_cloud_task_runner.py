@@ -589,7 +589,7 @@ class TestHeartBeats:
                     MagicMock(return_value=client),
                 )
                 runner = CloudTaskRunner(task=Task())
-                runner.cache_result = lambda *args, **kwargs: time.sleep(0.25)
+                runner.cache_result = lambda *args, **kwargs: time.sleep(0.5)
                 runner._heartbeat = update
                 with set_temporary_config({"cloud.heartbeat_interval": 0.05}):
                     return runner.run(executor=executor)
