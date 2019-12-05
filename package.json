@@ -26,5 +26,11 @@
   },
   "devDependencies": {
     "@vuepress/plugin-google-analytics": "^1.0.1"
+  },
+  "prettier": {
+    "trailingComma": "none",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": true
   }
 }
