@@ -49,7 +49,8 @@ module.exports = {
         githubOwner: 'prefecthq',
         githubRepo: 'prefect',
         githubIssueTitle: 'Docs Issue',
-        labels: ['docs'],
+        githubTooltipContent: 'Problem with the docs? Create a GitHub Issue!',
+        githubLabels: ['docs'],
         twitter: true
       }
     ]
