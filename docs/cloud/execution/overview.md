@@ -159,7 +159,7 @@ LocalAgent(labels=["dev", "staging"]).start()
 # Flow will be picked up by this agent
 ```
 
-On the other hand, a Flow with environment labels `["dev", "staging"]` would not be run by an Agent with the label `["dev"]`. This is because the Flow is has a label not also provided to the Agent.
+On the other hand, a Flow with environment labels `["dev", "staging"]` would not be run by an Agent with the label `["dev"]`. This is because the Flow has a label not also provided to the Agent.
 
 ```python
 from prefect.environments import RemoteEnvironment
