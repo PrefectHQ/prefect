@@ -825,7 +825,7 @@ class TaskRunner(Runner):
         self,
         state: State,
         inputs: Dict[str, Result],
-        timeout_handler: Optional[Callable],
+        timeout_handler: Optional[Callable] = None,
     ) -> State:
         """
         Runs the task and traps any signals or errors it raises.
