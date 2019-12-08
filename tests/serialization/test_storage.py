@@ -19,7 +19,7 @@ def test_all_storage_subclasses_have_schemas():
     "Test that ensures we don't forget to include a Schema for every subclass we implement"
 
     subclasses = set(c.__name__ for c in storage.Storage.__subclasses__())
-    subclasses.update(storage.Storage)  # add base storage, not a subclass
+    subclasses.update([storage.Storage.__name__])  # add base storage, not a subclass
     schemas = set(prefect.serialization.storage.StorageSchema().type_schemas.keys())
     assert subclasses == schemas
 
