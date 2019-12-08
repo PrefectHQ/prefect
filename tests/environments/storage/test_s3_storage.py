@@ -32,7 +32,7 @@ def test_create_s3_storage_init_args():
     assert storage.key == "key"
 
 
-def test_serialize_docker_storage():
+def test_serialize_s3_storage():
     storage = S3(bucket="bucket")
     serialized_storage = storage.serialize()
 
