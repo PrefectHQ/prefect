@@ -1,4 +1,5 @@
 import io
+import logging
 from typing import TYPE_CHECKING, Any, Dict
 
 
@@ -23,6 +24,7 @@ class S3(Storage):
     `slugified-flow-name/slugified-current-timestamp`.
 
     Args:
+        - bucket (str): the name of the S3 Bucket to store Flows
         - aws_access_key_id (str, optional): AWS access key id for connecting to S3.
             Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -32,20 +34,21 @@ class S3(Storage):
         - aws_session_token (str, optional): AWS session key for connecting to S3
             Defaults to the value set in the environment variable
             `AWS_SESSION_TOKEN` or `None`
-        - bucket (str, optional): the name of the S3 Bucket to store the Flow
-        - key (str, optional): a unique key to use for uploading this Flow to S3
+        - key (str, optional): a unique key to use for uploading a Flow to S3. This
+            is only useful when storing a single Flow using this storage object.
     """
 
     def __init__(
         self,
+        bucket: str,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
-        bucket: str = None,
         key: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self.bucket = bucket or ""
+        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self.bucket = bucket
         self.key = key
 
         self.aws_access_key_id = aws_access_key_id
@@ -72,6 +75,8 @@ class S3(Storage):
             raise ValueError("Flow is not contained in this Storage")
 
         stream = io.BytesIO()
+
+        logging.info("Downloading {} from {}".format(flow_location, self.bucket))
 
         # Download stream from S3
         self._boto3_client.download_fileobj(
@@ -104,25 +109,44 @@ class S3(Storage):
                 )
             )
 
-        # Pickle Flow
-        data = cloudpickle.dumps(flow)
-
-        # Write pickled Flow to stream
-        try:
-            stream = io.BytesIO(data)
-        except TypeError:
-            stream = io.BytesIO(data.encode())
-
         # Create key for Flow that uniquely identifies Flow object in S3
         key = self.key or "{}/{}".format(
             slugify(flow.name), slugify(pendulum.now("utc").isoformat())
         )
 
-        # Upload stream to S3
-        self._boto3_client.upload_fileobj(stream, Bucket=self.bucket, Key=key)
-
         self.flows[flow.name] = key
+        self._flows[flow.name] = flow
         return key
+
+    def build(self) -> "Storage":
+        """
+        Build the S3 storage object by uploading Flows to an S3 bucket. This will upload
+        all of the flows found in `storage.flows`.
+
+        Returns:
+            - Storage: an S3 object that contains information about how and where
+                each flow is stored
+        """
+        for flow_name, flow in self._flows.items():
+            # Pickle Flow
+            data = cloudpickle.dumps(flow)
+
+            # Write pickled Flow to stream
+            try:
+                stream = io.BytesIO(data)
+            except TypeError:
+                stream = io.BytesIO(data.encode())
+
+            logging.info(
+                "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
+            )
+
+            # Upload stream to S3
+            self._boto3_client.upload_fileobj(
+                stream, Bucket=self.bucket, Key=self.flows[flow_name]
+            )
+
+        return self
 
     def __contains__(self, obj: Any) -> bool:
         """
@@ -131,16 +155,6 @@ class S3(Storage):
         if not isinstance(obj, str):
             return False
         return obj in self.flows
-
-    def build(self) -> "Storage":
-        """
-        Build the Storage object.
-
-        Returns:
-            - Storage: a Storage object that contains information about how and where
-                each flow is stored
-        """
-        return self
 
     @property
     def _boto3_client(self):  # type: ignore

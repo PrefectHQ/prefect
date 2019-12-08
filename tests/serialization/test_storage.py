@@ -84,15 +84,12 @@ def test_docker_serialize_with_flows():
 
 
 def test_s3_empty_serialize():
-    s3 = storage.S3()
+    s3 = storage.S3(bucket="bucket")
     serialized = S3Schema().dump(s3)
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert not serialized["aws_access_key_id"]
-    assert not serialized["aws_secret_access_key"]
-    assert not serialized["aws_session_token"]
-    assert not serialized["bucket"]
+    assert serialized["bucket"]
     assert not serialized["key"]
 
 
@@ -108,9 +105,6 @@ def test_s3_full_serialize():
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["aws_access_key_id"] == "id"
-    assert serialized["aws_secret_access_key"] == "secret"
-    assert serialized["aws_session_token"] == "session"
     assert serialized["bucket"] == "bucket"
     assert serialized["key"] == "key"
 
@@ -129,9 +123,6 @@ def test_s3_serialize_with_flows():
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
-    assert serialized["aws_access_key_id"] == "id"
-    assert serialized["aws_secret_access_key"] == "secret"
-    assert serialized["aws_session_token"] == "session"
     assert serialized["bucket"] == "bucket"
     assert serialized["key"] == "key"
     assert serialized["flows"] == {"test": "key"}

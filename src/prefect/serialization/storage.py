@@ -65,10 +65,7 @@ class S3Schema(ObjectSchema):
     class Meta:
         object_class = S3
 
-    aws_access_key_id = fields.String(allow_none=True)
-    aws_secret_access_key = fields.String(allow_none=True)
-    aws_session_token = fields.String(allow_none=True)
-    bucket = fields.String(allow_none=True)
+    bucket = fields.String(allow_none=False)
     key = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
 
