@@ -1,12 +1,12 @@
 # Execution Overview
 
-Executing flows using Prefect Cloud is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows are able to be saved, shared, and executed across various platforms.
+Executing Flows using Prefect Cloud is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, Flows can be saved, shared, and executed across various platforms.
 
 [[toc]]
 
 ## Storage
 
-[Storage](https://docs.prefect.io/api/unreleased/environments/storage.html) objects are pieces of functionality which define how and where a flow should be stored. Prefect currently has support for storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
+[Storage](https://docs.prefect.io/api/unreleased/environments/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
 
 ::: tip Cloud Acceptable Storage
 Currently the only supported Storage class in Prefect Cloud is [Docker storage](https://docs.prefect.io/api/unreleased/environments/storage.html#docker). This is due to the fact that Prefect Cloud does not retrieve the storage object itself and only cares about metadata describing the location of the image.
@@ -14,7 +14,7 @@ Currently the only supported Storage class in Prefect Cloud is [Docker storage](
 
 ### How Storage is Used
 
-To attach storage to your flows simply provide your storage object at initialization:
+To attach storage to your Flows, provide your storage object at initialization:
 
 ```python
 from prefect.environments.storage import Docker
@@ -31,7 +31,7 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
-When you deploy your flow to Prefect Cloud the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.deploy` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object for you at deploy-time and push that image to your specified registry:
+The storage object attached to the Flow will be built when deploying your Flow to Prefect Cloud. At this step the Flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.deploy` accepts arbitrary keyword arguments which are passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object at deploy-time and push that image to your specified registry:
 
 ```python
 from prefect import Flow
@@ -43,7 +43,7 @@ f.deploy("My First Project", registry_url="prefecthq/storage-example")
 ```
 
 ::: tip Pre-Build Storage
-You are also able to optionally build your storage separate from the `deploy` command and specify that you do not want to build it again at deploy time:
+You may also build your storage separately from the `deploy` command and specify that you do not want to build it again at deploy time:
 
 ```python
 from prefect.environments.storage import Docker
@@ -62,11 +62,11 @@ f.deploy("My First Project", build=False)
 
 ## Environments
 
-While Storage objects provide a way to save and retrieve flows, [Environments](https://docs.prefect.io/api/unreleased/environments/execution.html) are a mechanism for specifying execution information about _how your Flow should be run_. For example, what executor should be used and are there any auxiliary infrastructure requirements for your Flow's execution? For example, if you want to run your flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
+While Storage objects provide a way to save and retrieve Flows, [Environments](https://docs.prefect.io/api/unreleased/environments/execution.html) specify _how your Flow should be run_ e.g., which executor to and whether there are any auxiliary infrastructure requirements for your Flow's execution. For example, if you want to run your Flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
 
 ### How Environments are Used
 
-By default, Prefect will attach a `RemoteEnvironment` with your local default executor to every Flow you create. To specify a different environment, simply provide it to your Flow at initialization:
+By default, Prefect attaches `RemoteEnvironment` with your local default executor to every Flow you create. To specify a different environment, provide it to your Flow at initialization:
 
 ```python
 from prefect.environments import RemoteEnvironment
@@ -85,13 +85,13 @@ f.environment = RemoteEnvironment(executor="prefect.engine.executors.LocalExecut
 
 ### Setup & Execute
 
-The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the flow is executed. This could take the form of functionality such as spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the flow where and how it needs to run. This could take the form of functionality such as running the flow in process, as per the [`RemoteEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html##remoteenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html#fargatetaskenvironment).
+The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the Flow is executed e.g., spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the Flow where and how it needs to run e.g., running the Flow in process, as per the [`RemoteEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html##remoteenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/unreleased/environments/execution.html#fargatetaskenvironment).
 
 ### Environment Callbacks
 
-Each Prefect environment has two optional arguments - `on_start` and `on_exit` - which you can use to add functionality outside of infrastructure or flow-related processes. The `on_start` callback is executed before the flow starts in the main process; the `on_exit` callback is executed after the flow finishes.
+Each Prefect environment has two optional arguments - `on_start` and `on_exit` - which can be used to add functionality outside of infrastructure or Flow-related processes. The `on_start` callback is executed before the Flow starts in the main process; the `on_exit` callback is executed after the Flow finishes.
 
-*For more information on the design behind Environment Callbacks visit [PIN 12](/core/PINs/PIN-12-Environment-Callbacks.html).*
+_For more information on the design behind Environment Callbacks visit [PIN 12](/core/PINs/PIN-12-Environment-Callbacks.html)._
 
 #### Callback Example
 
@@ -138,11 +138,11 @@ with Flow("Callback-Example", environment=environment) as flow:
 
 ### Labels
 
-Environments expose a configurable list of `labels` that allow you to label your flows to determine where they get executed. This is in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agent/overview.html).
+Environments expose a configurable list of `labels`, allowing you to label your Flows and determine where they are executed. This works in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agent/overview.html#flow-affinity:-labels).
 
 #### Label Example
 
-Labels work in a way in which the Agent's labels must be a superset of the labels provided on the environment for the flow. This means that if you have a flow's environment labels as `["dev"]` and an Agent with labels set to `["dev", "staging"]` then it will run that flow because the _dev_ label is a subset of the labels provided to the Agent.
+An Agent's labels must be a superset of the labels specified on a Flow's environment. This means that if a Flow's environment labels are specified as `["dev"]` and an Agent is running with labels set to `["dev", "staging"]`, the agent will run that Flow because the _dev_ label is a subset of the labels provided to the Agent.
 
 ```python
 from prefect.environments import RemoteEnvironment
@@ -159,7 +159,7 @@ LocalAgent(labels=["dev", "staging"]).start()
 # Flow will be picked up by this agent
 ```
 
-On the other hand if you deploy a flow that has environment labels set to `["dev", "staging"]` and run an Agent with the labels `["dev"]` then it will not pick up the flow because there exists labels in the environment which were not provided to the agent.
+On the other hand, a Flow with environment labels `["dev", "staging"]` would not be run by an Agent with the label `["dev"]`. This is because the Flow has a label not also provided to the Agent.
 
 ```python
 from prefect.environments import RemoteEnvironment
@@ -177,5 +177,5 @@ LocalAgent(labels=["dev"]).start()
 ```
 
 :::tip Empty Labels
-An empty label list is effectively considered a label. This means that if you deploy a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
+An empty label list is effectively considered a label. This means that if you deploy a Flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
 :::
