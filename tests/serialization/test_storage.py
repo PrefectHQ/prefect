@@ -15,11 +15,13 @@ from prefect.serialization.storage import (
 )
 
 
-@pytest.mark.parametrize("cls", storage.Storage.__subclasses__())
-def test_serialization_on_all_subclasses(cls):
-    serialized = cls().serialize()
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
+def test_all_storage_subclasses_have_schemas():
+    "Test that ensures we don't forget to include a Schema for every subclass we implement"
+
+    subclasses = set(c.__name__ for c in storage.Storage.__subclasses__())
+    subclasses.update(storage.Storage)  # add base storage, not a subclass
+    schemas = set(prefect.serialization.storage.StorageSchema().type_schemas.keys())
+    assert subclasses == schemas
 
 
 def test_docker_empty_serialize():
