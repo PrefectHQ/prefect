@@ -1,5 +1,4 @@
 import io
-import logging
 from typing import TYPE_CHECKING, Any, Dict
 
 
@@ -76,7 +75,7 @@ class S3(Storage):
 
         stream = io.BytesIO()
 
-        logging.info("Downloading {} from {}".format(flow_location, self.bucket))
+        self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
 
         # Download stream from S3
         self._boto3_client.download_fileobj(
@@ -137,7 +136,7 @@ class S3(Storage):
             except TypeError:
                 stream = io.BytesIO(data.encode())
 
-            logging.info(
+            self.logger.info(
                 "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
             )
 

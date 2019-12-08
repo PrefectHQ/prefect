@@ -1,6 +1,5 @@
 import filecmp
 import json
-import logging
 import os
 import re
 import shutil
@@ -306,7 +305,7 @@ class Docker(Storage):
                 full_name = self.image_name
 
             # Use the docker client to build the image
-            logging.info("Building the flow's Docker storage...")
+            self.logger.info("Building the flow's Docker storage...")
             output = client.build(
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
@@ -493,7 +492,7 @@ class Docker(Storage):
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
-        logging.info("Pushing image to the registry...")
+        self.logger.info("Pushing image to the registry...")
 
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:

@@ -13,6 +13,7 @@ pytest.importorskip("boto3")
 def test_create_s3_storage():
     storage = S3(bucket="test")
     assert storage
+    assert storage.logger
 
 
 def test_create_s3_storage_init_args():

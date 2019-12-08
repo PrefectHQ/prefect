@@ -1,7 +1,9 @@
 from abc import ABCMeta, abstractmethod
+import logging
 from typing import TYPE_CHECKING, Any
 
 import prefect
+from prefect.utilities import logging as prefect_logging
 
 if TYPE_CHECKING:
     import prefect.core.flow
@@ -64,6 +66,13 @@ class Storage(metaclass=ABCMeta):
         Name of the environment.  Can be overriden.
         """
         return type(self).__name__
+
+    @property
+    def logger(self) -> "logging.Logger":
+        """
+        Prefect logger.
+        """
+        return prefect_logging.get_logger(type(self).__name__)
 
     @abstractmethod
     def __contains__(self, obj: Any) -> bool:
