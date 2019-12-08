@@ -11,7 +11,6 @@ import prefect.environments
 from prefect.core import Task, Flow, Parameter
 import prefect.engine
 import prefect.tasks
-import prefect.flows
 from prefect.utilities.tasks import task, tags, unmapped
 
 import prefect.serialization
