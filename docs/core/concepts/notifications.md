@@ -140,7 +140,7 @@ Because Prefect allows tasks to return data, we can actually have our state hand
 _any_ Prefect State can carry data - this includes `Failed` states.
 :::
 
-Let's implement a task task has a special mode of failure; if this failure mode occurs, we want to be alerted immediately.
+Let's implement a task that has a special mode of failure; if this failure mode occurs, we want to be alerted immediately.
 ```python
 from prefect import task, Flow
 from prefect.engine import signals
