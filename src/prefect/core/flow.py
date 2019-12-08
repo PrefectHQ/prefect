@@ -557,6 +557,8 @@ class Flow:
                     validate=validate,
                 )
 
+        self.constants.update(flow.constants or {})
+
     @cache
     def all_upstream_edges(self) -> Dict[Task, Set[Edge]]:
         """
@@ -1086,13 +1088,21 @@ class Flow:
             name = "{} <map>".format(t.name) if is_mapped else t.name
             if is_mapped and flow_state:
                 assert isinstance(flow_state.result, dict)
-                for map_index, _ in enumerate(flow_state.result[t].map_states):
+                if flow_state.result[t].is_mapped():
+                    for map_index, _ in enumerate(flow_state.result[t].map_states):
+                        kwargs = dict(
+                            color=get_color(t, map_index=map_index),
+                            style="filled",
+                            colorscheme="svg",
+                        )
+                        graph.node(
+                            str(id(t)) + str(map_index), name, shape=shape, **kwargs
+                        )
+                else:
                     kwargs = dict(
-                        color=get_color(t, map_index=map_index),
-                        style="filled",
-                        colorscheme="svg",
+                        color=get_color(t), style="filled", colorscheme="svg",
                     )
-                    graph.node(str(id(t)) + str(map_index), name, shape=shape, **kwargs)
+                    graph.node(str(id(t)), name, shape=shape, **kwargs)
             else:
                 kwargs = (
                     {}
@@ -1108,15 +1118,22 @@ class Flow:
                 or any(edge.mapped for edge in self.edges_to(e.downstream_task))
             ) and flow_state:
                 assert isinstance(flow_state.result, dict)
-                for map_index, _ in enumerate(
-                    flow_state.result[e.downstream_task].map_states
-                ):
-                    upstream_id = str(id(e.upstream_task))
-                    if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
-                        upstream_id += str(map_index)
+                down_state = flow_state.result[e.downstream_task]
+                if down_state.is_mapped():
+                    for map_index, _ in enumerate(down_state.map_states):
+                        upstream_id = str(id(e.upstream_task))
+                        if any(edge.mapped for edge in self.edges_to(e.upstream_task)):
+                            upstream_id += str(map_index)
+                        graph.edge(
+                            upstream_id,
+                            str(id(e.downstream_task)) + str(map_index),
+                            e.key,
+                            style=style,
+                        )
+                else:
                     graph.edge(
-                        upstream_id,
-                        str(id(e.downstream_task)) + str(map_index),
+                        str(id(e.upstream_task)),
+                        str(id(e.downstream_task)),
                         e.key,
                         style=style,
                     )

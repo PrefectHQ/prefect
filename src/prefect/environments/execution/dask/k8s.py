@@ -46,6 +46,9 @@ class DaskKubernetesEnvironment(Environment):
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
         - max_workers (int, optional): the maximum allowed number of Dask worker pods; defaults to 1
+        - work_stealing (bool, optional): toggle Dask Distributed scheduler work stealing; defaults to False
+            Only used when a custom scheduler spec is not provided. Enabling this may cause ClientErrors
+            to appear when multiple Dask workers try to run the same Prefect Task.
         - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
@@ -64,6 +67,7 @@ class DaskKubernetesEnvironment(Environment):
         self,
         min_workers: int = 1,
         max_workers: int = 2,
+        work_stealing: bool = False,
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
@@ -74,6 +78,7 @@ class DaskKubernetesEnvironment(Environment):
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
+        self.work_stealing = work_stealing
         self.private_registry = private_registry
         if self.private_registry:
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
@@ -343,6 +348,7 @@ class DaskKubernetesEnvironment(Environment):
         env[3]["value"] = prefect.context.get("namespace", "")
         env[4]["value"] = docker_name
         env[5]["value"] = flow_file_path
+        env[13]["value"] = str(self.work_stealing)
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -404,6 +410,10 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
+
+        yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
+            self.identifier_label
+        )
 
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id

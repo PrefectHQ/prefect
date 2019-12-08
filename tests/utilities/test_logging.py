@@ -37,17 +37,18 @@ def test_remote_handler_is_configured_for_cloud():
         logger.handlers = []
 
 
-def test_remote_handler_captures_errors_and_logs_them(caplog):
+def test_remote_handler_captures_errors_and_logs_them(caplog, monkeypatch):
     try:
         with utilities.configuration.set_temporary_config(
             {"logging.log_to_cloud": True, "cloud.auth_token": None,}
         ):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
+            logger.handlers[-1].client = MagicMock()
             child_logger = logger.getChild("sub-test")
             child_logger.critical("this should raise an error in the handler")
 
-            time.sleep(1.25)  # wait for batch upload to occur
+            time.sleep(1.5)  # wait for batch upload to occur
             critical_logs = [r for r in caplog.records if r.levelname == "CRITICAL"]
             assert len(critical_logs) == 2
 

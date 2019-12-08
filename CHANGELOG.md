@@ -6,6 +6,79 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with `flow.visualize()` for mapped tasks which are skipped - [#1765](https://github.com/PrefectHQ/prefect/issues/1765)
+- Fix issue with timeouts only being softly enforced - [#1145](https://github.com/PrefectHQ/prefect/issues/1145), [#1686](https://github.com/PrefectHQ/prefect/issues/1686)
+- Fix issue with `flow.update()` not transferring constants - [#1785](https://github.com/PrefectHQ/prefect/pull/1785)
+- Log agent errors using `write_run_logs` instead of the deprecated `write_run_log` - [#1791](https://github.com/PrefectHQ/prefect/pull/1791)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.3 <Badge text="beta" type="success"/>
+
+Released on Nov 26, 2019.
+
+### Features
+
+- Add graceful cancellation hooks to Flow and Task runners - [#1758](https://github.com/PrefectHQ/prefect/pull/1758)
+
+### Enhancements
+
+- Add option to specify a run name for `cloud run` CLI command - [#1756](https://github.com/PrefectHQ/prefect/pull/1756)
+- Add `work_stealing` option to `DaskKubernetesEnvironment` - [#1760](https://github.com/PrefectHQ/prefect/pull/1760)
+- Improve heartbeat thread management - [#1770](https://github.com/PrefectHQ/prefect/pull/1770)
+- Add unique scheduler Job name to `DaskKubernetesEnvironment` - [#1772](https://github.com/PrefectHQ/prefect/pull/1772)
+- Add informative error when trying to map with the `LocalDaskExecutor` using processes - [#1777](https://github.com/PrefectHQ/prefect/pull/1777)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with heartbeat thread deadlocking dask execution when using a `worker_client` - [#1750](https://github.com/PrefectHQ/prefect/pull/1750)
+- Fix issue with Environments not calling `run_flow` on Environment stored on Flow object - [#1752](https://github.com/PrefectHQ/prefect/pull/1752)
+- Fix issue with Docker build context when providing custom docker files - [#1762](https://github.com/PrefectHQ/prefect/pull/1762)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.7.2 <Badge text="beta" type="success"/>
+
+Released on Nov 15, 2019.
+
+### Features
+
 - Allow users to provide a custom version group ID for controlling Cloud versioning - [#1665](https://github.com/PrefectHQ/prefect/issues/1665)
 - Stop autogenerating constant tasks - [#1730](https://github.com/PrefectHQ/prefect/pull/1730)
 

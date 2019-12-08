@@ -92,8 +92,8 @@ class Runner:
     def __repr__(self) -> str:
         return '<"Runner">'
 
-    def _heartbeat(self) -> None:
-        pass
+    def _heartbeat(self) -> bool:
+        return False
 
     def initialize_run(
         self, state: Optional[State], context: Dict[str, Any]

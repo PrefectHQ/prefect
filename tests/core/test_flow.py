@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -16,9 +17,11 @@ from prefect.core.edge import Edge
 from prefect.core.flow import Flow
 from prefect.core.task import Parameter, Task
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
+from prefect.engine.executors import LocalExecutor
 from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
 from prefect.engine.signals import PrefectError, FAIL, LOOP
 from prefect.engine.state import (
+    Cancelled,
     Failed,
     Finished,
     Mapped,
@@ -723,6 +726,19 @@ def test_update():
     assert len(f2.edges) == 2
 
 
+def test_update_with_constants():
+    with Flow("math") as f:
+        x = Parameter("x")
+        d = x["d"] + 4
+
+    new_flow = Flow("test")
+    new_flow.update(f)
+
+    flow_state = new_flow.run(x=dict(d=42))
+    assert flow_state.is_successful()
+    assert flow_state.result[d].result == 46
+
+
 def test_update_with_mapped_edges():
     t1 = Task()
     t2 = Task()
@@ -1034,6 +1050,25 @@ class TestFlowVisualize:
             graph = f.visualize()
         assert 'label="a_nice_task <map>" shape=box' in graph.source
         assert "label=a_list_task shape=ellipse" in graph.source
+        assert "label=x style=dashed" in graph.source
+        assert (
+            "label=y style=dashed" not in graph.source
+        )  # constants are no longer represented
+
+    def test_viz_can_handle_skipped_mapped_tasks(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                t = Task(name="a_list_task")
+                res = AddTask(name="a_nice_task").map(x=t, y=8)
+
+            graph = f.visualize(
+                flow_state=Success(result={t: Success(), res: Skipped()})
+            )
+        assert 'label="a_nice_task <map>" color="#62757f80"' in graph.source
+        assert 'label=a_list_task color="#28a74580"' in graph.source
         assert "label=x style=dashed" in graph.source
         assert (
             "label=y style=dashed" not in graph.source
@@ -2132,6 +2167,20 @@ class TestFlowRunMethod:
         f.run()
         assert REPORTED_START_TIMES == start_times
 
+    def test_flow_dot_run_handles_keyboard_signals_gracefully(self):
+        class BadExecutor(LocalExecutor):
+            def submit(self, *args, **kwargs):
+                raise KeyboardInterrupt
+
+        @task
+        def do_something():
+            pass
+
+        f = Flow("test", tasks=[do_something])
+        state = f.run(executor=BadExecutor())
+        assert isinstance(state, Cancelled)
+        assert "interrupt" in state.message.lower()
+
 
 class TestFlowDeploy:
     @pytest.mark.parametrize(
@@ -2457,3 +2506,33 @@ def test_auto_generation_of_collection_tasks_is_robust():
 
     flow_state = flow.run()
     assert flow_state.is_successful()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
+def test_timeout_actually_stops_execution(executor):
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        @prefect.task(timeout=1)
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 7 times"
+            iters = 0
+            while iters < 6:
+                time.sleep(0.25)
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+
+        flow = Flow("timeouts", tasks=[slow_fn])
+        state = flow.run(executor=executor)
+
+        # if it continued running, would run for 1 more second
+        time.sleep(0.5)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 4
+    assert state.is_failed()
