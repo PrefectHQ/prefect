@@ -127,7 +127,6 @@ def test_upload_multiple_flows_to_s3_bucket_key(monkeypatch):
     assert storage.build()
 
     assert boto3.upload_fileobj.call_args[1]["Bucket"] == "bucket"
-    assert "test2" in boto3.upload_fileobj.call_args[1]["Key"]
 
 
 def test_upload_flow_to_s3_flow_byte_stream(monkeypatch):
