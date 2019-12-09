@@ -16,8 +16,8 @@ spec:
         - name: flow
           image: prefecthq/prefect:latest
           imagePullPolicy: Always
-          command: ['/bin/sh', '-c']
-          args: ['prefect execute cloud-flow']
+          command: ["/bin/sh", "-c"]
+          args: ["prefect execute cloud-flow"]
           env:
             - name: PREFECT__CLOUD__API
               value: PREFECT__CLOUD__API
@@ -32,20 +32,20 @@ spec:
             - name: PREFECT__CLOUD__AGENT__LABELS
               value: PREFECT__CLOUD__AGENT__LABELS
             - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
-              value: 'false'
+              value: "false"
             - name: PREFECT__LOGGING__LOG_TO_CLOUD
-              value: 'true'
+              value: "true"
             - name: PREFECT__LOGGING__LEVEL
-              value: 'DEBUG'
+              value: "DEBUG"
             - name: PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
-              value: 'prefect.engine.cloud.CloudFlowRunner'
+              value: "prefect.engine.cloud.CloudFlowRunner"
             - name: PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
-              value: 'prefect.engine.cloud.CloudTaskRunner'
+              value: "prefect.engine.cloud.CloudTaskRunner"
           resources:
             requests:
-              cpu: '100m'
+              cpu: "100m"
             limits:
-              cpu: '100m'
+              cpu: "100m"
       restartPolicy: Never
       imagePullSecrets:
-        - name: ''
+        - name: ""
