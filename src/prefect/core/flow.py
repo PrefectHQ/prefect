@@ -1237,7 +1237,9 @@ class Flow:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
         """
-        temp_config = {"cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token}
+        temp_config = {
+            "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token
+        }
         with set_temporary_config(temp_config):
             labels = self.environment.labels
             agent = prefect.agent.local.LocalAgent(labels=labels)

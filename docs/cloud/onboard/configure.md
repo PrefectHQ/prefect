@@ -23,7 +23,7 @@ This Personal Access Token that was used to log in is persisted in your root `.p
 
 ## Create a Runner Token
 
-When using Prefect Cloud to deploy your Flows from an Agent you are going to need to use a `RUNNER` scoped API token. You may hold off on this step until the [Run Flow with Prefect Cloud](/cloud/go/first.html#run-flow-w-prefect-cloud) section on the next page if wanted but here are the steps to create a token.
+When using Prefect Cloud to deploy your Flows from an Agent you are going to need to use a `RUNNER` scoped API token. You may hold off on this step until the [Run Flow with Prefect Cloud](/cloud/onboard/first.html#run-flow-w-prefect-cloud) section on the next page if wanted but here are the steps to create a token.
 
 To create a `RUNNER` scoped token from the CLI run the following command. Provide a name for your token and set the role to `RUNNER`. Keep in mind that this token can always be revoked lated if needed.
 

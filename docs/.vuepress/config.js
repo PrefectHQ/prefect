@@ -135,9 +135,9 @@ module.exports = {
       ],
       "/cloud/": [
         {
-          title: "Go",
+          title: "Onboard",
           collapsable: false,
-          children: ["go/what", "go/configure", "go/first", "go/execution", "go/agent", "go/storage", "go/docker-storage", "go/docker-agent", "go/k8s-agent"]
+          children: ["onboard/what", "onboard/configure", "onboard/first", "onboard/execution", "onboard/agent", "onboard/storage", "onboard/docker-storage", "onboard/docker-agent", "onboard/k8s-agent"]
         },
         {
           title: "Welcome",

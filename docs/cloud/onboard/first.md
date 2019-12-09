@@ -44,19 +44,19 @@ In order to start taking advantage of Prefect Cloud for your Flow deployments yo
 **Note**: no actual code from the Flow is sent to Prefect Cloud. Only metadata about the existence and format of the Flow are received. All of your code is safe, secure, and private in your own infrastructure!
 :::
 
-In the same process where your Flow is defined, all you need to do to register your Flow is call `flow.register()` with the name of your desired Prefect Cloud project. Using the Flow above and the _Demo_ project created in the previous [Create a Project](/cloud/go/configure.html#create-a-project) step it would look something like this:
+In the same process where your Flow is defined, all you need to do to register your Flow is call `flow.register()` with the name of your desired Prefect Cloud project. Using the Flow above and the _Demo_ project created in the previous [Create a Project](/cloud/onboard/configure.html#create-a-project) step it would look something like this:
 
 ```python
 flow.register(project_name="Demo")
 ```
 
-You should see some output with a UUID that corresponds to your Flow in Prefect Cloud. If you do not then make sure you have [logged in to Prefect Cloud](/cloud/go/configure.html#log-in-to-prefect-cloud).
+You should see some output with a UUID that corresponds to your Flow in Prefect Cloud. If you do not then make sure you have [logged in to Prefect Cloud](/cloud/onboard/configure.html#log-in-to-prefect-cloud).
 
 ## Run Flow with Prefect Cloud
 
 After your Flow has been registered with Prefect Cloud you can now run it and start utilizing its features! In the same process where your Flow is defined you can start a [Local Agent](/cloud/agent/local.html) which will be responsible for watching for Flow Runs that are scheduled in Prefect Cloud and deploy them accordingly. No need to go too in depth with Agents just yet, it will be addressed in a later document, but for now it helps to be aware that your Flow was registered by default with [Local Storage]() and thus will be deployed using a [Local Agent](/cloud/agent/local.html).
 
-To start a Local Agent in process use the `flow.run_agent()` function. This is where the `RUNNER` token created from the [Create a Runner Token](/cloud/go/configure.html#create-a-runner-token) section on previous page comes into play. You are going to provide that token to the `run_agent` function and it will authenticate your Local Agent with Prefect Cloud so it can begin watching for Flow Runs.
+To start a Local Agent in process use the `flow.run_agent()` function. This is where the `RUNNER` token created from the [Create a Runner Token](/cloud/onboard/configure.html#create-a-runner-token) section on previous page comes into play. You are going to provide that token to the `run_agent` function and it will authenticate your Local Agent with Prefect Cloud so it can begin watching for Flow Runs.
 
 ```python
 flow.run_agent(token="YOUR_RUNNER_TOKEN")

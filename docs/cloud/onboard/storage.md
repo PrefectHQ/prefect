@@ -1,4 +1,4 @@
-# Storage Options
+# Utilizing Different Storage Options
 
 [[toc]]
 

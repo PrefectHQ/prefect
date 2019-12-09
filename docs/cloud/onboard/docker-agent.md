@@ -1,4 +1,4 @@
-# Docker Agent Deployment
+# Running a Docker Agent
 
 [[toc]]
 
