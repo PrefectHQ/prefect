@@ -8,6 +8,9 @@ from prefect import Flow
 from prefect.environments.storage import S3
 
 pytest.importorskip("boto3")
+pytest.importorskip("botocore")
+
+from botocore.exceptions import ClientError
 
 
 def test_create_s3_storage():
@@ -96,6 +99,21 @@ def test_upload_flow_to_s3(monkeypatch):
     assert storage.build()
     assert boto3.upload_fileobj.called
     assert f.name in storage
+
+
+def test_upload_flow_to_s3_client_error(monkeypatch):
+    client = MagicMock()
+    boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
+    boto3.upload_fileobj.side_effect = ClientError({}, None)
+    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+
+    storage = S3(bucket="bucket")
+
+    f = Flow("test")
+    assert f.name not in storage
+    assert storage.add_flow(f)
+    assert storage.build()
+    assert boto3.upload_fileobj.called
 
 
 def test_upload_flow_to_s3_bucket_key(monkeypatch):
@@ -201,6 +219,23 @@ def test_get_flow_s3(monkeypatch):
     assert storage.get_flow(flow_location)
     assert boto3.download_fileobj.called
     assert f.name in storage
+
+
+def test_get_flow_s3_client_error(monkeypatch):
+    client = MagicMock()
+    boto3 = MagicMock(download_fileobj=MagicMock(return_value=client))
+    boto3.download_fileobj.side_effect = ClientError({}, None)
+    monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
+
+    f = Flow("test")
+
+    storage = S3(bucket="bucket")
+
+    assert f.name not in storage
+    flow_location = storage.add_flow(f)
+
+    assert storage.get_flow(flow_location) is None
+    assert boto3.download_fileobj.called
 
 
 def test_get_flow_s3_bucket_key(monkeypatch):
