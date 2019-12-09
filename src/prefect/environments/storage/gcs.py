@@ -63,7 +63,7 @@ class GCS(Storage):
 
         bucket = self._gcs_client.get_bucket(self.bucket)
 
-        # self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
+        self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
 
         blob = bucket.get_blob(flow_location)
         if not blob:
@@ -128,9 +128,9 @@ class GCS(Storage):
 
             blob = bucket.blob(blob_name=self.flows[flow_name])
 
-            # self.logger.info(
-            #     "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
-            # )
+            self.logger.info(
+                "Uploading {} to {}".format(self.flows[flow_name], self.bucket)
+            )
 
             blob.upload_from_string(content)
 
