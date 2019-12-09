@@ -66,7 +66,7 @@ class S3(Storage):
                 a file path where a Flow has been serialized to
 
         Returns:
-            - Flow: the requested Flow if found, otherwise `None`
+            - Flow: the requested Flow
 
         Raises:
             - ValueError: if the Flow is not contained in this storage
