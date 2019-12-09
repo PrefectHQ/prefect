@@ -20,3 +20,7 @@ class ClientError(PrefectError):
 
 class AuthorizationError(ClientError):
     pass
+
+
+class StorageError(PrefectError):
+    pass
