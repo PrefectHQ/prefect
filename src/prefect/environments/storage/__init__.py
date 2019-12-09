@@ -23,6 +23,7 @@ from prefect.environments.storage.docker import Docker
 from prefect.environments.storage.bytes import Bytes
 from prefect.environments.storage.local import Local
 from prefect.environments.storage.memory import Memory
+from prefect.environments.storage.gcs import GCS
 from prefect.environments.storage.s3 import S3
 
 

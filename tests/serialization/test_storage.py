@@ -9,6 +9,7 @@ from prefect.serialization.storage import (
     BaseStorageSchema,
     BytesSchema,
     DockerSchema,
+    GCSSchema,
     LocalSchema,
     MemorySchema,
     S3Schema,
@@ -193,3 +194,41 @@ def test_local_roundtrip():
         runner = deserialized.get_flow(flow_loc)
 
     assert runner.run().is_successful()
+
+
+def test_gcs_empty_serialize():
+    gcs = storage.GCS(bucket="bucket")
+    serialized = GCSSchema().dump(gcs)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["bucket"]
+    assert not serialized["key"]
+
+
+def test_gcs_full_serialize():
+    gcs = storage.GCS(bucket="bucket", key="key", project="project",)
+    serialized = GCSSchema().dump(gcs)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["bucket"] == "bucket"
+    assert serialized["key"] == "key"
+    assert serialized["project"] == "project"
+
+
+def test_gcs_serialize_with_flows():
+    gcs = storage.GCS(project="project", bucket="bucket", key="key",)
+    f = prefect.Flow("test")
+    gcs.flows["test"] = "key"
+    serialized = GCSSchema().dump(gcs)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["bucket"] == "bucket"
+    assert serialized["key"] == "key"
+    assert serialized["project"] == "project"
+    assert serialized["flows"] == {"test": "key"}
+
+    deserialized = GCSSchema().load(serialized)
+    assert f.name in deserialized
