@@ -41,10 +41,6 @@ class TestGCSStorage:
         assert storage.key == "the-best-key"
         assert storage.project == "mayhem"
 
-    def test_create_gcs_storage_no_bucket(self):
-        with pytest.raises(StorageError):
-            GCS()
-
     def test_create_gcs_client_go_case(self, google_client):
         storage = GCS(bucket="bucket", project="a_project")
 

@@ -29,12 +29,7 @@ class GCS(Storage):
         - project (str, optional): the google project where any GCS API requests are billed to
     """
 
-    def __init__(
-        self, bucket: str = None, key: str = None, project: str = None,
-    ) -> None:
-        if not bucket:
-            raise StorageError("Bucket name is required for GCS storage")
-
+    def __init__(self, bucket: str, key: str = None, project: str = None) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
 
