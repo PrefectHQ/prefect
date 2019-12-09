@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Dict
 
 
 import cloudpickle
@@ -56,7 +56,7 @@ class S3(Storage):
 
         super().__init__()
 
-    def get_flow(self, flow_location: str) -> Union["Flow", None]:  # type: ignore
+    def get_flow(self, flow_location: str) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
         If the Flow is not found an error will be logged and `None` will be returned.
@@ -69,7 +69,8 @@ class S3(Storage):
             - Flow: the requested Flow if found, otherwise `None`
 
         Raises:
-            - ValueError: if the flow is not contained in this storage
+            - ValueError: if the Flow is not contained in this storage
+            - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
         if not flow_location in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
@@ -86,8 +87,8 @@ class S3(Storage):
                 Bucket=self.bucket, Key=flow_location, Fileobj=stream
             )
         except ClientError as err:
-            self.logger.info("Error downloading Flow from S3: {}".format(err))
-            return None
+            self.logger.error("Error downloading Flow from S3: {}".format(err))
+            raise err
 
         ## prepare data and return
         stream.seek(0)
@@ -133,6 +134,9 @@ class S3(Storage):
         Returns:
             - Storage: an S3 object that contains information about how and where
                 each flow is stored
+
+        Raises:
+            - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
         for flow_name, flow in self._flows.items():
             # Pickle Flow
@@ -156,9 +160,10 @@ class S3(Storage):
                     stream, Bucket=self.bucket, Key=self.flows[flow_name]
                 )
             except ClientError as err:
-                self.logger.info(
+                self.logger.error(
                     "Error uploading Flow to S3 bucket {}: {}".format(self.bucket, err)
                 )
+                raise err
 
         return self
 

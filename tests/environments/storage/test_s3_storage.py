@@ -112,7 +112,9 @@ def test_upload_flow_to_s3_client_error(monkeypatch):
     f = Flow("test")
     assert f.name not in storage
     assert storage.add_flow(f)
-    assert storage.build()
+
+    with pytest.raises(ClientError):
+        storage.build()
     assert boto3.upload_fileobj.called
 
 
@@ -187,10 +189,6 @@ def test_upload_flow_to_s3_key_format(monkeypatch):
 
 
 def test_add_flow_to_s3_already_added(monkeypatch):
-    # client = MagicMock()
-    # boto3 = MagicMock(upload_fileobj=MagicMock(return_value=client))
-    # monkeypatch.setattr("prefect.environments.storage.S3._boto3_client", boto3)
-
     storage = S3(bucket="bucket")
 
     f = Flow("test")
@@ -234,7 +232,9 @@ def test_get_flow_s3_client_error(monkeypatch):
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 
-    assert storage.get_flow(flow_location) is None
+    with pytest.raises(ClientError):
+        storage.get_flow(flow_location)
+
     assert boto3.download_fileobj.called
 
 
