@@ -2,9 +2,9 @@
 
 Prefect Cloud exposes a full GraphQL API for querying and interacting with the platform.
 
-We've designed this API to be clear but powerful. It is not merely a way to send instructions to Cloud; it allows users to fully introspect every piece of their infrastructure and relevant data.
+We've designed this API to be clear and powerful. It is not merely a way to send instructions to Cloud; it allows users to fully introspect every piece of their relevant data.
 
-Throughout these docs, sections directly related to the GraphQL API will be noted with a <Badge text="GQL" vertical="middle"/> badge.
+Throughout these docs, sections directly related to the GraphQL API are denoted with a <Badge text="GQL" vertical="middle"/> badge.
 
 ## Queries
 
@@ -105,7 +105,7 @@ with variables:
 ```json
 {
   "state": {
-    "type": "Scheduled",
+    "type": "Scheduled"
   }
 }
 ```

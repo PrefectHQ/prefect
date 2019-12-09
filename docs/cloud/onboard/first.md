@@ -4,7 +4,7 @@
 
 ## Write Flow
 
-For this demonstration you may use any Flow you want but as an example here's Prefect's _Hello World_ ETL Flow:
+We've opted to use Prefect's _Hello World_ ETL Flow for this example, but the pattern holds regardless of which Flow you'd like to use:
 
 ```python
 from prefect import task, Flow
@@ -34,17 +34,17 @@ with Flow("ETL") as flow:
     l = load(t)
 ```
 
-Now that you have a Flow you can run it locally with the `flow.run()` function. This is an entirely local run which does not use any of Prefect Cloud's features but you can easily change that by registering your Flow with Prefect Cloud!
+Now that you have a Flow, you can run it entirely locally with the `flow.run()` function. This does not use any of Prefect Cloud's features, but you can easily change that by registering your Flow with Prefect Cloud!
 
 ## Register Flow with Prefect Cloud
 
-In order to start taking advantage of Prefect Cloud for your Flow deployments you must _register_ that Flow. This is a step in which a Flow's metadata is sent to Prefect Cloud in order to support orchestration for that Flow.
+In order to take advantage of Prefect Cloud for your Flow, that Flow must first be _registered_. Registration of a Flow sends a Flow's metadata to Prefect Cloud in order to support orchestration for that Flow.
 
 :::tip Flow Code
-**Note**: no actual code from the Flow is sent to Prefect Cloud. Only metadata about the existence and format of the Flow are received. All of your code is safe, secure, and private in your own infrastructure!
+**Note**: Registration only sends data about the existence and format of your Flow; no actual code from the Flow is sent to Prefect Cloud. Your code remains safe, secure, and private in your own infrastructure!
 :::
 
-In the same process where your Flow is defined, all you need to do to register your Flow is call `flow.register()` with the name of your desired Prefect Cloud project. Using the Flow above and the _Demo_ project created in the previous [Create a Project](/cloud/onboard/configure.html#create-a-project) step it would look something like this:
+In the same process where your Flow is defined, registering your flow requires calling `flow.register()` with the name of your desired Prefect Cloud project. Using the Flow above and the _Demo_ project created in the previous [Create a Project](/cloud/onboard/configure.html#create-a-project) step it would look something like this:
 
 ```python
 flow.register(project_name="Demo")
@@ -54,9 +54,9 @@ You should see some output with a UUID that corresponds to your Flow in Prefect 
 
 ## Run Flow with Prefect Cloud
 
-After your Flow has been registered with Prefect Cloud you can now run it and start utilizing its features! In the same process where your Flow is defined you can start a [Local Agent](/cloud/agent/local.html) which will be responsible for watching for Flow Runs that are scheduled in Prefect Cloud and deploy them accordingly. No need to go too in depth with Agents just yet, it will be addressed in a later document, but for now it helps to be aware that your Flow was registered by default with [Local Storage]() and thus will be deployed using a [Local Agent](/cloud/agent/local.html).
+Once your Flow has been registered with Prefect Cloud, you're ready to take advantage of all of its features! In the same process where your Flow is defined you can start a [Local Agent](/cloud/agent/local.html) which will be responsible for watching for Flow Runs that are scheduled in Prefect Cloud and deploy them accordingly. The intricacies of the Agent will be addressed [in a later document](/cloud/onboard/agent.html), but for now it's worth noting that your Flow was registered by default with [Local Storage](/cloud/onboard/storage.html) and will be deployed using a [Local Agent](/cloud/agent/local.html).
 
-To start a Local Agent in process use the `flow.run_agent()` function. This is where the `RUNNER` token created from the [Create a Runner Token](/cloud/onboard/configure.html#create-a-runner-token) section on previous page comes into play. You are going to provide that token to the `run_agent` function and it will authenticate your Local Agent with Prefect Cloud so it can begin watching for Flow Runs.
+To start a Local Agent in process, use the `flow.run_agent()` function. This is where the `RUNNER` token created from the [Create a Runner Token](/cloud/onboard/configure.html#create-a-runner-token) section on previous page comes into play. You are going to provide that token to the `run_agent` function and it will authenticate your Local Agent with Prefect Cloud so it can begin watching for Flow Runs.
 
 ```python
 flow.run_agent(token="YOUR_RUNNER_TOKEN")
@@ -78,7 +78,7 @@ You should see output similar to the logs below.
 2019-12-01 10:46:33,277 - agent - INFO - Waiting for flow runs...
 ```
 
-Now that you have a Local Agent running it will remain there and periodically poll Prefect Cloud for scheduled runs that it needs to deploy. You can now schedule runs for this Flow! To create a Flow Run you have a few options at your disposal:
+Now that you have a Local Agent running it will remain there and periodically poll Prefect Cloud for scheduled runs that it needs to deploy. You can now schedule runs for this Flow! You now have a few options at your disposal to create a Flow Run:
 
 - Open another command line session and run `prefect run cloud --name ETL --project Demo`
 - Navigate to the UI and click _Run_ on your Flow's page
@@ -92,4 +92,4 @@ Once you run your Flow you should see logs from your Local Agent notifying you t
 2019-12-01 10:47:12,375 - agent - INFO - Submitted 1 flow run(s) for execution.
 ```
 
-You should immediately be able to see the result of your Flow Run in the UI or through the CLI command `prefect get flow-runs`. If everything looks correct it is time to move forward and learn more about the building blocks of Flow deployment with Prefect Cloud!
+You should immediately see the result of your Flow Run in the UI or through the CLI command `prefect get flow-runs`. If everything looks correct it is time to move forward and learn more about the building blocks of Flow deployment with Prefect Cloud!
