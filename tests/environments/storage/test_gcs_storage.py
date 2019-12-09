@@ -100,8 +100,9 @@ class TestGCSStorage:
         fetched_flow = storage.get_flow("a-place")
 
         assert fetched_flow.name == f.name
+        assert cloudpickle.dumps(fetched_flow) == flow_content
         bucket_mock.get_blob.assert_called_with("a-place")
-        blob_mock.download_as_string.assert_called_once()
+        assert blob_mock.download_as_string.call_count == 1
 
     def test_upload_single_flow_to_gcs(self, google_client):
         blob_mock = MagicMock()
@@ -156,8 +157,11 @@ class TestGCSStorage:
             expected_blob_calls.append(call(blob_name=storage.flows[f.name]))
             expected_upload_calls.append(call(cloudpickle.dumps(f)))
 
-        bucket_mock.blob.assert_has_calls(expected_blob_calls)
-        blob_mock.upload_from_string.assert_has_calls(expected_upload_calls)
+        # note, we don't upload until build() is called, which iterates on a dictionary, which is not ordered older versions of python
+        bucket_mock.blob.assert_has_calls(expected_blob_calls, any_order=True)
+        blob_mock.upload_from_string.assert_has_calls(
+            expected_upload_calls, any_order=True
+        )
 
     def test_put_get_and_run_single_flow_to_gcs(self, google_client):
         blob_mock = MagicMock()
