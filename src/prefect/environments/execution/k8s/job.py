@@ -25,6 +25,7 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__FLOW_RUN_NAME`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
@@ -191,6 +192,7 @@ class KubernetesJobEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        flow_run_name = prefect.context.get("flow_run_name", "unknown")
 
         # Create metadata label fields if they do not exist
         if not yaml_obj.get("metadata"):
@@ -220,6 +222,7 @@ class KubernetesJobEnvironment(Environment):
                 "value": prefect.config.cloud.auth_token,
             },
             {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
+            {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
             {
                 "name": "PREFECT__CONTEXT__NAMESPACE",
                 "value": prefect.context.get("namespace", ""),

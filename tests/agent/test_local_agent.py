@@ -111,13 +111,14 @@ def test_populate_env_vars(monkeypatch, runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
         agent = LocalAgent()
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -135,13 +136,14 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
         agent = LocalAgent(labels=["42", "marvin"])
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -174,6 +176,7 @@ def test_local_agent_deploy_flows(monkeypatch, runner_token):
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -235,6 +238,7 @@ def test_local_agent_deploy_flows_no_pull(monkeypatch, runner_token):
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -267,6 +271,7 @@ def test_local_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
