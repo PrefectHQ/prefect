@@ -409,6 +409,7 @@ def test_deploy_flows(monkeypatch, runner_token):
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -530,6 +531,7 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -601,6 +603,7 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -704,6 +707,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(monkeypatch, runner_t
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -776,6 +780,7 @@ def test_deploy_flows_register_task_definition_no_repo_credentials(
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
