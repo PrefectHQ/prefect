@@ -59,13 +59,14 @@ class S3(Storage):
     def get_flow(self, flow_location: str) -> Union["Flow", None]:  # type: ignore
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        If the Flow is not found an error will be logged and `None` will be returned.
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
                 a file path where a Flow has been serialized to
 
         Returns:
-            - Flow: the requested Flow if found
+            - Flow: the requested Flow if found, otherwise `None`
 
         Raises:
             - ValueError: if the flow is not contained in this storage
@@ -126,7 +127,8 @@ class S3(Storage):
     def build(self) -> "Storage":
         """
         Build the S3 storage object by uploading Flows to an S3 bucket. This will upload
-        all of the flows found in `storage.flows`.
+        all of the flows found in `storage.flows`. If there is an issue uploading to the
+        S3 bucket an error will be logged.
 
         Returns:
             - Storage: an S3 object that contains information about how and where
