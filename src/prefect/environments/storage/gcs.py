@@ -63,7 +63,9 @@ class GCS(Storage):
         blob = bucket.get_blob(flow_location)
         if not blob:
             raise StorageError(
-                f"Flow not found in bucket: flow={flow_location} bucket={self.bucket}"
+                "Flow not found in bucket: flow={} bucket={}".format(
+                    flow_location, self.bucket
+                )
             )
         content = blob.download_as_string()
         return cloudpickle.loads(content)
