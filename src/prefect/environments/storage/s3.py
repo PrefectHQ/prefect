@@ -56,7 +56,7 @@ class S3(Storage):
 
         super().__init__()
 
-    def get_flow(self, flow_location: str) -> Union["Flow", None]:
+    def get_flow(self, flow_location: str) -> Union["Flow", None]:  # type: ignore
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
