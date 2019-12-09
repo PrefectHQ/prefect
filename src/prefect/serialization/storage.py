@@ -4,7 +4,7 @@ import marshmallow
 from marshmallow import fields, post_load
 
 import prefect
-from prefect.environments.storage import Bytes, Docker, Local, Memory, Storage
+from prefect.environments.storage import Bytes, Docker, Local, Memory, Storage, S3
 from prefect.utilities.serialization import Bytes as BytesField
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
@@ -61,6 +61,22 @@ class DockerSchema(ObjectSchema):
         return base_obj
 
 
+class S3Schema(ObjectSchema):
+    class Meta:
+        object_class = S3
+
+    bucket = fields.String(allow_none=False)
+    key = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> S3:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
 class MemorySchema(ObjectSchema):
     class Meta:
         object_class = Memory
@@ -78,4 +94,5 @@ class StorageSchema(OneOfSchema):
         "Memory": MemorySchema,
         "Local": LocalSchema,
         "Storage": BaseStorageSchema,
+        "S3": S3Schema,
     }
