@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 
 import cloudpickle
@@ -56,7 +56,7 @@ class S3(Storage):
 
         super().__init__()
 
-    def get_flow(self, flow_location: str) -> "Flow":
+    def get_flow(self, flow_location: str) -> Union["Flow", None]:
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
 
@@ -65,7 +65,7 @@ class S3(Storage):
                 a file path where a Flow has been serialized to
 
         Returns:
-            - Flow: the requested flow
+            - Flow: the requested Flow if found
 
         Raises:
             - ValueError: if the flow is not contained in this storage
@@ -78,9 +78,15 @@ class S3(Storage):
         self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
 
         # Download stream from S3
-        self._boto3_client.download_fileobj(
-            Bucket=self.bucket, Key=flow_location, Fileobj=stream
-        )
+        from botocore.exceptions import ClientError
+
+        try:
+            self._boto3_client.download_fileobj(
+                Bucket=self.bucket, Key=flow_location, Fileobj=stream
+            )
+        except ClientError as err:
+            self.logger.info("Error downloading Flow from S3: {}".format(err))
+            return None
 
         ## prepare data and return
         stream.seek(0)
@@ -141,9 +147,16 @@ class S3(Storage):
             )
 
             # Upload stream to S3
-            self._boto3_client.upload_fileobj(
-                stream, Bucket=self.bucket, Key=self.flows[flow_name]
-            )
+            from botocore.exceptions import ClientError
+
+            try:
+                self._boto3_client.upload_fileobj(
+                    stream, Bucket=self.bucket, Key=self.flows[flow_name]
+                )
+            except ClientError as err:
+                self.logger.info(
+                    "Error uploading Flow to S3 bucket {}: {}".format(self.bucket, err)
+                )
 
         return self
 
