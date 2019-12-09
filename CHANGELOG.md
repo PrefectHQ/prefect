@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
+- Add `flow_run_name` to the context - [#1815](https://github.com/PrefectHQ/prefect/pull/1815)
 
 ### Task Library
 
