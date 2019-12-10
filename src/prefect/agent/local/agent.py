@@ -79,7 +79,7 @@ class LocalAgent(Agent):
                     StorageSchema().load(flow_run.flow.storage), (Local, GCS, S3)
                 ):
                     self.logger.error(
-                        "Storage for flow run {} is not of type Local.".format(
+                        "Storage for flow run {} is not a supported type.".format(
                             flow_run.id
                         )
                     )
