@@ -8,7 +8,7 @@ from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
 from prefect.agent.local import LocalAgent
-from prefect.environments.storage import Docker, Local
+from prefect.environments.storage import Docker, Local, GCS, S3
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -107,7 +107,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
         assert env_vars == expected_vars
 
 
-def test_local_agent_deploy_processes(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_local_storage(monkeypatch, runner_token):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
@@ -131,7 +131,53 @@ def test_local_agent_deploy_processes(monkeypatch, runner_token):
     assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_storage_continues_not_local(monkeypatch, runner_token):
+def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult({"storage": GCS(bucket="test").serialize()}),
+                    "id": "id",
+                    "name": "name",
+                }
+            )
+        ]
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+
+
+def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult({"storage": S3(bucket="test").serialize()}),
+                    "id": "id",
+                    "name": "name",
+                }
+            )
+        ]
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+
+
+def test_local_agent_deploy_storage_continues_not_supported_storage(
+    monkeypatch, runner_token
+):
 
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
