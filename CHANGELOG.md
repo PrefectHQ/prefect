@@ -13,9 +13,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
+- Add `--rbac` flag to `prefect agent install` for Kubernetes Agent - [#1822](https://github.com/PrefectHQ/prefect/pull/1822)
 - Add `flow_run_name` to the context - [#1815](https://github.com/PrefectHQ/prefect/pull/1815)
 - Add `prefect agent install` option to output `supervisord.conf` file for Local Agent - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
+- Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
 - Add new `not_all_skipped` trigger and set it as the default for merge tasks - [#1768](https://github.com/PrefectHQ/prefect/issues/1768)
+
 
 ### Task Library
 
@@ -25,8 +28,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with `flow.visualize()` for mapped tasks which are skipped - [#1765](https://github.com/PrefectHQ/prefect/issues/1765)
 - Fix issue with timeouts only being softly enforced - [#1145](https://github.com/PrefectHQ/prefect/issues/1145), [#1686](https://github.com/PrefectHQ/prefect/issues/1686)
-- Fix issue with `flow.update()` not transferring constants - [#1785](https://github.com/PrefectHQ/prefect/pull/1785)
 - Log agent errors using `write_run_logs` instead of the deprecated `write_run_log` - [#1791](https://github.com/PrefectHQ/prefect/pull/1791)
+- Fix issue with `flow.update()` not transferring constants - [#1785](https://github.com/PrefectHQ/prefect/pull/1785)
 
 ### Deprecations
 

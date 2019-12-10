@@ -43,11 +43,26 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   namespace: default
-  name: prefect-agent-jobs
+  name: prefect-agent-rbac
 rules:
 - apiGroups: ["batch", "extensions"]
   resources: ["jobs"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  verbs: ["*"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: prefect-agent-rbac
+subjects:
+  - kind: ServiceAccount
+    name: default
+roleRef:
+  kind: Role
+  name: prefect-agent-rbac
+  apiGroup: rbac.authorization.k8s.io
 ```
 
 :::
@@ -57,7 +72,7 @@ rules:
 For a high availability set up you should install the Kubernetes Agent into your cluster.
 
 ```bash
-prefect agent install kubernetes -t <YOUR_RUNNER_TOKEN> | kubectl apply -f -
+prefect agent install kubernetes -t <YOUR_RUNNER_TOKEN> --rbac | kubectl apply -f -
 ```
 
 Once the Agent has been created on your cluster it create Jobs on that cluster for each Flow Run. For more information on the Kubernetes Agent visit the [documentation](/cloud/agent/kubernetes.html).

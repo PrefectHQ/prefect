@@ -107,6 +107,7 @@ Usage: prefect agent install [OPTIONS] NAME
       --namespace, -n             TEXT    Agent namespace to launch workloads
       --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
       --resource-manager                  Enable resource manager on install
+      --rbac                              Enable default RBAC on install
 
   Local Agent Options:
       --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
