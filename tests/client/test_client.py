@@ -88,6 +88,35 @@ def test_graphql_errors_get_raised(patch_post):
 
 
 @pytest.mark.parametrize("compressed", [True, False])
+def test_client_deploy(patch_post, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
+    patch_post(response)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow_id = client.deploy(
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        version_group_id=str(uuid.uuid4()),
+    )
+    assert flow_id == "long-id"
+
+
+@pytest.mark.parametrize("compressed", [True, False])
 def test_client_register(patch_post, compressed):
     if compressed:
         response = {
