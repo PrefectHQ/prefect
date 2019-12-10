@@ -13,14 +13,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Serialize result handlers on flows - [#1755](https://github.com/PrefectHQ/prefect/pull/1755)
 
-### Breaking Changes
-
-- None
-
-### Contributors
-
-- None
-
 ## 0.7.3 <Badge text="beta" type="success"/>
 
 Released on Nov 26, 2019.
