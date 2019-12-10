@@ -65,6 +65,7 @@ def test_k8s_agent_deploy_flows(monkeypatch, runner_token):
                         }
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -122,6 +123,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
+            "name": "name",
         }
     )
 
@@ -164,6 +166,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
+            "name": "name",
         }
     )
 
@@ -188,6 +191,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
+            "name": "name",
         }
     )
 
