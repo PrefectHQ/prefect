@@ -344,6 +344,7 @@ def test_execute_run_task(monkeypatch):
                         "value": prefect.config.cloud.agent.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "unknown"},
+                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "unknown"},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
                     {
                         "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
@@ -431,7 +432,7 @@ def test_entire_environment_process_together(monkeypatch):
     monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
-    with prefect.context({"flow_run_id": "id"}):
+    with prefect.context({"flow_run_id": "id", "flow_run_name": "name"}):
 
         storage = Docker(registry_url="test", image_name="image", image_tag="tag")
 
@@ -506,6 +507,7 @@ def test_entire_environment_process_together(monkeypatch):
                             "value": prefect.config.cloud.agent.auth_token,
                         },
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "name"},
                         {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
                         {
                             "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",

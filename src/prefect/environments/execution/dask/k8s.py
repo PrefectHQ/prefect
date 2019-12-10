@@ -34,6 +34,7 @@ class DaskKubernetesEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
+    - `PREFECT__CONTEXT__FLOW_RUN_NAME`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
@@ -323,6 +324,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        flow_run_name = prefect.context.get("flow_run_name", "unknown")
         namespace = prefect.context.get("namespace", "unknown")
 
         # set identifier labels
@@ -331,6 +333,7 @@ class DaskKubernetesEnvironment(Environment):
         )
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
+        yaml_obj["metadata"]["labels"]["flow_run_name"] = flow_run_name
         yaml_obj["spec"]["template"]["metadata"]["labels"][
             "identifier"
         ] = self.identifier_label
@@ -345,9 +348,10 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
-        env[3]["value"] = prefect.context.get("namespace", "")
-        env[4]["value"] = docker_name
-        env[5]["value"] = flow_file_path
+        env[3]["value"] = flow_run_name
+        env[4]["value"] = prefect.context.get("namespace", "")
+        env[5]["value"] = docker_name
+        env[6]["value"] = flow_file_path
         env[13]["value"] = str(self.work_stealing)
 
         # set image
@@ -410,6 +414,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        flow_run_name = prefect.context.get("flow_run_name", "unknown")
 
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
@@ -429,6 +434,7 @@ class DaskKubernetesEnvironment(Environment):
                 "value": prefect.config.cloud.auth_token,
             },
             {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
+            {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
             {
                 "name": "PREFECT__CONTEXT__NAMESPACE",
                 "value": prefect.context.get("namespace", ""),
@@ -486,6 +492,10 @@ class DaskKubernetesEnvironment(Environment):
             {
                 "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                 "value": prefect.context.get("flow_run_id", ""),
+            },
+            {
+                "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
+                "value": prefect.context.get("flow_run_name", ""),
             },
             {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
             {

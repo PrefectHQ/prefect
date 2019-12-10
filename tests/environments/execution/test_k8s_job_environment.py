@@ -272,7 +272,11 @@ def test_populate_job_yaml():
         with set_temporary_config(
             {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
-            with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            with prefect.context(
+                flow_run_id="id_test",
+                flow_run_name="name_test",
+                namespace="namespace_test",
+            ):
                 yaml_obj = environment._populate_job_spec_yaml(
                     yaml_obj=job,
                     docker_name="test1/test2:test3",
@@ -289,13 +293,13 @@ def test_populate_job_yaml():
         )
 
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
-
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "namespace_test"
-        assert env[4]["value"] == "test1/test2:test3"
-        assert env[5]["value"] == "test4"
+        assert env[3]["value"] == "name_test"
+        assert env[4]["value"] == "namespace_test"
+        assert env[5]["value"] == "test1/test2:test3"
+        assert env[6]["value"] == "test4"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -332,7 +336,11 @@ def test_populate_job_yaml_no_defaults():
         with set_temporary_config(
             {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
-            with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            with prefect.context(
+                flow_run_id="id_test",
+                flow_run_name="name_test",
+                namespace="namespace_test",
+            ):
                 yaml_obj = environment._populate_job_spec_yaml(
                     yaml_obj=job,
                     docker_name="test1/test2:test3",
@@ -353,9 +361,10 @@ def test_populate_job_yaml_no_defaults():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "namespace_test"
-        assert env[4]["value"] == "test1/test2:test3"
-        assert env[5]["value"] == "test4"
+        assert env[3]["value"] == "name_test"
+        assert env[4]["value"] == "namespace_test"
+        assert env[5]["value"] == "test1/test2:test3"
+        assert env[6]["value"] == "test4"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -395,7 +404,11 @@ def test_populate_job_yaml_multiple_containers():
         with set_temporary_config(
             {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
-            with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
+            with prefect.context(
+                flow_run_id="id_test",
+                flow_run_name="name_test",
+                namespace="namespace_test",
+            ):
                 yaml_obj = environment._populate_job_spec_yaml(
                     yaml_obj=job,
                     docker_name="test1/test2:test3",
@@ -417,9 +430,10 @@ def test_populate_job_yaml_multiple_containers():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "namespace_test"
-        assert env[4]["value"] == "test1/test2:test3"
-        assert env[5]["value"] == "test4"
+        assert env[3]["value"] == "name_test"
+        assert env[4]["value"] == "namespace_test"
+        assert env[5]["value"] == "test1/test2:test3"
+        assert env[6]["value"] == "test4"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -440,9 +454,10 @@ def test_populate_job_yaml_multiple_containers():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "namespace_test"
-        assert env[4]["value"] == "test1/test2:test3"
-        assert env[5]["value"] == "test4"
+        assert env[3]["value"] == "name_test"
+        assert env[4]["value"] == "namespace_test"
+        assert env[5]["value"] == "test1/test2:test3"
+        assert env[6]["value"] == "test4"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][1]["image"]
