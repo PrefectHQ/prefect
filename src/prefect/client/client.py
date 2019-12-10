@@ -486,7 +486,7 @@ class Client:
     # Actions
     # -------------------------------------------------------------------------
 
-    def deploy(
+    def register(
         self,
         flow: "Flow",
         project_name: str,
@@ -499,7 +499,7 @@ class Client:
         Push a new flow to Prefect Cloud
 
         Args:
-            - flow (Flow): a flow to deploy
+            - flow (Flow): a flow to register
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
@@ -513,10 +513,10 @@ class Client:
                 compressed
 
         Returns:
-            - str: the ID of the newly-deployed flow
+            - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the deploy failed
+            - ClientError: if the register failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:

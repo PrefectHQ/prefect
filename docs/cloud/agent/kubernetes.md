@@ -58,24 +58,30 @@ The Prefect CLI provides commands for installing agents on their respective plat
 
 ```
 $ prefect agent install --help
-Usage: prefect agent install [OPTIONS] [NAME]
+Usage: prefect agent install [OPTIONS] NAME
 
   Install an agent. Outputs configuration text which can be used to install
   on various platforms. The Prefect image version will default to your local
   `prefect.__version__`
 
   Arguments:
-      name                        TEXT    The name of an agent to start (e.g. `kubernetes`)
-                                          Defaults to `kubernetes`
+      name                        TEXT    The name of an agent to install (e.g. `kubernetes`, `local`)
 
   Options:
       --token, -t                 TEXT    A Prefect Cloud API token
+      --label, -l                 TEXT    Labels the agent will use to query for flow runs
+                                          Multiple values supported e.g. `-l label1 -l label2`
+
+  Kubernetes Agent Options:
       --api, -a                   TEXT    A Prefect Cloud API URL
       --namespace, -n             TEXT    Agent namespace to launch workloads
       --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
       --resource-manager                  Enable resource manager on install
-      --label, -l                 TEXT    Labels the agent will use to query for flow runs
-                                          Multiple values supported e.g. `-l label1 -l label2`
+
+  Local Agent Options:
+      --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
+                                          Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+      --show-flow-logs, -f                Display logging output from flows run by the agent
 
 Options:
   -h, --help  Show this message and exit.

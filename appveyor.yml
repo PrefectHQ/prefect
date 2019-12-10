@@ -11,8 +11,8 @@ init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
 
 install:
-- "%PYTHON%/Scripts/pip.exe install pytest==5.2.2"
-- "%PYTHON%/Scripts/pip.exe install ."
+  - "%PYTHON%/Scripts/pip.exe install -r test-requirements.txt"
+  - "%PYTHON%/Scripts/pip.exe install .[all_extras]"
 
 test_script:
 - "%PYTHON%/Scripts/pytest . --skip-formatting"

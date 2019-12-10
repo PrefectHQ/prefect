@@ -239,7 +239,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     ],
 )
 def test_k8s_agent_generate_deployment_yaml_local_version(
-    monkeypatch, runner_token, version
+    monkeypatch, version, runner_token
 ):
     monkeypatch.setattr(prefect, "__version__", version[0])
 

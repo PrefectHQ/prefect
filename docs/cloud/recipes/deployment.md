@@ -10,11 +10,11 @@ There are many considerations that need to be made when moving from a local work
 
 ## Docker
 
-Prefect Cloud requires the use of Docker containers.  Docker provides an excellent industry-standard abstraction for shipping code along with all of its dependencies for runtime consistency in diverse environments.  Ultimately, to deploy a Flow to Cloud it needs to be "packaged up" inside a Docker image that is then pushed to a registry of your choosing.  
+Prefect Cloud requires the use of Docker containers.  Docker provides an excellent industry-standard abstraction for shipping code along with all of its dependencies for runtime consistency in diverse environments.  Ultimately, to register a Flow with Cloud it needs to be "packaged up" inside a Docker image that is then pushed to a registry of your choosing.
 
 ### How are Prefect Flows stored inside Docker containers?
 
-Whenever you call `flow.deploy` or build a [Docker storage object](../api/unreleased/environments/storage.html#docker) yourself, Prefect will perform the following actions:
+Whenever you call `flow.register` or build a [Docker storage object](../api/unreleased/environments/storage.html#docker) yourself, Prefect will perform the following actions:
 
 - calls `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
 - stores these bytes inside the Docker image in the `/root/.prefect/` directory
@@ -25,7 +25,7 @@ Whenever you call `flow.deploy` or build a [Docker storage object](../api/unrele
 :::
 
 ::: tip Flows have a save / load interface
-Oftentimes users want to separate their flow's build logic from its deploy logic.  Because of the nature of `cloudpickle` and relative imports, instead of importing your Flow object from another file it is recommended that you save your Flow to disk using `flow.save`, and then load it using `Flow.load` prior to deployment.
+Oftentimes users want to separate their flow's build logic from its registration logic.  Because of the nature of `cloudpickle` and relative imports, instead of importing your Flow object from another file it is recommended that you save your Flow to disk using `flow.save`, and then load it using `Flow.load` prior to registration.
 :::
 
 ### How are Prefect Flows run inside Docker containers?

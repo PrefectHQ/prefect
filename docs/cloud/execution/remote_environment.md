@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Remote Environment (`RemoteEnvironment`) is meant to be a simple and minimally configurable execution Environment for Flow runs, and is the default Environment for all Flows deployed to Prefect Cloud. The Remote Environment functions as a way to execute Flows without any pre-existing infrastructure requirements and instead opts to run Flows directly in process. The only needed configuration for the Remote Environment is the specification of an [Executor](/core/concepts/engine.html#executors) however if it is not specified then it defaults to the [LocalExecutor](/api/unreleased/engine/executors.html#localexecutor).
+The Remote Environment (`RemoteEnvironment`) is meant to be a simple and minimally configurable execution Environment for Flow runs, and is the default Environment for all Flows registered with Prefect Cloud. The Remote Environment functions as a way to execute Flows without any pre-existing infrastructure requirements and instead opts to run Flows directly in process. The only needed configuration for the Remote Environment is the specification of an [Executor](/core/concepts/engine.html#executors) however if it is not specified then it defaults to the [LocalExecutor](/api/unreleased/engine/executors.html#localexecutor).
 
 _For more information on the Remote Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#remoteenvironment)._
 
@@ -26,7 +26,7 @@ You can run your Flow in process using the Executor configuration specified in t
 
 #### Remote Environment w/ Local Executor
 
-The following example is the same functionality as deploying a Flow to Prefect Cloud without specifying an Environment because the `RemoteEnvironment` using the `LocalExecutor` is the default.
+The following example is the same functionality as registering a Flow with Prefect Cloud without specifying an Environment because the `RemoteEnvironment` using the `LocalExecutor` is the default.
 
 ```python
 from prefect import task, Flow

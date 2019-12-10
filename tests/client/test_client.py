@@ -88,7 +88,7 @@ def test_graphql_errors_get_raised(patch_post):
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_deploy(patch_post, compressed):
+def test_client_register(patch_post, compressed):
     if compressed:
         response = {
             "data": {
@@ -107,7 +107,7 @@ def test_client_deploy(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(
+    flow_id = client.register(
         flow,
         project_name="my-default-project",
         compressed=compressed,
@@ -117,7 +117,7 @@ def test_client_deploy(patch_post, compressed):
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_deploy_builds_flow(patch_post, compressed):
+def test_client_register_builds_flow(patch_post, compressed):
     if compressed:
         response = {
             "data": {
@@ -136,7 +136,7 @@ def test_client_deploy_builds_flow(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow_id = client.deploy(
+    flow_id = client.register(
         flow, project_name="my-default-project", compressed=compressed
     )
 
@@ -155,7 +155,7 @@ def test_client_deploy_builds_flow(patch_post, compressed):
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_deploy_optionally_avoids_building_flow(patch_post, compressed):
+def test_client_register_optionally_avoids_building_flow(patch_post, compressed):
     if compressed:
         response = {
             "data": {
@@ -174,7 +174,7 @@ def test_client_deploy_optionally_avoids_building_flow(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow_id = client.deploy(
+    flow_id = client.register(
         flow, project_name="my-default-project", build=False, compressed=compressed
     )
 
@@ -192,7 +192,7 @@ def test_client_deploy_optionally_avoids_building_flow(patch_post, compressed):
     assert serialized_flow["storage"] is None
 
 
-def test_client_deploy_with_bad_proj_name(patch_post):
+def test_client_register_with_bad_proj_name(patch_post):
     patch_post({"data": {"project": []}})
 
     with set_temporary_config(
@@ -201,12 +201,12 @@ def test_client_deploy_with_bad_proj_name(patch_post):
         client = Client()
     flow = prefect.Flow(name="test")
     with pytest.raises(ValueError) as exc:
-        flow_id = client.deploy(flow, project_name="my-default-project")
+        flow_id = client.register(flow, project_name="my-default-project")
     assert "not found" in str(exc.value)
     assert "client.create_project" in str(exc.value)
 
 
-def test_client_deploy_with_flow_that_cant_be_deserialized(patch_post):
+def test_client_register_with_flow_that_cant_be_deserialized(patch_post):
     patch_post({"data": {"project": [{"id": "proj-id"}]}})
 
     with set_temporary_config(
@@ -226,7 +226,7 @@ def test_client_deploy_with_flow_that_cant_be_deserialized(patch_post):
             "(`retry_delay` must be provided if max_retries > 0)"
         ),
     ) as exc:
-        client.deploy(flow, project_name="my-default-project", build=False)
+        client.register(flow, project_name="my-default-project", build=False)
 
 
 def test_get_flow_run_info(patch_post):

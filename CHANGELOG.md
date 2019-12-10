@@ -6,6 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- Added new Local Agent to run Flows from Local Storage, S3 Storage, and GCS Storage - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 - Added GCS Storage for Flows - [#1809](https://github.com/PrefectHQ/prefect/pull/1809)
 - Added S3 Storage for Flows - [#1753](https://github.com/PrefectHQ/prefect/pull/1753)
 
@@ -13,6 +14,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add convenience `parents()` and `children()` classmethods to all State objects for navigating the hierarchy - [#1784](https://github.com/PrefectHQ/prefect/pull/1784)
 - Add `flow_run_name` to the context - [#1815](https://github.com/PrefectHQ/prefect/pull/1815)
+- Add `prefect agent install` option to output `supervisord.conf` file for Local Agent - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
+- Add new `not_all_skipped` trigger and set it as the default for merge tasks - [#1768](https://github.com/PrefectHQ/prefect/issues/1768)
 
 ### Task Library
 
@@ -27,11 +30,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- None
+- `flow.deploy` is deprecated in favor of `flow.register` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 
 ### Breaking Changes
 
-- None
+- Docker based `LocalAgent` is renamed `DockerAgent` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
+- `prefect agent start` now defaults to new `LocalAgent` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 
 ### Contributors
 

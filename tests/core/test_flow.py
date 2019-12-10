@@ -1025,6 +1025,7 @@ class TestFlowVisualize:
         assert "label=a_nice_task" in graph.source
         assert "shape=ellipse" in graph.source
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
     def test_viz_saves_graph_object_if_filename(self):
         import graphviz
 
@@ -2182,22 +2183,22 @@ class TestFlowRunMethod:
         assert "interrupt" in state.message.lower()
 
 
-class TestFlowDeploy:
+class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
         ["prefect.environments.storage.Docker", "prefect.environments.storage.Memory"],
     )
-    def test_flow_deploy_uses_default_storage(self, monkeypatch, storage):
+    def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="test")
 
         assert f.storage is None
         with set_temporary_config({"flows.defaults.storage.default_class": storage}):
-            f.deploy("My-project")
+            f.register("My-project")
 
         assert isinstance(f.storage, from_qualified_name(storage))
 
-    def test_flow_deploy_passes_kwargs_to_storage(self, monkeypatch):
+    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="test")
 
@@ -2207,7 +2208,7 @@ class TestFlowDeploy:
                 "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
             }
         ):
-            f.deploy(
+            f.register(
                 "My-project", registry_url="FOO", image_name="BAR", image_tag="BIG"
             )
 
@@ -2217,7 +2218,7 @@ class TestFlowDeploy:
         assert f.storage.image_tag == "BIG"
         assert f.environment.labels == set()
 
-    def test_flow_deploy_auto_labels_environment_if_local_storage_used(
+    def test_flow_register_auto_labels_environment_if_local_storage_used(
         self, monkeypatch
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2229,13 +2230,26 @@ class TestFlowDeploy:
                 "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
             }
         ):
-            f.deploy("My-project")
+            f.register("My-project")
 
         assert isinstance(f.storage, prefect.environments.storage.Local)
-        assert "test-me-i-should-get-labeled" in f.environment.labels
-        assert "local" in f.environment.labels
+        assert len(f.environment.labels) == 1  # for hostname
 
-    def test_flow_deploy_doesnt_overwrite_labels_if_local_storage_is_used(
+    def test_flow_register_auto_labels_environment_with_storage_labels(
+        self, monkeypatch
+    ):
+        class MyStorage(prefect.environments.storage.Local):
+            @property
+            def labels(self):
+                return ["a", "b", "c"]
+
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="Test me!! I should get labeled", storage=MyStorage())
+        f.register("My-project")
+
+        assert f.environment.labels == {"a", "b", "c"}
+
+    def test_flow_register_doesnt_overwrite_labels_if_local_storage_is_used(
         self, monkeypatch
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2250,12 +2264,11 @@ class TestFlowDeploy:
                 "flows.defaults.storage.default_class": "prefect.environments.storage.Local"
             }
         ):
-            f.deploy("My-project")
+            f.register("My-project")
 
         assert isinstance(f.storage, prefect.environments.storage.Local)
-        assert "test" in f.environment.labels
         assert "foo" in f.environment.labels
-        assert "local" in f.environment.labels
+        assert len(f.environment.labels) == 2
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

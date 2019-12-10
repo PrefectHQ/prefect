@@ -5,6 +5,7 @@ import functools
 import inspect
 import json
 import os
+import socket
 import tempfile
 import time
 import uuid
@@ -38,6 +39,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import logging
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
@@ -1203,7 +1205,7 @@ class Flow:
 
         return serialized
 
-    # Deployment ------------------------------------------------------------------
+    # Registration ----------------------------------------------------------------
 
     @classmethod
     def load(cls, fpath: str) -> "Flow":
@@ -1223,7 +1225,7 @@ class Flow:
     def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
-        recommended if you wish to separate out the building of your Flow from its deployment.
+        recommended if you wish to separate out the building of your Flow from its registration.
 
         Args:
             - fpath (str, optional): the filepath where your Flow will be saved; defaults to
@@ -1244,6 +1246,26 @@ class Flow:
 
         return str(fpath)
 
+    def run_agent(self, token: str = None, show_flow_logs: bool = False) -> None:
+        """
+        Runs a Cloud agent for this Flow in-process.
+
+        Args:
+            - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
+                will default to the token found in `config.cloud.agent.auth_token`
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+                to stdout; defaults to `False`
+        """
+        temp_config = {
+            "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token
+        }
+        with set_temporary_config(temp_config):
+            labels = self.environment.labels
+            agent = prefect.agent.local.LocalAgent(
+                labels=labels, show_flow_logs=show_flow_logs
+            )
+            agent.start()
+
     def deploy(
         self,
         project_name: str,
@@ -1254,7 +1276,9 @@ class Flow:
         **kwargs: Any
     ) -> str:
         """
-        Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        *Note*: This function will be deprecated soon and should be replaced with `flow.register`
+
+        Deploy a flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
         will be used and initialized with `**kwargs`.
 
         Args:
@@ -1275,25 +1299,69 @@ class Flow:
         Returns:
             - str: the ID of the flow that was deployed
         """
+        warnings.warn(
+            "flow.deploy() will be deprecated in an upcoming release. Please use flow.register()",
+            UserWarning,
+        )
+
+        return self.register(
+            project_name=project_name,
+            build=build,
+            labels=labels,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+            **kwargs
+        )
+
+    def register(
+        self,
+        project_name: str,
+        build: bool = True,
+        labels: List[str] = None,
+        set_schedule_active: bool = True,
+        version_group_id: str = None,
+        **kwargs: Any
+    ) -> str:
+        """
+        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        will be used and initialized with `**kwargs`.
+
+        Args:
+            - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
+            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
+                will be passed to the initialization method of the default Storage class
+
+        Returns:
+            - str: the ID of the flow that was registered
+        """
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
-        if isinstance(self.storage, prefect.environments.storage.Local):
-            self.environment.labels.add("local")
-            self.environment.labels.add(slugify(self.name))
+        # add auto-labels for various types of storage
+        self.environment.labels.update(self.storage.labels)
 
         if labels:
             self.environment.labels.update(labels)
 
         client = prefect.Client()
-        deployed_flow = client.deploy(
+        registered_flow = client.register(
             flow=self,
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
         )
-        return deployed_flow
+        return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"

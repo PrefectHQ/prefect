@@ -24,7 +24,7 @@ def test_agent_config_options(runner_token):
         assert agent.logger.name == "agent"
 
 
-def test_agent_name_set_options(runner_token, monkeypatch):
+def test_agent_name_set_options(monkeypatch, runner_token):
     # Default
     agent = Agent()
     assert agent.name == "agent"

@@ -13,6 +13,7 @@ functions = [
     "all_failed",
     "any_successful",
     "any_failed",
+    "not_all_skipped",
     "some_failed",
     "some_successful",
 ]
@@ -166,7 +167,7 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Docker", "Local", "Memory", "Bytes"]
+classes = ["Docker", "Local", "S3", "GCS", "Memory", "Bytes"]
 
 [pages.environments.execution]
 title = "Execution Environments"

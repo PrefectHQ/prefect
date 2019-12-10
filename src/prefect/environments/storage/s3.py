@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List
 
 
 import cloudpickle
@@ -21,6 +21,9 @@ class S3(Storage):
     This storage class optionally takes a `key` which will be the name of the Flow object
     when stored in S3. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
+
+     **Note**: Flows registered with this Storage option will automatically be
+     labeled with `s3-flow-storage`.
 
     Args:
         - bucket (str): the name of the S3 Bucket to store Flows
@@ -55,6 +58,10 @@ class S3(Storage):
         self.aws_session_token = aws_session_token
 
         super().__init__()
+
+    @property
+    def labels(self) -> List[str]:
+        return ["s3-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
