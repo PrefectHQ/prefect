@@ -6,16 +6,34 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 ### Requirements
 
-Running the Kubernetes Agent inside a cluster requires permission to create and list jobs. Consult the Kubernetes [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) documentation to configure this if necessary.
+The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace.
 
-:::tip GKE Permissions
-If you are using GKE to quickly enable the correct permissions you can run:
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: prefect-agent-rbac
+rules:
+- apiGroups: ["batch", "extensions"]
+  resources: ["jobs"]
+  verbs: ["*"]
 
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: prefect-agent-rbac
+subjects:
+  - kind: ServiceAccount
+    name: default
+roleRef:
+  kind: Role
+  name: prefect-agent-rbac
+  apiGroup: rbac.authorization.k8s.io
 ```
-kubectl create clusterrolebinding default-admin --clusterrole cluster-admin --serviceaccount=default:default
-```
-
-:::
 
 ### Usage
 
@@ -77,6 +95,7 @@ Usage: prefect agent install [OPTIONS] NAME
       --namespace, -n             TEXT    Agent namespace to launch workloads
       --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
       --resource-manager                  Enable resource manager on install
+      --rbac                              Enable default RBAC on install
 
   Local Agent Options:
       --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
@@ -93,10 +112,15 @@ Running the following command will install the Prefect Agent on your cluster:
 $ prefect agent install kubernetes -t MY_TOKEN | kubectl apply -f -
 ```
 
+:::tip RBAC
+To automatically install the Kubernetes Agent with RBAC configured use the `--rbac` flag.
+:::
+
 The `install` command for Kubernetes will output a YAML deployment definition that can be applied to a cluster. You can view the output ahead of time by not piping the output into `kubectl apply`.
 
 :::tip Namespace
 By default, running `kubectl apply -f -` will apply the manifest against the _default_ namespace. To ensure the agent is deployed into your desired namespace it must be specified:
+:::
 
 ```
 kubectl apply -n AGENT_NAMESPACE -f -
