@@ -47,7 +47,7 @@ class LocalAgent(Agent):
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
-        self.labels.append(["s3-flow-storage", "gcs-flow-storage"])
+        self.labels.extend(["s3-flow-storage", "gcs-flow-storage"])
 
     def heartbeat(self) -> None:
         for idx, process in enumerate(self.processes):
