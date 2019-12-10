@@ -7,8 +7,7 @@ from typing import Iterable, List
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.engine.state import Failed
-from prefect.environments.storage import Local
-from prefect.environments.storage import Docker
+from prefect.environments.storage import GCS, Local, S3
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
@@ -76,7 +75,9 @@ class LocalAgent(Agent):
 
             try:
                 storage = StorageSchema().load(flow_run.flow.storage)
-                if not isinstance(StorageSchema().load(flow_run.flow.storage), Local):
+                if not isinstance(
+                    StorageSchema().load(flow_run.flow.storage), (Local, GCS, S3)
+                ):
                     self.logger.error(
                         "Storage for flow run {} is not of type Local.".format(
                             flow_run.id
