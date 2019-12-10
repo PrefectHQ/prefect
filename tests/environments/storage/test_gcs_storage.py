@@ -97,7 +97,6 @@ class TestGCSStorage:
         fetched_flow = storage.get_flow("a-place")
 
         assert fetched_flow.name == f.name
-        assert cloudpickle.dumps(fetched_flow) == flow_content
         bucket_mock.get_blob.assert_called_with("a-place")
         assert blob_mock.download_as_string.call_count == 1
 
