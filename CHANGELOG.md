@@ -6,7 +6,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Added GCS Storage for Flows - [#1809](https://github.com/PrefectHQ/prefect/pull/1809)
+- Added S3 Storage for Flows - [#1753](https://github.com/PrefectHQ/prefect/pull/1753)
 
 ### Enhancements
 
