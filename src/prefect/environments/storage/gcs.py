@@ -118,6 +118,7 @@ class GCS(Storage):
         """
         Build the GCS storage object by uploading Flows to an GCS bucket. This will upload
         all of the flows found in `storage.flows`.
+
         Returns:
             - Storage: an GCS object that contains information about how and where
                 each flow is stored
