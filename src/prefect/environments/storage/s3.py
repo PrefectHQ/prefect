@@ -63,16 +63,18 @@ class S3(Storage):
     def get_flow(self, flow_location: str) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        If the Flow is not found an error will be logged and `None` will be returned.
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
                 a file path where a Flow has been serialized to
 
         Returns:
-            - Flow: the requested flow
+            - Flow: the requested Flow
 
         Raises:
-            - ValueError: if the flow is not contained in this storage
+            - ValueError: if the Flow is not contained in this storage
+            - botocore.ClientError: if there is an issue downloading the Flow from S3
         """
         if not flow_location in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
@@ -82,9 +84,15 @@ class S3(Storage):
         self.logger.info("Downloading {} from {}".format(flow_location, self.bucket))
 
         # Download stream from S3
-        self._boto3_client.download_fileobj(
-            Bucket=self.bucket, Key=flow_location, Fileobj=stream
-        )
+        from botocore.exceptions import ClientError
+
+        try:
+            self._boto3_client.download_fileobj(
+                Bucket=self.bucket, Key=flow_location, Fileobj=stream
+            )
+        except ClientError as err:
+            self.logger.error("Error downloading Flow from S3: {}".format(err))
+            raise err
 
         ## prepare data and return
         stream.seek(0)
@@ -124,11 +132,15 @@ class S3(Storage):
     def build(self) -> "Storage":
         """
         Build the S3 storage object by uploading Flows to an S3 bucket. This will upload
-        all of the flows found in `storage.flows`.
+        all of the flows found in `storage.flows`. If there is an issue uploading to the
+        S3 bucket an error will be logged.
 
         Returns:
             - Storage: an S3 object that contains information about how and where
                 each flow is stored
+
+        Raises:
+            - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
         for flow_name, flow in self._flows.items():
             # Pickle Flow
@@ -145,9 +157,17 @@ class S3(Storage):
             )
 
             # Upload stream to S3
-            self._boto3_client.upload_fileobj(
-                stream, Bucket=self.bucket, Key=self.flows[flow_name]
-            )
+            from botocore.exceptions import ClientError
+
+            try:
+                self._boto3_client.upload_fileobj(
+                    stream, Bucket=self.bucket, Key=self.flows[flow_name]
+                )
+            except ClientError as err:
+                self.logger.error(
+                    "Error uploading Flow to S3 bucket {}: {}".format(self.bucket, err)
+                )
+                raise err
 
         return self
 
