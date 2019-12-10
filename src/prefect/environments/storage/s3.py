@@ -58,7 +58,7 @@ class S3(Storage):
 
     @property
     def labels(self) -> List[str]:
-        return ["s3-storage"]
+        return ["s3-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

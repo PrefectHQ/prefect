@@ -41,7 +41,7 @@ class GCS(Storage):
 
     @property
     def labels(self) -> List[str]:
-        return ["gcs-storage"]
+        return ["gcs-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
