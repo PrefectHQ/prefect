@@ -156,6 +156,8 @@ class LocalAgent(Agent):
                 identifiers used by Prefect Agents when polling for work
             - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
                 useful for Flows which import from locally hosted scripts or packages
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+                to stdout; defaults to `False`
 
         Returns:
             - str: A string representation of the generated configuration file
