@@ -76,6 +76,7 @@ class NomadAgent(Agent):
         env["PREFECT__CLOUD__API"] = config.cloud.api or "https://api.prefect.io"
         env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = config.cloud.agent.auth_token
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
+        env["PREFECT__CONTEXT__FLOW_RUN_NAME"] = flow_run.name  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
 
         return job

@@ -59,7 +59,7 @@ def test_populate_env_vars(runner_token):
     with set_temporary_config({"cloud.api": "api"}):
         agent = LocalAgent()
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
@@ -67,6 +67,7 @@ def test_populate_env_vars(runner_token):
                 [socket.gethostname(), "s3-flow-storage", "gcs-flow-storage"]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -81,7 +82,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
     with set_temporary_config({"cloud.api": "api"}):
         agent = LocalAgent(labels=["42", "marvin"])
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
@@ -95,6 +96,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -119,6 +121,7 @@ def test_local_agent_deploy_processes(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -187,6 +190,7 @@ def test_local_agent_deploy_pwd(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -210,6 +214,7 @@ def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -235,6 +240,7 @@ def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token)
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -263,6 +269,7 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -327,6 +334,7 @@ def test_local_agent_heartbeat(
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]

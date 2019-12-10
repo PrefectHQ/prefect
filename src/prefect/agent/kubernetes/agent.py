@@ -109,6 +109,7 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"]["app"] = job_name
         job["metadata"]["labels"]["identifier"] = identifier
         job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
+        job["metadata"]["labels"]["flow_run_name"] = flow_run.name  # type: ignore
         job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
         job["spec"]["template"]["metadata"]["labels"][
@@ -150,6 +151,7 @@ class KubernetesAgent(Agent):
         namespace: str = None,
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
+        rbac: bool = False,
         labels: Iterable[str] = None,
     ) -> str:
         """
@@ -165,6 +167,8 @@ class KubernetesAgent(Agent):
                 for Prefect jobs
             - resource_manager_enabled (bool, optional): Whether to include the resource
                 manager as part of the YAML. Defaults to `False`
+            - rbac (bool, optional): Whether to include default RBAC configuration as
+                part of the YAML. Defaults to `False`
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
@@ -223,7 +227,19 @@ class KubernetesAgent(Agent):
         else:
             del deployment["spec"]["template"]["spec"]["imagePullSecrets"]
 
-        return yaml.safe_dump(deployment)
+        # Load RBAC if specified
+        rbac_yaml = []
+        if rbac:
+            with open(path.join(path.dirname(__file__), "rbac.yaml"), "r") as rbac_file:
+                rbac_generator = yaml.safe_load_all(rbac_file)
+
+                for document in rbac_generator:
+                    document["metadata"]["namespace"] = namespace
+                    rbac_yaml.append(document)
+
+        output_yaml = [deployment]
+        output_yaml.extend(rbac_yaml)
+        return yaml.safe_dump_all(output_yaml, explicit_start=True)
 
     def heartbeat(self) -> None:
         """
