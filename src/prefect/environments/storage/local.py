@@ -21,6 +21,9 @@ class Local(Storage):
     This ensures that only agents who are known to be running on the same filesystem can
     run your flow.
 
+    **Note**: Flows registered with this Storage option will automatically be
+     labeled with `hostname.local`.
+
     Args:
         - directory (str, optional): the directory the flows will be stored in;
             defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be

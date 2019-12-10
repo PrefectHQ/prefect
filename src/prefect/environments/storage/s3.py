@@ -22,6 +22,9 @@ class S3(Storage):
     when stored in S3. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
+     **Note**: Flows registered with this Storage option will automatically be
+     labeled with `s3-flow-storage`.
+
     Args:
         - bucket (str): the name of the S3 Bucket to store Flows
         - aws_access_key_id (str, optional): AWS access key id for connecting to S3.
