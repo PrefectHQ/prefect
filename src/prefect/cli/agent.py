@@ -37,7 +37,7 @@ def agent():
         ...agent begins running in process...
 
     \b
-        $ prefect agent install --token MY_TOKEN --namespace metrics
+        $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
         ...k8s yaml output...
     """
     pass

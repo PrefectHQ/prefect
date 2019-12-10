@@ -31,12 +31,14 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
-When you register your flow with Prefect Cloud the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object for you at registration-time and push that image to your specified registry:
+When you register your flow with Prefect Cloud the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Local` by default). The following code will actually pass the `registry_url` to the `Docker` Storage object for you at registration-time and push that image to your specified registry:
 
 ```python
 from prefect import Flow
+from prefect.environments.storage import Docker
 
 f = Flow("example-easy-storage")
+f.storage = Docker()
 
 # all other init kwargs to `Docker` are accepted here
 f.register("My First Project", registry_url="prefecthq/storage-example")

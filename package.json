@@ -11,7 +11,7 @@
     "markdown-it-attrs": "^2.4.1",
     "markdown-it-checkbox": "^1.1.0",
     "netlify-identity-widget": "^1.5.5",
-    "vuepress": "^1.0.4",
+    "vuepress": "^1.2.0",
     "vuepress-plugin-code-copy": "^1.0.1-alpha"
   },
   "scripts": {
@@ -24,6 +24,7 @@
     "url": "git+https://github.com/PrefectHQ/prefect.git"
   },
   "devDependencies": {
-    "@vuepress/plugin-google-analytics": "^1.0.1"
+    "@vuepress/plugin-google-analytics": "^1.0.1",
+    "vuepress-plugin-element-tabs": "^0.1.8"
   }
 }

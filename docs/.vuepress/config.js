@@ -40,7 +40,8 @@ module.exports = {
         ga: "UA-115585378-1"
       }
     ],
-    ["vuepress-plugin-code-copy", true]
+    ["vuepress-plugin-code-copy", true],
+    'vuepress-plugin-element-tabs'
   ],
   themeConfig: {
     algolia: {
@@ -59,7 +60,7 @@ module.exports = {
       },
       {
         text: "Prefect Cloud",
-        link: "/cloud/the-basics"
+        link: "/cloud/dataflow"
       },
       {
         text: "API Reference",
@@ -135,14 +136,14 @@ module.exports = {
       ],
       "/cloud/": [
         {
-          title: "Onboard",
-          collapsable: false,
-          children: ["onboard/what", "onboard/configure", "onboard/first", "onboard/execution", "onboard/agent", "onboard/storage", "onboard/docker-storage", "onboard/docker-agent", "onboard/k8s-agent"]
-        },
-        {
           title: "Welcome",
           collapsable: false,
-          children: ["the-basics", "upandrunning", "flow-deploy", "dataflow", "deployment", "faq"]
+          children: ["dataflow", "faq"]
+        },
+        {
+          title: "Tutorial",
+          collapsable: false,
+          children: ["tutorial/configure", "tutorial/first", "tutorial/multiple", "tutorial/docker", "tutorial/k8s", "tutorial/next-steps"]
         },
         {
           title: "Cloud Concepts",
@@ -154,6 +155,7 @@ module.exports = {
           collapsable: true,
           children: [
             "execution/overview",
+            "execution/storage_options",
             "execution/remote_environment",
             "execution/dask_k8s_environment",
             "execution/k8s_job_environment",
@@ -175,7 +177,7 @@ module.exports = {
         {
           title: "Deployment Recipes",
           collapsable: true,
-          children: getChildren("docs/cloud", "recipes")
+          children: ["recipes/deployment", "recipes/configuring_storage", "recipes/multi_flow_storage", "recipes/k8s_dask", "recipes/k8s_docker_sidecar",]
         }
       ],
       "/core/": [
