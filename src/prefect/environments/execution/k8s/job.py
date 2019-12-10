@@ -210,6 +210,8 @@ class KubernetesJobEnvironment(Environment):
         # Populate metadata label fields
         yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
         yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
+        yaml_obj["metadata"]["labels"]["flow_run_name"] = flow_run_name
+
         yaml_obj["spec"]["template"]["metadata"]["labels"][
             "identifier"
         ] = self.identifier_label
