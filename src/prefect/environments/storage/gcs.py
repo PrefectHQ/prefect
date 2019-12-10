@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import cloudpickle
 import pendulum
@@ -22,6 +22,9 @@ class GCS(Storage):
     when stored in GCS. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
+    **Note**: Flows registered with this Storage option will automatically be
+     labeled with `gcs-flow-storage`.
+
     Args:
         - bucket (str, optional): the name of the GCS Bucket to store the Flow
         - key (str, optional): a unique key to use for uploading this Flow to GCS. This
@@ -38,6 +41,10 @@ class GCS(Storage):
         self.project = project
 
         super().__init__()
+
+    @property
+    def labels(self) -> List[str]:
+        return ["gcs-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
@@ -114,6 +121,7 @@ class GCS(Storage):
         """
         Build the GCS storage object by uploading Flows to an GCS bucket. This will upload
         all of the flows found in `storage.flows`.
+
         Returns:
             - Storage: an GCS object that contains information about how and where
                 each flow is stored

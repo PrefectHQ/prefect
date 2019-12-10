@@ -10,6 +10,7 @@ When running locally, log levels and message formatting are set via your Prefect
 """
 import atexit
 import logging
+import sys
 import threading
 import time
 from queue import Queue, Empty
@@ -23,10 +24,10 @@ from prefect.utilities.context import context
 
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(sys.stdout)
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
-        handler = logging.StreamHandler()
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
@@ -137,7 +138,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     """
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(context.config.logging.format)
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)

@@ -1,122 +1,71 @@
+import os
+import socket
 from unittest.mock import MagicMock
 
 import pytest
+from testfixtures.mock import call
+from testfixtures.popen import MockPopen
+from testfixtures import compare, LogCapture
 
-from prefect import context
 from prefect.agent.local import LocalAgent
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_local_agent_init(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-
+def test_local_agent_init(runner_token):
     agent = LocalAgent()
     assert agent
-    assert agent.labels == []
+    assert set(agent.labels) == {
+        socket.gethostname(),
+        "s3-flow-storage",
+        "gcs-flow-storage",
+    }
     assert agent.name == "agent"
 
 
-def test_local_agent_config_options(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-    monkeypatch.setattr("prefect.agent.local.agent.platform", "osx")
-
+def test_local_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent(name="test")
+        agent = LocalAgent(
+            name="test",
+            labels=["test_label"],
+            import_paths=["test_path"],
+            hostname_label=False,
+        )
         assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
-        assert not agent.no_pull
-        assert api.call_args[1]["base_url"] == "unix://var/run/docker.sock"
+        assert agent.processes == []
+        assert agent.import_paths == ["test_path"]
+        assert set(agent.labels) == {
+            "s3-flow-storage",
+            "gcs-flow-storage",
+            "test_label",
+        }
 
 
-def test_local_agent_daemon_url_responds_to_system(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-    monkeypatch.setattr("prefect.agent.local.agent.platform", "win32")
-
+def test_local_agent_config_options_hostname(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent()
-        assert agent.client.get_auth_token() == "TEST_TOKEN"
-        assert agent.logger
-        assert not agent.no_pull
-        assert api.call_args[1]["base_url"] == "npipe:////./pipe/docker_engine"
+        agent = LocalAgent(labels=["test_label"],)
+        assert set(agent.labels) == {
+            "test_label",
+            socket.gethostname(),
+            "s3-flow-storage",
+            "gcs-flow-storage",
+        }
 
 
-def test_local_agent_config_options_populated(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent(base_url="url", no_pull=True)
-        assert agent.client.get_auth_token() == "TEST_TOKEN"
-        assert agent.logger
-        assert agent.no_pull
-        assert api.call_args[1]["base_url"] == "url"
-
-
-def test_local_agent_no_pull(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-
-    agent = LocalAgent()
-    assert not agent.no_pull
-
-    agent = LocalAgent(no_pull=True)
-    assert agent.no_pull
-
-    with context(no_pull=True):
-        agent = LocalAgent()
-        assert agent.no_pull
-
-    with context(no_pull=False):
-        agent = LocalAgent(no_pull=True)
-        assert agent.no_pull
-
-    with context(no_pull=False):
-        agent = LocalAgent(no_pull=False)
-        assert not agent.no_pull
-
-
-def test_local_agent_ping(monkeypatch, runner_token):
-    api = MagicMock()
-    api.ping.return_value = True
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
-
-    agent = LocalAgent()
-    assert api.ping.called
-
-
-def test_local_agent_ping_exception(monkeypatch, runner_token):
-    api = MagicMock()
-    api.ping.return_value = True
-    api.ping.side_effect = Exception()
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
-
-    with pytest.raises(Exception):
-        agent = LocalAgent()
-
-
-def test_populate_env_vars(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+def test_populate_env_vars(runner_token):
+    with set_temporary_config({"cloud.api": "api"}):
         agent = LocalAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
-            "PREFECT__CLOUD__AUTH_TOKEN": "token",
-            "PREFECT__CLOUD__AGENT__LABELS": "[]",
+            "PREFECT__CLOUD__AGENT__LABELS": str(
+                [socket.gethostname(), "s3-flow-storage", "gcs-flow-storage"]
+            ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
@@ -128,19 +77,23 @@ def test_populate_env_vars(monkeypatch, runner_token):
         assert env_vars == expected_vars
 
 
-def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
-    api = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", api)
-
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+def test_populate_env_vars_includes_agent_labels(runner_token):
+    with set_temporary_config({"cloud.api": "api"}):
         agent = LocalAgent(labels=["42", "marvin"])
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
-            "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
-            "PREFECT__CLOUD__AUTH_TOKEN": "token",
+            "PREFECT__CLOUD__AGENT__LABELS": str(
+                [
+                    "42",
+                    "marvin",
+                    socket.gethostname(),
+                    "s3-flow-storage",
+                    "gcs-flow-storage",
+                ]
+            ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
@@ -152,14 +105,10 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
         assert env_vars == expected_vars
 
 
-def test_local_agent_deploy_flows(monkeypatch, runner_token):
+def test_local_agent_deploy_processes(monkeypatch, runner_token):
 
-    api = MagicMock()
-    api.ping.return_value = True
-    api.create_container.return_value = {"Id": "container_id"}
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
     agent.deploy_flows(
@@ -167,11 +116,7 @@ def test_local_agent_deploy_flows(monkeypatch, runner_token):
             GraphQLResult(
                 {
                     "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
+                        {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
                 }
@@ -179,80 +124,59 @@ def test_local_agent_deploy_flows(monkeypatch, runner_token):
         ]
     )
 
-    assert api.pull.called
-    assert api.create_container.called
-    assert api.start.called
-
-    assert api.create_container.call_args[1]["command"] == "prefect execute cloud-flow"
-    assert api.start.call_args[1]["container"] == "container_id"
+    assert popen.called
+    assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
+def test_local_agent_deploy_storage_continues_not_local(monkeypatch, runner_token):
 
-    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
-    api = MagicMock()
-    api.ping.return_value = True
-    api.create_container.return_value = {"Id": "container_id"}
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
-                {
-                    "flow": GraphQLResult({"storage": Local().serialize()}),
-                    "id": "id",
-                    "version": "version",
-                }
+                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id",}
             )
         ]
     )
 
-    assert not api.pull.called
+    assert not popen.called
+    assert len(agent.processes) == 0
 
 
-def test_local_agent_deploy_flows_no_pull(monkeypatch, runner_token):
+def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
 
-    api = MagicMock()
-    api.ping.return_value = True
-    api.create_container.return_value = {"Id": "container_id"}
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
+    client = MagicMock()
+    set_state = MagicMock()
+    client.return_value.set_flow_run_state = set_state
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
 
-    agent = LocalAgent(no_pull=True)
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent()
     agent.deploy_flows(
         flow_runs=[
             GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
-                    ),
-                    "id": "id",
-                }
+                {"flow": GraphQLResult({"storage": None}), "id": "id", "version": 1}
             )
         ]
     )
 
-    assert not api.pull.called
-    assert api.create_container.called
-    assert api.start.called
+    assert not popen.called
+    assert len(agent.processes) == 0
+
+    assert client.called
+    assert set_state.called
 
 
-def test_local_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_token):
+def test_local_agent_deploy_pwd(monkeypatch, runner_token):
+    monkeypatch.setattr(os, "getcwd", lambda: "pwd")
 
-    api = MagicMock()
-    api.ping.return_value = True
-    api.create_container.return_value = {"Id": "container_id"}
-    monkeypatch.setattr(
-        "prefect.agent.local.agent.docker.APIClient", MagicMock(return_value=api)
-    )
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
     agent.deploy_flows(
@@ -260,11 +184,7 @@ def test_local_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_
             GraphQLResult(
                 {
                     "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
+                        {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
                 }
@@ -272,6 +192,171 @@ def test_local_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_
         ]
     )
 
-    assert not api.pull.called
-    assert api.create_container.called
-    assert api.start.called
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "pwd" in popen.call_args[1]["env"]["PYTHONPATH"]
+
+
+def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"])
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "paths" in popen.call_args[1]["env"]["PYTHONPATH"]
+
+
+def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token):
+    monkeypatch.setenv("PYTHONPATH", "cool:python:path")
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"])
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    python_path = popen.call_args[1]["env"]["PYTHONPATH"]
+
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "cool:python:path" in python_path
+    assert "paths" in python_path
+
+
+def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+
+    popen = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"])
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    assert popen.called
+    assert len(agent.processes) == 1
+    assert "paths" in popen.call_args[1]["env"]["PYTHONPATH"]
+
+
+def test_generate_supervisor_conf(runner_token):
+    agent = LocalAgent()
+
+    conf = agent.generate_supervisor_conf(
+        token="token", labels=["label"], import_paths=["path"]
+    )
+
+    assert "-t token" in conf
+    assert "-l label" in conf
+    assert "-p path" in conf
+
+
+@pytest.mark.parametrize(
+    "returncode,show_flow_logs,logs",
+    (
+        (0, False, None),
+        (
+            1,
+            False,
+            (
+                ("agent", "INFO", "Process PID 1234 returned non-zero exit code"),
+                ("agent", "INFO", "awesome output!blerg, eRroR!"),
+            ),
+        ),
+        (
+            1,
+            True,
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
+        ),
+    ),
+)
+def test_local_agent_heartbeat(
+    monkeypatch, runner_token, returncode, show_flow_logs, logs
+):
+    popen = MockPopen()
+    # expect a process to be called with the following command (with specified behavior)
+    popen.set_command(
+        "prefect execute cloud-flow",
+        stdout=b"awesome output!",
+        stderr=b"blerg, eRroR!",
+        returncode=returncode,
+        poll_count=2,
+    )
+    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
+
+    agent = LocalAgent(import_paths=["paths"], show_flow_logs=show_flow_logs)
+    agent.deploy_flows(
+        flow_runs=[
+            GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {"storage": Local(directory="test").serialize()}
+                    ),
+                    "id": "id",
+                }
+            )
+        ]
+    )
+
+    process = agent.processes[0]
+    process_call = process.root_call
+
+    with LogCapture() as logcap:
+        agent.heartbeat()
+        agent.heartbeat()
+        agent.heartbeat()
+
+    # ensure the expected logs exist (or the absense of logs)
+    if logs:
+        logcap.check(*logs)
+    else:
+        logcap.check()
+
+    # ensure the process was opened and was polled
+    compare(
+        popen.all_calls,
+        expected=[
+            process_call,
+            process_call.poll(),
+            process_call.poll(),
+            process_call.poll(),
+        ],
+    )
+
+    # the heartbeat should stop tracking upon exit
+    compare(process.returncode, returncode)
+    assert len(agent.processes) == 0

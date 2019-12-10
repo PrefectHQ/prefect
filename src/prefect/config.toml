@@ -58,7 +58,7 @@ checkpointing = false
         [flows.defaults.storage]
 
         # the default storage class, specified using a full path
-        default_class = "prefect.environments.storage.Docker"
+        default_class = "prefect.environments.storage.Local"
 
 [tasks]
 

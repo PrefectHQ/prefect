@@ -2,6 +2,7 @@ import os
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 
 import cloudpickle
+import socket
 from slugify import slugify
 
 import prefect
@@ -15,25 +16,40 @@ class Local(Storage):
     """
     Local storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
-    Note that if you deploy a Flow to Prefect Cloud using this storage,
-    your flow's environment will automatically be labeled with two labels:
-    "local" and your flow's name.  This ensures that only agents who are
-    known to be running on the same filesystem can run your flow.
+    Note that if you register a Flow with Prefect Cloud using this storage,
+    your flow's environment will automatically be labeled with your machine's hostname.
+    This ensures that only agents who are known to be running on the same filesystem can
+    run your flow.
+
+    **Note**: Flows registered with this Storage option will automatically be
+     labeled with `hostname.local`.
 
     Args:
         - directory (str, optional): the directory the flows will be stored in;
             defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be
             created for you.
+        - validate (bool, optional): a boolean specifying whether to validate the
+            provided directory path; if `True`, the directory will be converted to an
+            absolute path and created.  Defaults to `True`
     """
 
-    def __init__(self, directory: str = None) -> None:
+    def __init__(self, directory: str = None, validate: bool = True) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
-        abs_directory = os.path.abspath(os.path.expanduser(directory))
-        if not os.path.exists(abs_directory):
-            os.makedirs(abs_directory)
+
+        if validate:
+            abs_directory = os.path.abspath(os.path.expanduser(directory))
+            if not os.path.exists(abs_directory):
+                os.makedirs(abs_directory)
+        else:
+            abs_directory = directory
+
         self.directory = abs_directory
         super().__init__()
+
+    @property
+    def labels(self) -> List[str]:
+        return [socket.gethostname()]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

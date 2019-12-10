@@ -1,6 +1,7 @@
 import ast
 import logging
 import signal
+import sys
 import time
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Iterable, Union
@@ -13,6 +14,7 @@ from prefect.engine.state import Submitted
 from prefect.serialization import state
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
+from prefect.utilities.context import context
 
 ascii_name = r"""
  ____            __           _        _                    _
@@ -65,7 +67,9 @@ class Agent:
 
     def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
+        self.labels = list(
+            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
+        )
 
         token = config.cloud.agent.get("auth_token")
 
@@ -74,10 +78,9 @@ class Agent:
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        ch = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        ch = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(context.config.logging.format)
+        formatter.converter = time.gmtime  # type: ignore
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
@@ -86,10 +89,8 @@ class Agent:
     def _verify_token(self, token: str) -> None:
         """
         Checks whether a token with a `RUNNER` scope was provided
-
         Args:
             - token (str): The provided agent token to verify
-
         Raises:
             - AuthorizationError: if token is empty or does not have a RUNNER role
         """
@@ -235,7 +236,7 @@ class Agent:
                 "input": {
                     "tenantId": tenant_id,
                     "before": now.isoformat(),
-                    "labels": self.labels,
+                    "labels": list(self.labels),
                 }
             },
         )

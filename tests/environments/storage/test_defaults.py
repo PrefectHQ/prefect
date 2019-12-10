@@ -5,7 +5,7 @@ from prefect.environments import storage
 
 
 def test_default_storage():
-    assert storage.get_default_storage_class() is storage.Docker
+    assert storage.get_default_storage_class() is storage.Local
 
 
 def test_default_storage_responds_to_config():
@@ -21,4 +21,4 @@ def test_default_storage_ignores_bad_config():
     ):
 
         with pytest.warns(UserWarning):
-            assert storage.get_default_storage_class() is storage.Docker
+            assert storage.get_default_storage_class() is storage.Local

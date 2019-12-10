@@ -9,17 +9,10 @@ from prefect import Flow
 from prefect.environments.storage import GCS
 from prefect.utilities.exceptions import StorageError
 
-# todo: make this xpass if google cloud storage extra not installed
+
 class TestGCSStorage:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        # ignore warning for:
-        #    DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated, and in 3.8 it will stop working
-        #    from google.protobuf.pyext import _message
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            import google.cloud.storage
-
         client = MagicMock()
         storage = MagicMock(Client=client)
 
@@ -62,7 +55,11 @@ class TestGCSStorage:
 
         f = Flow("awesome-flow")
         assert f.name not in storage
-        assert storage.add_flow(f)
+        key = storage.add_flow(f)
+
+        # ensures that our auto-generation of key name
+        # is Windows compatible
+        assert key.startswith("awesome-flow/")
         assert f.name in storage
 
     def test_add_multiple_flows_to_gcs(self):

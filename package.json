@@ -25,7 +25,8 @@
     "url": "git+https://github.com/PrefectHQ/prefect.git"
   },
   "devDependencies": {
-    "@vuepress/plugin-google-analytics": "^1.0.1"
+    "@vuepress/plugin-google-analytics": "^1.0.1",
+    "vuepress-plugin-element-tabs": "^0.1.8"
   },
   "prettier": {
     "trailingComma": "none",

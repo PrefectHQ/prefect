@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List
 
 import prefect
 from prefect.utilities import logging as prefect_logging
@@ -16,6 +16,10 @@ class Storage(metaclass=ABCMeta):
 
     def __init__(self) -> None:
         pass
+
+    @property
+    def labels(self) -> List[str]:
+        return []
 
     def __repr__(self) -> str:
         return "<Storage: {}>".format(type(self).__name__)

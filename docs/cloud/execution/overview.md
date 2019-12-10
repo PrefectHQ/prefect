@@ -31,19 +31,21 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
-The storage object attached to the Flow will be built when deploying your Flow to Prefect Cloud. At this step the Flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.deploy` accepts arbitrary keyword arguments which are passed to the initialization method of your configured default storage class (which is `Docker` by default). Consequently, the following code will actually create a `Docker` object at deploy-time and push that image to your specified registry:
+When you register your flow with Prefect Cloud the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Local` by default). The following code will actually pass the `registry_url` to the `Docker` Storage object for you at registration-time and push that image to your specified registry:
 
 ```python
 from prefect import Flow
+from prefect.environments.storage import Docker
 
 f = Flow("example-easy-storage")
+f.storage = Docker()
 
 # all other init kwargs to `Docker` are accepted here
-f.deploy("My First Project", registry_url="prefecthq/storage-example")
+f.register("My First Project", registry_url="prefecthq/storage-example")
 ```
 
 ::: tip Pre-Build Storage
-You may also build your storage separately from the `deploy` command and specify that you do not want to build it again at deploy time:
+You are also able to optionally build your storage separate from the `register` command and specify that you do not want to build it again at registration-time:
 
 ```python
 from prefect.environments.storage import Docker
@@ -54,8 +56,8 @@ f.storage = Docker(registry_url="prefecthq/storage-example")
 # Pre-build storage
 f.storage.build()
 
-# Deploy but don't rebuild storage
-f.deploy("My First Project", build=False)
+# Register but don't rebuild storage
+f.register("My First Project", build=False)
 ```
 
 :::
@@ -159,7 +161,7 @@ LocalAgent(labels=["dev", "staging"]).start()
 # Flow will be picked up by this agent
 ```
 
-On the other hand, a Flow with environment labels `["dev", "staging"]` would not be run by an Agent with the label `["dev"]`. This is because the Flow has a label not also provided to the Agent.
+On the other hand if you register a flow that has environment labels set to `["dev", "staging"]` and run an Agent with the labels `["dev"]` then it will not pick up the flow because there exists labels in the environment which were not provided to the agent.
 
 ```python
 from prefect.environments import RemoteEnvironment
@@ -177,5 +179,5 @@ LocalAgent(labels=["dev"]).start()
 ```
 
 :::tip Empty Labels
-An empty label list is effectively considered a label. This means that if you deploy a Flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
+An empty label list is effectively considered a label. This means that if you register a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
 :::
