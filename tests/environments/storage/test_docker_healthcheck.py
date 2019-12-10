@@ -12,7 +12,7 @@ from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import _healthcheck as healthchecks
 
 
-pytest.mark.skipif(
+pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="These checks only run within UNIX machines"
 )
 
