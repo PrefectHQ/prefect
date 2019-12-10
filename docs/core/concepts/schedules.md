@@ -58,7 +58,14 @@ schedule.next(5)
 ::: tip Time Zones
 Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock e.g.:
 
-`schedules.clocks.IntervalClock(start_date=pendulum.datetime(2019, 1, 1, tz='America/New York', interval=timedelta(days=1))`
+```
+schedules.clocks.IntervalClock(
+    start_date=pendulum.datetime(
+        2019, 1, 1, tz="America/New York", interval=timedelta(days=1)
+    )
+)
+```
+
 :::
 
 ::: warning Daylight Saving Time
