@@ -2,6 +2,7 @@ import os
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 
 import cloudpickle
+import socket
 from slugify import slugify
 
 import prefect
@@ -34,6 +35,10 @@ class Local(Storage):
             os.makedirs(abs_directory)
         self.directory = abs_directory
         super().__init__()
+
+    @property
+    def labels(self) -> List[str]:
+        return [socket.gethostname()]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
