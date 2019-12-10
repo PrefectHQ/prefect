@@ -139,7 +139,8 @@ def test_serialize_result_handler():
     serialized = FlowSchema().dump(Flow(name="n", result_handler=JSONResultHandler()))
     assert serialized["result_handler"]["type"] == "JSONResultHandler"
     deserialized = FlowSchema().load(serialized)
-    assert deserialized.result_handler
+    assert isinstance(deserialized.result_handler, JSONResultHandler)
+
 
 
 def test_serialize_flow_without_result_handler():
