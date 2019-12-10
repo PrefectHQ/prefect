@@ -25,14 +25,22 @@ class Local(Storage):
         - directory (str, optional): the directory the flows will be stored in;
             defaults to `~/.prefect/flows`.  If it doesn't already exist, it will be
             created for you.
+        - validate (bool, optional): a boolean specifying whether to validate the
+            provided directory path; if `True`, the directory will be converted to an
+            absolute path and created.  Defaults to `True`
     """
 
-    def __init__(self, directory: str = None) -> None:
+    def __init__(self, directory: str = None, validate: bool = True) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
-        abs_directory = os.path.abspath(os.path.expanduser(directory))
-        if not os.path.exists(abs_directory):
-            os.makedirs(abs_directory)
+
+        if validate:
+            abs_directory = os.path.abspath(os.path.expanduser(directory))
+            if not os.path.exists(abs_directory):
+                os.makedirs(abs_directory)
+        else:
+            abs_directory = directory
+
         self.directory = abs_directory
         super().__init__()
 

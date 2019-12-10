@@ -23,6 +23,12 @@ def test_create_local_storage_with_custom_dir():
     assert os.path.isabs(storage.directory)
 
 
+def test_create_local_storage_without_validation():
+    storage = Local(directory="C:\\Users\\chris\\.prefect\\flows", validate=False)
+    assert storage
+    assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
+
+
 def test_add_flow_to_storage():
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = Local(directory=tmpdir)
