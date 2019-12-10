@@ -190,6 +190,7 @@ def test_local_agent_deploy_pwd(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name"
                 }
             )
         ]
@@ -213,6 +214,7 @@ def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name"
                 }
             )
         ]
@@ -267,6 +269,7 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
                         {"storage": Local(directory="test").serialize()}
                     ),
                     "id": "id",
+                    "name": "name"
                 }
             )
         ]
