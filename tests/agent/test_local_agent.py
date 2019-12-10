@@ -143,6 +143,7 @@ def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
                 {
                     "flow": GraphQLResult({"storage": GCS(bucket="test").serialize()}),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
@@ -164,6 +165,7 @@ def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
                 {
                     "flow": GraphQLResult({"storage": S3(bucket="test").serialize()}),
                     "id": "id",
+                    "name": "name",
                 }
             )
         ]
