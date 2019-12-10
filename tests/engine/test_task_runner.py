@@ -1,10 +1,13 @@
 import collections
+import os
+import pendulum
+import pytest
+import sys
+import tempfile
+
 from datetime import datetime, timedelta
 from time import sleep
 from unittest.mock import MagicMock
-
-import pendulum
-import pytest
 
 import prefect
 from prefect.client import Secret
@@ -296,6 +299,37 @@ def test_task_runner_accepts_dictionary_of_edges():
     state = runner.run(upstream_states={ex: Success(result=1), ey: Success(result=1)})
     assert state.is_successful()
     assert state.result == 2
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
+def test_timeout_actually_stops_execution(executor):
+    with tempfile.TemporaryDirectory() as call_dir:
+        FILE = os.path.join(call_dir, "test.txt")
+
+        @prefect.task(timeout=1)
+        def slow_fn():
+            "Runs for 1.5 seconds, writes to file 6 times"
+            iters = 0
+            while iters < 6:
+                sleep(0.25)
+                with open(FILE, "a") as f:
+                    f.write("called\n")
+                iters += 1
+
+        state = TaskRunner(slow_fn).run(executor=executor)
+
+        # if it continued running, would run for 1 more second
+        sleep(0.5)
+        with open(FILE, "r") as g:
+            contents = g.read()
+
+    assert len(contents.split("\n")) <= 4
+    assert state.is_failed()
 
 
 def test_task_runner_can_handle_timeouts_by_default():

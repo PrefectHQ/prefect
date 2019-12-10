@@ -427,3 +427,30 @@ def test_state_is_methods(state_check):
                 assert getattr(state, attr)()
             else:
                 assert not getattr(state, attr)()
+
+
+def test_children_method_on_base_state():
+    all_states_set = set(all_states)
+    all_states_set.remove(State)
+    assert all_states_set == set(State.children())
+
+
+def test_children_method_on_leaf_state_returns_empty():
+    assert TriggerFailed.children() == []
+
+
+def test_children_method_on_success():
+    expected = {Cached, Mapped, Skipped}
+    assert set(Success.children()) == expected
+
+
+def test_parent_method_on_base_state():
+    assert State.parents() == []
+
+
+def test_children_method_on_leaf_state_returns_hierarchy():
+    assert set(TriggerFailed.parents()) == {Finished, Failed, State}
+
+
+def test_parents_method_on_success():
+    assert set(Success.parents()) == {Finished, State}

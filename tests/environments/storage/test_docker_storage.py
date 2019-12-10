@@ -16,6 +16,7 @@ from prefect.environments.storage import Docker
 def test_create_docker_storage():
     storage = Docker()
     assert storage
+    assert storage.logger
 
 
 def test_cant_create_docker_with_both_base_image_and_dockerfile():

@@ -116,6 +116,33 @@ class TestLocalDaskExecutor:
             res = e.wait(e.map(map_fn))
         assert res == []
 
+    def test_map_with_synchronous_scheduler(self):
+        def map_fn(x, y):
+            return x + y
+
+        e = LocalDaskExecutor(scheduler="synchronous")
+        with e.start():
+            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+        assert res == [2, 5]
+
+    def test_map_with_threads_scheduler(self):
+        def map_fn(x, y):
+            return x + y
+
+        e = LocalDaskExecutor(scheduler="threads")
+        with e.start():
+            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+        assert res == [2, 5]
+
+    def test_map_fails_with_processes_executor(self):
+        def map_fn(x, y):
+            return x + y
+
+        e = LocalDaskExecutor(scheduler="processes")
+        with pytest.raises(RuntimeError):
+            with e.start():
+                res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
+
 
 class TestLocalExecutor:
     def test_submit(self):

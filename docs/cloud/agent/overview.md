@@ -1,22 +1,22 @@
 # Overview
 
-The Prefect Agent is a small process that is spun up on supported platforms to orchestrate flow runs. The agent works by querying Prefect Cloud for new or incomplete flow runs and then allocating resources for them on the deployment's platform of choice.
+The Prefect Agent is a small process spun up to orchestrate Flow runs. The agent queries Prefect Cloud for new or incomplete Flow runs and allocates resources for them on the deployment's platform of choice.
 
-Prefect Cloud is designed to follow a hybrid approach to workflow execution. This means that Prefect processes run inside tenant infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect Agent and all Prefect Flows which run using Cloud follow this communication pattern.
+Prefect Cloud follows a hybrid approach to workflow execution. This means that Prefect processes run inside the tenant's infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect Agent and all Prefect Flows which run using Cloud follow this communication pattern.
 
 [[toc]]
 
 ### Agent Process
 
-Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent will then periodically query Prefect Cloud for flow runs that need to be started on that agent's platform.
+Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries Prefect Cloud for Flow runs to be started on that agent's platform.
 
-Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant which this flow run belongs to will then see that there us work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker Agent or a job in the case of a Kubernetes Agent.
+Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant to which this flow run belongs will then see that there is work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker Agent or a job in the case of a Kubernetes Agent.
 
 Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute. That flow run that was submitted for execution is now set to a `Submitted` state.
 
 ### Installation
 
-If you already have Prefect [installed](../../core/getting_started/installation.html) then there is no extra work needed to begin using Prefect Agents!
+If Prefect is already [installed](../../core/getting_started/installation.html) no additional work is required to begin using Prefect Agents!
 
 ### Usage
 
@@ -63,9 +63,9 @@ Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For infor
 
 ### Flow Affinity: Labels
 
-Agents have an optional `labels` argument which allows for separation of execution when using multiple Agents. This is especially useful for teams who have various clusters running and they want different flows to run on specific clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
+Agents have an optional `labels` argument which allows for separation of execution when using multiple Agents. This is especially useful for teams wanting to run specific Flows on different clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
 
-By default Agents have no set labels and will therefore only pick up runs from flows which also have no specified Environment Labels. To set labels on your Agent they can be provided through a few methods:
+By default, Agents have no set labels and will only pick up runs from Flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
 
 - Initialization of the Agent class:
 
