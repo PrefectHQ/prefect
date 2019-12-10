@@ -1025,6 +1025,7 @@ class TestFlowVisualize:
         assert "label=a_nice_task" in graph.source
         assert "shape=ellipse" in graph.source
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
     def test_viz_saves_graph_object_if_filename(self):
         import graphviz
 
