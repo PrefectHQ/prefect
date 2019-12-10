@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List
 
 
 import cloudpickle
@@ -55,6 +55,10 @@ class S3(Storage):
         self.aws_session_token = aws_session_token
 
         super().__init__()
+
+    @property
+    def labels(self) -> List[str]:
+        return ["s3-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

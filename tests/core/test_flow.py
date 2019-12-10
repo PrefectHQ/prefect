@@ -2234,6 +2234,20 @@ class TestFlowRegister:
         assert isinstance(f.storage, prefect.environments.storage.Local)
         assert len(f.environment.labels) == 1  # for hostname
 
+    def test_flow_register_auto_labels_environment_with_storage_labels(
+        self, monkeypatch
+    ):
+        class MyStorage(prefect.environments.storage.Local):
+            @property
+            def labels(self):
+                return ["a", "b", "c"]
+
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="Test me!! I should get labeled", storage=MyStorage())
+        f.register("My-project")
+
+        assert f.environment.labels == {"a", "b", "c"}
+
     def test_flow_register_doesnt_overwrite_labels_if_local_storage_is_used(
         self, monkeypatch
     ):

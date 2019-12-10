@@ -17,7 +17,7 @@ extras = {
         "azureml-sdk >= 1.0.65, < 1.1",
         "azure-cosmos >= 3.1.1, <3.2",
     ],
-    "dev": dev_requires,
+    "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
