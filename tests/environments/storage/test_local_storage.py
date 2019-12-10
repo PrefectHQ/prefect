@@ -13,7 +13,8 @@ from prefect.utilities.configuration import set_temporary_config
 def test_create_local_storage():
     storage = Local()
     assert storage
-    assert storage.directory.endswith(".prefect/flows")
+    end_path = os.path.join(".prefect", "flows")
+    assert storage.directory.endswith(end_path)
 
 
 def test_create_local_storage_with_custom_dir():

@@ -55,7 +55,11 @@ class TestGCSStorage:
 
         f = Flow("awesome-flow")
         assert f.name not in storage
-        assert storage.add_flow(f)
+        key = storage.add_flow(f)
+
+        # ensures that our auto-generation of key name
+        # is Windows compatible
+        assert key.startswith("awesome-flow/")
         assert f.name in storage
 
     def test_add_multiple_flows_to_gcs(self):
