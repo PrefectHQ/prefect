@@ -166,6 +166,8 @@ class KubernetesAgent(Agent):
                 for Prefect jobs
             - resource_manager_enabled (bool, optional): Whether to include the resource
                 manager as part of the YAML. Defaults to `False`
+            - rbac (bool, optional): Whether to include default RBAC configuration as
+                part of the YAML. Defaults to `False`
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
