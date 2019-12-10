@@ -196,6 +196,17 @@ def test_local_roundtrip():
     assert runner.run().is_successful()
 
 
+def test_local_storage_doesnt_validate_on_deserialization():
+    payload = {
+        "directory": "C:\\Users\\chris\\.prefect\\flows",
+        "flows": {"hello": "C:\\Users\\chris\\.prefect\\flows\\hello.prefect"},
+        "__version__": "0.7.3",
+        "type": "Local",
+    }
+    storage = LocalSchema().load(payload)
+    assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
+
+
 def test_gcs_empty_serialize():
     gcs = storage.GCS(bucket="bucket")
     serialized = GCSSchema().dump(gcs)

@@ -73,6 +73,7 @@ class LocalSchema(ObjectSchema):
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
         flows = data.pop("flows", dict())
+        data.update(validate=False)
         base_obj = super().create_object(data)
         base_obj.flows = flows
         return base_obj

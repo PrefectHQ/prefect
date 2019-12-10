@@ -24,6 +24,8 @@ class LocalAgent(Agent):
             Agents when polling for work
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
+        - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+            to stdout; defaults to `False`
         - hostname_label (boolean, optional): a boolean specifying whether this agent should auto-label itself
             with the hostname of the machine it is running on.  Useful for flows which are stored on the local
             filesystem.
@@ -45,6 +47,7 @@ class LocalAgent(Agent):
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
+        self.labels.extend(["s3-flow-storage", "gcs-flow-storage"])
 
     def heartbeat(self) -> None:
         for idx, process in enumerate(self.processes):
@@ -154,6 +157,8 @@ class LocalAgent(Agent):
                 identifiers used by Prefect Agents when polling for work
             - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
                 useful for Flows which import from locally hosted scripts or packages
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+                to stdout; defaults to `False`
 
         Returns:
             - str: A string representation of the generated configuration file

@@ -67,7 +67,9 @@ class Agent:
 
     def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
+        self.labels = list(
+            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
+        )
 
         token = config.cloud.agent.get("auth_token")
 

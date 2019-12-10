@@ -16,8 +16,11 @@ from prefect.utilities.graphql import GraphQLResult
 def test_local_agent_init(runner_token):
     agent = LocalAgent()
     assert agent
-    assert len(agent.labels) == 1
-    assert agent.labels == [socket.gethostname()]
+    assert set(agent.labels) == {
+        socket.gethostname(),
+        "s3-flow-storage",
+        "gcs-flow-storage",
+    }
     assert agent.name == "agent"
 
 
@@ -34,13 +37,22 @@ def test_local_agent_config_options(runner_token):
         assert agent.logger
         assert agent.processes == []
         assert agent.import_paths == ["test_path"]
-        assert agent.labels == ["test_label"]
+        assert set(agent.labels) == {
+            "s3-flow-storage",
+            "gcs-flow-storage",
+            "test_label",
+        }
 
 
 def test_local_agent_config_options_hostname(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = LocalAgent(labels=["test_label"],)
-        assert agent.labels == ["test_label", socket.gethostname()]
+        assert set(agent.labels) == {
+            "test_label",
+            socket.gethostname(),
+            "s3-flow-storage",
+            "gcs-flow-storage",
+        }
 
 
 def test_populate_env_vars(runner_token):
@@ -51,7 +63,9 @@ def test_populate_env_vars(runner_token):
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
-            "PREFECT__CLOUD__AGENT__LABELS": str([socket.gethostname()]),
+            "PREFECT__CLOUD__AGENT__LABELS": str(
+                [socket.gethostname(), "s3-flow-storage", "gcs-flow-storage"]
+            ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
@@ -72,7 +86,13 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AGENT__LABELS": str(
-                ["42", "marvin", socket.gethostname()]
+                [
+                    "42",
+                    "marvin",
+                    socket.gethostname(),
+                    "s3-flow-storage",
+                    "gcs-flow-storage",
+                ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
