@@ -199,6 +199,9 @@ def start(
     "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
 )
 @click.option(
+    "--rbac", is_flag=True, help="Enable default RBAC.", hidden=True
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -226,6 +229,7 @@ def install(
     namespace,
     image_pull_secrets,
     resource_manager,
+    rbac,
     label,
     import_path,
     show_flow_logs,
@@ -250,6 +254,7 @@ def install(
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
+        --rbac                              Enable default RBAC on install
 
     \b
     Local Agent Options:
@@ -276,6 +281,7 @@ def install(
             namespace=namespace,
             image_pull_secrets=image_pull_secrets,
             resource_manager_enabled=resource_manager,
+            rbac=rbac,
             labels=list(label),
         )
         click.echo(deployment)

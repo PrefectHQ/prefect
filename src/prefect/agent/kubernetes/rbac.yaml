@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: prefect-agent
+rules:
+- apiGroups: ["batch", "extensions"]
+  resources: ["jobs"]
+  verbs: ["*"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: prefect-agent
+subjects:
+  - kind: ServiceAccount
+    name: default
+roleRef:
+  kind: Role
+  name: prefect-agent
+  apiGroup: rbac.authorization.k8s.io

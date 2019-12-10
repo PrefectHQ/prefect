@@ -248,6 +248,7 @@ def test_agent_install_k8s_asses_args():
             "--namespace",
             "TEST_NAMESPACE",
             "--resource-manager",
+            "--rbac",
             "--image-pull-secrets",
             "secret-test",
             "--label",
@@ -261,6 +262,7 @@ def test_agent_install_k8s_asses_args():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert "resource-manager" in result.output
+    assert "rbac" in result.output
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
@@ -281,6 +283,7 @@ def test_agent_install_k8s_no_resource_manager():
             "TEST_NAMESPACE",
             "--image-pull-secrets",
             "secret-test",
+            "--rbac"
         ],
     )
     assert result.exit_code == 0
@@ -288,6 +291,7 @@ def test_agent_install_k8s_no_resource_manager():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert not "resource-manager" in result.output
+    assert "rbac" in result.output
     assert "secret-test" in result.output
 
 
