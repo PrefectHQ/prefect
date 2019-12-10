@@ -42,8 +42,9 @@ module.exports = {
       }
     ],
     ["vuepress-plugin-code-copy", true],
-    'vuepress-plugin-element-tabs'
-      'vuepress-plugin-selected-text-popup',
+    'vuepress-plugin-element-tabs',
+    [
+    'vuepress-plugin-selected-text-popup',
       {
         github: true,
         githubOwner: 'prefecthq',
