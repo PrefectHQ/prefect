@@ -283,7 +283,7 @@ def test_agent_install_k8s_no_resource_manager():
             "TEST_NAMESPACE",
             "--image-pull-secrets",
             "secret-test",
-            "--rbac"
+            "--rbac",
         ],
     )
     assert result.exit_code == 0

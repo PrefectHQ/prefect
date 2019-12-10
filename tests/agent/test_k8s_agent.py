@@ -343,6 +343,24 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
     )
 
 
+def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token", api="test_api", namespace="test_namespace", rbac=True
+    )
+
+    deployment = yaml.safe_load_all(deployment)
+
+    for document in deployment:
+        if "rbac" in document:
+            assert "rbac" in document["apiVersion"]
+            assert document["metadata"]["namespace"] == "test_namespace"
+            assert document["metadata"]["name"] == "prefect-agent-rbac"
+
+
 def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)

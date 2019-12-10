@@ -227,9 +227,7 @@ class KubernetesAgent(Agent):
         # Load RBAC if specified
         rbac_yaml = []
         if rbac:
-            with open(
-                path.join(path.dirname(__file__), "rbac.yaml"), "r"
-            ) as rbac_file:
+            with open(path.join(path.dirname(__file__), "rbac.yaml"), "r") as rbac_file:
                 rbac_generator = yaml.safe_load_all(rbac_file)
 
                 for document in rbac_generator:

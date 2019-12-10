@@ -198,9 +198,7 @@ def start(
 @click.option(
     "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
 )
-@click.option(
-    "--rbac", is_flag=True, help="Enable default RBAC.", hidden=True
-)
+@click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
 @click.option(
     "--label",
     "-l",
