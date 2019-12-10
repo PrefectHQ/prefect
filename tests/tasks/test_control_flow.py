@@ -118,6 +118,20 @@ def test_merging_with_objects_that_cant_be_equality_compared():
     assert isinstance(flow_state.result[merge_task].result, SpecialObject)
 
 
+def test_merging_skips_if_all_upstreams_skip():
+    @task
+    def skip_task():
+        raise prefect.engine.signals.SKIP("not today")
+
+    with Flow("skipper") as flow:
+        merge_task = merge(skip_task(), skip_task())
+
+    flow_state = flow.run()
+    assert flow_state.is_successful()
+    assert flow_state.result[merge_task].is_skipped()
+    assert flow_state.result[merge_task].result is None
+
+
 def test_list_of_tasks():
     """
     Test that a list of tasks can be set as a switch condition
