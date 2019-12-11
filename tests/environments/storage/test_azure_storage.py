@@ -1,4 +1,3 @@
-import io
 from unittest.mock import MagicMock
 
 import cloudpickle
@@ -7,7 +6,7 @@ import pytest
 from prefect import Flow
 from prefect.environments.storage import Azure
 
-pytest.importorskip("azure.storage.blob")
+pytest.importorskip("azure.storage.blob.BlobServiceClient")
 
 
 def test_create_azure_storage():
