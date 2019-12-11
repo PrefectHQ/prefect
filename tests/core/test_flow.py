@@ -1066,9 +1066,7 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" shape=box' in graph.source
         assert "label=a_list_task shape=ellipse" in graph.source
         assert "label=x style=dashed" in graph.source
-        assert (
-            "label=y style=dashed" not in graph.source
-        )  # constants are no longer represented
+        assert "label=y style=dashed" in graph.source
 
     def test_viz_can_handle_skipped_mapped_tasks(self):
         ipython = MagicMock(
@@ -1085,9 +1083,7 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" color="#62757f80"' in graph.source
         assert 'label=a_list_task color="#28a74580"' in graph.source
         assert "label=x style=dashed" in graph.source
-        assert (
-            "label=y style=dashed" not in graph.source
-        )  # constants are no longer represented
+        assert "label=y style=dashed" in graph.source
 
     @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
     def test_viz_if_flow_state_provided(self, state):

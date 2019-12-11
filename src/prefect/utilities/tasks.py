@@ -80,7 +80,7 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
 
     # handle constants, including collections of constants
     elif is_constant(x):
-        return_task = Constant(x)
+        return_task = Constant(x)  # type: prefect.core.Task
 
     # collections
     elif isinstance(x, list):
