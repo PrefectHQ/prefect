@@ -6,7 +6,7 @@ import pytest
 from prefect import Flow
 from prefect.environments.storage import Azure
 
-pytest.importorskip("azure.storage.blob.BlobServiceClient")
+pytest.importorskip("azure.storage.blob")
 
 
 def test_create_azure_storage():
