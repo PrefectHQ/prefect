@@ -37,6 +37,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
+- Default Flow storage is now `Local` instead of `Docker` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 - Docker based `LocalAgent` is renamed `DockerAgent` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 - `prefect agent start` now defaults to new `LocalAgent` - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 
