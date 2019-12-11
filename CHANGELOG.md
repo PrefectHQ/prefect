@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Added new Local Agent to run Flows from Local Storage, S3 Storage, and GCS Storage - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
+- Added Azure Blob Storage for Flows - [#1831](https://github.com/PrefectHQ/prefect/pull/1831)
 - Added GCS Storage for Flows - [#1809](https://github.com/PrefectHQ/prefect/pull/1809)
 - Added S3 Storage for Flows - [#1753](https://github.com/PrefectHQ/prefect/pull/1753)
 
