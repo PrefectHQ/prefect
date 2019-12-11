@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.8.0 <Badge text="beta" type="success"/>
+
+Released on Dec 11, 2019.
+
+### Features
+
 - Added new Local Agent to run Flows from Local Storage, S3 Storage, and GCS Storage - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
 - Added Azure Blob Storage for Flows - [#1831](https://github.com/PrefectHQ/prefect/pull/1831)
 - Added GCS Storage for Flows - [#1809](https://github.com/PrefectHQ/prefect/pull/1809)
