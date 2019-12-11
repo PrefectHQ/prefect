@@ -1611,8 +1611,8 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [100] * 10
 
-    ## only add and the List task were submitted
-    assert len(calls) == 2
+    ## only add task was submitted; the list task is a constant
+    assert len(calls) == 1
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0

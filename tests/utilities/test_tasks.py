@@ -133,7 +133,7 @@ class TestAsTask:
         assert tasks.as_task(t).auto_generated is False
 
     @pytest.mark.parametrize(
-        "val", [[[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+        "val", [[[[]]], [[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
     )
     def test_nested_collections_of_constants_are_constants(self, val):
         task = tasks.as_task(val)
@@ -155,7 +155,7 @@ class TestAsTask:
         assert not isinstance(task, Constant)
 
     @pytest.mark.parametrize(
-        "val", [[[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+        "val", [[[[]]], [[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
     )
     def test_nested_collections(self, val):
         with Flow("test") as f:
