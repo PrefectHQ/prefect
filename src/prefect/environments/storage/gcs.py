@@ -98,8 +98,6 @@ class GCS(Storage):
                 )
             )
 
-        content = cloudpickle.dumps(flow)
-
         # create key for Flow that uniquely identifies Flow object in GCS
         key = self.key or "{}/{}".format(
             slugify(flow.name), slugify(pendulum.now("utc").isoformat())
