@@ -22,7 +22,7 @@ from typing import (
     Set,
     Tuple,
     Union,
-    cast
+    cast,
 )
 
 import cloudpickle

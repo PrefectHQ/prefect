@@ -174,7 +174,6 @@ class TestAsTask:
         assert f.run().result[task].result == val
 
 
-
 def test_tag_contextmanager_works_with_task_decorator():
     @tasks.task
     def mytask():
