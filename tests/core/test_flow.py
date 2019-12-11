@@ -225,6 +225,20 @@ def test_set_dependencies_converts_unkeyed_arguments_to_tasks():
     assert f.constants[t1] == dict(x=4)
 
 
+@pytest.mark.parametrize(
+    "val", [[[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+)
+def test_set_dependencies_with_nested_ordered_constants_creates_a_single_constant(val):
+    class ReturnTask(Task):
+        def run(self, x):
+            return x
+
+    with Flow("test") as f:
+        task = ReturnTask()(x=val)
+    assert f.run().result[task].result == val
+    assert f.constants[task] == dict(x=val)
+
+
 def test_set_dependencies_creates_mapped_edges():
     t1 = Task()
     t2 = Task()
