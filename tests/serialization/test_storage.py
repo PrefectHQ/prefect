@@ -176,7 +176,7 @@ def test_azure_full_serialize():
     assert serialized["blob_name"] == "name"
 
 
-def test_azure_aws_creds_not_serialized():
+def test_azure_creds_not_serialized():
     azure = storage.Azure(
         container="container", connection_string="conn", blob_name="name"
     )
