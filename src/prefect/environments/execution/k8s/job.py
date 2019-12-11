@@ -224,7 +224,10 @@ class KubernetesJobEnvironment(Environment):
                 "value": prefect.config.cloud.auth_token,
             },
             {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
-            {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
+            {
+                "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
+                "value": '"{}"'.format(flow_run_name),
+            },
             {
                 "name": "PREFECT__CONTEXT__NAMESPACE",
                 "value": prefect.context.get("namespace", ""),

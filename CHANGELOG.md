@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix YAML validation issues if Flow Run name had unsupported characters - [#1834](https://github.com/PrefectHQ/prefect/pull/1834)
 
 ### Deprecations
 
