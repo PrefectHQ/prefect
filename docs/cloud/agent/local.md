@@ -66,7 +66,7 @@ $ prefect agent start -t TOKEN -l welcome-flow
 |_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
                                            |___/
 
-2019-11-11 13:26:41,443 - agent - INFO - Starting LocalAgent with labels ['hostname.local', 's3-flow-storage', 'gcs-flow-storage']
+2019-11-11 13:26:41,443 - agent - INFO - Starting LocalAgent with labels ['hostname.local', 'azure-flow-storage', 's3-flow-storage', 'gcs-flow-storage']
 2019-11-11 13:26:41,443 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
 2019-11-11 13:26:41,638 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-11-11 13:26:41,638 - agent - INFO - Waiting for flow runs...

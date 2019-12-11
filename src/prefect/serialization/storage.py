@@ -4,9 +4,34 @@ import marshmallow
 from marshmallow import fields, post_load
 
 import prefect
-from prefect.environments.storage import Bytes, Docker, GCS, Local, Memory, Storage, S3
+from prefect.environments.storage import (
+    Azure,
+    Bytes,
+    Docker,
+    GCS,
+    Local,
+    Memory,
+    Storage,
+    S3,
+)
 from prefect.utilities.serialization import Bytes as BytesField
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
+
+
+class AzureSchema(ObjectSchema):
+    class Meta:
+        object_class = Azure
+
+    container = fields.String(allow_none=False)
+    blob_name = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Azure:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
 
 
 class BaseStorageSchema(ObjectSchema):
@@ -107,6 +132,7 @@ class StorageSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
+        "Azure": AzureSchema,
         "Bytes": BytesSchema,
         "Docker": DockerSchema,
         "GCS": GCSSchema,

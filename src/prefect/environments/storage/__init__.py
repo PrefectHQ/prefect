@@ -9,9 +9,6 @@ The Prefect Storage interface encapsulates logic for storing, serializing and ev
 - a `build() -> Storage` method for "building" the storage
 - a `serialize() -> dict` method for serializing the relevant information about this Storage for later re-use.
 
-::: warning Docker storage
-Note that currently all environments that are compatible with Prefect Cloud require your Flow to use [Docker storage](#docker).
-:::
 """
 
 from warnings import warn
@@ -23,6 +20,7 @@ from prefect.environments.storage.docker import Docker
 from prefect.environments.storage.bytes import Bytes
 from prefect.environments.storage.local import Local
 from prefect.environments.storage.memory import Memory
+from prefect.environments.storage.azure import Azure
 from prefect.environments.storage.gcs import GCS
 from prefect.environments.storage.s3 import S3
 
