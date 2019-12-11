@@ -1,4 +1,4 @@
-import io
+import os
 from typing import TYPE_CHECKING, Any, Dict, List
 
 import cloudpickle
@@ -7,7 +7,6 @@ from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
-from prefect.utilities.exceptions import StorageError
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -15,39 +14,32 @@ if TYPE_CHECKING:
 
 class Azure(Storage):
     """
-    GoogleCloudStorage storage class.  This class represents the Storage interface for Flows stored as
-    bytes in an GCS bucket.
+    Azure Blob storage class.  This class represents the Storage interface for Flows stored as
+    bytes in an Azure container.
 
-    This storage class optionally takes a `key` which will be the name of the Flow object
-    when stored in GCS. If this key is not provided the Flow upload name will take the form
+    This storage class optionally takes a `blob_name` which will be the name of the Flow object
+    when stored in Azure. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
     **Note**: Flows registered with this Storage option will automatically be
-     labeled with `gcs-flow-storage`.
+     labeled with `azure-flow-storage`.
 
     Args:
-        - bucket (str, optional): the name of the GCS Bucket to store the Flow
-        - key (str, optional): a unique key to use for uploading this Flow to GCS. This
+        - container (str): the name of the Azure Blob Container to store the Flow
+        - connection_string (str, optional): an Azure connection string for communicating with
+            Blob storage. If not provided the value set in the environment as `CONNECTION_STRING`
+            will be used
+        - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
-        - project (str, optional): the google project where any GCS API requests are billed to
     """
 
     def __init__(
-        self,
-        container: str,
-        # account_name: str = None,
-        # account_key: str = None,
-        # sas_token: str = None,
-        connection_string: str = None,
-        blob_name: str = None,
+        self, container: str, connection_string: str = None, blob_name: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
 
-        self.connection_string = connection_string
-        # self.account_name = account_name
-        # self.account_key = account_key
-        # self.sas_token = sas_token
+        self.connection_string = connection_string or os.getenv("CONNECTION_STRING")
 
         self.container = container
         self.blob_name = blob_name
@@ -86,13 +78,13 @@ class Azure(Storage):
 
     def add_flow(self, flow: "Flow") -> str:
         """
-        Method for storing a new flow as bytes in a GCS bucket.
+        Method for storing a new flow as bytes in an Azure Blob container.
 
         Args:
             - flow (Flow): a Prefect Flow to add
 
         Returns:
-            - str: the key of the newly added flow in the GCS bucket
+            - str: the key of the newly added Flow in the container
 
         Raises:
             - ValueError: if a flow with the same name is already contained in this storage
@@ -105,7 +97,7 @@ class Azure(Storage):
                 )
             )
 
-        # create key for Flow that uniquely identifies Flow object in GCS
+        # create key for Flow that uniquely identifies Flow object in Azure
         blob_name = self.blob_name or "{}/{}".format(
             slugify(flow.name), slugify(pendulum.now("utc").isoformat())
         )
@@ -124,11 +116,11 @@ class Azure(Storage):
 
     def build(self) -> "Storage":
         """
-        Build the GCS storage object by uploading Flows to an GCS bucket. This will upload
-        all of the flows found in `storage.flows`.
+        Build the Azure storage object by uploading Flows to an Azure Blob container.
+        This will upload all of the flows found in `storage.flows`.
 
         Returns:
-            - Storage: an GCS object that contains information about how and where
+            - Storage: an Azure object that contains information about how and where
                 each flow is stored
         """
         for flow_name, flow in self._flows.items():
