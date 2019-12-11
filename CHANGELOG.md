@@ -23,7 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Azure Blob tasks now use newer `BlockBlobService` with connection string authentication - [#1831](https://github.com/PrefectHQ/prefect/pull/1831)
 
 ### Fixes
 
