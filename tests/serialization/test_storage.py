@@ -6,6 +6,7 @@ import pytest
 import prefect
 from prefect.environments import storage
 from prefect.serialization.storage import (
+    AzureSchema,
     BaseStorageSchema,
     BytesSchema,
     DockerSchema,
@@ -150,6 +151,60 @@ def test_s3_serialize_with_flows():
     assert serialized["flows"] == {"test": "key"}
 
     deserialized = S3Schema().load(serialized)
+    assert f.name in deserialized
+
+
+def test_azure_empty_serialize():
+    azure = storage.Azure(container="container")
+    serialized = AzureSchema().dump(azure)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["container"] == "container"
+    assert serialized["blob_name"] is None
+
+
+def test_azure_full_serialize():
+    azure = storage.Azure(
+        container="container", connection_string="conn", blob_name="name"
+    )
+    serialized = AzureSchema().dump(azure)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["container"] == "container"
+    assert serialized["blob_name"] == "name"
+
+
+def test_azure_aws_creds_not_serialized():
+    azure = storage.Azure(
+        container="container", connection_string="conn", blob_name="name"
+    )
+    serialized = AzureSchema().dump(azure)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["container"] == "container"
+    assert serialized["blob_name"] == "name"
+    assert serialized.get("connection_string") is None
+
+
+def test_azure_serialize_with_flows():
+    azure = storage.Azure(
+        container="container", connection_string="conn", blob_name="name"
+    )
+    f = prefect.Flow("test")
+    azure.flows["test"] = "key"
+    serialized = AzureSchema().dump(azure)
+
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["container"] == "container"
+    assert serialized["blob_name"] == "name"
+    assert serialized.get("connection_string") is None
+    assert serialized["flows"] == {"test": "key"}
+
+    deserialized = AzureSchema().load(serialized)
     assert f.name in deserialized
 
 

@@ -9,34 +9,27 @@ from prefect.environments.storage import Azure
 
 pytest.importorskip("azure.storage.blob")
 
+
 def test_create_azure_storage():
     storage = Azure(container="test")
     assert storage
     assert storage.logger
 
 
-# def test_create_s3_storage_init_args():
-#     storage = S3(
-#         aws_access_key_id="id",
-#         aws_secret_access_key="secret",
-#         aws_session_token="session",
-#         bucket="bucket",
-#         key="key",
-#     )
-#     assert storage
-#     assert storage.flows == dict()
-#     assert storage.aws_access_key_id == "id"
-#     assert storage.aws_secret_access_key == "secret"
-#     assert storage.aws_session_token == "session"
-#     assert storage.bucket == "bucket"
-#     assert storage.key == "key"
+def test_create_azure_storage_init_args():
+    storage = Azure(container="test", connection_string="conn", blob_name="name",)
+    assert storage
+    assert storage.flows == dict()
+    assert storage.container == "test"
+    assert storage.connection_string == "conn"
+    assert storage.blob_name == "name"
 
 
-# def test_serialize_s3_storage():
-#     storage = S3(bucket="bucket")
-#     serialized_storage = storage.serialize()
+def test_serialize_azure_storage():
+    storage = Azure(container="test")
+    serialized_storage = storage.serialize()
 
-#     assert serialized_storage["type"] == "S3"
+    assert serialized_storage["type"] == "Azure"
 
 
 # def test_boto3_client_property(monkeypatch):
