@@ -76,7 +76,7 @@ trigger_fn(upstream_states: Set[State]) -> bool
 
 ## Constants
 
-If a non-`Task` input is provided to a task, it is automatically converted to a `ConstantTask`.
+If a non-`Task` input is provided to a task, it is automatically converted to a `Constant`.
 
 ```python
 from prefect import Flow, task
@@ -88,10 +88,12 @@ def add(x, y):
 with Flow('Flow With Constant') as flow:
     add(1, 2)
 
-assert len(flow) == 3
+assert len(flow.tasks) == 1
+assert len(flow.constants) == 2
 ```
 
-This flow has three tasks, even though the user might think they only created one: the `add` task and two `Constants` representing the inputs `1` and `2`.
+Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.
+
 
 ## Operators
 
