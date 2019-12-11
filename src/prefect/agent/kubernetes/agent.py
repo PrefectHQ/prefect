@@ -109,7 +109,7 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"]["app"] = job_name
         job["metadata"]["labels"]["identifier"] = identifier
         job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
-        job["metadata"]["labels"]["flow_run_name"] = flow_run.name  # type: ignore
+        job["metadata"]["labels"]["flow_run_name"] = '"{}"'.format(flow_run.name)  # type: ignore
         job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
         job["spec"]["template"]["metadata"]["labels"][
