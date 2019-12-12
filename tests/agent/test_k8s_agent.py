@@ -264,6 +264,28 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
     assert resource_manager_yaml["image"] == "prefecthq/prefect:{}".format(version[1])
 
 
+def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        resource_manager_enabled=True,
+        latest=True,
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_yaml = deployment["spec"]["template"]["spec"]["containers"][0]
+    resource_manager_yaml = deployment["spec"]["template"]["spec"]["containers"][1]
+
+    assert agent_yaml["image"] == "prefecthq/prefect:latest"
+    assert resource_manager_yaml["image"] == "prefecthq/prefect:latest"
+
+
 def test_k8s_agent_generate_deployment_yaml_no_resource_manager(
     monkeypatch, runner_token
 ):

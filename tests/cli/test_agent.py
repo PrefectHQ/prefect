@@ -249,6 +249,7 @@ def test_agent_install_k8s_asses_args():
             "TEST_NAMESPACE",
             "--resource-manager",
             "--rbac",
+            "--latest",
             "--image-pull-secrets",
             "secret-test",
             "--label",
@@ -263,6 +264,7 @@ def test_agent_install_k8s_asses_args():
     assert "TEST_NAMESPACE" in result.output
     assert "resource-manager" in result.output
     assert "rbac" in result.output
+    assert "latest" in result.output
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
