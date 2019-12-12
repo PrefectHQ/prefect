@@ -18,7 +18,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix Kubernetes Agent passing empty default namespace - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
+- Fix missing Flow Run name on Dask Kubernetes Environment default worker pod - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
 
 ### Deprecations
 
