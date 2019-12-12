@@ -381,6 +381,7 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
+        env[3]["value"] = prefect.context.get("flow_run_name", "")
 
         if self.private_registry:
             namespace = prefect.context.get("namespace", "default")
