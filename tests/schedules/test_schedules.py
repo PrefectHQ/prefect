@@ -65,6 +65,22 @@ def test_create_schedule_filters():
     ]
 
 
+def test_create_schedule_filters_2():
+    dt = pendulum.datetime(2019, 1, 1)
+    s = schedules.Schedule(
+        clocks=[clocks.IntervalClock(timedelta(minutes=15))],
+        filters=[filters.at_time(pendulum.time(2, 45))],
+    )
+    assert s.next(6, after=dt) == [
+        dt.add(days=0, hours=2, minutes=45),
+        dt.add(days=1, hours=2, minutes=45),
+        dt.add(days=2, hours=2, minutes=45),
+        dt.add(days=3, hours=2, minutes=45),
+        dt.add(days=4, hours=2, minutes=45),
+        dt.add(days=5, hours=2, minutes=45),
+    ]
+
+
 def test_create_schedule_multiple_exclusive_filters():
     dt = pendulum.datetime(2019, 1, 1)
     s = schedules.Schedule(

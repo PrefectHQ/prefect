@@ -14,6 +14,9 @@ from prefect.utilities.serialization import (
 )
 
 FILTERS = [
+    prefect.schedules.filters.on_datetime,
+    prefect.schedules.filters.on_date,
+    prefect.schedules.filters.at_time,
     prefect.schedules.filters.between_datetimes,
     prefect.schedules.filters.between_dates,
     prefect.schedules.filters.between_times,
