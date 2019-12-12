@@ -40,6 +40,40 @@ When using the custom YAML spec files it is recommended that you ensure the `ima
 e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec should contain `- image: gcr.io/dev/etl-flow:0.1.0`.
 :::
 
+#### Requirements
+
+The Dask Kubernetes Environment required [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to be configured in a way in which it can work with both jobs and pods in its namespace. The Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: prefect-agent-rbac
+rules:
+- apiGroups: ["batch", "extensions"]
+  resources: ["jobs"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  namespace: default
+  name: prefect-agent-rbac
+subjects:
+  - kind: ServiceAccount
+    name: default
+roleRef:
+  kind: Role
+  name: prefect-agent-rbac
+  apiGroup: rbac.authorization.k8s.io
+```
+
 #### Setup
 
 The Dask Kubernetes Environment setup step is responsible for checking the [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) for a provided `docker_secret` only if `private_registry=True`. If the Kubernetes Secret is not found then it will attempt to create one based off of the value set in the Prefect Secret matching the name specified for `docker_secret`.

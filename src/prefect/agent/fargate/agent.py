@@ -287,7 +287,7 @@ class FargateAgent(Agent):
                     },
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                        "value": '"{}"'.format(flow_run.name),  # type: ignore
+                        "value": flow_run.name,  # type: ignore
                     },
                 ],
             }

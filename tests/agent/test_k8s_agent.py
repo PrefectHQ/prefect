@@ -143,7 +143,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == '"name"'
+        assert env[3]["value"] == "name"
         assert env[4]["value"] == "default"
 
         assert (

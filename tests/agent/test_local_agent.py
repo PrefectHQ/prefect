@@ -75,7 +75,7 @@ def test_populate_env_vars(runner_token):
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": '"name"',
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -105,7 +105,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": '"name"',
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
