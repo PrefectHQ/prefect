@@ -134,8 +134,9 @@ class KubernetesAgent(Agent):
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = os.getenv("NAMESPACE", "default")
-        env[4]["value"] = str(self.labels)
+        env[3]["value"] = flow_run.name  # type: ignore
+        env[4]["value"] = os.getenv("NAMESPACE", "default")
+        env[5]["value"] = str(self.labels)
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
