@@ -348,7 +348,7 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
-        env[3]["value"] = '"{}"'.format(flow_run_name)
+        env[3]["value"] = flow_run_name
         env[4]["value"] = prefect.context.get("namespace", "")
         env[5]["value"] = docker_name
         env[6]["value"] = flow_file_path
@@ -434,10 +434,7 @@ class DaskKubernetesEnvironment(Environment):
                 "value": prefect.config.cloud.auth_token,
             },
             {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
-            {
-                "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                "value": '"{}"'.format(flow_run_name),
-            },
+            {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
             {
                 "name": "PREFECT__CONTEXT__NAMESPACE",
                 "value": prefect.context.get("namespace", ""),
@@ -498,7 +495,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                "value": '"{}"'.format(prefect.context.get("flow_run_name", "")),
+                "value": prefect.context.get("flow_run_name", ""),
             },
             {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
             {
