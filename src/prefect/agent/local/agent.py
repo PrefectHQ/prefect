@@ -7,7 +7,7 @@ from typing import Iterable, List
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.engine.state import Failed
-from prefect.environments.storage import GCS, Local, S3
+from prefect.environments.storage import Azure, GCS, Local, S3
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
@@ -46,7 +46,9 @@ class LocalAgent(Agent):
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
-        self.labels.extend(["s3-flow-storage", "gcs-flow-storage"])
+        self.labels.extend(
+            ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
+        )
 
     def heartbeat(self) -> None:
         for idx, process in enumerate(self.processes):
@@ -76,7 +78,7 @@ class LocalAgent(Agent):
             try:
                 storage = StorageSchema().load(flow_run.flow.storage)
                 if not isinstance(
-                    StorageSchema().load(flow_run.flow.storage), (Local, GCS, S3)
+                    StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3)
                 ):
                     self.logger.error(
                         "Storage for flow run {} is not a supported type.".format(
@@ -135,7 +137,7 @@ class LocalAgent(Agent):
             "PREFECT__CLOUD__API": config.cloud.api,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": flow_run.name,  # type: ignore
+            "PREFECT__CONTEXT__FLOW_RUN_NAME": '"{}"'.format(flow_run.name),  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",

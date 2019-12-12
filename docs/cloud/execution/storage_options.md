@@ -17,6 +17,25 @@ storage.build()
 
 The Flow is now available under `/.prefect/flows/local-flow.prefect`. **Note**: Flows registered with this Storage option will automatically be labeled with `hostname.local`.
 
+## Azure Blob Storage
+
+[Azure Storage](/api/unreleased/environments/storage.html#azure) is a Storage option which uploads Flows to an Azure Blob container. Currently Flows stored using this option can only be run by [Local Agents](/cloud/agent/local.html) as long as the machine running the Local Agent is configured to download from that Azure Blob container using a connection string.
+
+```python
+from prefect import Flow
+from prefect.environments.storage import Azure
+
+flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string="<my-connection-string>"))
+
+storage.build()
+```
+
+The Flow is now available in the container under `azure-flow/slugified-current-timestamp`. **Note**: Flows registered with this Storage option will automatically be labeled with `azure-flow-storage`.
+
+:::tip Azure Credentials
+Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) which means both upload (build) and download (Local Agent) times need to have a working Azure connection string. Azure Storage will also look in the environment variable `CONNECTION_STRING` if it is not passed to the class directly.
+:::
+
 ## AWS S3
 
 [S3 Storage](/api/unreleased/environments/storage.html#s3) is a Storage option which uploads Flows to an AWS S3 bucket. Currently Flows stored using this option can only be run by [Local Agents](/cloud/agent/local.html) as long as the machine running the Local Agent is configured to download from an S3 bucket.

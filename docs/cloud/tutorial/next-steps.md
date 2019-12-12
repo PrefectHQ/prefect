@@ -12,7 +12,7 @@ To learn more about Prefect Agents, [Flow affinity](/cloud/agent/overview.html#f
 
 ## Storage Options
 
-Store your Flows in the cloud using S3 or GCS! For more information visit the [Storage Options](/cloud/execution/storage_options.html) documentation.
+Store your Flows in the cloud using Azure, GCS, or S3! For more information visit the [Storage Options](/cloud/execution/storage_options.html) documentation.
 
 ## Execution Environments
 

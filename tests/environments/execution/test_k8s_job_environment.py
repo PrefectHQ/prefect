@@ -296,7 +296,7 @@ def test_populate_job_yaml():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "name_test"
+        assert env[3]["value"] == '"name_test"'
         assert env[4]["value"] == "namespace_test"
         assert env[5]["value"] == "test1/test2:test3"
         assert env[6]["value"] == "test4"
@@ -361,7 +361,7 @@ def test_populate_job_yaml_no_defaults():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "name_test"
+        assert env[3]["value"] == '"name_test"'
         assert env[4]["value"] == "namespace_test"
         assert env[5]["value"] == "test1/test2:test3"
         assert env[6]["value"] == "test4"
@@ -430,7 +430,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "name_test"
+        assert env[3]["value"] == '"name_test"'
         assert env[4]["value"] == "namespace_test"
         assert env[5]["value"] == "test1/test2:test3"
         assert env[6]["value"] == "test4"
@@ -454,7 +454,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[0]["value"] == "gql_test"
         assert env[1]["value"] == "auth_test"
         assert env[2]["value"] == "id_test"
-        assert env[3]["value"] == "name_test"
+        assert env[3]["value"] == '"name_test"'
         assert env[4]["value"] == "namespace_test"
         assert env[5]["value"] == "test1/test2:test3"
         assert env[6]["value"] == "test4"

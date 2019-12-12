@@ -494,7 +494,7 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "name"},
+                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": '"name"'},
                 ],
             }
         ]

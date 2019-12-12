@@ -6,7 +6,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix YAML validation issues if Flow Run name had unsupported characters - [#1834](https://github.com/PrefectHQ/prefect/pull/1834)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.8.0 <Badge text="beta" type="success"/>
+
+Released on Dec 11, 2019.
+
+### Features
+
 - Added new Local Agent to run Flows from Local Storage, S3 Storage, and GCS Storage - [#1819](https://github.com/PrefectHQ/prefect/pull/1819)
+- Added Azure Blob Storage for Flows - [#1831](https://github.com/PrefectHQ/prefect/pull/1831)
 - Added GCS Storage for Flows - [#1809](https://github.com/PrefectHQ/prefect/pull/1809)
 - Added S3 Storage for Flows - [#1753](https://github.com/PrefectHQ/prefect/pull/1753)
 
@@ -22,7 +55,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Azure Blob tasks now use newer `BlockBlobService` with connection string authentication - [#1831](https://github.com/PrefectHQ/prefect/pull/1831)
 
 ### Fixes
 

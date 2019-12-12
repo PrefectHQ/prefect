@@ -117,9 +117,6 @@ def start(
 
     \b
     Local Agent Options:
-        --base-url, -b      TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull                   Pull images for a LocalAgent
-                                    Defaults to pulling if not provided
         --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
                                     Used for Flows which might import from scripts or local packages.
                                     Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
@@ -127,8 +124,8 @@ def start(
 
     \b
     Docker Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull               Pull images for a LocalAgent
+        --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
+        --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
 
     \b
