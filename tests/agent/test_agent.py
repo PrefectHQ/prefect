@@ -144,20 +144,6 @@ def test_query_flow_runs(monkeypatch, runner_token):
     assert flow_runs == [{"id": "id"}]
 
 
-def test_update_states_passes_empty(monkeypatch, runner_token):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
-
-    agent = Agent()
-    assert not agent.update_states(flow_runs=[])
-
-
 def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -169,17 +155,16 @@ def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    assert not agent.update_states(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "id": "id",
-                    "serialized_state": Scheduled().serialize(),
-                    "version": 1,
-                    "task_runs": [],
-                }
-            )
-        ]
+    assert not agent.update_state(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [],
+            }
+        ),
+        deployment_info="test",
     )
 
 
@@ -194,31 +179,55 @@ def test_update_states_passes_task_runs(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    assert not agent.update_states(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "id": "id",
-                    "serialized_state": Scheduled().serialize(),
-                    "version": 1,
-                    "task_runs": [
-                        GraphQLResult(
-                            {
-                                "id": "id",
-                                "version": 1,
-                                "serialized_state": Scheduled().serialize(),
-                            }
-                        )
-                    ],
-                }
-            )
-        ]
+    assert not agent.update_state(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [
+                    GraphQLResult(
+                        {
+                            "id": "id",
+                            "version": 1,
+                            "serialized_state": Scheduled().serialize(),
+                        }
+                    )
+                ],
+            }
+        ),
+        deployment_info="test",
+    )
+
+
+def test_mark_failed(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    assert not agent.mark_failed(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [],
+            }
+        ),
+        exc=Exception(),
     )
 
 
 def test_deploy_flows_passes_base_agent(runner_token):
     agent = Agent()
-    assert not agent.deploy_flows([])
+    with pytest.raises(NotImplementedError):
+        agent.deploy_flow(None)
 
 
 def test_heartbeat_passes_base_agent(runner_token):

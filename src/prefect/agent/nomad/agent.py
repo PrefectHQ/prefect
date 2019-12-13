@@ -41,19 +41,17 @@ class NomadAgent(Agent):
         Raises:
             - ValueError: if deployment attempted on unsupported Storage type
         """
-        for flow_run in flow_runs:
+        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+            self.logger.error(
+                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
+            )
+            raise ValueError("Unsupported Storage type")
 
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-                )
-                raise ValueError("Unsupported Storage type")
+        job_spec = self.replace_job_spec_json(flow_run)
+        nomad_host = os.getenv("NOMAD_HOST", "http://127.0.0.1:4646")
+        requests.post(path.join(nomad_host, "v1/jobs"), json=job_spec)
 
-            job_spec = self.replace_job_spec_json(flow_run)
-            nomad_host = os.getenv("NOMAD_HOST", "http://127.0.0.1:4646")
-            requests.post(path.join(nomad_host, "v1/jobs"), json=job_spec)
-
-            return "Job ID: {}".format(job_spec["Job"]["ID"])
+        return "Job ID: {}".format(job_spec["Job"]["ID"])
 
     def replace_job_spec_json(self, flow_run: GraphQLResult) -> dict:
         """
