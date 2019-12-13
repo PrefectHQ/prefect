@@ -117,7 +117,7 @@ class LocalAgent(Agent):
             "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
         )
 
-        return "PID {}".format(p.pid)
+        return "PID: {}".format(p.pid)
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
