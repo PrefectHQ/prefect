@@ -6,8 +6,28 @@ import pytest
 import prefect.schedules.filters as filters
 
 
+def test_on_datetime_0():
+    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2, 3, 4, 5))
+    assert filter_fn(pendulum.datetime(2019, 1, 2, 3, 4, 5))
+
+
+def test_on_datetime_1():
+    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2,))
+    assert filter_fn(pendulum.datetime(2019, 1, 2,))
+
+
+def test_on_datetime_2():
+    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2, 3, 4))
+    assert not filter_fn(pendulum.datetime(2019, 1, 2, 3, 4, 5))
+
+
+def test_on_datetime_3():
+    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2, 3, 4, 5))
+    assert not filter_fn(pendulum.datetime(2019, 1, 2, 3, 4))
+
+
 @pytest.mark.parametrize(
-    "test_dates",
+    "test_datetimes",
     [
         (pendulum.datetime(2019, 1, 1), pendulum.datetime(2019, 1, 2), True),
         (pendulum.datetime(2019, 1, 1), pendulum.datetime(2019, 1, 1), False),
@@ -20,10 +40,21 @@ import prefect.schedules.filters as filters
         ),
     ],
 )
-def test_between_datetimes(test_dates):
+def test_between_datetimes(test_datetimes):
     dt = pendulum.datetime(2019, 1, 1, 6)
-    filter_fn = filters.between_datetimes(test_dates[0], test_dates[1])
-    assert filter_fn(dt) is test_dates[2]
+    filter_fn = filters.between_datetimes(test_datetimes[0], test_datetimes[1])
+    assert filter_fn(dt) is test_datetimes[2]
+
+
+def test_on_date():
+    filter_fn = filters.on_date(3, 4)
+
+    assert filter_fn(pendulum.datetime(2019, 3, 4))
+    assert not filter_fn(pendulum.datetime(2019, 3, 5))
+    assert filter_fn(pendulum.datetime(2019, 3, 4, 5, 6))
+    assert filter_fn(pendulum.datetime(2034, 3, 4))
+    assert not filter_fn(pendulum.datetime(2034, 3, 5))
+    assert not filter_fn(pendulum.datetime(2034, 4, 4))
 
 
 @pytest.mark.parametrize(
@@ -41,6 +72,22 @@ def test_between_dates(test_dates):
     dt = pendulum.datetime(2019, 6, 1)
     filter_fn = filters.between_dates(*test_dates[0])
     assert filter_fn(dt) is test_dates[1]
+
+
+@pytest.mark.parametrize(
+    "test_times",
+    [
+        (pendulum.datetime(2019, 1, 2, 4, 30), False),
+        (pendulum.datetime(2019, 1, 2, 3, 30), True),
+        (pendulum.datetime(2020, 1, 2, 3, 30), True),
+        (pendulum.datetime(2019, 4, 5, 3, 30), True),
+        (pendulum.datetime(2019, 4, 5, 3, 30, 1), False),
+    ],
+)
+def test_at_time(test_times):
+    test_dt, result = test_times
+    filter_fn = filters.at_time(pendulum.time(3, 30))
+    assert filter_fn(test_dt) is result
 
 
 @pytest.mark.parametrize(

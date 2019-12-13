@@ -114,6 +114,9 @@ schedule.next(2)
 
 Prefect provides a variety of event filters, including:
 
+- `on_datetime` (allows events on a certain datetime)
+- `on_date` (allows events on a certain date, for example March 15)
+- `at_time` (allows events at a certain time, such as 3:30pm)
 - `between_datetimes` (allows events between two specific datetimes)
 - `between_times` (allows events between two times, for example 9am and 5pm)
 - `between_dates` (allows events between two calendar dates, such as January 1 and March 31)
