@@ -73,6 +73,9 @@ class DockerAgent(Agent):
 
         Returns:
             - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore

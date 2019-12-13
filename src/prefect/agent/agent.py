@@ -463,6 +463,9 @@ class Agent:
 
         Returns:
             - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
         raise NotImplementedError()
 

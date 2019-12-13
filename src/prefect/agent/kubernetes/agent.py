@@ -10,7 +10,6 @@ import yaml
 import prefect
 from prefect import config
 from prefect.agent import Agent
-from prefect.engine.state import Failed
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
@@ -70,6 +69,9 @@ class KubernetesAgent(Agent):
 
         Returns:
             - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.debug(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
