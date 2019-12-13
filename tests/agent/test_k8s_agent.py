@@ -127,7 +127,9 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
         }
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+    ):
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
 
@@ -145,11 +147,44 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
         assert env[2]["value"] == "id"
         assert env[3]["value"] == "name"
         assert env[4]["value"] == "default"
+        assert env[5]["value"] == "[]"
+        assert env[6]["value"] == "true"
 
         assert (
             job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
             == "my-secret"
         )
+
+
+@pytest.mark.parametrize("flag", [True, False])
+def test_k8s_agent_replace_yaml_responds_to_logging_config(
+    monkeypatch, runner_token, flag
+):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+            "name": "name",
+        }
+    )
+
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
+    ):
+        agent = KubernetesAgent()
+        job = agent.replace_job_spec_yaml(flow_run)
+        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        assert env[6]["value"] == str(flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):

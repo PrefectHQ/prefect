@@ -49,14 +49,15 @@ def test_local_agent_config_options(runner_token):
         }
 
 
-def test_local_agent_responds_to_logging_config(runner_token):
+@pytest.mark.parametrize("flag", [True, False])
+def test_local_agent_responds_to_logging_config(runner_token, flag):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": False}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": flag}
     ):
         agent = LocalAgent()
         assert agent.log_to_cloud is False
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
-        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == "false"
+        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
 
 def test_local_agent_config_options_hostname(runner_token):

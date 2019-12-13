@@ -108,7 +108,13 @@ def test_populate_env_vars(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
         agent = DockerAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
@@ -133,7 +139,13 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
         agent = DockerAgent(labels=["42", "marvin"])
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
@@ -152,6 +164,26 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
         }
 
         assert env_vars == expected_vars
+
+
+@pytest.mark.parametrize("flag", [True, False])
+def test_populate_env_vars_is_responsive_to_logging_config(
+    monkeypatch, runner_token, flag
+):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": flag,
+        }
+    ):
+        agent = DockerAgent(labels=["42", "marvin"])
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
 
 def test_docker_agent_deploy_flows(monkeypatch, runner_token):
