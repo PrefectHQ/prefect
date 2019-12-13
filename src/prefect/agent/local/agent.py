@@ -63,65 +63,61 @@ class LocalAgent(Agent):
                             self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on your local machine as Docker containers
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
         """
-        for flow_run in flow_runs:
-            self.logger.info(
-                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        self.logger.info(
+            "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        )
+
+        storage = StorageSchema().load(flow_run.flow.storage)
+        if not isinstance(
+            StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3)
+        ):
+            self.logger.error(
+                "Storage for flow run {} is not a supported type.".format(
+                    flow_run.id
+                )
             )
+            raise ValueError("Unsupported Storage type")
 
-            try:
-                storage = StorageSchema().load(flow_run.flow.storage)
-                if not isinstance(
-                    StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3)
-                ):
-                    self.logger.error(
-                        "Storage for flow run {} is not a supported type.".format(
-                            flow_run.id
-                        )
-                    )
-                    continue
+        env_vars = self.populate_env_vars(flow_run=flow_run)
+        current_env = os.environ.copy()
+        current_env.update(env_vars)
 
-                env_vars = self.populate_env_vars(flow_run=flow_run)
-                current_env = os.environ.copy()
-                current_env.update(env_vars)
+        python_path = []
+        if current_env.get("PYTHONPATH"):
+            python_path.append(current_env.get("PYTHONPATH"))
 
-                python_path = []
-                if current_env.get("PYTHONPATH"):
-                    python_path.append(current_env.get("PYTHONPATH"))
+        python_path.append(os.getcwd())
 
-                python_path.append(os.getcwd())
+        if self.import_paths:
+            python_path += self.import_paths
 
-                if self.import_paths:
-                    python_path += self.import_paths
+        current_env["PYTHONPATH"] = ":".join(python_path)
 
-                current_env["PYTHONPATH"] = ":".join(python_path)
+        stdout = sys.stdout if self.show_flow_logs else PIPE
 
-                stdout = sys.stdout if self.show_flow_logs else PIPE
+        p = Popen(
+            ["prefect", "execute", "cloud-flow"],
+            stdout=stdout,
+            stderr=STDOUT,
+            env=current_env,
+        )
 
-                p = Popen(
-                    ["prefect", "execute", "cloud-flow"],
-                    stdout=stdout,
-                    stderr=STDOUT,
-                    env=current_env,
-                )
+        self.processes.append(p)
+        self.logger.debug(
+            "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
+        )
 
-                self.processes.append(p)
-                self.logger.debug(
-                    "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
-                )
-            except Exception as exc:
-                self.client.set_flow_run_state(
-                    flow_run_id=flow_run.id,
-                    version=flow_run.version + 1,
-                    state=Failed(message=str(exc)),
-                )
-                self.logger.error("Error while deploying flow: {}".format(repr(exc)))
+        return "PID {}".format(p.pid)
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
