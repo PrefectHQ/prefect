@@ -3,6 +3,7 @@ import socket
 from unittest.mock import MagicMock
 
 import pytest
+from marshmallow.exceptions import ValidationError
 from testfixtures.mock import call
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
@@ -122,18 +123,14 @@ def test_local_agent_deploy_processes_local_storage(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -146,16 +143,14 @@ def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult({"storage": GCS(bucket="test").serialize()}),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": GCS(bucket="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -168,16 +163,14 @@ def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult({"storage": S3(bucket="test").serialize()}),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": S3(bucket="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -190,25 +183,21 @@ def test_local_agent_deploy_processes_azure_storage(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Azure(container="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Azure(container="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
     assert len(agent.processes) == 1
 
 
-def test_local_agent_deploy_storage_continues_not_supported_storage(
+def test_local_agent_deploy_storage_raises_not_supported_storage(
     monkeypatch, runner_token
 ):
 
@@ -216,13 +205,13 @@ def test_local_agent_deploy_storage_continues_not_supported_storage(
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+
+    with pytest.raises(ValueError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id",}
             )
-        ]
-    )
+        )
 
     assert not popen.called
     assert len(agent.processes) == 0
@@ -239,19 +228,18 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+
+    with pytest.raises(ValidationError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {"flow": GraphQLResult({"storage": None}), "id": "id", "version": 1}
             )
-        ]
-    )
+        )
 
     assert not popen.called
     assert len(agent.processes) == 0
 
     assert client.called
-    assert set_state.called
 
 
 def test_local_agent_deploy_pwd(monkeypatch, runner_token):
@@ -261,18 +249,14 @@ def test_local_agent_deploy_pwd(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -285,18 +269,14 @@ def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent(import_paths=["paths"])
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -311,18 +291,14 @@ def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token)
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent(import_paths=["paths"])
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     python_path = popen.call_args[1]["env"]["PYTHONPATH"]
@@ -340,18 +316,14 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent(import_paths=["paths"])
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert popen.called
@@ -405,18 +377,14 @@ def test_local_agent_heartbeat(
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
 
     agent = LocalAgent(import_paths=["paths"], show_flow_logs=show_flow_logs)
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {"storage": Local(directory="test").serialize()}
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     process = agent.processes[0]
