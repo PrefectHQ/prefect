@@ -311,7 +311,9 @@ class Agent:
         won't be picked up by any other processes
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - deployment_info (str): Identifier information related to the Flow Run
+                deployment
         """
         self.logger.debug(
             "Updating states for flow run {}".format(flow_run.id)  # type: ignore
@@ -353,6 +355,14 @@ class Agent:
                 )
 
     def mark_failed(self, flow_run: GraphQLResult, exc: Exception) -> None:
+        """
+        Mark a flow run as `Failed`
+
+        Args:
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - exc (Exception): An exception that was raised to use as the `Failed`
+                message
+        """
         self.client.set_flow_run_state(
             flow_run_id=flow_run.id,
             version=flow_run.version,
