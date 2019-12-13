@@ -55,7 +55,7 @@ def test_local_agent_responds_to_logging_config(runner_token, flag):
         {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": flag}
     ):
         agent = LocalAgent()
-        assert agent.log_to_cloud is False
+        assert agent.log_to_cloud is flag
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
         assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
