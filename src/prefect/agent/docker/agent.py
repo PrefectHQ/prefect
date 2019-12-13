@@ -98,9 +98,7 @@ class DockerAgent(Agent):
             )
             for line in pull_output:
                 self.logger.debug(line)
-            self.logger.info(
-                "Successfully pulled image {}...".format(storage.name)
-            )
+            self.logger.info("Successfully pulled image {}...".format(storage.name))
 
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))

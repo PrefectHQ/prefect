@@ -187,7 +187,7 @@ class Agent:
                 # Iterate over flow runs
                 for flow_run in flow_runs:
 
-                    # Deploy flow runs and mark failed if any deployment error
+                    # Deploy flow run and mark failed if any deployment error
                     try:
                         deployment_info = self.deploy_flow(flow_run)
                         self.update_state(flow_run, deployment_info)
@@ -360,59 +360,6 @@ class Agent:
         )
         self.logger.error("Error while deploying flow: {}".format(repr(exc)))
 
-    ################################################
-    # DELETE                                       #
-    ################################################
-
-    def update_states(self, flow_runs: list) -> None:
-        """
-        After a flow run is grabbed this function sets the state to Submitted so it
-        won't be picked up by any other processes
-
-        Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
-        """
-        for flow_run in flow_runs:
-
-            self.logger.debug(
-                "Updating states for flow run {}".format(flow_run.id)  # type: ignore
-            )
-
-            # Set flow run state to `Submitted` if it is currently `Scheduled`
-            if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
-
-                self.logger.debug(
-                    "Flow run {} is in a Scheduled state, updating to Submitted".format(
-                        flow_run.id  # type: ignore
-                    )
-                )
-                self.client.set_flow_run_state(
-                    flow_run_id=flow_run.id,
-                    version=flow_run.version,
-                    state=Submitted(
-                        message="Submitted for execution",
-                        state=state.StateSchema().load(flow_run.serialized_state),
-                    ),
-                )
-
-            # Set task run states to `Submitted` if they are currently `Scheduled`
-            for task_run in flow_run.task_runs:
-                if state.StateSchema().load(task_run.serialized_state).is_scheduled():
-
-                    self.logger.debug(
-                        "Task run {} is in a Scheduled state, updating to Submitted".format(
-                            task_run.id  # type: ignore
-                        )
-                    )
-                    self.client.set_task_run_state(
-                        task_run_id=task_run.id,
-                        version=task_run.version,
-                        state=Submitted(
-                            message="Submitted for execution",
-                            state=state.StateSchema().load(task_run.serialized_state),
-                        ),
-                    )
-
     def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
         """
         Log platform issues to Prefect Cloud, attached to each flow run which
@@ -439,20 +386,6 @@ class Agent:
                     )
                 ]
             )
-
-    ################################################
-    # DELETE                                       #
-    ################################################
-
-    def deploy_flows(self, flow_runs: list) -> None:
-        """
-        Meant to be overridden by a platform specific deployment option
-
-        Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
-        """
-        pass
-
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """

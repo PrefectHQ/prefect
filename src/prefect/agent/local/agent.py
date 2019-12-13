@@ -84,9 +84,7 @@ class LocalAgent(Agent):
             StorageSchema().load(flow_run.flow.storage), (Local, Azure, GCS, S3)
         ):
             self.logger.error(
-                "Storage for flow run {} is not a supported type.".format(
-                    flow_run.id
-                )
+                "Storage for flow run {} is not a supported type.".format(flow_run.id)
             )
             raise ValueError("Unsupported Storage type")
 
