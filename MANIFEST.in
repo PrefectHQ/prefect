@@ -3,6 +3,7 @@ include src/prefect/config.toml
 include versioneer.py
 include requirements.txt
 include dev-requirements.txt
+include test-requirements.txt
 include src/prefect/_version.py
 include src/prefect/_siginfo.py
 include src/prefect/_sig29/*.txt
