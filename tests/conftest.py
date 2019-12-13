@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -41,6 +42,7 @@ def mthread():
         yield DaskExecutor(client.scheduler.address)
         try:
             client.close()
+            time.sleep(2)
         except:
             pass
 
@@ -64,6 +66,7 @@ def mproc():
         yield DaskExecutor(client.scheduler.address, local_processes=True)
         try:
             client.close()
+            time.sleep(2)
         except:
             pass
 
