@@ -127,7 +127,7 @@ class DaskKubernetesEnvironment(Environment):
                 raise EnvironmentError("Environment not currently inside a cluster")
 
             v1 = client.CoreV1Api()
-            namespace = prefect.context.get("namespace", "")
+            namespace = prefect.context.get("namespace", "default")
             secret_name = namespace + "-docker"
             secrets = v1.list_namespaced_secret(namespace=namespace, watch=False)
             if not [
@@ -348,8 +348,8 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
-        env[3]["value"] = '"{}"'.format(flow_run_name)
-        env[4]["value"] = prefect.context.get("namespace", "")
+        env[3]["value"] = flow_run_name
+        env[4]["value"] = prefect.context.get("namespace", "default")
         env[5]["value"] = docker_name
         env[6]["value"] = flow_file_path
         env[13]["value"] = str(self.work_stealing)
@@ -381,9 +381,10 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
+        env[3]["value"] = prefect.context.get("flow_run_name", "")
 
         if self.private_registry:
-            namespace = prefect.context.get("namespace", "")
+            namespace = prefect.context.get("namespace", "default")
             pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
@@ -434,13 +435,10 @@ class DaskKubernetesEnvironment(Environment):
                 "value": prefect.config.cloud.auth_token,
             },
             {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
-            {
-                "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                "value": '"{}"'.format(flow_run_name),
-            },
+            {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
             {
                 "name": "PREFECT__CONTEXT__NAMESPACE",
-                "value": prefect.context.get("namespace", ""),
+                "value": prefect.context.get("namespace", "default"),
             },
             {"name": "PREFECT__CONTEXT__IMAGE", "value": docker_name},
             {"name": "PREFECT__CONTEXT__FLOW_FILE_PATH", "value": flow_file_path},
@@ -498,7 +496,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                "value": '"{}"'.format(prefect.context.get("flow_run_name", "")),
+                "value": prefect.context.get("flow_run_name", ""),
             },
             {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
             {
