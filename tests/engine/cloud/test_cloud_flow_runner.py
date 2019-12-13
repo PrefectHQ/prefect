@@ -559,7 +559,8 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
         def get_flow_run_info(self, *args, **kwargs):
             return MagicMock(
-                task_runs=[MagicMock(task_slug=log_stuff.slug, id="TESTME")]
+                id="flowRunID",
+                task_runs=[MagicMock(task_slug=log_stuff.slug, id="TESTME")],
             )
 
     monkeypatch.setattr("prefect.client.Client", Client)
