@@ -185,6 +185,9 @@ class FargateAgent(Agent):
 
         # run task
         task_arn = self._run_task(flow_run)
+
+        self.logger.debug("Run created for task {}".format(task_arn))
+
         return "Task ARN: {}".format(task_arn)
 
     def _verify_task_definition_exists(self, flow_run: GraphQLResult) -> bool:

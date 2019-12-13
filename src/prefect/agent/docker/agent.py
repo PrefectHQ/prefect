@@ -112,6 +112,8 @@ class DockerAgent(Agent):
         )
         self.docker_client.start(container=container.get("Id"))
 
+        self.logger.debug("Docker container {} started".format(container.get("Id")))
+
         return "Container ID: {}".format(container.get("Id"))
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:

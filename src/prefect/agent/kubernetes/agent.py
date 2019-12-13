@@ -93,6 +93,8 @@ class KubernetesAgent(Agent):
             namespace=os.getenv("NAMESPACE", "default"), body=job_spec
         )
 
+        self.logger.debug("Job {} created".format(job.metadata.name))
+
         return "Job {}".format(job.metadata.name)
 
     def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
