@@ -9,6 +9,7 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
 import atexit
+import json
 import logging
 import sys
 import threading
@@ -87,7 +88,11 @@ class CloudHandler(logging.StreamHandler):
             atexit.register(self.flush)
 
     def put(self, log: dict) -> None:
-        self.queue.put(log)
+        try:
+            json.dumps(log)  # make sure the payload is serializable
+            self.queue.put(log)
+        except TypeError as exc:
+            self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
