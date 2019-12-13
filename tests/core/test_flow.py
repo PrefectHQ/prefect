@@ -225,6 +225,20 @@ def test_set_dependencies_converts_unkeyed_arguments_to_tasks():
     assert f.constants[t1] == dict(x=4)
 
 
+@pytest.mark.parametrize(
+    "val", [[[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+)
+def test_set_dependencies_with_nested_ordered_constants_creates_a_single_constant(val):
+    class ReturnTask(Task):
+        def run(self, x):
+            return x
+
+    with Flow("test") as f:
+        task = ReturnTask()(x=val)
+    assert f.run().result[task].result == val
+    assert f.constants[task] == dict(x=val)
+
+
 def test_set_dependencies_creates_mapped_edges():
     t1 = Task()
     t2 = Task()
@@ -1052,9 +1066,7 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" shape=box' in graph.source
         assert "label=a_list_task shape=ellipse" in graph.source
         assert "label=x style=dashed" in graph.source
-        assert (
-            "label=y style=dashed" not in graph.source
-        )  # constants are no longer represented
+        assert "label=y style=dashed" in graph.source
 
     def test_viz_can_handle_skipped_mapped_tasks(self):
         ipython = MagicMock(
@@ -1071,9 +1083,7 @@ class TestFlowVisualize:
         assert 'label="a_nice_task <map>" color="#62757f80"' in graph.source
         assert 'label=a_list_task color="#28a74580"' in graph.source
         assert "label=x style=dashed" in graph.source
-        assert (
-            "label=y style=dashed" not in graph.source
-        )  # constants are no longer represented
+        assert "label=y style=dashed" in graph.source
 
     @pytest.mark.parametrize("state", [Success(), Failed(), Skipped()])
     def test_viz_if_flow_state_provided(self, state):
@@ -1101,7 +1111,7 @@ class TestFlowVisualize:
         map_state = Mapped(map_states=[Success(), Failed()])
         with patch.dict("sys.modules", IPython=ipython):
             with Flow(name="test") as f:
-                res = add.map(x=list_task, y=prefect.tasks.core.constants.Constant(8))
+                res = add.map(x=list_task, y=8)
             graph = f.visualize(
                 flow_state=Success(result={res: map_state, list_task: Success()})
             )
@@ -1121,12 +1131,9 @@ class TestFlowVisualize:
             'label=a_list_task color="{success}80"'.format(success=Success.color)
             in graph.source
         )
-        assert 'label=8 color="#00000080"' in graph.source
 
-        # two edges for each input to add()
-        for var in ["x", "y"]:
-            for index in [0, 1]:
-                assert "{0} [label={1} style=dashed]".format(index, var) in graph.source
+        for index in [0, 1]:
+            assert "{0} [label=x style=dashed]".format(index) in graph.source
 
     def test_viz_reflects_multiple_mapping_if_flow_state_provided(self):
         ipython = MagicMock(
@@ -2505,20 +2512,6 @@ class TestSaveLoad:
         assert list(new_obj_from_slug.tasks)[0].name == "foo"
         assert list(new_obj_from_slug.tasks)[0].slug == t.slug
         assert new_obj_from_slug.name == "I aM a-test!"
-
-
-def test_auto_generation_of_collection_tasks_is_robust():
-    @task
-    def do_nothing(arg):
-        pass
-
-    with Flow("constants") as flow:
-        do_nothing({"x": 1, "y": [9, 10]})
-
-    assert len(flow.tasks) == 5
-
-    flow_state = flow.run()
-    assert flow_state.is_successful()
 
 
 @pytest.mark.skipif(
