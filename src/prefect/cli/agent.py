@@ -197,6 +197,9 @@ def start(
 )
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
 @click.option(
+    "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -225,6 +228,7 @@ def install(
     image_pull_secrets,
     resource_manager,
     rbac,
+    latest,
     label,
     import_path,
     show_flow_logs,
@@ -250,6 +254,7 @@ def install(
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
+        --latest                            Use the `latest` Prefect image
 
     \b
     Local Agent Options:
@@ -277,6 +282,7 @@ def install(
             image_pull_secrets=image_pull_secrets,
             resource_manager_enabled=resource_manager,
             rbac=rbac,
+            latest=latest,
             labels=list(label),
         )
         click.echo(deployment)
