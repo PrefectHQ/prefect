@@ -11,6 +11,23 @@ from typing import Callable
 import pendulum
 
 
+def on_datetime(dt: datetime) -> Callable[[datetime], bool]:
+    """
+    Filter that allows events that match a specific datetime.
+
+    Args:
+        - dt (datetime): the datetime to match
+
+    Returns:
+        - Callable[[datetime], bool]: a filter function
+    """
+
+    def _filter_fn(dt_2: datetime) -> bool:
+        return dt_2 == dt
+
+    return _filter_fn
+
+
 def between_datetimes(start: datetime, end: datetime) -> Callable[[datetime], bool]:
     """
     Filter that allows events between a start time and end time
@@ -29,6 +46,24 @@ def between_datetimes(start: datetime, end: datetime) -> Callable[[datetime], bo
     return _filter_fn
 
 
+def on_date(month: int, day: int) -> Callable[[datetime], bool]:
+    """
+    Filter that allows events that match a specific date in any year
+
+    Args:
+        - month (int): the month as a number (1 = January)
+        - day (int): the day as a number
+
+    Returns:
+        - Callable[[datetime], bool]: a filter function
+    """
+
+    def _filter_fn(dt: datetime) -> bool:
+        return (dt.month, dt.day) == (month, day)
+
+    return _filter_fn
+
+
 def between_dates(
     start_month: int, start_day: int, end_month: int, end_day: int
 ) -> Callable[[datetime], bool]:
@@ -39,7 +74,7 @@ def between_dates(
     and March 31 in any year.
 
     Args:
-        - start_month (int): the starting month, as a number
+        - start_month (int): the starting month, as a number (1 = January)
         - start_day (int): the starting day, as a number
         - end_month (int): the ending month, as a number
         - end_day (int): the ending day, as a number
@@ -57,6 +92,23 @@ def between_dates(
         # otherwise they represent dates across two years
         else:
             return date >= (start_month, start_day) or date <= (end_month, end_day)
+
+    return _filter_fn
+
+
+def at_time(t: time) -> Callable[[datetime], bool]:
+    """
+    Filter that allows events that match a specific time.
+
+    Args:
+        - t (time): the time to match
+
+    Returns:
+        - Callable[[datetime], bool]: a filter function
+    """
+
+    def _filter_fn(dt: datetime) -> bool:
+        return dt.time() == t
 
     return _filter_fn
 
