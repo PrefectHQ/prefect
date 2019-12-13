@@ -10,7 +10,7 @@ import pendulum
 
 from prefect import config
 from prefect.client import Client
-from prefect.engine.state import Submitted
+from prefect.engine.state import Failed, Submitted
 from prefect.serialization import state
 from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
@@ -184,8 +184,16 @@ class Agent:
                     )
                 )
 
-                self.update_states(flow_runs)
-                self.deploy_flows(flow_runs)
+                # Iterate over flow runs
+                for flow_run in flow_runs:
+
+                    # Deploy flow run and mark failed if any deployment error
+                    try:
+                        deployment_info = self.deploy_flow(flow_run)
+                        self.update_state(flow_run, deployment_info)
+                    except Exception as exc:
+                        self.mark_failed(flow_run=flow_run, exc=exc)
+
                 self.logger.info(
                     "Submitted {} flow run(s) for execution.".format(len(flow_runs))
                 )
@@ -297,54 +305,70 @@ class Agent:
         else:
             return []
 
-    def update_states(self, flow_runs: list) -> None:
+    def update_state(self, flow_run: GraphQLResult, deployment_info: str) -> None:
         """
         After a flow run is grabbed this function sets the state to Submitted so it
         won't be picked up by any other processes
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - deployment_info (str): Identifier information related to the Flow Run
+                deployment
         """
-        for flow_run in flow_runs:
+        self.logger.debug(
+            "Updating states for flow run {}".format(flow_run.id)  # type: ignore
+        )
+
+        # Set flow run state to `Submitted` if it is currently `Scheduled`
+        if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
 
             self.logger.debug(
-                "Updating states for flow run {}".format(flow_run.id)  # type: ignore
+                "Flow run {} is in a Scheduled state, updating to Submitted".format(
+                    flow_run.id  # type: ignore
+                )
+            )
+            self.client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                version=flow_run.version,
+                state=Submitted(
+                    message="Submitted for execution. {}".format(deployment_info),
+                    state=state.StateSchema().load(flow_run.serialized_state),
+                ),
             )
 
-            # Set flow run state to `Submitted` if it is currently `Scheduled`
-            if state.StateSchema().load(flow_run.serialized_state).is_scheduled():
+        # Set task run states to `Submitted` if they are currently `Scheduled`
+        for task_run in flow_run.task_runs:
+            if state.StateSchema().load(task_run.serialized_state).is_scheduled():
 
                 self.logger.debug(
-                    "Flow run {} is in a Scheduled state, updating to Submitted".format(
-                        flow_run.id  # type: ignore
+                    "Task run {} is in a Scheduled state, updating to Submitted".format(
+                        task_run.id  # type: ignore
                     )
                 )
-                self.client.set_flow_run_state(
-                    flow_run_id=flow_run.id,
-                    version=flow_run.version,
+                self.client.set_task_run_state(
+                    task_run_id=task_run.id,
+                    version=task_run.version,
                     state=Submitted(
-                        message="Submitted for execution",
-                        state=state.StateSchema().load(flow_run.serialized_state),
+                        message="Submitted for execution. {}".format(deployment_info),
+                        state=state.StateSchema().load(task_run.serialized_state),
                     ),
                 )
 
-            # Set task run states to `Submitted` if they are currently `Scheduled`
-            for task_run in flow_run.task_runs:
-                if state.StateSchema().load(task_run.serialized_state).is_scheduled():
+    def mark_failed(self, flow_run: GraphQLResult, exc: Exception) -> None:
+        """
+        Mark a flow run as `Failed`
 
-                    self.logger.debug(
-                        "Task run {} is in a Scheduled state, updating to Submitted".format(
-                            task_run.id  # type: ignore
-                        )
-                    )
-                    self.client.set_task_run_state(
-                        task_run_id=task_run.id,
-                        version=task_run.version,
-                        state=Submitted(
-                            message="Submitted for execution",
-                            state=state.StateSchema().load(task_run.serialized_state),
-                        ),
-                    )
+        Args:
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+            - exc (Exception): An exception that was raised to use as the `Failed`
+                message
+        """
+        self.client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            version=flow_run.version,
+            state=Failed(message=str(exc)),
+        )
+        self.logger.error("Error while deploying flow: {}".format(repr(exc)))
 
     def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
         """
@@ -373,14 +397,20 @@ class Agent:
                 ]
             )
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Meant to be overridden by a platform specific deployment option
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
-        pass
+        raise NotImplementedError()
 
     def heartbeat(self) -> None:
         """

@@ -153,33 +153,42 @@ class FargateAgent(Agent):
 
         return task_definition_kwargs, task_run_kwargs
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs to Fargate
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
-        for flow_run in flow_runs:
-            self.logger.debug(
-                "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        self.logger.debug(
+            "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        )
+
+        # Require Docker storage
+        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+            self.logger.error(
+                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
             )
+            raise ValueError("Unsupported Storage type")
 
-            # Require Docker storage
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-                )
-                continue
+        # check if task definition exists
+        self.logger.debug("Checking for task definition")
+        if not self._verify_task_definition_exists(flow_run):
+            self.logger.debug("No task definition found")
+            self._create_task_definition(flow_run)
 
-            # check if task definition exists
-            self.logger.debug("Checking for task definition")
-            if not self._verify_task_definition_exists(flow_run):
-                self.logger.debug("No task definition found")
-                self._create_task_definition(flow_run)
+        # run task
+        task_arn = self._run_task(flow_run)
 
-            # run task
-            self._run_task(flow_run)
+        self.logger.debug("Run created for task {}".format(task_arn))
+
+        return "Task ARN: {}".format(task_arn)
 
     def _verify_task_definition_exists(self, flow_run: GraphQLResult) -> bool:
         """
@@ -266,7 +275,7 @@ class FargateAgent(Agent):
             **self.task_definition_kwargs
         )
 
-    def _run_task(self, flow_run: GraphQLResult) -> None:
+    def _run_task(self, flow_run: GraphQLResult) -> str:
         """
         Run a task using the flow run.
 
@@ -299,7 +308,7 @@ class FargateAgent(Agent):
                 flow_run.flow.id[:8]  # type: ignore
             )
         )
-        self.boto3_client.run_task(
+        task = self.boto3_client.run_task(
             taskDefinition="prefect-task-{}".format(
                 flow_run.flow.id[:8]  # type: ignore
             ),
@@ -307,6 +316,8 @@ class FargateAgent(Agent):
             launchType="FARGATE",
             **self.task_run_kwargs
         )
+
+        return task["tasks"][0].get("taskArn")
 
 
 if __name__ == "__main__":

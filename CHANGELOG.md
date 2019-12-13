@@ -13,6 +13,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Enhanced treatment of nested and ordered constant values - [#1829](https://github.com/PrefectHQ/prefect/pull/1829)
 - Add `on_datetime`, `on_date`, and `at_time` filters - [#1837](https://github.com/PrefectHQ/prefect/pull/1837)
 - Add `--latest` flag for Kubernetes Agent install CLI command - [#1842](https://github.com/PrefectHQ/prefect/pull/1842)
+- Agents mark Flow Runs as `Failed` if a deployment error occurs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- `Submitted` states from Agents include deployment identifier information - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 
 ### Task Library
 
@@ -20,9 +22,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Fix Agent deployment errors interrupting full list of found Flow Runs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- Fix issue with a single bad log preventing all logs from being sent to Cloud - [#1845](https://github.com/PrefectHQ/prefect/pull/1845)
 - Fix Kubernetes Agent passing empty default namespace - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
 - Fix missing Flow Run name on Dask Kubernetes Environment default worker pod - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
-- Fix issue with a single bad log preventing all logs from being sent to Cloud - [#1845](https://github.com/PrefectHQ/prefect/pull/1845)
 
 ### Deprecations
 
