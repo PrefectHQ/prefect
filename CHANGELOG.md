@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Add `on_datetime`, `on_date`, and `at_time` filters - [#1837](https://github.com/PrefectHQ/prefect/pull/1837)
 - Add `--latest` flag for Kubernetes Agent install CLI command - [#1842](https://github.com/PrefectHQ/prefect/pull/1842)
 
 ### Task Library
