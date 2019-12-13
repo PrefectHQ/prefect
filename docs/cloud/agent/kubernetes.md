@@ -6,7 +6,7 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 ### Requirements
 
-The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace.
+The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace. During [installation](/cloud/agent/kubernetes.html#installation) the Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -17,6 +17,9 @@ metadata:
 rules:
 - apiGroups: ["batch", "extensions"]
   resources: ["jobs"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods"]
   verbs: ["*"]
 
 ---
@@ -120,15 +123,14 @@ The `install` command for Kubernetes will output a YAML deployment definition th
 
 :::tip Namespace
 By default, running `kubectl apply -f -` will apply the manifest against the _default_ namespace. To ensure the agent is deployed into your desired namespace it must be specified:
-:::
 
 ```
-kubectl apply -n AGENT_NAMESPACE -f -
+kubectl apply --namespace=AGENT_NAMESPACE -f -
 ```
 
 :::
 
-Now you should be able to see the agent deployment created on your cluster:
+Now you should be able to see the agent deployment created and running on your cluster:
 
 ```
 $ kubectl get deploy

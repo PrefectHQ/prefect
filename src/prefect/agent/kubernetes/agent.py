@@ -134,8 +134,9 @@ class KubernetesAgent(Agent):
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = os.getenv("NAMESPACE", "default")
-        env[4]["value"] = str(self.labels)
+        env[3]["value"] = flow_run.name  # type: ignore
+        env[4]["value"] = os.getenv("NAMESPACE", "default")
+        env[5]["value"] = str(self.labels)
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
@@ -152,6 +153,7 @@ class KubernetesAgent(Agent):
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
         rbac: bool = False,
+        latest: bool = False,
         labels: Iterable[str] = None,
     ) -> str:
         """
@@ -169,6 +171,8 @@ class KubernetesAgent(Agent):
                 manager as part of the YAML. Defaults to `False`
             - rbac (bool, optional): Whether to include default RBAC configuration as
                 part of the YAML. Defaults to `False`
+            - latest (bool, optional): Whether to use the `latest` Prefect image.
+                Defaults to `False`
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
@@ -183,7 +187,9 @@ class KubernetesAgent(Agent):
         labels = labels or []
 
         version = prefect.__version__.split("+")
-        image_version = "latest" if len(version) > 1 else (version[0] + "-python3.6")
+        image_version = (
+            "latest" if len(version) > 1 or latest else (version[0] + "-python3.6")
+        )
 
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"

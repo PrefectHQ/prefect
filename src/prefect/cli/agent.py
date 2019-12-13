@@ -117,9 +117,6 @@ def start(
 
     \b
     Local Agent Options:
-        --base-url, -b      TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull                   Pull images for a LocalAgent
-                                    Defaults to pulling if not provided
         --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
                                     Used for Flows which might import from scripts or local packages.
                                     Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
@@ -127,8 +124,8 @@ def start(
 
     \b
     Docker Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull               Pull images for a LocalAgent
+        --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
+        --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
 
     \b
@@ -200,6 +197,9 @@ def start(
 )
 @click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
 @click.option(
+    "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -228,6 +228,7 @@ def install(
     image_pull_secrets,
     resource_manager,
     rbac,
+    latest,
     label,
     import_path,
     show_flow_logs,
@@ -253,6 +254,7 @@ def install(
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
+        --latest                            Use the `latest` Prefect image
 
     \b
     Local Agent Options:
@@ -280,6 +282,7 @@ def install(
             image_pull_secrets=image_pull_secrets,
             resource_manager_enabled=resource_manager,
             rbac=rbac,
+            latest=latest,
             labels=list(label),
         )
         click.echo(deployment)
