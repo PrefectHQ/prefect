@@ -523,6 +523,23 @@ class TestHeartBeats:
         assert res.is_successful()
         assert len(results.split()) >= 50
 
+    def test_task_runner_does_not_have_heartbeat_if_disabled(self, client):
+        # mock the returned value from the flow
+        mock = MagicMock(
+            flow_run=MagicMock(
+                flow=MagicMock(settings=MagicMock(disable_heartbeat=True))
+            )
+        )
+        client.graphql = MagicMock(return_value=mock)
+
+        # set up the CloudTaskRunner and its task
+        @prefect.task
+        def sleeper():
+            time.sleep(2)
+
+        runner = CloudTaskRunner(task=sleeper)
+        assert runner._heartbeat() is False
+
     @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
     def test_task_runner_has_a_heartbeat_with_timeouts(self, executor, monkeypatch):
         with tempfile.TemporaryDirectory() as call_dir:
@@ -954,9 +971,23 @@ def test_db_cancelled_states_interrupt_task_run(client, monkeypatch):
 
     def heartbeat_counter(*args, **kwargs):
         if calls["count"] == 3:
-            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+            return Box(
+                dict(
+                    data=dict(
+                        flow_run_by_pk=dict(
+                            state="Cancelled", flow=dict(settings=dict())
+                        )
+                    )
+                )
+            )
         calls["count"] += 1
-        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+        return Box(
+            dict(
+                data=dict(
+                    flow_run_by_pk=dict(state="Running", flow=dict(settings=dict()))
+                )
+            )
+        )
 
     client.graphql = heartbeat_counter
 
