@@ -1,38 +1,10 @@
 """
 The tasks in this module can be used to represent constant values.
 
-In general, users will not instantiate these tasks by hand; they will automatically be
-applied when users create dependencies between a task and a constant value.
+In general, users will not instantiate these tasks by hand; they will be automatically created
+whenever the Prefect engine detects that a constant value is required. In many cases, Prefect
+will not add `Constant` tasks to the graph; optimizing them as flow-level attributes instead.
 
-Constant tasks are most commonly used to prevent Prefect from creating a large number
-of auto-generated tasks in Python collections.  For example,
-
-```python
-from prefect import task, Flow
-from prefect.tasks.core.constants import Constant
-
-@task
-def do_nothing(values):
-    return values
-
-with Flow("Many Small Tasks") as large_flow:
-    result = do_nothing({"x": 1, "z": 99})
-
-large_flow.tasks
-#    {<Task: 'x'>,
-#     <Task: 'z'>,
-#     <Task: 1>,
-#     <Task: 99>,
-#     <Task: Dict>,
-#     <Task: List>,
-#     <Task: List>,
-#     <Task: do_nothing>}
-
-with Flow("Two Tasks") as small_flow:
-    result = do_nothing(Constant({"x": 1, "z": 99}))
-
-small_flow.tasks
-# {<Task: Constant[dict]>, <Task: do_nothing>}
 ```
 """
 

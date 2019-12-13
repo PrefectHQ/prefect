@@ -7,6 +7,7 @@ from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.signals import PAUSE
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks
+from prefect.tasks.core.constants import Constant
 
 
 class TestTaskDecorator:
@@ -122,18 +123,55 @@ class TestAsTask:
     def test_as_task_toggles_constants(self):
         with Flow("test") as f:
             t = tasks.as_task(4)
-            s = tasks.as_task(5, convert_constants=False)
 
         assert isinstance(t, Task)
         assert t.name == "4"
-
-        assert not isinstance(s, Task)
-        assert s == 5
 
     def test_as_task_doesnt_label_tasks_as_auto_generated(self):
         t = Task()
         assert t.auto_generated is False
         assert tasks.as_task(t).auto_generated is False
+
+    @pytest.mark.parametrize(
+        "val", [[[[]]], [[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+    )
+    def test_nested_collections_of_constants_are_constants(self, val):
+        task = tasks.as_task(val)
+        assert isinstance(task, Constant)
+        assert task.value == val
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            [[[3, Task()]]],
+            [1, Task(), (3, [4])],
+            [([1, 2, Task()],)],
+            {"a": Task(), "b": [2]},
+        ],
+    )
+    def test_nested_collections_of_mixed_constants_are_not_constants(self, val):
+        with Flow("test") as f:
+            task = tasks.as_task(val)
+        assert not isinstance(task, Constant)
+
+    @pytest.mark.parametrize(
+        "val", [[[[]]], [[[3]]], [1, 2, (3, [4])], [([1, 2, 3],)], {"a": 1, "b": [2]}]
+    )
+    def test_nested_collections(self, val):
+        with Flow("test") as f:
+            task = tasks.as_task(val)
+            f.add_task(task)
+        assert f.run().result[task].result == val
+
+    def test_ordered_collections(self):
+        """
+        Tests that ordered collections maintain order
+        """
+        val = [[list(range(100))]]
+        with Flow("test") as f:
+            task = tasks.as_task(val)
+            f.add_task(task)
+        assert f.run().result[task].result == val
 
 
 def test_tag_contextmanager_works_with_task_decorator():
