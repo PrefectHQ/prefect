@@ -41,7 +41,7 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
         assert agent.batch_client
 
 
-def test_k8s_agent_deploy_flows(monkeypatch, runner_token):
+def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -52,23 +52,21 @@ def test_k8s_agent_deploy_flows(monkeypatch, runner_token):
     )
 
     agent = KubernetesAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert agent.batch_client.create_namespaced_job.called
@@ -81,7 +79,7 @@ def test_k8s_agent_deploy_flows(monkeypatch, runner_token):
     )
 
 
-def test_k8s_agent_deploy_flows_continues(monkeypatch, runner_token):
+def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -92,16 +90,15 @@ def test_k8s_agent_deploy_flows_continues(monkeypatch, runner_token):
     )
 
     agent = KubernetesAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+    with pytest.raises(ValueError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {
                     "flow": GraphQLResult({"storage": Local().serialize(), "id": "id"}),
                     "id": "id",
                 }
             )
-        ]
-    )
+        )
 
     assert not agent.batch_client.create_namespaced_job.called
 
