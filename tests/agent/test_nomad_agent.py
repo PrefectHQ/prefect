@@ -71,7 +71,8 @@ def test_nomad_agent_deploy_flows_continues(monkeypatch, runner_token):
     assert not requests.post.called
 
 
-def test_nomad_agent_replace_yaml(runner_token):
+@pytest.mark.parametrize("flag", [True, False])
+def test_nomad_agent_replace_yaml(runner_token, flag):
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {
@@ -88,7 +89,8 @@ def test_nomad_agent_replace_yaml(runner_token):
             }
         )
 
-        agent = NomadAgent()
+        with set_temporary_config({"logging.log_to_cloud": flag}):
+            agent = NomadAgent()
         job = agent.replace_job_spec_json(flow_run)
 
         assert job["Job"]["TaskGroups"][0]["Tasks"][0]["Name"] == "id"
@@ -103,3 +105,4 @@ def test_nomad_agent_replace_yaml(runner_token):
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__FLOW_RUN_NAME"] == "name"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"
+        assert env["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()

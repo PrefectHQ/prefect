@@ -78,6 +78,7 @@ class NomadAgent(Agent):
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
         env["PREFECT__CONTEXT__FLOW_RUN_NAME"] = flow_run.name  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
+        env["PREFECT__LOGGING__LOG_TO_CLOUD"] = str(self.log_to_cloud).lower()
 
         return job
 
