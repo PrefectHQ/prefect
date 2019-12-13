@@ -169,6 +169,36 @@ def test_cloud_handler_responds_to_config(caplog, monkeypatch):
         logger.handlers = []
 
 
+def test_cloud_handler_removes_bad_logs_from_queue_and_continues(caplog, monkeypatch):
+    calls = []
+
+    class Client:
+        def write_run_logs(self, *args, **kwargs):
+            calls.append(dict(args=args, kwargs=kwargs))
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+    try:
+        logger = utilities.logging.configure_logging(testing=True)
+        cloud_handler = logger.handlers[-1]
+        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
+
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger.critical("one")
+            logger.critical(b"two")
+            logger.critical("three")
+
+        time.sleep(0.75)
+        assert len(calls) == 1
+        msgs = [c["message"] for c in calls[0]["args"][0]]
+        assert msgs == ["one", "three"]
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
 def test_get_logger_returns_root_logger():
     assert utilities.logging.get_logger() is logging.getLogger("prefect")
 
