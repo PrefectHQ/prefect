@@ -11,6 +11,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add `--latest` flag for Kubernetes Agent install CLI command - [#1842](https://github.com/PrefectHQ/prefect/pull/1842)
+- Agents mark Flow Runs as `Failed` if a deployment error occurs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- `Submitted` states from Agents include deployment identifier information - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 
 ### Task Library
 
@@ -20,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix Kubernetes Agent passing empty default namespace - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
 - Fix missing Flow Run name on Dask Kubernetes Environment default worker pod - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
+- Fix Agent deployment errors interrupting full list of found Flow Runs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 
 ### Deprecations
 
