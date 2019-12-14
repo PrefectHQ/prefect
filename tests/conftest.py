@@ -41,8 +41,8 @@ def mthread():
     with Client(processes=False) as client:
         yield DaskExecutor(client.scheduler.address)
         try:
-            client.close()
             logging.disable(logging.CRITICAL)
+            client.close()
         except:
             pass
 
@@ -65,8 +65,8 @@ def mproc():
     with Client(processes=True) as client:
         yield DaskExecutor(client.scheduler.address, local_processes=True)
         try:
-            client.close()
             logging.disable(logging.CRITICAL)
+            client.close()
         except:
             pass
 
