@@ -1596,6 +1596,7 @@ class TestTaskStateHandlers:
             with prefect.utilities.debug.raise_on_exception():
                 TaskRunner(task=task).run()
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
     def test_task_handler_errors_are_logged(self, caplog):
         def handler(*args, **kwargs):
             raise SyntaxError("oops")
@@ -1961,6 +1962,7 @@ class TestLooping:
         assert len([s for s in glob if s.is_running()]) == 3
         assert len([s for s in glob if s.is_successful()]) == 1
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
     def test_looping_doesnt_aggressively_log_task_starting(self, caplog):
         @prefect.task
         def my_task():
@@ -1977,6 +1979,7 @@ class TestLooping:
         ]
         assert len(logs) == 1
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
     def test_looping_doesnt_aggressively_log_task_finished(self, caplog):
         @prefect.task
         def my_task():

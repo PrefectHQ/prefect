@@ -350,6 +350,7 @@ def test_client_is_always_called_even_during_failures(client):
     assert len([s for s in task_states if s.is_failed()]) == 1
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
 def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     client = MagicMock(update_flow_run_heartbeat=MagicMock(side_effect=SyntaxError))
     monkeypatch.setattr(

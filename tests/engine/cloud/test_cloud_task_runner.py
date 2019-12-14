@@ -458,6 +458,7 @@ def test_task_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
 
 
 class TestHeartBeats:
+    @pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
     def test_heartbeat_traps_errors_caused_by_client(self, caplog, monkeypatch):
         client = MagicMock(update_task_run_heartbeat=MagicMock(side_effect=SyntaxError))
         monkeypatch.setattr(
@@ -473,6 +474,7 @@ class TestHeartBeats:
         assert log.levelname == "ERROR"
         assert "Heartbeat failed for Task 'bad'" in log.message
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
     def test_heartbeat_traps_errors_caused_by_bad_attributes(self, caplog, monkeypatch):
         monkeypatch.setattr("prefect.engine.cloud.task_runner.Client", MagicMock())
         runner = CloudTaskRunner(task=Task())
@@ -696,6 +698,7 @@ class TestStateResultHandling:
         assert states[2].cached_inputs == dict(x=x, y=y)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Logging tests fail on Windows")
 def test_state_handler_failures_are_handled_appropriately(client, caplog):
     def bad(*args, **kwargs):
         raise SyntaxError("Syntax Errors are nice because they're so unique")
