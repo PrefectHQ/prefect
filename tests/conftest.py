@@ -40,12 +40,6 @@ def mthread():
     "Multi-threaded executor"
     with Client(processes=False) as client:
         yield DaskExecutor(client.scheduler.address)
-        try:
-            nanny_logger = logging.getLogger("nanny")
-            nanny_logger.parent.handlers[0].setLevel(logging.CRITICAL)
-            client.close()
-        except:
-            pass
 
 
 @pytest.fixture()
@@ -65,12 +59,6 @@ def mproc():
     "Multi-processing executor"
     with Client(processes=True) as client:
         yield DaskExecutor(client.scheduler.address, local_processes=True)
-        try:
-            nanny_logger = logging.getLogger("nanny")
-            nanny_logger.parent.handlers[0].setLevel(logging.CRITICAL)
-            client.close()
-        except:
-            pass
 
 
 @pytest.fixture()

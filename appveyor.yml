@@ -15,4 +15,4 @@ install:
   - "%PYTHON%/Scripts/pip.exe install .[all_extras]"
 
 test_script:
-- "%PYTHON%/Scripts/pytest . --skip-formatting"
+- "%PYTHON%/Scripts/pytest . --skip-formatting --log-level=CRITICAL"
