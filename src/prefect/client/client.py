@@ -45,6 +45,7 @@ FlowRunInfoResult = NamedTuple(
     "FlowRunInfoResult",
     [
         ("id", str),
+        ("name", str),
         ("flow_id", str),
         ("parameters", Dict[str, Any]),
         ("context", Dict[str, Any]),
@@ -731,6 +732,7 @@ class Client:
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
                     "id": True,
+                    "name": True,
                     "flow_id": True,
                     "parameters": True,
                     "context": True,
