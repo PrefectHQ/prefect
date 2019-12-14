@@ -2173,7 +2173,11 @@ class TestFlowRunMethod:
             ),
         )
         f.run()
-        assert REPORTED_START_TIMES == start_times
+
+        # ignore microseconds for windows machines
+        assert [d.replace(microsecond=0) for d in REPORTED_START_TIMES] == [
+            d.replace(microsecond=0) for d in start_times
+        ]
 
     def test_flow_dot_run_handles_keyboard_signals_gracefully(self):
         class BadExecutor(LocalExecutor):
