@@ -178,7 +178,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        assert env[6]["value"] == str(flag).lower()
+        assert env[5]["value"] == str(flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):

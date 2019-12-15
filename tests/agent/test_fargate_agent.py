@@ -784,7 +784,7 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
 
     with set_temporary_config({"logging.log_to_cloud": True}):
         agent = FargateAgent()
- 
+
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
