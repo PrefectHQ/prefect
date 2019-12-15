@@ -8,6 +8,7 @@ from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from jira import JIRA
 
 import requests
 from toolz import curry
@@ -19,7 +20,8 @@ if TYPE_CHECKING:
     import prefect.client
     from prefect import Flow, Task
 
-__all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
+__all__ = ["callback_factory", "gmail_notifier",
+           "slack_notifier", "jira_notifier"]
 TrackedObjectType = Union["Flow", "Task"]
 
 
@@ -103,7 +105,8 @@ def email_message_formatter(
     <br><br>
     Message: {msg}
     """.format(
-        name=tracked_obj.name, color=state.color, state=type(state).__name__, msg=msg
+        name=tracked_obj.name, color=state.color, state=type(
+            state).__name__, msg=msg
     )
 
     contents = MIMEMultipart("alternative")
@@ -111,7 +114,8 @@ def email_message_formatter(
     contents.attach(MIMEText(html.format(color=color, text=text), "html"))
 
     contents["Subject"] = Header(
-        "Prefect state change notification for {}".format(tracked_obj.name), "UTF-8"
+        "Prefect state change notification for {}".format(
+            tracked_obj.name), "UTF-8"
     )
     contents["From"] = "notifications@prefect.io"
     contents["To"] = email_to
@@ -150,6 +154,12 @@ def slack_message_formatter(
         ]
     }
     return data
+
+
+def jira_message_formatter(tracked_obj: TrackedObjectType, state: "prefect.engine.state.State") -> str:
+    msg = "{0} is now in a {1} state".format(
+        tracked_obj.name, type(state).__name__),
+    return msg
 
 
 @curry
@@ -213,7 +223,8 @@ def gmail_notifier(
     try:
         server.sendmail("notifications@prefect.io", username, body)
     except:
-        raise ValueError("Email notification for {} failed".format(tracked_obj))
+        raise ValueError(
+            "Email notification for {} failed".format(tracked_obj))
     finally:
         server.quit()
 
@@ -279,5 +290,76 @@ def slack_notifier(
     form_data = slack_message_formatter(tracked_obj, new_state)
     r = requests.post(webhook_url, json=form_data)
     if not r.ok:
-        raise ValueError("Slack notification for {} failed".format(tracked_obj))
+        raise ValueError(
+            "Slack notification for {} failed".format(tracked_obj))
+    return new_state
+
+
+@curry
+def jira_notifier(
+    tracked_obj: TrackedObjectType,
+    old_state: "prefect.engine.state.State",
+    new_state: "prefect.engine.state.State",
+    ignore_states: list = None,
+    only_states: list = None,
+    webhook_secret: str = None,
+) -> "prefect.engine.state.State":
+    """
+    Slack state change handler; requires having the Prefect slack app installed.
+    Works as a standalone state handler, or can be called from within a custom
+    state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+
+    Args:
+        - tracked_obj (Task or Flow): Task or Flow object the handler is
+            registered with
+        - old_state (State): previous state of tracked object
+        - new_state (State): new state of tracked object
+        - ignore_states ([State], optional): list of `State` classes to ignore,
+            e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but
+            instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
+        - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack webhook URL;
+            defaults to `"SLACK_WEBHOOK_URL"`
+
+    Returns:
+        - State: the `new_state` object that was provided
+
+    Raises:
+        - ValueError: if the slack notification fails for any reason
+
+    Example:
+        ```python
+        from prefect import task
+        from prefect.utilities.notifications import slack_notifier
+
+        @task(state_handlers=[slack_notifier(ignore_states=[Running])]) # uses currying
+        def add(x, y):
+            return x + y
+        ```
+    """
+    username = cast(str, prefect.client.Secret("JIRAUSER").get())
+    password = cast(str, prefect.client.Secret("JIRATOKEN").get())
+    serverURL = cast(str, prefect.client.Secret("SERVER").get())
+    projectName = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+
+    ignore_states = ignore_states or []
+    only_states = only_states or []
+
+    if any([isinstance(new_state, ignored) for ignored in ignore_states]):
+        return new_state
+
+    if only_states and not any(
+        [isinstance(new_state, included) for included in only_states]
+    ):
+        return new_state
+
+    summaryText = jira_message_formatter(tracked_obj, new_state)
+
+    jira = JIRA(basic_auth=(username,
+                            password), options={'server': serverURL})
+    created = jira.create_issue(
+        project=projectName, summary=summaryText, issuetype={'name': 'Task'})
+    if not created:
+        raise ValueError(
+            "Jira notification for {} failed".format(tracked_obj))
     return new_state
