@@ -405,7 +405,6 @@ def test_deploy_flow_raises(monkeypatch, runner_token):
                         {"storage": Local().serialize(), "id": "id",}
                     ),
                     "id": "id",
-                    "name": "name",
                 }
             )
         )
@@ -500,7 +499,6 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -517,7 +515,6 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "name"},
                 ],
             }
         ]
@@ -553,7 +550,6 @@ def test_deploy_flow_register_task_definition(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -623,7 +619,6 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -725,7 +720,6 @@ def test_deploy_flow_includes_agent_labels_in_environment(monkeypatch, runner_to
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -796,7 +790,6 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )

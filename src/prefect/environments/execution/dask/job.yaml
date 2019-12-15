@@ -26,8 +26,6 @@ spec:
               value: PREFECT__CLOUD__AUTH_TOKEN
             - name: PREFECT__CONTEXT__FLOW_RUN_ID
               value: PREFECT__CONTEXT__FLOW_RUN_ID
-            - name: PREFECT__CONTEXT__FLOW_RUN_NAME
-              value: PREFECT__CONTEXT__FLOW_RUN_NAME
             - name: PREFECT__CONTEXT__NAMESPACE
               value: PREFECT__CONTEXT__NAMESPACE
             - name: PREFECT__CONTEXT__IMAGE
