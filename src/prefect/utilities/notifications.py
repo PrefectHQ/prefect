@@ -157,7 +157,7 @@ def slack_message_formatter(
 
 
 def jira_message_formatter(tracked_obj: TrackedObjectType, state: "prefect.engine.state.State") -> str:
-    msg = "Task {0} is now in a {1} state".format(
+    msg = "Task {0} is in a {1} state".format(
         tracked_obj.name, type(state).__name__),
     return msg
 
@@ -353,7 +353,6 @@ def jira_notifier(
         return new_state
 
     summaryText = str(jira_message_formatter(tracked_obj, new_state))
-    print('**********SUMMARY TEXT', summaryText)
 
     jira = JIRA(basic_auth=(username,
                             password), options={'server': serverURL})
