@@ -60,33 +60,42 @@ class KubernetesAgent(Agent):
 
         self.batch_client = client.BatchV1Api()
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on to a k8s cluster as jobs
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
-        for flow_run in flow_runs:
-            self.logger.debug(
-                "Deploying flow run {}".format(flow_run.id)  # type: ignore
-            )
+        self.logger.debug(
+            "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        )
 
-            # Require Docker storage
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-                )
-                continue
-
-            job_spec = self.replace_job_spec_yaml(flow_run)
-
-            self.logger.debug(
-                "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+        # Require Docker storage
+        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+            self.logger.error(
+                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
             )
-            self.batch_client.create_namespaced_job(
-                namespace=os.getenv("NAMESPACE", "default"), body=job_spec
-            )
+            raise ValueError("Unsupported Storage type")
+
+        job_spec = self.replace_job_spec_yaml(flow_run)
+
+        self.logger.debug(
+            "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+        )
+        job = self.batch_client.create_namespaced_job(
+            namespace=os.getenv("NAMESPACE", "default"), body=job_spec
+        )
+
+        self.logger.debug("Job {} created".format(job.metadata.name))
+
+        return "Job {}".format(job.metadata.name)
 
     def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
         """
@@ -109,7 +118,6 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"]["app"] = job_name
         job["metadata"]["labels"]["identifier"] = identifier
         job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
-        job["metadata"]["labels"]["flow_run_name"] = flow_run.name  # type: ignore
         job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
         job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
         job["spec"]["template"]["metadata"]["labels"][
@@ -134,10 +142,9 @@ class KubernetesAgent(Agent):
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = flow_run.name  # type: ignore
-        env[4]["value"] = os.getenv("NAMESPACE", "default")
-        env[5]["value"] = str(self.labels)
-        env[6]["value"] = str(self.log_to_cloud).lower()
+        env[3]["value"] = os.getenv("NAMESPACE", "default")
+        env[4]["value"] = str(self.labels)
+        env[5]["value"] = str(self.log_to_cloud).lower()
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(

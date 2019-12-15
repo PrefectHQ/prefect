@@ -124,7 +124,6 @@ def test_populate_env_vars(monkeypatch, runner_token):
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -155,7 +154,6 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
             "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -186,8 +184,7 @@ def test_populate_env_vars_is_responsive_to_logging_config(
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
 
-def test_docker_agent_deploy_flows(monkeypatch, runner_token):
-
+def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
@@ -196,22 +193,20 @@ def test_docker_agent_deploy_flows(monkeypatch, runner_token):
     )
 
     agent = DockerAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert api.pull.called
@@ -222,7 +217,7 @@ def test_docker_agent_deploy_flows(monkeypatch, runner_token):
     assert api.start.call_args[1]["container"] == "container_id"
 
 
-def test_docker_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
+def test_docker_agent_deploy_flow_storage_raises(monkeypatch, runner_token):
 
     monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
     api = MagicMock()
@@ -233,9 +228,10 @@ def test_docker_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
     )
 
     agent = DockerAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+
+    with pytest.raises(ValueError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {
                     "flow": GraphQLResult({"storage": Local().serialize()}),
                     "id": "id",
@@ -243,13 +239,12 @@ def test_docker_agent_deploy_flows_storage_continues(monkeypatch, runner_token):
                     "version": "version",
                 }
             )
-        ]
-    )
+        )
 
     assert not api.pull.called
 
 
-def test_docker_agent_deploy_flows_no_pull(monkeypatch, runner_token):
+def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
 
     api = MagicMock()
     api.ping.return_value = True
@@ -259,22 +254,20 @@ def test_docker_agent_deploy_flows_no_pull(monkeypatch, runner_token):
     )
 
     agent = DockerAgent(no_pull=True)
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert not api.pull.called
@@ -282,7 +275,7 @@ def test_docker_agent_deploy_flows_no_pull(monkeypatch, runner_token):
     assert api.start.called
 
 
-def test_docker_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner_token):
+def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_token):
 
     api = MagicMock()
     api.ping.return_value = True
@@ -292,22 +285,20 @@ def test_docker_agent_deploy_flows_no_registry_does_not_pull(monkeypatch, runner
     )
 
     agent = DockerAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="", image_name="name", image_tag="tag"
-                            ).serialize()
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert not api.pull.called

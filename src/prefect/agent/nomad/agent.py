@@ -28,24 +28,30 @@ class NomadAgent(Agent):
     def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
         super().__init__(name=name, labels=labels)
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on to a Nomad cluster as jobs
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
-        for flow_run in flow_runs:
+        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+            self.logger.error(
+                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
+            )
+            raise ValueError("Unsupported Storage type")
 
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-                )
-                continue
+        job_spec = self.replace_job_spec_json(flow_run)
+        nomad_host = os.getenv("NOMAD_HOST", "http://127.0.0.1:4646")
+        requests.post(path.join(nomad_host, "v1/jobs"), json=job_spec)
 
-            job_spec = self.replace_job_spec_json(flow_run)
-            nomad_host = os.getenv("NOMAD_HOST", "http://127.0.0.1:4646")
-            requests.post(path.join(nomad_host, "v1/jobs"), json=job_spec)
+        return "Job ID: {}".format(job_spec["Job"]["ID"])
 
     def replace_job_spec_json(self, flow_run: GraphQLResult) -> dict:
         """
@@ -76,7 +82,6 @@ class NomadAgent(Agent):
         env["PREFECT__CLOUD__API"] = config.cloud.api or "https://api.prefect.io"
         env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = config.cloud.agent.auth_token
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
-        env["PREFECT__CONTEXT__FLOW_RUN_NAME"] = flow_run.name  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
         env["PREFECT__LOGGING__LOG_TO_CLOUD"] = str(self.log_to_cloud).lower()
 

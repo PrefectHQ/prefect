@@ -55,6 +55,19 @@ schedule = Schedule(clocks=[IntervalClock(timedelta(hours=24))])
 schedule.next(5)
 ```
 
+::: tip Time Zones
+Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock e.g.:
+
+```
+schedules.clocks.IntervalClock(
+    start_date=pendulum.datetime(
+        2019, 1, 1, tz="America/New York", interval=timedelta(days=1)
+    )
+)
+```
+
+:::
+
 ::: warning Daylight Saving Time
 If the `IntervalClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself appropriately. Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals. For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this will result in two runs that _appear_ to both be scheduled for 1am local time, even though they are an hour apart in UTC time. For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
@@ -101,6 +114,9 @@ schedule.next(2)
 
 Prefect provides a variety of event filters, including:
 
+- `on_datetime` (allows events on a certain datetime)
+- `on_date` (allows events on a certain date, for example March 15)
+- `at_time` (allows events at a certain time, such as 3:30pm)
 - `between_datetimes` (allows events between two specific datetimes)
 - `between_times` (allows events between two times, for example 9am and 5pm)
 - `between_dates` (allows events between two calendar dates, such as January 1 and March 31)

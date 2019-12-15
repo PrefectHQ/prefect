@@ -920,6 +920,7 @@ def test_mapping_over_constants():
     with Flow("constants") as f:
         output = add_one.map(x=[1, 2, 3, 4])
 
-    flow_state = f.run()
+    with raise_on_exception():
+        flow_state = f.run()
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [2, 3, 4, 5]

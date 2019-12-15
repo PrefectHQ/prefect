@@ -24,7 +24,6 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
-    - `PREFECT__CONTEXT__FLOW_RUN_NAME`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
@@ -249,8 +248,6 @@ class FargateTaskEnvironment(Environment):
         from boto3 import client as boto3_client
 
         flow_run_id = prefect.context.get("flow_run_id", "unknown")
-        flow_run_name = prefect.context.get("flow_run_name", "unknown")
-
         container_overrides = [
             {
                 "name": "flow-container",
@@ -260,7 +257,6 @@ class FargateTaskEnvironment(Environment):
                         "value": config.cloud.agent.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": flow_run_name},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},
                     {
                         "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
@@ -309,7 +305,7 @@ class FargateTaskEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()
+                executor_cls = get_default_executor_class()()
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(

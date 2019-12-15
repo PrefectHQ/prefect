@@ -24,49 +24,46 @@ def test_nomad_agent_config_options(runner_token):
         assert agent.logger
 
 
-def test_nomad_agent_deploy_flows(monkeypatch, runner_token):
+def test_nomad_agent_deploy_flow(monkeypatch, runner_token):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
     agent = NomadAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert requests.post.called
     assert requests.post.call_args[1]["json"]
 
 
-def test_nomad_agent_deploy_flows_continues(monkeypatch, runner_token):
+def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
     requests = MagicMock()
     monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
 
     agent = NomadAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+
+    with pytest.raises(ValueError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {
                     "flow": GraphQLResult({"storage": Local().serialize(), "id": "id"}),
                     "id": "id",
                 }
             )
-        ]
-    )
+        )
 
     assert not requests.post.called
 
@@ -85,7 +82,6 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
 
@@ -103,6 +99,5 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
         assert env["PREFECT__CLOUD__API"] == "https://api.prefect.io"
         assert env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
-        assert env["PREFECT__CONTEXT__FLOW_RUN_NAME"] == "name"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"
         assert env["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()

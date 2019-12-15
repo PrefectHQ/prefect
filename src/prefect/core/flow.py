@@ -1,4 +1,3 @@
-import cloudpickle
 import collections
 import copy
 import functools
@@ -12,7 +11,6 @@ import uuid
 import warnings
 from collections import Counter
 from pathlib import Path
-from slugify import slugify
 from typing import (
     Any,
     Callable,
@@ -27,8 +25,10 @@ from typing import (
     cast,
 )
 
+import cloudpickle
 import pendulum
 from mypy_extensions import TypedDict
+from slugify import slugify
 
 import prefect
 import prefect.schedules
@@ -813,8 +813,13 @@ class Flow:
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t, flow=self, convert_constants=False)
-            if isinstance(t, Task):
+            t = as_task(t, flow=self)
+
+            # if the task can be represented as a constant and we don't need to map over it
+            # then we can optimize it out of the graph and into the special `constants` dict
+            if isinstance(t, prefect.tasks.core.constants.Constant) and not is_mapped:
+                self.constants[task].update({key: t.value})
+            else:
                 self.add_edge(
                     upstream_task=t,
                     downstream_task=task,
@@ -822,8 +827,6 @@ class Flow:
                     validate=validate,
                     mapped=is_mapped,
                 )
-            else:
-                self.constants[task].update({key: t})
 
     # Execution  ---------------------------------------------------------------
 

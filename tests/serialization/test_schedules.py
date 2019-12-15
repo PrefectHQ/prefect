@@ -25,7 +25,7 @@ def test_serialize_complex_schedule():
         filters=[filters.is_weekday],
         # only at 9am or 3pm
         or_filters=[
-            filters.between_times(pendulum.time(9), pendulum.time(9)),
+            filters.at_time(pendulum.time(9)),
             filters.between_times(pendulum.time(15), pendulum.time(15)),
         ],
         # not on january 8

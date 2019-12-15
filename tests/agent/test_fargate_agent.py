@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.agent.fargate import FargateAgent
-from prefect.environments.storage import Docker
+from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -387,43 +387,67 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     )
 
 
-def test_deploy_flows(monkeypatch, runner_token):
+def test_deploy_flow_raises(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = FargateAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
+
+    with pytest.raises(ValueError):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
                 {
                     "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
+                        {"storage": Local().serialize(), "id": "id",}
                     ),
                     "id": "id",
-                    "name": "name",
                 }
             )
-        ]
+        )
+
+    assert not boto3_client.describe_task_definition.called
+    assert not boto3_client.run_task.called
+
+
+def test_deploy_flow_raises(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+
+    boto3_client.describe_task_definition.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    agent = FargateAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
     assert boto3_client.run_task.called
 
 
-def test_deploy_flows_all_args(monkeypatch, runner_token):
+def test_deploy_flow_all_args(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
@@ -463,23 +487,20 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
         region_name="region",
         **kwarg_dict
     )
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
@@ -494,7 +515,6 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "name"},
                 ],
             }
         ]
@@ -508,33 +528,30 @@ def test_deploy_flows_all_args(monkeypatch, runner_token):
     }
 
 
-def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
+def test_deploy_flow_register_task_definition(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
     boto3_client.register_task_definition.return_value = {}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     agent = FargateAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
@@ -545,11 +562,11 @@ def test_deploy_flows_register_task_definition(monkeypatch, runner_token):
     )
 
 
-def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_token):
+def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
     boto3_client.register_task_definition.return_value = {}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
@@ -591,23 +608,20 @@ def test_deploy_flows_register_task_definition_all_args(monkeypatch, runner_toke
             region_name="region",
             **kwarg_dict
         )
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
@@ -656,7 +670,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
     boto3_client.register_task_definition.return_value = {}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
@@ -699,23 +713,20 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             labels=["aws", "staging"],
             **kwarg_dict
         )
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
@@ -760,36 +771,34 @@ def test_deploy_flows_includes_agent_labels_in_environment(
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
-def test_deploy_flows_register_task_definition_no_repo_credentials(
+def test_deploy_flow_register_task_definition_no_repo_credentials(
     monkeypatch, runner_token
 ):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
-    boto3_client.run_task.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
     boto3_client.register_task_definition.return_value = {}
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
     with set_temporary_config({"logging.log_to_cloud": True}):
         agent = FargateAgent()
-    agent.deploy_flows(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Docker(
-                                registry_url="test", image_name="name", image_tag="tag"
-                            ).serialize(),
-                            "id": "id",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                }
-            )
-        ]
+ 
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
     )
 
     assert boto3_client.describe_task_definition.called
