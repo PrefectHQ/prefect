@@ -301,8 +301,7 @@ def jira_notifier(
     old_state: "prefect.engine.state.State",
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
-    only_states: list = None,
-    webhook_secret: str = None,
+    only_states: list = None
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
@@ -354,6 +353,7 @@ def jira_notifier(
         return new_state
 
     summaryText = jira_message_formatter(tracked_obj, new_state)
+    print(summaryText)
 
     jira = JIRA(basic_auth=(username,
                             password), options={'server': serverURL})
