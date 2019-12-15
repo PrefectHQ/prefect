@@ -388,7 +388,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[7]["value"] == log_flag
+    assert env[7]["value"] == str(log_flag).lower()
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -431,7 +431,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[7]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[8]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[9]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[10]["value"] == log_flag
+    assert env[10]["value"] == str(log_flag).lower()
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]

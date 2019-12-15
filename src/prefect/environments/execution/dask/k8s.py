@@ -450,7 +450,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": prefect.config.logging.log_to_cloud,
+                "value": str(prefect.config.logging.log_to_cloud).lower(),
             },
         ]
 
@@ -505,7 +505,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": prefect.config.logging.log_to_cloud,
+                "value": str(prefect.config.logging.log_to_cloud).lower(),
             },
         ]
 
