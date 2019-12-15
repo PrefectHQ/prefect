@@ -352,8 +352,8 @@ def jira_notifier(
     ):
         return new_state
 
-    summaryText = str(jira_message_formatter(tracked_obj, new_state)
-                      print('**********SUMMARY TEXT', summaryText))
+    summaryText = str(jira_message_formatter(tracked_obj, new_state))
+    print('**********SUMMARY TEXT', summaryText)
 
     jira = JIRA(basic_auth=(username,
                             password), options={'server': serverURL})
