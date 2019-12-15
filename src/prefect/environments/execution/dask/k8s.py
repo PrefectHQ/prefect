@@ -448,7 +448,10 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
                 "value": "prefect.engine.executors.DaskExecutor",
             },
-            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            {
+                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                "value": prefect.config.logging.log_to_cloud,
+            },
         ]
 
         # set environment variables
@@ -500,7 +503,10 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS",
                 "value": "prefect.engine.executors.DaskExecutor",
             },
-            {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            {
+                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                "value": prefect.config.logging.log_to_cloud,
+            },
         ]
 
         # set environment variables
