@@ -262,9 +262,7 @@ def test_populate_job_yaml():
     with set_temporary_config(
         {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
-        with prefect.context(
-            flow_run_id="id_test", flow_run_name="name_test", namespace="namespace_test"
-        ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
                 yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
@@ -280,15 +278,13 @@ def test_populate_job_yaml():
     )
 
     env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
-    # breakpoint()
 
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "auth_test"
     assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "name_test"
-    assert env[4]["value"] == "namespace_test"
-    assert env[5]["value"] == "test1/test2:test3"
-    assert env[6]["value"] == "test4"
+    assert env[3]["value"] == "namespace_test"
+    assert env[4]["value"] == "test1/test2:test3"
+    assert env[5]["value"] == "test4"
     assert env[13]["value"] == "True"
 
     assert (
@@ -372,9 +368,7 @@ def test_populate_custom_worker_spec_yaml():
     with set_temporary_config(
         {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
-        with prefect.context(
-            flow_run_id="id_test", flow_run_name="name_test", image="my_image"
-        ):
+        with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_spec_yaml(yaml_obj=pod)
 
     assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
@@ -385,12 +379,11 @@ def test_populate_custom_worker_spec_yaml():
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "auth_test"
     assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "name_test"
-    assert env[4]["value"] == "false"
-    assert env[5]["value"] == "prefect.engine.cloud.CloudFlowRunner"
-    assert env[6]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[7]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[8]["value"] == "true"
+    assert env[3]["value"] == "false"
+    assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
+    assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
+    assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[7]["value"] == "true"
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -407,9 +400,7 @@ def test_populate_custom_scheduler_spec_yaml():
     with set_temporary_config(
         {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
     ):
-        with prefect.context(
-            flow_run_id="id_test", flow_run_name="name_test", namespace="namespace_test"
-        ):
+        with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_scheduler_spec_yaml(
                 yaml_obj=job, docker_name="test1/test2:test3", flow_file_path="test4"
             )
@@ -423,15 +414,14 @@ def test_populate_custom_scheduler_spec_yaml():
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "auth_test"
     assert env[2]["value"] == "id_test"
-    assert env[3]["value"] == "name_test"
-    assert env[4]["value"] == "namespace_test"
-    assert env[5]["value"] == "test1/test2:test3"
-    assert env[6]["value"] == "test4"
-    assert env[7]["value"] == "false"
-    assert env[8]["value"] == "prefect.engine.cloud.CloudFlowRunner"
-    assert env[9]["value"] == "prefect.engine.cloud.CloudTaskRunner"
-    assert env[10]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[11]["value"] == "true"
+    assert env[3]["value"] == "namespace_test"
+    assert env[4]["value"] == "test1/test2:test3"
+    assert env[5]["value"] == "test4"
+    assert env[6]["value"] == "false"
+    assert env[7]["value"] == "prefect.engine.cloud.CloudFlowRunner"
+    assert env[8]["value"] == "prefect.engine.cloud.CloudTaskRunner"
+    assert env[9]["value"] == "prefect.engine.executors.DaskExecutor"
+    assert env[10]["value"] == "true"
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]

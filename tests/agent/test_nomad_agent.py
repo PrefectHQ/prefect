@@ -41,7 +41,6 @@ def test_nomad_agent_deploy_flow(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -82,7 +81,6 @@ def test_nomad_agent_replace_yaml(runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
 
@@ -99,5 +97,4 @@ def test_nomad_agent_replace_yaml(runner_token):
         assert env["PREFECT__CLOUD__API"] == "https://api.prefect.io"
         assert env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
-        assert env["PREFECT__CONTEXT__FLOW_RUN_NAME"] == "name"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"
