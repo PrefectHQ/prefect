@@ -144,6 +144,7 @@ class KubernetesAgent(Agent):
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
         env[4]["value"] = str(self.labels)
+        env[5]["value"] = str(self.log_to_cloud).lower()
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(

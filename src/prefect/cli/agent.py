@@ -84,6 +84,12 @@ def agent():
     is_flag=True,
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
+@click.option(
+    "--no-cloud-logs",
+    is_flag=True,
+    help="Turn off Cloud logging for all flows run through this agent.",
+    hidden=True,
+)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.pass_context
 def start(
@@ -94,6 +100,7 @@ def start(
     verbose,
     label,
     no_pull,
+    no_cloud_logs,
     base_url,
     import_path,
     show_flow_logs,
@@ -114,6 +121,8 @@ def start(
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
+        --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
+                                Defaults to `False`
 
     \b
     Local Agent Options:
@@ -140,7 +149,10 @@ def start(
         item = item.replace("--", "")
         kwargs.update([item.split("=")])
 
-    tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
+    tmp_config = {
+        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "logging.log_to_cloud": False if no_cloud_logs else True,
+    }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
 
