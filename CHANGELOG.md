@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `--no-cloud-logs` flag for all agents to optionally opt-out of logs being sent to Prefect Cloud - [#1843](https://github.com/PrefectHQ/prefect/pull/1843)
 - Agents mark Flow Runs as `Failed` if a deployment error occurs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 - `Submitted` states from Agents include deployment identifier information - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- Update heartbeats to respect Cloud flow settings - [#1851](https://github.com/PrefectHQ/prefect/pull/1851)
 - Add flow run name to `prefect.context` - [#1855](https://github.com/PrefectHQ/prefect/pull/1855)
 - Add `--namespace` option for Kubernetes Agent start CLI command - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)
 - Add Prefect job resource configuration for Kubernetes Agent - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)

@@ -388,6 +388,19 @@ def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     assert "Heartbeat failed for Flow 'bad'" in log.message
 
 
+def test_flow_runner_does_not_have_heartbeat_if_disabled(client):
+    # mock the returned value from the flow
+    mock = MagicMock(
+        flow_run=MagicMock(flow=MagicMock(settings=MagicMock(disable_heartbeat=True)))
+    )
+    client.graphql = MagicMock(return_value=mock)
+
+    # set up the CloudFlowRunner
+    runner = CloudFlowRunner(flow=prefect.Flow(name="test"))
+    # confirm the runner's heartbeat respects the heartbeat toggle
+    assert runner._heartbeat() is False
+
+
 def test_task_failure_caches_inputs_automatically(client):
     @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
     def is_p_three(p):
@@ -626,9 +639,23 @@ def test_db_cancelled_states_interrupt_flow_run(client, monkeypatch):
 
     def heartbeat_counter(*args, **kwargs):
         if calls["count"] == 3:
-            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+            return Box(
+                dict(
+                    data=dict(
+                        flow_run_by_pk=dict(
+                            state="Cancelled", flow=dict(settings=dict())
+                        )
+                    )
+                )
+            )
         calls["count"] += 1
-        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+        return Box(
+            dict(
+                data=dict(
+                    flow_run_by_pk=dict(state="Running", flow=dict(settings=dict()))
+                )
+            )
+        )
 
     client.graphql = heartbeat_counter
 
