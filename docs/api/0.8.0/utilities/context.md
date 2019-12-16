@@ -51,7 +51,6 @@ In addition, Prefect Cloud supplies some additional context variables:
 | :--- | --- |
 | `flow_id` | the id of the current flow |
 | `flow_run_id` | the id of the current flow run |
-| `flow_run_name` | the name of the current flow run |
 | `flow_run_version` | the state version of the current flow run |
 | `task_id` | the id of the current task |
 | `task_run_id` | the id of the current task run |

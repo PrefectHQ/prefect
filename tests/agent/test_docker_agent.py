@@ -108,7 +108,13 @@ def test_populate_env_vars(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
         agent = DockerAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
@@ -118,7 +124,6 @@ def test_populate_env_vars(monkeypatch, runner_token):
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -133,7 +138,13 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
 
-    with set_temporary_config({"cloud.agent.auth_token": "token", "cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
         agent = DockerAgent(labels=["42", "marvin"])
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
@@ -143,7 +154,6 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
             "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
-            "PREFECT__CONTEXT__FLOW_RUN_NAME": "name",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -154,8 +164,27 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
         assert env_vars == expected_vars
 
 
-def test_docker_agent_deploy_flow(monkeypatch, runner_token):
+@pytest.mark.parametrize("flag", [True, False])
+def test_populate_env_vars_is_responsive_to_logging_config(
+    monkeypatch, runner_token, flag
+):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
 
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": flag,
+        }
+    ):
+        agent = DockerAgent(labels=["42", "marvin"])
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+
+
+def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}

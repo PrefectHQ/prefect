@@ -33,6 +33,14 @@ spec:
               value: ""
             - name: PREFECT__CLOUD__AGENT__LABELS
               value: "[]"
+            - name: JOB_MEM_REQUEST
+              value: ""
+            - name: JOB_MEM_LIMIT
+              value: ""
+            - name: JOB_CPU_REQUEST
+              value: ""
+            - name: JOB_CPU_LIMIT
+              value: ""
           resources:
             limits:
               memory: "128Mi"

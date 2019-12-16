@@ -70,6 +70,7 @@ class Agent:
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
+        self.log_to_cloud = config.logging.log_to_cloud
 
         token = config.cloud.agent.get("auth_token")
 
@@ -278,7 +279,6 @@ class Agent:
                 ): {
                     "id": True,
                     "version": True,
-                    "name": True,
                     "tenant_id": True,
                     "state": True,
                     "serialized_state": True,
