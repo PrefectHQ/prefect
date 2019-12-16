@@ -341,8 +341,8 @@ def jira_notifier(
     password = cast(str, prefect.client.Secret("JIRATOKEN").get())
     serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
 
-    if not projectName
-    projectName = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    # if not projectName
+    # projectName = cast(str, prefect.client.Secret("JIRAPROJECT").get())
 
     ignore_states = ignore_states or []
     only_states = only_states or []
