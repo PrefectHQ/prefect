@@ -297,7 +297,7 @@ def slack_notifier(
 
 @curry
 def jira_notifier(
-    projectName: string,
+    projectName,
     tracked_obj: TrackedObjectType,
     old_state: "prefect.engine.state.State",
     new_state: "prefect.engine.state.State",
