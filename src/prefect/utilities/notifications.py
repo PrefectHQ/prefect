@@ -302,7 +302,7 @@ def jira_notifier(
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-    projectName: str = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    projectName: str = None
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
@@ -340,6 +340,9 @@ def jira_notifier(
     username = cast(str, prefect.client.Secret("JIRAUSER").get())
     password = cast(str, prefect.client.Secret("JIRATOKEN").get())
     serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
+
+    if not projectName
+    projectName = cast(str, prefect.client.Secret("JIRAPROJECT").get())
 
     ignore_states = ignore_states or []
     only_states = only_states or []
