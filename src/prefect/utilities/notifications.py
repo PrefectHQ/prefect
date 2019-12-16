@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
 from jira import JIRA
+from datetime import datetime
 
 import requests
 from toolz import curry
@@ -157,8 +158,9 @@ def slack_message_formatter(
 
 
 def jira_message_formatter(tracked_obj: TrackedObjectType, state: "prefect.engine.state.State") -> str:
-    msg = "Task {0} is in a {1} state".format(
-        tracked_obj.name, type(state).__name__),
+    msg = "Task {0} is in a {1} state at {3}".format(
+        tracked_obj.name, type(state).__name__, datetime.now())
+    print('******** msg', msg)
     return msg
 
 
