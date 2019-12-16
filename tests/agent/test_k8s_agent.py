@@ -108,6 +108,10 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     monkeypatch.setenv("IMAGE_PULL_SECRETS", "my-secret")
+    monkeypatch.setenv("JOB_MEM_REQUEST", "mr")
+    monkeypatch.setenv("JOB_MEM_LIMIT", "ml")
+    monkeypatch.setenv("JOB_CPU_REQUEST", "cr")
+    monkeypatch.setenv("JOB_CPU_LIMIT", "cl")
 
     flow_run = GraphQLResult(
         {
@@ -147,6 +151,12 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
             job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
             == "my-secret"
         )
+
+        resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert resources["requests"]["memory"] == "mr"
+        assert resources["limits"]["memory"] == "ml"
+        assert resources["requests"]["cpu"] == "cr"
+        assert resources["limits"]["cpu"] == "cl"
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
@@ -365,6 +375,33 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
         deployment["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
         == "secrets"
     )
+
+
+def test_k8s_agent_generate_deployment_yaml_contains_resources(
+    monkeypatch, runner_token
+):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        mem_request="mr",
+        mem_limit="ml",
+        cpu_request="cr",
+        cpu_limit="cl",
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert env[5]["value"] == "mr"
+    assert env[6]["value"] == "ml"
+    assert env[7]["value"] == "cr"
+    assert env[8]["value"] == "cl"
 
 
 def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
