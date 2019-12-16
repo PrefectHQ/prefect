@@ -99,6 +99,11 @@ Usage: prefect agent install [OPTIONS] NAME
       --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
       --resource-manager                  Enable resource manager on install
       --rbac                              Enable default RBAC on install
+      --latest                            Use the `latest` Prefect image
+      --mem-request               TEXT    Requested memory for Prefect init job
+      --mem-limit                 TEXT    Limit memory for Prefect init job
+      --cpu-request               TEXT    Requested CPU for Prefect init job
+      --cpu-limit                 TEXT    Limit CPU for Prefect init job
 
   Local Agent Options:
       --import-path, -p           TEXT    Absolute import paths to provide to the local agent.

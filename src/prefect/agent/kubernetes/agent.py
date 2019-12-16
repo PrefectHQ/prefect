@@ -37,14 +37,20 @@ class KubernetesAgent(Agent):
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
     Args:
+        - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
+            to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+    def __init__(
+        self, namespace: str = None, name: str = None, labels: Iterable[str] = None
+    ) -> None:
         super().__init__(name=name, labels=labels)
+
+        self.namespace = namespace
 
         from kubernetes import client, config
 
@@ -90,7 +96,7 @@ class KubernetesAgent(Agent):
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
         )
         job = self.batch_client.create_namespaced_job(
-            namespace=os.getenv("NAMESPACE", "default"), body=job_spec
+            namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
         )
 
         self.logger.debug("Job {} created".format(job.metadata.name))
@@ -151,6 +157,17 @@ class KubernetesAgent(Agent):
             "IMAGE_PULL_SECRETS", ""
         )
 
+        # Set resource requirements if provided
+        resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]
+        if os.getenv("JOB_MEM_REQUEST"):
+            resources["requests"]["memory"] = os.getenv("JOB_MEM_REQUEST")
+        if os.getenv("JOB_MEM_LIMIT"):
+            resources["limits"]["memory"] = os.getenv("JOB_MEM_LIMIT")
+        if os.getenv("JOB_CPU_REQUEST"):
+            resources["requests"]["cpu"] = os.getenv("JOB_CPU_REQUEST")
+        if os.getenv("JOB_CPU_LIMIT"):
+            resources["limits"]["cpu"] = os.getenv("JOB_CPU_LIMIT")
+
         return job
 
     @staticmethod
@@ -162,6 +179,10 @@ class KubernetesAgent(Agent):
         resource_manager_enabled: bool = False,
         rbac: bool = False,
         latest: bool = False,
+        mem_request: str = None,
+        mem_limit: str = None,
+        cpu_request: str = None,
+        cpu_limit: str = None,
         labels: Iterable[str] = None,
     ) -> str:
         """
@@ -181,6 +202,10 @@ class KubernetesAgent(Agent):
                 part of the YAML. Defaults to `False`
             - latest (bool, optional): Whether to use the `latest` Prefect image.
                 Defaults to `False`
+            - mem_request (str, optional): Requested memory for Prefect init job.
+            - mem_limit (str, optional): Limit memory for Prefect init job.
+            - cpu_request (str, optional): Requested CPU for Prefect init job.
+            - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
@@ -193,6 +218,10 @@ class KubernetesAgent(Agent):
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
+        mem_request = mem_request or ""
+        mem_limit = mem_limit or ""
+        cpu_request = cpu_request or ""
+        cpu_limit = cpu_limit or ""
 
         version = prefect.__version__.split("+")
         image_version = (
@@ -206,10 +235,17 @@ class KubernetesAgent(Agent):
 
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
+        # Populate env vars
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
         agent_env[4]["value"] = str(labels)
+
+        # Populate job resource env vars
+        agent_env[5]["value"] = mem_request
+        agent_env[6]["value"] = mem_limit
+        agent_env[7]["value"] = cpu_request
+        agent_env[8]["value"] = cpu_limit
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
