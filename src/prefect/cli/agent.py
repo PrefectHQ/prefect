@@ -200,6 +200,27 @@ def start(
     "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
 )
 @click.option(
+    "--mem-request",
+    required=False,
+    help="Requested memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--mem-limit",
+    required=False,
+    help="Limit memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-request",
+    required=False,
+    help="Requested CPU for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True,
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -229,6 +250,10 @@ def install(
     resource_manager,
     rbac,
     latest,
+    mem_request,
+    mem_limit,
+    cpu_request,
+    cpu_limit,
     label,
     import_path,
     show_flow_logs,
@@ -255,6 +280,10 @@ def install(
         --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
         --latest                            Use the `latest` Prefect image
+        --mem-request               TEXT    Requested memory for Prefect init job
+        --mem-limit                 TEXT    Limit memory for Prefect init job
+        --cpu-request               TEXT    Requested CPU for Prefect init job
+        --cpu-limit                 TEXT    Limit CPU for Prefect init job
 
     \b
     Local Agent Options:
@@ -283,6 +312,10 @@ def install(
             resource_manager_enabled=resource_manager,
             rbac=rbac,
             latest=latest,
+            mem_request=mem_request,
+            mem_limit=mem_limit,
+            cpu_request=cpu_request,
+            cpu_limit=cpu_limit,
             labels=list(label),
         )
         click.echo(deployment)
