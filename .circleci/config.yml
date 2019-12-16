@@ -105,7 +105,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --full-trace --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -137,7 +137,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --full-trace --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -170,7 +170,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --full-trace --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -198,7 +198,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --full-trace --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -225,7 +225,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx . --full-trace
+          command: pytest -rfEsx .
 
   test_airflow:
     docker:
@@ -251,7 +251,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --full-trace --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
+          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
