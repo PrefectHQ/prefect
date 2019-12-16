@@ -297,12 +297,12 @@ def slack_notifier(
 
 @curry
 def jira_notifier(
+    projectName: string,
     tracked_obj: TrackedObjectType,
     old_state: "prefect.engine.state.State",
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-    projectName: string
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
