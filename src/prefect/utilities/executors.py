@@ -286,3 +286,23 @@ def timeout_handler(
         return fut.result(timeout=timeout)
     except FutureTimeout:
         raise TimeoutError("Execution timed out.")
+
+
+class RecursiveCall(Exception):
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+
+def tail_recursive(func):
+    def wrapper(*args, **kwargs):
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except RecursiveCall as exc:
+                args = exc.args
+                kwargs = exc.kwargs
+                continue
+
+    wrapper.__doc__ = func.__doc__
+    return wrapper
