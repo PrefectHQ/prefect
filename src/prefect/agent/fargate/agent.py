@@ -246,7 +246,10 @@ class FargateAgent(Agent):
                         "value": str(self.labels),
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {
+                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "value": str(self.log_to_cloud).lower(),
+                    },
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -293,10 +296,6 @@ class FargateAgent(Agent):
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                         "value": flow_run.id,  # type: ignore
-                    },
-                    {
-                        "name": "PREFECT__CONTEXT__FLOW_RUN_NAME",
-                        "value": flow_run.name,  # type: ignore
                     },
                 ],
             }

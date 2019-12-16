@@ -405,7 +405,6 @@ def test_deploy_flow_raises(monkeypatch, runner_token):
                         {"storage": Local().serialize(), "id": "id",}
                     ),
                     "id": "id",
-                    "name": "name",
                 }
             )
         )
@@ -500,7 +499,6 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -517,7 +515,6 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_NAME", "value": "name"},
                 ],
             }
         ]
@@ -553,7 +550,6 @@ def test_deploy_flow_register_task_definition(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -604,13 +600,14 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
         "propagateTags": "test",
     }
 
-    agent = FargateAgent(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-        **kwarg_dict
-    )
+    with set_temporary_config({"logging.log_to_cloud": True}):
+        agent = FargateAgent(
+            aws_access_key_id="id",
+            aws_secret_access_key="secret",
+            aws_session_token="token",
+            region_name="region",
+            **kwarg_dict
+        )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -623,7 +620,6 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -667,7 +663,10 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
     assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
-def test_deploy_flow_includes_agent_labels_in_environment(monkeypatch, runner_token):
+@pytest.mark.parametrize("flag", [True, False])
+def test_deploy_flows_includes_agent_labels_in_environment(
+    monkeypatch, runner_token, flag
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -705,14 +704,15 @@ def test_deploy_flow_includes_agent_labels_in_environment(monkeypatch, runner_to
         "propagateTags": "test",
     }
 
-    agent = FargateAgent(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-        labels=["aws", "staging"],
-        **kwarg_dict
-    )
+    with set_temporary_config({"logging.log_to_cloud": flag}):
+        agent = FargateAgent(
+            aws_access_key_id="id",
+            aws_secret_access_key="secret",
+            aws_session_token="token",
+            region_name="region",
+            labels=["aws", "staging"],
+            **kwarg_dict
+        )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -725,7 +725,6 @@ def test_deploy_flow_includes_agent_labels_in_environment(monkeypatch, runner_to
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -750,7 +749,7 @@ def test_deploy_flow_includes_agent_labels_in_environment(monkeypatch, runner_to
                     "value": "['aws', 'staging']",
                 },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": str(flag).lower()},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -783,7 +782,9 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    agent = FargateAgent()
+    with set_temporary_config({"logging.log_to_cloud": True}):
+        agent = FargateAgent()
+
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -796,7 +797,6 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )

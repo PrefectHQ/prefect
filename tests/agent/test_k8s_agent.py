@@ -64,7 +64,6 @@ def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
                     }
                 ),
                 "id": "id",
-                "name": "name",
             }
         )
     )
@@ -124,11 +123,12 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
-            "name": "name",
         }
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+    ):
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
 
@@ -144,8 +144,9 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == "name"
-        assert env[4]["value"] == "default"
+        assert env[3]["value"] == "default"
+        assert env[4]["value"] == "[]"
+        assert env[5]["value"] == "true"
 
         assert (
             job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
@@ -157,6 +158,37 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
         assert resources["limits"]["memory"] == "ml"
         assert resources["requests"]["cpu"] == "cr"
         assert resources["limits"]["cpu"] == "cl"
+
+
+@pytest.mark.parametrize("flag", [True, False])
+def test_k8s_agent_replace_yaml_responds_to_logging_config(
+    monkeypatch, runner_token, flag
+):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+            "name": "name",
+        }
+    )
+
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
+    ):
+        agent = KubernetesAgent()
+        job = agent.replace_job_spec_yaml(flow_run)
+        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        assert env[5]["value"] == str(flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
@@ -174,7 +206,6 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
-            "name": "name",
         }
     )
 
@@ -199,15 +230,13 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                 }
             ),
             "id": "id",
-            "name": "name",
         }
     )
 
     agent = KubernetesAgent(labels=["foo", "bar"])
     job = agent.replace_job_spec_yaml(flow_run)
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-
-    assert env[5]["value"] == "['foo', 'bar']"
+    assert env[4]["value"] == "['foo', 'bar']"
 
 
 def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
