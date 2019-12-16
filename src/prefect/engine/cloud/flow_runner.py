@@ -166,9 +166,10 @@ class CloudFlowRunner(FlowRunner):
         updated_context = context or {}
         updated_context.update(flow_run_info.context or {})
         updated_context.update(
-            flow_id=flow_run_info.id,
+            flow_id=flow_run_info.flow_id,
             flow_run_id=flow_run_info.id,
             flow_run_version=flow_run_info.version,
+            flow_run_name=flow_run_info.name,
             scheduled_start_time=flow_run_info.scheduled_start_time,
         )
 

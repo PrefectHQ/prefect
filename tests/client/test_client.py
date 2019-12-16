@@ -265,6 +265,7 @@ def test_get_flow_run_info(patch_post):
         "flow_run_by_pk": {
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "name": "flow-run-name",
             "version": 0,
             "parameters": {},
             "context": None,
@@ -323,6 +324,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
         "flow_run_by_pk": {
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
+            "name": "flow-run-name",
             "version": 0,
             "parameters": {"x": {"deep": {"nested": 5}}},
             "context": {"my_val": "test"},
