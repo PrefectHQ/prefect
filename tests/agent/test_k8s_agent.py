@@ -191,7 +191,6 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     agent = KubernetesAgent(labels=["foo", "bar"])
     job = agent.replace_job_spec_yaml(flow_run)
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-
     assert env[4]["value"] == "['foo', 'bar']"
 
 

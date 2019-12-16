@@ -9,7 +9,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.client import Client
+from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
@@ -299,6 +299,28 @@ def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
     assert "scheduled_start_time" in res.context
     assert isinstance(res.context["scheduled_start_time"], datetime.datetime)
     assert res.context["scheduled_start_time"].strftime("%Y-%m-%d") == "1986-09-20"
+
+
+def test_flow_runner_puts_flow_run_name_in_context(monkeypatch):
+    flow = prefect.Flow(name="test")
+
+    # we can't pass a `name` argument to a mock
+    # https://docs.python.org/3/library/unittest.mock.html#mock-names-and-the-name-attribute
+    info_mock = MagicMock(context={})
+    info_mock.name = "flow run name"
+    get_flow_run_info = MagicMock(return_value=info_mock)
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    res = CloudFlowRunner(flow=flow).initialize_run(
+        state=None, task_states={}, context={}, task_contexts={}, parameters={}
+    )
+
+    assert res.context["flow_run_name"] == "flow run name"
 
 
 def test_flow_runner_prioritizes_user_context_over_default_context(monkeypatch):

@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `--latest` flag for Kubernetes Agent install CLI command - [#1842](https://github.com/PrefectHQ/prefect/pull/1842)
 - Agents mark Flow Runs as `Failed` if a deployment error occurs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 - `Submitted` states from Agents include deployment identifier information - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- Add flow run name to `prefect.context` - [#1855](https://github.com/PrefectHQ/prefect/pull/1855)
 
 ### Task Library
 
