@@ -304,7 +304,8 @@ def jira_notifier(
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-    projectName: str = None
+    projectName: str = None,
+    assignee: str = -1
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.
@@ -365,5 +366,9 @@ def jira_notifier(
         project=projectName, summary=summaryText, issuetype={'name': 'Task'})
     if not created:
         raise ValueError(
-            "Jira notification for {} failed".format(tracked_obj))
+            "Creating Jira Issue for {} failed".format(tracked_obj))
+    assigned = jira.assign_issue(created, assignee)
+    if not assigned:
+        raise ValueError(
+            "Assigning Jira issue for {} failed".format(tracked_obj))
     return new_state
