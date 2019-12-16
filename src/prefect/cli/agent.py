@@ -70,6 +70,12 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--namespace",
+    required=False,
+    help="Kubernetes namespace to create jobs.",
+    hidden=True,
+)
+@click.option(
     "--import-path",
     "-p",
     multiple=True,
@@ -99,6 +105,7 @@ def start(
     name,
     verbose,
     label,
+    namespace,
     no_pull,
     no_cloud_logs,
     base_url,
@@ -136,6 +143,11 @@ def start(
         --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
         --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
+
+    \b
+    Kubernetes Agent Options:
+        --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
+                                Defaults to env var `NAMESPACE` or `default`
 
     \b
     Fargate Agent Options:
@@ -177,6 +189,10 @@ def start(
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
                 name=name, labels=list(label), **kwargs
+            ).start()
+        elif agent_option == "kubernetes":
+            from_qualified_name(retrieved_agent)(
+                namespace=namespace, name=name, labels=list(label)
             ).start()
         else:
             from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()

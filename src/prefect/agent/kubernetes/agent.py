@@ -37,14 +37,20 @@ class KubernetesAgent(Agent):
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
     Args:
+        - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
+            to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
     """
 
-    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+    def __init__(
+        self, namespace: str = None, name: str = None, labels: Iterable[str] = None
+    ) -> None:
         super().__init__(name=name, labels=labels)
+
+        self.namespace = namespace
 
         from kubernetes import client, config
 
@@ -90,7 +96,7 @@ class KubernetesAgent(Agent):
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
         )
         job = self.batch_client.create_namespaced_job(
-            namespace=os.getenv("NAMESPACE", "default"), body=job_spec
+            namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
         )
 
         self.logger.debug("Job {} created".format(job.metadata.name))

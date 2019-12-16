@@ -32,10 +32,11 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = KubernetesAgent(name="test", labels=["test"])
+        agent = KubernetesAgent(name="test", labels=["test"], namespace="namespace")
         assert agent
         assert agent.labels == ["test"]
         assert agent.name == "test"
+        assert agent.namespace == "namespace"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.batch_client

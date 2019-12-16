@@ -102,6 +102,18 @@ def test_agent_start_kubernetes(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_kubernetes_namespace(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
+
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "kubernetes", "--namespace", "test"])
+    assert result.exit_code == 0
+
+
 def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
