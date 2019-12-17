@@ -16,6 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add `--no-cloud-logs` flag for all agents to optionally opt-out of logs being sent to Prefect Cloud - [#1843](https://github.com/PrefectHQ/prefect/pull/1843)
 - Agents mark Flow Runs as `Failed` if a deployment error occurs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 - `Submitted` states from Agents include deployment identifier information - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
+- Update heartbeats to respect Cloud flow settings - [#1851](https://github.com/PrefectHQ/prefect/pull/1851)
 - Add flow run name to `prefect.context` - [#1855](https://github.com/PrefectHQ/prefect/pull/1855)
 - Add `--namespace` option for Kubernetes Agent start CLI command - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)
 - Add Prefect job resource configuration for Kubernetes Agent - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)
@@ -30,7 +31,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix Agent deployment errors interrupting full list of found Flow Runs - [#1848](https://github.com/PrefectHQ/prefect/pull/1848)
 - Fix issue with a single bad log preventing all logs from being sent to Cloud - [#1845](https://github.com/PrefectHQ/prefect/pull/1845)
 - Fix Kubernetes Agent passing empty default namespace - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
-- Fix missing Flow Run name on Dask Kubernetes Environment default worker pod - [#1839](https://github.com/PrefectHQ/prefect/pull/1839)
 
 ### Deprecations
 
