@@ -85,6 +85,10 @@ mutation {
 }
 ```
 
+::: tip Prefect version
+Heartbeats can only be disabled for flows registered using Prefect versions `0.8.1` and up. The other settings listed below are not version-dependent.
+:::
+
 To reenable heartbeats for a Flow, rerun this mutation with `value` set to `False`. Future runs of this Flow will resume standard heartbeat functionality.
 
 ### Disable Lazarus
