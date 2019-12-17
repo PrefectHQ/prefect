@@ -74,13 +74,20 @@ def test_local_agent_config_options_hostname(runner_token):
 
 
 def test_populate_env_vars(runner_token):
-    with set_temporary_config({"cloud.api": "api", "logging.log_to_cloud": True}):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
         agent = LocalAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": str(
                 [
                     socket.gethostname(),
@@ -101,13 +108,20 @@ def test_populate_env_vars(runner_token):
 
 
 def test_populate_env_vars_includes_agent_labels(runner_token):
-    with set_temporary_config({"cloud.api": "api", "logging.log_to_cloud": True}):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
         agent = LocalAgent(labels=["42", "marvin"])
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": str(
                 [
                     "42",
