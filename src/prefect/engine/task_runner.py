@@ -878,7 +878,7 @@ class TaskRunner(Runner):
             )
 
         except KeyboardInterrupt:
-            self.logger.exception("Interrupt signal raised, cancelling task run.")
+            self.logger.debug("Interrupt signal raised, cancelling task run.")
             state = Cancelled(message="Interrupt signal raised, cancelling task run.")
             return state
 

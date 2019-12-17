@@ -260,7 +260,7 @@ class FlowRunner(Runner):
             state = exc.state
 
         except KeyboardInterrupt:
-            self.logger.exception("Interrupt signal raised, cancelling Flow run.")
+            self.logger.debug("Interrupt signal raised, cancelling Flow run.")
             state = Cancelled(message="Interrupt signal raised, cancelling flow run.")
 
         # All other exceptions are trapped and turned into Failed states
