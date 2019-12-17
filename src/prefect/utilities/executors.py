@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Callable
 
 import dask
 import dask.bag
@@ -289,20 +289,35 @@ def timeout_handler(
 
 
 class RecursiveCall(Exception):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, func: Callable, *args: Any, **kwargs: dict):
+        self.func = func
         self.args = args
         self.kwargs = kwargs
 
 
-def tail_recursive(func):
-    def wrapper(*args, **kwargs):
+def tail_recursive(func: Callable) -> Callable:
+    def wrapper(*args: Any, **kwargs: dict) -> Any:
         while True:
             try:
                 return func(*args, **kwargs)
             except RecursiveCall as exc:
+                try:
+                    call_func = getattr(exc.func, "__wrapped_func__")
+                except AttributeError:
+                    raise RecursionError(
+                        "function has not been wrapped to provide tail recursion (func={})".format(
+                            exc.func
+                        )
+                    )
+
+                # there may be multiple nested recursive calls, we should only respond to calls for the
+                # wrapped function explicitly, otherwise allow the call to continue to propagate
+                if call_func != func:
+                    raise exc
                 args = exc.args
                 kwargs = exc.kwargs
                 continue
 
+    setattr(wrapper, "__wrapped_func__", func)
     wrapper.__doc__ = func.__doc__
     return wrapper

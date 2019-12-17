@@ -1036,6 +1036,7 @@ class TaskRunner(Runner):
             context.update(task_run_version=prefect.context.get("task_run_version"))
             new_state = Pending(message=msg)
             raise RecursiveCall(
+                self.run,
                 self,
                 new_state,
                 upstream_states=upstream_states,

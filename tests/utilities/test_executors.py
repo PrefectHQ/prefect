@@ -11,7 +11,13 @@ import pytest
 
 import prefect
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.executors import Heartbeat, timeout_handler, run_with_heartbeat
+from prefect.utilities.executors import (
+    Heartbeat,
+    timeout_handler,
+    run_with_heartbeat,
+    tail_recursive,
+    RecursiveCall,
+)
 
 
 @pytest.mark.parametrize("interval", [0.2, 1])
@@ -224,3 +230,83 @@ def test_timeout_handler_preserves_context():
 def test_timeout_handler_preserves_logging(caplog):
     timeout_handler(prefect.Flow("logs").run, timeout=2)
     assert len(caplog.records) >= 2  # 1 INFO to start, 1 INFO to end
+
+
+def test_recursion_go_case():
+    @tail_recursive
+    def my_func(a=0):
+        if a > 5:
+            return a
+        raise RecursiveCall(my_func, a + 2)
+
+    assert 6 == my_func()
+
+
+def test_recursion_nested():
+    def utility_func(a):
+        if a > 5:
+            return a
+        raise RecursiveCall(my_func, a + 2)
+
+    @tail_recursive
+    def my_func(a=0):
+        return utility_func(a)
+
+    assert 6 == my_func()
+
+
+def test_recursion_multiple():
+    call_checkpoints = []
+
+    @tail_recursive
+    def a_func(a=0):
+        call_checkpoints.append(("a", a))
+        if a > 5:
+            return a
+        a = b_func(a + 1)
+        raise RecursiveCall(a_func, (a + 1) * 2)
+
+    @tail_recursive
+    def b_func(b=0):
+        call_checkpoints.append(("b", b))
+        if b > 5:
+            return b
+        b = a_func(b + 2)
+        raise RecursiveCall(b_func, b + 2)
+
+    assert a_func() == 42  # :)
+    assert call_checkpoints == [
+        ("a", 0),
+        ("b", 1),
+        ("a", 3),
+        ("b", 4),
+        ("a", 6),
+        ("b", 8),
+        ("a", 18),
+        ("b", 20),
+        ("a", 42),
+    ]
+
+
+def test_recursion_raises_when_not_decorated():
+    call_checkpoints = []
+
+    @tail_recursive
+    def a_func(a=0):
+        call_checkpoints.append(("a", a))
+        if a > 5:
+            return a
+        a = b_func(a + 1)
+        raise RecursiveCall(a_func, (a + 1) * 2)
+
+    def b_func(b=0):
+        call_checkpoints.append(("b", b))
+        if b > 5:
+            return b
+        b = a_func(b + 2)
+        raise RecursiveCall(b_func, b + 2)
+
+    with pytest.raises(RecursionError):
+        assert a_func()
+
+    assert call_checkpoints == [("a", 0), ("b", 1), ("a", 3), ("b", 4), ("a", 6)]
