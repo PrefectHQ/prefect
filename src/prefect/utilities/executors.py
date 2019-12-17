@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Callable, Optional
 
 import dask
 import dask.bag
@@ -289,7 +289,7 @@ def timeout_handler(
 
 
 class RecursiveCall(Exception):
-    def __init__(self, func: Callable, *args: Any, **kwargs: dict):
+    def __init__(self, func: Callable, *args: Any, **kwargs: Any):
         self.func = func
         self.args = args
         self.kwargs = kwargs
@@ -314,7 +314,7 @@ def tail_recursive(func: Callable) -> Callable:
             not decorated with `tail_recursive` decorator.
     """
 
-    def wrapper(*args: Any, **kwargs: dict) -> Any:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         while True:
             try:
                 return func(*args, **kwargs)
