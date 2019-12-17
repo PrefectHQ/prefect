@@ -73,7 +73,7 @@ These safeguards can be disabled on a Flow-by-Flow basis using Flow settings.
 Disabling these safeguards can alter fundamental assumptions about how Flows run in Cloud. Be sure to read the docs and understand how each of these settings alters Flow behavior in Cloud.
 :::
 
-### Disable Heartbeats
+### Disable Heartbeats <Badge text="0.8.1+"/>
 
 When running Flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the Flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](zombie-killer.html). For most users, this is a useful safeguard. In some rare cases, however, the heartbeat falls victim to thread deadlocking and falsely registers a run as unhealthy. To prevent this, users may disable Flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this Flow. To do so, use the following GraphQL mutation:
 
@@ -84,10 +84,6 @@ mutation {
   }
 }
 ```
-
-::: tip Prefect version
-Heartbeats can only be disabled for flows registered using Prefect versions `0.8.1` and up. The other settings listed below are not version-dependent.
-:::
 
 To reenable heartbeats for a Flow, rerun this mutation with `value` set to `False`. Future runs of this Flow will resume standard heartbeat functionality.
 
