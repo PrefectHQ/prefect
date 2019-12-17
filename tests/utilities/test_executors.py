@@ -242,6 +242,18 @@ def test_recursion_go_case():
     assert 6 == my_func()
 
 
+def test_recursion_beyond_python_limits():
+    RECURSION_LIMIT = sys.getrecursionlimit()
+
+    @tail_recursive
+    def my_func(calls=0):
+        if calls > RECURSION_LIMIT + 10:
+            return calls
+        raise RecursiveCall(my_func, calls + 1)
+
+    assert my_func() == RECURSION_LIMIT + 11
+
+
 def test_recursion_nested():
     def utility_func(a):
         if a > 5:

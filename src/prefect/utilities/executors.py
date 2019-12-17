@@ -296,6 +296,24 @@ class RecursiveCall(Exception):
 
 
 def tail_recursive(func: Callable) -> Callable:
+    """
+    Helper function to facilitate tail recursion of the wrapped function.
+
+    This allows for recursion with unlimited depth since a stack is not allocated for
+    each "nested" call. Note: instead of calling the target function in question, a 
+    `RecursiveCall` exception must be raised instead. 
+
+    Args:
+        - fn (callable): the function to execute
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - RecursionError: if a recursive "call" (raised exception) is made with a function that is 
+            not decorated with `tail_recursive` decorator.
+    """
+
     def wrapper(*args: Any, **kwargs: dict) -> Any:
         while True:
             try:
