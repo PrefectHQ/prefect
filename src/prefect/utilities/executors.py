@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import dask
 import dask.bag

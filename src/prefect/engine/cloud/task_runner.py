@@ -3,14 +3,14 @@ import datetime
 import _thread
 import time
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pendulum
 
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.utilities.executors import tail_recursive, RecursiveCall
+from prefect.utilities.executors import tail_recursive
 from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
