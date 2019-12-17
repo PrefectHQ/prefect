@@ -85,6 +85,8 @@ class Agent:
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
+        print(self.client._api_token)
+
         self.logger = logger
 
     def _verify_token(self, token: str) -> None:
