@@ -1,40 +1,12 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
-
-### Features
-
-- None
-
-### Enhancements
-
-- None
-
-### Task Library
-
-- None
-
-### Fixes
-
-- None
-
-### Deprecations
-
-- None
-
-### Breaking Changes
-
-- None
-
-### Contributors
-
-- None
-
-## 0.8.1 <Badge text="beta" type="success"/>
-
-Released on Dec 17, 2019.
 
 ### Features
 
@@ -52,7 +24,6 @@ Released on Dec 17, 2019.
 - Add flow run name to `prefect.context` - [#1855](https://github.com/PrefectHQ/prefect/pull/1855)
 - Add `--namespace` option for Kubernetes Agent start CLI command - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)
 - Add Prefect job resource configuration for Kubernetes Agent - [#1859](https://github.com/PrefectHQ/prefect/pull/1859)
-- Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
 
 ### Task Library
 
@@ -1156,3 +1127,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on December 17, 2019 at 21:20 UTC</p>
