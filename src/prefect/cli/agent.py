@@ -246,7 +246,7 @@ def start(
     hidden=True,
 )
 @click.option(
-    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True,
+    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True
 )
 @click.option(
     "--label",

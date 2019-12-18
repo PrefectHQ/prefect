@@ -1104,9 +1104,7 @@ class Flow:
                             str(id(t)) + str(map_index), name, shape=shape, **kwargs
                         )
                 else:
-                    kwargs = dict(
-                        color=get_color(t), style="filled", colorscheme="svg",
-                    )
+                    kwargs = dict(color=get_color(t), style="filled", colorscheme="svg")
                     graph.node(str(id(t)), name, shape=shape, **kwargs)
             else:
                 kwargs = (
@@ -1221,7 +1219,9 @@ class Flow:
         """
         if not os.path.isabs(fpath):
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(
+                slugify(fpath)
+            )  # type: ignore
         with open(str(fpath), "rb") as f:
             return cloudpickle.load(f)
 
@@ -1239,7 +1239,9 @@ class Flow:
         """
         if fpath is None:
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
+            fpath = Path(
+                os.path.expanduser(path)
+            ) / "{}.prefect".format(  # type: ignore
                 slugify(self.name)
             )
             assert fpath is not None  # mypy assert

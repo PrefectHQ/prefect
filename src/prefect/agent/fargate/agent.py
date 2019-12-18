@@ -90,7 +90,9 @@ class FargateAgent(Agent):
         self.external_kwargs_s3_key = external_kwargs_s3_key
 
         # Parse accepted kwargs for definition and run
-        self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs, True)
+        self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(
+            kwargs, True
+        )
 
         # populate task_definition_name as None to start
         self.task_definition_name = None
@@ -142,46 +144,70 @@ class FargateAgent(Agent):
 
             # get external kwargs from S3
             try:
-                self.logger.info('Fetching external kwargs from S3')
+                self.logger.info("Fetching external kwargs from S3")
                 obj = self.s3_resource.Object(
                     self.external_kwargs_s3_bucket,
                     os.path.join(
                         self.external_kwargs_s3_key,
-                        "{}.json".format(
-                            flow_run.flow.id[:8]
-                        )
+                        "{}.json".format(flow_run.flow.id[:8]),
+                    ),
+                )
+                body = obj.get()["Body"].read().decode("utf-8")
+            except ClientError:
+                self.logger.info(
+                    "Flow id {} does not have external kwargs.".format(
+                        flow_run.flow.id[:8]
                     )
                 )
-                body = obj.get()['Body'].read().decode('utf-8')
-            except ClientError:
-                self.logger.info('Flow id {} does not have external kwargs.'.format(flow_run.flow.id[:8]))
-                body = '{}'
-            self.logger.debug('External kwargs:\n{}'.format(body))
+                body = "{}"
+            self.logger.debug("External kwargs:\n{}".format(body))
 
             # create new kwargs from merge of default with external
-            self.logger.info('Updating default kwargs with external')
+            self.logger.info("Updating default kwargs with external")
             external_kwargs = json.loads(body)
             # parse external kwargs
-            ext_task_definition_kwargs, ext_task_run_kwargs = self._parse_kwargs(external_kwargs)
-            self.logger.debug('External task definition kwargs:\n{}'.format(ext_task_definition_kwargs))
-            self.logger.debug('External task run kwargs:\n{}'.format(ext_task_run_kwargs))
+            ext_task_definition_kwargs, ext_task_run_kwargs = self._parse_kwargs(
+                external_kwargs
+            )
+            self.logger.debug(
+                "External task definition kwargs:\n{}".format(
+                    ext_task_definition_kwargs
+                )
+            )
+            self.logger.debug(
+                "External task run kwargs:\n{}".format(ext_task_run_kwargs)
+            )
             # make initial overrides a copy of default kwargs
-            task_definition_kwargs_overrides = copy.deepcopy(self.task_definition_kwargs)
-            self.logger.debug('Initial task definition overrides:\n{}'.format(task_definition_kwargs_overrides))
+            task_definition_kwargs_overrides = copy.deepcopy(
+                self.task_definition_kwargs
+            )
+            self.logger.debug(
+                "Initial task definition overrides:\n{}".format(
+                    task_definition_kwargs_overrides
+                )
+            )
             task_run_kwargs_overrides = copy.deepcopy(self.task_run_kwargs)
-            self.logger.debug('Initial task run overrides:\n{}'.format(task_run_kwargs_overrides))
+            self.logger.debug(
+                "Initial task run overrides:\n{}".format(task_run_kwargs_overrides)
+            )
 
             # do not support external tags override on task definitions if enable_task_revisions
             ext_task_definition_kwargs.pop("tags", None)
             self.logger.debug(
-                'Overriding tags from external kwargs not supported if enable_task_revisions is True.'
+                "Overriding tags from external kwargs not supported if enable_task_revisions is True."
             )
 
             # Update initial overrides with external kwargs
             task_definition_kwargs_overrides.update(ext_task_definition_kwargs)
-            self.logger.debug('Task definition overrides:\n{}'.format(task_definition_kwargs_overrides))
+            self.logger.debug(
+                "Task definition overrides:\n{}".format(
+                    task_definition_kwargs_overrides
+                )
+            )
             task_run_kwargs_overrides.update(ext_task_run_kwargs)
-            self.logger.debug('Task run overrides:\n{}'.format(task_run_kwargs_overrides))
+            self.logger.debug(
+                "Task run overrides:\n{}".format(task_run_kwargs_overrides)
+            )
             # return final updated dictionary
             return task_definition_kwargs_overrides, task_run_kwargs_overrides
         else:
@@ -285,32 +311,32 @@ class FargateAgent(Agent):
         if self.enable_task_revisions:
             self.logger.debug("Native ECS task revisions enabled")
             # set task definition name
-            self.task_definition_name = re.sub(r'[^a-zA-Z0-9]', '_', flow_run.flow.name)
+            self.task_definition_name = re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name)
             # add flow id to definition tags
             if not self.task_definition_kwargs.get("tags"):
                 self.task_definition_kwargs["tags"] = []
             else:
-                self.task_definition_kwargs["tags"] = copy.deepcopy(self.task_definition_kwargs["tags"])
+                self.task_definition_kwargs["tags"] = copy.deepcopy(
+                    self.task_definition_kwargs["tags"]
+                )
             append_tag = True
             for i in self.task_definition_kwargs["tags"]:
                 if i["key"] == "PrefectFlowId":
                     i["value"] = flow_run.flow.id[:8]
                     append_tag = False
             if append_tag:
-                self.task_definition_kwargs["tags"].append({
-                    "key": "PrefectFlowId",
-                    "value": flow_run.flow.id[:8]
-                })
+                self.task_definition_kwargs["tags"].append(
+                    {"key": "PrefectFlowId", "value": flow_run.flow.id[:8]}
+                )
             append_tag = True
             for i in self.task_definition_kwargs["tags"]:
                 if i["key"] == "PrefectFlowVersion":
                     i["value"] = str(flow_run.flow.version)
                     append_tag = False
             if append_tag:
-                self.task_definition_kwargs["tags"].append({
-                    "key": "PrefectFlowVersion",
-                    "value": str(flow_run.flow.version)
-                })
+                self.task_definition_kwargs["tags"].append(
+                    {"key": "PrefectFlowVersion", "value": str(flow_run.flow.version)}
+                )
         else:
             self.task_definition_name = "prefect-task-{}".format(
                 flow_run.flow.id[:8]  # type: ignore
@@ -324,7 +350,9 @@ class FargateAgent(Agent):
             raise ValueError("Unsupported Storage type")
 
         # evaluate for external kwargs
-        task_definition_kwargs_overrides, task_run_kwargs_overrides = self._evaluate_external_kwargs(flow_run)
+        task_definition_kwargs_overrides, task_run_kwargs_overrides = self._evaluate_external_kwargs(
+            flow_run
+        )
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")
@@ -355,51 +383,52 @@ class FargateAgent(Agent):
             definition_exists = True
             task_definition_name = self.task_definition_name
             definition_response = self.boto3_client.describe_task_definition(
-                taskDefinition=task_definition_name,
-                include=[
-                    "TAGS",
-                ]
+                taskDefinition=task_definition_name, include=["TAGS"]
             )
             # if current active task definition has current flow id, then exists
             if self.enable_task_revisions:
                 definition_exists = False
-                tag_dict = {x['key']: x['value'] for x in definition_response["tags"]}
-                current_flow_id = tag_dict.get('PrefectFlowId')
-                current_flow_version = int(tag_dict.get('PrefectFlowVersion', 0))
+                tag_dict = {x["key"]: x["value"] for x in definition_response["tags"]}
+                current_flow_id = tag_dict.get("PrefectFlowId")
+                current_flow_version = int(tag_dict.get("PrefectFlowVersion", 0))
                 if current_flow_id == flow_run.flow.id[:8]:
                     self.logger.debug(
-                        "Active task definition for {} already exists".format(flow_run.flow.id[:8])  # type: ignore
+                        "Active task definition for {} already exists".format(
+                            flow_run.flow.id[:8]
+                        )  # type: ignore
                     )
                     definition_exists = True
                 elif flow_run.flow.version < current_flow_version:
                     tag_search = self.boto3_client_tags.get_resources(
                         TagFilters=[
-                            {
-                                "Key": "PrefectFlowId",
-                                "Values": [flow_run.flow.id[:8]]
-                            }
+                            {"Key": "PrefectFlowId", "Values": [flow_run.flow.id[:8]]}
                         ],
-                        ResourceTypeFilters=[
-                            "ecs:task-definition"
-                        ]
+                        ResourceTypeFilters=["ecs:task-definition"],
                     )
-                    if tag_search['ResourceTagMappingList']:
+                    if tag_search["ResourceTagMappingList"]:
                         self.task_definition_name = [
-                            x.get("ResourceARN") for x in tag_search['ResourceTagMappingList']
+                            x.get("ResourceARN")
+                            for x in tag_search["ResourceTagMappingList"]
                         ][-1]
                         self.logger.debug(
-                            "Active task definition for {} already exists".format(flow_run.flow.id[:8])  # type: ignore
+                            "Active task definition for {} already exists".format(
+                                flow_run.flow.id[:8]
+                            )  # type: ignore
                         )
                         definition_exists = True
             else:
                 self.logger.debug(
-                    "Task definition {} found".format(task_definition_name)  # type: ignore
+                    "Task definition {} found".format(
+                        task_definition_name
+                    )  # type: ignore
                 )
         except ClientError:
             return False
         return definition_exists
 
-    def _create_task_definition(self, flow_run: GraphQLResult, task_definition_kwargs_overrides: dict = None) -> None:
+    def _create_task_definition(
+        self, flow_run: GraphQLResult, task_definition_kwargs_overrides: dict = None
+    ) -> None:
         """
         Create a task definition for the flow that each flow run will use. This function
         is only called when a flow is run for the first time.
@@ -455,7 +484,9 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
-        task_definition_kwargs = task_definition_kwargs_overrides or self.task_definition_kwargs
+        task_definition_kwargs = (
+            task_definition_kwargs_overrides or self.task_definition_kwargs
+        )
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
@@ -464,7 +495,9 @@ class FargateAgent(Agent):
             **task_definition_kwargs
         )
 
-    def _run_task(self, flow_run: GraphQLResult, task_run_kwargs_overrides: dict = None) -> str:
+    def _run_task(
+        self, flow_run: GraphQLResult, task_run_kwargs_overrides: dict = None
+    ) -> str:
         """
         Run a task using the flow run.
 
@@ -483,7 +516,7 @@ class FargateAgent(Agent):
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                         "value": flow_run.id,  # type: ignore
-                    }
+                    },
                 ],
             }
         ]

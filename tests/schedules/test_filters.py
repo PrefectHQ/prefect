@@ -12,8 +12,8 @@ def test_on_datetime_0():
 
 
 def test_on_datetime_1():
-    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2,))
-    assert filter_fn(pendulum.datetime(2019, 1, 2,))
+    filter_fn = filters.on_datetime(pendulum.datetime(2019, 1, 2))
+    assert filter_fn(pendulum.datetime(2019, 1, 2))
 
 
 def test_on_datetime_2():

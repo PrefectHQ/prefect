@@ -280,7 +280,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
     boto3_client.register_task_definition.return_value = {}
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    environment = FargateTaskEnvironment(family="test",)
+    environment = FargateTaskEnvironment(family="test")
 
     environment.setup(Docker(registry_url="test", image_name="image", image_tag="tag"))
 
