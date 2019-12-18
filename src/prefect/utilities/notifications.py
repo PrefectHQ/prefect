@@ -303,7 +303,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     project_name: str = None,
-    assignee: str = -1,
+    assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
     Jira Ticket State Handler requires a Jira account and API token.
