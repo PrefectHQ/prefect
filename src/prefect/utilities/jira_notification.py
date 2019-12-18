@@ -26,7 +26,7 @@ def jira_message_formatter(
     tracked_obj: TrackedObjectType, state: "prefect.engine.state.State"
 ) -> str:
     time = datetime.now()
-    msg = "Task {0} is in a {1} state at {2}".format(
+    msg = "Task/Flow {0} is in a {1} state at {2}".format(
         tracked_obj.name, type(state).__name__, time
     )
     return msg
@@ -72,7 +72,7 @@ def jira_notifier(
     Example:
         ```python
         from prefect import task
-        from prefect.utilities.notifications import jira_notifier
+        from prefect.utilities.jira_notification import jira_notifier
 
         @task(state_handlers=[jira_notifier(only_states=[Failed], project_name='Test', assignee='bob')]) # uses currying
         def add(x, y):
