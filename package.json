@@ -18,7 +18,7 @@
   "scripts": {
     "docs:generate-api": "cd docs && python generate_docs.py",
     "docs:dev": "yarn docs:generate-api && vuepress dev docs",
-    "docs:build": "yarn docs:generate-api && vuepress build docs"
+    "docs:build": "vuepress build docs"
   },
   "repository": {
     "type": "git",
