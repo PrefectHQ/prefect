@@ -33,6 +33,7 @@ extras = {
     "test": test_requires,
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
+    "jira": ["jira >= 2.0.0"],
 }
 
 if sys.version_info < (3, 6):

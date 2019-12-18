@@ -1,17 +1,18 @@
 """
-Tools and utilities for notifications and callbacks.
-
-For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](/core/tutorials/slack-notifications.html).
+A state-handler that will create and assign a Jira ticket. 
 """
 
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
-from jira import JIRA
 from datetime import datetime
-
-import requests
 from toolz import curry
-
 import prefect
+
+try:
+    from jira import JIRA
+except ImportError:
+    raise ImportError(
+        'Using `jira_notifier` requires Prefect to be installed with the "jira" extra.'
+    )
 
 if TYPE_CHECKING:
     import prefect.engine.state
@@ -43,7 +44,7 @@ def jira_notifier(
 ) -> "prefect.engine.state.State":
     """
     Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
-    The Jira account username, API token and server URL should be set as Prefect Secrets. 
+    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') and server URL ('JIRASERVER') should be set as Prefect Secrets. 
     Jira Notifier works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
     Jira Notifier creates a new ticket with the information about the task or flow it is bound to when that task or flow is in a specific state. 
