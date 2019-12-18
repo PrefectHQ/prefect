@@ -281,4 +281,3 @@ def slack_notifier(
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
     return new_state
-
