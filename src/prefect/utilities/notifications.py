@@ -320,8 +320,8 @@ def jira_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - project_name (String): The name of the project you want to create the new ticket in
-        - assignee - the atlassian username of the person you want to assign the ticket to
+        - project_name (String): The name of the project you want to create the new ticket in.  Can also be set as a Prefect Secret. 
+        - assignee - the atlassian username of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. 
 
     Returns:
         - State: the `new_state` object that was provided
