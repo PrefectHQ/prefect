@@ -302,13 +302,14 @@ def jira_notifier(
     new_state: "prefect.engine.state.State",
     ignore_states: list = None,
     only_states: list = None,
-    projectName: str = None,
+    project_name: str = None,
     assignee: str = -1,
 ) -> "prefect.engine.state.State":
     """
-    Slack state change handler; requires having the Prefect slack app installed.
+    Jira Ticket State Handler requires a Jira account and API token.
     Works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
+    The Jira Ticket State Handler creates a new ticket with the information about the task or flow it is bound to when that task or flow is in a specific state. 
 
     Args:
         - tracked_obj (Task or Flow): Task or Flow object the handler is
@@ -319,21 +320,21 @@ def jira_notifier(
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - webhook_secret (str, optional): the name of the Prefect Secret that stores your slack webhook URL;
-            defaults to `"SLACK_WEBHOOK_URL"`
+        - project_name (String): The name of the project you want to create the new ticket in
+        - assignee - the atlassian username of the person you want to assign the ticket to
 
     Returns:
         - State: the `new_state` object that was provided
 
     Raises:
-        - ValueError: if the slack notification fails for any reason
+        - ValueError: if the jira ticket creation or assignment fails for any reason
 
     Example:
         ```python
         from prefect import task
-        from prefect.utilities.notifications import slack_notifier
+        from prefect.utilities.notifications import jira_notifier
 
-        @task(state_handlers=[slack_notifier(ignore_states=[Running])]) # uses currying
+        @task(state_handlers=[jira_notifier(only_states=[Failed], project_name='Test', assignee='bob')]) # uses currying
         def add(x, y):
             return x + y
         ```
@@ -342,8 +343,8 @@ def jira_notifier(
     password = cast(str, prefect.client.Secret("JIRATOKEN").get())
     serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
 
-    if not projectName:
-        projectName = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    if not project_name:
+        project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
 
     ignore_states = ignore_states or []
     only_states = only_states or []
@@ -360,7 +361,7 @@ def jira_notifier(
 
     jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
     created = jira.create_issue(
-        project=projectName, summary=summaryText, issuetype={"name": "Task"}
+        project=project_name, summary=summaryText, issuetype={"name": "Task"}
     )
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
