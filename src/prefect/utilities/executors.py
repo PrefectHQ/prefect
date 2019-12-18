@@ -314,6 +314,7 @@ def tail_recursive(func: Callable) -> Callable:
             not decorated with `tail_recursive` decorator.
     """
 
+    @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         while True:
             try:
@@ -337,5 +338,4 @@ def tail_recursive(func: Callable) -> Callable:
                 continue
 
     setattr(wrapper, "__wrapped_func__", func)
-    wrapper.__doc__ = func.__doc__
     return wrapper
