@@ -30,7 +30,7 @@ In simple terms, a Prefect Task represents an individual unit of work. For examp
 In addition to performing some action, Tasks can optionally receive inputs and / or return outputs. _All_ of this "runtime" logic lives inside a single method on your Task class: the `run` method.
 
 ::: tip If you can write it in Python, you can do it in a Prefect Task
-When the run method of your task is called, it is executed as simple Python code. Consequently, if you can do it in Python, you can put it inside the `run` method of a Prefect Task.
+When the run method of your task is called, it is executed as Python code. Consequently, if you can do it in Python, you can put it inside the `run` method of a Prefect Task.
 
 There are still a few considerations though:
 
@@ -38,7 +38,7 @@ There are still a few considerations though:
 - make sure that you understand the possible retrictions on [Task inputs and outputs](#task-inputs-and-outputs)
   :::
 
-Generally speaking, there are two preferred methods for creating your own Prefect Tasks: using the `@task` decorator on a function, or subclassing the Prefect `Task` class. Let's take a look at a simple example of each of these individually by writing a custom task which adds two numbers together.
+Generally speaking, there are two preferred methods for creating your own Prefect Tasks: using the `@task` decorator on a function, or subclassing the Prefect `Task` class. Let's take a look at an example of each of these individually by writing a custom task which adds two numbers together.
 
 #### Subclassing the `Task` class
 
@@ -56,7 +56,7 @@ add_task = AddTask(name="Add")
 add_task # <Task: Add>
 ```
 
-Here we have created a simple Prefect Task named "Add" which receives two inputs (called x and y), and returns a single output. Note that we had to _instantiate_ our custom Task class in order to reach a proper Prefect Task object.
+Here we have created a Prefect Task named "Add" which receives two inputs (called x and y), and returns a single output. Note that we had to _instantiate_ our custom Task class in order to reach a proper Prefect Task object.
 
 #### The `@task` decorator
 
@@ -135,7 +135,7 @@ If you're interested in testing your Task as Prefect sees it, using a `TaskRunne
 - does your Task have result handlers or state handlers that need to be called?
 - what State should your Task run be in after it has run?
 
-To see this in action, let's run a simple Task which requires no inputs.
+To see this in action, let's run a Task which requires no inputs.
 
 ```python
 from prefect import task
@@ -228,7 +228,7 @@ This subtle and technical constraint actually informs a lot of design decisions 
 
 ## Adding Tasks to Flows
 
-Now that you've written your Tasks, it's time to add them to a Flow. Sticking with our extra simple `number_task` created above, let's add this task to our Flow using Prefect's Imperative API:
+Now that you've written your Tasks, it's time to add them to a Flow. Sticking with the `number_task` created above, let's add this Task to our Flow using Prefect's Imperative API:
 
 ```python
 from prefect import Flow

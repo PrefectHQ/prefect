@@ -17,7 +17,7 @@ We will proceed in stages, introducing Prefect functionality as we go:
 1. First, we will scrape a specific episode to test our scraping logic; this will only require the core Prefect building blocks.
 2. Next, we will compile a _list_ of all episodes, and then scrape each individual episode; for this we will introduce the concept of "mapping" a Task to efficiently re-use our scraping logic across each episode.
 3. To speed up processing time, we will re-execute our flow to exploit the inherit _parallelism_ of our mapped tasks. To achieve this we need to use a new Prefect _executor_. We will also save the results of this run to prevent re-running the scraping jobs as we extend our flow further.
-4. Finally, we want to leverage the Prefect task library to create a simple sqlite database and store all of our data in it.
+4. Finally, we want to leverage the Prefect task library to create a sqlite database and store all of our data in it.
 
 As we proceed, we hope to ensure that our Flow is _reproducible_ and _reusable_ in the future.
 
@@ -356,7 +356,7 @@ Disappointing, especially considering "The Springfield Files" was a Simpson's ep
 
 ## Reusability
 
-Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? Simple - we use the same pattern we used for scraping a single episode above!
+Suppose some time has passed, and a _new_ transcript has been uploaded - we've already put together all the necessary logic for going from a URL to the database, but how can we reuse that logic? We use the same pattern we used for scraping a single episode above!
 
 Fun fact: The X-Files resulted in a spinoff TV series called "The Lone Gunmen"; the transcripts of this series are also [posted on the website we've been using](http://www.insidethex.co.uk/scripts.htm#tlg), so let's scrape Episode 5 using our already constructed flow; to do so, we'll utilize our custom `bypass` flag for avoiding the initial scrape of the home page:
 

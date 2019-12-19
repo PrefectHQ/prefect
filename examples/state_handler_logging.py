@@ -1,5 +1,5 @@
 """
-A simple example Flow that logs the duration of task runs
+An example Flow that logs the duration of task runs
 by using a task state handler.
 """
 import time

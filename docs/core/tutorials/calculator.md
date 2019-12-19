@@ -8,7 +8,7 @@ sidebarDepth: 0
 
 Prefect is a heavy-duty data workflow system, but it handles lightweight applications just as well.
 
-To illustrate that, let's build a simple calculator.
+To illustrate that, let's build a calculator.
 
 ## Setup
 
