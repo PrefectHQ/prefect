@@ -32,17 +32,17 @@ kind: Job
 metadata:
   name: my-prefect-job
   labels:
-    identifier: ''
-    flow_run_id: ''
+    identifier: ""
+    flow_run_id: ""
 spec:
   template:
     metadata:
       labels:
-        identifier: ''
+        identifier: ""
     spec:
       containers:
         - name: flow-container
-          image: ''
+          image: ""
           command: []
           args: []
           env:
@@ -91,17 +91,17 @@ kind: Job
 metadata:
   name: my-prefect-job
   labels:
-    identifier: ''
+    identifier: ""
 spec:
   template:
     metadata:
       labels:
-        identifier: ''
+        identifier: ""
     spec:
       restartPolicy: Never
       containers:
         - name: flow-container
-          image: ''
+          image: ""
           command: []
           args: []
           env:
@@ -109,10 +109,10 @@ spec:
               value: foo
           resources:
             limits:
-              cpu: '2'
+              cpu: "2"
               memory: 4G
             requests:
-              cpu: '1'
+              cpu: "1"
               memory: 2G
 ```
 
