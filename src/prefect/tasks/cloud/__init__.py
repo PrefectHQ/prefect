@@ -1,5 +1,5 @@
 """
-This Task class is "Cloud" in the sense that it relies on Cloud to do anything meaningful.
+These tasks are classified as Cloud due to their reliance on Prefect Cloud.
 """
 
 import prefect.tasks.cloud.flow_run

@@ -8,8 +8,8 @@ from prefect.utilities.graphql import with_args, EnumValue
 
 class FlowRunTask(Task):
     """
-    Task used to kick off a Flow Run in Cloud. If multiple versions of the flow are found,
-    this task will kick off the most recent version.
+    Task used to kick off a Flow Run in Prefect Cloud. If multiple versions of the flow are found,
+    this task will kick off the most recent unarchived version.
     """
 
     def __init__(
@@ -57,6 +57,7 @@ class FlowRunTask(Task):
                         "where": {
                             "name": {"_eq": flow_name},
                             "project": {"name": {"_eq": project_name}},
+                            "archived": {"_eq": False},
                         },
                         "order_by": {"version": EnumValue("desc")},
                     },
