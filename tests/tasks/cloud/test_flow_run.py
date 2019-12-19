@@ -38,7 +38,15 @@ class TestFlowRunTask:
             parameters={"test": "ing"},
         )
         task.run()
-        client.graphql.assert_called_once()
+        client.graphql.assert_called_once_with(
+            {
+                "query": {
+                    'flow(where: { name: { _eq: "Test Flow" }, project: { name: { _eq: "Test Project" } } })': {
+                        "id"
+                    }
+                }
+            }
+        )
         client.create_flow_run.assert_called_once_with(
             flow_id="abc123", parameters={"test": "ing"}
         )
