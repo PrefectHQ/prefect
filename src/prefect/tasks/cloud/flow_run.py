@@ -10,6 +10,14 @@ class FlowRunTask(Task):
     """
     Task used to kick off a Flow Run in Prefect Cloud. If multiple versions of the flow are found,
     this task will kick off the most recent unarchived version.
+
+    Args:
+        - project_name (str, optional): the project in which the flow is located; this value may also be provided
+            at run time
+        - flow_name (str, optional): the name of the flow to schedule; this value may also be provided at run time
+        - parameters (dict, optional): the parameters to pass to the flow run being scheduled; this value may also
+            be provided at run time
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
     def __init__(
