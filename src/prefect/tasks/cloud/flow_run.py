@@ -3,12 +3,13 @@ from prefect import Task
 
 from prefect.client import Client
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.utilities.graphql import with_args
+from prefect.utilities.graphql import with_args, EnumValue
 
 
 class FlowRunTask(Task):
     """
-    Task used to kick off a Flow Run in Cloud.
+    Task used to kick off a Flow Run in Cloud. If multiple versions of the flow are found,
+    this task will kick off the most recent version.
     """
 
     def __init__(
@@ -27,7 +28,7 @@ class FlowRunTask(Task):
     @defaults_from_attrs("project_name", "flow_name", "parameters")
     def run(
         self, project_name: str = None, flow_name: str = None, parameters: dict = None
-    ) -> None:
+    ) -> str:
         """
         Run method for the task; responsible for scheduling the specified flow run.
 
@@ -40,7 +41,7 @@ class FlowRunTask(Task):
                 this method will use the parameters provided at initialization
 
         Returns:
-            - None
+            - str: the ID of the newly-scheduled flow run
         """
         # verify that flow and project names were passed in some capacity or another
         if project_name is None:
@@ -57,23 +58,18 @@ class FlowRunTask(Task):
                         "where": {
                             "name": {"_eq": flow_name},
                             "project": {"name": {"_eq": project_name}},
-                        }
+                        },
+                        "order_by": {"version": EnumValue("desc")},
                     },
                 ): {"id"}
             }
         }
         flow = self.client.graphql(query).data.flow
-        # verify that an ID was returned
+        # verify that something's been returned
         if not flow:
             raise ValueError(
                 "No flow {} found in project {}.".format(flow_name, project_name)
             )
-        # and that there was only one ID returned
-        if len(flow) > 1:
-            raise ValueError(
-                "More than one flow named {} found in project {}.".format(
-                    flow_name, project_name
-                )
-            )
+        # grab the ID for the most recent version
         flow_id = flow[0].id
-        self.client.create_flow_run(flow_id=flow_id, parameters=parameters)
+        return self.client.create_flow_run(flow_id=flow_id, parameters=parameters)

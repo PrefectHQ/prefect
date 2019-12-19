@@ -8,9 +8,11 @@ from prefect.tasks.cloud.flow_run import FlowRunTask
 def client(monkeypatch):
     cloud_client = MagicMock(
         graphql=MagicMock(
-            return_value=MagicMock(data=MagicMock(flow=[MagicMock(id="abc123")]))
+            return_value=MagicMock(
+                data=MagicMock(flow=[MagicMock(id="abc123"), MagicMock(id="def456")])
+            )
         ),
-        create_flow_run=MagicMock(return_value="def456"),
+        create_flow_run=MagicMock(return_value="xyz890"),
     )
     monkeypatch.setattr(
         "prefect.tasks.cloud.flow_run.Client", MagicMock(return_value=cloud_client),
@@ -37,16 +39,19 @@ class TestFlowRunTask:
             flow_name="Test Flow",
             parameters={"test": "ing"},
         )
-        task.run()
+        # verify that run returns the new flow run ID
+        assert task.run() == "xyz890"
+        # verify the GraphQL query was called with the correct arguments
         client.graphql.assert_called_once_with(
             {
                 "query": {
-                    'flow(where: { name: { _eq: "Test Flow" }, project: { name: { _eq: "Test Project" } } })': {
+                    'flow(where: { name: { _eq: "Test Flow" }, project: { name: { _eq: "Test Project" } } }, order_by: { version: desc })': {
                         "id"
                     }
                 }
             }
         )
+        # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
             flow_id="abc123", parameters={"test": "ing"}
         )
@@ -61,17 +66,6 @@ class TestFlowRunTask:
         # verify that a ValueError is raised without a project name
         task = FlowRunTask(flow_name="Test Flow")
         with pytest.raises(ValueError, match="Must provide a project name."):
-            task.run()
-
-    def test_flow_run_task_with_more_than_one_matching_flow(self, client):
-        # verify a ValueError is raised if the client returns more than one flow
-        task = FlowRunTask(flow_name="Test Flow", project_name="Test Project")
-        client.graphql = MagicMock(
-            return_value=MagicMock(
-                data=MagicMock(flow=[MagicMock(id="abc123"), MagicMock(id="xyz789")])
-            )
-        )
-        with pytest.raises(ValueError, match="More than one flow"):
             task.run()
 
     def test_flow_run_task_with_no_matching_flow(self, client):
