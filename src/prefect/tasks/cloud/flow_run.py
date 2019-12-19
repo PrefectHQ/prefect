@@ -60,6 +60,7 @@ class FlowRunTask(Task):
                             "archived": {"_eq": False},
                         },
                         "order_by": {"version": EnumValue("desc")},
+                        "limit": 1,
                     },
                 ): {"id"}
             }
