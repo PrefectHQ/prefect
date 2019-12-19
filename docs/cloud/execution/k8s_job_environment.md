@@ -32,17 +32,17 @@ kind: Job
 metadata:
   name: my-prefect-job
   labels:
-    identifier: ""
-    flow_run_id: ""
+    identifier: ''
+    flow_run_id: ''
 spec:
   template:
     metadata:
       labels:
-        identifier: ""
+        identifier: ''
     spec:
       containers:
         - name: flow-container
-          image: ""
+          image: ''
           command: []
           args: []
           env:
@@ -75,7 +75,7 @@ PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
 ```
 
-All other aspects of your Job will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the YAML block above.
+All other aspects of your Job will remain untouched. In some cases it is easiest to use a dummy first container similar to the YAML block above.
 
 ## Examples
 
@@ -91,17 +91,17 @@ kind: Job
 metadata:
   name: my-prefect-job
   labels:
-    identifier: ""
+    identifier: ''
 spec:
   template:
     metadata:
       labels:
-        identifier: ""
+        identifier: ''
     spec:
       restartPolicy: Never
       containers:
         - name: flow-container
-          image: ""
+          image: ''
           command: []
           args: []
           env:
@@ -109,10 +109,10 @@ spec:
               value: foo
           resources:
             limits:
-              cpu: "2"
+              cpu: '2'
               memory: 4G
             requests:
-              cpu: "1"
+              cpu: '1'
               memory: 2G
 ```
 

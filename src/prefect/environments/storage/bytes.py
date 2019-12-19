@@ -28,7 +28,7 @@ class Bytes(Storage):
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
-                a flow location is simply a Flow's name
+                a flow location is a Flow's name
 
         Returns:
             - Flow: the requested flow

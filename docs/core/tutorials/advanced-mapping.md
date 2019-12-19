@@ -39,7 +39,7 @@ Using this as our source of transcripts, let's scrape a single episode of "The X
 
 We begin by setting up two Prefect tasks:
 
-- `retrieve_url`: a task that simply pulls the raw HTML to our local machine
+- `retrieve_url`: a task that pulls the raw HTML to our local machine
 - `scrape_dialogue`: a task that takes that HTML, and processes it to extract the relevant dialogue by character
 
 To ease in, let's import everything we need and create the `retrieve_url` task:
@@ -141,7 +141,7 @@ Now that we're reasonably confident in our scraping logic, we want to reproduce 
 
 We achieve this with a single new task:
 
-- `create_episode_list`: given the main page's raw html, creates a list consisting of the absolute URLs of all episode transcripts and returns that list. If the `bypass` flag is set to `True`, the `base_url` is simply returned in a single element list. This gives the ability to scrape a single episode in the future using this flow.
+- `create_episode_list`: given the main page's raw html, creates a list consisting of the absolute URLs of all episode transcripts and returns that list. If the `bypass` flag is set to `True`, the `base_url` is returned in a single element list. This gives the ability to scrape a single episode in the future using this flow.
 
 ```python
 @task
@@ -211,11 +211,11 @@ flow.visualize()
 ![full scrape flow](/full_scrape_flow.svg){.viz-md .viz-padded}
 
 ::: tip How mapped tasks are returned
-In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state.  This `Mapped` state has two special attributes worth knowing about:
+In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state. This `Mapped` state has two special attributes worth knowing about:
 
 - `map_states`: this attributes contains a list of all the states of all the individual mapped instances
 - `result`: the result of a `Mapped` task is a list of all the results of its individual mapped instances
-:::
+  :::
 
 Now let's run our flow, time its execution, and print the states for the first five scraped episodes:
 
@@ -237,7 +237,7 @@ print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state.map_states[:5]]))
 
 Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarrassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `Synchronous` executor), so this property was not taken advantage of during execution.
 
-In order to allow for parallel execution of tasks, we don't need to "recompile" our flow: we simply provide an executor which can handle parallelism in our call to `run`. In the local case, Prefect offers the `DaskExecutor` for executing parallel flows. These execution pipelines can either spawn new processes (`local_processes=True`), or only use threads; we have chosen to use `local_processes=True` in our example below.
+In order to allow for parallel execution of tasks, we don't need to "recompile" our flow: we provide an executor which can handle parallelism in our call to `run`. In the local case, Prefect offers the `DaskExecutor` for executing parallel flows. These execution pipelines can either spawn new processes (`local_processes=True`), or only use threads; we have chosen to use `local_processes=True` in our example below.
 
 :::tip What is an executor, anyway?
 A Prefect executor is the core driver of computation - an executor specifies _how_ and _where_ each task in a flow should be run.
@@ -305,7 +305,7 @@ insert_episode = SQLiteScript(name="Insert Episode",
 
 Notice that for `create_db` we provide the script at initialization, whereas for the `insert_episode` task we provide the script at runtime. Prefect's tasks often support both patterns, to allow for default settings to be set at initialization and optionally overridden dynamically at runtime.
 
-To extend our flow, we can simply use our current `flow` to open a context manager and add tasks like normal. Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
+To extend our flow, we can use our current `flow` to open a context manager and add tasks like normal. Note that we are utilizing the fact that `dialogue` is a task that was defined in our current session.
 
 ```python
 from prefect import unmapped
@@ -317,9 +317,9 @@ with flow:
 ```
 
 ::: tip task.map()
-In the above example, we utilize a new call signature for `task.map()`. It is often the case that some arguments to your task should _not_ be mapped over (they remain static). This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`. In our example above, the argument `"db"` is _not_ mapped over and is simply provided as-is to `insert_episode`.
+In the above example, we utilize a new call signature for `task.map()`. It is often the case that some arguments to your task should _not_ be mapped over (they remain static). This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`. In our example above, the argument `"db"` is _not_ mapped over and is provided as-is to `insert_episode`.
 
-You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is simply a way of functionally specifying upstream dependencies which do not pass any data.
+You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is a way of functionally specifying upstream dependencies which do not pass any data.
 :::
 
 ```python

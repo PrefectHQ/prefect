@@ -25,7 +25,7 @@ When settings secrets via `.toml` config files, you can use the [TOML Keys](http
 
 This is also the default setting, so you only need to change this if you've changed it yourself.
 
-Now, to populate your local secrets you can simply add an additional section to your user config:
+Now, to populate your local secrets you can add an additional section to your user config:
 
 ```
 [context.secrets]
@@ -57,7 +57,7 @@ client.set_secret(name="my secret", value=42)
 
 #### GraphQL <Badge text="GQL"/>
 
-With GraphQL, simply issue the following mutation:
+To set a secret using GraphQL, issue the following mutation:
 
 ```graphql
 mutation {

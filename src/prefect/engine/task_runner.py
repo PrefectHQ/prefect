@@ -697,7 +697,7 @@ class TaskRunner(Runner):
 
                 for edge, upstream_state in upstream_states.items():
 
-                    # if the edge is not mapped over, then we simply take its state
+                    # if the edge is not mapped over, then we take its state
                     if not edge.mapped:
                         states[edge] = upstream_state
 
