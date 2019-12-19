@@ -79,8 +79,8 @@ When running Flows registered with Cloud, Prefect Core sends heartbeats to Cloud
 
 ```graphql
 mutation {
-  disableFlowHeartbeat(input: { flowId: "your-flow-id-here", value: True }) {
-    id
+  disableFlowHeartbeat(input: { flowId: "your-flow-id-here", value: true }) {
+    success
   }
 }
 ```
@@ -93,8 +93,8 @@ The Lazarus process is responsible for rescheduling flow runs under the circumst
 
 ```graphql
 mutation {
-  disableLazarusForFlow(input: { flowId: "your-flow-id-here", value: True }) {
-    id
+  disableLazarusForFlow(input: { flowId: "your-flow-id-here", value: true }) {
+    success
   }
 }
 ```
@@ -108,9 +108,9 @@ Prefect Cloud's version locking mechanism enforces the assertion that your work 
 ```graphql
 mutation {
   disableFlowVersionLocking(
-    input: { flowId: "your-flow-id-here", value: True }
+    input: { flowId: "your-flow-id-here", value: true }
   ) {
-    id
+    success
   }
 }
 ```
