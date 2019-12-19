@@ -266,9 +266,19 @@ In order to use this feature you must supply `external_kwargs_s3_bucket` and `ex
 ```
 <external_kwargs_s3_key>/<reformatted_flow_name>/<flow_id[:8]>.json
 ```
-Flow name in the s3 key is reformatted by converting all non-alphanumeric characters to '_'. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
+Flow name in the s3 key needs to be reformatted by converting all non-alphanumeric characters to '_'. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
 ```
 prefect/flow__1/a718df81.json
+```
+
+Here is a sample os path join for creating the s3 key:
+
+```
+import os
+import re
+
+flow_id = flow.register()
+s3_key = os.path.join('prefect-artifacts', re.sub(r"[^a-zA-Z0-9]", "_", flow.name), '{}.json'.format(flow_id[:8]))
 ```
 
 This option enables the ability to have things like cpu, memory, and taskRoleArn per flow.  When you register your flow via `flow.register` the return value is the flow id.  You can use this return value to then upload the external kwargs to s3 using the proper s3 key prefix.
