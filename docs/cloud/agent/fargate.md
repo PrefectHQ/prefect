@@ -95,6 +95,22 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
+- enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
+    When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
+    task definition revision. Each revision will be registered with a tag called 'PrefectFlowId'
+    and 'PrefectFlowVersion' to enable proper lookup for existing revisions.  Flow name is reformatted
+    to support task definition naming rules by converting all non-alphanumeric characters to '_'.
+    Defaults to False.
+- use_external_kwargs (bool, optional): When enabled, the agent will check for the existence of an
+    external json file containing kwargs to pass into the run_flow process.
+    Defaults to False.
+- external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
+- external_kwargs_s3_key (str, optional): S3 key prefix for the location of <flow_id>/<flow_name>.json
+
+By default, a new task definition is created each time there is a new flow version executed.  
+However, ECS does offer the ability to apply changes through the use of revisions.  
+The `enable_task_revisions` flag will enable using revisions by doing the following:
+- 
 
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 

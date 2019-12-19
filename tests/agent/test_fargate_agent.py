@@ -888,14 +888,43 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
             }
         )
     )
-    assert agent.task_definition_kwargs == {
-        "tags": [
-            {"key": "PrefectFlowId", "value": "id"},
-            {"key": "PrefectFlowVersion", "value": "2"},
-        ]
-    }
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.called
+    boto3_client.register_task_definition.assert_called_with(
+        containerDefinitions=[
+            {
+                "name": "flow",
+                "image": "test/name:tag",
+                "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
+                "environment": [
+                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
+                    {
+                        "name": "PREFECT__CLOUD__AGENT__LABELS",
+                        "value": "[]",
+                    },
+                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
+                    {
+                        "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudFlowRunner",
+                    },
+                    {
+                        "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
+                        "value": "prefect.engine.cloud.CloudTaskRunner",
+                    },
+                ],
+                "essential": True,
+            }
+        ],
+        family="name",
+        networkMode="awsvpc",
+        requiresCompatibilities=["FARGATE"],
+        tags=[
+            {"key": "PrefectFlowId", "value": "id"},
+            {"key": "PrefectFlowVersion", "value": "2"},
+        ],
+    )
     assert boto3_client.run_task.called
     assert agent.task_definition_name == "name"
 
@@ -924,8 +953,8 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
                         "id": "id",
-                        "version": 2,
-                        "name": "name",
+                        "version": 5,
+                        "name": "name #1",
                     }
                 ),
                 "id": "id",
@@ -933,21 +962,13 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
             }
         )
     )
-    assert agent.task_definition_kwargs == {
-        "tags": [
-            {"key": "PrefectFlowId", "value": "id"},
-            {"key": "PrefectFlowVersion", "value": "2"},
-        ]
-    }
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.not_called
     assert boto3_client.run_task.called
-    assert agent.task_definition_name == "name"
+    assert agent.task_definition_name == "name__1"
 
 
-def test_deploy_flows_enable_task_revisions_old_version_exists(
-    monkeypatch, runner_token
-):
+def test_deploy_flows_enable_task_revisions_old_version_exists(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {
@@ -984,12 +1005,6 @@ def test_deploy_flows_enable_task_revisions_old_version_exists(
             }
         )
     )
-    assert agent.task_definition_kwargs == {
-        "tags": [
-            {"key": "PrefectFlowId", "value": "id"},
-            {"key": "PrefectFlowVersion", "value": "3"},
-        ]
-    }
     assert boto3_client.describe_task_definition.called
     assert boto3_client.get_resources.called
     assert boto3_client.register_task_definition.not_called
@@ -1000,11 +1015,11 @@ def test_deploy_flows_enable_task_revisions_old_version_exists(
     )
 
 
-def test_evaluate_external_kwargs(monkeypatch, runner_token):
+def test_override_kwargs(monkeypatch, runner_token):
 
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
-    streaming_body.read.return_value.decode.return_value = '{"cpu": "256"}'
+    streaming_body.read.return_value.decode.return_value = '{"cpu": "256", "networkConfiguration": "test"}'
     boto3_resource.return_value.Object.return_value.get.return_value = {
         "Body": streaming_body
     }
@@ -1020,7 +1035,9 @@ def test_evaluate_external_kwargs(monkeypatch, runner_token):
         region_name="region",
         labels=["aws", "staging"],
     )
-    task_definition_kwargs, task_run_kwargs = agent._evaluate_external_kwargs(
+    definition_kwargs = {}
+    run_kwargs = {}
+    agent._override_kwargs(
         GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -1036,13 +1053,18 @@ def test_evaluate_external_kwargs(monkeypatch, runner_token):
                 "id": "id",
                 "name": "name",
             }
-        )
+        ),
+        definition_kwargs,
+        run_kwargs
     )
 
-    assert task_definition_kwargs == {"cpu": "256"}
+    assert boto3_resource.called
+    assert streaming_body.read().decode.called
+    assert definition_kwargs == {"cpu": "256"}
+    assert run_kwargs == {"networkConfiguration": "test"}
 
 
-def test_evaluate_external_kwargs_exception(monkeypatch, runner_token):
+def test_override_kwargs_exception(monkeypatch, runner_token):
 
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
@@ -1062,7 +1084,9 @@ def test_evaluate_external_kwargs_exception(monkeypatch, runner_token):
         region_name="region",
         labels=["aws", "staging"],
     )
-    task_definition_kwargs, task_run_kwargs = agent._evaluate_external_kwargs(
+    definition_kwargs = {}
+    run_kwargs = {}
+    agent._override_kwargs(
         GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -1078,10 +1102,15 @@ def test_evaluate_external_kwargs_exception(monkeypatch, runner_token):
                 "id": "id",
                 "name": "name",
             }
-        )
+        ),
+        definition_kwargs,
+        run_kwargs
     )
 
-    assert task_definition_kwargs == {}
+    assert boto3_resource.called
+    assert streaming_body.read().decode.called
+    assert definition_kwargs == {}
+    assert run_kwargs == {}
 
 
 def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_token):
@@ -1187,13 +1216,6 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
             }
         )
     )
-    assert agent.task_definition_kwargs == {
-        "tags": [
-            {"key": "team", "value": "data"},
-            {"key": "PrefectFlowId", "value": "new_id"},
-            {"key": "PrefectFlowVersion", "value": "6"},
-        ]
-    }
     assert boto3_client.describe_task_definition.called
     boto3_client.register_task_definition.assert_called_with(
         containerDefinitions=[
@@ -1227,7 +1249,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
         tags=[
-            {"key": "team", "value": "data"},
+            {"key": "test", "value": "test"},
             {"key": "PrefectFlowId", "value": "new_id"},
             {"key": "PrefectFlowVersion", "value": "6"},
         ],
