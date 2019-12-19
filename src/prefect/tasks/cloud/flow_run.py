@@ -22,7 +22,6 @@ class FlowRunTask(Task):
         self.flow_name = flow_name
         self.project_name = project_name
         self.parameters = parameters
-        self.client = Client()
         super().__init__(**kwargs)
 
     @defaults_from_attrs("project_name", "flow_name", "parameters")
@@ -64,7 +63,8 @@ class FlowRunTask(Task):
                 ): {"id"}
             }
         }
-        flow = self.client.graphql(query).data.flow
+        client = Client()
+        flow = client.graphql(query).data.flow
         # verify that something's been returned
         if not flow:
             raise ValueError(
@@ -72,4 +72,4 @@ class FlowRunTask(Task):
             )
         # grab the ID for the most recent version
         flow_id = flow[0].id
-        return self.client.create_flow_run(flow_id=flow_id, parameters=parameters)
+        return client.create_flow_run(flow_id=flow_id, parameters=parameters)

@@ -24,10 +24,14 @@ class TestFlowRunTask:
     def test_initialization(self):
         # verify that the task is initialized as expected
         task = FlowRunTask(
+            name="My Flow Run Task",
+            checkpoint=False,
             project_name="Test Project",
             flow_name="Test Flow",
             parameters={"test": "ing"},
         )
+        assert task.name == "My Flow Run Task"
+        assert task.checkpoint is False
         assert task.project_name == "Test Project"
         assert task.flow_name == "Test Flow"
         assert task.parameters == {"test": "ing"}
@@ -42,15 +46,10 @@ class TestFlowRunTask:
         # verify that run returns the new flow run ID
         assert task.run() == "xyz890"
         # verify the GraphQL query was called with the correct arguments
-        client.graphql.assert_called_once_with(
-            {
-                "query": {
-                    'flow(where: { name: { _eq: "Test Flow" }, project: { name: { _eq: "Test Project" } } }, order_by: { version: desc })': {
-                        "id"
-                    }
-                }
-            }
-        )
+        query_args = list(client.graphql.call_args_list[0][0][0]["query"].keys())[0]
+        assert "Test Project" in query_args
+        assert "Test Flow" in query_args
+
         # verify create_flow_run was called with the correct arguments
         client.create_flow_run.assert_called_once_with(
             flow_id="abc123", parameters={"test": "ing"}
