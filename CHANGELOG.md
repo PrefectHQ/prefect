@@ -23,7 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add task for scheduling a flow run - [#1871](https://github.com/PrefectHQ/prefect/pull/1871)
 
 ### Fixes
 
