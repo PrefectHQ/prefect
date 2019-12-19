@@ -129,11 +129,12 @@ class FargateAgent(Agent):
                 region_name=region_name,
             )
 
-    def _override_kwargs(self,
-                         flow_run: GraphQLResult,
-                         flow_task_definition_kwargs: dict,
-                         flow_task_run_kwargs: dict
-                         ):
+    def _override_kwargs(
+        self,
+        flow_run: GraphQLResult,
+        flow_task_definition_kwargs: dict,
+        flow_task_run_kwargs: dict,
+    ):
         """
         Return new kwargs updated from external kwargs file.
 
@@ -152,15 +153,13 @@ class FargateAgent(Agent):
                 os.path.join(
                     self.external_kwargs_s3_key,
                     re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name),
-                    "{}.json".format(flow_run.flow.id[:8])
-                )
+                    "{}.json".format(flow_run.flow.id[:8]),
+                ),
             )
             body = obj.get()["Body"].read().decode("utf-8")
         except ClientError:
             self.logger.info(
-                "Flow id {} does not have external kwargs.".format(
-                    flow_run.flow.id[:8]
-                )
+                "Flow id {} does not have external kwargs.".format(flow_run.flow.id[:8])
             )
             body = "{}"
         self.logger.debug("External kwargs:\n{}".format(body))
@@ -173,22 +172,17 @@ class FargateAgent(Agent):
             external_kwargs
         )
         self.logger.debug(
-            "External task definition kwargs:\n{}".format(
-                ext_task_definition_kwargs
-            )
+            "External task definition kwargs:\n{}".format(ext_task_definition_kwargs)
         )
-        self.logger.debug(
-            "External task run kwargs:\n{}".format(ext_task_run_kwargs)
-        )
+        self.logger.debug("External task run kwargs:\n{}".format(ext_task_run_kwargs))
 
         # update flow_task_definition_kwargs and flow_task_run_kwargs
         flow_task_definition_kwargs.update(ext_task_definition_kwargs)
         flow_task_run_kwargs.update(ext_task_run_kwargs)
 
-    def _add_flow_tags(self,
-                       flow_run: GraphQLResult,
-                       flow_task_definition_kwargs: dict
-                       ):
+    def _add_flow_tags(
+        self, flow_run: GraphQLResult, flow_task_definition_kwargs: dict
+    ):
         """
         Add tags to task definition kwargs to
 
@@ -201,7 +195,9 @@ class FargateAgent(Agent):
         if not flow_task_definition_kwargs.get("tags"):
             flow_task_definition_kwargs["tags"] = []
         else:
-            flow_task_definition_kwargs["tags"] = copy.deepcopy(flow_task_definition_kwargs["tags"])
+            flow_task_definition_kwargs["tags"] = copy.deepcopy(
+                flow_task_definition_kwargs["tags"]
+            )
         append_tag = True
         for i in flow_task_definition_kwargs["tags"]:
             if i["key"] == "PrefectFlowId":
@@ -323,9 +319,7 @@ class FargateAgent(Agent):
         if self.use_external_kwargs:
             # override from  external kwargs
             self._override_kwargs(
-                flow_run,
-                flow_task_definition_kwargs,
-                flow_task_run_kwargs
+                flow_run, flow_task_definition_kwargs, flow_task_run_kwargs
             )
 
         # set proper task_definition_name and tags based on enable_task_revisions flag
@@ -484,9 +478,7 @@ class FargateAgent(Agent):
             **flow_task_definition_kwargs
         )
 
-    def _run_task(
-        self, flow_run: GraphQLResult, flow_task_run_kwargs: dict
-    ) -> str:
+    def _run_task(self, flow_run: GraphQLResult, flow_task_run_kwargs: dict) -> str:
         """
         Run a task using the flow run.
 

@@ -898,10 +898,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                    {
-                        "name": "PREFECT__CLOUD__AGENT__LABELS",
-                        "value": "[]",
-                    },
+                    {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
@@ -968,7 +965,9 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
     assert agent.task_definition_name == "name__1"
 
 
-def test_deploy_flows_enable_task_revisions_old_version_exists(monkeypatch, runner_token):
+def test_deploy_flows_enable_task_revisions_old_version_exists(
+    monkeypatch, runner_token
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {
@@ -1019,7 +1018,9 @@ def test_override_kwargs(monkeypatch, runner_token):
 
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
-    streaming_body.read.return_value.decode.return_value = '{"cpu": "256", "networkConfiguration": "test"}'
+    streaming_body.read.return_value.decode.return_value = (
+        '{"cpu": "256", "networkConfiguration": "test"}'
+    )
     boto3_resource.return_value.Object.return_value.get.return_value = {
         "Body": streaming_body
     }
@@ -1055,7 +1056,7 @@ def test_override_kwargs(monkeypatch, runner_token):
             }
         ),
         definition_kwargs,
-        run_kwargs
+        run_kwargs,
     )
 
     assert boto3_resource.called
@@ -1104,7 +1105,7 @@ def test_override_kwargs_exception(monkeypatch, runner_token):
             }
         ),
         definition_kwargs,
-        run_kwargs
+        run_kwargs,
     )
 
     assert boto3_resource.called
