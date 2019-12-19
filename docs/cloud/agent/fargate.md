@@ -95,22 +95,39 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
+
 - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
     When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
-    task definition revision. Each revision will be registered with a tag called 'PrefectFlowId'
-    and 'PrefectFlowVersion' to enable proper lookup for existing revisions.  Flow name is reformatted
+    task definition revision. Each revision will be registered with a tag called `PrefectFlowId`
+    and `PrefectFlowVersion` to enable proper lookup for existing revisions.  Flow name is reformatted
     to support task definition naming rules by converting all non-alphanumeric characters to '_'.
     Defaults to False.
 - use_external_kwargs (bool, optional): When enabled, the agent will check for the existence of an
     external json file containing kwargs to pass into the run_flow process.
     Defaults to False.
 - external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
-- external_kwargs_s3_key (str, optional): S3 key prefix for the location of <flow_id>/<flow_name>.json
+- external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<reformatted_flow_name>/<flow_id[:8]>.json`.
+    Flow name in the s3 key is reformatted by converting all non-alphanumeric characters to '_'.  The json file
+    name uses first 8 characters of flow id.
+- **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
+    `register_task_definition` and `run_task`
 
 By default, a new task definition is created each time there is a new flow version executed.  
 However, ECS does offer the ability to apply changes through the use of revisions.  
 The `enable_task_revisions` flag will enable using revisions by doing the following:
-- 
+
+- Use a reformatted flow name for the task definition family name by reformatted by converting all non-alphanumeric characters to '_'.  
+  For example, `flow #1` becomes `flow__1`.
+- Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
+
+This means that for each flow, the proper task definition, based on flow id and version, will be used.  If a new flow version is run, a new revision is added to the flows task definition family.  Your task definitions will now have this hierarchy:
+
+```
+<flow name>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+```
 
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
@@ -242,3 +259,16 @@ $ export NETWORK_CONFIGURATION="{'awsvpcConfiguration': {'assignPublicIp': 'ENAB
 
 $ prefect agent start fargate cpu=$CPU memory=$MEMORY networkConfiguration=$NETWORK_CONFIGURATION
 ```
+
+By default, all of these kwargs are passed in the agent configuration, which means that every flow inherits them.  There are use cases where you will want to use different attributes for different flows.  
+When you enable `use_external_kwargs`, the agent will check for the existence of an external kwargs file.  If this file exists, the agent will apply these kwargs to the `register_task_definition` and `run_task`.  You need to abide by the same naming rules explained above, when creating theses files.  
+In order to use this feature you must supply `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your agent.  The s3 key path that will be used when fetching files is:
+```
+<external_kwargs_s3_key>/<reformatted_flow_name>/<flow_id[:8]>.json
+```
+Flow name in the s3 key is reformatted by converting all non-alphanumeric characters to '_'. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
+```
+prefect/flow__1/a718df81.json
+```
+
+This option enables the ability to have things like cpu, memory, and taskRoleArn per flow.  When you register your flow via `flow.register` the return value is the flow id.  You can use this return value to then upload the external kwargs to s3 using the proper s3 key prefix.
