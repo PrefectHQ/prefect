@@ -1,6 +1,7 @@
 ---
 sidebarDepth: 0
 ---
+
 # ETL
 
 > The "hello, world!" of the data engineering world
@@ -42,10 +43,10 @@ def load(data):
 
 ## The Flow
 
-Now that we have our tasks, we create a `Flow` and call the tasks just as if they were functions. In the background, Prefect is generating a computational graph that tracks all dependencies between our tasks.
+Now that we have our tasks, we create a `Flow` and call the tasks as if they were functions. In the background, Prefect is generating a computational graph that tracks all dependencies between our tasks.
 
 ::: tip Deferred execution
-It may look like we're calling our ETL functions, but nothing is actually being executed here. In Prefect, calling a task is just a convenient way to tell the framework how it relates to other tasks; Prefect uses that information to build the computational graph. Nothing actually happens until you call `flow.run()`.
+It may look like we're calling our ETL functions, but nothing is actually being executed here. In Prefect, calling a task is a convenient way to tell the framework how it relates to other tasks; Prefect uses that information to build the computational graph. Nothing actually happens until you call `flow.run()`.
 :::
 
 ```python
