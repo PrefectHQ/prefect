@@ -54,7 +54,7 @@ class FlowRunTask(Task):
             - ValueError: if flow or project names were not provided, or if the flow provided cannot be found
 
         Example:
-            ``` python
+            ```python
             from prefect.tasks.cloud.flow_run import FlowRunTask
 
             kickoff_task = FlowRunTask(project_name="My Cloud Project", flow_name="My Cloud Flow")
