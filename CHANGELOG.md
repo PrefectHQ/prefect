@@ -19,7 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Enforce provision of `max_retries` if specifying `retry_delay` for a `Task` - [#1875](https://github.com/PrefectHQ/prefect/pull/1875)
 
 ### Deprecations
 
