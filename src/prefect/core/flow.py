@@ -1218,8 +1218,8 @@ class Flow:
                 or the name of the Flow you wish to load
         """
         if not os.path.isabs(fpath):
-            path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
                 slugify(fpath)
             )  # type: ignore
         with open(str(fpath), "rb") as f:
@@ -1238,9 +1238,9 @@ class Flow:
             - str: the full location the Flow was saved to
         """
         if fpath is None:
-            path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(
-                os.path.expanduser(path)
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
+            fpath = Path(  # type: ignore
+                os.path.expanduser(path)  # type: ignore
             ) / "{}.prefect".format(  # type: ignore
                 slugify(self.name)
             )

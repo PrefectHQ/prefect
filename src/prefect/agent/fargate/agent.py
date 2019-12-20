@@ -134,7 +134,7 @@ class FargateAgent(Agent):
         flow_run: GraphQLResult,
         flow_task_definition_kwargs: dict,
         flow_task_run_kwargs: dict,
-    ):
+    ) -> None:
         """
         Return new kwargs updated from external kwargs file.
 
@@ -150,11 +150,11 @@ class FargateAgent(Agent):
             self.logger.info("Fetching external kwargs from S3")
             obj = self.s3_resource.Object(
                 self.external_kwargs_s3_bucket,
-                os.path.join(
-                    self.external_kwargs_s3_key,
-                    re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name),
-                    "{}.json".format(flow_run.flow.id[:8]),
-                ),
+                os.path.join(  # type: ignore
+                    self.external_kwargs_s3_key,  # type: ignore
+                    re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name),  # type: ignore
+                    "{}.json".format(flow_run.flow.id[:8]),  # type: ignore
+                ),  # type: ignore
             )
             body = obj.get()["Body"].read().decode("utf-8")
         except ClientError:
@@ -182,7 +182,7 @@ class FargateAgent(Agent):
 
     def _add_flow_tags(
         self, flow_run: GraphQLResult, flow_task_definition_kwargs: dict
-    ):
+    ) -> None:
         """
         Add tags to task definition kwargs to
 
@@ -329,9 +329,9 @@ class FargateAgent(Agent):
             self._add_flow_tags(flow_run, flow_task_definition_kwargs)
 
         else:
-            self.task_definition_name = "prefect-task-{}".format(
+            self.task_definition_name = "prefect-task-{}".format(  # type: ignore
                 flow_run.flow.id[:8]  # type: ignore
-            )
+            )  # type: ignore
 
         # Require Docker storage
         if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
