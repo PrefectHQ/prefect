@@ -10,11 +10,7 @@ Note additionally that when metadata does arrive in Prefect Cloud, it is accessi
 
 The beauty of Prefect is that output can be handled on a task-by-task basis. This is achieved through the use of a [Prefect Result Handler](https://docs.prefect.io/core/concepts/results.html#result-handlers), a Python class with a read / write interface responsible for persisting output. The only requirement for a result handler is that its `write` method returns a JSON-compatible object; a common example is a URI string.
 
-::: tip Result handler outputs
-It's worth noting that the output of a result handler's write method is sent to Prefect Cloud, making this one of the few scenarios in which your data can be sent to Prefect Cloud.
-:::
-
-Note additionally that user-written result handlers exist as code in a user's Docker container, inaccessible to Prefect Cloud. Because of this, one way to secure any output of the `write` method more secure is employ encryption secrets to make the output of the `write` method.
+It's worth noting that the output of a result handler's write method is sent to Prefect Cloud, making this one of the few scenarios in which your data can be sent to Prefect Cloud. Note additionally that user-written result handlers exist as code in a user's Docker container, inaccessible to Prefect Cloud. Because of this, one way to secure any output of the `write` method more secure is employ encryption secrets to make the output of the `write` method.
 
 ## When is data persisted?
 
