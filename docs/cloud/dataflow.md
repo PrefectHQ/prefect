@@ -20,7 +20,7 @@ Note additionally that user-written result handlers exist as code in a user's Do
 
 There are few circumstances under which Prefect Cloud actually needs to persist data.
 
-Ultimately, data will be persisted _anytime a task's result handler is called_. Task Result Handlers are _only called under the following circumstances_:
+Ultimately, data will be persisted _anytime a task's result handler is called_. Task result handlers are _only called under the following circumstances_:
 
 - **Task Retries**: in this event, result handlers are called on _all upstream inputs to the retrying task_
 - **Task Queues**: functionally equivalent to retries, occurs whenever a task hits a user-set concurrency limit, and result handlers are called on all upstream inputs to the queued task
