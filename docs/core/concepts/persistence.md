@@ -70,7 +70,7 @@ def func_task():
     return 99
 ```
 
-The default setting in Prefect Core is that checkpointing is turned _off_. To turn checkpointing on during your Flow runs, you can:
+The default setting in Prefect Core is that checkpointing is turned _off_. To turn checkpointing on during your flow runs, you can:
 
 - update your [Prefect user configuration file](configuration.html) to include `checkpointing = true` in the `[flows]` section; this option ensures that _all_ Flows which you run will have checkpointing enabled
 - set `PREFECT__FLOWS__CHECKPOINTING=true` as an environment variable; this option is better when you only want to temporarily target certain flow runs for checkpointing
