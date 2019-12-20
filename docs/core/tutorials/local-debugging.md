@@ -224,7 +224,7 @@ Note that `flow.replace` preserves edges - this means the old and new tasks need
 
 ### Locally check your Flow's `Docker` storage
 
-Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its storage is broken (e.g., if you forget a Python dependency in defining your `Docker` storage for the Flow). Luckily, checking your Flow's storage locally is easy! Let's walk through an example:
+Another reason a flow might unexpectedly break in production (or fail to run at all) is if its storage is broken (e.g., if you forget a Python dependency in defining your `Docker` storage for the flow). Luckily, checking your flow's storage locally is easy! Let's walk through an example:
 
 ```python
 from prefect import task, Flow
