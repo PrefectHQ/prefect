@@ -198,6 +198,11 @@ class Task(metaclass=SignatureValidator):
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
             )
+        # specify not max retries because the default is false
+        if retry_delay is not None and not max_retries:
+            raise ValueError(
+                "A `max_retries` argument greater than 0 must be provided if specifying a retry delay."
+            )
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
                 "Only integer timeouts (representing seconds) are supported."
