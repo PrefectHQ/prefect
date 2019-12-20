@@ -24,7 +24,7 @@ Other than the Python dependencies of Prefect Core, there are no additional requ
 
 For some of the main distinctions, see our blogpost: [Why Not Airflow?](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
 
-### How can I include non-Python Tasks in a Prefect flow?
+### How can I include non-Python tasks in a Prefect flow?
 
 Ultimately, Python is Prefect's API; consequently, to run a process external to Python requires using Python to call out to an external "system" to run the particular task. Some common ways to call out to external, non-Python dependencies include:
 
