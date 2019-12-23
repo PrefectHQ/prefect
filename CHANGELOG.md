@@ -56,7 +56,7 @@ Released on Dec 17, 2019.
 
 ### Task Library
 
-- None
+- Add task for scheduling a flow run - [#1871](https://github.com/PrefectHQ/prefect/pull/1871)
 
 ### Fixes
 
