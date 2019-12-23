@@ -33,6 +33,7 @@ class FlowRun:
 
     def __init__(self, id, state=None, version=None):
         self.id = id
+        self.name = "flow run name"
         self.state = state or Pending()
         self.version = version or 0
 
@@ -108,6 +109,7 @@ class MockedCloudClient(MagicMock):
         return FlowRunInfoResult(
             id=flow_run.id,
             flow_id=flow_run.flow_id,
+            name=flow_run.name,
             parameters={},
             context=None,
             version=flow_run.version,

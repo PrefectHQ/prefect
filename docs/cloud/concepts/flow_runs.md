@@ -50,7 +50,7 @@ mutation {
 
 ## Scheduling a flow run <Badge text="GQL"/>
 
-By default, flow runs are scheduled to start immediately. To run the flow in the future, simply pass a `scheduledStartTime` argument:
+By default, flow runs are scheduled to start immediately. To run the flow in the future, pass a `scheduledStartTime` argument:
 
 ```graphql
 mutation {

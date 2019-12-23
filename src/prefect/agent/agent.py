@@ -70,6 +70,7 @@ class Agent:
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
+        self.log_to_cloud = config.logging.log_to_cloud
 
         token = config.cloud.agent.get("auth_token")
 
@@ -78,11 +79,12 @@ class Agent:
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
-        ch = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(context.config.logging.format)
-        formatter.converter = time.gmtime  # type: ignore
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
+        if not any([isinstance(h, logging.StreamHandler) for h in logger.handlers]):
+            ch = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(context.config.logging.format)
+            formatter.converter = time.gmtime  # type: ignore
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
 
         self.logger = logger
 

@@ -286,3 +286,56 @@ def timeout_handler(
         return fut.result(timeout=timeout)
     except FutureTimeout:
         raise TimeoutError("Execution timed out.")
+
+
+class RecursiveCall(Exception):
+    def __init__(self, func: Callable, *args: Any, **kwargs: Any):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+
+def tail_recursive(func: Callable) -> Callable:
+    """
+    Helper function to facilitate tail recursion of the wrapped function.
+
+    This allows for recursion with unlimited depth since a stack is not allocated for
+    each "nested" call. Note: instead of calling the target function in question, a 
+    `RecursiveCall` exception must be raised instead. 
+
+    Args:
+        - fn (callable): the function to execute
+
+    Returns:
+        - the result of `f(*args, **kwargs)`
+
+    Raises:
+        - RecursionError: if a recursive "call" (raised exception) is made with a function that is 
+            not decorated with `tail_recursive` decorator.
+    """
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except RecursiveCall as exc:
+                try:
+                    call_func = getattr(exc.func, "__wrapped_func__")
+                except AttributeError:
+                    raise RecursionError(
+                        "function has not been wrapped to provide tail recursion (func={})".format(
+                            exc.func
+                        )
+                    )
+
+                # there may be multiple nested recursive calls, we should only respond to calls for the
+                # wrapped function explicitly, otherwise allow the call to continue to propagate
+                if call_func != func:
+                    raise exc
+                args = exc.args
+                kwargs = exc.kwargs
+                continue
+
+    setattr(wrapper, "__wrapped_func__", func)
+    return wrapper

@@ -9,7 +9,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.client import Client
+from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
@@ -301,6 +301,28 @@ def test_flow_runner_puts_scheduled_start_time_in_context(monkeypatch):
     assert res.context["scheduled_start_time"].strftime("%Y-%m-%d") == "1986-09-20"
 
 
+def test_flow_runner_puts_flow_run_name_in_context(monkeypatch):
+    flow = prefect.Flow(name="test")
+
+    # we can't pass a `name` argument to a mock
+    # https://docs.python.org/3/library/unittest.mock.html#mock-names-and-the-name-attribute
+    info_mock = MagicMock(context={})
+    info_mock.name = "flow run name"
+    get_flow_run_info = MagicMock(return_value=info_mock)
+    set_flow_run_state = MagicMock()
+    client = MagicMock(
+        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    res = CloudFlowRunner(flow=flow).initialize_run(
+        state=None, task_states={}, context={}, task_contexts={}, parameters={}
+    )
+
+    assert res.context["flow_run_name"] == "flow run name"
+
+
 def test_flow_runner_prioritizes_user_context_over_default_context(monkeypatch):
     flow = prefect.Flow(name="test")
     get_flow_run_info = MagicMock(return_value=MagicMock(context={"today": "is a day"}))
@@ -364,6 +386,19 @@ def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     log = caplog.records[0]
     assert log.levelname == "ERROR"
     assert "Heartbeat failed for Flow 'bad'" in log.message
+
+
+def test_flow_runner_does_not_have_heartbeat_if_disabled(client):
+    # mock the returned value from the flow
+    mock = MagicMock(
+        flow_run=MagicMock(flow=MagicMock(settings=MagicMock(disable_heartbeat=True)))
+    )
+    client.graphql = MagicMock(return_value=mock)
+
+    # set up the CloudFlowRunner
+    runner = CloudFlowRunner(flow=prefect.Flow(name="test"))
+    # confirm the runner's heartbeat respects the heartbeat toggle
+    assert runner._heartbeat() is False
 
 
 def test_task_failure_caches_inputs_automatically(client):
@@ -604,9 +639,23 @@ def test_db_cancelled_states_interrupt_flow_run(client, monkeypatch):
 
     def heartbeat_counter(*args, **kwargs):
         if calls["count"] == 3:
-            return Box(dict(data=dict(flow_run_by_pk=dict(state="Cancelled"))))
+            return Box(
+                dict(
+                    data=dict(
+                        flow_run_by_pk=dict(
+                            state="Cancelled", flow=dict(settings=dict())
+                        )
+                    )
+                )
+            )
         calls["count"] += 1
-        return Box(dict(data=dict(flow_run_by_pk=dict(state="Running"))))
+        return Box(
+            dict(
+                data=dict(
+                    flow_run_by_pk=dict(state="Running", flow=dict(settings=dict()))
+                )
+            )
+        )
 
     client.graphql = heartbeat_counter
 

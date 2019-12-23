@@ -8,11 +8,11 @@ sidebarDepth: 0
 
 Prefect is a workflow engine, which means that users need absolute confidence that 1) it works and 2) it works well. For that reason, Prefect's design is backed by a strong philosophy of data engineering and we hold its code to a high standard.
 
-Prefect already has more unit tests and greater test coverage than any other workflow engine, including the entire Airflow platform.  Documentation is paramount: every module, class, and function not only has a docstring, the docstrings themselves are tested for consistency. Type annotations are used to catch errors. We've even user-tested the names of variables and functions to make sure they're clear. Users can trust that this standard of care extends even to parts of the codebase they might never look at themselves.
+Prefect already has more unit tests and greater test coverage than any other workflow engine, including the entire Airflow platform. Documentation is paramount: every module, class, and function not only has a docstring, the docstrings themselves are tested for consistency. Type annotations are used to catch errors. We've even user-tested the names of variables and functions to make sure they're clear. Users can trust that this standard of care extends even to parts of the codebase they might never look at themselves.
 
 ## Tasks are functions
 
-In a simple sense, Prefect tasks are simply functions that have special rules about when they should run: they optionally take inputs, perform some work, and optionally return an output. Tasks can process data directly, or orchestrate external systems, or call out to other environments or even languages -- there are almost no restrictions on what a task can do. Furthermore, each task receives metadata about its upstream dependencies before it runs, even if it doesn't receive any explicit data inputs, giving it an opportunity to change its behavior depending on the state of the flow.
+In a simple sense, Prefect tasks are functions that have special rules about when they should run: they optionally take inputs, perform some work, and optionally return an output. Tasks can process data directly, or orchestrate external systems, or call out to other environments or even languages -- there are almost no restrictions on what a task can do. Furthermore, each task receives metadata about its upstream dependencies before it runs, even if it doesn't receive any explicit data inputs, giving it an opportunity to change its behavior depending on the state of the flow.
 
 Because Prefect is a negative engineering framework, it is agnostic to the code each task runs. There are no restrictions on what inputs and outputs can be.
 
@@ -22,7 +22,7 @@ Workflows (or "flows") are containers for tasks. Flows represent the dependency 
 
 ## Modularity
 
-Every component of Prefect has a modular design, making it easy to customize or replace anything from the execution engine, to logging, to data serialization and storage, to state handling itself. As a negative engineering tool, Prefect was designed to *support* positive engineering, not replace it.
+Every component of Prefect has a modular design, making it easy to customize or replace anything from the execution engine, to logging, to data serialization and storage, to state handling itself. As a negative engineering tool, Prefect was designed to _support_ positive engineering, not replace it.
 
 ## Communication via state
 
@@ -30,7 +30,7 @@ Prefect uses a formal concept of `State` to reflect the behavior of the workflow
 
 ## Massive concurrency
 
-Prefect workflows are designed to be run at any time, for any reason, with any concurrency. Running a workflow on a schedule is simply a special case.
+Prefect workflows are designed to be run at any time, for any reason, with any concurrency. Running a workflow on a schedule is a special case.
 
 ## Idempotency preferred (but not required)
 

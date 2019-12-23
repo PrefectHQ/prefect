@@ -17,8 +17,8 @@ def test_set_temporary_config_is_temporary():
                 assert t1.max_retries == 1
             t2 = Task()
             assert t2.max_retries == 5
-        t3 = Task()
-        assert t3.max_retries == 0
+    t3 = Task()
+    assert t3.max_retries == 0
 
 
 def test_set_temporary_config_can_invent_new_settings():

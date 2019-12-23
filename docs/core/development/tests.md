@@ -14,7 +14,7 @@ Prefect has a few fixtures available for testing all available executors; see `c
 
 ## Running tests
 
-Prefect uses `pytest` for unit testing. To run tests, simply run `pytest` from the root Prefect directory:
+Prefect uses `pytest` for unit testing. To run tests, run `pytest` from the root Prefect directory:
 
 ```bash
 cd prefect

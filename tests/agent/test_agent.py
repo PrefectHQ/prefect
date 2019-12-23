@@ -14,6 +14,11 @@ def test_agent_init(runner_token):
     assert agent
 
 
+def test_multiple_agent_init_doesnt_duplicate_logs(runner_token):
+    a, b, c = Agent(), Agent(), Agent()
+    assert len(c.logger.handlers) == 1
+
+
 def test_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()

@@ -356,7 +356,8 @@ def test_initialize_environment_with_spec_populates(monkeypatch):
         assert environment._worker_spec == "worker"
 
 
-def test_populate_custom_worker_spec_yaml():
+@pytest.mark.parametrize("log_flag", [True, False])
+def test_populate_custom_worker_spec_yaml(log_flag):
     environment = DaskKubernetesEnvironment()
 
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
@@ -366,7 +367,11 @@ def test_populate_custom_worker_spec_yaml():
         pod["spec"]["containers"][0]["env"] = []
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.log_to_cloud": log_flag,
+        }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_spec_yaml(yaml_obj=pod)
@@ -383,12 +388,13 @@ def test_populate_custom_worker_spec_yaml():
     assert env[4]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[7]["value"] == "true"
+    assert env[7]["value"] == str(log_flag).lower()
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
 
-def test_populate_custom_scheduler_spec_yaml():
+@pytest.mark.parametrize("log_flag", [True, False])
+def test_populate_custom_scheduler_spec_yaml(log_flag):
     environment = DaskKubernetesEnvironment()
 
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
@@ -398,7 +404,11 @@ def test_populate_custom_scheduler_spec_yaml():
         job["spec"]["template"]["spec"]["containers"][0]["env"] = []
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.log_to_cloud": log_flag,
+        }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_scheduler_spec_yaml(
@@ -421,7 +431,7 @@ def test_populate_custom_scheduler_spec_yaml():
     assert env[7]["value"] == "prefect.engine.cloud.CloudFlowRunner"
     assert env[8]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[9]["value"] == "prefect.engine.executors.DaskExecutor"
-    assert env[10]["value"] == "true"
+    assert env[10]["value"] == str(log_flag).lower()
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]

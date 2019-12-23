@@ -956,7 +956,7 @@ class Flow:
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or simply run a single execution;
+            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or run a single execution;
                 if not provided, will default to the value set in your user config
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - **kwargs: additional keyword arguments; if any provided keywords
@@ -1249,7 +1249,9 @@ class Flow:
 
         return str(fpath)
 
-    def run_agent(self, token: str = None, show_flow_logs: bool = False) -> None:
+    def run_agent(
+        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = True
+    ) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
 
@@ -1258,9 +1260,12 @@ class Flow:
                 will default to the token found in `config.cloud.agent.auth_token`
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
                 to stdout; defaults to `False`
+            - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should be sent to Prefect Cloud;
+                defaults to `True`
         """
         temp_config = {
-            "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token
+            "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
+            "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
             labels = self.environment.labels

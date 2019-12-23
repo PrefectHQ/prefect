@@ -16,7 +16,7 @@ from prefect.engine.executors.base import Executor
 class DaskExecutor(Executor):
     """
     An executor that runs all functions using the `dask.distributed` scheduler on
-    a (possibly local) dask cluster.  If you already have one running, simply provide the
+    a (possibly local) dask cluster.  If you already have one running, provide the
     address of the scheduler upon initialization; otherwise, one will be created
     (and subsequently torn down) within the `start()` contextmanager.
 

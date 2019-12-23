@@ -70,6 +70,12 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--namespace",
+    required=False,
+    help="Kubernetes namespace to create jobs.",
+    hidden=True,
+)
+@click.option(
     "--import-path",
     "-p",
     multiple=True,
@@ -84,6 +90,12 @@ def agent():
     is_flag=True,
 )
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
+@click.option(
+    "--no-cloud-logs",
+    is_flag=True,
+    help="Turn off Cloud logging for all flows run through this agent.",
+    hidden=True,
+)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.pass_context
 def start(
@@ -93,7 +105,9 @@ def start(
     name,
     verbose,
     label,
+    namespace,
     no_pull,
+    no_cloud_logs,
     base_url,
     import_path,
     show_flow_logs,
@@ -114,6 +128,8 @@ def start(
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
+        --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
+                                Defaults to `False`
 
     \b
     Local Agent Options:
@@ -129,6 +145,11 @@ def start(
                                 Defaults to pulling if not provided
 
     \b
+    Kubernetes Agent Options:
+        --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
+                                Defaults to env var `NAMESPACE` or `default`
+
+    \b
     Fargate Agent Options:
         Any of the configuration options outlined in the docs can be provided here
         https://docs.prefect.io/cloud/agent/fargate.html#configuration
@@ -140,7 +161,10 @@ def start(
         item = item.replace("--", "")
         kwargs.update([item.split("=")])
 
-    tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
+    tmp_config = {
+        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "logging.log_to_cloud": False if no_cloud_logs else True,
+    }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
 
@@ -165,6 +189,10 @@ def start(
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
                 name=name, labels=list(label), **kwargs
+            ).start()
+        elif agent_option == "kubernetes":
+            from_qualified_name(retrieved_agent)(
+                namespace=namespace, name=name, labels=list(label)
             ).start()
         else:
             from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
@@ -200,6 +228,27 @@ def start(
     "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
 )
 @click.option(
+    "--mem-request",
+    required=False,
+    help="Requested memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--mem-limit",
+    required=False,
+    help="Limit memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-request",
+    required=False,
+    help="Requested CPU for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True,
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -229,6 +278,10 @@ def install(
     resource_manager,
     rbac,
     latest,
+    mem_request,
+    mem_limit,
+    cpu_request,
+    cpu_limit,
     label,
     import_path,
     show_flow_logs,
@@ -255,6 +308,10 @@ def install(
         --resource-manager                  Enable resource manager on install
         --rbac                              Enable default RBAC on install
         --latest                            Use the `latest` Prefect image
+        --mem-request               TEXT    Requested memory for Prefect init job
+        --mem-limit                 TEXT    Limit memory for Prefect init job
+        --cpu-request               TEXT    Requested CPU for Prefect init job
+        --cpu-limit                 TEXT    Limit CPU for Prefect init job
 
     \b
     Local Agent Options:
@@ -283,6 +340,10 @@ def install(
             resource_manager_enabled=resource_manager,
             rbac=rbac,
             latest=latest,
+            mem_request=mem_request,
+            mem_limit=mem_limit,
+            cpu_request=cpu_request,
+            cpu_limit=cpu_limit,
             labels=list(label),
         )
         click.echo(deployment)

@@ -1,8 +1,7 @@
 # Persistence and Caching
 
-Out of the box, Prefect Core does not persist data in a permanent fashion.  All data, results, _and_ cached states are stored in memory within the
-Python process running the Flow.  However, Prefect Core provides all of the necessary hooks for persisting / retrieving your data in external locations.  If you require an out-of-the-box persistence layer, you might consider [Prefect Cloud](../../cloud/faq.html#what-is-the-difference-between-prefect-core-and-prefect-cloud).
-
+Out of the box, Prefect Core does not persist data in a permanent fashion. All data, results, _and_ cached states are stored in memory within the
+Python process running the flow. However, Prefect Core provides all of the necessary hooks for persisting / retrieving your data in external locations. If you require an out-of-the-box persistence layer, you might consider [Prefect Cloud](../../cloud/faq.html#what-is-the-difference-between-prefect-core-and-prefect-cloud).
 
 Prefect provides a few ways to work with cached data. Wherever possible, caching is handled automatically or with minimal user input.
 
@@ -47,7 +46,7 @@ Note that when running Prefect Core locally, your Tasks' cached states will be s
 
 ## Checkpointing
 
-Oftentimes it is useful to persist your Task's data in an external location.  You could always write this logic directly into the Task itself, but this can sometimes make testing difficult.  Prefect offers a notion of Task "checkpointing" which ensures that every time the Task is successfully run, it's [result handler](results.html#result-handlers) is called.  To configure your Tasks for checkpointing, simply provide a result handler and set `checkpoint=True` at Task initialization:
+Oftentimes it is useful to persist your task's data in an external location. You could always write this logic directly into the `Task` itself, but this can sometimes make testing difficult. Prefect offers a notion of task "checkpointing" that ensures that every time a task is successfully run, its [result handler](results.html#result-handlers) is called. To configure your tasks for checkpointing, provide a result handler and set `checkpoint=True` at task initialization:
 
 ```python
 from prefect.engine.result_handlers import LocalResultHandler
@@ -71,7 +70,7 @@ def func_task():
     return 99
 ```
 
-The default setting in Prefect Core is that checkpointing is turned _off_.  To turn checkpointing on during your Flow runs, you can:
+The default setting in Prefect Core is that checkpointing is turned _off_. To turn checkpointing on during your flow runs, you can:
 
 - update your [Prefect user configuration file](configuration.html) to include `checkpointing = true` in the `[flows]` section; this option ensures that _all_ Flows which you run will have checkpointing enabled
 - set `PREFECT__FLOWS__CHECKPOINTING=true` as an environment variable; this option is better when you only want to temporarily target certain flow runs for checkpointing

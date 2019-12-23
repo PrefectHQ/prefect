@@ -215,6 +215,11 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreGet",
            "DatastoreUpload"]
 
+[pages.tasks.cloud]
+title = "Cloud Tasks"
+module = "prefect.tasks.cloud"
+classes = ["FlowRunTask"]
+
 [pages.tasks.github]
 title = "GitHub Tasks"
 module = "prefect.tasks.github"

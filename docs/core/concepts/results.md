@@ -43,7 +43,7 @@ All Results come equipped with `to_result` / `store_safe_value` methods which re
 
 ## Result Handlers
 
-Result Handlers are a more public entity than the `Result` class. A Result handler is simply a specific implementation of a `read` / `write` interface for handling data. The only requirement for a Result handler implementation is that the `write` method returns a JSON-compatible object. For example, we can easily imagine different kinds of Result Handlers:
+Result handlers are a more public entity than the `Result` class. A result handler is a specific implementation of a `read` / `write` interface for handling data. The only requirement for a result handler implementation is that the `write` method returns a JSON-compatible object. For example, we can easily imagine different kinds of result handlers:
 
 - an Google Cloud Storage handler which writes a given piece of data to a Google Cloud Storage bucket, and reads data from that bucket; the `write` method in this instance returns a URI
 - a `LocalResultHandler` that reads / writes data from local file storage; the `write` method in this instance returns an absolute file path

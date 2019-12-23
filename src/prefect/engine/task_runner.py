@@ -46,7 +46,11 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.utilities.executors import run_with_heartbeat
+from prefect.utilities.executors import (
+    run_with_heartbeat,
+    tail_recursive,
+    RecursiveCall,
+)
 
 if TYPE_CHECKING:
     from prefect.engine.result_handlers import ResultHandler
@@ -177,6 +181,7 @@ class TaskRunner(Runner):
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
+    @tail_recursive
     def run(
         self,
         state: State = None,
@@ -310,6 +315,8 @@ class TaskRunner(Runner):
             if exc.state.is_pending() or exc.state.is_failed():
                 exc.state.cached_inputs = task_inputs or {}  # type: ignore
             state = exc.state
+        except RecursiveCall as exc:
+            raise exc
 
         except Exception as exc:
             msg = "Task '{name}': unexpected error while running task: {exc}".format(
@@ -690,7 +697,7 @@ class TaskRunner(Runner):
 
                 for edge, upstream_state in upstream_states.items():
 
-                    # if the edge is not mapped over, then we simply take its state
+                    # if the edge is not mapped over, then we take its state
                     if not edge.mapped:
                         states[edge] = upstream_state
 
@@ -871,7 +878,7 @@ class TaskRunner(Runner):
             )
 
         except KeyboardInterrupt:
-            self.logger.exception("Interrupt signal raised, cancelling task run.")
+            self.logger.debug("Interrupt signal raised, cancelling task run.")
             state = Cancelled(message="Interrupt signal raised, cancelling task run.")
             return state
 
@@ -1028,7 +1035,9 @@ class TaskRunner(Runner):
             )
             context.update(task_run_version=prefect.context.get("task_run_version"))
             new_state = Pending(message=msg)
-            return self.run(
+            raise RecursiveCall(
+                self.run,
+                self,
                 new_state,
                 upstream_states=upstream_states,
                 context=context,

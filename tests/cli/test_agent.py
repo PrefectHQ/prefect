@@ -102,6 +102,18 @@ def test_agent_start_kubernetes(monkeypatch, runner_token):
     assert result.exit_code == 0
 
 
+def test_agent_start_kubernetes_namespace(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
+
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "kubernetes", "--namespace", "test"])
+    assert result.exit_code == 0
+
+
 def test_agent_start_kubernetes_kwargs_ignored(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
@@ -252,6 +264,14 @@ def test_agent_install_k8s_asses_args():
             "--latest",
             "--image-pull-secrets",
             "secret-test",
+            "--mem-request",
+            "mem_req",
+            "--mem-limit",
+            "mem_lim",
+            "--cpu-request",
+            "cpu_req",
+            "--cpu-limit",
+            "cpu_limt",
             "--label",
             "test_label1",
             "-l",
@@ -265,6 +285,10 @@ def test_agent_install_k8s_asses_args():
     assert "resource-manager" in result.output
     assert "rbac" in result.output
     assert "latest" in result.output
+    assert "mem_req" in result.output
+    assert "mem_lim" in result.output
+    assert "cpu_req" in result.output
+    assert "cpu_lim" in result.output
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output

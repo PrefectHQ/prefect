@@ -27,7 +27,9 @@ def test_local_agent_init(runner_token):
 
 
 def test_local_agent_config_options(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+    ):
         agent = LocalAgent(
             name="test",
             labels=["test_label"],
@@ -37,6 +39,7 @@ def test_local_agent_config_options(runner_token):
         assert agent.name == "test"
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
+        assert agent.log_to_cloud is True
         assert agent.processes == []
         assert agent.import_paths == ["test_path"]
         assert set(agent.labels) == {
@@ -45,6 +48,17 @@ def test_local_agent_config_options(runner_token):
             "gcs-flow-storage",
             "test_label",
         }
+
+
+@pytest.mark.parametrize("flag", [True, False])
+def test_local_agent_responds_to_logging_config(runner_token, flag):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": flag}
+    ):
+        agent = LocalAgent()
+        assert agent.log_to_cloud is flag
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
 
 def test_local_agent_config_options_hostname(runner_token):
@@ -60,13 +74,20 @@ def test_local_agent_config_options_hostname(runner_token):
 
 
 def test_populate_env_vars(runner_token):
-    with set_temporary_config({"cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
         agent = LocalAgent()
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": str(
                 [
                     socket.gethostname(),
@@ -87,13 +108,20 @@ def test_populate_env_vars(runner_token):
 
 
 def test_populate_env_vars_includes_agent_labels(runner_token):
-    with set_temporary_config({"cloud.api": "api"}):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
         agent = LocalAgent(labels=["42", "marvin"])
 
         env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
+            "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": str(
                 [
                     "42",
