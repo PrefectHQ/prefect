@@ -9,7 +9,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "top-level-doc" -> (object, optional): module object that contains the
         docstring that will be displayed at the top of the generated page
 
-On a development installation of Prefect, simply run `python generate_docs.py` from inside the `docs/` folder.
+On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
 import builtins
 import importlib

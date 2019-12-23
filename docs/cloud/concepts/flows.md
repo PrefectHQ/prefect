@@ -4,7 +4,7 @@ Flows can be registered with Prefect Cloud for scheduling and execution, as well
 
 ## Registering a Flow from Prefect Core
 
-To register a Flow from Prefect Core, simply use its `register()` method:
+To register a Flow from Prefect Core, use its `register()` method:
 
 ```python
 flow.register(project_name="<a project name>")

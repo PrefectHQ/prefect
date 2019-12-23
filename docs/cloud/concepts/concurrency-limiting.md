@@ -35,7 +35,7 @@ These tags are then available via the `tags` attribute on your Task instances. M
 
 ## Setting Concurrency Limits
 
-Once you have tagged your various tasks and [registered your Flow(s)](../upandrunning.html#registering-flow-with-cloud) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish.  There are currently two supported APIs for doing this, and this functionality will also be exposed in the UI in the near future.
+Once you have tagged your various tasks and [registered your Flow(s)](../upandrunning.html#registering-flow-with-cloud) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. There are currently two supported APIs for doing this, and this functionality will also be exposed in the UI in the near future.
 
 ### Python Client
 
@@ -50,11 +50,11 @@ client = Client()
 client.update_task_tag_limit("database", 10)
 ```
 
-This means that Prefect Cloud will ensure that _no more than 10 tasks with the "database" tag will be running at any given time_.  You are free to set / update as many of your task tags as you wish, and _all_ of your concurrency limits will be respected.
+This means that Prefect Cloud will ensure that _no more than 10 tasks with the "database" tag will be running at any given time_. You are free to set / update as many of your task tags as you wish, and _all_ of your concurrency limits will be respected.
 
 ### GraphQL <Badge text="GQL"/>
 
-To update your tag concurrency limits with GraphQL, simply issue the following mutation:
+To update your tag concurrency limits with GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
@@ -68,7 +68,7 @@ mutation {
 Changing the value of a tag concurrency limit is as simple as re-issuing the above mutation with the new value.
 :::
 
-To remove all concurrency limits on a tag, simply issue:
+To remove all concurrency limits on a tag, issue:
 
 ```graphql
 mutation {
@@ -97,23 +97,23 @@ client.get_task_tag_limit("database")
 ### GraphQL <Badge text="GQL"/>
 
 GraphQL allows you to retrieve more, including:
+
 - _all_ of your tag limits
 - your tag limit IDs (useful for deleting limits)
 
 ```graphql
 query {
-    task_tag_limit(where: {tag: {_eq: "webservice" } }){
-        limit
-        id
-    }
+  task_tag_limit(where: { tag: { _eq: "webservice" } }) {
+    limit
+    id
+  }
 }
 ```
 
 ::: tip In GraphQL, everything is equal to `null`
-To retrieve _all_ limits across all tags, simply replace the value of `"webservice"` above with `null`.
+To retrieve _all_ limits across all tags, replace the value of `"webservice"` above with `null`.
 :::
-
 
 ## Execution Behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](../../core/concepts/states.html) in Prefect Cloud. If there are no concurrency slots available for any one of your Task's tags, the Task will instead enter a `Queued` state.  The same Python process that is attempting running your Task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval` in [Prefect Configuration](../../core/concepts/configuration.html)).  Additionally, if that process ever fails, Prefect Cloud will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](../../core/concepts/states.html) in Prefect Cloud. If there are no concurrency slots available for any one of your Task's tags, the Task will instead enter a `Queued` state. The same Python process that is attempting running your Task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval` in [Prefect Configuration](../../core/concepts/configuration.html)). Additionally, if that process ever fails, Prefect Cloud will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.

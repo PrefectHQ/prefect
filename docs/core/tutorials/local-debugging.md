@@ -8,7 +8,8 @@ Whether you're running Prefect locally with `Flow.run()` or experimenting with y
 
 ### Use a FlowRunner for stateless execution
 
-If your problem is related to retries, or if you want to run your flow off-schedule, you might first consider rerunning your flow with `run_on_schedule=False`.  This can be accomplished via environment variable (`PREFECT__FLOWS__RUN_ON_SCHEDULE=false`) or keyword (`flow.run(run_on_schedule=False)`).  If you instead want to implement a single Flow run yourself consider using a `FlowRunner` directly:
+If your problem is related to retries, or if you want to run your flow off-schedule, you might first consider rerunning your flow with `run_on_schedule=False`. This can be accomplished via environment variable (`PREFECT__FLOWS__RUN_ON_SCHEDULE=false`) or keyword (`flow.run(run_on_schedule=False)`). If you instead want to implement a single Flow run yourself consider using a `FlowRunner` directly:
+
 ```python
 from prefect.engine.flow_runner import FlowRunner
 
@@ -17,7 +18,8 @@ from prefect.engine.flow_runner import FlowRunner
 runner = FlowRunner(flow=my_flow)
 flow_state = runner.run(return_tasks=my_flow.tasks)
 ```
-This will execute your flow immediately, regardless of its schedule.  Note that by default a `FlowRunner` does not provide any individual _task_ states, so if you want that information you must request it with the `return_tasks` keyword argument.
+
+This will execute your flow immediately, regardless of its schedule. Note that by default a `FlowRunner` does not provide any individual _task_ states, so if you want that information you must request it with the `return_tasks` keyword argument.
 
 ### Choice of Executor
 
@@ -25,7 +27,7 @@ This will execute your flow immediately, regardless of its schedule.  Note that 
 
 Your choice of executor is very important for how easily it will be to debug your flow. The `DaskExecutor` relies on multiprocessing and multithreading, which can be tricky to navigate. Things like shared state and print statements that disappear into the void can be a real nuisance when trying to figure out what's wrong. Luckily, Prefect provides a `LocalExecutor` that is the most stripped down executor possible - all tasks are executed immediately (in the appropriate order of course) and in your main process.
 
-To swap out executors, simply follow the schematic:
+To swap out executors, follow the schematic:
 
 ```python
 from prefect.engine.executors import LocalExecutor
@@ -35,7 +37,7 @@ from prefect.engine.executors import LocalExecutor
 state = flow.run(executor=LocalExecutor()) # <-- the executor needs to be initialized
 ```
 
-and you're set!  The `executor` keyword can also be provided to the `FlowRunner.run` method.
+and you're set! The `executor` keyword can also be provided to the `FlowRunner.run` method.
 
 #### `SynchronousExecutor`
 
@@ -222,7 +224,7 @@ Note that `flow.replace` preserves edges - this means the old and new tasks need
 
 ### Locally check your Flow's `Docker` storage
 
-Another reason a Flow might unexpectedly break in production (or fail to run at all) is if its storage is broken (e.g., if you forget a Python dependency in defining your `Docker` storage for the Flow).  Luckily, checking your Flow's storage locally is easy!  Let's walk through an example:
+Another reason a flow might unexpectedly break in production (or fail to run at all) is if its storage is broken (e.g., if you forget a Python dependency in defining your `Docker` storage for the flow). Luckily, checking your flow's storage locally is easy! Let's walk through an example:
 
 ```python
 from prefect import task, Flow
@@ -247,7 +249,7 @@ storage = Docker(base_image="python:3.6", registry_url="http://my.personal.regis
 flow = Flow("reddit-flow", storage=storage, tasks=[whoami])
 ```
 
-If you were to deploy this Flow to Cloud, you wouldn't hear from it again.  Why?  Let's find out - first, build the `Docker` storage locally _without_ pushing to a registry:
+If you were to deploy this Flow to Cloud, you wouldn't hear from it again. Why? Let's find out - first, build the `Docker` storage locally _without_ pushing to a registry:
 
 ```python
 # note that this will require either a valid registry_url, or no registry_url
@@ -262,12 +264,13 @@ Successfully built 0f3b0851148b # your ID will be different
 ```
 
 Now we have a Docker container on our local machine which contains our flow. To access it, we first identify where the flow is stored:
+
 ```python
 built_storage.flows
 # {"reddit-flow": "/root/.prefect/reddit-flow.prefect"}
 ```
 
-and then simply connect to the container via:
+and then connect to the container via:
 
 ```
 # connect to an interactive python session running in the container
@@ -297,5 +300,5 @@ ModuleNotFoundError: No module named 'praw'
 In this particular case, we forgot to include `praw` in our `python_dependencies` for the `Docker` storage; in general, this is one way to ensure your Flow makes it through the deployment process uncorrupted.
 
 ::: tip The More You Know
-We actually found this process to be so useful, we've automated it for you! Prefect now performs a "health check" prior to pushing your Docker image, which essentially runs the above code and ensures your Flow is deserializable inside its container.  However, the mechanics by which this occurs is still useful to know.
+We actually found this process to be so useful, we've automated it for you! Prefect now performs a "health check" prior to pushing your Docker image, which essentially runs the above code and ensures your Flow is deserializable inside its container. However, the mechanics by which this occurs is still useful to know.
 :::

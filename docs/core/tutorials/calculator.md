@@ -8,7 +8,7 @@ sidebarDepth: 0
 
 Prefect is a heavy-duty data workflow system, but it handles lightweight applications just as well.
 
-To illustrate that, let's build a simple calculator.
+To illustrate that, let's build a calculator.
 
 ## Setup
 
@@ -32,7 +32,7 @@ with Flow('Add one') as flow:
     result = Parameter('x') + 1
 ```
 
-Parameters are just like any other task, except that they take their values from user input.
+Parameters are like any other task, except that they take their values from user input.
 
 Let's test it out:
 
@@ -99,7 +99,7 @@ assert run(flow, x=1, op='/', y=2) == 0.5
 
 ## Parsing input
 
-Our arithmatic calculator works, but it's a bit cumbersome. Let's write a quick custom task to take a string expression and parse it into our `x`, `y`, and `op`; the rest of the code is just the same as before:
+Our arithmatic calculator works, but it's a bit cumbersome. Let's write a quick custom task to take a string expression and parse it into our `x`, `y`, and `op`; the rest of the code is the same as before:
 
 ```python
 @task

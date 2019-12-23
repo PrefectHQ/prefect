@@ -4,7 +4,7 @@
 
 A `Task` represents a discrete action in a Prefect workflow.
 
-A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is simply by decorating a Python function:
+A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is by decorating a Python function:
 
 ```python
 from prefect import task
@@ -44,7 +44,7 @@ To be clear, there's nothing stopping you from putting all of your code in a sin
 
 ## Retries
 
-One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, simply pass appropriate `max_retries` and `retry_delay` parameters to your task:
+One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, pass appropriate `max_retries` and `retry_delay` parameters to your task:
 
 ```python
 # this task will retry up to 3 times, waiting 10 minutes between each retry
@@ -93,7 +93,6 @@ assert len(flow.constants) == 2
 ```
 
 Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.
-
 
 ## Operators
 
@@ -200,7 +199,6 @@ z2 = add.map(x=z1, y=unmapped(100))
 In addition, if the result of a mapped task is passed to an un-mapped task (or used as the `unmapped` input to a mapped task), then its results will be collected in a list. This allows transparent but totally flexible map/reduce functionality.
 
 ## Identification
-
 
 ### Name
 

@@ -24,7 +24,7 @@ from prefect.environments.storage import Storage
 
 class MyCustomEnvironment(Environment):
     """
-    MyCustomEnvironment is my Environment that simply uses the default executor to run a Flow.
+    MyCustomEnvironment is my environment that uses the default executor to run a Flow.
 
     Args:
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect Agents when polling for work

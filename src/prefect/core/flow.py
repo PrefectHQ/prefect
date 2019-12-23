@@ -956,7 +956,7 @@ class Flow:
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or simply run a single execution;
+            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or run a single execution;
                 if not provided, will default to the value set in your user config
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - **kwargs: additional keyword arguments; if any provided keywords

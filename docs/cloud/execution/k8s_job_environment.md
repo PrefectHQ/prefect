@@ -75,7 +75,7 @@ PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
 ```
 
-All other aspects of your Job will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the YAML block above.
+All other aspects of your Job will remain untouched. In some cases it is easiest to use a dummy first container similar to the YAML block above.
 
 ## Examples
 

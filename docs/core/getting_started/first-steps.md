@@ -4,7 +4,7 @@ Welcome to Prefect! These docs will give you a gentle introduction to building d
 
 ## Thinking Prefectly
 
-Prefect is a tool for building **data workflows**. A workflow is simply a series of steps that are performed in a certain order.
+Prefect is a tool for building **data workflows**. A workflow is a series of steps that are performed in a certain order.
 
 In addition, Prefect allows you to specify more complex behaviors, like steps that pass information or data to other steps, steps that automatically retry when they encounter a problem, or steps that only run when previous steps fail.
 
@@ -28,7 +28,7 @@ Prefect has no restrictions on how much or how little each task can do. In gener
 
 ### Task inputs and outputs
 
-Prefect tasks can optionally receive inputs and produce outputs. To take advantage of this feature, simply provide them in your task definition.
+Prefect tasks can optionally receive inputs and produce outputs. To take advantage of this feature, provide them in your task definition.
 
 ```python
 @task
@@ -76,10 +76,9 @@ Notice subclassing a task is more powerful, but requires more explicit code. As 
 
 In Prefect, **flows** are used to describe the dependencies between tasks, such as their order or how they pass data around. If tasks are like functions, then you could think of a flow as a script that combines them in interesting ways.
 
-
 ### Functional API
 
-The easiest way to build a flow is with Prefect's **functional API**. Simply create a flow as a context manager and call your tasks on each other as if they were regular functions. Prefect will track each function call and build up a computational graph that represents your workflow. Critically, _no tasks are actually executed at this time_.
+The easiest way to build a flow is with Prefect's **functional API**. Create a flow as a context manager and call your tasks on each other as if they were regular functions. Prefect will track each function call and build up a computational graph that represents your workflow. Critically, _no tasks are actually executed at this time_.
 
 Here is a flow that uses the add task we wrote earlier to add a few numbers together. Notice how tasks can accept numbers or even other tasks as inputs; Prefect automatically creates the appropriate connections (or "edges") in the flow graph. In addition, notice that we call `add` twice, generating two distinct copies of our task in the flow:
 
@@ -93,7 +92,7 @@ with Flow("My first flow!") as flow:
 
 ### Running the flow
 
-Once the flow has been created, we can execute it by simply calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
+Once the flow has been created, we can execute it by calling `flow.run()`. In this case, the resulting `State` is `Success`, and we can also examine the `State` and result of each task:
 
 ```python
 state = flow.run()
@@ -112,7 +111,7 @@ assert second_task_state.result == 103
 The flow's `run()` method is a convenience function that handles some of the most important aspects of workflow management: scheduling, retries, data serialization, and more. If the flow has a schedule attached, calling `flow.run()` will sleep until the next scheduled time, run the flow, and sleep again until the next run.
 
 :::tip Deferred execution
-When you build a flow in Prefect, you're defining a *computational graph* that can be executed sometime in the future, possibly in a distributed environment. That's why most of this documentation follows a simple pattern: the flow is built (usually in a "`with Flow():`" context), and then the flow is `run()` as a second step. In production, you probably won't call `flow.run()` yourself, but rather let a management API handle execution.
+When you build a flow in Prefect, you're defining a _computational graph_ that can be executed sometime in the future, possibly in a distributed environment. That's why most of this documentation follows a simple pattern: the flow is built (usually in a "`with Flow():`" context), and then the flow is `run()` as a second step. In production, you probably won't call `flow.run()` yourself, but rather let a management API handle execution.
 :::
 
 ### Parameters
@@ -165,7 +164,7 @@ say_hello.bind(person=name, flow=flow)
 
 This flow combines our addition tasks with the "say hello" task, using a state dependency (a non-data dependency) to specify that the "say hello" task shouldn't run until the second addition task is finished.
 
-It's possible to create state-dependencies with Prefect's functional API, as well. When calling a task as if it was a function, simply pass a list of tasks to a special `upstream_tasks` keyword argument; Prefect will automatically call `set_upstream()` on each one.
+It's possible to create state-dependencies with Prefect's functional API, as well. When calling a task as if it was a function, pass a list of tasks to a special `upstream_tasks` keyword argument; Prefect will automatically call `set_upstream()` on each one.
 
 ::: tip Mix-and-match
 You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction. You can choose whichever style you prefer.

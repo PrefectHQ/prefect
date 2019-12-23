@@ -85,7 +85,7 @@ flow.visualize()
 
 ## Running a flow
 
-To run a flow, simply call `flow.run()`:
+To run a flow, call `flow.run()`:
 
 ```python
 from prefect import task, Flow
