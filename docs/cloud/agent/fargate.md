@@ -106,9 +106,7 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
     external json file containing kwargs to pass into the run_flow process.
     Defaults to False.
 - external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
-- external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<reformatted_flow_name>/<flow_id[:8]>.json`.
-    Flow name in the s3 key is reformatted by converting all non-alphanumeric characters to '_'.  The json file
-    name uses first 8 characters of flow id.
+- external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<slugified_flow_name>/<flow_id[:8]>.json`.
 - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
     `register_task_definition` and `run_task`
 
@@ -116,7 +114,7 @@ By default, a new task definition is created each time there is a new flow versi
 However, ECS does offer the ability to apply changes through the use of revisions.  
 The `enable_task_revisions` flag will enable using revisions by doing the following:
 
-- Use a reformatted flow name for the task definition family name by reformatted by converting all non-alphanumeric characters to '_'.  
+- Use a slugified flow name for the task definition family name.  
   For example, `flow #1` becomes `flow__1`.
 - Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
 
@@ -264,21 +262,23 @@ By default, all of these kwargs are passed in the agent configuration, which mea
 When you enable `use_external_kwargs`, the agent will check for the existence of an external kwargs file.  If this file exists, the agent will apply these kwargs to the `register_task_definition` and `run_task`.  You need to abide by the same naming rules explained above, when creating theses files.  
 In order to use this feature you must supply `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your agent.  The s3 key path that will be used when fetching files is:
 ```
-<external_kwargs_s3_key>/<reformatted_flow_name>/<flow_id[:8]>.json
+<external_kwargs_s3_key>/slugified_flow_name>/<flow_id[:8]>.json
 ```
-Flow name in the s3 key needs to be reformatted by converting all non-alphanumeric characters to '_'. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
+Flow name in the s3 key needs to be slugified. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
 ```
-prefect/flow__1/a718df81.json
+prefect/flow-1/a718df81.json
 ```
 
+In order to properly slugify flow name for creating the s3 object, you will want to leverage [python-slugify](https://github.com/un33k/python-slugify)
 Here is a sample os path join for creating the s3 key:
 
 ```
 import os
 import re
+from slugify import slugify
 
 flow_id = flow.register()
-s3_key = os.path.join('prefect-artifacts', re.sub(r"[^a-zA-Z0-9]", "_", flow.name), '{}.json'.format(flow_id[:8]))
+s3_key = os.path.join('prefect-artifacts', slugify(flow.name), '{}.json'.format(flow_id[:8]))
 ```
 
 This option enables the ability to have things like cpu, memory, and taskRoleArn per flow.  When you register your flow via `flow.register` the return value is the flow id.  You can use this return value to then upload the external kwargs to s3 using the proper s3 key prefix.

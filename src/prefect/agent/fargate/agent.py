@@ -10,6 +10,7 @@ from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
+from slugify import slugify
 
 
 class FargateAgent(Agent):
@@ -51,9 +52,7 @@ class FargateAgent(Agent):
             external json file containing kwargs to pass into the run_flow process.
             Defaults to False.
         - external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
-        - external_kwargs_s3_key (str, optional): S3 key prefix for the location of <reformatted_flow_name>/<flow_id[:8]>.json
-            flow name in s3 key is reformatted by converting all non-alphanumeric characters to '_'.  json file
-            name uses first 8 characters of flow id.
+        - external_kwargs_s3_key (str, optional): S3 key prefix for the location of <slugified_flow_name>/<flow_id[:8]>.json.
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -152,7 +151,7 @@ class FargateAgent(Agent):
                 self.external_kwargs_s3_bucket,
                 os.path.join(  # type: ignore
                     self.external_kwargs_s3_key,  # type: ignore
-                    re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name),  # type: ignore
+                    slugify(flow_run.flow.name),  # type: ignore
                     "{}.json".format(flow_run.flow.id[:8]),  # type: ignore
                 ),  # type: ignore
             )
@@ -325,7 +324,7 @@ class FargateAgent(Agent):
         # set proper task_definition_name and tags based on enable_task_revisions flag
         if self.enable_task_revisions:
             # set task definition name
-            self.task_definition_name = re.sub(r"[^a-zA-Z0-9]", "_", flow_run.flow.name)
+            self.task_definition_name = slugify(flow_run.flow.name)
             self._add_flow_tags(flow_run, flow_task_definition_kwargs)
 
         else:
