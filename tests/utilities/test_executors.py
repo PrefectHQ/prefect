@@ -36,7 +36,7 @@ def test_heartbeat_calls_function_on_interval(interval, sleeptime):
     timer.start()
     time.sleep(sleeptime)
     assert timer.cancel()
-    assert a.called >= sleeptime / interval
+    assert a.called >= sleeptime / interval - 1
     assert a.called <= sleeptime / interval + 1
 
 
@@ -67,7 +67,6 @@ def test_heartbeat_preserves_context():
     timer = Heartbeat(0.025, a, None)
     timer.start()
     time.sleep(0.025)
-    assert not timer.cancel()
 
     timer = Heartbeat(0.025, a, None)
     with prefect.context(foo="bar"):
