@@ -75,7 +75,7 @@ class TestCredentialsandProjects_DEPRECATED:
         )
 
         creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
+        monkeypatch.setattr("prefect.utilities.google.Credentials", creds_loader)
         monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):

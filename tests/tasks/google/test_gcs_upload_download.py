@@ -4,6 +4,7 @@ import pytest
 from google.cloud.exceptions import NotFound
 
 import prefect
+import prefect.utilities.google
 from prefect.tasks.google import GCSDownload, GCSUpload
 from prefect.utilities.configuration import set_temporary_config
 
@@ -55,13 +56,14 @@ class TestCredentialsandProjects_DEPRECATED:
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
         creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
+        monkeypatch.setattr(
+            "prefect.tasks.google.storage.get_storage_client", creds_loader
+        )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
             task.run(**{run_arg: "empty"})
 
-        assert creds_loader.from_service_account_info.call_args[0][0] == 42
+        assert creds_loader.call_args[1]["credentials"] == 42
 
     def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
         self, monkeypatch, klass
@@ -73,10 +75,12 @@ class TestCredentialsandProjects_DEPRECATED:
         client = MagicMock()
         service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.Credentials",
+            "prefect.utilities.google.Credentials",
             MagicMock(from_service_account_info=service_account_info),
         )
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", client)
+        monkeypatch.setattr(
+            "prefect.utilities.google.storage", MagicMock(Client=client)
+        )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
             task.run(**{run_arg: "empty"})
@@ -95,17 +99,16 @@ class TestBuckets:
         task = klass(bucket="test")
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
-        client = MagicMock(get_bucket=MagicMock())
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         task.run(**{run_arg: "empty"}, credentials={})
         task.run(**{run_arg: "empty", "bucket": "run"}, credentials={})
 
-        first, second = client.get_bucket.call_args_list
+        first, second = client.return_value.get_bucket.call_args_list
         assert first[0][0] == "test"
         assert second[0][0] == "run"
 
@@ -113,11 +116,13 @@ class TestBuckets:
         task = klass(bucket="test")
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
-        client = MagicMock(get_bucket=MagicMock(side_effect=NotFound("no bucket")))
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(side_effect=NotFound("no bucket"))
+        )
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         with pytest.raises(NotFound, match="no bucket"):
@@ -126,19 +131,21 @@ class TestBuckets:
     def test_bucket_doesnt_exist_can_be_created_on_upload(self, monkeypatch):
         task = GCSUpload(bucket="test", create_bucket=True)
 
-        client = MagicMock(get_bucket=MagicMock(side_effect=NotFound("no bucket")))
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(side_effect=NotFound("no bucket"))
+        )
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         task.run(data="empty", credentials={})
         task.run(data="empty", bucket="run", credentials={})
 
-        assert client.create_bucket.called
-        assert client.create_bucket.call_args_list[0][0][0] == "test"
-        assert client.create_bucket.call_args_list[1][0][0] == "run"
+        assert client.return_value.create_bucket.called
+        assert client.return_value.create_bucket.call_args_list[0][0][0] == "test"
+        assert client.return_value.create_bucket.call_args_list[1][0][0] == "run"
 
 
 class TestBlob:
@@ -147,11 +154,13 @@ class TestBlob:
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
         blob = MagicMock()
-        client = MagicMock(get_bucket=MagicMock(return_value=MagicMock(blob=blob)))
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(return_value=MagicMock(blob=blob))
+        )
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         with prefect.context(
@@ -168,11 +177,13 @@ class TestBlob:
         task = GCSUpload(bucket="test", blob="blobber")
 
         blob = MagicMock()
-        client = MagicMock(get_bucket=MagicMock(return_value=MagicMock(blob=blob)))
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(return_value=MagicMock(blob=blob))
+        )
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         task.run(data="empty", credentials={})
@@ -186,11 +197,13 @@ class TestBlob:
         task = GCSDownload(bucket="test", blob="blobber")
 
         blob = MagicMock()
-        client = MagicMock(get_bucket=MagicMock(return_value=MagicMock(blob=blob)))
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", MagicMock())
+        client = MagicMock()
+        client.return_value = MagicMock(
+            get_bucket=MagicMock(return_value=MagicMock(blob=blob))
+        )
+        monkeypatch.setattr("prefect.utilities.google.Credentials", MagicMock())
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.storage.Client",
-            MagicMock(return_value=client),
+            "prefect.utilities.google.storage", MagicMock(Client=client)
         )
 
         task.run(blob="run-time", credentials={})
