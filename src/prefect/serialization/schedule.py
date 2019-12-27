@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 import marshmallow
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, post_dump
 
 import prefect
 from prefect.serialization import schedule_compat
@@ -38,6 +38,26 @@ class IntervalClockSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     interval = fields.TimeDelta(precision="microseconds", required=True)
+
+    @post_dump
+    def _interval_validation(self, data: dict, **kwargs: Any) -> dict:
+        """
+        Ensures interval is at least one minute in length
+        """
+        if data["interval"] / 1e6 < 60:
+            raise ValueError(
+                "Interval can not be less than one minute when deploying to Prefect Cloud."
+            )
+        return data
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any):
+        if data["interval"].total_seconds() < 60:
+            raise ValueError(
+                "Interval can not be less than one minute when deploying to Prefect Cloud."
+            )
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class CronClockSchema(ObjectSchema):

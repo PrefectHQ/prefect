@@ -48,13 +48,11 @@ class TestIntervalClock:
         assert c.end_date == pendulum.datetime(2020, 1, 1)
 
     def test_interval_clock_interval_must_be_positive(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="greater than 0"):
             clocks.IntervalClock(interval=timedelta(hours=-1))
-
-    def test_interval_clock_interval_must_be_more_than_one_minute(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="greater than 0"):
             clocks.IntervalClock(interval=timedelta(seconds=-1))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="greater than 0"):
             clocks.IntervalClock(interval=timedelta(0))
 
     def test_interval_clock_events(self):
