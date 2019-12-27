@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import MagicMock
 
+pytest.importorskip("google.cloud")
+
 from prefect.utilities.google import (
     get_google_client,
     get_storage_client,
     get_bigquery_client,
 )
-
-pytest.importorskip("google.cloud")
 
 
 def test_credentials_are_not_required(monkeypatch):
