@@ -14,9 +14,9 @@ def _get_google_client(submodule, credentials: dict = None, project: str = None)
     return client
 
 
-def get_storage_client(credentials: dict, project: str = None):
+def get_storage_client(credentials: dict = None, project: str = None):
     return _get_google_client(storage, credentials=credentials, project=project)
 
 
-def get_bigquery_client(credentials: dict, project: str = None):
+def get_bigquery_client(credentials: dict = None, project: str = None):
     return _get_google_client(bigquery, credentials=credentials, project=project)
