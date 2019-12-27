@@ -12,7 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
 - Prevent duplication of stdout logs from multiple instantiated agents - [#1866](https://github.com/PrefectHQ/prefect/pull/1866)
-- Allow intervals less than 60 seconds - [#1880](https://github.com/PrefectHQ/prefect/pull/1880)
+- Allow intervals less than 60 seconds in `IntervalClock`s - [#1880](https://github.com/PrefectHQ/prefect/pull/1880)
 
 ### Task Library
 
