@@ -50,6 +50,15 @@ class IntervalClockSchema(ObjectSchema):
             )
         return data
 
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any):
+        if data["interval"].total_seconds() < 60:
+            raise ValueError(
+                "Interval can not be less than one minute when deploying to Prefect Cloud."
+            )
+        base_obj = super().create_object(data)
+        return base_obj
+
 
 class CronClockSchema(ObjectSchema):
     class Meta:

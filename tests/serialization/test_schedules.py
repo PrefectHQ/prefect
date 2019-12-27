@@ -57,6 +57,15 @@ def test_interval_clocks_with_sub_minute_intervals_cant_be_serialized():
         schema.dump(s)
 
 
+def test_interval_clocks_with_sub_minute_intervals_cant_be_deserialized():
+    schema = ScheduleSchema()
+    s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(seconds=100))])
+    data = schema.dump(s)
+    data["clocks"][0]["interval"] = 59 * 1e6
+    with pytest.raises(ValueError, match="can not be less than one minute"):
+        schema.load(data)
+
+
 def test_interval_clocks_with_exactly_one_minute_intervals_can_be_serialized():
     s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(seconds=60))])
     t = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(minutes=1))])
