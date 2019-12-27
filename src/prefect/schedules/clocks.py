@@ -75,7 +75,7 @@ class IntervalClock(Clock):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
         elif interval.total_seconds() <= 0:
-            raise ValueError("Interval most be greater than 0.")
+            raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
