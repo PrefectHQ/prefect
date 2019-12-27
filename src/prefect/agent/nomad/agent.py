@@ -89,6 +89,9 @@ class NomadAgent(Agent):
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
         env["PREFECT__LOGGING__LOG_TO_CLOUD"] = str(self.log_to_cloud).lower()
 
+        for key, value in self.env_vars.items():
+            env[key] = value
+
         return job
 
 
