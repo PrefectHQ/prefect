@@ -61,7 +61,7 @@ Instructions for contributing to documentation can be found in the [development 
 
 ## Blog
 
-[The Prefect Blog](https://medium.com/the-prefect-blog) for updates an insights from the Prefect team.
+[The Prefect Blog](https://medium.com/the-prefect-blog) for updates and insights from the Prefect team.
 
 ## Contributing
 
