@@ -267,6 +267,9 @@ class FargateAgent(Agent):
             }
         ]
 
+        for key, value in self.env_vars.items():
+            container_definitions[0]["environment"].append(dict(name=key, value=value))
+
         # Register task definition
         self.logger.debug(
             "Registering task definition {}".format(

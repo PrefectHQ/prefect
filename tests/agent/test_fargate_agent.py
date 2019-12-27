@@ -562,6 +562,53 @@ def test_deploy_flow_register_task_definition(monkeypatch, runner_token):
     )
 
 
+def test_deploy_flow_register_task_definition_uses_user_env_vars(
+    monkeypatch, runner_token
+):
+    boto3_client = MagicMock()
+
+    boto3_client.describe_task_definition.side_effect = ClientError({}, None)
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
+    boto3_client.register_task_definition.return_value = {}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    agent = FargateAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
+    )
+
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.called
+    assert (
+        boto3_client.register_task_definition.call_args[1]["family"]
+        == "prefect-task-id"
+    )
+
+    container_defs = boto3_client.register_task_definition.call_args[1][
+        "containerDefinitions"
+    ]
+
+    user_vars = [
+        dict(name="AUTH_THING", value="foo"),
+        dict(name="PKG_SETTING", value="bar"),
+    ]
+    assert container_defs[0]["environment"][-1] in user_vars
+    assert container_defs[0]["environment"][-2] in user_vars
+
+
 def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
