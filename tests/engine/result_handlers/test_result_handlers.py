@@ -98,6 +98,9 @@ class TestGCSResultHandler:
 
         client = MagicMock()
         storage = MagicMock(Client=client)
+        monkeypatch.setattr(
+            "prefect.utilities.google.storage", storage
+        )
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 with patch.dict(
