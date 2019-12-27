@@ -32,7 +32,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- Daryll Strauss <daryll.strauss@gmail.com>
+- [Daryll Strauss](daryll.strauss@gmail.com)
 
 ## 0.8.1 <Badge text="beta" type="success"/>
 
