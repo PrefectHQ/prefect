@@ -15,6 +15,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 def get_client(
     project: str, credentials: dict, credentials_secret: str = None
 ) -> bigquery.Client:
+    creds = None
     if credentials_secret is not None:
         warnings.warn(
             "The `credentials_secret` argument is deprecated. Use a `Secret` task "

@@ -74,6 +74,23 @@ class Secret:
     def __init__(self, name: str):
         self.name = name
 
+    def exists(self) -> bool:
+        """
+        Determine if the secret exists.
+
+        Returns:
+            - bool: a boolean specifying whether the Secret is accessible or not
+        """
+        secrets = prefect.context.get("secrets", {})
+        if self.name in secrets:
+            return True
+        elif prefect.context.config.cloud.use_local_secrets is False:
+            client = Client()
+            cloud_secrets = client.graphql("query{secretNames}").data.secretNames
+            if self.name in cloud_secrets:
+                return True
+        return False
+
     def get(self) -> Optional[Any]:
         """
         Retrieve the secret value.  If not found, returns `None`.

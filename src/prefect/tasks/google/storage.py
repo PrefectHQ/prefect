@@ -47,6 +47,7 @@ class GCSBaseTask(Task):
         """
         Creates and returns a GCS Client instance
         """
+        credentials = None
         if credentials_secret is not None:
             warnings.warn(
                 "The `credentials_secret` argument is deprecated. Use a `Secret` task "
