@@ -139,6 +139,7 @@ class DockerAgent(Agent):
             "PREFECT__LOGGING__LEVEL": "DEBUG",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            **self.env_vars,
         }
 
 

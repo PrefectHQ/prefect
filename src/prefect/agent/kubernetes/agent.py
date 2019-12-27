@@ -158,6 +158,10 @@ class KubernetesAgent(Agent):
         env[4]["value"] = str(self.labels)
         env[5]["value"] = str(self.log_to_cloud).lower()
 
+        # append all user provided values
+        for key, value in self.env_vars.items():
+            env.append(dict(name=key, value=value))
+
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
             "IMAGE_PULL_SECRETS", ""
