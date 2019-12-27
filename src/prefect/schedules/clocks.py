@@ -63,7 +63,7 @@ class IntervalClock(Clock):
 
     Raises:
         - TypeError: if start_date is not a datetime
-        - ValueError: if provided interval is less than one minute
+        - ValueError: if provided interval is less than or equal to zero
     """
 
     def __init__(
@@ -74,8 +74,8 @@ class IntervalClock(Clock):
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
-        elif interval.total_seconds() < 60:
-            raise ValueError("Interval can not be less than one minute.")
+        elif interval.total_seconds() <= 0:
+            raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
