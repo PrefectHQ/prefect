@@ -429,9 +429,9 @@ title = "Executors"
 module = "prefect.utilities.executors"
 functions = ["timeout_handler"]
 
-[pages.utilities.google]
+[pages.utilities.gcp]
 title = "Google Utilities"
-module = "prefect.utilities.google"
+module = "prefect.utilities.gcp"
 functions = ["get_storage_client", "get_bigquery_client"]
 
 [pages.utilities.graphql]
