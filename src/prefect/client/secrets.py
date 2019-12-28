@@ -74,6 +74,12 @@ class Secret:
     def __init__(self, name: str):
         self.name = name
 
+    @property
+    def client(self) -> Client:
+        if not hasattr(self, "_client"):
+            self._client = Client()
+        return self._client
+
     def exists(self) -> bool:
         """
         Determine if the secret exists.
@@ -85,8 +91,7 @@ class Secret:
         if self.name in secrets:
             return True
         elif prefect.context.config.cloud.use_local_secrets is False:
-            client = Client()
-            cloud_secrets = client.graphql("query{secretNames}").data.secretNames
+            cloud_secrets = self.client.graphql("query{secretNames}").data.secretNames
             if self.name in cloud_secrets:
                 return True
         return False
@@ -117,8 +122,7 @@ class Secret:
             value = secrets[self.name]
         except KeyError:
             if prefect.context.config.cloud.use_local_secrets is False:
-                client = Client()
-                result = client.graphql(
+                result = self.client.graphql(
                     """
                     query($name: String!) {
                         secretValue(name: $name)
