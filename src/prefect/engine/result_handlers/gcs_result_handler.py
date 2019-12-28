@@ -39,7 +39,7 @@ class GCSResultHandler(ResultHandler):
         """
         Initializes GCS connections.
         """
-        from prefect.utilities.google import get_storage_client
+        from prefect.utilities.gcp import get_storage_client
 
         credentials = Secret(self.credentials_secret).get()
         client = get_storage_client(credentials=credentials)

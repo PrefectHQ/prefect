@@ -75,8 +75,8 @@ class TestCredentialsandProjects_DEPRECATED:
         )
 
         creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.utilities.google.Credentials", creds_loader)
-        monkeypatch.setattr("prefect.utilities.google.storage.Client", MagicMock())
+        monkeypatch.setattr("prefect.utilities.gcp.Credentials", creds_loader)
+        monkeypatch.setattr("prefect.utilities.gcp.storage.Client", MagicMock())
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
             task.run()
@@ -105,12 +105,10 @@ class TestCredentialsandProjects_DEPRECATED:
         client = MagicMock()
         service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
         monkeypatch.setattr(
-            "prefect.utilities.google.Credentials",
+            "prefect.utilities.gcp.Credentials",
             MagicMock(from_service_account_info=service_account_info),
         )
-        monkeypatch.setattr(
-            "prefect.utilities.google.storage", MagicMock(Client=client)
-        )
+        monkeypatch.setattr("prefect.utilities.gcp.storage", MagicMock(Client=client))
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
             task.run()
