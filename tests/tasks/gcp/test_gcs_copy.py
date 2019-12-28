@@ -4,7 +4,7 @@ import pytest
 from google.cloud.exceptions import NotFound
 
 import prefect
-from prefect.tasks.google import GCSCopy
+from prefect.tasks.gcp import GCSCopy
 from prefect.utilities.configuration import set_temporary_config
 
 

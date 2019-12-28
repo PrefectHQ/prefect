@@ -4,7 +4,7 @@ import pytest
 from google.cloud.exceptions import NotFound
 
 import prefect
-from prefect.tasks.google import (
+from prefect.tasks.gcp import (
     BigQueryLoadGoogleCloudStorage,
     BigQueryStreamingInsert,
     BigQueryTask,
@@ -135,7 +135,7 @@ class TestBigQueryCredentialsandProjects:
 
         client_util = MagicMock()
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", client_util
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
         )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
@@ -153,7 +153,7 @@ class TestBigQueryCredentialsandProjects:
 
         client_util = MagicMock()
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", client_util
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
         )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=dict())):
@@ -178,7 +178,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
 
         client_util = MagicMock()
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", client_util
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
         )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
@@ -203,7 +203,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
 
         client_util = MagicMock()
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", client_util
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
         )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
@@ -228,7 +228,7 @@ class TestDryRuns:
             query=MagicMock(return_value=MagicMock(total_bytes_processed=1200))
         )
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client",
+            "prefect.tasks.gcp.bigquery.get_bigquery_client",
             MagicMock(return_value=client),
         )
 
@@ -244,7 +244,7 @@ class TestDryRuns:
             query=MagicMock(return_value=MagicMock(total_bytes_processed=21836427))
         )
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client",
+            "prefect.tasks.gcp.bigquery.get_bigquery_client",
             MagicMock(return_value=client),
         )
 
@@ -291,7 +291,7 @@ class TestCreateBigQueryTableInitialization:
 
     def test_skip_signal_is_raised_if_table_exists(self, monkeypatch):
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", MagicMock()
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", MagicMock()
         )
         task = CreateBigQueryTable(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
         with pytest.raises(prefect.engine.signals.SUCCESS) as exc:
@@ -309,7 +309,7 @@ class TestCreateBigQueryTableInitialization:
             return_value=MagicMock(get_table=MagicMock(side_effect=NotFound("boy")))
         )
         monkeypatch.setattr(
-            "prefect.tasks.google.bigquery.get_bigquery_client", client_util
+            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
         )
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
             task.run()

@@ -5,7 +5,7 @@ from google.cloud.exceptions import NotFound
 
 import prefect
 import prefect.utilities.gcp
-from prefect.tasks.google import GCSDownload, GCSUpload
+from prefect.tasks.gcp import GCSDownload, GCSUpload
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -57,7 +57,7 @@ class TestCredentialsandProjects_DEPRECATED:
 
         creds_loader = MagicMock()
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.get_storage_client", creds_loader
+            "prefect.tasks.gcp.storage.get_storage_client", creds_loader
         )
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
