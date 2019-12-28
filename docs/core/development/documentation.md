@@ -49,7 +49,7 @@ Whenever a new release of Prefect is cut, we must archive the old API docs so th
 
 Prefect also includes a great deal of "concept" documentation, which covers features, tutorials, guides, and examples separately from the auto-generated API reference. This page is part of the concept documentation for development! We refer to non-API documentation as Prefect's "Guide".
 
-To write concept docs, simply add Markdown files to the `docs/guide` directory (or one of its subdirectories). To ensure that your page is displayed in the navigation, edit `docs/.vuepress/config.js` to include a reference to it.
+To write concept docs, add Markdown files to the `docs/guide` directory (or one of its subdirectories). To ensure that your page is displayed in the navigation, edit `docs/.vuepress/config.js` to include a reference to it.
 
 ## Semantics
 

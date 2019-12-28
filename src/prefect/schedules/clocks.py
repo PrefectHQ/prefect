@@ -40,7 +40,8 @@ class IntervalClock(Clock):
     """
     A clock formed by adding `timedelta` increments to a start_date.
 
-    IntervalClocks only support intervals of one minute or greater.
+    IntervalClocks support any interval, but if deployed to Prefect Cloud only
+    intervals of one minute or greater are allowed.
 
     NOTE: If the `IntervalClock` start time is provided with a DST-observing timezone,
     then the clock will adjust itself appropriately. Intervals greater than 24
@@ -63,7 +64,7 @@ class IntervalClock(Clock):
 
     Raises:
         - TypeError: if start_date is not a datetime
-        - ValueError: if provided interval is less than one minute
+        - ValueError: if provided interval is less than or equal to zero
     """
 
     def __init__(
@@ -74,8 +75,8 @@ class IntervalClock(Clock):
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
-        elif interval.total_seconds() < 60:
-            raise ValueError("Interval can not be less than one minute.")
+        elif interval.total_seconds() <= 0:
+            raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)

@@ -14,9 +14,9 @@ for an Executor consists of the following methods:
 
 Currently, the available executor options are:
 
-- `LocalExecutor`: the no frills, straightforward executor - great for simple
-    debugging; tasks are executed immediately upon being called by `executor.submit()`.
-    Note that the `LocalExecutor` is not capable of parallelism.  Currently the default executor.
+- `LocalExecutor`: the no frills, straightforward executor - great for debugging;
+    tasks are executed immediately upon being called by `executor.submit()`.Note 
+    that the `LocalExecutor` is not capable of parallelism.  Currently the default executor.
 - `LocalDaskExecutor`: an executor that runs on `dask` primitives with a
     configurable dask scheduler.
 - `DaskExecutor`: the most feature-rich of the executors, this executor runs

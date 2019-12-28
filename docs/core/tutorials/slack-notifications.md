@@ -41,25 +41,25 @@ Before you can begin experimenting though, you need to install the Prefect Slack
 
 ## Installation Instructions
 
-Currently, the Prefect slack app can only be installed with a "secret" installation URL. Eventually it will be installable by simply searching for it in the Slack App Directory, but not today.  Given this, please be mindful of sharing this URL: [installation URL](https://prefect-slack.appspot.com).
+Currently, the Prefect slack app can only be installed with a "secret" installation URL. Eventually it will be installable by searching for it in the Slack App Directory, but not today. Given this, please be mindful of sharing this URL: [installation URL](https://prefect-slack.appspot.com).
 
-After navigating to the installation URL, you can select the workspace and specific channel you want Prefect to post to (creating a designated #prefect channel could come in handy here).  For example, if I want notifications to come directly to me in a private message:
+After navigating to the installation URL, you can select the workspace and specific channel you want Prefect to post to (creating a designated #prefect channel could come in handy here). For example, if I want notifications to come directly to me in a private message:
 
 ![prefect slack integration](/slack_page1.png){.viz-lg}
 
-After making your decisions, click the green "Authorize" button to proceed.  Assuming all goes well, you should be greeted with a successful landing page that looks something like:
+After making your decisions, click the green "Authorize" button to proceed. Assuming all goes well, you should be greeted with a successful landing page that looks something like:
 
 ![slack hook authorized](/slack_page2.png){.viz-xl .viz-padded}
 
 That's it! Save the URL in your secure location of choice; soon, you will be able to automatically import this into your database of Prefect Secrets.
 
 ::: tip Multiple Installations
-It's perfectly OK to integrate the Prefect App multiple times into the same workspace; for example, you and a coworker who both use Prefect might want customized notifications.  Simply follow these steps as many times as you desire, but make sure to keep track of which channel each URL is attached to!
+It's perfectly OK to integrate the Prefect App multiple times into the same workspace; for example, you and a coworker who both use Prefect might want customized notifications. Follow these steps as many times as you desire, but make sure to keep track of which channel each URL is attached to!
 :::
 
 ## Using your URL to get notifications
 
-Sooner rather than later, you will be able to store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`; until then, you simply need to include it in the `[context.secrets]` section of your prefect configuration file.  To do so, create a file `~/.prefect/config.toml` and place the following into it:
+Sooner rather than later, you will be able to store your slack webhook URL in your secure database of Prefect Secrets under `"SLACK_WEBHOOK_URL"`; until then, you need to include it in the `[context.secrets]` section of your prefect configuration file. To do so, create a file `~/.prefect/config.toml` and place the following into it:
 
 ```
 [context.secrets]
@@ -70,7 +70,7 @@ SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXXXXXXXX/xxxxxxxxx/XXXXXX
 This method of storing secrets is intended _only_ for local development and testing!
 :::
 
-Almost there - all that's left is to actually hook up the `slack_notifier` state handler to your favorite task or flow! All task and flow initializations accept an optional `state_handler` keyword argument.  This should consist of a _list_ of "state handler" callables with call signature
+Almost there - all that's left is to actually hook up the `slack_notifier` state handler to your favorite task or flow! All task and flow initializations accept an optional `state_handler` keyword argument. This should consist of a _list_ of "state handler" callables with call signature
 
 ```python
 def generic_state_handler(task_or_flow, old_state, new_state):
@@ -80,8 +80,8 @@ def generic_state_handler(task_or_flow, old_state, new_state):
     return new_state # this is important
 ```
 
-This function will be called every time your task (or flow) undergoes a state change.  In the example at hand, `slack_notifier` is already setup as a state handler for you!
-Consequently, as we saw in the introduction example, you can simply provide `slack_notifier` as a `state_handler` for any task / flow you want.
+This function will be called every time your task (or flow) undergoes a state change. In the example at hand, `slack_notifier` is already setup as a state handler for you!
+Consequently, as we saw in the introduction example, you can provide `slack_notifier` as a `state_handler` for any task / flow you want.
 
 ## Customizing your alerts
 
@@ -91,7 +91,7 @@ The default settings are to be notified on _every_ state change for the task / f
 - alert only on certain state changes with the `only_states` keyword argument
 - implement your own state handler which calls out to `slack_notifier`
 
-The `slack_notifier` state handler is [_curried_](https://en.wikipedia.org/wiki/Currying), meaning you can call it early to bind certain keyword arguments.  For example, suppose we only wanted to be notified on `Failed` states; in that case, we could do:
+The `slack_notifier` state handler is [_curried_](https://en.wikipedia.org/wiki/Currying), meaning you can call it early to bind certain keyword arguments. For example, suppose we only wanted to be notified on `Failed` states; in that case, we could do:
 
 ```python
 from prefect import task

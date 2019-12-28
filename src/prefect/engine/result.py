@@ -44,7 +44,7 @@ class ResultInterface:
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
-        If no result handler provided, simply returns self.  If a ResultHandler is provided, however,
+        If no result handler provided, returns self.  If a ResultHandler is provided, however,
         it will become the new result handler for this result.
 
         Args:
@@ -134,7 +134,7 @@ class SafeResult(ResultInterface):
 class NoResultType(SafeResult):
     """
     A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
-    simply returns itself for its `value` and its `safe_value`.
+    returns itself for its `value` and its `safe_value`.
     """
 
     def __init__(self) -> None:

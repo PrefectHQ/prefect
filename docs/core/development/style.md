@@ -4,7 +4,7 @@
 
 Prefect's code is formatted using the [black](https://github.com/ambv/black) style. Merges to master are prevented if code does not conform, and this is checked both as a unit test and a separate CI step, for clarity.
 
-To apply black to your code, simply run black from the root Prefect directory:
+To apply black to your code, run black from the root Prefect directory:
 
 ```bash
 cd prefect
@@ -30,28 +30,28 @@ In addition, a number of extensions are available for popular editors that will 
 Prefect auto-generates API documentation from docstrings by compiling them to Markdown. In order for docstrings to compile correctly, please follow these rules:
 
 :::tip Docstring Formatting
+
 - All documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring.
 - Any references to "code" or variable names should be surrounded by backticks so it will be properly formatted in Markdown.
 - Arguments are indicated by the word `Args:` followed by a Markdown list that indicates each argument's name, type, and description:
-    ```
-    Args:
-        - x (int): a number that provides the initial value.
-    ```
+  ```
+  Args:
+      - x (int): a number that provides the initial value.
+  ```
 
+* The return value is indicated by the word `Returns:` followed by a Markdown list that indicates the return value's type and description. Note that a list is required even though there is only a single return type:
 
-- The return value is indicated by the word `Returns:` followed by a Markdown list that indicates the return value's type and description. Note that a list is required even though there is only a single return type:
+  ```
+  Returns:
+      - int: a number representing the output
+  ```
 
-    ```
-    Returns:
-        - int: a number representing the output
-    ```
+* Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list that indicates each exception's type and description:
 
-- Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list  that indicates each exception's type and description:
-
-    ```
-    Raises:
-        - ValueError: if the input is zero or negative
-    ```
+  ```
+  Raises:
+      - ValueError: if the input is zero or negative
+  ```
 
 :::
 Here is an example of a fully-documented module:
@@ -116,7 +116,7 @@ class Class:
 
 Prefect's code is statically-typed using [mypy](http://mypy-lang.org/). Merges to master are prevented if code does not pass type checks, and this test is performed both as a unit test and a separate CI step, for clarity.
 
-While we would prefer for all of Prefect's code to be typed, that creates an undesirable friction for new contributors. Therefore, mypy is only *required* for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy only against required files, invoke it as a unit test:
+While we would prefer for all of Prefect's code to be typed, that creates an undesirable friction for new contributors. Therefore, mypy is only _required_ for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy only against required files, invoke it as a unit test:
 
 ```bash
 cd prefect
@@ -125,4 +125,4 @@ pytest -k "mypy"
 
 As a general rule, mypy typing requires all function arguments and return values to be annotated.
 
-Prefect is compatible with Python 3.5.2+, so users should *not* use attribute annotations to indicate types, as those were introduced in Python 3.6. Inline comments should be used instead (`x = []  # type: List[int]`, for example).
+Prefect is compatible with Python 3.5.2+, so users should _not_ use attribute annotations to indicate types, as those were introduced in Python 3.6. Inline comments should be used instead (`x = [] # type: List[int]`, for example).

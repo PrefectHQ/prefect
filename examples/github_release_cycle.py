@@ -1,5 +1,5 @@
 """
-This simple flow attempts to prompt a biweekly release by opening a PR from dev -> master every other Monday.
+This flow attempts to prompt a biweekly release by opening a PR from dev -> master every other Monday.
 
 If for any reason the PR fails to open, the Flow opens an issue alerting the team, with
 relevant debug information.
