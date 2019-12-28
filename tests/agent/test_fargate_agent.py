@@ -962,7 +962,7 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.not_called
     assert boto3_client.run_task.called
-    assert agent.task_definition_name == "name__1"
+    assert agent.task_definition_name == "name-1"
 
 
 def test_deploy_flows_enable_task_revisions_old_version_exists(

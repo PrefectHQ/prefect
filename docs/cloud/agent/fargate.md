@@ -110,23 +110,6 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
     `register_task_definition` and `run_task`
 
-By default, a new task definition is created each time there is a new flow version executed.  
-However, ECS does offer the ability to apply changes through the use of revisions.  
-The `enable_task_revisions` flag will enable using revisions by doing the following:
-
-- Use a slugified flow name for the task definition family name.  
-  For example, `flow #1` becomes `flow__1`.
-- Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
-
-This means that for each flow, the proper task definition, based on flow id and version, will be used.  If a new flow version is run, a new revision is added to the flows task definition family.  Your task definitions will now have this hierarchy:
-
-```
-<flow name>
-  - <flow name>:<revision number>
-  - <flow name>:<revision number>
-  - <flow name>:<revision number>
-```
-
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
 Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition):
@@ -187,6 +170,23 @@ networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'sub
 :::warning Case Sensitive Environment Variables
 Please note that when setting the boto3 configuration for the `register_task_definition` and `run_task` the keys are case sensitive. For example: if setting placement constraints through an environment variable it must match boto3's case sensitive `placementConstraints`.
 :::
+
+By default, a new task definition is created each time there is a new flow version executed.  
+However, ECS does offer the ability to apply changes through the use of revisions.  
+The `enable_task_revisions` flag will enable using revisions by doing the following:
+
+- Use a slugified flow name for the task definition family name.  
+  For example, `flow #1` becomes `flow-1`.
+- Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
+
+This means that for each flow, the proper task definition, based on flow id and version, will be used.  If a new flow version is run, a new revision is added to the flow's task definition family.  Your task definitions will now have this hierarchy:
+
+```
+<flow name>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+```
 
 ### Configuration Examples
 
