@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 
 import prefect
+from prefect.engine.result_handlers import ResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -16,7 +17,7 @@ class Memory(Storage):
 
     def __init__(self) -> None:
         self.flows = dict()  # type: Dict[str, prefect.core.flow.Flow]
-        super().__init__()
+        super().__init__(result_handler=ResultHandler())
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

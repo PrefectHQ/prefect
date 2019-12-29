@@ -94,10 +94,6 @@ checkpointing = false
     # the default flow runner, specified using a full path
     default_class = "prefect.engine.flow_runner.FlowRunner"
 
-    [engine.result_handler]
-    # the default result handler, specified using a full path
-    default_class = ""
-
     [engine.task_runner]
     # the default task runner, specified using a full path
     default_class = "prefect.engine.task_runner.TaskRunner"

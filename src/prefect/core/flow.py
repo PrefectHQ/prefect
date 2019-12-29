@@ -162,9 +162,7 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = (
-            result_handler or prefect.engine.get_default_result_handler_class()()
-        )
+        self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -1363,6 +1361,10 @@ class Flow:
 
         if labels:
             self.environment.labels.update(labels)
+
+        # register the flow with a default result handler if one not provided
+        if not self.result_handler:
+            self.result_handler = self.storage.result_handler
 
         client = prefect.Client()
         registered_flow = client.register(

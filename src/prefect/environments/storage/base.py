@@ -20,7 +20,7 @@ class Storage(metaclass=ABCMeta):
     """
 
     def __init__(self, result_handler: ResultHandler = None) -> None:
-        self.result_handler = result_handler or ResultHandler()
+        self.result_handler = result_handler
 
     @property
     def labels(self) -> List[str]:

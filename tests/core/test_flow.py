@@ -133,15 +133,6 @@ class TestCreateFlow:
         assert isinstance(f.result_handler, ResultHandler)
         assert isinstance(f.result_handler, LocalResultHandler)
 
-    def test_create_flow_without_result_handler_uses_config(self):
-        with set_temporary_config(
-            {
-                "engine.result_handler.default_class": "prefect.engine.result_handlers.local_result_handler.LocalResultHandler"
-            }
-        ):
-            f = Flow(name="test")
-            assert isinstance(f.result_handler, LocalResultHandler)
-
     def test_create_flow_with_storage(self):
         f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
         assert isinstance(f2.storage, prefect.environments.storage.Memory)

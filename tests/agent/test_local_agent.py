@@ -264,27 +264,6 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
     assert client.called
 
 
-def test_local_agent_deploy_pwd(monkeypatch, runner_token):
-    monkeypatch.setattr(os, "getcwd", lambda: "pwd")
-
-    popen = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
-
-    agent = LocalAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
-                "id": "id",
-            }
-        )
-    )
-
-    assert popen.called
-    assert len(agent.processes) == 1
-    assert "pwd" in popen.call_args[1]["env"]["PYTHONPATH"]
-
-
 def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
     popen = MagicMock()
     monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
