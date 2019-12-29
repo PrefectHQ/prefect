@@ -283,7 +283,7 @@ class TaskRunner(Runner):
                 state = self.check_task_trigger(state, upstream_states=upstream_states)
 
                 # set the task state to running
-                state = self.set_task_to_running(state)
+                state = self.set_task_to_running(state, inputs=task_inputs)
 
                 # run the task
                 state = self.get_task_run_state(
@@ -796,12 +796,14 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def set_task_to_running(self, state: State) -> State:
+    def set_task_to_running(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Sets the task to running
 
         Args:
             - state (State): the current state of this task
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
 
         Returns:
             - State: the state of the task after running the check
@@ -818,7 +820,7 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
-        new_state = Running(message="Starting task run.")
+        new_state = Running(message="Starting task run.", cached_inputs=inputs)
         return new_state
 
     @run_with_heartbeat
