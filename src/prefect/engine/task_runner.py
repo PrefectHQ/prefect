@@ -150,21 +150,20 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        if hasattr(state, "cached_inputs"):
-            if "_loop_count" in (state.cached_inputs or {}):  # type: ignore
-                loop_context = {
-                    "task_loop_count": state.cached_inputs.pop(  # type: ignore
-                        "_loop_count"
-                    )  # type: ignore
-                    .to_result()
-                    .value,
-                    "task_loop_result": state.cached_inputs.pop(  # type: ignore
-                        "_loop_result"
-                    )  # type: ignore
-                    .to_result()
-                    .value,
-                }
-                context.update(loop_context)
+        if "_loop_count" in state.cached_inputs:  # type: ignore
+            loop_context = {
+                "task_loop_count": state.cached_inputs.pop(  # type: ignore
+                    "_loop_count"
+                )  # type: ignore
+                .to_result()
+                .value,
+                "task_loop_result": state.cached_inputs.pop(  # type: ignore
+                    "_loop_result"
+                )  # type: ignore
+                .to_result()
+                .value,
+            }
+            context.update(loop_context)
 
         context.update(
             task_run_count=run_count,
@@ -595,11 +594,11 @@ class TaskRunner(Runner):
                     handler
                 )  # type: ignore
 
-        if state.is_pending() and state.cached_inputs is not None:  # type: ignore
+        if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
-                    k: r.to_result(handlers.get(k))
-                    for k, r in state.cached_inputs.items()  # type: ignore
+                    k: r.to_result(handlers.get(k))  # type: ignore
+                    for k, r in state.cached_inputs.items()
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )

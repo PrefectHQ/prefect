@@ -54,7 +54,7 @@ def test_create_state_with_no_args(cls):
     assert state.message is None
     assert state.result == NoResult
     assert state.context == dict()
-    assert state.cached_inputs is None
+    assert state.cached_inputs == dict()
 
 
 @pytest.mark.parametrize("cls", all_states)

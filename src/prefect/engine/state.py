@@ -56,7 +56,7 @@ class State:
         self.message = message
         self.result = result
         self.context = context or dict()
-        self.cached_inputs = cached_inputs
+        self.cached_inputs = cached_inputs or dict()  # type: Dict[str, Result]
         if "task_tags" in prefect.context:
             self.context.setdefault("tags", list(prefect.context.task_tags))
 
@@ -666,8 +666,9 @@ class Cached(Success):
         cached_result_expiration: datetime.datetime = None,
         context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = pendulum.instance(cached_result_expiration)
@@ -739,8 +740,9 @@ class Failed(Finished):
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
 
 
 class Cancelled(Failed):
