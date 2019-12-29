@@ -56,17 +56,18 @@ class TestLocalHandler:
 
     def test_local_handler_initializes_with_no_args(self):
         handler = LocalResultHandler()
+        assert handler.dir == os.path.join(prefect.config.home_dir, "results")
 
     def test_local_handler_initializes_with_dir(self):
-        handler = LocalResultHandler(dir="/.prefect")
-        assert handler.dir == "/.prefect"
+        handler = LocalResultHandler(dir="/")
+        assert handler.dir == "/"
 
     @pytest.mark.parametrize("res", [42, "stringy", None, type(None)])
     def test_local_handler_writes_and_writes_to_dir(self, tmp_dir, res):
         handler = LocalResultHandler(dir=tmp_dir)
         fpath = handler.write(res)
         assert isinstance(fpath, str)
-        assert os.path.basename(fpath).startswith("prefect")
+        assert os.path.basename(fpath).startswith("prefect-result")
 
         with open(fpath, "rb") as f:
             val = f.read()

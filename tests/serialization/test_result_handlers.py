@@ -111,27 +111,26 @@ class TestLocalResultHandler:
         serialized = ResultHandlerSchema().dump(LocalResultHandler())
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
-        assert serialized["dir"] is None
+        assert serialized["dir"]
 
     def test_deserialize_from_dict(self):
         handler = ResultHandlerSchema().load({"type": "LocalResultHandler"})
         assert isinstance(handler, LocalResultHandler)
-        assert handler.dir is None
+        assert handler.dir
 
     def test_serialize_local_result_handler_with_dir(self):
-        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir="/root/prefect"))
+        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir="/"))
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
-        assert serialized["dir"] == "/root/prefect"
+        assert serialized["dir"] == "/"
 
-    @pytest.mark.parametrize("dir", [None, "/root/prefect"])
-    def test_deserialize_local_result_handler(self, dir):
+    def test_deserialize_local_result_handler(self):
         schema = ResultHandlerSchema()
-        obj = schema.load(schema.dump(LocalResultHandler(dir=dir)))
+        obj = schema.load(schema.dump(LocalResultHandler(dir="/")))
         assert isinstance(obj, LocalResultHandler)
         assert hasattr(obj, "logger")
         assert obj.logger.name == "prefect.LocalResultHandler"
-        assert obj.dir == dir
+        assert obj.dir == "/"
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")

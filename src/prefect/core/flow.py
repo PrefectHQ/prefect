@@ -1184,6 +1184,9 @@ class Flow:
 
         Returns:
             - dict representing the flow
+
+        Raises:
+            - ValueError: if `build=True` and the flow has no storage
         """
 
         self.validate()

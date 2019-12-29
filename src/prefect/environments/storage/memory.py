@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 class Memory(Storage):
     """
-    Memory Storage class, mainly used for testing.  This class represents the Storage
+    Memory Storage class, intended only for testing.  This class represents the Storage
     interface for Flows contained in memory, i.e., flows are stored as attributes
     of this class.
     """
