@@ -107,6 +107,7 @@ def test_client_deploy(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
 
     with pytest.warns(expected_warning=UserWarning):
         flow_id = client.deploy(
@@ -138,6 +139,8 @@ def test_client_register(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
+
     flow_id = client.register(
         flow,
         project_name="my-default-project",
@@ -167,6 +170,8 @@ def test_client_register_builds_flow(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
+
     flow_id = client.register(
         flow, project_name="my-default-project", compressed=compressed
     )
@@ -205,6 +210,8 @@ def test_client_register_optionally_avoids_building_flow(patch_post, compressed)
     ):
         client = Client()
     flow = prefect.Flow(name="test")
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
+
     flow_id = client.register(
         flow, project_name="my-default-project", build=False, compressed=compressed
     )
@@ -231,6 +238,8 @@ def test_client_register_with_bad_proj_name(patch_post):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
+
     with pytest.raises(ValueError) as exc:
         flow_id = client.register(flow, project_name="my-default-project")
     assert "not found" in str(exc.value)
@@ -249,6 +258,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post):
     # we add a max_retries value to the task without a corresponding retry_delay; this will fail at deserialization
     task.max_retries = 3
     flow = prefect.Flow(name="test", tasks=[task])
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
 
     with pytest.raises(
         ValueError,
