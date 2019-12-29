@@ -28,7 +28,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove `config.engine.result_handler` section of Prefect config
+- Require Flow result handler when registering with Prefect Cloud
 
 ### Contributors
 
