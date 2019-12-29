@@ -18,5 +18,5 @@ try:
     )
 except ImportError:
     raise ImportError(
-        'Using `prefect.tasks.gcp` requires Prefect to be installed with the "google" extra.'
+        'Using `prefect.tasks.gcp` requires Prefect to be installed with the "gcp" extra.'
     )
