@@ -86,7 +86,7 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
         )
 
         with set_temporary_config({"logging.log_to_cloud": flag}):
-            agent = NomadAgent()
+            agent = NomadAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.replace_job_spec_json(flow_run)
 
         assert job["Job"]["TaskGroups"][0]["Tasks"][0]["Name"] == "id"
@@ -101,3 +101,5 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"
         assert env["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+        assert env["AUTH_THING"] == "foo"
+        assert env["PKG_SETTING"] == "bar"

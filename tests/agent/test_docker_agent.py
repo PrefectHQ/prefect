@@ -104,6 +104,24 @@ def test_docker_agent_ping_exception(monkeypatch, runner_token):
         agent = DockerAgent()
 
 
+def test_populate_env_vars_uses_user_provided_env_vars(monkeypatch, runner_token):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
+        agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+
+    assert env_vars["AUTH_THING"] == "foo"
+
+
 def test_populate_env_vars(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)

@@ -43,12 +43,18 @@ class KubernetesAgent(Agent):
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
     """
 
     def __init__(
-        self, namespace: str = None, name: str = None, labels: Iterable[str] = None
+        self,
+        namespace: str = None,
+        name: str = None,
+        labels: Iterable[str] = None,
+        env_vars: dict = None,
     ) -> None:
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
 
         self.namespace = namespace
 
@@ -151,6 +157,10 @@ class KubernetesAgent(Agent):
         env[3]["value"] = os.getenv("NAMESPACE", "default")
         env[4]["value"] = str(self.labels)
         env[5]["value"] = str(self.log_to_cloud).lower()
+
+        # append all user provided values
+        for key, value in self.env_vars.items():
+            env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
