@@ -405,11 +405,13 @@ def test_task_runner_respects_the_db_state(monkeypatch, state):
 
 
 def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
-    @prefect.task(name="test")
+    @prefect.task(name="test", result_handler=JSONResultHandler())
     def add_one(x):
         return x + 1
 
-    db_state = Retrying(cached_inputs=dict(x=Result(41)))
+    db_state = Retrying(
+        cached_inputs=dict(x=Result(41, result_handler=JSONResultHandler()))
+    )
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
     set_task_run_state = MagicMock(
         side_effect=lambda task_run_id, version, state, cache_for: state
@@ -660,7 +662,10 @@ class TestStateResultHandling:
         def add(x, y):
             return x + y
 
-        x_state, y_state = Success(result=Result(1)), Success(result=Result(1))
+        x_state, y_state = (
+            Success(result=Result(1, result_handler=handler)),
+            Success(result=Result(1, result_handler=handler)),
+        )
 
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,

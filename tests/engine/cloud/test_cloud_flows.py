@@ -422,7 +422,7 @@ def test_simple_map(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test") as flow:
+    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
         t1 = plus_one.map([0, 1, 2])
 
     client = MockedCloudClient(
@@ -458,7 +458,7 @@ def test_deep_map(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test") as flow:
+    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
         t1 = plus_one.map([0, 1, 2])
         t2 = plus_one.map(t1)
         t3 = plus_one.map(t2)
@@ -504,7 +504,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test") as flow:
+    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)

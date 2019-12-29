@@ -307,8 +307,7 @@ class TaskRunner(Runner):
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
-            if exc.state.is_pending() or exc.state.is_failed():
-                exc.state.cached_inputs = task_inputs or {}  # type: ignore
+            exc.state.cached_inputs = task_inputs or {}
             state = exc.state
         except RecursiveCall as exc:
             raise exc
@@ -318,7 +317,7 @@ class TaskRunner(Runner):
                 name=context["task_full_name"], exc=repr(exc)
             )
             self.logger.exception(msg)
-            state = Failed(message=msg, result=exc)
+            state = Failed(message=msg, result=exc, cached_inputs=task_inputs)
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
@@ -894,13 +893,16 @@ class TaskRunner(Runner):
             new_state.result = Result(
                 value=new_state.result, result_handler=self.result_handler
             )
+            new_state.cached_inputs = inputs
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
             return new_state
 
         result = Result(value=result, result_handler=self.result_handler)
-        state = Success(result=result, message="Task run succeeded.")
+        state = Success(
+            result=result, message="Task run succeeded.", cached_inputs=inputs
+        )
 
         ## only checkpoint tasks if checkpointing is turned on
         if (
@@ -932,8 +934,7 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
-        if state.is_failed():
-            state.cached_inputs = inputs  # type: ignore
+        state.cached_inputs = inputs
 
         if (
             state.is_successful()
@@ -1031,7 +1032,7 @@ class TaskRunner(Runner):
                 }
             )
             context.update(task_run_version=prefect.context.get("task_run_version"))
-            new_state = Pending(message=msg)
+            new_state = Pending(message=msg, cached_inputs=inputs)
             raise RecursiveCall(
                 self.run,
                 self,

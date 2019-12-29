@@ -566,6 +566,8 @@ class Running(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -586,6 +588,8 @@ class Finished(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -605,6 +609,8 @@ class Looped(Finished):
         - loop_count (int): The iteration number of the looping task.
             Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -636,6 +642,8 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -699,6 +707,8 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -810,6 +820,8 @@ class Skipped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires Retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """

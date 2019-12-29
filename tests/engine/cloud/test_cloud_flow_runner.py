@@ -520,7 +520,7 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     def downstream(l):
         return l ** 2
 
-    with prefect.Flow(name="looping") as f:
+    with prefect.Flow(name="looping", result_handler=JSONResultHandler()) as f:
         inter = looper(10)
         final = downstream(inter)
 
