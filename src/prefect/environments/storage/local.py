@@ -6,6 +6,7 @@ import socket
 from slugify import slugify
 
 import prefect
+from prefect.engine.result_handlers import LocalResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -43,7 +44,8 @@ class Local(Storage):
             abs_directory = directory
 
         self.directory = abs_directory
-        super().__init__()
+        result_handler = LocalResultHandler(self.directory, validate=validate)
+        super().__init__(result_handler=result_handler)
 
     @property
     def labels(self) -> List[str]:

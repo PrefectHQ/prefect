@@ -24,13 +24,28 @@ class LocalResultHandler(ResultHandler):
     Args:
         - dir (str, optional): the _absolute_ path to a directory for storing
             all results; defaults to `${prefect.config.home_dir}/results`
+        - validate (bool, optional): a boolean specifying whether to validate the
+            provided directory path; if `True`, the directory will be converted to an
+            absolute path and created.  Defaults to `True`
     """
 
-    def __init__(self, dir: str = None):
-        directory = dir or os.path.join(prefect.config.home_dir, "results")
-        abs_directory = os.path.abspath(os.path.expanduser(directory))
-        if not os.path.exists(abs_directory):
-            os.makedirs(abs_directory)
+    def __init__(self, dir: str = None, validate: bool = True):
+        full_prefect_path = os.path.abspath(prefect.config.home_dir)
+        if (
+            dir is None
+            or os.path.commonpath([full_prefect_path, os.path.abspath(dir)])
+            == full_prefect_path
+        ):
+            directory = os.path.join(prefect.config.home_dir, "results")
+        else:
+            directory = dir
+
+        if validate:
+            abs_directory = os.path.abspath(os.path.expanduser(directory))
+            if not os.path.exists(abs_directory):
+                os.makedirs(abs_directory)
+        else:
+            abs_directory = directory
         self.dir = abs_directory
         super().__init__()
 

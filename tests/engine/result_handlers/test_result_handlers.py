@@ -62,6 +62,10 @@ class TestLocalHandler:
         handler = LocalResultHandler(dir="/")
         assert handler.dir == "/"
 
+    def test_local_handler_cleverly_redirects_prefect_defaults(self):
+        handler = LocalResultHandler(dir=prefect.config.home_dir)
+        assert handler.dir == os.path.join(prefect.config.home_dir, "results")
+
     @pytest.mark.parametrize("res", [42, "stringy", None, type(None)])
     def test_local_handler_writes_and_writes_to_dir(self, tmp_dir, res):
         handler = LocalResultHandler(dir=tmp_dir)
