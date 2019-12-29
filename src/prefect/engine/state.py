@@ -40,6 +40,8 @@ class State:
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s. Used to recover from failure.
     """
 
     color = "#696969"
@@ -49,10 +51,12 @@ class State:
         message: str = None,
         result: Any = NoResult,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         self.message = message
         self.result = result
         self.context = context or dict()
+        self.cached_inputs = cached_inputs
         if "task_tags" in prefect.context:
             self.context.setdefault("tags", list(prefect.context.task_tags))
 
@@ -292,8 +296,9 @@ class Pending(State):
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
 
 
 class Scheduled(Pending):
@@ -389,8 +394,11 @@ class _MetaState(State):
         result: Any = NoResult,
         state: State = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.state = state
 
 
@@ -467,8 +475,15 @@ class Queued(_MetaState):
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, state=state, context=context)
+        super().__init__(
+            message=message,
+            result=result,
+            state=state,
+            context=context,
+            cached_inputs=cached_inputs,
+        )
         self.start_time = start_time or pendulum.now("utc")
 
 
@@ -596,8 +611,11 @@ class Looped(Finished):
         result: Any = NoResult,
         loop_count: int = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(result=result, message=message, context=context)
+        super().__init__(
+            result=result, message=message, context=context, cached_inputs=cached_inputs
+        )
         if loop_count is None:
             loop_count = prefect.context.get("task_loop_count", 1)
         assert loop_count is not None  # mypy assert
@@ -686,8 +704,11 @@ class Mapped(Success):
         result: Any = NoResult,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.map_states = map_states or []  # type: List[State]
 
     @property
@@ -793,5 +814,8 @@ class Skipped(Success):
         message: str = None,
         result: Any = NoResult,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )

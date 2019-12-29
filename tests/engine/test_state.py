@@ -47,11 +47,6 @@ all_states = sorted(
     key=lambda c: c.__name__,
 )
 
-cached_input_states = sorted(
-    set(cls for cls in all_states if hasattr(cls(), "cached_inputs")),
-    key=lambda c: c.__name__,
-)
-
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
@@ -59,10 +54,11 @@ def test_create_state_with_no_args(cls):
     assert state.message is None
     assert state.result == NoResult
     assert state.context == dict()
+    assert state.cached_inputs is None
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_kwarg_data_arg(cls):
+def test_create_state_with_kwarg_result_arg(cls):
     state = cls(result=1)
     assert isinstance(state._result, Result)
     assert state._result.safe_value is NoResult
@@ -70,6 +66,13 @@ def test_create_state_with_kwarg_data_arg(cls):
     assert state.result == 1
     assert state.message is None
     assert isinstance(state._result, Result)
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_kwarg_cached_inputs(cls):
+    state = cls(cached_inputs=dict(x=42))
+    assert state.message is None
+    assert state.cached_inputs == dict(x=42)
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -266,7 +269,7 @@ def test_serialize_and_deserialize_on_safe_cached_state():
     assert new_state.cached_inputs == state.cached_inputs
 
 
-@pytest.mark.parametrize("cls", cached_input_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_safe_values(cls):
     safe5 = SafeResult(5, result_handler=JSONResultHandler())
     state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
@@ -276,7 +279,7 @@ def test_serialization_of_cached_inputs_with_safe_values(cls):
     assert new_state.cached_inputs == state.cached_inputs
 
 
-@pytest.mark.parametrize("cls", cached_input_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_unsafe_values(cls):
     unsafe5 = Result(5, result_handler=JSONResultHandler())
     state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
