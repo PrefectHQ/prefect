@@ -59,8 +59,9 @@ class TestLocalHandler:
         assert handler.dir == os.path.join(prefect.config.home_dir, "results")
 
     def test_local_handler_initializes_with_dir(self):
-        handler = LocalResultHandler(dir="/")
-        assert handler.dir == "/"
+        root_dir = os.path.abspath(os.sep)
+        handler = LocalResultHandler(dir=root_dir)
+        assert handler.dir == root_dir
 
     def test_local_handler_cleverly_redirects_prefect_defaults(self):
         handler = LocalResultHandler(dir=prefect.config.home_dir)
