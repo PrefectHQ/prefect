@@ -101,18 +101,13 @@ class TestGCSResultHandler:
     def google_client(self, monkeypatch):
         import google.cloud.storage
 
-        client = MagicMock()
-        storage = MagicMock(Client=client)
+        client_util = MagicMock()
+        monkeypatch.setattr(
+            "prefect.engine.result_handlers.gcs.get_storage_client", client_util
+        )
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                with patch.dict(
-                    "sys.modules",
-                    {
-                        "google.cloud": MagicMock(storage=storage),
-                        "google.oauth2.service_account": MagicMock(),
-                    },
-                ):
-                    yield client
+                yield client_util
 
     def test_gcs_init(self, google_client):
         handler = GCSResultHandler(bucket="bob")
@@ -135,22 +130,14 @@ class TestGCSResultHandler:
         )
         assert bucket.blob.call_args[0][0].endswith("prefect_result")
 
-    def test_gcs_uses_custom_secret_name(self):
-        auth = MagicMock()
+    def test_gcs_uses_custom_secret_name(self, google_client):
         handler = GCSResultHandler(bucket="foo", credentials_secret="TEST_SECRET")
 
         with prefect.context(secrets=dict(TEST_SECRET=94611)):
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                with patch.dict(
-                    "sys.modules",
-                    {
-                        "google.cloud": MagicMock(),
-                        "google.oauth2.service_account": auth,
-                    },
-                ):
-                    handler.initialize_client()
+                handler.initialize_client()
 
-        assert auth.Credentials.from_service_account_info.call_args[0][0] == 94611
+        assert google_client.call_args[1]["credentials"] == 94611
 
     def test_gcs_writes_binary_string(self, google_client):
         blob = MagicMock()
