@@ -572,7 +572,7 @@ class Client:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
             )
-        if flow.result_handler is None:
+        if any(e.key for e in flow.edges) and flow.result_handler is None:
             raise ClientError(
                 "Flows are required to have a result handler for storing inputs and outputs."
             )

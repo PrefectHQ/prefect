@@ -151,6 +151,65 @@ def test_client_register(patch_post, compressed):
 
 
 @pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_raises_for_keyed_flows_with_no_result_handler(
+    patch_post, compressed
+):
+    @prefect.task
+    def a(x):
+        pass
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    with prefect.Flow(
+        name="test", storage=prefect.environments.storage.Memory()
+    ) as flow:
+        a(prefect.Task())
+
+    flow.result_handler = None
+
+    with pytest.raises(ClientError, match="required to have a result handler"):
+        flow_id = client.register(
+            flow,
+            project_name="my-default-project",
+            compressed=compressed,
+            version_group_id=str(uuid.uuid4()),
+        )
+
+
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_doesnt_raise_if_no_keyed_edges(patch_post, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
+    patch_post(response)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = None
+
+    flow_id = client.register(
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        version_group_id=str(uuid.uuid4()),
+    )
+    assert flow_id == "long-id"
+
+
+@pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_builds_flow(patch_post, compressed):
     if compressed:
         response = {
