@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
 - Prevent duplication of stdout logs from multiple instantiated agents - [#1866](https://github.com/PrefectHQ/prefect/pull/1866)
 - Allow intervals less than 60 seconds in `IntervalClock`s - [#1880](https://github.com/PrefectHQ/prefect/pull/1880)
+- Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
 
 ### Task Library
 
