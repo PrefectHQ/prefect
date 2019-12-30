@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
 
 ### Contributors
 

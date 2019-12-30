@@ -168,7 +168,9 @@ class TestS3ResultHandler:
             yield client
 
     def test_s3_client_init_uses_secrets(self, s3_client):
-        handler = S3ResultHandler(bucket="bob")
+        handler = S3ResultHandler(
+            bucket="bob", aws_credentials_secret="AWS_CREDENTIALS"
+        )
         assert handler.bucket == "bob"
         assert s3_client.called is False
 

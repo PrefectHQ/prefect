@@ -18,19 +18,21 @@ class S3ResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from an AWS S3 Bucket.
 
+    For authentication, there are two options: you can set a Prefect Secret containing
+    your AWS access keys which will be passed directly to the `boto3` client, or you can
+    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    for `boto3`.
+
     Args:
         - bucket (str): the name of the bucket to write to / read from
         - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your AWS credentials; this Secret must be a JSON string
-            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
-
-    Note that for this result handler to work properly, your AWS Credentials must
-    be made available in the `"AWS_CREDENTIALS"` Prefect Secret.
+            that stores your AWS credentials; this Secret must be a JSON string
+            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
+            passed directly to `boto3`.  If not provided, `boto3`
+            will fall back on standard AWS rules for authentication.
     """
 
-    def __init__(
-        self, bucket: str = None, aws_credentials_secret: str = "AWS_CREDENTIALS"
-    ) -> None:
+    def __init__(self, bucket: str, aws_credentials_secret: str = None) -> None:
         self.bucket = bucket
         self.aws_credentials_secret = aws_credentials_secret
         super().__init__()
@@ -41,12 +43,17 @@ class S3ResultHandler(ResultHandler):
         """
         import boto3
 
-        aws_credentials = Secret(self.aws_credentials_secret).get()
-        if isinstance(aws_credentials, str):
-            aws_credentials = json.loads(aws_credentials)
+        aws_access_key = None
+        aws_secret_access_key = None
 
-        aws_access_key = aws_credentials["ACCESS_KEY"]
-        aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
+        if self.aws_credentials_secret:
+            aws_credentials = Secret(self.aws_credentials_secret).get()
+            if isinstance(aws_credentials, str):
+                aws_credentials = json.loads(aws_credentials)
+
+            aws_access_key = aws_credentials["ACCESS_KEY"]
+            aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
+
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=aws_access_key,
