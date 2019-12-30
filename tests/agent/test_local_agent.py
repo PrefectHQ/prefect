@@ -63,7 +63,7 @@ def test_local_agent_responds_to_logging_config(runner_token, flag):
 
 def test_local_agent_config_options_hostname(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent(labels=["test_label"],)
+        agent = LocalAgent(labels=["test_label"])
         assert set(agent.labels) == {
             "test_label",
             socket.gethostname(),
@@ -246,7 +246,7 @@ def test_local_agent_deploy_storage_raises_not_supported_storage(
     with pytest.raises(ValueError):
         agent.deploy_flow(
             flow_run=GraphQLResult(
-                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id",}
+                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id"}
             )
         )
 
@@ -367,11 +367,7 @@ def test_generate_supervisor_conf(runner_token):
                 ("agent", "INFO", "awesome output!blerg, eRroR!"),
             ),
         ),
-        (
-            1,
-            True,
-            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
-        ),
+        (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
     ),
 )
 def test_local_agent_heartbeat(

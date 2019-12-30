@@ -40,9 +40,7 @@ class TestInitialization:
         assert task.bucket == "bucket"
         assert getattr(task, attr) == "my-value"
 
-    @pytest.mark.parametrize(
-        "attr", ["blob", "project", "create_bucket",],
-    )
+    @pytest.mark.parametrize("attr", ["blob", "project", "create_bucket"])
     def test_upload_initializes_attr_from_kwargs(self, attr):
         task = GCSUpload(bucket="bucket", **{attr: "my-value"})
         assert task.bucket == "bucket"
@@ -142,7 +140,7 @@ class TestBuckets:
 
 class TestBlob:
     def test_encryption_key_is_pulled_from_secret_at_runtime(self, monkeypatch, klass):
-        task = klass(bucket="test", encryption_key_secret="encrypt",)
+        task = klass(bucket="test", encryption_key_secret="encrypt")
         run_arg = "data" if isinstance(task, GCSUpload) else "blob"
 
         blob = MagicMock()

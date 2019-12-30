@@ -35,7 +35,7 @@ class Azure(Storage):
     """
 
     def __init__(
-        self, container: str, connection_string: str = None, blob_name: str = None,
+        self, container: str, connection_string: str = None, blob_name: str = None
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]

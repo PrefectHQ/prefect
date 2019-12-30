@@ -56,7 +56,7 @@ def test_version_header_cant_be_overridden(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    client.get("/foo/bar", headers={"X-PREFECT-CORE-VERSION": "-1",})
+    client.get("/foo/bar", headers={"X-PREFECT-CORE-VERSION": "-1"})
     assert get.call_args[1]["headers"]["X-PREFECT-CORE-VERSION"] == str(
         prefect.__version__
     )
