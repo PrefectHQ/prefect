@@ -30,8 +30,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- Remove `config.engine.result_handler` section of Prefect config
-- Require Flow result handler when registering with Prefect Cloud
+- Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
+- Remove `config.engine.result_handler` section of Prefect config - [#1887](https://github.com/PrefectHQ/prefect/issues/1887)
+- Require Flow result handler when registering with Prefect Cloud - [#1887](https://github.com/PrefectHQ/prefect/issues/1887)
 
 ### Contributors
 
