@@ -166,20 +166,47 @@ networkConfiguration={
 networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
 ```
 
-
 :::warning Case Sensitive Environment Variables
 Please note that when setting the boto3 configuration for the `register_task_definition` and `run_task` the keys are case sensitive. For example: if setting placement constraints through an environment variable it must match boto3's case sensitive `placementConstraints`.
 :::
 
-By default, a new task definition is created each time there is a new flow version executed.  
-However, ECS does offer the ability to apply changes through the use of revisions.  
-The `enable_task_revisions` flag will enable using revisions by doing the following:
+#### External Kwargs
 
-- Use a slugified flow name for the task definition family name.  
+By default, all of the kwargs mentioned above are passed in to the Agent configuration, which means that every flow inherits from them. There are use cases where you will want to use different attributes for different flows and that is supported through enabling `use_external_kwargs`.
+
+When enabled, the Agent will check for the existence of an external kwargs file from a bucket in S3. In order to use this feature you must also provide `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your Agent. If a file exists matching a set S3 key path, the Agent will apply these kwargs to the boto3 `register_task_definition` and `run_task` functions.
+
+The S3 key path that will be used when fetching files is:
+
+```
+<external_kwargs_s3_key>/slugified_flow_name>/<flow_id[:8]>.json
+```
+
+For example if the `external_kwargs_s3_key` is `prefect`, the flow name is `flow #1` and the flow ID is `a718df81-3376-4039-a1e6-cf5b79baa7d4` then your full s3 key path will be:
+
+```
+prefect/flow-1/a718df81.json
+```
+
+Below is an example S3 key patching to a particular flow:
+
+```python
+import os
+from slugify import slugify
+
+flow_id = flow.register(project_name="<YOUR_PROJECT>")
+s3_key = os.path.join('prefect-artifacts', slugify(flow.name), '{}.json'.format(flow_id[:8]))
+```
+
+#### Task Revisions
+
+By default, a new task definition is created each time there is a new flow version executed. However, ECS does offer the ability to apply changes through the use of revisions. The `enable_task_revisions` flag will enable using revisions by doing the following:
+
+- Use a slugified flow name for the task definition family name.
   For example, `flow #1` becomes `flow-1`.
 - Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
 
-This means that for each flow, the proper task definition, based on flow id and version, will be used.  If a new flow version is run, a new revision is added to the flow's task definition family.  Your task definitions will now have this hierarchy:
+This means that for each flow, the proper task definition, based on flow ID and version, will be used. If a new flow version is run, a new revision is added to the flow's task definition family.  Your task definitions will now have this hierarchy:
 
 ```
 <flow name>
@@ -228,7 +255,6 @@ $ export networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABL
 $ prefect agent start fargate
 ```
 
-
 :::warning Outbound Traffic
 If you encounter issues with Fargate raising errors in cases of client timeouts or inability to pull containers then you may need to adjust your `networkConfiguration`. Visit [this discussion thread](https://github.com/aws/amazon-ecs-agent/issues/1128#issuecomment-351545461) for more information on configuring AWS security groups.
 :::
@@ -257,28 +283,3 @@ $ export NETWORK_CONFIGURATION="{'awsvpcConfiguration': {'assignPublicIp': 'ENAB
 
 $ prefect agent start fargate cpu=$CPU memory=$MEMORY networkConfiguration=$NETWORK_CONFIGURATION
 ```
-
-By default, all of these kwargs are passed in the agent configuration, which means that every flow inherits them.  There are use cases where you will want to use different attributes for different flows.  
-When you enable `use_external_kwargs`, the agent will check for the existence of an external kwargs file.  If this file exists, the agent will apply these kwargs to the `register_task_definition` and `run_task`.  You need to abide by the same naming rules explained above, when creating theses files.  
-In order to use this feature you must supply `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your agent.  The s3 key path that will be used when fetching files is:
-```
-<external_kwargs_s3_key>/slugified_flow_name>/<flow_id[:8]>.json
-```
-Flow name in the s3 key needs to be slugified. The json file name uses first 8 characters of flow id.  For example if your `external_kwargs_s3_key` is `prefect`, your flow name in `flow #1` and your flow id is `a718df81-3376-4039-a1e6-cf5b79baa8a1` then your full s3 key path will be:
-```
-prefect/flow-1/a718df81.json
-```
-
-In order to properly slugify flow name for creating the s3 object, you will want to leverage [python-slugify](https://github.com/un33k/python-slugify)
-Here is a sample os path join for creating the s3 key:
-
-```
-import os
-import re
-from slugify import slugify
-
-flow_id = flow.register()
-s3_key = os.path.join('prefect-artifacts', slugify(flow.name), '{}.json'.format(flow_id[:8]))
-```
-
-This option enables the ability to have things like cpu, memory, and taskRoleArn per flow.  When you register your flow via `flow.register` the return value is the flow id.  You can use this return value to then upload the external kwargs to s3 using the proper s3 key prefix.
