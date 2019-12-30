@@ -573,28 +573,3 @@ def test_set_task_run_state_with_error(patch_post):
 
     with pytest.raises(ClientError, match="something went wrong"):
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
-
-
-def test_write_log_successfully(patch_post):
-    patch_post({"data": {"writeRunLog": {"success": True}}})
-
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    assert client.write_run_log(flow_run_id="1") is None
-
-
-def test_write_log_with_error(patch_post):
-    patch_post(
-        {"data": {"writeRunLog": None}, "errors": [{"message": "something went wrong"}]}
-    )
-
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    with pytest.raises(ClientError, match="something went wrong"):
-        client.write_run_log(flow_run_id="1")
