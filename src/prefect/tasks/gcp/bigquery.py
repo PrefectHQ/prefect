@@ -8,28 +8,23 @@ from google.oauth2.service_account import Credentials
 from prefect.client import Secret
 from prefect.core import Task
 from prefect.engine.signals import SUCCESS
+from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
 def get_client(
     project: str, credentials: dict, credentials_secret: str = None
 ) -> bigquery.Client:
+    creds = None
     if credentials_secret is not None:
         warnings.warn(
             "The `credentials_secret` argument is deprecated. Use a `Secret` task "
             "to pass the credentials value at runtime instead.",
             UserWarning,
         )
+        # TODO: make this optional so that the machine can authenticate externally to Prefect
         creds = Secret(credentials_secret).get()
-        credentials = Credentials.from_service_account_info(creds)
-        project = project or credentials.project_id
-
-    if credentials is not None:
-        project = project or credentials.get("project")
-        client = bigquery.Client(project=project, credentials=credentials)
-    else:
-        client = bigquery.Client(project=project)
-    return client
+    return get_bigquery_client(credentials=creds, project=project)
 
 
 class BigQueryTask(Task):

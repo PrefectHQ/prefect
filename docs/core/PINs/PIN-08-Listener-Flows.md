@@ -6,11 +6,12 @@ sidebarDepth: 0
 # PIN 8: Event-Driven/Long-Running Flow Execution via Listeners
 
 Date: March 31, 2019
+
 Author: Jeremiah Lowin
 
 ## Status
 
-Proposed
+Superseded by [PIN 14](PIN-14-Listener-Flows-2.html).
 
 ## Context
 

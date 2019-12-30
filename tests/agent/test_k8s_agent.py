@@ -103,6 +103,60 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
     assert not agent.batch_client.create_namespaced_job.called
 
 
+def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    monkeypatch.setenv("IMAGE_PULL_SECRETS", "my-secret")
+    monkeypatch.setenv("JOB_MEM_REQUEST", "mr")
+    monkeypatch.setenv("JOB_MEM_LIMIT", "ml")
+    monkeypatch.setenv("JOB_CPU_REQUEST", "cr")
+    monkeypatch.setenv("JOB_CPU_LIMIT", "cl")
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Docker(
+                        registry_url="test", image_name="name", image_tag="tag"
+                    ).serialize(),
+                    "id": "id",
+                }
+            ),
+            "id": "id",
+        }
+    )
+
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+    ):
+        agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
+        job = agent.replace_job_spec_yaml(flow_run)
+
+        assert job["metadata"]["labels"]["flow_run_id"] == "id"
+        assert job["metadata"]["labels"]["flow_id"] == "id"
+        assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
+        )
+
+        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+
+        assert env[0]["value"] == "https://api.prefect.io"
+        assert env[1]["value"] == "token"
+        assert env[2]["value"] == "id"
+        assert env[3]["value"] == "default"
+        assert env[4]["value"] == "[]"
+        assert env[5]["value"] == "true"
+
+        user_vars = [
+            dict(name="AUTH_THING", value="foo"),
+            dict(name="PKG_SETTING", value="bar"),
+        ]
+        assert env[-1] in user_vars
+        assert env[-2] in user_vars
+
+
 def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)

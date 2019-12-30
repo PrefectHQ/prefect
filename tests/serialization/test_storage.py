@@ -273,7 +273,7 @@ def test_gcs_empty_serialize():
 
 
 def test_gcs_full_serialize():
-    gcs = storage.GCS(bucket="bucket", key="key", project="project",)
+    gcs = storage.GCS(bucket="bucket", key="key", project="project")
     serialized = GCSSchema().dump(gcs)
 
     assert serialized
@@ -284,7 +284,7 @@ def test_gcs_full_serialize():
 
 
 def test_gcs_serialize_with_flows():
-    gcs = storage.GCS(project="project", bucket="bucket", key="key",)
+    gcs = storage.GCS(project="project", bucket="bucket", key="key")
     f = prefect.Flow("test")
     gcs.flows["test"] = "key"
     serialized = GCSSchema().dump(gcs)

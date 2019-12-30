@@ -10,7 +10,7 @@ from prefect.utilities.configuration import set_temporary_config
 class TestS3Download:
     def test_initialization(self):
         task = S3Download()
-        assert task.aws_credentials_secret == "AWS_CREDENTIALS"
+        assert task.aws_credentials_secret is None
 
     def test_initialization_passes_to_task_constructor(self):
         task = S3Download(name="test", tags=["AWS"])
@@ -23,7 +23,7 @@ class TestS3Download:
             task.run(key="")
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
-        task = S3Download(bucket="bob")
+        task = S3Download(bucket="bob", aws_credentials_secret="AWS_CREDENTIALS")
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
@@ -37,11 +37,20 @@ class TestS3Download:
         kwargs = client.call_args[1]
         assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
 
+    def test_creds_default_to_environment(self, monkeypatch):
+        task = S3Download(bucket="bob")
+        client = MagicMock()
+        boto3 = MagicMock(client=client)
+        monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
+        task.run(key="")
+        kwargs = client.call_args[1]
+        assert kwargs == {"aws_access_key_id": None, "aws_secret_access_key": None}
+
 
 class TestS3Upload:
     def test_initialization(self):
         task = S3Upload()
-        assert task.aws_credentials_secret == "AWS_CREDENTIALS"
+        assert task.aws_credentials_secret is None
 
     def test_initialization_passes_to_task_constructor(self):
         task = S3Upload(name="test", tags=["AWS"])
@@ -54,7 +63,7 @@ class TestS3Upload:
             task.run(data="")
 
     def test_generated_key_is_str(self, monkeypatch):
-        task = S3Upload(bucket="test")
+        task = S3Upload(bucket="test", aws_credentials_secret="AWS_CREDENTIALS")
         client = MagicMock()
         boto3 = MagicMock(client=MagicMock(return_value=client))
         monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
@@ -68,7 +77,7 @@ class TestS3Upload:
         assert type(client.upload_fileobj.call_args[1]["Key"]) == str
 
     def test_creds_are_pulled_from_secret(self, monkeypatch):
-        task = S3Upload(bucket="bob")
+        task = S3Upload(bucket="bob", aws_credentials_secret="AWS_CREDENTIALS")
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
@@ -81,3 +90,12 @@ class TestS3Upload:
                 task.run(data="")
         kwargs = client.call_args[1]
         assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
+
+    def test_creds_default_to_environment(self, monkeypatch):
+        task = S3Upload(bucket="bob")
+        client = MagicMock()
+        boto3 = MagicMock(client=client)
+        monkeypatch.setattr("prefect.tasks.aws.s3.boto3", boto3)
+        task.run(data="")
+        kwargs = client.call_args[1]
+        assert kwargs == {"aws_access_key_id": None, "aws_secret_access_key": None}

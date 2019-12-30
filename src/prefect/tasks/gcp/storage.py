@@ -1,13 +1,12 @@
 import uuid
 import warnings
 
-from google.cloud import storage
 from google.cloud.exceptions import NotFound
-from google.oauth2.service_account import Credentials
 
 from prefect import context
 from prefect.client import Secret
 from prefect.core import Task
+from prefect.utilities.gcp import get_storage_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -48,22 +47,15 @@ class GCSBaseTask(Task):
         """
         Creates and returns a GCS Client instance
         """
+        credentials = None
         if credentials_secret is not None:
             warnings.warn(
                 "The `credentials_secret` argument is deprecated. Use a `Secret` task "
                 "to pass the credentials value at runtime instead.",
                 UserWarning,
             )
-            creds = Secret(credentials_secret).get()
-            credentials = Credentials.from_service_account_info(creds)
-            project = project or credentials.project_id
-
-        if credentials is not None:
-            project = project or credentials.get("project")
-            client = storage.Client(project=project, credentials=credentials)
-        else:
-            client = storage.Client(project=project)
-        return client
+            credentials = Secret(credentials_secret).get()
+        return get_storage_client(credentials=credentials, project=project)
 
     def _retrieve_bucket(self, client, bucket: str, create_bucket: bool):
         "Retrieves a bucket based on user settings"

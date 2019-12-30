@@ -63,13 +63,18 @@ class Agent:
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
     """
 
-    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
+    def __init__(
+        self, name: str = None, labels: Iterable[str] = None, env_vars: dict = None
+    ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
+        self.env_vars = env_vars or dict()
         self.log_to_cloud = config.logging.log_to_cloud
 
         token = config.cloud.agent.get("auth_token")
@@ -284,7 +289,7 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
-                    "flow": {"id", "name", "environment", "storage"},
+                    "flow": {"id", "name", "environment", "storage", "version"},
                     with_args(
                         "task_runs",
                         {

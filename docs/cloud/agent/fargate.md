@@ -96,6 +96,20 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
 
+- enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
+    When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
+    task definition revision. Each revision will be registered with a tag called `PrefectFlowId`
+    and `PrefectFlowVersion` to enable proper lookup for existing revisions.  Flow name is reformatted
+    to support task definition naming rules by converting all non-alphanumeric characters to '_'.
+    Defaults to False.
+- use_external_kwargs (bool, optional): When enabled, the agent will check for the existence of an
+    external json file containing kwargs to pass into the run_flow process.
+    Defaults to False.
+- external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
+- external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<slugified_flow_name>/<flow_id[:8]>.json`.
+- **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
+    `register_task_definition` and `run_task`
+
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
 Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition):
@@ -152,10 +166,54 @@ networkConfiguration={
 networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
 ```
 
-
 :::warning Case Sensitive Environment Variables
 Please note that when setting the boto3 configuration for the `register_task_definition` and `run_task` the keys are case sensitive. For example: if setting placement constraints through an environment variable it must match boto3's case sensitive `placementConstraints`.
 :::
+
+#### External Kwargs
+
+By default, all of the kwargs mentioned above are passed in to the Agent configuration, which means that every flow inherits from them. There are use cases where you will want to use different attributes for different flows and that is supported through enabling `use_external_kwargs`.
+
+When enabled, the Agent will check for the existence of an external kwargs file from a bucket in S3. In order to use this feature you must also provide `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your Agent. If a file exists matching a set S3 key path, the Agent will apply these kwargs to the boto3 `register_task_definition` and `run_task` functions.
+
+The S3 key path that will be used when fetching files is:
+
+```
+<external_kwargs_s3_key>/slugified_flow_name>/<flow_id[:8]>.json
+```
+
+For example if the `external_kwargs_s3_key` is `prefect`, the flow name is `flow #1` and the flow ID is `a718df81-3376-4039-a1e6-cf5b79baa7d4` then your full s3 key path will be:
+
+```
+prefect/flow-1/a718df81.json
+```
+
+Below is an example S3 key patching to a particular flow:
+
+```python
+import os
+from slugify import slugify
+
+flow_id = flow.register(project_name="<YOUR_PROJECT>")
+s3_key = os.path.join('prefect-artifacts', slugify(flow.name), '{}.json'.format(flow_id[:8]))
+```
+
+#### Task Revisions
+
+By default, a new task definition is created each time there is a new flow version executed. However, ECS does offer the ability to apply changes through the use of revisions. The `enable_task_revisions` flag will enable using revisions by doing the following:
+
+- Use a slugified flow name for the task definition family name.
+  For example, `flow #1` becomes `flow-1`.
+- Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
+
+This means that for each flow, the proper task definition, based on flow ID and version, will be used. If a new flow version is run, a new revision is added to the flow's task definition family.  Your task definitions will now have this hierarchy:
+
+```
+<flow name>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+  - <flow name>:<revision number>
+```
 
 ### Configuration Examples
 
@@ -196,7 +254,6 @@ $ export networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABL
 
 $ prefect agent start fargate
 ```
-
 
 :::warning Outbound Traffic
 If you encounter issues with Fargate raising errors in cases of client timeouts or inability to pull containers then you may need to adjust your `networkConfiguration`. Visit [this discussion thread](https://github.com/aws/amazon-ecs-agent/issues/1128#issuecomment-351545461) for more information on configuring AWS security groups.

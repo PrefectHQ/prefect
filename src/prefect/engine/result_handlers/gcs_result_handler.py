@@ -39,13 +39,10 @@ class GCSResultHandler(ResultHandler):
         """
         Initializes GCS connections.
         """
-        from google.oauth2.service_account import Credentials
-        from google.cloud import storage
+        from prefect.utilities.gcp import get_storage_client
 
-        creds = Secret(self.credentials_secret).get()
-        credentials = Credentials.from_service_account_info(creds)
-        project = credentials.project_id
-        client = storage.Client(project=project, credentials=credentials)
+        credentials = Secret(self.credentials_secret).get()
+        client = get_storage_client(credentials=credentials)
         self.gcs_bucket = client.bucket(self.bucket)
 
     @property

@@ -70,6 +70,13 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variables to set on each submitted flow run.",
+    hidden=True,
+)
+@click.option(
     "--namespace",
     required=False,
     help="Kubernetes namespace to create jobs.",
@@ -105,6 +112,7 @@ def start(
     name,
     verbose,
     label,
+    env,
     namespace,
     no_pull,
     no_cloud_logs,
@@ -128,6 +136,9 @@ def start(
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
+        --env, -e       TEXT    Environment variables to set on each submitted flow run.
+                                Note that equal signs in environment variable values are not currently supported from the CLI.
+                                Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
         --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
                                 Defaults to `False`
 
@@ -175,27 +186,39 @@ def start(
             click.secho("{} is not a valid agent".format(agent_option), fg="red")
             return
 
+        env_vars = dict()
+        for env_var in env:
+            k, v = env_var.split("=")
+            env_vars[k] = v
+
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
                 name=name,
                 labels=list(label),
+                env_vars=env_vars,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), base_url=base_url, no_pull=no_pull
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                base_url=base_url,
+                no_pull=no_pull,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), **kwargs
+                name=name, labels=list(label), env_vars=env_vars, **kwargs
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                namespace=namespace, name=name, labels=list(label)
+                namespace=namespace, name=name, labels=list(label), env_vars=env_vars
             ).start()
         else:
-            from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
+            from_qualified_name(retrieved_agent)(
+                name=name, labels=list(label), env_vars=env_vars
+            ).start()
 
 
 @agent.command(hidden=True)
@@ -246,7 +269,7 @@ def start(
     hidden=True,
 )
 @click.option(
-    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True,
+    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True
 )
 @click.option(
     "--label",

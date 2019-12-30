@@ -219,7 +219,7 @@ class TestS3ResultHandler:
         )
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.aws_credentials_secret == "AWS_CREDENTIALS"
+        assert handler.aws_credentials_secret is None
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()
