@@ -148,7 +148,19 @@ class TestGCSResultHandler:
         )
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert handler.credentials_secret is None
+
+    def test_deserialize_from_dict_with_creds(self):
+        handler = ResultHandlerSchema().load(
+            {
+                "type": "GCSResultHandler",
+                "bucket": "foo-bar",
+                "credentials_secret": "FOO",
+            }
+        )
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "foo-bar"
+        assert handler.credentials_secret == "FOO"
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()

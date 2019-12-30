@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -17,21 +18,33 @@ class AzureResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from an Azure Blob storage.
 
+    Note that your flow's runtime environment must be able to authenticate with
+    Azure; there are currently two supported options: provide a connection string
+    either at initialization or at runtime through an environment variable, or
+    set your Azure credentials as a Prefect Secret.  Using an environment variable is the recommended
+    approach.
+
     Args:
         - container (str): the name of the container to write to / read from
-        - azure_credentials_secret (str, optional): the name of the Prefect Secret
-            which stores your Azure credentials; this Secret must be a JSON string
-            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN` 
+        - connection_string (str, optional): an Azure connection string for communicating with
+            Blob storage. If not provided the value set in the environment as `AZURE_STORAGE_CONNECTION_STRING`
+            will be used
+        - azure_credentials_secret (str, optional): the name of a Prefect Secret
+            which stores your Azure credentials; this Secret must be a JSON payload
+            with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
             (if both are defined then`ACCOUNT_KEY` is used)
-
-    Note that for this result handler to work properly, your Azure Credentials must
-    be made available in the `"AZ_CREDENTIALS"` Prefect Secret.
     """
 
     def __init__(
-        self, container: str = None, azure_credentials_secret: str = "AZ_CREDENTIALS"
+        self,
+        container: str,
+        connection_string: str = None,
+        azure_credentials_secret: str = "AZ_CREDENTIALS",
     ) -> None:
         self.container = container
+        self.connection_string = connection_string or os.getenv(
+            "AZURE_STORAGE_CONNECTION_STRING"
+        )
         self.azure_credentials_secret = azure_credentials_secret
         super().__init__()
 
@@ -41,19 +54,19 @@ class AzureResultHandler(ResultHandler):
         """
         import azure.storage.blob
 
-        azure_credentials = Secret(self.azure_credentials_secret).get()
-        if isinstance(azure_credentials, str):
-            azure_credentials = json.loads(azure_credentials)
+        kwargs = dict()
+        if self.azure_credentials_secret:
+            azure_credentials = Secret(self.azure_credentials_secret).get()
+            if isinstance(azure_credentials, str):
+                azure_credentials = json.loads(azure_credentials)
 
-        az_account_name = azure_credentials["ACCOUNT_NAME"]
-        az_account_key = azure_credentials.get("ACCOUNT_KEY")
-        az_sas_token = azure_credentials.get("SAS_TOKEN")
+            kwargs["account_name"] = azure_credentials["ACCOUNT_NAME"]
+            kwargs["account_key"] = azure_credentials.get("ACCOUNT_KEY")
+            kwargs["sas_token"] = azure_credentials.get("SAS_TOKEN")
+        else:
+            kwargs["connection_string"] = self.connection_string
 
-        blob_service = azure.storage.blob.BlockBlobService(
-            account_name=az_account_name,
-            account_key=az_account_key,
-            sas_token=az_sas_token,
-        )
+        blob_service = azure.storage.blob.BlockBlobService(**kwargs)
         self.service = blob_service
 
     @property
