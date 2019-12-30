@@ -289,7 +289,7 @@ class Agent:
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
-                    "flow": {"id", "name", "environment", "storage"},
+                    "flow": {"id", "name", "environment", "storage", "version"},
                     with_args(
                         "task_runs",
                         {
