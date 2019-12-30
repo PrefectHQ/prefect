@@ -19,7 +19,7 @@ class TestGetRepoInfoInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize("attr", ["repo", "info_keys",])
+    @pytest.mark.parametrize("attr", ["repo", "info_keys"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = GetRepoInfo(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -43,7 +43,7 @@ class TestCreateBranchInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize("attr", ["repo", "base", "branch_name",])
+    @pytest.mark.parametrize("attr", ["repo", "base", "branch_name"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = CreateBranch(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"

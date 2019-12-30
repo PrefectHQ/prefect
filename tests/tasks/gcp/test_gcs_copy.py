@@ -4,7 +4,7 @@ import pytest
 from google.cloud.exceptions import NotFound
 
 import prefect
-from prefect.tasks.google import GCSCopy
+from prefect.tasks.gcp import GCSCopy
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -75,8 +75,8 @@ class TestCredentialsandProjects_DEPRECATED:
         )
 
         creds_loader = MagicMock()
-        monkeypatch.setattr("prefect.tasks.google.storage.Credentials", creds_loader)
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", MagicMock())
+        monkeypatch.setattr("prefect.utilities.gcp.Credentials", creds_loader)
+        monkeypatch.setattr("prefect.utilities.gcp.storage.Client", MagicMock())
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
             task.run()
@@ -105,10 +105,10 @@ class TestCredentialsandProjects_DEPRECATED:
         client = MagicMock()
         service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
         monkeypatch.setattr(
-            "prefect.tasks.google.storage.Credentials",
+            "prefect.utilities.gcp.Credentials",
             MagicMock(from_service_account_info=service_account_info),
         )
-        monkeypatch.setattr("prefect.tasks.google.storage.storage.Client", client)
+        monkeypatch.setattr("prefect.utilities.gcp.storage", MagicMock(Client=client))
 
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
             task.run()

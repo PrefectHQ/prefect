@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import os
 import pytest
 
 import prefect
@@ -119,18 +120,20 @@ class TestLocalResultHandler:
         assert handler.dir
 
     def test_serialize_local_result_handler_with_dir(self):
-        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir="/"))
+        root_dir = os.path.abspath(os.sep)
+        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir=root_dir))
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
-        assert serialized["dir"] == "/"
+        assert serialized["dir"] == root_dir
 
     def test_deserialize_local_result_handler(self):
         schema = ResultHandlerSchema()
-        obj = schema.load(schema.dump(LocalResultHandler(dir="/")))
+        root_dir = os.path.abspath(os.sep)
+        obj = schema.load(schema.dump(LocalResultHandler(dir=root_dir)))
         assert isinstance(obj, LocalResultHandler)
         assert hasattr(obj, "logger")
         assert obj.logger.name == "prefect.LocalResultHandler"
-        assert obj.dir == "/"
+        assert obj.dir == root_dir
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
@@ -148,7 +151,19 @@ class TestGCSResultHandler:
         )
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert handler.credentials_secret is None
+
+    def test_deserialize_from_dict_with_creds(self):
+        handler = ResultHandlerSchema().load(
+            {
+                "type": "GCSResultHandler",
+                "bucket": "foo-bar",
+                "credentials_secret": "FOO",
+            }
+        )
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "foo-bar"
+        assert handler.credentials_secret == "FOO"
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()
@@ -218,7 +233,7 @@ class TestS3ResultHandler:
         )
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.aws_credentials_secret == "AWS_CREDENTIALS"
+        assert handler.aws_credentials_secret is None
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()

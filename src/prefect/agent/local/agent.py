@@ -21,6 +21,8 @@ class LocalAgent(Agent):
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
@@ -34,6 +36,7 @@ class LocalAgent(Agent):
         self,
         name: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
@@ -41,7 +44,7 @@ class LocalAgent(Agent):
         self.processes = []  # type: list
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
@@ -139,6 +142,7 @@ class LocalAgent(Agent):
             "PREFECT__LOGGING__LEVEL": "DEBUG",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            **self.env_vars,
         }
 
     @staticmethod

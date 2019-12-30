@@ -6,6 +6,7 @@ import pendulum
 from slugify import slugify
 
 import prefect
+from prefect.engine.result_handlers import AzureResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -27,24 +28,29 @@ class Azure(Storage):
     Args:
         - container (str): the name of the Azure Blob Container to store the Flow
         - connection_string (str, optional): an Azure connection string for communicating with
-            Blob storage. If not provided the value set in the environment as `CONNECTION_STRING`
+            Blob storage. If not provided the value set in the environment as `AZURE_STORAGE_CONNECTION_STRING`
             will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
     """
 
     def __init__(
-        self, container: str, connection_string: str = None, blob_name: str = None,
+        self, container: str, connection_string: str = None, blob_name: str = None
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
 
-        self.connection_string = connection_string or os.getenv("CONNECTION_STRING")
+        self.connection_string = connection_string or os.getenv(
+            "AZURE_STORAGE_CONNECTION_STRING"
+        )
 
         self.container = container
         self.blob_name = blob_name
 
-        super().__init__()
+        result_handler = AzureResultHandler(
+            connection_string=connection_string, container=container
+        )
+        super().__init__(result_handler=result_handler)
 
     @property
     def labels(self) -> List[str]:

@@ -6,17 +6,21 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Added the ability to leverage native ECS task definition revisions for flow versions in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Added the ability to pull in kwargs per flow version from S3 on flow submission in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Add sensible default result handlers to non-Docker storage options - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
 ### Enhancements
 
 - Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
 - Prevent duplication of stdout logs from multiple instantiated agents - [#1866](https://github.com/PrefectHQ/prefect/pull/1866)
 - Allow intervals less than 60 seconds in `IntervalClock`s - [#1880](https://github.com/PrefectHQ/prefect/pull/1880)
+- Introduce new `Secret.exists` method for checking whether a Secret is available - [#1882](https://github.com/PrefectHQ/prefect/pull/1882)
+- Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
 
 ### Task Library
 
-- None
+- Remove implicit requirement that Google Tasks use Prefect Cloud Secrets - [#1882](https://github.com/PrefectHQ/prefect/pull/1882)
 
 ### Fixes
 
@@ -28,8 +32,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- Remove `config.engine.result_handler` section of Prefect config
-- Require Flow result handler when registering with Prefect Cloud
+- Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
+- Remove `config.engine.result_handler` section of Prefect config - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Require Flow result handler when registering with Prefect Cloud - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `aws_credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
 ### Contributors
 
