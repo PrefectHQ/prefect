@@ -31,6 +31,8 @@ class FargateAgent(Agent):
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -61,6 +63,7 @@ class FargateAgent(Agent):
         self,
         name: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -71,7 +74,7 @@ class FargateAgent(Agent):
         external_kwargs_s3_key: str = None,
         **kwargs
     ) -> None:
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource
@@ -462,6 +465,9 @@ class FargateAgent(Agent):
                 "essential": True,
             }
         ]
+
+        for key, value in self.env_vars.items():
+            container_definitions[0]["environment"].append(dict(name=key, value=value))
 
         # Register task definition
         self.logger.debug(

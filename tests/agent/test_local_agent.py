@@ -73,6 +73,21 @@ def test_local_agent_config_options_hostname(runner_token):
         }
 
 
+def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
+        agent = LocalAgent(env_vars=dict(AUTH_THING="foo"))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+
+    assert env_vars["AUTH_THING"] == "foo"
+
+
 def test_populate_env_vars(runner_token):
     with set_temporary_config(
         {

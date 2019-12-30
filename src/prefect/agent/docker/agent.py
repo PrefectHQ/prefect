@@ -20,6 +20,8 @@ class DockerAgent(Agent):
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -31,10 +33,11 @@ class DockerAgent(Agent):
         self,
         name: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         base_url: str = None,
         no_pull: bool = None,
     ) -> None:
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
 
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
@@ -136,6 +139,7 @@ class DockerAgent(Agent):
             "PREFECT__LOGGING__LEVEL": "DEBUG",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            **self.env_vars,
         }
 
 

@@ -23,6 +23,7 @@ def test_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.labels == []
+        assert agent.env_vars == dict()
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.name == "agent"
         assert agent.logger
@@ -59,6 +60,12 @@ def test_agent_log_level_responds_to_config(runner_token):
     ):
         agent = Agent()
         assert agent.logger.level == 10
+
+
+def test_agent_env_vars(runner_token):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent(env_vars=dict(AUTH_THING="foo"))
+        assert agent.env_vars == dict(AUTH_THING="foo")
 
 
 def test_agent_labels(runner_token):
