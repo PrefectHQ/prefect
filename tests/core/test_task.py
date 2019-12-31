@@ -253,14 +253,11 @@ class TestCreateTask:
 
     def test_create_task_with_and_without_checkpoint(self):
         t = Task()
-        assert t.checkpoint is False
+        assert t.checkpoint is True
 
-        s = Task(checkpoint=True)
-        assert s.checkpoint is True
-
-        with set_temporary_config({"tasks.defaults.checkpoint": True}):
-            r = Task()
-        assert r.checkpoint is True
+        with pytest.warns(UserWarning, match="deprecated"):
+            s = Task(checkpoint=False)
+            assert s.checkpoint is False
 
     @pytest.mark.xfail(reason="UX improvement for Core")
     def test_create_parameter_always_checkpoints(self):

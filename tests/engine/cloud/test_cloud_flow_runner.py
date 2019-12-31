@@ -455,7 +455,7 @@ def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recomp
             raise ValueError("No thank you.")
         return p
 
-    with prefect.Flow("test") as f:
+    with prefect.Flow("test", result_handler=JSONResultHandler()) as f:
         p = prefect.tasks.secrets.Secret("p")
         res = is_p_three(p)
 
@@ -574,7 +574,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             ):
                 return super().run_task(*args, **kwargs)
 
-    @prefect.task
+    @prefect.task(result_handler=JSONResultHandler())
     def log_stuff():
         logger = prefect.context.get("logger")
         logger.critical("important log right here")

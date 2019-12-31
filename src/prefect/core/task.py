@@ -125,7 +125,7 @@ class Task(metaclass=SignatureValidator):
         - cache_key (str, optional): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
             be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
             Task's database ID if running in Cloud
-        - checkpoint (bool, optional): if this Task is successful, whether to
+        - checkpoint (bool, optional, DEPRECATED): if this Task is successful, whether to
             store its result using the `result_handler` available during the run; defaults to the value of
             `tasks.defaults.checkpoint` in your user config
         - result_handler (ResultHandler, optional): the handler to use for
@@ -230,6 +230,11 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
+        if checkpoint is not None:
+            warnings.warn(
+                "The `checkpoint` keyword will be deprecated in an upcoming release - all tasks will be checkpointed in the future.",
+                UserWarning,
+            )
         self.checkpoint = (
             checkpoint
             if checkpoint is not None
@@ -1021,11 +1026,7 @@ class Parameter(Task):
         from prefect.engine.result_handlers import JSONResultHandler
 
         super().__init__(
-            name=name,
-            slug=name,
-            tags=tags,
-            checkpoint=True,
-            result_handler=JSONResultHandler(),
+            name=name, slug=name, tags=tags, result_handler=JSONResultHandler(),
         )
 
     def __repr__(self) -> str:
