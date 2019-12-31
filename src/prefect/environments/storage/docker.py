@@ -137,6 +137,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
+        super().__init__()
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """

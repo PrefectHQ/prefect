@@ -6,6 +6,7 @@ import socket
 from slugify import slugify
 
 import prefect
+from prefect.engine.result_handlers import LocalResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -16,13 +17,11 @@ class Local(Storage):
     """
     Local storage class.  This class represents the Storage
     interface for Flows stored as bytes in the local filesystem.
+
     Note that if you register a Flow with Prefect Cloud using this storage,
     your flow's environment will automatically be labeled with your machine's hostname.
-    This ensures that only agents who are known to be running on the same filesystem can
+    This ensures that only agents that are known to be running on the same filesystem can
     run your flow.
-
-    **Note**: Flows registered with this Storage option will automatically be
-     labeled with `hostname.local`.
 
     Args:
         - directory (str, optional): the directory the flows will be stored in;
@@ -45,7 +44,8 @@ class Local(Storage):
             abs_directory = directory
 
         self.directory = abs_directory
-        super().__init__()
+        result_handler = LocalResultHandler(self.directory, validate=validate)
+        super().__init__(result_handler=result_handler)
 
     @property
     def labels(self) -> List[str]:

@@ -8,6 +8,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Added the ability to leverage native ECS task definition revisions for flow versions in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
 - Added the ability to pull in kwargs per flow version from S3 on flow submission in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Add sensible default result handlers to non-Docker storage options - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
 ### Enhancements
 
@@ -32,6 +33,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
+- Remove `config.engine.result_handler` section of Prefect config - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Require Flow result handler when registering with Prefect Cloud - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `aws_credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
 ### Contributors
 

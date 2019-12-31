@@ -77,25 +77,3 @@ def get_default_task_runner_class() -> type:
             return prefect.engine.task_runner.TaskRunner
     else:
         return config_value
-
-
-def get_default_result_handler_class() -> type:
-    """
-    Returns the `ResultHandler` class specified in `prefect.config.engine.result_handler.default_class` If the
-    value is a string, it will attempt to load the already-imported object. Otherwise, the
-    value is returned.
-
-    Defaults to `None` if the string config value can not be loaded
-    """
-    config_value = config.engine.result_handler.default_class
-
-    if isinstance(config_value, str):
-        if not config_value:
-            return lambda *args, **kwargs: None  # type: ignore
-        try:
-            return prefect.utilities.serialization.from_qualified_name(config_value)
-        except ValueError:
-            warn("Could not import {}; using " "None instead.".format(config_value))
-            return lambda *args, **kwargs: None  # type: ignore
-    else:
-        return config_value

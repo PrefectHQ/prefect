@@ -6,6 +6,7 @@ import pendulum
 from slugify import slugify
 
 import prefect
+from prefect.engine.result_handlers import GCSResultHandler
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
 
@@ -16,7 +17,9 @@ if TYPE_CHECKING:
 class GCS(Storage):
     """
     GoogleCloudStorage storage class.  This class represents the Storage interface for Flows stored as
-    bytes in an GCS bucket.
+    bytes in an GCS bucket.  To authenticate with Google Cloud, you need to ensure that your Prefect
+    Agent has the proper credentials available (see https://cloud.google.com/docs/authentication/production
+    for all the authentication options).
 
     This storage class optionally takes a `key` which will be the name of the Flow object
     when stored in GCS. If this key is not provided the Flow upload name will take the form
@@ -29,7 +32,8 @@ class GCS(Storage):
         - bucket (str, optional): the name of the GCS Bucket to store the Flow
         - key (str, optional): a unique key to use for uploading this Flow to GCS. This
             is only useful when storing a single Flow using this storage object.
-        - project (str, optional): the google project where any GCS API requests are billed to
+        - project (str, optional): the google project where any GCS API requests are billed to;
+            if not provided, the project will be inferred from your Google Cloud credentials.
     """
 
     def __init__(self, bucket: str, key: str = None, project: str = None) -> None:
@@ -40,7 +44,8 @@ class GCS(Storage):
         self.key = key
         self.project = project
 
-        super().__init__()
+        result_handler = GCSResultHandler(bucket=bucket)
+        super().__init__(result_handler=result_handler)
 
     @property
     def labels(self) -> List[str]:

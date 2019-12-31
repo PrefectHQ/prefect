@@ -107,6 +107,7 @@ def test_client_deploy(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
 
     with pytest.warns(expected_warning=UserWarning):
         flow_id = client.deploy(
@@ -138,6 +139,67 @@ def test_client_register(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
+
+    flow_id = client.register(
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        version_group_id=str(uuid.uuid4()),
+    )
+    assert flow_id == "long-id"
+
+
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_raises_for_keyed_flows_with_no_result_handler(
+    patch_post, compressed
+):
+    @prefect.task
+    def a(x):
+        pass
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    with prefect.Flow(
+        name="test", storage=prefect.environments.storage.Memory()
+    ) as flow:
+        a(prefect.Task())
+
+    flow.result_handler = None
+
+    with pytest.raises(ClientError, match="required to have a result handler"):
+        flow_id = client.register(
+            flow,
+            project_name="my-default-project",
+            compressed=compressed,
+            version_group_id=str(uuid.uuid4()),
+        )
+
+
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_doesnt_raise_if_no_keyed_edges(patch_post, compressed):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
+    patch_post(response)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = None
+
     flow_id = client.register(
         flow,
         project_name="my-default-project",
@@ -167,6 +229,8 @@ def test_client_register_builds_flow(patch_post, compressed):
     ):
         client = Client()
     flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow.result_handler = flow.storage.result_handler
+
     flow_id = client.register(
         flow, project_name="my-default-project", compressed=compressed
     )
@@ -205,6 +269,8 @@ def test_client_register_optionally_avoids_building_flow(patch_post, compressed)
     ):
         client = Client()
     flow = prefect.Flow(name="test")
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
+
     flow_id = client.register(
         flow, project_name="my-default-project", build=False, compressed=compressed
     )
@@ -231,6 +297,8 @@ def test_client_register_with_bad_proj_name(patch_post):
     ):
         client = Client()
     flow = prefect.Flow(name="test")
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
+
     with pytest.raises(ValueError) as exc:
         flow_id = client.register(flow, project_name="my-default-project")
     assert "not found" in str(exc.value)
@@ -249,6 +317,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post):
     # we add a max_retries value to the task without a corresponding retry_delay; this will fail at deserialization
     task.max_retries = 3
     flow = prefect.Flow(name="test", tasks=[task])
+    flow.result_handler = prefect.engine.result_handlers.ResultHandler()
 
     with pytest.raises(
         ValueError,
@@ -563,28 +632,3 @@ def test_set_task_run_state_with_error(patch_post):
 
     with pytest.raises(ClientError, match="something went wrong"):
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
-
-
-def test_write_log_successfully(patch_post):
-    patch_post({"data": {"writeRunLog": {"success": True}}})
-
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    assert client.write_run_log(flow_run_id="1") is None
-
-
-def test_write_log_with_error(patch_post):
-    patch_post(
-        {"data": {"writeRunLog": None}, "errors": [{"message": "something went wrong"}]}
-    )
-
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-
-    with pytest.raises(ClientError, match="something went wrong"):
-        client.write_run_log(flow_run_id="1")
