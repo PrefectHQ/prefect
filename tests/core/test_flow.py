@@ -136,6 +136,20 @@ class TestCreateFlow:
     def test_create_flow_with_storage(self):
         f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
         assert isinstance(f2.storage, prefect.environments.storage.Memory)
+        assert isinstance(f2.result_handler, ResultHandler)
+        assert f2.result_handler == f2.storage.result_handler
+
+    def test_create_flow_with_storage_and_result_handler(self):
+        handler = LocalResultHandler(dir="/")
+        f2 = Flow(
+            name="test",
+            storage=prefect.environments.storage.Memory(),
+            result_handler=handler,
+        )
+        assert isinstance(f2.storage, prefect.environments.storage.Memory)
+        assert isinstance(f2.result_handler, ResultHandler)
+        assert f2.result_handler != f2.storage.result_handler
+        assert f2.result_handler == handler
 
     def test_create_flow_with_environment(self):
         f2 = Flow(name="test", environment=prefect.environments.RemoteEnvironment())
@@ -2249,10 +2263,11 @@ class TestFlowRegister:
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
-        assert f.result_handler is None
+        assert isinstance(f.result_handler, ResultHandler)
+        assert f.result_handler == storage.result_handler
 
+        f.result_handler = None
         f.register("My-project", build=False)
-
         assert isinstance(f.result_handler, ResultHandler)
         assert f.result_handler == storage.result_handler
 
