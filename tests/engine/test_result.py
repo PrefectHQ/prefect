@@ -77,10 +77,9 @@ def test_basic_result_repr():
     assert repr(r) == "<Result: 2>"
 
 
-def test_noresult_has_no_handler_attrs():
+def test_noresult_has_base_handler():
     n = NoResult
-    with pytest.raises(AttributeError):
-        n.result_handler
+    n.result_handler == ResultHandler()
 
 
 def test_noresult_returns_itself_for_safe_value():
@@ -88,9 +87,9 @@ def test_noresult_returns_itself_for_safe_value():
     assert n is n.safe_value
 
 
-def test_noresult_returns_itself_for_value():
+def test_noresult_returns_none_for_value():
     n = NoResult
-    assert n is n.value
+    assert n.value is None
 
 
 def test_no_results_are_all_the_same():

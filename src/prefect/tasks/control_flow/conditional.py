@@ -17,12 +17,7 @@ class Merge(Task):
 
     def run(self, **task_results: Any) -> Any:
         return next(
-            (
-                v
-                for k, v in sorted(task_results.items())
-                if not isinstance(v, NoResultType)
-            ),
-            None,
+            (v for k, v in sorted(task_results.items()) if v is not None), None,
         )
 
 

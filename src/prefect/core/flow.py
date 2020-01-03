@@ -1024,7 +1024,7 @@ class Flow:
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state.result == NoResult:
+        if state._result == NoResult:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(

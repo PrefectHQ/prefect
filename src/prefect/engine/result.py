@@ -138,7 +138,7 @@ class NoResultType(SafeResult):
     """
 
     def __init__(self) -> None:
-        pass
+        super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
@@ -151,10 +151,6 @@ class NoResultType(SafeResult):
 
     def __str__(self) -> str:
         return "NoResult"
-
-    @property
-    def value(self) -> "ResultInterface":
-        return self
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """

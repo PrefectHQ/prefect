@@ -53,7 +53,7 @@ class FilterTask(Task):
         kwargs.setdefault("skip_on_upstream_skip", False)
         kwargs.setdefault("trigger", all_finished)
         self.filter_func = filter_func or (
-            lambda r: not isinstance(r, (NoResultType, Exception))
+            lambda r: not isinstance(r, (type(None), NoResultType, Exception))
         )
         super().__init__(**kwargs)
 
