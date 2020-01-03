@@ -3,7 +3,6 @@ from typing import Any, Dict
 import prefect
 from prefect import Task
 from prefect.engine import signals
-from prefect.engine.result import NoResultType
 
 __all__ = ["switch", "ifelse"]
 
