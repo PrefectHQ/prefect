@@ -38,6 +38,15 @@ class TestInitialization:
         assert r.safe_value is NoResult
         assert r.result_handler == handler
 
+    def test_result_ignores_none_values(self):
+        handler = JSONResultHandler()
+        r = Result(value=None, result_handler=handler)
+        assert r.value is None
+        assert r.safe_value is NoResult
+        r.store_safe_value()
+        assert r.safe_value is NoResult
+        assert r.value is None
+
     def test_safe_result_requires_both_init_args(self):
         with pytest.raises(TypeError, match="2 required positional arguments"):
             SafeResult()

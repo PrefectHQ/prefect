@@ -83,6 +83,9 @@ class Result(ResultInterface):
         """
         Populate the `safe_value` attribute with a `SafeResult` using the result handler
         """
+        # don't bother with `None` values
+        if self.value is None:
+            return
         if self.safe_value == NoResult:
             assert isinstance(
                 self.result_handler, ResultHandler
