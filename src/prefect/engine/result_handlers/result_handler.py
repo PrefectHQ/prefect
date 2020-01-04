@@ -22,10 +22,10 @@ class ResultHandler:
         return "<ResultHandler: {}>".format(type(self).__name__)
 
     def write(self, result: Any) -> Any:
-        return result
+        return None
 
-    def read(self, loc: str) -> str:
-        return loc
+    def read(self, loc: str) -> Any:
+        return None
 
     def __eq__(self, other: object) -> bool:
         """

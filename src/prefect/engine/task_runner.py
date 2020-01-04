@@ -718,7 +718,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state.result != NoResult:
+                        if not state.is_mapped() or upstream_state._result != NoResult:
                             upstream_result = Result(
                                 upstream_state.result[i],
                                 result_handler=upstream_state._result.result_handler,  # type: ignore

@@ -3,7 +3,6 @@ from typing import Any, Dict
 import prefect
 from prefect import Task
 from prefect.engine import signals
-from prefect.engine.result import NoResultType
 
 __all__ = ["switch", "ifelse"]
 
@@ -17,12 +16,7 @@ class Merge(Task):
 
     def run(self, **task_results: Any) -> Any:
         return next(
-            (
-                v
-                for k, v in sorted(task_results.items())
-                if not isinstance(v, NoResultType)
-            ),
-            None,
+            (v for k, v in sorted(task_results.items()) if v is not None), None,
         )
 
 

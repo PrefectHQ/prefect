@@ -9,7 +9,7 @@ from prefect.triggers import all_finished
 
 class FilterTask(Task):
     """
-    Task for filtering lists of results.  The default filter removes `NoResult`s and
+    Task for filtering lists of results.  The default filter removes `NoResult`s, `None`s and
     Exceptions, intended to be used for filtering out mapped results.  Note that this task has a default trigger of
     `all_finished` and `skip_on_upstream_skip=False`.
 
@@ -53,7 +53,7 @@ class FilterTask(Task):
         kwargs.setdefault("skip_on_upstream_skip", False)
         kwargs.setdefault("trigger", all_finished)
         self.filter_func = filter_func or (
-            lambda r: not isinstance(r, (NoResultType, Exception))
+            lambda r: not isinstance(r, (type(None), NoResultType, Exception))
         )
         super().__init__(**kwargs)
 

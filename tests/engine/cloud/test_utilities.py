@@ -28,7 +28,8 @@ def test_preparing_state_for_cloud_replaces_cached_inputs_with_safe(cls):
     xres = Result(3, result_handler=JSONResultHandler())
     state = prepare_state_for_cloud(cls(cached_inputs=dict(x=xres)))
     assert isinstance(state, cls)
-    assert state.result == NoResult
+    assert state.result is None
+    assert state._result == NoResult
     assert state.cached_inputs == dict(x=xres)
 
 
@@ -47,7 +48,8 @@ def test_preparing_state_for_cloud_fails_if_cached_inputs_have_no_handler(cls):
 def test_preparing_state_for_cloud_passes_if_cached_inputs_dont_exist(cls):
     state = prepare_state_for_cloud(cls())
     assert isinstance(state, cls)
-    assert state.result == NoResult
+    assert state.result is None
+    assert state._result == NoResult
     assert state.cached_inputs is None
 
 
@@ -60,7 +62,8 @@ def test_preparing_state_for_cloud_passes_if_cached_inputs_have_no_handler_for_f
     xres = Result(3, result_handler=None)
     state = prepare_state_for_cloud(cls(cached_inputs=dict(x=xres)))
     assert isinstance(state, cls)
-    assert state.result == NoResult
+    assert state.result is None
+    assert state._result == NoResult
     assert state.cached_inputs == dict(x=xres)
 
 

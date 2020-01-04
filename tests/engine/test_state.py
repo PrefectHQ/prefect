@@ -57,7 +57,7 @@ cached_input_states = sorted(
 def test_create_state_with_no_args(cls):
     state = cls()
     assert state.message is None
-    assert state.result == NoResult
+    assert state.result is None
     assert state.context == dict()
 
 
@@ -118,7 +118,7 @@ def test_create_state_with_tags_in_context(cls):
     with prefect.context(task_tags=set("abcdef")):
         state = cls()
     assert state.message is None
-    assert state.result == NoResult
+    assert state.result is None
     assert state.context == dict(tags=list(set("abcdef")))
 
     with prefect.context(task_tags=set("abcdef")):
@@ -226,7 +226,7 @@ def test_serialize_and_deserialize_on_raw_cached_state():
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Cached)
     assert new_state.color == state.color
-    assert new_state.result == NoResult
+    assert new_state.result is None
     assert new_state.cached_result_expiration == state.cached_result_expiration
     assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
 
