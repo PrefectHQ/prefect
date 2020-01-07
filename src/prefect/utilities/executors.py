@@ -25,10 +25,9 @@ if TYPE_CHECKING:
 StateList = Union["State", List["State"]]
 
 
-class Heartbeat:
+class PeriodicMonitoredCall:
     """
     Class for calling a function on an interval in a background thread.
-
     Args:
         - interval: the interval (in seconds) on which to call the function;
             sub-second intervals are supported
@@ -36,12 +35,14 @@ class Heartbeat:
             to not require arguments
     """
 
-    def __init__(self, interval: int, function: Callable, logger: Logger) -> None:
+    def __init__(
+        self, interval: int, function: Callable, logger: Logger, **kwargs: Any
+    ) -> None:
         self.interval = interval
-        self.rate = min(interval, 1)
         self.function = function
         self.logger = logger
-        self._exit = False
+        self._exit = threading.Event()
+        self.kwargs = kwargs
 
     def start(self, name_prefix: str = "") -> None:
         """
@@ -49,30 +50,21 @@ class Heartbeat:
         """
 
         def looper(ctx: dict) -> None:
-            iters = 0
-
-            ## we use the self._exit attribute as a way of communicating
-            ## that the loop should cease; because we want to respond to this
-            ## "exit signal" quickly, we loop every `rate` seconds and check
-            ## whether we should exit.  Every `interval` number of calls, we
-            ## actually call the function.  The rounding logic is here to
-            ## support sub-second intervals.
             with prefect.context(ctx):
-                while not self._exit:
-                    if round(iters % self.interval) == 0:
-                        self.function()
-                    iters = (iters + 1) % self.interval
-                    time.sleep(self.rate)
+                while not self._exit.wait(self.interval):
+                    try:
+                        self.function(**self.kwargs)
+                    except Exception as exc:
+                        self.logger.exception("Heartbeat function threw an exception")
 
         def monitor(ctx: dict) -> None:
             with prefect.context(ctx):
-                while not self._exit:
+                while not self._exit.wait(self.interval / 2):
                     if not self.fut.running():
                         self.logger.warning(
-                            "Heartbeat thread appears to have died.  This could result in a zombie run."
+                            "Watchdog thread noticed Heartbeat thread has died."
                         )
                         return
-                    time.sleep(self.rate / 2)
 
         kwargs = dict(max_workers=2)  # type: Dict[str, Any]
         if sys.version_info.minor != 5:
@@ -85,7 +77,6 @@ class Heartbeat:
         """
         Calling this method after `start()` has been called will cleanup
         the background thread and cease calling the function.
-
         Returns:
             - bool: indicating whether the background thread was still
                 running at time of cancellation
@@ -98,7 +89,7 @@ class Heartbeat:
             # the future is actually submitted to the executor
             if hasattr(self, "fut"):
                 running = self.fut.running()
-            self._exit = True
+            self._exit.set()
             self.executor.shutdown()
         return running
 
@@ -115,7 +106,7 @@ def run_with_heartbeat(
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
-        timer = Heartbeat(
+        timer = PeriodicMonitoredCall(
             prefect.config.cloud.heartbeat_interval, self._heartbeat, self.logger
         )
         obj = getattr(self, "task", None) or getattr(self, "flow", None)

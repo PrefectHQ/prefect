@@ -4,8 +4,9 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
 from prefect.engine import signals
-from prefect.engine.state import Failed, Pending, State
+from prefect.engine.state import Failed, Pending, State, Cancelled
 from prefect.utilities import logging
+from prefect.utilities.exceptions import ExecutorShutdown
 
 # for backwards compatibility
 ENDRUN = signals.ENDRUN
@@ -49,6 +50,10 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
         except ENDRUN as exc:
             raise_end_run = True
             new_state = exc.state
+
+        except ExecutorShutdown as exc:
+            raise_end_run = True
+            new_state = Cancelled(message="tasks can no longer be submitted")
 
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:

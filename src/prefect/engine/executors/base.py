@@ -16,6 +16,7 @@ class Executor:
 
     def __init__(self) -> None:
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
+        self.accepting_work = True
 
     def __repr__(self) -> str:
         return "<Executor: {}>".format(type(self).__name__)
@@ -29,6 +30,7 @@ class Executor:
         context manager, and torn down after yielding.
         """
         yield
+        self.shutdown()
 
     def map(self, fn: Callable, *args: Any) -> List[Any]:
         """
@@ -69,3 +71,13 @@ class Executor:
             - Any: an iterable of resolved futures
         """
         raise NotImplementedError()
+
+    def shutdown(self, wait: bool = True) -> List[Any]:
+        """
+        Signal the executor that it should cancel current pending work, prevent future work from 
+        being submitted, and optionally wait for any currently running futures to finish execution.
+        Args:
+            - wait (bool): wait for any pending work to be completed (defaults to True)
+        """
+        self.accepting_work = False
+        return []

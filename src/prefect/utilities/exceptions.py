@@ -24,3 +24,11 @@ class AuthorizationError(ClientError):
 
 class StorageError(PrefectError):
     pass
+
+
+class ExecutorError(PrefectError):
+    pass
+
+
+class ExecutorShutdown(ExecutorError):
+    pass

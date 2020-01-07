@@ -2,6 +2,7 @@ import datetime
 from typing import Any, Callable, Iterable, List
 
 from prefect.engine.executors.base import Executor
+from prefect.utilities.exceptions import ExecutorShutdown
 
 
 class LocalExecutor(Executor):
@@ -9,6 +10,9 @@ class LocalExecutor(Executor):
     An executor that runs all functions synchronously and immediately in
     the main thread.  To be used mainly for debugging purposes.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
 
     def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
         """
@@ -22,6 +26,9 @@ class LocalExecutor(Executor):
         Returns:
             - Any: the result of `fn(*args, **kwargs)`
         """
+        if not self.accepting_work:
+            raise ExecutorShutdown()
+
         return fn(*args, **kwargs)
 
     def map(self, fn: Callable, *args: Any) -> List[Any]:
@@ -36,6 +43,9 @@ class LocalExecutor(Executor):
             - List[Any]: the result of computating the function over the arguments
 
         """
+        if not self.accepting_work:
+            raise ExecutorShutdown()
+
         results = []
         for args_i in zip(*args):
             results.append(fn(*args_i))
@@ -52,3 +62,12 @@ class LocalExecutor(Executor):
             - Any: whatever `futures` were provided
         """
         return futures
+
+    def shutdown(self, wait: bool = True) -> List[Any]:
+        """
+        Signal the executor that it should cancel current pending work, prevent future work from 
+        being submitted, and optionally wait for any currently running futures to finish execution.
+        Args:
+            - wait (bool): wait for any pending work to be completed (defaults to True)
+        """
+        return super().shutdown(wait=wait)

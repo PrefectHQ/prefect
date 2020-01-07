@@ -11,6 +11,7 @@ from distributed import Client, Future, fire_and_forget, worker_client
 
 from prefect import context
 from prefect.engine.executors.base import Executor
+from prefect.utilities.exceptions import ExecutorShutdown
 
 
 class DaskExecutor(Executor):
@@ -57,6 +58,7 @@ class DaskExecutor(Executor):
         self.debug = debug
         self.is_started = False
         self.kwargs = kwargs
+        self.futures = []  # type: List[Future]
         super().__init__()
 
     @contextmanager
@@ -124,6 +126,8 @@ class DaskExecutor(Executor):
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
+        if not self.accepting_work:
+            raise ExecutorShutdown()
 
         dask_kwargs = self._prep_dask_kwargs()
         kwargs.update(dask_kwargs)
@@ -137,6 +141,8 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         fire_and_forget(future)
+        self.futures.append(future)
+
         return future
 
     def map(self, fn: Callable, *args: Any, **kwargs: Any) -> List[Future]:
@@ -156,6 +162,9 @@ class DaskExecutor(Executor):
         if not args:
             return []
 
+        if not self.accepting_work:
+            raise ExecutorShutdown()
+
         dask_kwargs = self._prep_dask_kwargs()
         kwargs.update(dask_kwargs)
 
@@ -169,6 +178,8 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         fire_and_forget(futures)
+        self.futures.extend(futures)
+
         return futures
 
     def wait(self, futures: Any) -> Any:
@@ -182,12 +193,29 @@ class DaskExecutor(Executor):
             - Any: an iterable of resolved futures with similar shape to the input
         """
         if self.is_started and hasattr(self, "client"):
-            return self.client.gather(futures)
+            results = self.client.gather(futures)
         elif self.is_started:
             with worker_client(separate_thread=True) as client:
-                return client.gather(futures)
+                results = client.gather(futures)
         else:
             raise ValueError("This executor has not been started.")
+
+        for fut in futures:
+            self.futures.remove(fut)
+
+        return results
+
+    def shutdown(self, wait: bool = True) -> List[Any]:
+        """
+        Signal the executor that it should cancel current pending work, prevent future work from 
+        being submitted, and optionally wait for any currently running futures to finish execution.
+        Args:
+            - wait (bool): wait for any pending work to be completed (defaults to True)
+        """
+        super().shutdown(wait=wait)
+        if self.futures and wait:
+            return self.wait(self.futures)
+        return []
 
 
 class LocalDaskExecutor(Executor):
@@ -205,6 +233,7 @@ class LocalDaskExecutor(Executor):
     def __init__(self, scheduler: str = "synchronous", **kwargs: Any):
         self.scheduler = scheduler
         self.kwargs = kwargs
+        self.futures = []  # type: List[Future]
         super().__init__()
 
     @contextmanager
@@ -229,7 +258,12 @@ class LocalDaskExecutor(Executor):
         Returns:
             - dask.delayed: a `dask.delayed` object that represents the computation of `fn(*args, **kwargs)`
         """
-        return dask.delayed(fn)(*args, **kwargs)
+        if not self.accepting_work:
+            raise ExecutorShutdown()
+
+        future = dask.delayed(fn)(*args, **kwargs)
+        self.futures.append(future)
+        return future
 
     def map(self, fn: Callable, *args: Any) -> List[dask.delayed]:
         """
@@ -243,6 +277,9 @@ class LocalDaskExecutor(Executor):
             - List[dask.delayed]: the result of computating the function over the arguments
 
         """
+        if not self.accepting_work:
+            raise ExecutorShutdown()
+
         if self.scheduler == "processes":
             raise RuntimeError(
                 "LocalDaskExecutor cannot map if scheduler='processes'. Please set to either 'synchronous' or 'threads'."
@@ -264,4 +301,21 @@ class LocalDaskExecutor(Executor):
             - Any: an iterable of resolved futures
         """
         with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
-            return dask.compute(futures)[0]
+            results = dask.compute(futures)[0]
+
+        for fut in futures:
+            self.futures.remove(fut)
+
+        return results
+
+    def shutdown(self, wait: bool = True) -> List[Any]:
+        """
+        Signal the executor that it should cancel current pending work, prevent future work from 
+        being submitted, and optionally wait for any currently running futures to finish execution.
+        Args:
+            - wait (bool): wait for any pending work to be completed (defaults to True)
+        """
+        super().shutdown(wait=wait)
+        if self.futures and wait:
+            return self.wait(self.futures)
+        return []
