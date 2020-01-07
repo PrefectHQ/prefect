@@ -42,58 +42,6 @@ def cloudpickle_deserialization_check(flow_file_paths: str):
     return flows
 
 
-def result_handler_check(flows: list):
-    for flow in flows:
-        if flow.result_handler is not None:
-            continue
-
-        ## test for tasks which are checkpointed with no result handler
-        if any([(t.checkpoint and t.result_handler is None) for t in flow.tasks]):
-            raise ValueError(
-                "Some tasks request to be checkpointed but do not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details."
-            )
-
-        ## test for tasks which might retry without upstream result handlers
-        retry_tasks = [t for t in flow.tasks if t.max_retries > 0]
-        upstream_edges = flow.all_upstream_edges()
-        for task in retry_tasks:
-            if any(
-                [
-                    e.upstream_task.result_handler is None
-                    for e in upstream_edges[task]
-                    if e.key is not None
-                ]
-            ):
-                raise ValueError(
-                    "Task {} has retry settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
-                )
-
-        ## test for tasks which request caching with no result handler or no upstream result handlers
-        cached_tasks = [t for t in flow.tasks if t.cache_for is not None]
-        for task in cached_tasks:
-            if task.result_handler is None:
-                raise ValueError(
-                    "Task {} has cache settings but does not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
-                )
-            if any(
-                [
-                    e.upstream_task.result_handler is None
-                    for e in upstream_edges[task]
-                    if e.key is not None
-                ]
-            ):
-                raise ValueError(
-                    "Task {} has cache settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
-                )
-    print("Result Handler check: OK")
-
-
 def environment_dependency_check(flows: list):
     # Test for imports that are required by certain environments
     for flow in flows:

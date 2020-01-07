@@ -92,8 +92,8 @@ class TestLocalHandler:
 
 def test_result_handler_base_class_is_a_passthrough():
     handler = ResultHandler()
-    assert handler.write("foo") == "foo"
-    assert handler.read(99) == 99
+    assert handler.write("foo") is None
+    assert handler.read(99) is None
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
