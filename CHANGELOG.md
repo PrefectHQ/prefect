@@ -18,6 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Introduce new `Secret.exists` method for checking whether a Secret is available - [#1882](https://github.com/PrefectHQ/prefect/pull/1882)
 - Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
 - Stop persisting `None` when calling result handlers - [#1894](https://github.com/PrefectHQ/prefect/pull/1894)
+- All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 
 ### Task Library
 
