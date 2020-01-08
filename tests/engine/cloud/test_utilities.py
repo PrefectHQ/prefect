@@ -26,6 +26,18 @@ def test_preparing_state_for_cloud_replaces_cached_inputs_with_safe(cls):
     assert state.result is None
     assert state._result == NoResult
     assert state.cached_inputs == dict(x=xres)
+    assert state.cached_inputs["x"].safe_value.value == "3"
+
+
+@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
+def test_preparing_state_for_cloud_does_nothing_if_result_is_none(cls):
+    xres = Result(None, result_handler=JSONResultHandler())
+    state = prepare_state_for_cloud(cls(cached_inputs=dict(x=xres)))
+    assert isinstance(state, cls)
+    assert state.result is None
+    assert state._result == NoResult
+    assert state.cached_inputs == dict(x=xres)
+    assert state.cached_inputs["x"].safe_value == NoResult
 
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])

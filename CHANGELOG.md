@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- None
+- The checkpointing kwarg will be removed from Tasks as it is now a default behavior - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 
 ### Breaking Changes
 
@@ -39,6 +39,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Require Flow result handler when registering with Prefect Cloud - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `aws_credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Checkpointing for all tasks is now the default - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 
 ### Contributors
 
