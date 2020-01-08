@@ -223,7 +223,7 @@ def test_scheduled_start_time_is_in_context(monkeypatch, executor):
     task_run_id_1 = str(uuid.uuid4())
 
     flow = prefect.Flow(
-        name="test", tasks=[whats_the_time], result_handler=JSONResultHandler()
+        name="test", tasks=[whats_the_time], result_handler=ResultHandler()
     )
 
     client = MockedCloudClient(
