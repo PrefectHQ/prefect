@@ -154,6 +154,19 @@ def test_client_register(patch_post, compressed):
 def test_client_register_raises_for_keyed_flows_with_no_result_handler(
     patch_post, compressed
 ):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "createFlowFromCompressedString": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        }
+    patch_post(response)
+
     @prefect.task
     def a(x):
         pass
@@ -169,7 +182,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result_handler(
 
     flow.result_handler = None
 
-    with pytest.raises(ClientError, match="required to have a result handler"):
+    with pytest.warns(UserWarning, match="result handler"):
         flow_id = client.register(
             flow,
             project_name="my-default-project",

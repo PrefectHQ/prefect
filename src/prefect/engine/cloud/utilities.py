@@ -17,6 +17,7 @@ def prepare_state_for_cloud(state: State) -> State:
 
     if state.cached_inputs:
         for res in state.cached_inputs.values():
-            res.store_safe_value()
+            if res.result_handler:
+                res.store_safe_value()
 
     return state

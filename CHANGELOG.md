@@ -36,7 +36,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
 - Remove `config.engine.result_handler` section of Prefect config - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
-- Require Flow result handler when registering with Prefect Cloud - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `aws_credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Checkpointing for all tasks is now the default - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
