@@ -26,6 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Enforce provision of `max_retries` if specifying `retry_delay` for a `Task` - [#1875](https://github.com/PrefectHQ/prefect/pull/1875)
+- Fix issue with reduce tasks in `flow.visualize()` - [#1793](https://github.com/PrefectHQ/prefect/issues/1793)
 
 ### Deprecations
 
