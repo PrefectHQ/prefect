@@ -1310,6 +1310,28 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
 
+    def test_success_state_is_checkpointed_if_result_handler_present(self):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=False, result_handler=handler)
+        def fn():
+            return 1
+
+        ## checkpointing allows users to toggle behavior for local testing
+        with prefect.context(checkpointing=False):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == NoResult
+
+        with prefect.context(checkpointing=True):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == SafeResult("1", result_handler=handler)
+
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)

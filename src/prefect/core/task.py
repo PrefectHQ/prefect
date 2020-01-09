@@ -127,7 +127,9 @@ class Task(metaclass=SignatureValidator):
             Task's database ID if running in Cloud
         - checkpoint (bool, optional, DEPRECATED): if this Task is successful, whether to
             store its result using the `result_handler` available during the run; defaults to the value of
-            `tasks.defaults.checkpoint` in your user config
+            `tasks.defaults.checkpoint` in your user config.  Note that in the future, all tasks with result handlers
+            will be checkpointed.  Also note that checkpointing will only occur locally if `prefect.config.flows.checkpointing` is
+            set to `True`
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
