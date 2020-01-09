@@ -904,11 +904,11 @@ class TaskRunner(Runner):
             result=result, message="Task run succeeded.", cached_inputs=inputs
         )
 
-        ## only checkpoint tasks if checkpointing is turned on
+        ## checkpoint tasks if a result_handler is present
         if (
             state.is_successful()
             and prefect.context.get("checkpointing") is True
-            and self.task.checkpoint is True
+            and self.result_handler is not None
         ):
             state._result.store_safe_value()
 

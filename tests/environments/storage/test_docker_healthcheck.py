@@ -74,6 +74,95 @@ class TestSystemCheck:
         assert len(records) == 0
 
 
+class TestResultHandlerCheck:
+    def test_no_raise_on_normal_flow(self):
+        @task
+        def up():
+            pass
+
+        @task
+        def down(x):
+            pass
+
+        with Flow("THIS IS A TEST") as flow:
+            result = down(x=up, upstream_tasks=[Task(), Task()])
+
+        assert healthchecks.result_handler_check([flow]) is None
+
+    @pytest.mark.parametrize(
+        "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
+    )
+    def test_raises_for_checkpointed_tasks(self, kwargs):
+        @task(**kwargs)
+        def up():
+            pass
+
+        f = Flow("foo-test", tasks=[up])
+
+        with pytest.raises(ValueError, match="have a result handler."):
+            healthchecks.result_handler_check([f])
+
+    @pytest.mark.parametrize(
+        "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
+    )
+    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result_handler(
+        self, kwargs
+    ):
+        @task(**kwargs)
+        def up():
+            pass
+
+        f = Flow("foo-test", tasks=[up], result_handler=42)
+        assert healthchecks.result_handler_check([f]) is None
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            dict(max_retries=2, retry_delay=datetime.timedelta(minutes=1)),
+            dict(cache_for=datetime.timedelta(minutes=1)),
+        ],
+    )
+    def test_raises_for_tasks_with_upstream_dependencies_with_no_result_handlers(
+        self, kwargs
+    ):
+        @task
+        def up():
+            pass
+
+        @task(**kwargs, result_handler=42)
+        def down(x):
+            pass
+
+        with Flow("upstream-test") as f:
+            result = down(x=up)
+
+        with pytest.raises(
+            ValueError, match="upstream dependencies do not have result handlers."
+        ):
+            healthchecks.result_handler_check([f])
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            dict(max_retries=2, retry_delay=datetime.timedelta(minutes=1)),
+            dict(cache_for=datetime.timedelta(minutes=1)),
+        ],
+    )
+    def test_doesnt_raise_for_tasks_with_non_keyed_edges(self, kwargs):
+        @task
+        def up():
+            pass
+
+        @task(**kwargs, result_handler=42)
+        def down():
+            pass
+
+        with Flow("non-keyed-test") as f:
+            result = down(upstream_tasks=[up])
+
+        assert healthchecks.result_handler_check([f]) is None
+
+
 class TestEnvironmentDependencyCheck:
     def test_no_raise_on_normal_flow(self):
         flow = Flow("THIS IS A TEST")

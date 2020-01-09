@@ -573,8 +573,8 @@ class Client:
                 "Flows with required parameters can not be scheduled automatically."
             )
         if any(e.key for e in flow.edges) and flow.result_handler is None:
-            raise ClientError(
-                "Flows are required to have a result handler for storing inputs and outputs."
+            warnings.warn(
+                "It is strongly recommended you include a result handler on your Flow for certain Cloud features to work properly."
             )
         if compressed:
             create_mutation = {
