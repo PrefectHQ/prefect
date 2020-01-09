@@ -19,7 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
 - Stop persisting `None` when calling result handlers - [#1894](https://github.com/PrefectHQ/prefect/pull/1894)
 - All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
-- ALways checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+- Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 
 ### Task Library
 
