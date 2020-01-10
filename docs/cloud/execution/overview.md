@@ -154,7 +154,7 @@ f.environment = RemoteEnvironment(labels=["dev"])
 ```
 
 ```python
-from prefect.agent import LocalAgent
+from prefect.agent.local import LocalAgent
 
 LocalAgent(labels=["dev", "staging"]).start()
 
@@ -171,7 +171,7 @@ f.environment = RemoteEnvironment(labels=["dev", "staging"])
 ```
 
 ```python
-from prefect.agent import LocalAgent
+from prefect.agent.local import LocalAgent
 
 LocalAgent(labels=["dev"]).start()
 
