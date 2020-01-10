@@ -76,7 +76,7 @@ def client(monkeypatch):
 
 
 def test_task_runner_puts_cloud_in_context(client):
-    @prefect.task
+    @prefect.task(result_handler=ResultHandler())
     def whats_in_ctx():
         return prefect.context.get("checkpointing")
 
@@ -405,11 +405,13 @@ def test_task_runner_respects_the_db_state(monkeypatch, state):
 
 
 def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
-    @prefect.task(name="test")
+    @prefect.task(name="test", result_handler=JSONResultHandler())
     def add_one(x):
         return x + 1
 
-    db_state = Retrying(cached_inputs=dict(x=Result(41)))
+    db_state = Retrying(
+        cached_inputs=dict(x=Result(41, result_handler=JSONResultHandler()))
+    )
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
     set_task_run_state = MagicMock(
         side_effect=lambda task_run_id, version, state, cache_for: state
@@ -660,7 +662,10 @@ class TestStateResultHandling:
         def add(x, y):
             return x + y
 
-        x_state, y_state = Success(result=Result(1)), Success(result=Result(1))
+        x_state, y_state = (
+            Success(result=Result(1, result_handler=handler)),
+            Success(result=Result(1, result_handler=handler)),
+        )
 
         upstream_states = {
             Edge(Task(), Task(), key="x"): x_state,
@@ -770,7 +775,7 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
 
 def test_task_runner_handles_looping(client):
-    @prefect.task
+    @prefect.task(result_handler=ResultHandler())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP(result=prefect.context.get("task_loop_result", 0) + 10)
@@ -794,7 +799,7 @@ def test_task_runner_handles_looping(client):
 
 
 def test_task_runner_handles_looping_with_no_result(client):
-    @prefect.task
+    @prefect.task(result_handler=ResultHandler())
     def looper():
         if prefect.context.get("task_loop_count", 1) < 3:
             raise LOOP()
@@ -932,7 +937,11 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
 
     client.set_task_run_state = queued_mock
 
-    @prefect.task(max_retries=2, retry_delay=datetime.timedelta(seconds=0))
+    @prefect.task(
+        max_retries=2,
+        retry_delay=datetime.timedelta(seconds=0),
+        result_handler=ResultHandler(),
+    )
     def tagged_task(x):
         if prefect.context.get("task_run_count", 1) == 1:
             raise ValueError("gimme a sec")

@@ -1138,6 +1138,22 @@ class Flow:
                         e.key,
                         style=style,
                     )
+            ## this edge represents a "reduce" step from a mapped task -> normal task
+            elif flow_state and flow_state.result[e.upstream_task].is_mapped():
+                assert isinstance(flow_state.result, dict)  # mypy assert
+                up_state = flow_state.result[e.upstream_task]
+
+                for map_index, _ in enumerate(up_state.map_states):
+                    downstream_id = str(id(e.downstream_task))
+                    if any(edge.mapped for edge in self.edges_to(e.downstream_task)):
+                        downstream_id += str(map_index)
+
+                    graph.edge(
+                        str(id(e.upstream_task)) + str(map_index),
+                        downstream_id,
+                        e.key,
+                        style=style,
+                    )
             else:
                 graph.edge(
                     str(id(e.upstream_task)),

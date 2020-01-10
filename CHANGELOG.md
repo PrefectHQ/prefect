@@ -19,6 +19,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
 - Stop persisting `None` when calling result handlers - [#1894](https://github.com/PrefectHQ/prefect/pull/1894)
 - Change Cancelled state to indicate Finished instead of Failed - [#1903](https://github.com/PrefectHQ/prefect/pull/1903)
+- All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+- Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+
 
 ### Task Library
 
@@ -27,16 +30,16 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Enforce provision of `max_retries` if specifying `retry_delay` for a `Task` - [#1875](https://github.com/PrefectHQ/prefect/pull/1875)
+- Fix issue with reduce tasks in `flow.visualize()` - [#1793](https://github.com/PrefectHQ/prefect/issues/1793)
 
 ### Deprecations
 
-- None
+- The checkpointing kwarg will be removed from Tasks as it is now a default behavior - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 
 ### Breaking Changes
 
 - Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
 - Remove `config.engine.result_handler` section of Prefect config - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
-- Require Flow result handler when registering with Prefect Cloud - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `aws_credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 - Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
