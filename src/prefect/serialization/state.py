@@ -148,7 +148,7 @@ class FailedSchema(FinishedSchema):
         object_class = state.Failed
 
 
-class CancelledSchema(FailedSchema):
+class CancelledSchema(FinishedSchema):
     class Meta:
         object_class = state.Cancelled
 
