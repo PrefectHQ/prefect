@@ -1,0 +1,43 @@
+digraph {
+	140284683902568 [label=State color="#69696999" colorscheme=svg style=filled]
+	140284683904456 [label=Pending color="#7ebdff99" colorscheme=svg style=filled]
+	140284683902568 -> 140284683904456
+	140284683905992 [label=Scheduled color="#ffab0099" colorscheme=svg style=filled]
+	140284683904456 -> 140284683905992
+	140284683907864 [label=Paused color="#cfd8dc99" colorscheme=svg style=filled]
+	140284683905992 -> 140284683907864
+	140284683915064 [label=Resume color="#fb853299" colorscheme=svg style=filled]
+	140284683905992 -> 140284683915064
+	140284683916728 [label=Retrying color="#f66a0a99" colorscheme=svg style=filled]
+	140284683905992 -> 140284683916728
+	140284683909592 [label=_MetaState color="#69696999" colorscheme=svg style=filled]
+	140284683902568 -> 140284683909592
+	140284683910520 [label=ClientFailed color="#eb000099" colorscheme=svg style=filled]
+	140284683909592 -> 140284683910520
+	140284683912328 [label=Submitted color="#ffdf5d99" colorscheme=svg style=filled]
+	140284683909592 -> 140284683912328
+	140284683913256 [label=Queued color="#ffea7f99" colorscheme=svg style=filled]
+	140284683909592 -> 140284683913256
+	140284683918584 [label=Running color="#3d67ff99" colorscheme=svg style=filled]
+	140284683902568 -> 140284683918584
+	140284683920136 [label=Finished color="#003ccb99" colorscheme=svg style=filled]
+	140284683902568 -> 140284683920136
+	140284683921704 [label=Looped color="#003ccb99" colorscheme=svg style=filled]
+	140284683920136 -> 140284683921704
+	140284683923544 [label=Success color="#28a74599" colorscheme=svg style=filled]
+	140284683920136 -> 140284683923544
+	140284683925064 [label=Cached color="#34d05899" colorscheme=svg style=filled]
+	140284683923544 -> 140284683925064
+	140284683926856 [label=Mapped color="#003ccb99" colorscheme=svg style=filled]
+	140284683923544 -> 140284683926856
+	140284683933992 [label=Skipped color="#62757f99" colorscheme=svg style=filled]
+	140284683923544 -> 140284683933992
+	140284683927784 [label=Cancelled color="#c4280099" colorscheme=svg style=filled]
+	140284683920136 -> 140284683927784
+	140284683929384 [label=Failed color="#eb000099" colorscheme=svg style=filled]
+	140284683920136 -> 140284683929384
+	140284683930904 [label=TimedOut color="#ff4e3399" colorscheme=svg style=filled]
+	140284683929384 -> 140284683930904
+	140284683932456 [label=TriggerFailed color="#ff513199" colorscheme=svg style=filled]
+	140284683929384 -> 140284683932456
+}
