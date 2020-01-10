@@ -150,21 +150,20 @@ class TaskRunner(Runner):
         if isinstance(state, Resume):
             context.update(resume=True)
 
-        if hasattr(state, "cached_inputs"):
-            if "_loop_count" in (state.cached_inputs or {}):  # type: ignore
-                loop_context = {
-                    "task_loop_count": state.cached_inputs.pop(  # type: ignore
-                        "_loop_count"
-                    )  # type: ignore
-                    .to_result()
-                    .value,
-                    "task_loop_result": state.cached_inputs.pop(  # type: ignore
-                        "_loop_result"
-                    )  # type: ignore
-                    .to_result()
-                    .value,
-                }
-                context.update(loop_context)
+        if "_loop_count" in state.cached_inputs:  # type: ignore
+            loop_context = {
+                "task_loop_count": state.cached_inputs.pop(  # type: ignore
+                    "_loop_count"
+                )  # type: ignore
+                .to_result()
+                .value,
+                "task_loop_result": state.cached_inputs.pop(  # type: ignore
+                    "_loop_result"
+                )  # type: ignore
+                .to_result()
+                .value,
+            }
+            context.update(loop_context)
 
         context.update(
             task_run_count=run_count,
@@ -284,7 +283,7 @@ class TaskRunner(Runner):
                 state = self.check_task_trigger(state, upstream_states=upstream_states)
 
                 # set the task state to running
-                state = self.set_task_to_running(state)
+                state = self.set_task_to_running(state, inputs=task_inputs)
 
                 # run the task
                 state = self.get_task_run_state(
@@ -308,8 +307,7 @@ class TaskRunner(Runner):
         # for pending signals, including retries and pauses we need to make sure the
         # task_inputs are set
         except (ENDRUN, signals.PrefectStateSignal) as exc:
-            if exc.state.is_pending() or exc.state.is_failed():
-                exc.state.cached_inputs = task_inputs or {}  # type: ignore
+            exc.state.cached_inputs = task_inputs or {}
             state = exc.state
         except RecursiveCall as exc:
             raise exc
@@ -319,7 +317,7 @@ class TaskRunner(Runner):
                 name=context["task_full_name"], exc=repr(exc)
             )
             self.logger.exception(msg)
-            state = Failed(message=msg, result=exc)
+            state = Failed(message=msg, result=exc, cached_inputs=task_inputs)
             if prefect.context.get("raise_on_exception"):
                 raise exc
 
@@ -595,11 +593,11 @@ class TaskRunner(Runner):
                     handler
                 )  # type: ignore
 
-        if state.is_pending() and state.cached_inputs is not None:  # type: ignore
+        if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
-                    k: r.to_result(handlers.get(k))
-                    for k, r in state.cached_inputs.items()  # type: ignore
+                    k: r.to_result(handlers.get(k))  # type: ignore
+                    for k, r in state.cached_inputs.items()
                     if task_inputs.get(k, NoResult) == NoResult
                 }
             )
@@ -797,12 +795,14 @@ class TaskRunner(Runner):
         return state
 
     @call_state_handlers
-    def set_task_to_running(self, state: State) -> State:
+    def set_task_to_running(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Sets the task to running
 
         Args:
             - state (State): the current state of this task
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
 
         Returns:
             - State: the state of the task after running the check
@@ -819,7 +819,7 @@ class TaskRunner(Runner):
             )
             raise ENDRUN(state)
 
-        new_state = Running(message="Starting task run.")
+        new_state = Running(message="Starting task run.", cached_inputs=inputs)
         return new_state
 
     @run_with_heartbeat
@@ -893,19 +893,22 @@ class TaskRunner(Runner):
             new_state.result = Result(
                 value=new_state.result, result_handler=self.result_handler
             )
+            new_state.cached_inputs = inputs
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
             return new_state
 
         result = Result(value=result, result_handler=self.result_handler)
-        state = Success(result=result, message="Task run succeeded.")
+        state = Success(
+            result=result, message="Task run succeeded.", cached_inputs=inputs
+        )
 
-        ## only checkpoint tasks if checkpointing is turned on
+        ## checkpoint tasks if a result_handler is present
         if (
             state.is_successful()
             and prefect.context.get("checkpointing") is True
-            and self.task.checkpoint is True
+            and self.result_handler is not None
         ):
             state._result.store_safe_value()
 
@@ -931,8 +934,7 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
 
         """
-        if state.is_failed():
-            state.cached_inputs = inputs  # type: ignore
+        state.cached_inputs = inputs
 
         if (
             state.is_successful()
@@ -1030,7 +1032,7 @@ class TaskRunner(Runner):
                 }
             )
             context.update(task_run_version=prefect.context.get("task_run_version"))
-            new_state = Pending(message=msg)
+            new_state = Pending(message=msg, cached_inputs=inputs)
             raise RecursiveCall(
                 self.run,
                 self,

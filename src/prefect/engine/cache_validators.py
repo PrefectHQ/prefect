@@ -88,7 +88,7 @@ def all_inputs(
     """
     if duration_only(state, inputs, parameters) is False:
         return False
-    elif {key: res.value for key, res in (state.cached_inputs or {}).items()} == inputs:
+    elif {key: res.value for key, res in state.cached_inputs.items()} == inputs:
         return True
     else:
         return False
@@ -259,9 +259,7 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         elif validate_on is None:
             return True  # if you dont want to validate on anything, then the cache is valid
         else:
-            cached = {
-                key: res.value for key, res in (state.cached_inputs or {}).items()
-            }
+            cached = {key: res.value for key, res in state.cached_inputs.items()}
             partial_provided = {
                 key: value for key, value in inputs.items() if key in validate_on
             }
