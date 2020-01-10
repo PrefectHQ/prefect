@@ -363,7 +363,7 @@ class TestStateHierarchy:
         assert issubclass(Failed, Finished)
 
     def test_cancelled_is_failed(self):
-        assert issubclass(Cancelled, Failed)
+        assert issubclass(Cancelled, Finished)
 
     def test_trigger_failed_is_finished(self):
         assert issubclass(TriggerFailed, Finished)
@@ -387,7 +387,7 @@ class TestStateHierarchy:
 @pytest.mark.parametrize(
     "state_check",
     [
-        dict(state=Cancelled(), assert_true={"is_finished", "is_failed"}),
+        dict(state=Cancelled(), assert_true={"is_finished"}),
         dict(state=Cached(), assert_true={"is_cached", "is_finished", "is_successful"}),
         dict(state=ClientFailed(), assert_true={"is_meta_state"}),
         dict(state=Failed(), assert_true={"is_finished", "is_failed"}),
