@@ -1,6 +1,6 @@
 # Storage Options
 
-Prefect natively has various different Storage options built in that can be used for saving Flows to different systems.
+Prefect natively has various different Storage options built in that can be used for saving Flows to different systems. Every storage option except for `Docker` will automatically have a Result Handler attached which will write results to the corresponding platform. For example, this means that if you register a flow to Prefect Cloud with the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result Handler](/api/unreleased/engine/result_handlers.html#s3resulthandler).
 
 ## Local
 
@@ -15,13 +15,13 @@ flow = Flow("local-flow", storage=Local())
 storage.build()
 ```
 
-The Flow is now available under `~/.prefect/flows/local-flow.prefect`. 
+The Flow is now available under `~/.prefect/flows/local-flow.prefect`.
 
 ::: tip Sensible Defaults
 Flows registered with this Storage option will automatically be labeled with the hostname of the machine from which it was registered; this prevents Agents not running on the same machine from attempting to run this flow.
 
 Additionally, in more recent releases of Core your Flow will default to using a `LocalResultHandler` for persisting any task results in the same file location.
-::: 
+:::
 
 ## Azure Blob Storage
 
@@ -36,13 +36,13 @@ flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_s
 storage.build()
 ```
 
-The Flow is now available in the container under `azure-flow/slugified-current-timestamp`. 
+The Flow is now available in the container under `azure-flow/slugified-current-timestamp`.
 
 ::: tip Sensible Defaults
 Flows registered with this Storage option will automatically be labeled with `"azure-flow-storage"`; this prevents Agents not explicitly authenticated with your Azure deployment from attempting to run this flow.
 
 Additionally, in more recent releases of Core your Flow will default to using a `AzureResultHandler` for persisting any task results in the same Azure container.
-::: 
+:::
 
 :::tip Azure Credentials
 Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) which means both upload (build) and download (Local Agent) times need to have a working Azure connection string. Azure Storage will also look in the environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to the class directly.
@@ -61,13 +61,13 @@ flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 storage.build()
 ```
 
-The Flow is now available in the bucket under `s3-flow/slugified-current-timestamp`. 
+The Flow is now available in the bucket under `s3-flow/slugified-current-timestamp`.
 
 ::: tip Sensible Defaults
 Flows registered with this Storage option will automatically be labeled with `"s3-flow-storage"`; this helps prevent Agents not explicitly authenticated with your AWS deployment from attempting to run this flow.
 
 Additionally, in more recent releases of Core your Flow will default to using a `S3ResultHandler` for persisting any task results in the same S3 bucket.
-::: 
+:::
 
 :::tip AWS Credentials
 S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (Local Agent) times need to have proper AWS credential configuration.
@@ -86,13 +86,13 @@ flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 storage.build()
 ```
 
-The Flow is now available in the bucket under `gcs-flow/slugified-current-timestamp`. 
+The Flow is now available in the bucket under `gcs-flow/slugified-current-timestamp`.
 
 ::: tip Sensible Defaults
 Flows registered with this Storage option will automatically be labeled with `"gcs-flow-storage"`; this helps prevents Agents not explicitly authenticated with your GCS project from attempting to run this flow.
 
 Additionally, in more recent releases of Core your Flow will default to using a `GCSResultHandler` for persisting any task results in the same GCS location.
-::: 
+:::
 
 :::tip Google Cloud Credentials
 GCS Storage uses Google Cloud credentials the same way as the standard [google.cloud library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python) which means both upload (build) and download (Local Agent) times need to have the proper Google Application Credentials configuration.
