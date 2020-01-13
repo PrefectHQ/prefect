@@ -47,11 +47,6 @@ all_states = sorted(
     key=lambda c: c.__name__,
 )
 
-cached_input_states = sorted(
-    set(cls for cls in all_states if hasattr(cls(), "cached_inputs")),
-    key=lambda c: c.__name__,
-)
-
 
 @pytest.mark.parametrize("cls", all_states)
 def test_create_state_with_no_args(cls):
@@ -59,10 +54,11 @@ def test_create_state_with_no_args(cls):
     assert state.message is None
     assert state.result is None
     assert state.context == dict()
+    assert state.cached_inputs == dict()
 
 
 @pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_kwarg_data_arg(cls):
+def test_create_state_with_kwarg_result_arg(cls):
     state = cls(result=1)
     assert isinstance(state._result, Result)
     assert state._result.safe_value is NoResult
@@ -70,6 +66,13 @@ def test_create_state_with_kwarg_data_arg(cls):
     assert state.result == 1
     assert state.message is None
     assert isinstance(state._result, Result)
+
+
+@pytest.mark.parametrize("cls", all_states)
+def test_create_state_with_kwarg_cached_inputs(cls):
+    state = cls(cached_inputs=dict(x=42))
+    assert state.message is None
+    assert state.cached_inputs == dict(x=42)
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -266,7 +269,7 @@ def test_serialize_and_deserialize_on_safe_cached_state():
     assert new_state.cached_inputs == state.cached_inputs
 
 
-@pytest.mark.parametrize("cls", cached_input_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_safe_values(cls):
     safe5 = SafeResult(5, result_handler=JSONResultHandler())
     state = cls(cached_inputs=dict(hi=safe5, bye=safe5))
@@ -276,7 +279,7 @@ def test_serialization_of_cached_inputs_with_safe_values(cls):
     assert new_state.cached_inputs == state.cached_inputs
 
 
-@pytest.mark.parametrize("cls", cached_input_states)
+@pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_unsafe_values(cls):
     unsafe5 = Result(5, result_handler=JSONResultHandler())
     state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
@@ -360,7 +363,7 @@ class TestStateHierarchy:
         assert issubclass(Failed, Finished)
 
     def test_cancelled_is_failed(self):
-        assert issubclass(Cancelled, Failed)
+        assert issubclass(Cancelled, Finished)
 
     def test_trigger_failed_is_finished(self):
         assert issubclass(TriggerFailed, Finished)
@@ -384,7 +387,7 @@ class TestStateHierarchy:
 @pytest.mark.parametrize(
     "state_check",
     [
-        dict(state=Cancelled(), assert_true={"is_finished", "is_failed"}),
+        dict(state=Cancelled(), assert_true={"is_finished"}),
         dict(state=Cached(), assert_true={"is_cached", "is_finished", "is_successful"}),
         dict(state=ClientFailed(), assert_true={"is_meta_state"}),
         dict(state=Failed(), assert_true={"is_finished", "is_failed"}),

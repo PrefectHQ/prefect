@@ -1109,13 +1109,24 @@ class TestCheckTaskCached:
 class TestSetTaskRunning:
     @pytest.mark.parametrize("state", [Pending()])
     def test_pending(self, state):
-        new_state = TaskRunner(task=Task()).set_task_to_running(state=state)
+        new_state = TaskRunner(task=Task()).set_task_to_running(
+            state=state, inputs=dict()
+        )
         assert new_state.is_running()
+        assert new_state.cached_inputs == dict()
+
+    @pytest.mark.parametrize("state", [Pending()])
+    def test_inputs_are_cached(self, state):
+        new_state = TaskRunner(task=Task()).set_task_to_running(
+            state=state, inputs=dict(x=Result(42))
+        )
+        assert new_state.is_running()
+        assert new_state.cached_inputs == dict(x=Result(42))
 
     @pytest.mark.parametrize("state", [Cached(), Running(), Success(), Skipped()])
     def test_not_pending(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).set_task_to_running(state=state)
+            TaskRunner(task=Task()).set_task_to_running(state=state, inputs=dict())
 
 
 class TestRunTaskStep:
@@ -1298,6 +1309,28 @@ class TestRunTaskStep:
             )
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+
+    def test_success_state_is_checkpointed_if_result_handler_present(self):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=False, result_handler=handler)
+        def fn():
+            return 1
+
+        ## checkpointing allows users to toggle behavior for local testing
+        with prefect.context(checkpointing=False):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == NoResult
+
+        with prefect.context(checkpointing=True):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == SafeResult("1", result_handler=handler)
 
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()

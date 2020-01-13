@@ -49,6 +49,8 @@ class State(metaclass=TrackedInheritance):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
     """
 
     color = "#696969"
@@ -58,10 +60,12 @@ class State(metaclass=TrackedInheritance):
         message: str = None,
         result: Any = NoResult,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
         self.message = message
         self.result = result
         self.context = context or dict()
+        self.cached_inputs = cached_inputs or dict()  # type: Dict[str, Result]
         if "task_tags" in prefect.context:
             self.context.setdefault("tags", list(prefect.context.task_tags))
 
@@ -290,8 +294,8 @@ class Pending(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -305,8 +309,9 @@ class Pending(State):
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
 
 
 class Scheduled(Pending):
@@ -322,8 +327,8 @@ class Scheduled(Pending):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -358,8 +363,8 @@ class Paused(Scheduled):
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to resume; defaults
             to 10 years from now if not provided.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -402,8 +407,11 @@ class _MetaState(State):
         result: Any = NoResult,
         state: State = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.state = state
 
 
@@ -421,6 +429,8 @@ class ClientFailed(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that the task run ended in
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
 
@@ -444,6 +454,8 @@ class Submitted(_MetaState):
         - message (string): a message for the state.
         - result (Any, optional): Defaults to `None`.
         - state (State): the `State` state that has been marked as "submitted".
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
 
@@ -466,6 +478,8 @@ class Queued(_MetaState):
         - state (State): the `State` state that has been marked as
             "queued".
         - start_time (datetime): a time the state is queued until. Defaults to `now`.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
 
@@ -480,8 +494,15 @@ class Queued(_MetaState):
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, state=state, context=context)
+        super().__init__(
+            message=message,
+            result=result,
+            state=state,
+            context=context,
+            cached_inputs=cached_inputs,
+        )
         self.start_time = start_time or pendulum.now("utc")
 
 
@@ -494,8 +515,8 @@ class Resume(Scheduled):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to run
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -512,8 +533,8 @@ class Retrying(Scheduled):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
         - start_time (datetime): time at which the task is scheduled to be retried
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
         - run_count (int): The number of runs that had been attempted at the time of this
@@ -558,6 +579,8 @@ class Running(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -578,6 +601,8 @@ class Finished(State):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -597,6 +622,8 @@ class Looped(Finished):
         - loop_count (int): The iteration number of the looping task.
             Defaults to the value stored in context under "task_loop_count" or 1,
             if that value isn't found.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -609,8 +636,11 @@ class Looped(Finished):
         result: Any = NoResult,
         loop_count: int = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(result=result, message=message, context=context)
+        super().__init__(
+            result=result, message=message, context=context, cached_inputs=cached_inputs
+        )
         if loop_count is None:
             loop_count = prefect.context.get("task_loop_count", 1)
         assert loop_count is not None  # mypy assert
@@ -625,6 +655,8 @@ class Success(Finished):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -641,8 +673,8 @@ class Cached(Success):
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the
             state, which will be cached.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - cached_parameters (dict): Defaults to `None`
         - cached_result_expiration (datetime): The time at which this cache
             expires and can no longer be used. Defaults to `None`
@@ -661,8 +693,9 @@ class Cached(Success):
         cached_result_expiration: datetime.datetime = None,
         context: Dict[str, Any] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = pendulum.instance(cached_result_expiration)
@@ -687,6 +720,8 @@ class Mapped(Success):
         - map_states (List): A list containing the states of any "children" of this task. When
             a task enters a Mapped state, it indicates that it has dynamically created copies
             of itself to map its operation over its inputs. Those copies are the children.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -699,8 +734,11 @@ class Mapped(Success):
         result: Any = NoResult,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
         self.map_states = map_states or []  # type: List[State]
 
     @property
@@ -708,34 +746,7 @@ class Mapped(Success):
         return len(self.map_states)
 
 
-class Failed(Finished):
-    """
-    Finished state indicating failure.
-
-    Args:
-        - message (str or Exception, optional): Defaults to `None`. A message about the
-            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task might require manual Retries.
-        - context (dict, optional): A dictionary of execution context information; values
-            should be JSON compatible
-    """
-
-    color = "#eb0000"
-
-    def __init__(
-        self,
-        message: str = None,
-        result: Any = NoResult,
-        cached_inputs: Dict[str, Result] = None,
-        context: Dict[str, Any] = None,
-    ):
-        super().__init__(message=message, result=result, context=context)
-        self.cached_inputs = cached_inputs
-
-
-class Cancelled(Failed):
+class Cancelled(Finished):
     """
     Finished state indicating that a user cancelled the flow run manually, mid-run.
 
@@ -752,6 +763,34 @@ class Cancelled(Failed):
     color = "#c42800"
 
 
+class Failed(Finished):
+    """
+    Finished state indicating failure.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
+    """
+
+    color = "#eb0000"
+
+    def __init__(
+        self,
+        message: str = None,
+        result: Any = NoResult,
+        cached_inputs: Dict[str, Result] = None,
+        context: Dict[str, Any] = None,
+    ):
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )
+
+
 class TimedOut(Failed):
     """
     Finished state indicating failure due to execution timeout.
@@ -760,8 +799,8 @@ class TimedOut(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -777,8 +816,8 @@ class TriggerFailed(Failed):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -794,6 +833,8 @@ class Skipped(Success):
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
     """
@@ -806,5 +847,8 @@ class Skipped(Success):
         message: str = None,
         result: Any = NoResult,
         context: Dict[str, Any] = None,
+        cached_inputs: Dict[str, Result] = None,
     ):
-        super().__init__(message=message, result=result, context=context)
+        super().__init__(
+            message=message, result=result, context=context, cached_inputs=cached_inputs
+        )

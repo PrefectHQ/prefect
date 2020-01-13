@@ -1140,6 +1140,38 @@ class TestFlowVisualize:
         for index in [0, 1]:
             assert "{0} [label=x style=dashed]".format(index) in graph.source
 
+    def test_viz_reflects_reduce_mapping_states_if_flow_state_provided(self):
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        add = AddTask(name="a_nice_task")
+        list_task = Task(name="a_list_task")
+        reduce_task = AddTask(name="reduce")
+
+        map_state = Mapped(map_states=[Success(), Failed(), Success(), Success()])
+
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                res = add.map(x=list_task, y=8)
+                final = reduce_task(res, y=9)
+
+            graph = f.visualize(
+                flow_state=Success(
+                    result={res: map_state, list_task: Success(), final: Success()}
+                )
+            )
+
+        print(graph.source)
+
+        # one colored node for each mapped result from its upstream
+        for index in [0, 1, 2, 3]:
+            assert "{0} [label=x style=dashed]".format(index) in graph.source
+
+        # one edge for each mapped result to the reduce task
+        for index in [0, 1]:
+            edge_string = "[label=x]".format(index)
+            assert graph.source.count(edge_string) == 4
+
     def test_viz_reflects_multiple_mapping_if_flow_state_provided(self):
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
