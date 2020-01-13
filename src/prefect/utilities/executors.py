@@ -73,6 +73,9 @@ class PeriodicMonitoredCall:
         self.fut = self.executor.submit(looper, prefect.context.to_dict())
         self.executor.submit(monitor, prefect.context.to_dict())
 
+    def isAlive(self) -> bool:
+        return not self._exit.is_set()
+
     def cancel(self) -> bool:
         """
         Calling this method after `start()` has been called will cleanup

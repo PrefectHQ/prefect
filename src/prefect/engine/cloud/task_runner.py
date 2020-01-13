@@ -1,9 +1,9 @@
 import copy
 import datetime
-import _thread
+import threading
 import time
 import warnings
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type
 
 import pendulum
 
@@ -17,6 +17,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import (
     Cached,
+    Cancelled,
     ClientFailed,
     Failed,
     Mapped,
@@ -25,7 +26,9 @@ from prefect.engine.state import (
     State,
 )
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
+from prefect.utilities.executors import PeriodicMonitoredCall
 from prefect.utilities.graphql import with_args
+from prefect.utilities.threads import ThreadEventLoop
 
 
 class CloudTaskRunner(TaskRunner):
@@ -57,37 +60,163 @@ class CloudTaskRunner(TaskRunner):
         result_handler: ResultHandler = None,
     ) -> None:
         self.client = Client()
+        self.state = None
         super().__init__(
             task=task, state_handlers=state_handlers, result_handler=result_handler
         )
+        self.logger.info("CLOUD TASK RUNNER")
 
     def _heartbeat(self) -> bool:
-        try:
-            task_run_id = self.task_run_id  # type: ignore
-            self.client.update_task_run_heartbeat(task_run_id)  # type: ignore
+        self.logger.info("HEARTBEAT")
+        task_run_id = self.task_run_id  # type: ignore
+        self.client.update_task_run_heartbeat(task_run_id)
+        return True
 
-            # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        "state": True,
-                        "flow": {"settings": True},
-                    }
+    @tail_recursive
+    def _run(
+        self,
+        manager,
+        state: State = None,
+        upstream_states: Dict[Edge, State] = None,
+        context: Dict[str, Any] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+    ) -> None:
+        """
+        The main endpoint for TaskRunners.  Calling this method will conditionally execute
+        `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
+        state which allow this Task to run.  Additionally, this method will wait and perform Task retries
+        which are scheduled for <= 1 minute in the future.
+
+        Args:
+            - state (State, optional): initial `State` to begin task run from;
+                defaults to `Pending()`
+            - upstream_states (Dict[Edge, State]): a dictionary
+                representing the states of any tasks upstream of this one. The keys of the
+                dictionary should correspond to the edges leading to the task.
+            - context (dict, optional): prefect Context to use for execution
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
+
+        Returns:
+            - `State` object representing the final post-run state of the Task
+        """
+
+        try:
+            context = context or {}
+
+            if not state:
+                task_run_info = self.client.get_task_run_info(
+                    flow_run_id=context.get("flow_run_id", ""),
+                    task_id=context.get("task_id", ""),
+                    map_index=map_index,
+                )
+                state = task_run_info.state
+
+            self.state = state
+
+            self.state = super().run(
+                state=state,
+                upstream_states=upstream_states,
+                context=context,
+                executor=executor,
+            )
+            while (self.state.is_retrying() or self.state.is_queued()) and (
+                self.state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
+            ):
+                assert isinstance(self.state, (Retrying, Queued))
+                naptime = max(
+                    (self.state.start_time - pendulum.now("utc")).total_seconds(), 0
+                )
+                time.sleep(naptime)
+
+                # currently required as context has reset to its original state
+                task_run_info = self.client.get_task_run_info(
+                    flow_run_id=context.get("flow_run_id", ""),
+                    task_id=context.get("task_id", ""),
+                    map_index=context.get("map_index"),
+                )
+                context.update(task_run_version=task_run_info.version)  # type: ignore
+
+                end_state = super().run(
+                    state=self.state,
+                    upstream_states=upstream_states,
+                    context=context,
+                    executor=executor,
+                )
+        except Exception:
+            self.logger.exception("Error occured on run")
+
+        self.logger.info("TaskRunner completed")
+
+        manager.emit(event="exit")
+
+    def check_valid_initial_state(self, flow_run_id: str) -> bool:
+        state = self.fetch_current_flow_run_state(flow_run_id)
+        return state != Cancelled
+
+    def run(self, **kwargs: Any) -> State:
+        manager = ThreadEventLoop(logger=self.logger)
+        flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
+
+        if not self.check_valid_initial_state(flow_run_id):
+            raise RuntimeError("Flow run initial state is invalid. It will not be run!")
+
+        # start a state listener thread, pulling states for this flow run id from cloud.
+        # Events are reported back to the main thread (here). Why a separate thread?
+        # Among other reasons, when we start doing subscriptions later, it will continue
+        # to work with little modification (replacing the periodic caller with a thread)
+        state_thread = PeriodicMonitoredCall(
+            interval=3,
+            function=self.stream_flow_run_state_events,
+            logger=self.logger,
+            flow_run_id=flow_run_id,
+            manager=manager,
+        )
+        manager.add_thread(state_thread, state_thread.cancel)
+
+        # note: this creates a cloud flow runner which has a heartbeat
+        worker_thread = threading.Thread(
+            target=self._run, kwargs={"manager": manager, **kwargs}
+        )
+        manager.add_thread(worker_thread)
+
+        manager.add_event_handler("state", self.on_state_event)
+
+        manager.run()
+        return self.state
+
+    def on_state_event(self, manager, event, payload):
+        self.logger.info("state event: {} {}".format(event, payload))
+        if event == "state" and payload == Cancelled:
+            manager.emit(event="exit")
+
+    def fetch_current_flow_run_state(self, flow_run_id: str) -> Type[State]:
+        query = {
+            "query": {
+                with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    "state": True,
+                    "flow": {"settings": True},
                 }
             }
-            flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.state == "Cancelled":
-                _thread.interrupt_main()
-                return False
-            if flow_run.flow.settings.get("disable_heartbeat"):
-                return False
-            return True
-        except Exception as exc:
-            self.logger.exception(
-                "Heartbeat failed for Task '{}'".format(self.task.name)
-            )
-            return False
+        }
+
+        flow_run = self.client.graphql(query).data.flow_run_by_pk
+        return State.parse(flow_run.state)
+
+    # TODO: check task run states, not flow runs... or both?
+    def stream_flow_run_state_events(self, manager, flow_run_id: str) -> None:
+        self.logger.info("STREAM: {}".format(flow_run_id))
+        state = self.fetch_current_flow_run_state(flow_run_id)
+        self.logger.info("STREAM STATE: {}".format(state))
+
+        # note: currently we are polling the latest known state. In the future when subscriptions are
+        # available we can stream all state transistions, since we are guarenteed to have ordering
+        # without duplicates. Until then, we will apply filtering of the states we want to see before
+        # it hits the queue here instead of the main thread.
+
+        if state == Cancelled:
+            # TODO: better way to get manager queue
+            manager.emit(event="state", payload=state)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -213,13 +342,13 @@ class CloudTaskRunner(TaskRunner):
             )
 
             if not cached_states:
-                self.logger.debug(
+                self.logger.info(
                     "Task '{name}': can't use cache because no Cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
             else:
-                self.logger.debug(
+                self.logger.info(
                     "Task '{name}': {num} candidate cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name),
                         num=len(cached_states),
@@ -241,7 +370,7 @@ class CloudTaskRunner(TaskRunner):
                     )
                     return candidate_state
 
-                self.logger.debug(
+                self.logger.info(
                     "Task '{name}': can't use cache because no candidate Cached states "
                     "were valid".format(
                         name=prefect.context.get("task_full_name", self.task.name)
@@ -249,62 +378,3 @@ class CloudTaskRunner(TaskRunner):
                 )
 
         return state
-
-    @tail_recursive
-    def run(
-        self,
-        state: State = None,
-        upstream_states: Dict[Edge, State] = None,
-        context: Dict[str, Any] = None,
-        executor: "prefect.engine.executors.Executor" = None,
-    ) -> State:
-        """
-        The main endpoint for TaskRunners.  Calling this method will conditionally execute
-        `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
-        state which allow this Task to run.  Additionally, this method will wait and perform Task retries
-        which are scheduled for <= 1 minute in the future.
-
-        Args:
-            - state (State, optional): initial `State` to begin task run from;
-                defaults to `Pending()`
-            - upstream_states (Dict[Edge, State]): a dictionary
-                representing the states of any tasks upstream of this one. The keys of the
-                dictionary should correspond to the edges leading to the task.
-            - context (dict, optional): prefect Context to use for execution
-            - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor specified in your prefect configuration
-
-        Returns:
-            - `State` object representing the final post-run state of the Task
-        """
-        context = context or {}
-        end_state = super().run(
-            state=state,
-            upstream_states=upstream_states,
-            context=context,
-            executor=executor,
-        )
-        while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
-        ):
-            assert isinstance(end_state, (Retrying, Queued))
-            naptime = max(
-                (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
-            )
-            time.sleep(naptime)
-
-            # currently required as context has reset to its original state
-            task_run_info = self.client.get_task_run_info(
-                flow_run_id=context.get("flow_run_id", ""),
-                task_id=context.get("task_id", ""),
-                map_index=context.get("map_index"),
-            )
-            context.update(task_run_version=task_run_info.version)  # type: ignore
-
-            end_state = super().run(
-                state=end_state,
-                upstream_states=upstream_states,
-                context=context,
-                executor=executor,
-            )
-        return end_state

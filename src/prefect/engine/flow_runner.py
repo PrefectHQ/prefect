@@ -569,6 +569,7 @@ class FlowRunner(Runner):
         """
         with prefect.context(self.context):
             default_handler = task.result_handler or self.flow.result_handler
+            self.logger.info("TASK RUNNER: {}".format(self.task_runner_cls))
             task_runner = self.task_runner_cls(
                 task=task,
                 state_handlers=task_runner_state_handlers,
@@ -585,6 +586,7 @@ class FlowRunner(Runner):
                     upstream_state.result = [
                         s.result for s in upstream_state.map_states
                     ]
+            self.logger.info("TASK RUNNER TYPE: {}".format(type(task_runner)))
 
             return task_runner.run(
                 state=state,

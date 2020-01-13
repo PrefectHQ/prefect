@@ -106,7 +106,7 @@ class CloudFlowRunner(FlowRunner):
         except Exception:
             self.logger.exception("Error occured on run")
 
-        self.logger.debug("Flowrunner completed")
+        self.logger.debug("FlowRunner completed")
 
         manager.emit(event="exit")
 
@@ -139,6 +139,7 @@ class CloudFlowRunner(FlowRunner):
         manager.add_event_handler("state", self.on_state_event)
 
         manager.run()
+        return self.state
 
     def on_state_event(self, manager, event, payload):
         self.logger.debug("state event: {} {}".format(event, payload))

@@ -24,6 +24,9 @@ def terminate_thread(thread, exc_type=SystemExit):
 QueueItem = collections.namedtuple("QueueItem", "event payload")
 
 
+# TODO: self destruct if any threads are missing (must be passed threads to determin this, then use threading.enumerate())
+
+
 class ThreadEventLoop:
     def __init__(self, logger) -> None:
         self.logger = logger
@@ -61,14 +64,18 @@ class ThreadEventLoop:
                 try:
                     if t.isAlive():
                         if shutdown_handler:
+                            self.logger.info("Shutting down {}".format(t))
                             shutdown_handler()
+                            self.logger.info("Shutdown! {}".format(t))
                             # TODO: join all, with timeout, on timeout do terminate
                         else:
+                            self.logger.info("Terminating {}".format(t))
                             # TODO: catch SystemError and exit anyway.... depends on daemon threads
                             terminate_thread(t)
-                # TODO: get periodic monitor to work
+                            self.logger.info("Terminated! {}".format(t))
+                # TODO: get periodic monitor to work... remove this try except
                 except AttributeError:
-                    continue
+                    self.logger.exception("bad attribute on thread")
         except Exception:
             self.logger.exception("Error when attempting to stop threads")
         finally:
