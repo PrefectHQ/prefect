@@ -1,30 +1,42 @@
 import collections
+import threading
 
-from queue import Queue
-from typing import Any
+import queue
+from typing import Any, Dict, List, Callable, Optional, Generator, Type
 from contextlib import contextmanager
 
 
-def terminate_thread(thread, exc_type=SystemExit):
-    import ctypes
+def terminate_thread(
+    thread: "threading.Thread", exc_type: "Exception" = SystemExit
+) -> bool:
 
+    # check for the existence of the c-api (e.g. Jython and PyPy will fail here)
+    try:
+        import ctypes
+
+        set_async_exec = ctypes.pythonapi.PyThreadState_SetAsyncExc
+    except Exception:
+        return False
+
+    # cannot kill what is not alive...
     if not thread.isAlive():
-        return
+        return True
 
     exc = ctypes.py_object(exc_type)
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread.ident), exc)
+    res = set_async_exec(ctypes.c_long(thread.ident), exc)
 
+    # the thread did not exist
     if res == 0:
-        raise ValueError("Thread does not exist")
+        return False
+
+    # we should have only affected a single thread, if it's more than one, undo!
     elif res > 1:
-        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
-        raise SystemError("PyThreadState_SetAsyncExc failed")
+        set_async_exec(thread.ident, None)
+        return False
+    return True
 
 
 QueueItem = collections.namedtuple("QueueItem", "event payload")
-
-
-# TODO: self destruct if any threads are missing (must be passed threads to determin this, then use threading.enumerate())
 
 
 class ThreadEventLoop:
@@ -32,72 +44,80 @@ class ThreadEventLoop:
         self.logger = logger
         self.event_handlers = collections.defaultdict(
             list
-        )  # { event : [handler, ...] }
-        self.threads = collections.OrderedDict()  # { thread: shutdown handler }
+        )  # type: Dict[str, List[Callable]]
+        self.threads = (
+            collections.OrderedDict()
+        )  # type: Dict[threading.Thread, Optional[Callable]]
         self.running = False
-        self.queue = Queue()
+        self.queue = queue.Queue()  # type: queue.Queue
 
-        def exit(manager, event, payload):
+        def raise_to_exit(
+            event_loop: "ThreadEventLoop", event: str, payload: Any
+        ) -> None:
             raise SystemExit()
 
-        # TODO: this wont allow multiple event handlers... should we?
-        self.add_event_handler("exit", exit)
+        self.add_event_handler("exit", raise_to_exit)
 
     def exit(self) -> None:
         if not self.running:
-            raise RuntimeError("Threads not activated")
-        self.queue.put(QueueItem(event="exit", payload=None))
+            return
+        self.emit(event="exit", payload=None)
 
     @contextmanager
-    def _start(self) -> None:
+    def _start(self) -> Generator:
         self.running = True
 
         for t in self.threads:
-            # TODO: set more useful name_prefix
-            t.start()
+            if isinstance(t, threading.Thread):
+                t.start()
+            else:
+                t.start()
 
         yield
 
         try:
-            self.logger.debug("Stopping threads...")
+            self.logger.debug("EventLoop stopping...")
             for t, shutdown_handler in self.threads.items():
-                try:
-                    if t.isAlive():
-                        if shutdown_handler:
-                            self.logger.info("Shutting down {}".format(t))
-                            shutdown_handler()
-                            self.logger.info("Shutdown! {}".format(t))
-                            # TODO: join all, with timeout, on timeout do terminate
-                        else:
-                            self.logger.info("Terminating {}".format(t))
-                            # TODO: catch SystemError and exit anyway.... depends on daemon threads
-                            terminate_thread(t)
-                            self.logger.info("Terminated! {}".format(t))
-                # TODO: get periodic monitor to work... remove this try except
-                except AttributeError:
-                    self.logger.exception("bad attribute on thread")
+                self.logger.debug(
+                    "Shutting down {} (handler: {})".format(t, shutdown_handler)
+                )
+
+                if shutdown_handler:
+                    shutdown_handler()
+                elif isinstance(t, threading.Thread):
+                    if not terminate_thread(t):
+                        self.logger.warning("Failed to terminate {}".format(t))
+                else:
+                    self.logger.warning("No way to terminate thread {}".format(t))
+
         except Exception:
             self.logger.exception("Error when attempting to stop threads")
         finally:
             self.running = False
-            self.logger.debug("Stopped")
 
-    # there are two kinds of thread's we're distincting: threads with a shutdown handler (cooporative)
-    # and threads without a guarentee for shutdown control (independent).
-    def add_thread(self, thread, shutdown_handler=None):
-        # if not shutdown_handler:
-        #     thread.daemon = True
+        self.logger.debug("EventLoop exiting")
 
-        # TODO: assert thread type
+    # This accepts any thread or thread-like object.
+    # There are two kinds of thread's we're distincting: threads or thread-like objects with a shutdown handler (cooporative)
+    # and threading.Threads without a guarentee for shutdown control (independent).
+    def add_thread(
+        self, thread: Any, shutdown_handler: Optional[Callable] = None
+    ) -> None:
+        if not isinstance(thread, threading.Thread) and not shutdown_handler:
+            raise ValueError(
+                "Given a potentially thread-like object without a shutdown callback"
+            )
+
         self.threads[thread] = shutdown_handler
 
-    def add_event_handler(self, event, handler):
+    def add_event_handler(self, event: str, handler: Callable) -> None:
         self.event_handlers[event].append(handler)
 
-    def emit(self, event, payload=None):
+    def emit(self, event: str, payload: Any = None) -> None:
+        self.logger.debug("Event: {} ({})".format(event, repr(payload)))
         self.queue.put(QueueItem(event=event, payload=payload))
 
-    def run(self, **kwargs: Any):
+    def run(self, **kwargs: Any) -> None:
 
         with self._start():
             try:
@@ -113,7 +133,7 @@ class ThreadEventLoop:
                         continue
 
                     for handler in self.event_handlers[item.event]:
-                        handler(manager=self, event=item.event, payload=item.payload)
+                        handler(event_loop=self, event=item.event, payload=item.payload)
 
             except SystemExit:
                 pass

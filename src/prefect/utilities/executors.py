@@ -36,15 +36,21 @@ class PeriodicMonitoredCall:
     """
 
     def __init__(
-        self, interval: int, function: Callable, logger: Logger, **kwargs: Any
+        self,
+        interval: int,
+        function: Callable,
+        logger: Logger,
+        name_prefix: str = "",
+        **kwargs: Any
     ) -> None:
         self.interval = interval
         self.function = function
         self.logger = logger
         self._exit = threading.Event()
         self.kwargs = kwargs
+        self.name_prefix = name_prefix
 
-    def start(self, name_prefix: str = "") -> None:
+    def start(self) -> None:
         """
         Calling this method initiates the function calls in the background.
         """
@@ -68,7 +74,7 @@ class PeriodicMonitoredCall:
 
         kwargs = dict(max_workers=2)  # type: Dict[str, Any]
         if sys.version_info.minor != 5:
-            kwargs.update(dict(thread_name_prefix=name_prefix))
+            kwargs.update(dict(thread_name_prefix=self.name_prefix))
         self.executor = ThreadPoolExecutor(**kwargs)
         self.fut = self.executor.submit(looper, prefect.context.to_dict())
         self.executor.submit(monitor, prefect.context.to_dict())
@@ -109,15 +115,25 @@ def run_with_heartbeat(
     def inner(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
-        timer = PeriodicMonitoredCall(
-            prefect.config.cloud.heartbeat_interval, self._heartbeat, self.logger
-        )
+
         obj = getattr(self, "task", None) or getattr(self, "flow", None)
-        thread_name = "PrefectHeartbeat-{}".format(getattr(obj, "name", "unknown"))
+        type_str = "unknown"
+        if obj:
+            type_str = repr(type(obj))
+        thread_name = "Prefect-{}-Heartbeat-{}".format(
+            type_str, getattr(obj, "name", "unknown")
+        )
+
+        timer = PeriodicMonitoredCall(
+            prefect.config.cloud.heartbeat_interval,
+            self._heartbeat,
+            self.logger,
+            name_prefix=thread_name,
+        )
         try:
             try:
                 if self._heartbeat():
-                    timer.start(name_prefix=thread_name)
+                    timer.start()
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."

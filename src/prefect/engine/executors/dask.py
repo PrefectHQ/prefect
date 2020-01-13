@@ -201,7 +201,10 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         for fut in futures:
-            self.futures.remove(fut)
+            try:
+                self.futures.remove(fut)
+            except ValueError:
+                pass
 
         return results
 
@@ -304,7 +307,10 @@ class LocalDaskExecutor(Executor):
             results = dask.compute(futures)[0]
 
         for fut in futures:
-            self.futures.remove(fut)
+            try:
+                self.futures.remove(fut)
+            except ValueError:
+                pass
 
         return results
 

@@ -64,10 +64,9 @@ class CloudTaskRunner(TaskRunner):
         super().__init__(
             task=task, state_handlers=state_handlers, result_handler=result_handler
         )
-        self.logger.info("CLOUD TASK RUNNER")
 
     def _heartbeat(self) -> bool:
-        self.logger.info("HEARTBEAT")
+        self.logger.debug("Heartbeat")
         task_run_id = self.task_run_id  # type: ignore
         self.client.update_task_run_heartbeat(task_run_id)
         return True
@@ -75,7 +74,7 @@ class CloudTaskRunner(TaskRunner):
     @tail_recursive
     def _run(
         self,
-        manager,
+        event_loop: "prefect.utilities.threads.ThreadEventLoop",
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
@@ -88,6 +87,8 @@ class CloudTaskRunner(TaskRunner):
         which are scheduled for <= 1 minute in the future.
 
         Args:
+            - event_loop (ThreadEventLoop): the main event loop that is managing all child threads and 
+                event handling.
             - state (State, optional): initial `State` to begin task run from;
                 defaults to `Pending()`
             - upstream_states (Dict[Edge, State]): a dictionary
@@ -104,15 +105,8 @@ class CloudTaskRunner(TaskRunner):
         try:
             context = context or {}
 
-            if not state:
-                task_run_info = self.client.get_task_run_info(
-                    flow_run_id=context.get("flow_run_id", ""),
-                    task_id=context.get("task_id", ""),
-                    map_index=map_index,
-                )
-                state = task_run_info.state
-
-            self.state = state
+            # set initial state such that if this task is cancelled, there is at least a state available
+            self.state = Cancelled()
 
             self.state = super().run(
                 state=state,
@@ -146,20 +140,18 @@ class CloudTaskRunner(TaskRunner):
         except Exception:
             self.logger.exception("Error occured on run")
 
-        self.logger.info("TaskRunner completed")
-
-        manager.emit(event="exit")
+        event_loop.emit(event="exit", payload="worker")
 
     def check_valid_initial_state(self, flow_run_id: str) -> bool:
         state = self.fetch_current_flow_run_state(flow_run_id)
         return state != Cancelled
 
     def run(self, **kwargs: Any) -> State:
-        manager = ThreadEventLoop(logger=self.logger)
+        event_loop = ThreadEventLoop(logger=self.logger)
         flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
 
         if not self.check_valid_initial_state(flow_run_id):
-            raise RuntimeError("Flow run initial state is invalid. It will not be run!")
+            return Cancelled()
 
         # start a state listener thread, pulling states for this flow run id from cloud.
         # Events are reported back to the main thread (here). Why a separate thread?
@@ -170,25 +162,30 @@ class CloudTaskRunner(TaskRunner):
             function=self.stream_flow_run_state_events,
             logger=self.logger,
             flow_run_id=flow_run_id,
-            manager=manager,
+            event_loop=event_loop,
+            name_prefix="Prefect-TaskRunner-state",
         )
-        manager.add_thread(state_thread, state_thread.cancel)
+        event_loop.add_thread(state_thread, state_thread.cancel)
 
         # note: this creates a cloud flow runner which has a heartbeat
         worker_thread = threading.Thread(
-            target=self._run, kwargs={"manager": manager, **kwargs}
+            target=self._run,
+            kwargs={"event_loop": event_loop, **kwargs},
+            name="Prefect-TaskRunner-worker-{}".format(
+                getattr(self.task, "name", "unknown")
+            ),
         )
-        manager.add_thread(worker_thread)
+        event_loop.add_thread(worker_thread)
 
-        manager.add_event_handler("state", self.on_state_event)
+        event_loop.add_event_handler("state", self.on_state_event)
 
-        manager.run()
+        event_loop.run()
         return self.state
 
-    def on_state_event(self, manager, event, payload):
-        self.logger.info("state event: {} {}".format(event, payload))
+    def on_state_event(self, event_loop, event, payload):
+        self.logger.info("Task state event: {} {}".format(event, payload))
         if event == "state" and payload == Cancelled:
-            manager.emit(event="exit")
+            event_loop.emit(event="exit")
 
     def fetch_current_flow_run_state(self, flow_run_id: str) -> Type[State]:
         query = {
@@ -203,20 +200,16 @@ class CloudTaskRunner(TaskRunner):
         flow_run = self.client.graphql(query).data.flow_run_by_pk
         return State.parse(flow_run.state)
 
-    # TODO: check task run states, not flow runs... or both?
-    def stream_flow_run_state_events(self, manager, flow_run_id: str) -> None:
-        self.logger.info("STREAM: {}".format(flow_run_id))
+    def stream_flow_run_state_events(self, event_loop, flow_run_id: str) -> None:
+        self.logger.debug("Poll for flow state")
+
         state = self.fetch_current_flow_run_state(flow_run_id)
-        self.logger.info("STREAM STATE: {}".format(state))
 
         # note: currently we are polling the latest known state. In the future when subscriptions are
         # available we can stream all state transistions, since we are guarenteed to have ordering
         # without duplicates. Until then, we will apply filtering of the states we want to see before
         # it hits the queue here instead of the main thread.
-
-        if state == Cancelled:
-            # TODO: better way to get manager queue
-            manager.emit(event="state", payload=state)
+        event_loop.emit(event="state", payload=state)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -342,13 +335,13 @@ class CloudTaskRunner(TaskRunner):
             )
 
             if not cached_states:
-                self.logger.info(
+                self.logger.debug(
                     "Task '{name}': can't use cache because no Cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
             else:
-                self.logger.info(
+                self.logger.debug(
                     "Task '{name}': {num} candidate cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name),
                         num=len(cached_states),
@@ -370,7 +363,7 @@ class CloudTaskRunner(TaskRunner):
                     )
                     return candidate_state
 
-                self.logger.info(
+                self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
                     "were valid".format(
                         name=prefect.context.get("task_full_name", self.task.name)

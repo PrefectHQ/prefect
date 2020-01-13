@@ -2,7 +2,18 @@ import collections
 import threading
 import queue
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    Type,
+    Set,
+)
 
 import prefect
 from prefect.client import Client
@@ -17,8 +28,6 @@ from prefect.utilities.executors import PeriodicMonitoredCall
 from prefect.utilities.exceptions import ExecutorError
 from prefect.utilities.graphql import with_args
 from prefect.utilities.threads import ThreadEventLoop
-
-QueueItem = collections.namedtuple("QueueItem", "event payload")
 
 
 class CloudFlowRunner(FlowRunner):
@@ -69,6 +78,7 @@ class CloudFlowRunner(FlowRunner):
         self.client = Client()
         self.executor = None  # type: Optional[Executor]
         self.state = None  # type: Optional[State]
+        self.was_cancelled = False
         super().__init__(
             flow=flow, task_runner_cls=CloudTaskRunner, state_handlers=state_handlers
         )
@@ -84,13 +94,13 @@ class CloudFlowRunner(FlowRunner):
 
     def cancel(self, wait: bool = True) -> List[Any]:
         self.logger.debug("Requested to cancel flow run")
+        self.was_cancelled = True
         if self.executor:
             return self.executor.shutdown(wait=wait)
-        raise RuntimeError("Flow is not running, thus cannot be cancelled")
 
     def _run(
         self,
-        manager,
+        event_loop: "prefect.utilities.threads.ThreadEventLoop",
         executor: "prefect.engine.executors.Executor" = None,
         **kwargs: Any
     ) -> None:
@@ -99,6 +109,8 @@ class CloudFlowRunner(FlowRunner):
                 executor = prefect.engine.get_default_executor_class()()
             self.executor = executor
 
+            # set initial state such that if this task is cancelled, there is at least a state available
+            self.state = Cancelled()
             self.state = super().run(executor=self.executor, **kwargs)
         except ExecutorError:
             if self.executor and self.executor.accepting_work:
@@ -106,16 +118,33 @@ class CloudFlowRunner(FlowRunner):
         except Exception:
             self.logger.exception("Error occured on run")
 
-        self.logger.debug("FlowRunner completed")
+        event_loop.exit()
 
-        manager.emit(event="exit")
+    def determine_final_state(
+        self,
+        state: State,
+        key_states: Set[State],
+        return_states: Dict[Task, State],
+        terminal_states: Set[State],
+    ) -> State:
+        if self.was_cancelled:
+            self.state = Cancelled()
+            self.state.result = return_states
+            return self.state
+
+        return super().determine_final_state(
+            state=state,
+            key_states=key_states,
+            return_states=return_states,
+            terminal_states=terminal_states,
+        )
 
     def run(self, **kwargs: Any) -> State:
-        manager = ThreadEventLoop(logger=self.logger)
+        event_loop = ThreadEventLoop(logger=self.logger)
         flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
 
         if not self.check_valid_initial_state(flow_run_id):
-            raise RuntimeError("Flow run initial state is invalid. It will not be run!")
+            return Cancelled()
 
         # start a state listener thread, pulling states for this flow run id from cloud.
         # Events are reported back to the main thread (here). Why a separate thread?
@@ -126,26 +155,36 @@ class CloudFlowRunner(FlowRunner):
             function=self.stream_flow_run_state_events,
             logger=self.logger,
             flow_run_id=flow_run_id,
-            manager=manager,
+            event_loop=event_loop,
+            name_prefix="Prefect-FlowRunner-state",
         )
-        manager.add_thread(state_thread, state_thread.cancel)
+        event_loop.add_thread(state_thread, state_thread.cancel)
 
-        # note: this creates a cloud flow runner which has a heartbeat
         worker_thread = threading.Thread(
-            target=self._run, kwargs={"manager": manager, **kwargs}
+            target=self._run,
+            kwargs={"event_loop": event_loop, **kwargs},
+            name="Prefect-FlowRunner-worker-{}".format(
+                getattr(self.flow, "name", "unknown")
+            ),
         )
-        manager.add_thread(worker_thread)
 
-        manager.add_event_handler("state", self.on_state_event)
+        # the flow doesn't have any work that should be canceled, we always want to wait for it to complete
+        def shutdown_worker():
+            worker_thread.join()
 
-        manager.run()
+        event_loop.add_thread(worker_thread, shutdown_worker)
+
+        event_loop.add_event_handler("state", self.on_state_event)
+
+        event_loop.run()
         return self.state
 
-    def on_state_event(self, manager, event, payload):
-        self.logger.debug("state event: {} {}".format(event, payload))
+    def on_state_event(self, event_loop, event, payload):
+        self.logger.debug("Flow state event: {} {}".format(event, payload))
+
         if event == "state" and payload == Cancelled:
             self.cancel()
-            manager.emit(event="exit")
+            event_loop.emit(event="exit")
 
     def fetch_current_flow_run_state(self, flow_run_id: str) -> Type[State]:
         query = {
@@ -160,7 +199,9 @@ class CloudFlowRunner(FlowRunner):
         flow_run = self.client.graphql(query).data.flow_run_by_pk
         return State.parse(flow_run.state)
 
-    def stream_flow_run_state_events(self, manager, flow_run_id: str) -> None:
+    def stream_flow_run_state_events(self, event_loop, flow_run_id: str) -> None:
+        self.logger.debug("Poll for flow state")
+
         state = self.fetch_current_flow_run_state(flow_run_id)
 
         # note: currently we are polling the latest known state. In the future when subscriptions are
@@ -169,8 +210,7 @@ class CloudFlowRunner(FlowRunner):
         # it hits the queue here instead of the main thread.
 
         if state == Cancelled:
-            # TODO: better way to get manager queue
-            manager.emit(event="state", payload=state)
+            event_loop.emit(event="state", payload=state)
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
