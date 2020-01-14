@@ -6,8 +6,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- Added the ability to leverage native ECS task definition revisions for flow versions in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
-- Added the ability to pull in kwargs per flow version from S3 on flow submission in Fargate agent. - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Added the ability to leverage native ECS task definition revisions for flow versions in Fargate agent - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Added the ability to pull in kwargs per flow version from S3 on flow submission in Fargate agent - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
 - Add sensible default result handlers to non-Docker storage options - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
 
 ### Enhancements
@@ -46,6 +46,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Daryll Strauss](daryll.strauss@gmail.com)
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.8.1 <Badge text="beta" type="success"/>
 
