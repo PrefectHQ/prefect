@@ -85,7 +85,7 @@ class DaskExecutor(Executor):
 
         ## set a key for the dask scheduler UI
         if context.get("task_full_name"):
-            key = context.get("task_full_name", "") + "-" + str(uuid.uuid4())
+            key = "{}-{}".format(context.get("task_full_name", ""), str(uuid.uuid4()))
             dask_kwargs.update(key=key)
 
         ## infer from context if dask resources are being utilized
