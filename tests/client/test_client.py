@@ -674,7 +674,7 @@ def test_create_agent_handles_error(patch_post):
 
 
 @pytest.mark.parametrize("success", [True, False])
-def test_delete_agent(patch_post):
+def test_delete_agent(patch_post, success):
     # mock the expected response
     response = {"data": {"deleteAgent": {"success": success}}}
     patch_post(response)
