@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Change Cancelled state to indicate Finished instead of Failed - [#1903](https://github.com/PrefectHQ/prefect/pull/1903)
 - All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 - Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+- Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
 
 
 ### Task Library

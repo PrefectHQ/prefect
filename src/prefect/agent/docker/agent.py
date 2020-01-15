@@ -55,6 +55,7 @@ class DockerAgent(Agent):
         self.no_pull = no_pull or context.get("no_pull", False)
         self.logger.debug("no_pull set to {}".format(self.no_pull))
 
+        self.failed_connections = 0
         self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
 
         # Ping Docker daemon for connection issues
@@ -66,6 +67,23 @@ class DockerAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
+
+    def heartbeat(self) -> None:
+        try:
+            if not self.docker_client.ping():
+                raise RuntimeError("Unexpected Docker ping result")
+            if self.failed_connections > 0:
+                self.logger.info("Reconnected to Docker daemon")
+            self.failed_connections = 0
+        except Exception as exc:
+            self.logger.warning("Failed heartbeat: {}".format(repr(exc)))
+            self.failed_connections += 1
+
+        if self.failed_connections >= 3:
+            self.logger.error(
+                "Cannot reconnect to Docker daemon. Agent is shutting down."
+            )
+            self.is_running = False
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
