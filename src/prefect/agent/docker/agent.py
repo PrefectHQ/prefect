@@ -79,7 +79,7 @@ class DockerAgent(Agent):
             self.logger.warning("Failed heartbeat: {}".format(repr(exc)))
             self.failed_connections += 1
 
-        if self.failed_connections >= 3:
+        if self.failed_connections >= 6:
             self.logger.error(
                 "Cannot reconnect to Docker daemon. Agent is shutting down."
             )

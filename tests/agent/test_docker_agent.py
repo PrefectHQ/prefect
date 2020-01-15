@@ -348,11 +348,14 @@ def test_docker_agent_heartbeat_exits_on_failure(monkeypatch, runner_token, capl
     api.ping.return_value = False
     agent.heartbeat()
     agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
     assert agent.is_running
     agent.heartbeat()
     assert not agent.is_running
     assert "Cannot reconnect to Docker daemon. Agent is shutting down." in caplog.text
-    assert api.ping.call_count == 4
+    assert api.ping.call_count == 7
 
 
 def test_docker_agent_heartbeat_logs_reconnect(monkeypatch, runner_token, caplog):
