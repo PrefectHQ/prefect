@@ -161,7 +161,7 @@ class Agent:
         )
         return agent_id
 
-    def deregister_agent(self) -> str:
+    def deregister_agent(self) -> None:
         """
         Removes information about the agent in Prefect Cloud.
 
