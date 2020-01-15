@@ -1187,3 +1187,47 @@ class Client:
 
         if not result.data.writeRunLogs.success:
             raise ValueError("Writing logs failed.")
+
+    def create_agent(self, name: str, type: str, labels: List[str] = None) -> str:
+        """
+        Persists information about an agent in Prefect Cloud.
+        
+        Args:
+            - name (str): the agent's name; if not provided, it will be auto-generated
+            - type (str): the type of agent (local, k8s, etc.)
+            - labels (List[str], optional): the agent's labels
+
+        Raises:
+            - ValueError: if persisting the agent in Cloud fails
+        """
+        mutation = {
+            "mutation($input: createAgentInput!)": {
+                "createAgent(input: $input)": {"id"}
+            }
+        }
+        result = self.graphql(
+            mutation, variables=dict(input=dict(name=name, type=type, labels=labels))
+        )
+        if not result.data.createAgent.id:
+            raise ValueError("Failed to persist agent in Prefect Cloud.")
+
+        return result.data.createAgent.id
+
+    def delete_agent(self, id: str) -> bool:
+        """
+        Removes persisted information about the agent from Prefect Cloud.
+        
+        Args:
+            - id (str): the agent's ID in Prefect Cloud
+
+        """
+        mutation = {
+            "mutation($input: deleteAgentInput!)": {
+                "deleteAgent(input: $input)": {"id"}
+            }
+        }
+        result = self.graphql(mutation, variables=dict(input=dict(agentId=id)))
+        if result.data.deleteAgent.success is None:
+            raise ValueError("Failed to deregister agent in Prefect Cloud.")
+
+        return result.data.deleteAgent.success

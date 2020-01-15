@@ -81,6 +81,7 @@ class Agent:
 
         self.client = Client(api_token=token)
         self._verify_token(token)
+        self.agent_id = self.register_agent()
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -140,6 +141,34 @@ class Agent:
                     )
                 )
                 time.sleep(loop_intervals[index])
+
+    def register_agent(self) -> str:
+        """
+        Persists information about the agent in Prefect Cloud.
+
+        Returns:
+            - str: the ID used to identify the agent in Prefect Cloud
+        """
+        self.logger.info("Attempting to register agent with Cloud...")
+        agent_id = self.client.create_agent(
+            name=self.name, type=type(self).__name__, labels=self.labels
+        )
+        self.logger.info(
+            "Successfully registered agent {} with labels {} in Cloud!".format(
+                self.name, self.labels
+            )
+        )
+        return agent_id
+
+    def deregister_agent(self) -> str:
+        """
+        Removes information about the agent in Prefect Cloud.
+
+        """
+        self.logger.info("Removing agent information from Prefect Cloud...")
+        result = self.client.delete_agent(id=self.agent_id)
+        success = "Successfully" if result is True else "Unable to"
+        self.logger.info("{} deregistered agent from Prefect Cloud.".format(success))
 
     def agent_connect(self) -> str:
         """
@@ -254,6 +283,7 @@ class Agent:
                     "labels": list(self.labels),
                 }
             },
+            headers={"x-prefect-agent-id": self.agent_id},
         )
         flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
         self.logger.debug("Found flow runs {}".format(flow_run_ids))

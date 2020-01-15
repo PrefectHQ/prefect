@@ -645,3 +645,58 @@ def test_set_task_run_state_with_error(patch_post):
 
     with pytest.raises(ClientError, match="something went wrong"):
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
+
+
+def test_create_agent(patch_post):
+    # mock the expected response
+    response = {"data": {"createAgent": {"id": 42}}}
+    patch_post(response)
+    # create the client
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    result = client.create_agent(name="007", type="TestAgent", labels=["foo", "bar"])
+    assert result == 42
+
+
+def test_create_agent_handles_error(patch_post):
+    # mock the expected response
+    response = {"data": {"createAgent": {"id": None}}}
+    patch_post(response)
+    # create the client
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    with pytest.raises(ValueError, match="Failed to persist agent in Prefect Cloud."):
+        client.create_agent(name="007", type="TestAgent", labels=["foo", "bar"])
+
+
+@pytest.mark.parametrize("success", [True, False])
+def test_delete_agent(patch_post):
+    # mock the expected response
+    response = {"data": {"deleteAgent": {"success": success}}}
+    patch_post(response)
+    # create the client
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    result = client.delete_agent(id="007")
+    assert result is success
+
+
+def test_delete_agent_handles_error(patch_post):
+    # mock the expected response
+    response = {"data": {"deleteAgent": {"success": None}}}
+    patch_post(response)
+    # create the client
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    with pytest.raises(
+        ValueError, match="Failed to deregister agent in Prefect Cloud."
+    ):
+        client.delete_agent(id="007")
