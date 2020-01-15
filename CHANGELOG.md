@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/issues/1921)
 
 ### Task Library
 
@@ -53,7 +53,6 @@ Released on Jan 15, 2020.
 - Change Cancelled state to indicate Finished instead of Failed - [#1903](https://github.com/PrefectHQ/prefect/pull/1903)
 - All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 - Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
-
 
 ### Task Library
 
