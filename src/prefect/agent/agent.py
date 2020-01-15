@@ -30,6 +30,7 @@ def _exit(agent: "Agent") -> Callable:
     def _exit_handler(*args: Any, **kwargs: Any) -> None:
         agent.is_running = False
         agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
+        agent.deregister_agent()
 
     return _exit_handler
 
@@ -81,10 +82,9 @@ class Agent:
 
         self.client = Client(api_token=token)
         self._verify_token(token)
-        self.agent_id = self.register_agent()
-
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
+
         if not any([isinstance(h, logging.StreamHandler) for h in logger.handlers]):
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(context.config.logging.format)
@@ -93,6 +93,7 @@ class Agent:
             logger.addHandler(ch)
 
         self.logger = logger
+        self.agent_id = self.register_agent()
 
     def _verify_token(self, token: str) -> None:
         """
