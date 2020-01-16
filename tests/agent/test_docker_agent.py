@@ -322,3 +322,73 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
     assert not api.pull.called
     assert api.create_container.called
     assert api.start.called
+
+
+def test_docker_agent_heartbeat_gocase(monkeypatch, runner_token):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    agent.heartbeat()
+    assert api.ping.call_count == 2
+
+
+def test_docker_agent_heartbeat_exits_on_failure(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    agent.is_running = True  # this is only set on start()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    assert agent.is_running
+    agent.heartbeat()
+    assert not agent.is_running
+    assert "Cannot reconnect to Docker daemon. Agent is shutting down." in caplog.text
+    assert api.ping.call_count == 7
+
+
+def test_docker_agent_heartbeat_logs_reconnect(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    agent.is_running = True  # this is only set on start()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    api.ping.return_value = True
+    agent.heartbeat()
+    assert api.ping.call_count == 4
+    assert "Reconnected to Docker daemon" in caplog.text
+
+
+def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    assert agent.failed_connections == 2
+    api.ping.return_value = True
+    agent.heartbeat()
+    assert agent.failed_connections == 0
+    assert api.ping.call_count == 4
