@@ -24,6 +24,8 @@ Ultimately, data will be persisted _anytime a task's result handler is called_. 
 - **Task Checkpointing**: any task requesting to be "checkpointed" will have its result handler called _only on its own output_
 - **Parameters**: all parameters are JSON-serialized and sent directly to Prefect Cloud
 
+As of Prefect version `0.9.0` all flows registered with Prefect Cloud that have a storage option other than `Docker` will automatically have a result handler attached to the flow. This is to ensure some of Prefect Cloud's added functionality, such as restarting from a failed task, work as expected.
+
 ## Where does all of this take place?
 
 All task execution, including the invocation of result handlers takes place on _user infrastructure_. Absolutely no user code is executed on Prefect Cloud infrastructure.

@@ -3,6 +3,7 @@ import logging
 import signal
 import sys
 import time
+import threading
 from contextlib import contextmanager
 from typing import Any, Callable, Generator, Iterable, Union
 
@@ -26,20 +27,20 @@ ascii_name = r"""
 """
 
 
-def _exit(agent: "Agent") -> Callable:
-    def _exit_handler(*args: Any, **kwargs: Any) -> None:
-        agent.is_running = False
-        agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
-
-    return _exit_handler
-
-
 @contextmanager
-def keyboard_handler(agent: "Agent") -> Generator:
+def exit_handler(agent: "Agent") -> Generator:
+    exit_event = threading.Event()
+
+    def _exit_handler(*args: Any, **kwargs: Any) -> None:
+        agent.logger.info("Keyboard Interrupt received: Agent is shutting down.")
+        exit_event.set()
+
     original = signal.getsignal(signal.SIGINT)
     try:
-        signal.signal(signal.SIGINT, _exit(agent))
-        yield
+        signal.signal(signal.SIGINT, _exit_handler)
+        yield exit_event
+    except SystemExit:
+        pass
     finally:
         signal.signal(signal.SIGINT, original)
 
@@ -117,15 +118,14 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
-        with keyboard_handler(self):
-            self.is_running = True
+        with exit_handler(self) as exit_event:
             tenant_id = self.agent_connect()
 
             # Loop intervals for query sleep backoff
             loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
 
             index = 0
-            while self.is_running:
+            while not exit_event.wait(timeout=loop_intervals[index]):
                 self.heartbeat()
 
                 runs = self.agent_process(tenant_id)
@@ -139,7 +139,6 @@ class Agent:
                         loop_intervals[index]
                     )
                 )
-                time.sleep(loop_intervals[index])
 
     def agent_connect(self) -> str:
         """

@@ -1,41 +1,12 @@
+---
+sidebarDepth: 1
+editLink: false
+---
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
-
-### Features
-
-- None
-
-### Enhancements
-
-- Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
-- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/issues/1921)
-
-### Task Library
-
-- None
-
-### Fixes
-
-- None
-
-### Deprecations
-
-- None
-
-### Breaking Changes
-
-- None
-
-### Contributors
-
-- None
-
-## 0.9.0 <Badge text="beta" type="success"/>
-
-Released on Jan 15, 2020.
 
 ### Features
 
@@ -54,6 +25,7 @@ Released on Jan 15, 2020.
 - Change Cancelled state to indicate Finished instead of Failed - [#1903](https://github.com/PrefectHQ/prefect/pull/1903)
 - All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
 - Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+
 
 ### Task Library
 
@@ -1203,3 +1175,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on January 15, 2020 at 16:03 UTC</p>
