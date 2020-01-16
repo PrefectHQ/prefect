@@ -39,6 +39,8 @@ def exit_handler(agent: "Agent") -> Generator:
     try:
         signal.signal(signal.SIGINT, _exit_handler)
         yield exit_event
+    except SystemExit:
+        pass
     finally:
         signal.signal(signal.SIGINT, original)
 

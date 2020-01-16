@@ -83,7 +83,7 @@ class DockerAgent(Agent):
             self.logger.error(
                 "Cannot reconnect to Docker daemon. Agent is shutting down."
             )
-            self.is_running = False
+            raise SystemExit()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
