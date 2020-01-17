@@ -1,13 +1,14 @@
 import os
 import ast
+import functools
 import logging
 import signal
 import sys
 import time
 import threading
 from contextlib import contextmanager
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Generator, Iterable, Union
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Any, Generator, Iterable, Union, Set
 
 import pendulum
 
@@ -95,6 +96,7 @@ class Agent:
             logger.addHandler(ch)
 
         self.logger = logger
+        self.submitting_flow_runs = set()  # type: Set[str]
 
     def _verify_token(self, token: str) -> None:
         """
@@ -207,6 +209,21 @@ class Agent:
             )
             self.mark_failed(flow_run=flow_run, exc=exc)
 
+    def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
+        """
+        Indicates that a flow run deployment has been deployed (sucessfully or otherwise).
+        This is intended to be a future callback hook, called in the agent's main thread
+        when the background thread has completed the deploy_and_update_flow_run() call, either
+        successfully, in error, or cancelled. In all cases the agent should be open to 
+        attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
+
+        Args:
+            - fut (Future): a callback requirement, the future which has completed or been cancelled.
+            - flow_run_id (str): the id of the flow run that the future represents.
+        """
+        self.submitting_flow_runs.remove(flow_run_id)
+        self.logger.debug("Completed flow run submission (id: {})".format(flow_run_id))
+
     def agent_process(self, executor: "ThreadPoolExecutor", tenant_id: str) -> bool:
         """
         Full process for finding flow runs, updating states, and deploying.
@@ -229,7 +246,13 @@ class Agent:
                 )
 
             for flow_run in flow_runs:
-                executor.submit(self.deploy_and_update_flow_run, flow_run)
+                fut = executor.submit(self.deploy_and_update_flow_run, flow_run)
+                self.submitting_flow_runs.add(flow_run.id)
+                fut.add_done_callback(
+                    functools.partial(
+                        self.on_flow_run_deploy_attempt, flow_run_id=flow_run.id
+                    )
+                )
 
         except Exception as exc:
             self.logger.error(exc)
@@ -281,8 +304,25 @@ class Agent:
                 }
             },
         )
-        flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
-        self.logger.debug("Found flow runs {}".format(flow_run_ids))
+
+        # we queried all of the available flow runs, however, some may have alreay been pulled
+        # by this agent and are in the process of being submitted in the background. We do not
+        # want to act on these "duplicate" flow runs until we've been assured that the background
+        # thread has attempted to submit the work (successful or otherwise).
+
+        flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
+
+        if flow_run_ids:
+            msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
+        else:
+            msg = "No flow runs found"
+        already_submitting = flow_run_ids & self.submitting_flow_runs
+        if already_submitting:
+            msg += " ({} already submitting)".format(len(already_submitting))
+
+        self.logger.debug(msg)
+
+        target_flow_run_ids = flow_run_ids - self.submitting_flow_runs
 
         # Query metadata fow flow runs found in queue
         query = {
@@ -292,7 +332,7 @@ class Agent:
                     {
                         # match flow runs in the flow_run_ids list
                         "where": {
-                            "id": {"_in": flow_run_ids},
+                            "id": {"_in": sorted(list(target_flow_run_ids))},
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},

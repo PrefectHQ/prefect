@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import pendulum
 
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled
@@ -156,6 +157,46 @@ def test_query_flow_runs(monkeypatch, runner_token):
     assert flow_runs == [{"id": "id"}]
 
 
+def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                getRunsInQueue=MagicMock(flow_run_ids=["id1", "id2"]),
+                flow_run=[{"id1": "id1"}],
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+    now = pendulum.datetime(2020, 1, 17, 17, 13, 11, 124632, tz="UTC")
+    monkeypatch.setattr("pendulum.now", MagicMock(return_value=now))
+
+    agent = Agent()
+    agent.submitting_flow_runs.add("id2")
+    agent.query_flow_runs(tenant_id="id")
+
+    start_time = str(now.subtract(seconds=3))
+    gql_return.assert_called_with(
+        {
+            "query": {
+                'flow_run(where: { id: { _in: ["id1"] }, _or: [{ state: { _eq: "Scheduled" } }, { state: { _eq: "Running" }, task_runs: { state_start_time: { _lte: "%s" } } }] })'
+                % start_time: {
+                    "id": True,
+                    "version": True,
+                    "tenant_id": True,
+                    "state": True,
+                    "serialized_state": True,
+                    "parameters": True,
+                    "flow": {"id", "storage", "environment", "name", "version"},
+                    'task_runs(where: { state_start_time: { _lte: "%s" } })'
+                    % start_time: {"version", "task_id", "id", "serialized_state",},
+                }
+            }
+        }
+    )
+
+
 def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -276,6 +317,13 @@ def test_agent_connect_no_tenant_id(monkeypatch, runner_token):
         assert agent.agent_connect()
 
 
+def test_on_flow_run_deploy_attempt_removes_id(monkeypatch, runner_token):
+    agent = Agent()
+    agent.submitting_flow_runs.add("id")
+    agent.on_flow_run_deploy_attempt(None, "id")
+    assert len(agent.submitting_flow_runs) == 0
+
+
 def test_agent_process(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -309,10 +357,13 @@ def test_agent_process(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     executor = MagicMock()
+    future_mock = MagicMock()
+    executor.submit = MagicMock(return_value=future_mock)
 
     agent = Agent()
     assert agent.agent_process(executor, "id")
     assert executor.submit.called
+    assert future_mock.add_done_callback.called
 
 
 def test_agent_process_no_runs_found(monkeypatch, runner_token):
