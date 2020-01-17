@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-import pendulum
 
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled
@@ -169,31 +168,15 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_t
     client = MagicMock()
     client.return_value.graphql = gql_return
     monkeypatch.setattr("prefect.agent.agent.Client", client)
-    now = pendulum.datetime(2020, 1, 17, 17, 13, 11, 124632, tz="UTC")
-    monkeypatch.setattr("pendulum.now", MagicMock(return_value=now))
 
     agent = Agent()
     agent.submitting_flow_runs.add("id2")
     agent.query_flow_runs(tenant_id="id")
 
-    start_time = str(now.subtract(seconds=3))
-    gql_return.assert_called_with(
-        {
-            "query": {
-                'flow_run(where: { id: { _in: ["id1"] }, _or: [{ state: { _eq: "Scheduled" } }, { state: { _eq: "Running" }, task_runs: { state_start_time: { _lte: "%s" } } }] })'
-                % start_time: {
-                    "id": True,
-                    "version": True,
-                    "tenant_id": True,
-                    "state": True,
-                    "serialized_state": True,
-                    "parameters": True,
-                    "flow": {"id", "storage", "environment", "name", "version"},
-                    'task_runs(where: { state_start_time: { _lte: "%s" } })'
-                    % start_time: {"version", "task_id", "id", "serialized_state",},
-                }
-            }
-        }
+    assert len(gql_return.call_args_list) == 2
+    assert (
+        'id: { _in: ["id1"] }'
+        in list(gql_return.call_args_list[1][0][0]["query"].keys())[0]
     )
 
 

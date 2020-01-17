@@ -333,7 +333,7 @@ class Agent:
                     {
                         # match flow runs in the flow_run_ids list
                         "where": {
-                            "id": {"_in": sorted(list(target_flow_run_ids))},
+                            "id": {"_in": list(target_flow_run_ids)},
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},
