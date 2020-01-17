@@ -258,15 +258,26 @@ class FargateAgent(Agent):
             "enableECSManagedTags",
             "propagateTags",
         ]
+
         task_definition_kwargs = {}
         for key, item in user_kwargs.items():
             if key in definition_kwarg_list:
+                try:
+                    # Parse kwarg if needed
+                    item = literal_eval(item)
+                except ValueError:
+                    pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
 
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
             if key in run_kwarg_list:
+                try:
+                    # Parse kwarg if needed
+                    item = literal_eval(item)
+                except ValueError:
+                    pass
                 task_run_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
 
@@ -513,6 +524,7 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
+
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
