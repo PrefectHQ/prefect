@@ -261,13 +261,13 @@ class FargateAgent(Agent):
         task_definition_kwargs = {}
         for key, item in user_kwargs.items():
             if key in definition_kwarg_list:
-                task_definition_kwargs.update({key: item})
+                task_definition_kwargs.update({key: literal_eval(item)})
                 self.logger.debug("{} = {}".format(key, item))
 
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
             if key in run_kwarg_list:
-                task_run_kwargs.update({key: item})
+                task_run_kwargs.update({key: literal_eval(item)})
                 self.logger.debug("{} = {}".format(key, item))
 
         # Check environment if keys were not provided
@@ -513,6 +513,10 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
+
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(flow_task_run_kwargs)
+
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
