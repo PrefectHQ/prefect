@@ -229,6 +229,7 @@ class Agent:
         Full process for finding flow runs, updating states, and deploying.
 
         Args:
+            - executor (ThreadPoolExecutor): the interface to submit flow deployments in background threads
             - tenant_id (str): The tenant id to use in the query
 
         Returns:
