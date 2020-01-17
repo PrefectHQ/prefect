@@ -12,7 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
 - More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/pull/1921)
-- Background all agent flow deployment attempts - [#1925](https://github.com/PrefectHQ/prefect/pull/1925)
+- Background all agent flow deployment attempts - [#1928](https://github.com/PrefectHQ/prefect/pull/1928)
 
 ### Task Library
 
@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix the Fargate Agent not parsing kwargs as literals - [#1926](https://github.com/PrefectHQ/prefect/pull/1926)
 
 ### Deprecations
 
