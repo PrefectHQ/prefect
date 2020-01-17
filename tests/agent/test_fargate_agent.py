@@ -704,8 +704,8 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
         "requiresCompatibilities"
     ] == ["FARGATE"]
     assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
-    assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
-    assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
+    assert boto3_client.register_task_definition.call_args[1]["cpu"] == 1
+    assert boto3_client.register_task_definition.call_args[1]["memory"] == 2
 
 
 @pytest.mark.parametrize("flag", [True, False])
@@ -812,8 +812,8 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         "requiresCompatibilities"
     ] == ["FARGATE"]
     assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
-    assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
-    assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
+    assert boto3_client.register_task_definition.call_args[1]["cpu"] == 1
+    assert boto3_client.register_task_definition.call_args[1]["memory"] == 2
 
 
 def test_deploy_flow_register_task_definition_no_repo_credentials(
@@ -1108,7 +1108,7 @@ def test_override_kwargs(monkeypatch, runner_token):
 
     assert boto3_resource.called
     assert streaming_body.read().decode.called
-    assert definition_kwargs == {"cpu": "256"}
+    assert definition_kwargs == {"cpu": 256}
     assert run_kwargs == {"networkConfiguration": "test"}
 
 
@@ -1292,7 +1292,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "essential": True,
             }
         ],
-        cpu="256",
+        cpu=256,
         family="name",
         networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
