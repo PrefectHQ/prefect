@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
 - More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/issues/1921)
+- Add show_flow_logs to Docker agent [#1929](https://github.com/PrefectHQ/prefect/issues/1929)
 
 ### Task Library
 
