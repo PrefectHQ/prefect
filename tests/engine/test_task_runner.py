@@ -1097,7 +1097,7 @@ class TestCheckTaskCached:
             task_name="Task",
             task_tags=set(),
             task_slug=task.slug,
-            checkpointing=False,
+            checkpointing=True,
         )
         for key, val in expected_subset.items():
             assert ctxt[key] == val
@@ -1313,7 +1313,7 @@ class TestRunTaskStep:
     def test_success_state_is_checkpointed_if_result_handler_present(self):
         handler = JSONResultHandler()
 
-        @prefect.task(checkpoint=False, result_handler=handler)
+        @prefect.task(checkpoint=True, result_handler=handler)
         def fn():
             return 1
 
@@ -1331,6 +1331,31 @@ class TestRunTaskStep:
             )
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("1", result_handler=handler)
+
+    def test_success_state_is_not_checkpointed_if_result_handler_present_and_opted_out(
+        self,
+    ):
+        handler = JSONResultHandler()
+
+        @prefect.task(checkpoint=False, result_handler=handler)
+        def fn():
+            return 1
+
+        ## checkpointing allows users to toggle behavior for local testing
+        with prefect.context(checkpointing=False):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == NoResult
+
+        # We should expect that globally enabling checkpointing does not override the task checkout option (if set)
+        with prefect.context(checkpointing=True):
+            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+                state=Running(), inputs={}, timeout_handler=None
+            )
+        assert new_state.is_successful()
+        assert new_state._result.safe_value == NoResult
 
     def test_success_state_for_parameter(self):
         handler = JSONResultHandler()
@@ -1360,6 +1385,24 @@ class TestRunTaskStep:
             )
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
+
+    def test_success_state_with_bad_handler_and_checkpointing_disabled(self):
+        class BadHandler(ResultHandler):
+            def read(self, val):
+                pass
+
+            def write(self, val):
+                raise SyntaxError("Oh boy")
+
+        @prefect.task(checkpoint=False, result_handler=BadHandler())
+        def fn(x):
+            return x + 1
+
+        with prefect.context(checkpointing=True):
+            new_state = TaskRunner(task=fn).get_task_run_state(
+                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+            )
+        assert new_state.is_successful()
 
 
 class TestCheckRetryStep:

@@ -52,7 +52,7 @@ eager_edge_validation = false
 # If false, only a single execution will occur (no retries, etc.)
 run_on_schedule = true
 # If true, tasks which set `checkpoint=True` will have their result handlers called
-checkpointing = false
+checkpointing = true
 
     [flows.defaults]
         [flows.defaults.storage]
@@ -65,7 +65,7 @@ checkpointing = false
     [tasks.defaults]
 
     # whether all tasks should checkpoint their outputs
-    checkpoint = false
+    checkpoint = true
 
     # the number of times tasks retry before they fail.
     # false indicates that tasks should never retry (equivalent to max_retries = 0)
