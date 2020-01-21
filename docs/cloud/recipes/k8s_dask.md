@@ -31,10 +31,10 @@ spec:
           args:
             - dask-scheduler
             - --port
-            - '8786'
+            - "8786"
           env:
             - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
-              value: 'False'
+              value: "False"
           ports:
             - containerPort: 8786
           resources: {}
@@ -67,16 +67,16 @@ spec:
               dask-scheduler:8786,
               --no-bokeh,
               --nthreads,
-              '1',
+              "1",
               --nprocs,
-              '2',
+              "2",
             ]
           name: dask-worker
           env:
             - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
               value: "['feed', 'run_function']"
             - name: DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING
-              value: 'False'
+              value: "False"
           resources: {}
 ```
 
