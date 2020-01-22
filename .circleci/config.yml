@@ -359,7 +359,7 @@ jobs:
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
-              -t prefecthq/prefect:master
+              -t prefecthq/prefect:master \
               .
       - run:
           name: Test image
