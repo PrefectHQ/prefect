@@ -6,7 +6,7 @@
 
 The Fargate Task Environment runs a Flow on a completely custom [Fargate Task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html). This Environment is intended for use in cases where you want complete control over the Fargate Task your Flow runs on.
 
-_For more information on the Fargate Task Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#fargatetaskenvironment)._
+_For more information on the Fargate Task Environment visit the relevant [API documentation](/api/latest/environments/execution.html#fargatetaskenvironment)._
 
 ## Process
 
