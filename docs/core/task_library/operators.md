@@ -18,101 +18,101 @@ Task()['x'] # applies GetItem
 
 Helper task that retrieves a specific index of an upstream task's result.
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-getitem)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-getitem)
 
 
 ## Add <Badge text="task"/>
 
 Evaluates `x + y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-add)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-add)
 
 ## Sub <Badge text="task"/>
 
 Evaluates `x - y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-sub)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-sub)
 
 ## Mul <Badge text="task"/>
 
 Evaluates `x * y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-mul)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-mul)
 
 ## Div <Badge text="task"/>
 
 Evaluates `x / y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-div)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-div)
 
 ## FloorDiv <Badge text="task"/>
 
 Evaluates `x // y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-floordiv)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-floordiv)
 
 ## Pow <Badge text="task"/>
 
 Evaluates `x ** y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-pow)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-pow)
 
 ## Mod <Badge text="task"/>
 
 Evaluates `x % y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-mod)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-mod)
 
 ## And <Badge text="task"/>
 
 Evaluates `x and y.`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-and)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-and)
 
 ## Or <Badge text="task"/>
 
 Evaluates `x or y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-or)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-or)
 
 ## Not <Badge text="task"/>
 
 Evaluates `not x`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-not)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-not)
 
 ## Equal <Badge text="task"/>
 
 Evaluates `x == y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-equal)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-equal)
 
 ## NotEqual <Badge text="task"/>
 
 Evaluates `x != y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-notequal)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-notequal)
 
 ## GreaterThanOrEqual <Badge text="task"/>
 
 Evaluates `x ≥ y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-greaterthanorequal)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-greaterthanorequal)
 
 ## GreaterThan <Badge text="task"/>
 
 Evaluates `x > y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-greaterthan)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-greaterthan)
 
 ## LessThanOrEqual <Badge text="task"/>
 
 Evaluates `x ≤ y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-lessthanorequal)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-lessthanorequal)
 
 ## LessThan <Badge text="task"/>
 
 Evaluates `x < y`
 
-[API Reference](/api/unreleased/tasks/operators.html#prefect-tasks-core-operators-lessthan)
+[API Reference](/api/latest/tasks/operators.html#prefect-tasks-core-operators-lessthan)
