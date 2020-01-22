@@ -131,7 +131,7 @@ class Agent:
             index = 0
 
             # the max workers default has changed in 3.5 and 3.8. For stable results the
-            # default 3.8 beahvior is elected here.
+            # default 3.8 behavior is elected here.
             max_workers = min(32, (os.cpu_count() or 1) + 4)
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -306,7 +306,7 @@ class Agent:
             },
         )
 
-        # we queried all of the available flow runs, however, some may have alreay been pulled
+        # we queried all of the available flow runs, however, some may have already been pulled
         # by this agent and are in the process of being submitted in the background. We do not
         # want to act on these "duplicate" flow runs until we've been assured that the background
         # thread has attempted to submit the work (successful or otherwise).
