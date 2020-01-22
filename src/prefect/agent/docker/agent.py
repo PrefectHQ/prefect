@@ -1,5 +1,6 @@
 from sys import platform
-from typing import Iterable
+from typing import Iterable, List
+import multiprocessing
 
 import docker
 
@@ -27,6 +28,8 @@ class DockerAgent(Agent):
             `tcp://0.0.0.0:2375` can be provided
         - no_pull (bool, optional): Flag on whether or not to pull flow images.
             Defaults to `False` if not provided here or in context.
+        - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+            to stdout; defaults to `False`
     """
 
     def __init__(
@@ -36,6 +39,7 @@ class DockerAgent(Agent):
         env_vars: dict = None,
         base_url: str = None,
         no_pull: bool = None,
+        show_flow_logs: bool = False,
     ) -> None:
         super().__init__(name=name, labels=labels, env_vars=env_vars)
 
@@ -57,6 +61,8 @@ class DockerAgent(Agent):
 
         self.failed_connections = 0
         self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
+        self.show_flow_logs = show_flow_logs
+        self.processes = []  # type: List[multiprocessing.Process]
 
         # Ping Docker daemon for connection issues
         try:
@@ -84,6 +90,15 @@ class DockerAgent(Agent):
                 "Cannot reconnect to Docker daemon. Agent is shutting down."
             )
             raise SystemExit()
+
+    def on_shutdown(self) -> None:
+        """
+        Cleanup any child processes created for streaming logs. This is to prevent
+        logs from displaying on the terminal after the agent exits.
+        """
+        for proc in self.processes:
+            if proc.is_alive():
+                proc.terminate()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -133,9 +148,24 @@ class DockerAgent(Agent):
         )
         self.docker_client.start(container=container.get("Id"))
 
+        if self.show_flow_logs:
+            proc = multiprocessing.Process(
+                target=self.stream_container_logs,
+                kwargs={"container_id": container.get("Id")},
+            )
+
+            proc.start()
+            self.processes.append(proc)
+
         self.logger.debug("Docker container {} started".format(container.get("Id")))
 
         return "Container ID: {}".format(container.get("Id"))
+
+    def stream_container_logs(self, container_id: str) -> None:
+        for log in self.docker_client.logs(
+            container=container_id, stream=True, follow=True
+        ):
+            print(str(log, "utf-8").rstrip())
 
     def populate_env_vars(self, flow_run: GraphQLResult) -> dict:
         """
