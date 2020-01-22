@@ -334,6 +334,9 @@ jobs:
   build_master_docker_image:
     docker:
       - image: docker
+    parameters:
+      python_version:
+        type: string
     environment:
       PYTHON_VERSION: << parameters.python_version >>
     steps:
