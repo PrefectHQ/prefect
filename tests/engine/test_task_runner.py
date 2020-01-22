@@ -1097,7 +1097,7 @@ class TestCheckTaskCached:
             task_name="Task",
             task_tags=set(),
             task_slug=task.slug,
-            checkpointing=True,
+            checkpointing=False,
         )
         for key, val in expected_subset.items():
             assert ctxt[key] == val
