@@ -8,4 +8,4 @@ The default Twitter credential secret name is `"TWITTER_API_CREDENTIALS"`, and s
 
 A task that retrieves replies to a tweet.
 
-[API Reference](/api/unreleased/tasks/twitter.html#prefect-tasks-twitter-twitter-LoadTweetReplies)
+[API Reference](/api/latest/tasks/twitter.html#prefect-tasks-twitter-twitter-LoadTweetReplies)

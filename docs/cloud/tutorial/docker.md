@@ -8,7 +8,7 @@ In order to use the Docker features make sure you have Docker currently running 
 
 ## Persisting Your Flow with Docker Storage
 
-The default Storage object for Flows is [Local Storage](/api/unreleased/environments/storage.html#local) but it is easy to switch to other options such as [Docker Storage](/api/unreleased/environments/storage.html#docker).
+The default Storage object for Flows is [Local Storage](/api/latest/environments/storage.html#local) but it is easy to switch to other options such as [Docker Storage](/api/latest/environments/storage.html#docker).
 
 ```python
 import prefect

@@ -9,4 +9,4 @@ a valid Dropbox access token.
 
 Task template for downloading a file from Dropbox as a string.
 
-[API Reference](/api/unreleased/tasks/dropbox.html#prefect-tasks-dropbox-dropbox-dropboxdownload)
+[API Reference](/api/latest/tasks/dropbox.html#prefect-tasks-dropbox-dropbox-dropboxdownload)
