@@ -137,27 +137,27 @@ class Agent:
                     6: 10.0,
                 }
 
-              index = 0
+                index = 0
 
-              # the max workers default has changed in 3.5 and 3.8. For stable results the
-              # default 3.8 behavior is elected here.
-              max_workers = min(32, (os.cpu_count() or 1) + 4)
+                # the max workers default has changed in 3.5 and 3.8. For stable results the
+                # default 3.8 behavior is elected here.
+                max_workers = min(32, (os.cpu_count() or 1) + 4)
 
-              with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                  self.logger.debug("Max Workers: {}".format(max_workers))
-                  while not exit_event.wait(timeout=loop_intervals[index]):
-                      self.heartbeat()
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    self.logger.debug("Max Workers: {}".format(max_workers))
+                    while not exit_event.wait(timeout=loop_intervals[index]):
+                        self.heartbeat()
 
-                      if self.agent_process(executor, tenant_id):
-                          index = 0
-                      elif index < max(loop_intervals.keys()):
-                          index += 1
+                        if self.agent_process(executor, tenant_id):
+                            index = 0
+                        elif index < max(loop_intervals.keys()):
+                            index += 1
 
-                    self.logger.debug(
-                        "Next query for flow runs in {} seconds".format(
-                            loop_intervals[index]
+                        self.logger.debug(
+                            "Next query for flow runs in {} seconds".format(
+                                loop_intervals[index]
+                            )
                         )
-                    )
         finally:
             self.on_shutdown()
 
