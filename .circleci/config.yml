@@ -364,7 +364,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:master /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
           name: Push master tag
           command: |
