@@ -32,7 +32,7 @@ class HTTPGetTask(Task):
 
 All `Task` subclasses must have a `run()` method.
 
-Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/unreleased/core/task.html).
+Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/latest/core/task.html).
 
 ::: tip How big should a task be?
 People often wonder how much code to put in each task.
@@ -246,7 +246,7 @@ flow.get_tasks(tags=['red'])
 
 ## State handlers
 
-State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/unreleased/utilities/notifications.html#functions)!
+State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/latest/utilities/notifications.html#functions)!
 
 State handlers must have the following signature:
 

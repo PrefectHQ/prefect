@@ -1,10 +1,5 @@
-const sidebar70 = require('../api/0.7.0/sidebar')
-const sidebar71 = require('../api/0.7.1/sidebar')
-const sidebar72 = require('../api/0.7.2/sidebar')
 const sidebar73 = require('../api/0.7.3/sidebar')
-const sidebar80 = require('../api/0.8.0/sidebar')
 const sidebar81 = require('../api/0.8.1/sidebar')
-const sidebar90 = require('../api/0.9.0/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -77,28 +72,18 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Unreleased', link: '/api/unreleased/' },
-          { text: '0.9.0', link: '/api/0.9.0/' },
+          { text: 'Latest (0.9.0)', link: '/api/latest/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
-          { text: '0.8.0', link: '/api/0.8.0/' },
           { text: '0.7.3', link: '/api/0.7.3/' },
-          { text: '0.7.2', link: '/api/0.7.2/' },
-          { text: '0.7.1', link: '/api/0.7.1/' },
-          { text: '0.7.0', link: '/api/0.7.0/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io'},
         ]
       }
     ],
     sidebar: {
-      '/api/0.7.0/': sidebar70.sidebar,
-      '/api/0.7.1/': sidebar71.sidebar,
-      '/api/0.7.2/': sidebar72.sidebar,
       '/api/0.7.3/': sidebar73.sidebar,
-      '/api/0.8.0/': sidebar80.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
-      '/api/0.9.0/': sidebar90.sidebar,
-      '/api/unreleased/': [
-        { title: 'API Reference', path: '/api/unreleased/' },
+      '/api/latest/': [
+        { title: 'API Reference', path: '/api/latest/' },
         'changelog',
         {
           title: 'Test Coverage',
@@ -112,42 +97,42 @@ module.exports = {
         {
           title: 'prefect.client',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'client')
+          children: getChildren('docs/api/latest', 'client')
         },
         {
           title: 'prefect.core',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'core')
+          children: getChildren('docs/api/latest', 'core')
         },
         {
           title: 'prefect.engine',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'engine')
+          children: getChildren('docs/api/latest', 'engine')
         },
         {
           title: 'prefect.environments',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'environments')
+          children: getChildren('docs/api/latest', 'environments')
         },
         {
           title: 'prefect.tasks',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'tasks')
+          children: getChildren('docs/api/latest', 'tasks')
         },
         {
           title: 'prefect.schedules',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'schedules')
+          children: getChildren('docs/api/latest', 'schedules')
         },
         {
           title: 'prefect.agent',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'agent')
+          children: getChildren('docs/api/latest', 'agent')
         },
         {
           title: 'prefect.utilities',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'utilities')
+          children: getChildren('docs/api/latest', 'utilities')
         }
       ],
       '/cloud/': [

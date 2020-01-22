@@ -14,7 +14,7 @@ Prefect Cloud requires the use of Docker containers.  Docker provides an excelle
 
 ### How are Prefect Flows stored inside Docker containers?
 
-Whenever you call `flow.register` or build a [Docker storage object](../api/unreleased/environments/storage.html#docker) yourself, Prefect will perform the following actions:
+Whenever you call `flow.register` or build a [Docker storage object](../api/latest/environments/storage.html#docker) yourself, Prefect will perform the following actions:
 
 - calls `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
 - stores these bytes inside the Docker image in the `/root/.prefect/` directory
@@ -32,7 +32,7 @@ Oftentimes users want to separate their flow's build logic from its registration
 
 Whenever a Prefect Cloud flow run is created and submitted for execution, Prefect performs the following actions inside your Flow's Docker image:
 - calls `cloudpickle.load(...)` on the file described above containing the byte-representation of your Flow
-- calls `flow.environment.setup` for your flow's specified [execution environment](../api/unreleased/environments/execution.html)
+- calls `flow.environment.setup` for your flow's specified [execution environment](../api/latest/environments/execution.html)
 - calls `flow.environment.execute` 
 
 Ultimately, regardless of the execution environment you use, a single `CloudFlowRunner` is created to run your Flow and configure it to communicate back to Prefect Cloud.
@@ -77,6 +77,6 @@ Prefect Cloud workflows are executed inside Docker containers running in the exe
 Prefect makes it easy to control:
 - all aspects of the Docker image your Flow is stored within
 - what types of [Prefect Agents](agent/overview.html) can submit your Flows for execution
-- what [execution environment](../api/unreleased/environments/execution.html) your Flow runs
+- what [execution environment](../api/latest/environments/execution.html) your Flow runs
 
 Note that different workflows will have different resource requirements during execution.  For example, if you run a CPU intensive Flow using a Kubernetes Agent you should make sure your Kubernetes cluster has a sufficiently large node pool to run on.
