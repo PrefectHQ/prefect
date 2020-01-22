@@ -908,7 +908,7 @@ class TaskRunner(Runner):
         if (
             state.is_successful()
             and prefect.context.get("checkpointing") is True
-            and self.task.checkpoint is True
+            and self.task.checkpoint is not False
             and self.result_handler is not None
         ):
             state._result.store_safe_value()
