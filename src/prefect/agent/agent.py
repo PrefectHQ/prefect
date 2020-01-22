@@ -118,27 +118,45 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
-        with exit_handler(self) as exit_event:
-            tenant_id = self.agent_connect()
+        try:
+            with exit_handler(self) as exit_event:
+                tenant_id = self.agent_connect()
 
-            # Loop intervals for query sleep backoff
-            loop_intervals = {0: 0.25, 1: 0.5, 2: 1.0, 3: 2.0, 4: 4.0, 5: 8.0, 6: 10.0}
+                # Loop intervals for query sleep backoff
+                loop_intervals = {
+                    0: 0.25,
+                    1: 0.5,
+                    2: 1.0,
+                    3: 2.0,
+                    4: 4.0,
+                    5: 8.0,
+                    6: 10.0,
+                }
 
-            index = 0
-            while not exit_event.wait(timeout=loop_intervals[index]):
-                self.heartbeat()
+                index = 0
+                while not exit_event.wait(timeout=loop_intervals[index]):
+                    self.heartbeat()
 
-                runs = self.agent_process(tenant_id)
-                if runs:
-                    index = 0
-                elif index < max(loop_intervals.keys()):
-                    index += 1
+                    runs = self.agent_process(tenant_id)
+                    if runs:
+                        index = 0
+                    elif index < max(loop_intervals.keys()):
+                        index += 1
 
-                self.logger.debug(
-                    "Next query for flow runs in {} seconds".format(
-                        loop_intervals[index]
+                    self.logger.debug(
+                        "Next query for flow runs in {} seconds".format(
+                            loop_intervals[index]
+                        )
                     )
-                )
+        finally:
+            self.on_shutdown()
+
+    def on_shutdown(self) -> None:
+        """
+        Invoked when the event loop is exiting and the agent is shutting down. Intended 
+        as a hook for child classes to optionally implement. 
+        """
+        pass
 
     def agent_connect(self) -> str:
         """
