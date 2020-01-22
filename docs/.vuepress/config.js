@@ -73,7 +73,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: 'Latest', link: '/api/latest/' },
           { text: '0.9.0', link: '/api/0.9.0/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: '0.7.3', link: '/api/0.7.3/' },
@@ -85,8 +85,8 @@ module.exports = {
       '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
       '/api/0.9.0/': sidebar90.sidebar,
-      '/api/unreleased/': [
-        { title: 'API Reference', path: '/api/unreleased/' },
+      '/api/latest/': [
+        { title: 'API Reference', path: '/api/latest/' },
         'changelog',
         {
           title: 'Test Coverage',
@@ -100,42 +100,42 @@ module.exports = {
         {
           title: 'prefect.client',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'client')
+          children: getChildren('docs/api/latest', 'client')
         },
         {
           title: 'prefect.core',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'core')
+          children: getChildren('docs/api/latest', 'core')
         },
         {
           title: 'prefect.engine',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'engine')
+          children: getChildren('docs/api/latest', 'engine')
         },
         {
           title: 'prefect.environments',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'environments')
+          children: getChildren('docs/api/latest', 'environments')
         },
         {
           title: 'prefect.tasks',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'tasks')
+          children: getChildren('docs/api/latest', 'tasks')
         },
         {
           title: 'prefect.schedules',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'schedules')
+          children: getChildren('docs/api/latest', 'schedules')
         },
         {
           title: 'prefect.agent',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'agent')
+          children: getChildren('docs/api/latest', 'agent')
         },
         {
           title: 'prefect.utilities',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'utilities')
+          children: getChildren('docs/api/latest', 'utilities')
         }
       ],
       '/cloud/': [
