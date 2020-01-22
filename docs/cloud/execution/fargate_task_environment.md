@@ -167,7 +167,7 @@ flow = Flow(
             "essential": True,
         }
     ),
-    storage=storage=Docker(
+    storage=Docker(
         registry_url="gcr.io/dev/", image_name="fargate-task-flow", image_tag="0.1.0"
     ),
 )
