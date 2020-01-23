@@ -1281,10 +1281,11 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value is NoResult
 
-    def test_success_state_with_checkpointing_in_config(self):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_success_state_with_checkpointing_in_config(self, checkpoint):
         handler = JSONResultHandler()
 
-        @prefect.task(checkpoint=True, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result_handler=handler)
         def fn(x):
             return x + 1
 
@@ -1296,10 +1297,11 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
 
-    def test_success_state_with_checkpointing_in_context(self):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_success_state_with_checkpointing_in_context(self, checkpoint):
         handler = JSONResultHandler()
 
-        @prefect.task(checkpoint=True, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result_handler=handler)
         def fn(x):
             return x + 1
 
@@ -1310,10 +1312,11 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
 
-    def test_success_state_is_checkpointed_if_result_handler_present(self):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_success_state_is_checkpointed_if_result_handler_present(self, checkpoint):
         handler = JSONResultHandler()
 
-        @prefect.task(checkpoint=True, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result_handler=handler)
         def fn():
             return 1
 
@@ -1367,7 +1370,8 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
 
-    def test_success_state_with_bad_handler_results_in_failed_state(self):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_success_state_with_bad_handler_results_in_failed_state(self, checkpoint):
         class BadHandler(ResultHandler):
             def read(self, val):
                 pass
@@ -1375,7 +1379,7 @@ class TestRunTaskStep:
             def write(self, val):
                 raise SyntaxError("Oh boy")
 
-        @prefect.task(checkpoint=True, result_handler=BadHandler())
+        @prefect.task(checkpoint=checkpoint, result_handler=BadHandler())
         def fn(x):
             return x + 1
 
@@ -1964,10 +1968,11 @@ def test_pending_raised_from_endrun_has_updated_metadata():
     assert state.cached_inputs == dict(x=Result(15))
 
 
-def test_failures_arent_checkpointed():
+@pytest.mark.parametrize("checkpoint", [True, None])
+def test_failures_arent_checkpointed(checkpoint):
     handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=True, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result_handler=handler)
     def fn():
         raise TypeError("Bad types")
 
@@ -1977,10 +1982,11 @@ def test_failures_arent_checkpointed():
     assert isinstance(new_state.result, TypeError)
 
 
-def test_skips_arent_checkpointed():
+@pytest.mark.parametrize("checkpoint", [True, None])
+def test_skips_arent_checkpointed(checkpoint):
     handler = MagicMock(store_safe_value=MagicMock(side_effect=SyntaxError))
 
-    @prefect.task(checkpoint=True, result_handler=handler)
+    @prefect.task(checkpoint=checkpoint, result_handler=handler)
     def fn():
         return 2
 
@@ -2083,7 +2089,8 @@ class TestLooping:
         assert state.is_successful()
         assert state.result == 3
 
-    def test_looping_only_checkpoints_the_final_result(self):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_looping_only_checkpoints_the_final_result(self, checkpoint):
         class Handler(ResultHandler):
             data = []
 
@@ -2096,7 +2103,7 @@ class TestLooping:
 
         handler = Handler()
 
-        @prefect.task(checkpoint=True, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result_handler=handler)
         def my_task():
             curr = prefect.context.get("task_loop_result", 0)
             if prefect.context.get("task_loop_count", 1) < 3:
