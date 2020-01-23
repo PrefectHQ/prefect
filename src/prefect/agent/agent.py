@@ -1,11 +1,14 @@
+import os
 import ast
+import functools
 import logging
 import signal
 import sys
 import time
 import threading
 from contextlib import contextmanager
-from typing import Any, Callable, Generator, Iterable, Union
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Any, Generator, Iterable, Union, Set
 
 import pendulum
 
@@ -93,6 +96,7 @@ class Agent:
             logger.addHandler(ch)
 
         self.logger = logger
+        self.submitting_flow_runs = set()  # type: Set[str]
 
     def _verify_token(self, token: str) -> None:
         """
@@ -134,20 +138,26 @@ class Agent:
                 }
 
                 index = 0
-                while not exit_event.wait(timeout=loop_intervals[index]):
-                    self.heartbeat()
 
-                    runs = self.agent_process(tenant_id)
-                    if runs:
-                        index = 0
-                    elif index < max(loop_intervals.keys()):
-                        index += 1
+                # the max workers default has changed in 3.5 and 3.8. For stable results the
+                # default 3.8 behavior is elected here.
+                max_workers = min(32, (os.cpu_count() or 1) + 4)
 
-                    self.logger.debug(
-                        "Next query for flow runs in {} seconds".format(
-                            loop_intervals[index]
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    self.logger.debug("Max Workers: {}".format(max_workers))
+                    while not exit_event.wait(timeout=loop_intervals[index]):
+                        self.heartbeat()
+
+                        if self.agent_process(executor, tenant_id):
+                            index = 0
+                        elif index < max(loop_intervals.keys()):
+                            index += 1
+
+                        self.logger.debug(
+                            "Next query for flow runs in {} seconds".format(
+                                loop_intervals[index]
+                            )
                         )
-                    )
         finally:
             self.on_shutdown()
 
@@ -187,11 +197,57 @@ class Agent:
 
         return tenant_id
 
-    def agent_process(self, tenant_id: str) -> bool:
+    def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
+        """
+        Deploy a flow run and update Cloud with the resulting deployment info.
+        If any errors occur when submitting the flow run, capture the error and log to Cloud.
+
+        Args:
+            - flow_run (GraphQLResult): The specific flow run to deploy
+        """
+        # Deploy flow run and mark failed if any deployment error
+        try:
+            deployment_info = self.deploy_flow(flow_run)
+            self.update_state(flow_run, deployment_info)
+        except Exception as exc:
+            self.logger.error(
+                "Logging platform error for flow run {}".format(
+                    getattr(flow_run, "id", "UNKNOWN")  # type: ignore
+                )
+            )
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
+                        name="agent",
+                        message=str(exc),
+                        level="ERROR",
+                    )
+                ]
+            )
+            self.mark_failed(flow_run=flow_run, exc=exc)
+
+    def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
+        """
+        Indicates that a flow run deployment has been deployed (sucessfully or otherwise).
+        This is intended to be a future callback hook, called in the agent's main thread
+        when the background thread has completed the deploy_and_update_flow_run() call, either
+        successfully, in error, or cancelled. In all cases the agent should be open to 
+        attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
+
+        Args:
+            - fut (Future): a callback requirement, the future which has completed or been cancelled.
+            - flow_run_id (str): the id of the flow run that the future represents.
+        """
+        self.submitting_flow_runs.remove(flow_run_id)
+        self.logger.debug("Completed flow run submission (id: {})".format(flow_run_id))
+
+    def agent_process(self, executor: "ThreadPoolExecutor", tenant_id: str) -> bool:
         """
         Full process for finding flow runs, updating states, and deploying.
 
         Args:
+            - executor (ThreadPoolExecutor): the interface to submit flow deployments in background threads
             - tenant_id (str): The tenant id to use in the query
 
         Returns:
@@ -208,22 +264,17 @@ class Agent:
                     )
                 )
 
-                # Iterate over flow runs
-                for flow_run in flow_runs:
-
-                    # Deploy flow run and mark failed if any deployment error
-                    try:
-                        deployment_info = self.deploy_flow(flow_run)
-                        self.update_state(flow_run, deployment_info)
-                    except Exception as exc:
-                        self.mark_failed(flow_run=flow_run, exc=exc)
-
-                self.logger.info(
-                    "Submitted {} flow run(s) for execution.".format(len(flow_runs))
+            for flow_run in flow_runs:
+                fut = executor.submit(self.deploy_and_update_flow_run, flow_run)
+                self.submitting_flow_runs.add(flow_run.id)
+                fut.add_done_callback(
+                    functools.partial(
+                        self.on_flow_run_deploy_attempt, flow_run_id=flow_run.id
+                    )
                 )
+
         except Exception as exc:
             self.logger.error(exc)
-            self._log_flow_run_exceptions(flow_runs or [], exc)  # type: ignore
 
         return bool(flow_runs)
 
@@ -272,8 +323,25 @@ class Agent:
                 }
             },
         )
-        flow_run_ids = result.data.getRunsInQueue.flow_run_ids  # type: ignore
-        self.logger.debug("Found flow runs {}".format(flow_run_ids))
+
+        # we queried all of the available flow runs, however, some may have already been pulled
+        # by this agent and are in the process of being submitted in the background. We do not
+        # want to act on these "duplicate" flow runs until we've been assured that the background
+        # thread has attempted to submit the work (successful or otherwise).
+
+        flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
+
+        if flow_run_ids:
+            msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
+        else:
+            msg = "No flow runs found"
+        already_submitting = flow_run_ids & self.submitting_flow_runs
+        if already_submitting:
+            msg += " ({} already submitting)".format(len(already_submitting))
+
+        self.logger.debug(msg)
+
+        target_flow_run_ids = flow_run_ids - self.submitting_flow_runs
 
         # Query metadata fow flow runs found in queue
         query = {
@@ -283,7 +351,7 @@ class Agent:
                     {
                         # match flow runs in the flow_run_ids list
                         "where": {
-                            "id": {"_in": flow_run_ids},
+                            "id": {"_in": list(target_flow_run_ids)},
                             "_or": [
                                 # who are EITHER scheduled...
                                 {"state": {"_eq": "Scheduled"}},
@@ -392,33 +460,6 @@ class Agent:
             state=Failed(message=str(exc)),
         )
         self.logger.error("Error while deploying flow: {}".format(repr(exc)))
-
-    def _log_flow_run_exceptions(self, flow_runs: list, exc: Exception) -> None:
-        """
-        Log platform issues to Prefect Cloud, attached to each flow run which
-        could not start.
-
-        Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
-            - exc (Exception): A caught exception to log
-        """
-        for flow_run in flow_runs:
-
-            self.logger.debug(
-                "Logging platform error for flow run {}".format(
-                    flow_run.id  # type: ignore
-                )
-            )
-            self.client.write_run_logs(
-                [
-                    dict(
-                        flowRunId=flow_run.id,  # type: ignore
-                        name="agent",
-                        message=str(exc),
-                        level="ERROR",
-                    )
-                ]
-            )
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
