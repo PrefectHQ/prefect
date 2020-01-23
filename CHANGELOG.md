@@ -23,6 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix the Fargate Agent not parsing kwargs as literals - [#1926](https://github.com/PrefectHQ/prefect/pull/1926)
+- Fix issue with result handler default persisting from initialization - [#1936](https://github.com/PrefectHQ/prefect/issues/1936)
 
 ### Deprecations
 
