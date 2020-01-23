@@ -1,9 +1,44 @@
 from datetime import datetime, timedelta
-from typing import Iterable, List, Set
+from typing import Any, Iterable, List, Set
 
 import pendulum
 import pytz
 from croniter import croniter
+
+
+class ClockEvent:
+    """
+    Base class for events emitted by Clocks.
+    """
+
+    def __init__(self, start_time: datetime, parameter_defaults: dict = None) -> None:
+        self.start_time = start_time
+        self.parameter_defaults = parameter_defaults or dict()
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            return False
+        return self.start_time == other
+
+    def __gt__(self, other: "ClockEvent") -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            raise TypeError(
+                "'>' not supported between instances of 'ClockEvent' and {}".format(
+                    type(other).__name__
+                )
+            )
+        else:
+            return self.start_time > other
+
+    def __lt__(self, other: "ClockEvent") -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            raise TypeError(
+                "'<' not supported between instances of 'ClockEvent' and {}".format(
+                    type(other).__name__
+                )
+            )
+        else:
+            return self.start_time < other
 
 
 class Clock:
@@ -15,15 +50,21 @@ class Clock:
         - end_date (datetime, optional): an optional end date for the clock
     """
 
-    def __init__(self, start_date: datetime = None, end_date: datetime = None):
+    def __init__(
+        self,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        parameters: dict = None,
+    ):
         if start_date is not None:
             start_date = pendulum.instance(start_date)
         if end_date is not None:
             end_date = pendulum.instance(end_date)
         self.start_date = start_date
         self.end_date = end_date
+        self.parameters = parameters
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -31,7 +72,7 @@ class Clock:
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[datetime]: the next scheduled events
         """
         raise NotImplementedError("Must be implemented on Clock subclasses")
 
@@ -81,7 +122,7 @@ class IntervalClock(Clock):
         self.interval = interval
         super().__init__(start_date=start_date, end_date=end_date)
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -89,7 +130,7 @@ class IntervalClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         if after is None:
             after = pendulum.now("utc")
@@ -125,7 +166,7 @@ class IntervalClock(Clock):
             next_date = start_date.add(days=days, seconds=seconds)
             if self.end_date and next_date > self.end_date:
                 break
-            yield next_date
+            yield ClockEvent(start_time=next_date)
             interval += self.interval
 
 
@@ -161,7 +202,7 @@ class CronClock(Clock):
         self.cron = cron
         super().__init__(start_date=start_date, end_date=end_date)
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -169,7 +210,7 @@ class CronClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         tz = getattr(self.start_date, "tz", "UTC")
         if after is None:
@@ -212,7 +253,7 @@ class CronClock(Clock):
             if self.end_date and next_date > self.end_date:
                 break
             dates.add(next_date)
-            yield next_date
+            yield ClockEvent(start_time=next_date)
 
 
 class DatesClock(Clock):
@@ -227,7 +268,7 @@ class DatesClock(Clock):
         super().__init__(start_date=min(dates), end_date=max(dates))
         self.dates = dates
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -235,8 +276,10 @@ class DatesClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         if after is None:
             after = pendulum.now("UTC")
-        yield from (date for date in sorted(self.dates) if date > after)
+        yield from (
+            ClockEvent(start_time=date) for date in sorted(self.dates) if date > after
+        )
