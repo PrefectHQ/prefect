@@ -136,8 +136,7 @@ class TestCreateFlow:
     def test_create_flow_with_storage(self):
         f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
         assert isinstance(f2.storage, prefect.environments.storage.Memory)
-        assert isinstance(f2.result_handler, ResultHandler)
-        assert f2.result_handler == f2.storage.result_handler
+        assert f2.result_handler is None
 
     def test_create_flow_with_storage_and_result_handler(self):
         handler = LocalResultHandler(dir="/")
@@ -2230,7 +2229,11 @@ class TestFlowRunMethod:
 class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
-        ["prefect.environments.storage.Docker", "prefect.environments.storage.Memory"],
+        [
+            "prefect.environments.storage.Docker",
+            "prefect.environments.storage.Memory",
+            "prefect.environments.storage.Local",
+        ],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2241,6 +2244,7 @@ class TestFlowRegister:
             f.register("My-project")
 
         assert isinstance(f.storage, from_qualified_name(storage))
+        assert f.result_handler == from_qualified_name(storage)().result_handler
 
     def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -2295,8 +2299,7 @@ class TestFlowRegister:
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
-        assert isinstance(f.result_handler, ResultHandler)
-        assert f.result_handler == storage.result_handler
+        assert f.result_handler is None
 
         f.result_handler = None
         f.register("My-project", build=False)
