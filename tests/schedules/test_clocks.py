@@ -137,9 +137,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_forward(self, serialize):
@@ -152,9 +157,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_backward(self, serialize):
@@ -167,9 +177,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # repeat the 1am run in local time
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 1, 2]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            1,
+            2,
+        ]
         # runs every hour UTC
-        assert [t.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_daily_start_daylight_savings_time_forward(self, serialize):
@@ -184,9 +199,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_daily_start_daylight_savings_time_backward(self, serialize):
@@ -201,8 +221,13 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
-        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
 
 class TestCronClock:
@@ -248,7 +273,7 @@ class TestCronClock:
         c = clocks.CronClock(every_hour)
         next_4 = islice(c.events(after=dt), 4)
 
-        assert [t.in_tz("UTC").hour for t in next_4] == [6, 7, 8, 9]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [6, 7, 8, 9]
 
     def test_cron_clock_end_daylight_savings_time(self):
         """
@@ -258,7 +283,7 @@ class TestCronClock:
         every_hour = "0 * * * *"
         c = clocks.CronClock(every_hour)
         next_4 = islice(c.events(after=dt), 4)
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_cron_clock_start_date(self):
         every_day = "0 0 * * *"
@@ -320,9 +345,14 @@ class TestCronClockDaylightSavingsTime:
 
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_hourly_daylight_savings_time_forward(self, serialize):
@@ -335,9 +365,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_hourly_daylight_savings_time_backward(self, serialize):
@@ -350,9 +385,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # repeat the 1am run in local time
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 2, 3]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            2,
+            3,
+        ]
         # runs every hour UTC
-        assert [t.in_tz("UTC").hour for t in next_4] == [4, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [4, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_daily_start_daylight_savings_time_forward(self, serialize):
@@ -367,9 +407,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_daily_start_daylight_savings_time_backward(self, serialize):
@@ -384,8 +429,13 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
-        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
 
 class TestDatesClock:

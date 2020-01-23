@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Iterable, List, Set
+from typing import Any, Iterable, List, Set, Union
 
 import pendulum
 import pytz
@@ -20,7 +20,7 @@ class ClockEvent:
             return False
         return self.start_time == other
 
-    def __gt__(self, other: "ClockEvent") -> bool:
+    def __gt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
             raise TypeError(
                 "'>' not supported between instances of 'ClockEvent' and {}".format(
@@ -30,7 +30,7 @@ class ClockEvent:
         else:
             return self.start_time > other
 
-    def __lt__(self, other: "ClockEvent") -> bool:
+    def __lt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
         if not isinstance(other, (ClockEvent, datetime)):
             raise TypeError(
                 "'<' not supported between instances of 'ClockEvent' and {}".format(
@@ -48,13 +48,17 @@ class Clock:
     Args:
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
+
     """
 
     def __init__(
         self,
         start_date: datetime = None,
         end_date: datetime = None,
-        parameters: dict = None,
+        parameter_defaults: dict = None,
     ):
         if start_date is not None:
             start_date = pendulum.instance(start_date)
@@ -62,7 +66,7 @@ class Clock:
             end_date = pendulum.instance(end_date)
         self.start_date = start_date
         self.end_date = end_date
-        self.parameters = parameters
+        self.parameter_defaults = parameter_defaults
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """

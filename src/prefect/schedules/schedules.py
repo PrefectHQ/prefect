@@ -104,9 +104,12 @@ class Schedule:
                 events.append(event if return_events else event.start_time)
             if len(events) == n or counter >= 10000:
                 break
-        return events
 
-    def _get_clock_events(self, after: datetime = None) -> Iterable[datetime]:
+        return events  # type: ignore
+
+    def _get_clock_events(
+        self, after: datetime = None
+    ) -> Iterable["prefect.schedules.clocks.ClockEvent"]:
         """
         A generator of events emitted by the schedule's clocks.
 
@@ -129,7 +132,7 @@ class Schedule:
         # code from `unique_justseen()` at https://docs.python.org/3/library/itertools.html#itertools-recipes
         unique_events = map(
             next, map(operator.itemgetter(1), itertools.groupby(sorted_events))
-        )  # type: Iterable[datetime]
+        )  # type: Iterable[prefect.schedules.clocks.ClockEvent]
         yield from unique_events
 
     def _check_filters(self, dt: datetime) -> bool:
