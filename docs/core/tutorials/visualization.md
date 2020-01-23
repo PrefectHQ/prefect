@@ -86,7 +86,7 @@ Notice that we have identified this situation and possibly remediated it _all wi
 In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=1` (a condition not handled by the `switch`). In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
 
 ::: tip State colors
-The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/unreleased/engine/state.html).
+The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/latest/engine/state.html).
 :::
 
 ```python

@@ -8,7 +8,7 @@ sidebarDepth: 0
 
 ## The Dask Executor
 
-Prefect exposes a suite of ["Executors"](../../api/unreleased/engine/executors.html) that represent the logic for how and where a Task should run (e.g., should it run in a subprocess? on a different computer?). 
+Prefect exposes a suite of ["Executors"](../../api/latest/engine/executors.html) that represent the logic for how and where a task should run (e.g., should it run in a subprocess? on a different computer?). 
 In our case, we want to use Prefect's `DaskExecutor` to submit task runs to a known Dask cluster. This provides a few key benefits out of the box:
 
 - Dask manages all "intra-flow scheduling" for a single run, such as determining when upstream tasks are complete before attempting to run a downstream task. This enables users to deploy flows with many bite-sized tasks in a way that doesn't overload any central scheduler.
@@ -17,7 +17,7 @@ In our case, we want to use Prefect's `DaskExecutor` to submit task runs to a kn
 
 ## An Example Flow
 
-In case you aren't familiar with Dask and would like to kick the tires, after [installing Dask distributed](https://distributed.readthedocs.io/en/latest/install.html) you can quickly spin up a local "cluster" with two Dask workers via the following CLI commands:
+If you'd like to kick the tires on Dask locally, you can [install Dask distributed](https://distributed.readthedocs.io/en/latest/install.html) and spin up a local "cluster" with two Dask workers via the following CLI commands:
 
 ```bash
 > dask-scheduler
@@ -29,13 +29,13 @@ In case you aren't familiar with Dask and would like to kick the tires, after [i
 ```
 
 ::: warning Work Stealing
-We highly recommend turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) in your Dask Cluster when executing Prefect Flows. This can be done via a environment variable in your Dask Cluster:
+We highly recommend turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) in your Dask Cluster when executing Prefect flows. This can be done via a environment variable in your Dask Cluster:
 
 ```
 DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive
 ```
 
-On rare occasions, work stealing can result in tasks attempting to run twice. (Note that in Prefect Cloud, our state-version locking mechanism will prevent duplicate runs).
+On rare occasions, work stealing can result in tasks attempting to run twice..
 :::
 
 Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example was repurposed from the [distributed documentation](https://distributed.readthedocs.io/en/latest/web.html#example-computation):
@@ -120,4 +120,4 @@ This flow will now run every minute on your local Dask cluster until you kill th
 
 ## Further steps
 
-Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project! Details are left as an exercise to the reader. ;)
+Take this example to the next level by storing your flow in a Docker container and deploying it with Dask on Kubernetes using the excellent [dask-kubernetes](http://kubernetes.dask.org/en/latest/) project!

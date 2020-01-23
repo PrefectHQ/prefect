@@ -147,7 +147,7 @@ def start(
         --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
                                     Used for Flows which might import from scripts or local packages.
                                     Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
-        --show-flow-logs, -f        Display logging output from flows run by the agent
+        --show-flow-logs, -f        Display logging output from flows run by the agent (available for Local and Docker agents only)
 
     \b
     Docker Agent Options:
@@ -206,6 +206,7 @@ def start(
                 env_vars=env_vars,
                 base_url=base_url,
                 no_pull=no_pull,
+                show_flow_logs=show_flow_logs,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(

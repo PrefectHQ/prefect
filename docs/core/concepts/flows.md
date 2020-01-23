@@ -181,7 +181,7 @@ flow.get_tasks(slug="x")
 
 ## State handlers
 
-State handlers allow users to provide custom logic that fires whenever a flow changes state. For example, you could send a Slack notification if the flow failed -- we actually think that's so useful we included it [here](/api/unreleased/utilities/notifications.html#functions)!
+State handlers allow users to provide custom logic that fires whenever a flow changes state. For example, you could send a Slack notification if the flow failed -- we actually think that's so useful we included it [here](/api/latest/utilities/notifications.html#functions)!
 
 State handlers must have the following signature:
 

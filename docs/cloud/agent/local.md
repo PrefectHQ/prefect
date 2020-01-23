@@ -33,7 +33,7 @@ flow.run_agent()
 
 ```
 
-Since we do not provide a storage object to our Flow it defaults to using [`Local`](/api/unreleased/environments/storage.html#local) storage which automatically stores the flow in `~/.prefect/flows` and only agents running on this machine will be able to submit this Flow for execution. Once we call `run_agent` on the Flow a Local Agent will start and listen for scheduled work from Prefect Cloud.
+Since we do not provide a storage object to our Flow it defaults to using [`Local`](/api/latest/environments/storage.html#local) storage which automatically stores the flow in `~/.prefect/flows` and only agents running on this machine will be able to submit this Flow for execution. Once we call `run_agent` on the Flow a Local Agent will start and listen for scheduled work from Prefect Cloud.
 
 #### Start from CLI
 

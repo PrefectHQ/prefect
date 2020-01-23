@@ -6,7 +6,7 @@
 
 The Kubernetes Job Environment is an Environment that runs a Flow on a completely custom [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/). This Environment is intended for use in cases where you want complete control over the Job your Flow runs on. This Environment is commonly used for resource management, node allocation, and sidecar containers.
 
-_For more information on the Kubernetes Job Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#kubernetesjobenvironment)._
+_For more information on the Kubernetes Job Environment visit the relevant [API documentation](/api/latest/environments/execution.html#kubernetesjobenvironment)._
 
 ## Process
 

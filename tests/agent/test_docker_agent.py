@@ -293,6 +293,61 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
     assert api.start.called
 
 
+def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
+
+    process = MagicMock()
+    monkeypatch.setattr("multiprocessing.Process", process)
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent(show_flow_logs=True)
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    process.assert_called_with(
+        target=agent.stream_container_logs, kwargs={"container_id": "container_id"}
+    )
+    assert len(agent.processes) == 1
+    assert api.create_container.called
+    assert api.start.called
+
+
+def test_docker_agent_shutdown_terminates_child_processes(monkeypatch, runner_token):
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    proc = MagicMock(is_alive=MagicMock(return_value=True))
+    agent = DockerAgent(show_flow_logs=True)
+    agent.processes = [proc]
+    agent.on_shutdown()
+
+    assert proc.is_alive.called
+    assert proc.terminate.called
+
+
 def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_token):
 
     api = MagicMock()
