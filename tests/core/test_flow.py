@@ -1592,6 +1592,28 @@ class TestFlowRunMethod:
             f.run()
         assert t.call_count == 2
 
+    def test_flow_dot_run_passes_scheduled_parameters(self):
+        a = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
+        )
+        b = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.2)], parameter_defaults=dict(x=2)
+        )
+
+        x = prefect.Parameter("x", default=None, required=False)
+        outputs = []
+
+        @prefect.task
+        def whats_the_param(x):
+            outputs.append(x)
+
+        with Flow("test", schedule=prefect.schedules.Schedule(clocks=[a, b])) as f:
+            whats_the_param(x)
+
+        f.run()
+
+        assert outputs == [1, 2]
+
     def test_flow_dot_run_doesnt_run_on_schedule(self):
         class MockSchedule(prefect.schedules.Schedule):
             call_count = 0
