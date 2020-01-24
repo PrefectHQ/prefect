@@ -11,8 +11,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
-- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/issues/1921)
+- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/pull/1921)
+- Background all agent flow deployment attempts - [#1928](https://github.com/PrefectHQ/prefect/pull/1928)
 - Add show_flow_logs to Docker agent [#1929](https://github.com/PrefectHQ/prefect/issues/1929)
+- Add per-task checkpointing opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
+- The Task 'checkpoint' kwarg will no longer be deprecated to allow opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
 
 ### Task Library
 
@@ -21,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix the Fargate Agent not parsing kwargs as literals - [#1926](https://github.com/PrefectHQ/prefect/pull/1926)
+- Fix issue with result handler default persisting from initialization - [#1936](https://github.com/PrefectHQ/prefect/issues/1936)
 
 ### Deprecations
 

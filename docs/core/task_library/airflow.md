@@ -42,7 +42,7 @@ Task wrapper for executing individual Airflow tasks.
 
 Successful execution of this task requires a separate conda environment in which `airflow` is installed. Any XComs this task pushes will be converted to return values for this task. Unless certain CLI flags are provided (e.g., `-A`), execution of this task will respect Airflow trigger rules.
 
-[API Reference](/api/unreleased/tasks/airflow.html#prefect-tasks-airflow-airflow-airflowtask)
+[API Reference](/api/latest/tasks/airflow.html#prefect-tasks-airflow-airflow-airflowtask)
 
 ## AirflowTriggerDAG <Badge text="task"/>
 
@@ -50,4 +50,4 @@ Task wrapper for triggering an Airflow DAG run.
 
 Successful execution of this task requires a separate conda environment in which `airflow` is installed.
 
-[API Reference](/api/unreleased/tasks/airflow.html#prefect-tasks-airflow-airflow-airflowtriggerdag)
+[API Reference](/api/latest/tasks/airflow.html#prefect-tasks-airflow-airflow-airflowtriggerdag)

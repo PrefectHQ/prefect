@@ -125,11 +125,9 @@ class Task(metaclass=SignatureValidator):
         - cache_key (str, optional): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
             be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
             Task's database ID if running in Cloud
-        - checkpoint (bool, optional, DEPRECATED): if this Task is successful, whether to
-            store its result using the `result_handler` available during the run; defaults to the value of
-            `tasks.defaults.checkpoint` in your user config.  Note that in the future, all tasks with result handlers
-            will be checkpointed.  Also note that checkpointing will only occur locally if `prefect.config.flows.checkpointing` is
-            set to `True`
+        - checkpoint (bool, optional): if this Task is successful, whether to
+            store its result using the `result_handler` available during the run; Also note that 
+            checkpointing will only occur locally if `prefect.config.flows.checkpointing` is set to `True`
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
@@ -232,16 +230,7 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
-        if checkpoint is not None:
-            warnings.warn(
-                "The `checkpoint` keyword will be deprecated in an upcoming release - all tasks will be checkpointed in the future.",
-                UserWarning,
-            )
-        self.checkpoint = (
-            checkpoint
-            if checkpoint is not None
-            else prefect.config.tasks.defaults.checkpoint
-        )
+        self.checkpoint = checkpoint
         self.result_handler = result_handler
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
@@ -1028,7 +1017,11 @@ class Parameter(Task):
         from prefect.engine.result_handlers import JSONResultHandler
 
         super().__init__(
-            name=name, slug=name, tags=tags, result_handler=JSONResultHandler(),
+            name=name,
+            slug=name,
+            tags=tags,
+            result_handler=JSONResultHandler(),
+            checkpoint=True,
         )
 
     def __repr__(self) -> str:

@@ -133,8 +133,7 @@ class Flow:
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution; if not provided, will default
-            to the one specified in your config
+            retrieving and storing state results during execution
 
     """
 
@@ -162,7 +161,7 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = result_handler or getattr(storage, "result_handler", None)
+        self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

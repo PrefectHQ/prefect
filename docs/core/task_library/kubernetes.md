@@ -16,37 +16,37 @@ this Secret must be a string and in BearerToken format.
 
 Task for creating a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespaceddeployment)
 
 ### DeleteNamespacedDeployment <Badge text="task"/>
 
 Task for deleting a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespaceddeployment)
 
 ### ListNamespacedDeployment <Badge text="task"/>
 
 Task for listing a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespaceddeployment)
 
 ### PatchNamespacedDeployment <Badge text="task"/>
 
 Task for patching a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespaceddeployment)
 
 ### ReadNamespacedDeployment <Badge text="task"/>
 
 Task for reading a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespaceddeployment)
 
 ### ReplaceNamespacedDeployment <Badge text="task"/>
 
 Task for replacing a namespaced deployment on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespaceddeployment)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespaceddeployment)
 
 
 ## Jobs
@@ -55,37 +55,37 @@ Task for replacing a namespaced deployment on Kubernetes.
 
 Task for creating a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedjob)
 
 ### DeleteNamespacedJob <Badge text="task"/>
 
 Task for deleting a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedjob)
 
 ### ListNamespacedJob <Badge text="task"/>
 
 Task for listing a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedjob)
 
 ### PatchNamespacedJob <Badge text="task"/>
 
 Task for patching a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedjob)
 
 ### ReadNamespacedJob <Badge text="task"/>
 
 Task for reading a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedjob)
 
 ### ReplaceNamespacedJob <Badge text="task"/>
 
 Task for replacing a namespaced job on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedjob)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedjob)
 
 
 ## Pods
@@ -94,37 +94,37 @@ Task for replacing a namespaced job on Kubernetes.
 
 Task for creating a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedpod)
 
 ### DeleteNamespacedPod <Badge text="task"/>
 
 Task for deleting a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedpod)
 
 ### ListNamespacedPod <Badge text="task"/>
 
 Task for listing a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedpod)
 
 ### PatchNamespacedPod <Badge text="task"/>
 
 Task for patching a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedpod)
 
 ### ReadNamespacedPod <Badge text="task"/>
 
 Task for reading a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedpod)
 
 ### ReplaceNamespacedPod <Badge text="task"/>
 
 Task for replacing a namespaced pod on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedpod)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedpod)
 
 
 ## Services
@@ -133,34 +133,34 @@ Task for replacing a namespaced pod on Kubernetes.
 
 Task for creating a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-createnamespacedservice)
 
 ### DeleteNamespacedService <Badge text="task"/>
 
 Task for deleting a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-deletenamespacedservice)
 
 ### ListNamespacedService <Badge text="task"/>
 
 Task for listing a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-listnamespacedservice)
 
 ### PatchNamespacedService <Badge text="task"/>
 
 Task for patching a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-patchnamespacedservice)
 
 ### ReadNamespacedService <Badge text="task"/>
 
 Task for reading a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-readnamespacedservice)
 
 ### ReplaceNamespacedService <Badge text="task"/>
 
 Task for replacing a namespaced service on Kubernetes.
 
-[API Reference](/api/unreleased/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedservice)
+[API Reference](/api/latest/tasks/kubernetes.html#prefect-tasks-kubernetes-replacenamespacedservice)

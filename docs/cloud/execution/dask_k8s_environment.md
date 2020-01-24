@@ -6,7 +6,7 @@
 
 The Dask Kubernetes Environment uses the [dask-kubernetes](https://kubernetes.dask.org/en/latest/) library to dynamically spawn Dask clusters on Kubernetes. This Environment is intended for use in cases where you do not want a static, long-standing Dask cluster, but would rather have a temporary Dask cluster created for each Flow run. The Dask Kubernetes Environment has both low-configuration options to quickly get up and running and the ability to specify completely custom [Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) specifications for the Dask scheduler and workers.
 
-_For more information on the Dask Kubernetes Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#daskkubernetesenvironment)._
+_For more information on the Dask Kubernetes Environment visit the relevant [API documentation](/api/latest/environments/execution.html#daskkubernetesenvironment)._
 
 ## Process
 
@@ -84,7 +84,7 @@ _For more information on how Docker registry credentials are used as Kubernetes 
 
 Create a new [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) with the configuration provided at initialization of this Environment. That Job is responsible for creating a `KubeCluster` object from the `dask_kubernetes` library with the provided configuration. Previously configured custom worker YAML and min/max worker settings are applied at this point as `dask_kubernetes` takes care of automatic worker creation.
 
-Following creation of the Dask cluster, the Flow will be run using the [Dask Executor](/api/unreleased/engine/executors.html#daskexecutor) pointing to the newly-created Dask cluster. All Task execution will take place on the Dask worker pods.
+Following creation of the Dask cluster, the Flow will be run using the [Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointing to the newly-created Dask cluster. All Task execution will take place on the Dask worker pods.
 
 ## Examples
 

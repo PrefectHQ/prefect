@@ -655,10 +655,13 @@ class TestStateResultHandling:
         assert states[1].is_failed()
         assert "unsupported operand" in states[1].message
 
-    def test_task_runner_sends_checkpointed_success_states_to_cloud(self, client):
+    @pytest.mark.parametrize("checkpoint", [True, None])
+    def test_task_runner_sends_checkpointed_success_states_to_cloud(
+        self, client, checkpoint
+    ):
         handler = JSONResultHandler()
 
-        @prefect.task(checkpoint=True, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result_handler=handler)
         def add(x, y):
             return x + y
 

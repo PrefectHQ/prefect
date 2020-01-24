@@ -253,11 +253,10 @@ class TestCreateTask:
 
     def test_create_task_with_and_without_checkpoint(self):
         t = Task()
-        assert t.checkpoint is False
+        assert t.checkpoint is None
 
-        with pytest.warns(UserWarning, match="deprecated"):
-            s = Task(checkpoint=True)
-            assert s.checkpoint is True
+        s = Task(checkpoint=True)
+        assert s.checkpoint is True
 
 
 def test_task_has_logger():
