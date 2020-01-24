@@ -66,7 +66,7 @@ class Clock:
             end_date = pendulum.instance(end_date)
         self.start_date = start_date
         self.end_date = end_date
-        self.parameter_defaults = parameter_defaults
+        self.parameter_defaults = parameter_defaults or dict()
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
@@ -178,7 +178,9 @@ class IntervalClock(Clock):
             next_date = start_date.add(days=days, seconds=seconds)
             if self.end_date and next_date > self.end_date:
                 break
-            yield ClockEvent(start_time=next_date)
+            yield ClockEvent(
+                start_time=next_date, parameter_defaults=self.parameter_defaults
+            )
             interval += self.interval
 
 
@@ -276,7 +278,9 @@ class CronClock(Clock):
             if self.end_date and next_date > self.end_date:
                 break
             dates.add(next_date)
-            yield ClockEvent(start_time=next_date)
+            yield ClockEvent(
+                start_time=next_date, parameter_defaults=self.parameter_defaults
+            )
 
 
 class DatesClock(Clock):
@@ -311,5 +315,7 @@ class DatesClock(Clock):
         if after is None:
             after = pendulum.now("UTC")
         yield from (
-            ClockEvent(start_time=date) for date in sorted(self.dates) if date > after
+            ClockEvent(start_time=date, parameter_defaults=self.parameter_defaults)
+            for date in sorted(self.dates)
+            if date > after
         )
