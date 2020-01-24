@@ -1726,18 +1726,15 @@ class TestFlowRunMethod:
         assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
     def test_flow_dot_run_handles_cached_states(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
 
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1828,18 +1825,14 @@ class TestFlowRunMethod:
         assert flow_state.result[noop].result is None
 
     def test_flow_dot_run_handles_mapped_cached_states(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1869,7 +1862,6 @@ class TestFlowRunMethod:
             storage["y"].append(y)
 
         t1, t2 = StatefulTask(maxit=True), StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x.map(x=t1, y=t2))
 
@@ -1878,18 +1870,14 @@ class TestFlowRunMethod:
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
     def test_flow_dot_run_handles_cached_states_across_runs(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1914,7 +1902,6 @@ class TestFlowRunMethod:
             storage["output"].append(y)
 
         t = StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_output(return_x(x=t))
 
@@ -1934,18 +1921,14 @@ class TestFlowRunMethod:
         assert third_run == first_run
 
     def test_flow_dot_run_handles_mapped_cached_states_across_runs(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -1971,7 +1954,6 @@ class TestFlowRunMethod:
             storage["output"].append(y)
 
         t = StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_output(return_x.map(x=t))
 
@@ -1994,18 +1976,14 @@ class TestFlowRunMethod:
         assert third_run[2] not in second_run
 
     def test_flow_dot_run_handles_mapped_cached_states_with_differing_lengths(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -2030,7 +2008,6 @@ class TestFlowRunMethod:
             storage["output"].append(y)
 
         t = StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_output(return_x.map(x=t))
 
@@ -2050,18 +2027,14 @@ class TestFlowRunMethod:
         assert all(x != first_run[0] for x in third_run)
 
     def test_flow_dot_run_handles_mapped_cached_states_with_non_cached(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 3:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    return []
+        c = prefect.schedules.clocks.DatesClock(
+            [
+                pendulum.now("UTC").add(seconds=0.1),
+                pendulum.now("UTC").add(seconds=0.2),
+                pendulum.now("UTC").add(seconds=0.3),
+            ]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             def __init__(self, maxit=False, **kwargs):
@@ -2088,7 +2061,6 @@ class TestFlowRunMethod:
             storage["y"].append(y)
 
         t1, t2 = StatefulTask(maxit=True), StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x.map(x=t1, y=t2))
 
