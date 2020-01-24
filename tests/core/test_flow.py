@@ -33,6 +33,7 @@ from prefect.engine.state import (
     Success,
     TriggerFailed,
 )
+from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.serialization import from_qualified_name
@@ -1565,19 +1566,9 @@ class TestSerialize:
 @pytest.mark.usefixtures("clear_context_cache")
 class TestFlowRunMethod:
     def test_flow_dot_run_runs_on_schedule(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 2:
-                    self.call_count += 1
-                    # add small delta to trigger "naptime"
-                    return [pendulum.now("utc").add(seconds=0.05)]
-                else:
-                    raise SyntaxError("Cease scheduling!")
+        c = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.1), pendulum.now("UTC").add(seconds=0.2)]
+        )
 
         class StatefulTask(Task):
             call_count = 0
@@ -1586,10 +1577,9 @@ class TestFlowRunMethod:
                 self.call_count += 1
 
         t = StatefulTask()
-        schedule = MockSchedule()
+        schedule = prefect.schedules.Schedule(clocks=[c])
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError, match="Cease"):
-            f.run()
+        f.run()
         assert t.call_count == 2
 
     def test_flow_dot_run_passes_scheduled_parameters(self):
@@ -1614,20 +1604,31 @@ class TestFlowRunMethod:
 
         assert outputs == [1, 2]
 
+    def test_flow_dot_run_doesnt_persist_stale_scheduled_params(self):
+        a = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
+        )
+        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.2)])
+
+        x = prefect.Parameter("x", default=3, required=False)
+        outputs = []
+
+        @prefect.task
+        def whats_the_param(x):
+            outputs.append(x)
+
+        with Flow("test", schedule=prefect.schedules.Schedule(clocks=[a, b])) as f:
+            whats_the_param(x)
+
+        f.run()
+
+        assert outputs == [1, 3]
+
     def test_flow_dot_run_doesnt_run_on_schedule(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 2:
-                    self.call_count += 1
-                    # add small delta to trigger "naptime"
-                    return [pendulum.now("utc").add(seconds=0.05)]
-                else:
-                    raise SyntaxError("Cease scheduling!")
+        c = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.1), pendulum.now("UTC").add(seconds=0.2)]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             call_count = 0
@@ -1636,7 +1637,6 @@ class TestFlowRunMethod:
                 self.call_count += 1
 
         t = StatefulTask()
-        schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
         state = f.run(run_on_schedule=False)
         assert t.call_count == 1
@@ -1654,19 +1654,10 @@ class TestFlowRunMethod:
         assert res.result[test_task].result == 2
 
     def test_flow_dot_run_responds_to_config(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 2:
-                    self.call_count += 1
-                    # add small delta to trigger "naptime"
-                    return [pendulum.now("utc").add(seconds=0.05)]
-                else:
-                    raise SyntaxError("Cease scheduling!")
+        c = prefect.schedules.clocks.DatesClock(
+            [pendulum.now("UTC").add(seconds=0.1), pendulum.now("UTC").add(seconds=0.2)]
+        )
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             call_count = 0
@@ -1675,7 +1666,6 @@ class TestFlowRunMethod:
                 self.call_count += 1
 
         t = StatefulTask()
-        schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
         with set_temporary_config({"flows.run_on_schedule": False}):
             state = f.run()
@@ -1688,10 +1678,10 @@ class TestFlowRunMethod:
             def __init__(self):
                 super().__init__(clocks=[])
 
-            def next(self, n):
+            def next(self, n, **kwargs):
                 if self.call_count < 1:
                     self.call_count += 1
-                    return [pendulum.now("utc").add(seconds=0.05)]
+                    return [ClockEvent(pendulum.now("utc").add(seconds=0.05))]
                 else:
                     return []
 
@@ -1708,18 +1698,8 @@ class TestFlowRunMethod:
         assert t.call_count == 1
 
     def test_scheduled_runs_handle_retries(self):
-        class MockSchedule(prefect.schedules.Schedule):
-            call_count = 0
-
-            def __init__(self):
-                super().__init__(clocks=[])
-
-            def next(self, n):
-                if self.call_count < 1:
-                    self.call_count += 1
-                    return [pendulum.now("utc")]
-                else:
-                    raise SyntaxError("Cease scheduling!")
+        c = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.1)])
+        schedule = prefect.schedules.Schedule(clocks=[c])
 
         class StatefulTask(Task):
             call_count = 0
@@ -1740,10 +1720,8 @@ class TestFlowRunMethod:
             retry_delay=datetime.timedelta(minutes=0),
             state_handlers=[handler],
         )
-        schedule = MockSchedule()
         f = Flow(name="test", tasks=[t], schedule=schedule)
-        with pytest.raises(SyntaxError, match="Cease"):
-            f.run()
+        f.run()
         assert t.call_count == 2
         assert len(state_history) == 5  # Running, Failed, Retrying, Running, Success
 
@@ -1789,7 +1767,6 @@ class TestFlowRunMethod:
             storage["y"].append(y)
 
         t1, t2 = StatefulTask(maxit=True), StatefulTask()
-        schedule = MockSchedule()
         with Flow(name="test", schedule=schedule) as f:
             res = store_y(return_x(x=t1, y=t2))
 
