@@ -23,11 +23,59 @@ def test_base_clock_events_not_implemented():
         next(c.events())
 
 
+class TestClockEvent:
+    def test_clock_event_requires_start_time(self):
+        with pytest.raises(TypeError):
+            clocks.ClockEvent()
+
+        now = pendulum.now("UTC")
+        e = clocks.ClockEvent(now)
+
+        assert e.start_time == now
+        assert e.parameter_defaults == dict()
+
+    def test_clock_event_accepts_parameters(self):
+        now = pendulum.now("UTC")
+        e = clocks.ClockEvent(now, parameter_defaults=dict(x=42, z=[1, 2, 3]))
+
+        assert e.start_time == now
+        assert e.parameter_defaults == dict(x=42, z=[1, 2, 3])
+
+    @pytest.mark.parametrize(
+        "dt", [pendulum.now("UTC").add(hours=1), pendulum.now("UTC").add(hours=-2)]
+    )
+    def test_clock_event_comparisons_are_datetime_comparisons(self, dt):
+        now = pendulum.now("UTC")
+
+        e = clocks.ClockEvent(now)
+        e2 = clocks.ClockEvent(dt)
+
+        ## compare to raw datetimes
+        assert e == now
+        assert (e == dt) == (now == dt)
+        assert (e < dt) == (now < dt)
+        assert (e > dt) == (now > dt)
+
+        ## compare to other events
+        assert e == clocks.ClockEvent(now)
+        assert (e == e2) == (e.start_time == e2.start_time)
+        assert (e < e2) == (e.start_time < e2.start_time)
+        assert (e > e2) == (e.start_time > e2.start_time)
+
+
 class TestIntervalClock:
     def test_create_interval_clock(self):
         assert clocks.IntervalClock(
             start_date=pendulum.now("UTC"), interval=timedelta(days=1)
         )
+
+    def test_create_interval_clock_with_parameters(self):
+        c = clocks.IntervalClock(
+            start_date=pendulum.now("UTC"),
+            interval=timedelta(days=1),
+            parameter_defaults=dict(x=42),
+        )
+        assert c.parameter_defaults == dict(x=42)
 
     def test_create_interval_clock_without_interval(self):
         with pytest.raises(TypeError):
@@ -233,6 +281,10 @@ class TestIntervalClockDaylightSavingsTime:
 class TestCronClock:
     def test_create_cron_clock(self):
         assert clocks.CronClock("* * * * *")
+
+    def test_create_cron_clock_with_parameters(self):
+        c = clocks.CronClock("* * * * *", parameter_defaults=dict(x=42))
+        assert c.parameter_defaults == dict(x=42)
 
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
@@ -449,6 +501,15 @@ class TestDatesClock:
         clock = clocks.DatesClock(dates=[now.add(days=1), now.add(days=2), now])
         assert clock.start_date == now
         assert clock.end_date == now.add(days=2)
+
+    def test_create_dates_clock_multiple_dates_with_parameters(self):
+        now = pendulum.now("UTC")
+        clock = clocks.DatesClock(
+            dates=[now.add(days=1), now.add(days=2), now], parameter_defaults=dict(y=99)
+        )
+        assert clock.start_date == now
+        assert clock.end_date == now.add(days=2)
+        assert clock.parameter_defaults == dict(y=99)
 
     def test_start_date_must_be_provided(self):
         with pytest.raises(TypeError):

@@ -106,6 +106,9 @@ class IntervalClock(Clock):
         - start_date (datetime, optional): first date of clock. If None, will be set to
             "2019-01-01 00:00:00 UTC"
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
 
     Raises:
         - TypeError: if start_date is not a datetime
@@ -117,6 +120,7 @@ class IntervalClock(Clock):
         interval: timedelta,
         start_date: datetime = None,
         end_date: datetime = None,
+        parameter_defaults: dict = None,
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
@@ -124,7 +128,11 @@ class IntervalClock(Clock):
             raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
-        super().__init__(start_date=start_date, end_date=end_date)
+        super().__init__(
+            start_date=start_date,
+            end_date=end_date,
+            parameter_defaults=parameter_defaults,
+        )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
@@ -192,19 +200,30 @@ class CronClock(Clock):
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
 
     Raises:
         - ValueError: if the cron string is invalid
     """
 
     def __init__(
-        self, cron: str, start_date: datetime = None, end_date: datetime = None
+        self,
+        cron: str,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        parameter_defaults: dict = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
-        super().__init__(start_date=start_date, end_date=end_date)
+        super().__init__(
+            start_date=start_date,
+            end_date=end_date,
+            parameter_defaults=parameter_defaults,
+        )
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
@@ -266,10 +285,17 @@ class DatesClock(Clock):
 
     Args:
         - dates (List[datetime]): a list of `datetimes` on which the clock should fire
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
     """
 
-    def __init__(self, dates: List[datetime]):
-        super().__init__(start_date=min(dates), end_date=max(dates))
+    def __init__(self, dates: List[datetime], parameter_defaults: dict = None):
+        super().__init__(
+            start_date=min(dates),
+            end_date=max(dates),
+            parameter_defaults=parameter_defaults,
+        )
         self.dates = dates
 
     def events(self, after: datetime = None) -> Iterable[ClockEvent]:
