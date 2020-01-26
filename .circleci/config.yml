@@ -6,7 +6,6 @@ references:
     attach_workspace:
       at: *workspace_root
 
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -52,7 +51,7 @@ jobs:
 
       - run:
           name: Run documentation tests
-          command: pytest -rfEsx -k "generate_docs"
+          command: pytest -vvrfEsx -k "generate_docs"
 
   # test a standard install of prefect
   # is importable in python 3.5.2
@@ -105,7 +104,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -137,7 +136,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -170,7 +169,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -198,7 +197,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -225,7 +224,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx .
+          command: pytest -vvrfEsx .
 
   test_airflow:
     docker:
@@ -251,7 +250,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
+          command: pytest -vvrfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
