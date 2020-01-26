@@ -10,6 +10,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.1 <Badge text="beta" type="success"/>
+
+Released on Jan 24, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
 - More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/pull/1921)
 - Background all agent flow deployment attempts - [#1928](https://github.com/PrefectHQ/prefect/pull/1928)
