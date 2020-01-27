@@ -831,10 +831,15 @@ class Flow:
         self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
+        base_parameters = parameters or dict()
+
         ## determine time of first run
         try:
             if self.schedule is not None:
-                next_run_time = self.schedule.next(1)[0]
+                next_run_event = self.schedule.next(1, return_events=True)[0]
+                next_run_time = next_run_event.start_time  # type: ignore
+                parameters = base_parameters.copy()
+                parameters.update(next_run_event.parameter_defaults)  # type: ignore
             else:
                 next_run_time = pendulum.now("utc")
         except IndexError:
@@ -926,7 +931,10 @@ class Flow:
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
                 if self.schedule is not None:
-                    next_run_time = self.schedule.next(1)[0]
+                    next_run_event = self.schedule.next(1, return_events=True)[0]
+                    next_run_time = next_run_event.start_time  # type: ignore
+                    parameters = base_parameters.copy()
+                    parameters.update(next_run_event.parameter_defaults)  # type: ignore
                 else:
                     break
             except IndexError:

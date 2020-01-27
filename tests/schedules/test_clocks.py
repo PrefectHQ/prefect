@@ -23,11 +23,66 @@ def test_base_clock_events_not_implemented():
         next(c.events())
 
 
+class TestClockEvent:
+    def test_clock_event_requires_start_time(self):
+        with pytest.raises(TypeError):
+            clocks.ClockEvent()
+
+        now = pendulum.now("UTC")
+        e = clocks.ClockEvent(now)
+
+        assert e.start_time == now
+        assert e.parameter_defaults == dict()
+
+    def test_clock_event_accepts_parameters(self):
+        now = pendulum.now("UTC")
+        e = clocks.ClockEvent(now, parameter_defaults=dict(x=42, z=[1, 2, 3]))
+
+        assert e.start_time == now
+        assert e.parameter_defaults == dict(x=42, z=[1, 2, 3])
+
+    @pytest.mark.parametrize(
+        "dt,params",
+        list(
+            itertools.product(
+                [pendulum.now("UTC").add(hours=1), pendulum.now("UTC").add(hours=-2)],
+                [None, dict(x=1)],
+            )
+        ),
+    )
+    def test_clock_event_comparisons_are_datetime_comparisons(self, dt, params):
+        now = pendulum.now("UTC")
+
+        e = clocks.ClockEvent(now, parameter_defaults=params)
+        e2 = clocks.ClockEvent(dt)
+
+        ## compare to raw datetimes
+        assert e == now
+        assert (e == dt) == (now == dt)
+        assert (e < dt) == (now < dt)
+        assert (e > dt) == (now > dt)
+
+        ## compare to other events
+        assert e == clocks.ClockEvent(now)
+        assert (e == e2) == (e.start_time == e2.start_time)
+        assert (e < e2) == (e.start_time < e2.start_time)
+        assert (e > e2) == (e.start_time > e2.start_time)
+
+
 class TestIntervalClock:
     def test_create_interval_clock(self):
-        assert clocks.IntervalClock(
+        c = clocks.IntervalClock(
             start_date=pendulum.now("UTC"), interval=timedelta(days=1)
         )
+        assert c.parameter_defaults == dict()
+
+    def test_create_interval_clock_with_parameters(self):
+        c = clocks.IntervalClock(
+            start_date=pendulum.now("UTC"),
+            interval=timedelta(days=1),
+            parameter_defaults=dict(x=42),
+        )
+        assert c.parameter_defaults == dict(x=42)
 
     def test_create_interval_clock_without_interval(self):
         with pytest.raises(TypeError):
@@ -38,6 +93,7 @@ class TestIntervalClock:
         assert c.start_date is None
         assert c.interval == timedelta(hours=1)
         assert c.end_date is None
+        assert c.parameter_defaults == dict()
 
     def test_end_date(self):
         c = clocks.IntervalClock(
@@ -46,6 +102,7 @@ class TestIntervalClock:
         assert c.start_date is None
         assert c.interval == timedelta(hours=1)
         assert c.end_date == pendulum.datetime(2020, 1, 1)
+        assert c.parameter_defaults == dict()
 
     def test_interval_clock_interval_must_be_positive(self):
         with pytest.raises(ValueError, match="greater than 0"):
@@ -55,12 +112,18 @@ class TestIntervalClock:
         with pytest.raises(ValueError, match="greater than 0"):
             clocks.IntervalClock(interval=timedelta(0))
 
-    def test_interval_clock_events(self):
+    @pytest.mark.parametrize("params", [dict(), dict(x=1)])
+    def test_interval_clock_events(self, params):
         """Test that default after is *now*"""
         start_date = pendulum.datetime(2018, 1, 1)
         today = pendulum.today("UTC")
-        c = clocks.IntervalClock(timedelta(days=1), start_date=start_date)
-        assert islice(c.events(), 3) == [
+        c = clocks.IntervalClock(
+            timedelta(days=1), start_date=start_date, parameter_defaults=params
+        )
+        output = islice(c.events(), 3)
+        assert all([isinstance(e, clocks.ClockEvent) for e in output])
+        assert all([e.parameter_defaults == params for e in output])
+        assert output == [
             today.add(days=1),
             today.add(days=2),
             today.add(days=3),
@@ -137,9 +200,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_forward(self, serialize):
@@ -152,9 +220,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_hourly_daylight_savings_time_backward(self, serialize):
@@ -167,9 +240,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # repeat the 1am run in local time
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 1, 2]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            1,
+            2,
+        ]
         # runs every hour UTC
-        assert [t.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [4, 5, 6, 7]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_daily_start_daylight_savings_time_forward(self, serialize):
@@ -184,9 +262,14 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_interval_clock_daily_start_daylight_savings_time_backward(self, serialize):
@@ -201,13 +284,23 @@ class TestIntervalClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
-        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
 
 class TestCronClock:
     def test_create_cron_clock(self):
-        assert clocks.CronClock("* * * * *")
+        c = clocks.CronClock("* * * * *")
+        assert c.parameter_defaults == dict()
+
+    def test_create_cron_clock_with_parameters(self):
+        c = clocks.CronClock("* * * * *", parameter_defaults=dict(x=42))
+        assert c.parameter_defaults == dict(x=42)
 
     def test_create_cron_clock_with_invalid_cron_string_raises_error(self):
         with pytest.raises(Exception):
@@ -219,10 +312,16 @@ class TestCronClock:
         with pytest.raises(Exception):
             clocks.CronClock("* * 32 1 1")
 
-    def test_cron_clock_events(self):
+    @pytest.mark.parametrize("params", [dict(), dict(x=1)])
+    def test_cron_clock_events(self, params):
         every_day = "0 0 * * *"
-        c = clocks.CronClock(every_day)
-        assert islice(c.events(), 3) == [
+        c = clocks.CronClock(every_day, parameter_defaults=params)
+
+        output = islice(c.events(), 3)
+        assert all([isinstance(e, clocks.ClockEvent) for e in output])
+        assert all([e.parameter_defaults == params for e in output])
+
+        assert output == [
             pendulum.today("UTC").add(days=1),
             pendulum.today("UTC").add(days=2),
             pendulum.today("UTC").add(days=3),
@@ -248,7 +347,7 @@ class TestCronClock:
         c = clocks.CronClock(every_hour)
         next_4 = islice(c.events(after=dt), 4)
 
-        assert [t.in_tz("UTC").hour for t in next_4] == [6, 7, 8, 9]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [6, 7, 8, 9]
 
     def test_cron_clock_end_daylight_savings_time(self):
         """
@@ -258,7 +357,7 @@ class TestCronClock:
         every_hour = "0 * * * *"
         c = clocks.CronClock(every_hour)
         next_4 = islice(c.events(after=dt), 4)
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     def test_cron_clock_start_date(self):
         every_day = "0 0 * * *"
@@ -320,9 +419,14 @@ class TestCronClockDaylightSavingsTime:
 
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_hourly_daylight_savings_time_forward(self, serialize):
@@ -335,9 +439,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # skip 2am
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 3, 4]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly schedule in utc time
-        assert [t.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [5, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_hourly_daylight_savings_time_backward(self, serialize):
@@ -350,9 +459,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # repeat the 1am run in local time
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [0, 1, 2, 3]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            0,
+            1,
+            2,
+            3,
+        ]
         # runs every hour UTC
-        assert [t.in_tz("UTC").hour for t in next_4] == [4, 6, 7, 8]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [4, 6, 7, 8]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_daily_start_daylight_savings_time_forward(self, serialize):
@@ -367,9 +481,14 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [t.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [14, 14, 13, 13]
 
     @pytest.mark.parametrize("serialize", [True, False])
     def test_cron_clock_daily_start_daylight_savings_time_backward(self, serialize):
@@ -384,8 +503,13 @@ class TestCronClockDaylightSavingsTime:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
         # constant 9am start
-        assert [t.in_tz("America/New_York").hour for t in next_4] == [9, 9, 9, 9]
-        assert [t.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
+        assert [t.start_time.in_tz("America/New_York").hour for t in next_4] == [
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [t.start_time.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
 
 class TestDatesClock:
@@ -393,22 +517,39 @@ class TestDatesClock:
         now = pendulum.now("UTC")
         clock = clocks.DatesClock(dates=[now])
         assert clock.start_date == clock.end_date == now
+        assert clock.parameter_defaults == dict()
 
     def test_create_dates_clock_multiple_dates(self):
         now = pendulum.now("UTC")
         clock = clocks.DatesClock(dates=[now.add(days=1), now.add(days=2), now])
         assert clock.start_date == now
         assert clock.end_date == now.add(days=2)
+        assert clock.parameter_defaults == dict()
+
+    def test_create_dates_clock_multiple_dates_with_parameters(self):
+        now = pendulum.now("UTC")
+        clock = clocks.DatesClock(
+            dates=[now.add(days=1), now.add(days=2), now], parameter_defaults=dict(y=99)
+        )
+        assert clock.start_date == now
+        assert clock.end_date == now.add(days=2)
+        assert clock.parameter_defaults == dict(y=99)
 
     def test_start_date_must_be_provided(self):
         with pytest.raises(TypeError):
             clocks.DatesClock()
 
-    def test_dates_clock_events(self):
+    @pytest.mark.parametrize("params", [dict(), dict(x=1)])
+    def test_dates_clock_events(self, params):
         """Test that default after is *now*"""
         start_date = pendulum.today("UTC").add(days=1)
-        c = clocks.DatesClock([start_date])
-        assert islice(c.events(), 3) == [start_date]
+        c = clocks.DatesClock([start_date], parameter_defaults=params)
+
+        output = islice(c.events(), 3)
+        assert all([isinstance(e, clocks.ClockEvent) for e in output])
+        assert all([e.parameter_defaults == params for e in output])
+
+        assert output == [start_date]
         assert islice(c.events(), 1) == [start_date]
 
     def test_dates_clock_events_with_after_argument(self):

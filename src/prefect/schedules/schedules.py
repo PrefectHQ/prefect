@@ -76,7 +76,9 @@ class Schedule:
     def end_date(self) -> Optional[datetime]:
         return max([c.end_date for c in self.clocks if c.end_date], default=None)
 
-    def next(self, n: int, after: datetime = None) -> List[datetime]:
+    def next(
+        self, n: int, after: datetime = None, return_events: bool = False
+    ) -> List[datetime]:
         """
         Retrieve the next `n` scheduled times, optionally after a specified date.
 
@@ -87,6 +89,8 @@ class Schedule:
             - n (int): the number of dates to return
             - after (datetime): an optional starting point. All returned dates will be after this
                 time.
+            - return_events (bool, optional): an optional boolean specifying whether to return a full
+                Clock Event or just the start_time of the associated event; defaults to `False`
 
         Returns:
             - List[datetime]: a list of datetimes
@@ -95,14 +99,17 @@ class Schedule:
         counter = 0
         for event in self._get_clock_events(after=after):
             counter += 1
-            if self._check_filters(event):
-                adjusted_event = self._apply_adjustments(event)
-                events.append(adjusted_event)
+            if self._check_filters(event.start_time):
+                event.start_time = self._apply_adjustments(event.start_time)
+                events.append(event if return_events else event.start_time)
             if len(events) == n or counter >= 10000:
                 break
-        return events
 
-    def _get_clock_events(self, after: datetime = None) -> Iterable[datetime]:
+        return events  # type: ignore
+
+    def _get_clock_events(
+        self, after: datetime = None
+    ) -> Iterable["prefect.schedules.clocks.ClockEvent"]:
         """
         A generator of events emitted by the schedule's clocks.
 
@@ -125,7 +132,7 @@ class Schedule:
         # code from `unique_justseen()` at https://docs.python.org/3/library/itertools.html#itertools-recipes
         unique_events = map(
             next, map(operator.itemgetter(1), itertools.groupby(sorted_events))
-        )  # type: Iterable[datetime]
+        )  # type: Iterable[prefect.schedules.clocks.ClockEvent]
         yield from unique_events
 
     def _check_filters(self, dt: datetime) -> bool:
