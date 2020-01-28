@@ -6,7 +6,7 @@ import sys
 import tempfile
 
 from datetime import datetime, timedelta
-from time import sleep
+from time import sleep, time
 from unittest.mock import MagicMock
 
 import prefect
@@ -329,13 +329,20 @@ def test_timeout_actually_stops_execution(executor):
         def slow_fn():
             with open(FILE, "w") as f:
                 f.write("called!")
-            sleep(3)
+            sleep(2)
+            with open(FILE, "a") as f:
+                f.write("invalid")
 
         assert not os.path.exists(FILE)
 
+        start_time = time()
         state = TaskRunner(slow_fn).run(executor=executor)
+        stop_time = time()
+        sleep(max(0, 3 - (stop_time - start_time)))
 
         assert os.path.exists(FILE)
+        with open(FILE, "r") as f:
+            assert "invalid" not in f.read()
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)

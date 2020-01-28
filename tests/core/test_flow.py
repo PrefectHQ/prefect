@@ -2546,15 +2546,22 @@ def test_timeout_actually_stops_execution(executor):
         def slow_fn():
             with open(FILE, "w") as f:
                 f.write("called!")
-            time.sleep(3)
+            time.sleep(2)
+            with open(FILE, "a") as f:
+                f.write("invalid")
 
         flow = Flow("timeouts", tasks=[slow_fn])
 
         assert not os.path.exists(FILE)
 
+        start_time = time.time()
         state = flow.run(executor=executor)
+        stop_time = time.time()
+        time.sleep(max(0, 3 - (stop_time - start_time)))
 
         assert os.path.exists(FILE)
+        with open(FILE, "r") as f:
+            assert "invalid" not in f.read()
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
