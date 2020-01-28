@@ -23,6 +23,17 @@ import prefect
 from prefect.utilities.context import context
 
 
+_original_log_record_factory = logging.getLogRecordFactory()
+
+PREFECT_LOG_RECORD_ATTRIBUTES = (
+    "flow_name",
+    "flow_run_id",
+    "task_name",
+    "task_slug",
+    "task_run_id",
+)
+
+
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
         super().__init__(sys.stdout)
@@ -141,6 +152,8 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     Returns:
         - logging.Logger: a configured logging object
     """
+    logging.setLogRecordFactory(_log_record_context_injector)
+
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
     handler = logging.StreamHandler(sys.stdout)
@@ -159,6 +172,27 @@ def configure_logging(testing: bool = False) -> logging.Logger:
 prefect_logger = configure_logging()
 
 
+def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    """
+    A custom logger LogRecord Factory that injects selected context parameters into newly created logs.
+
+    Args:
+        - *args: arguments to pass to the original LogRecord Factory
+        - **kwargs: keyword arguments to pass to the original LogRecord Factory
+
+    Returns:
+        - logging.LogRecord: the newly created LogRecord
+    """
+    record = _original_log_record_factory(*args, **kwargs)
+
+    for attr in PREFECT_LOG_RECORD_ATTRIBUTES:
+        value = prefect.context.get(attr, None)
+        if attr:
+            setattr(record, attr, value)
+
+    return record
+
+
 def get_logger(name: str = None) -> logging.Logger:
     """
     Returns a "prefect" logger.
@@ -171,6 +205,7 @@ def get_logger(name: str = None) -> logging.Logger:
     Returns:
         - logging.Logger: a configured logging object with the appropriate name
     """
+
     if name is None:
         return prefect_logger
     else:
