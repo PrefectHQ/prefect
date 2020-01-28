@@ -26,7 +26,21 @@ def test_schedule_with_empty_clocks():
 def test_create_schedule():
     dt = pendulum.datetime(2019, 1, 1)
     s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(days=1))])
-    assert s.next(3, after=dt) == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
+    output = s.next(3, after=dt)
+
+    assert all([not isinstance(e, clocks.ClockEvent) for e in output])
+    assert output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
+
+
+def test_create_schedule_emits_events_if_asked():
+    dt = pendulum.datetime(2019, 1, 1)
+    s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(days=1))])
+    output = s.next(3, after=dt, return_events=True)
+
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all([e.parameter_defaults == dict() for e in output])
+
+    output == [dt.add(days=1), dt.add(days=2), dt.add(days=3)]
 
 
 def test_create_schedule_multiple_overlapping_clocks():
@@ -39,13 +53,63 @@ def test_create_schedule_multiple_overlapping_clocks():
             ),
         ]
     )
-    assert s.next(6, after=dt) == [
+    output = s.next(6, after=dt)
+    assert all([not isinstance(e, clocks.ClockEvent) for e in output])
+
+    assert output == [
         dt.add(days=1),
         dt.add(days=2),
         dt.add(days=2, hours=12),
         dt.add(days=3),
         dt.add(days=3, hours=12),
         dt.add(days=4),
+    ]
+
+
+def test_create_schedule_multiple_overlapping_clocks_emit_events_if_asked():
+    dt = pendulum.datetime(2019, 1, 1)
+    s = schedules.Schedule(
+        clocks=[
+            clocks.IntervalClock(timedelta(days=1)),
+            clocks.IntervalClock(
+                timedelta(hours=12), start_date=pendulum.datetime(2019, 1, 3)
+            ),
+        ]
+    )
+    output = s.next(6, after=dt, return_events=True)
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all([e.parameter_defaults == dict() for e in output])
+    assert output == [
+        dt.add(days=1),
+        dt.add(days=2),
+        dt.add(days=2, hours=12),
+        dt.add(days=3),
+        dt.add(days=3, hours=12),
+        dt.add(days=4),
+    ]
+
+
+def test_create_schedule_multiple_overlapping_clocks_emit_events_with_correct_parameters():
+    s = schedules.Schedule(
+        clocks=[
+            clocks.IntervalClock(timedelta(days=1), parameter_defaults=dict(x=0)),
+            clocks.IntervalClock(timedelta(hours=12), parameter_defaults=dict(x=1)),
+        ]
+    )
+    dt = pendulum.datetime(2019, 1, 1)
+    output = s.next(6, after=dt, return_events=True)
+
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+    assert all(
+        [e.parameter_defaults == dict(x=(i + 1) % 2) for i, e in enumerate(output)]
+    )
+    assert output == [
+        dt.add(hours=12),
+        dt.add(days=1),
+        dt.add(days=1, hours=12),
+        dt.add(days=2),
+        dt.add(days=2, hours=12),
+        dt.add(days=3),
     ]
 
 
