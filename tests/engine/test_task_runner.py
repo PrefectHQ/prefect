@@ -6,7 +6,7 @@ import sys
 import tempfile
 
 from datetime import datetime, timedelta
-from time import sleep
+from time import sleep, time
 from unittest.mock import MagicMock
 
 import prefect
@@ -308,28 +308,45 @@ def test_task_runner_accepts_dictionary_of_edges():
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
 def test_timeout_actually_stops_execution(executor):
+    # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
+    # is used as the mechanism for timing out a task. This passes off the job of measuring
+    # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
+    # amount of time passed in the real world). However, since the OS balances which processes
+    # can use the CPU and for how long, it is possible when the CPU is strained for the
+    # Python process running the Flow to not be given "enough" time on the CPU after the signal
+    # alarm is registered with the OS. This could result in the Task.run() only percieving a small
+    # amount of CPU time elapsed when in reality the full timeout period had elapsed.
+
+    # For that reason, this test cannot validate timeout functionality by testing "how far into
+    # the task implementation" we got, but instead do a simple task (create a file) and sleep.
+    # This will drastically reduce the brittleness of the test (but not completely).
+
     with tempfile.TemporaryDirectory() as call_dir:
+        # Note: a real file must be used in the case of "mthread"
         FILE = os.path.join(call_dir, "test.txt")
 
         @prefect.task(timeout=1)
         def slow_fn():
-            "Runs for 1.5 seconds, writes to file 6 times"
-            iters = 0
-            while iters < 6:
-                sleep(0.25)
-                with open(FILE, "a") as f:
-                    f.write("called\n")
-                iters += 1
+            with open(FILE, "w") as f:
+                f.write("called!")
+            sleep(2)
+            with open(FILE, "a") as f:
+                f.write("invalid")
 
+        assert not os.path.exists(FILE)
+
+        start_time = time()
         state = TaskRunner(slow_fn).run(executor=executor)
+        stop_time = time()
+        sleep(max(0, 3 - (stop_time - start_time)))
 
-        # if it continued running, would run for 1 more second
-        sleep(0.5)
-        with open(FILE, "r") as g:
-            contents = g.read()
+        assert os.path.exists(FILE)
+        with open(FILE, "r") as f:
+            assert "invalid" not in f.read()
 
-    assert len(contents.split("\n")) <= 4
     assert state.is_failed()
+    assert isinstance(state, TimedOut)
+    assert isinstance(state.result, TimeoutError)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
