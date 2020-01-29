@@ -192,11 +192,10 @@ def test_cloud_handler_removes_bad_logs_from_queue_and_logs_error(caplog, monkey
         time.sleep(0.75)
         assert len(calls) == 1
         msgs = [c["message"] for c in calls[0]["args"][0]]
-        assert msgs == [
-            "one",
-            "Failed to write log with error: Object of type bytes is not JSON serializable",
-            "three",
-        ]
+
+        assert msgs[0] == "one"
+        assert "is not JSON serializable" in msgs[1]
+        assert msgs[2] == "three"
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
