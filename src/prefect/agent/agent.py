@@ -209,16 +209,19 @@ class Agent:
         try:
             self.update_state(flow_run)
             deployment_info = self.deploy_flow(flow_run)
-            self.client.write_run_logs(
-                [
-                    dict(
-                        flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
-                        name=self.name,
-                        message="Submitted for execution: {}".format(deployment_info),
-                        level="INFO",
-                    )
-                ]
-            )
+            if getattr(flow_run, "id", None):
+                self.client.write_run_logs(
+                    [
+                        dict(
+                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            name=self.name,
+                            message="Submitted for execution: {}".format(
+                                deployment_info
+                            ),
+                            level="INFO",
+                        )
+                    ]
+                )
         except Exception as exc:
             ## if the state update failed, we don't want to follow up with another state update
             if "State update failed" in str(exc):
@@ -229,16 +232,17 @@ class Agent:
                     getattr(flow_run, "id", "UNKNOWN")  # type: ignore
                 )
             )
-            self.client.write_run_logs(
-                [
-                    dict(
-                        flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
-                        name=self.name,
-                        message=str(exc),
-                        level="ERROR",
-                    )
-                ]
-            )
+            if getattr(flow_run, "id", None):
+                self.client.write_run_logs(
+                    [
+                        dict(
+                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            name=self.name,
+                            message=str(exc),
+                            level="ERROR",
+                        )
+                    ]
+                )
             self.mark_failed(flow_run=flow_run, exc=exc)
 
     def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
