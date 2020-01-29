@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+import logging
 
 import pytest
 
@@ -178,6 +179,33 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_t
         'id: { _in: ["id1"] }'
         in list(gql_return.call_args_list[1][0][0]["query"].keys())[0]
     )
+
+
+def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
+    monkeypatch, runner_token, caplog
+):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                getRunsInQueue=MagicMock(flow_run_ids=["already-submitted-id"]),
+                flow_run=[{"id": "id"}],
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    agent.logger.setLevel(logging.DEBUG)
+    copy_mock = MagicMock(return_value=set(["already-submitted-id"]))
+    agent.submitting_flow_runs = MagicMock(copy=copy_mock)
+
+    flow_runs = agent.query_flow_runs(tenant_id="id")
+
+    assert flow_runs == []
+    assert "1 already submitting: ['already-submitted-id']" in caplog.text
+    copy_mock.assert_called_once_with()
 
 
 def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
