@@ -208,7 +208,6 @@ def test_make_error_log(caplog):
     with context({"flow_run_id": "f_id", "task_run_id": "t_id"}):
         log = utilities.logging.CloudHandler()._make_error_log("test_message")
         assert log["flowRunId"] == "f_id"
-        assert log["taskRunId"] == "t_id"
         assert log["timestamp"]
         assert log["name"] == "CloudHandler"
         assert log["message"] == "test_message"

@@ -142,7 +142,6 @@ class CloudHandler(logging.StreamHandler):
     def _make_error_log(self, message: str) -> dict:
         log = dict()
         log["flowRunId"] = prefect.context.get("flow_run_id", None)
-        log["taskRunId"] = prefect.context.get("task_run_id", None)
         log["timestamp"] = pendulum.from_timestamp(time.time()).isoformat()
         log["name"] = self.logger.name
         log["message"] = message
