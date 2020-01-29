@@ -213,7 +213,7 @@ class Agent:
                 [
                     dict(
                         flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
-                        name="agent",
+                        name=self.name,
                         message="Submitted for execution: {}".format(deployment_info),
                         level="INFO",
                     )
@@ -233,7 +233,7 @@ class Agent:
                 [
                     dict(
                         flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
-                        name="agent",
+                        name=self.name,
                         message=str(exc),
                         level="ERROR",
                     )
