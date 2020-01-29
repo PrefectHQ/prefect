@@ -322,6 +322,8 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
+        # keep a copy of what was curringly running before the query (future callbacks may be updating this set)
+        currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
         # Get scheduled flow runs from queue
         mutation = {
@@ -346,20 +348,22 @@ class Agent:
         # by this agent and are in the process of being submitted in the background. We do not
         # want to act on these "duplicate" flow runs until we've been assured that the background
         # thread has attempted to submit the work (successful or otherwise).
-
         flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
             msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
         else:
             msg = "No flow runs found"
-        already_submitting = flow_run_ids & self.submitting_flow_runs
+
+        already_submitting = flow_run_ids & currently_submitting_flow_runs
+        target_flow_run_ids = flow_run_ids - already_submitting
+
         if already_submitting:
-            msg += " ({} already submitting)".format(len(already_submitting))
+            msg += " ({} already submitting: {})".format(
+                len(already_submitting), list(already_submitting)
+            )
 
         self.logger.debug(msg)
-
-        target_flow_run_ids = flow_run_ids - self.submitting_flow_runs
 
         # Query metadata fow flow runs found in queue
         query = {
