@@ -407,7 +407,7 @@ class Agent:
             }
         }
 
-        if flow_run_ids:
+        if target_flow_run_ids:
             self.logger.debug("Querying flow run metadata")
             result = self.client.graphql(query)
             return result.data.flow_run  # type: ignore
