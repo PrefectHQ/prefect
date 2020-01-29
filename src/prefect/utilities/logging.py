@@ -70,7 +70,7 @@ class CloudHandler(logging.StreamHandler):
                 try:
                     assert self.client is not None
                     self.client.write_run_logs([self._make_error_log(message)])
-                except prefect.utilities.exceptions.ClientError as exc:
+                except Exception as exc:
                     self.logger.critical("Unable to write logs to Prefect Cloud")
 
     def _monitor(self) -> None:
