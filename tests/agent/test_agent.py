@@ -199,8 +199,7 @@ def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
                 "version": 1,
                 "task_runs": [],
             }
-        ),
-        deployment_info="test",
+        )
     )
 
 
@@ -231,8 +230,7 @@ def test_update_states_passes_task_runs(monkeypatch, runner_token):
                     )
                 ],
             }
-        ),
-        deployment_info="test",
+        )
     )
 
 

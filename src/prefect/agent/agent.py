@@ -163,8 +163,8 @@ class Agent:
 
     def on_shutdown(self) -> None:
         """
-        Invoked when the event loop is exiting and the agent is shutting down. Intended 
-        as a hook for child classes to optionally implement. 
+        Invoked when the event loop is exiting and the agent is shutting down. Intended
+        as a hook for child classes to optionally implement.
         """
         pass
 
@@ -207,9 +207,23 @@ class Agent:
         """
         # Deploy flow run and mark failed if any deployment error
         try:
+            self.update_state(flow_run)
             deployment_info = self.deploy_flow(flow_run)
-            self.update_state(flow_run, deployment_info)
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
+                        name="agent",
+                        message="Submitted for execution: {}".format(deployment_info),
+                        level="INFO",
+                    )
+                ]
+            )
         except Exception as exc:
+            ## if the state update failed, we don't want to follow up with another state update
+            if "State update failed" in str(exc):
+                self.logger.debug("Updating Flow Run state failed: {}".format(str(exc)))
+                return
             self.logger.error(
                 "Logging platform error for flow run {}".format(
                     getattr(flow_run, "id", "UNKNOWN")  # type: ignore
@@ -232,7 +246,7 @@ class Agent:
         Indicates that a flow run deployment has been deployed (sucessfully or otherwise).
         This is intended to be a future callback hook, called in the agent's main thread
         when the background thread has completed the deploy_and_update_flow_run() call, either
-        successfully, in error, or cancelled. In all cases the agent should be open to 
+        successfully, in error, or cancelled. In all cases the agent should be open to
         attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
 
         Args:
@@ -396,15 +410,13 @@ class Agent:
         else:
             return []
 
-    def update_state(self, flow_run: GraphQLResult, deployment_info: str) -> None:
+    def update_state(self, flow_run: GraphQLResult) -> None:
         """
         After a flow run is grabbed this function sets the state to Submitted so it
         won't be picked up by any other processes
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
-            - deployment_info (str): Identifier information related to the Flow Run
-                deployment
         """
         self.logger.debug(
             "Updating states for flow run {}".format(flow_run.id)  # type: ignore
@@ -422,7 +434,7 @@ class Agent:
                 flow_run_id=flow_run.id,
                 version=flow_run.version,
                 state=Submitted(
-                    message="Submitted for execution. {}".format(deployment_info),
+                    message="Submitted for execution",
                     state=state.StateSchema().load(flow_run.serialized_state),
                 ),
             )
@@ -440,7 +452,7 @@ class Agent:
                     task_run_id=task_run.id,
                     version=task_run.version,
                     state=Submitted(
-                        message="Submitted for execution. {}".format(deployment_info),
+                        message="Submitted for execution.",
                         state=state.StateSchema().load(task_run.serialized_state),
                     ),
                 )
