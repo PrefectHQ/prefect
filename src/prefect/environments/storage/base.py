@@ -114,7 +114,7 @@ class Storage(metaclass=ABCMeta):
 
     def run_basic_healthchecks(self) -> None:
         """
-        Runs basic on the flows contained in this Storage class
+        Runs basic healthchecks on the flows contained in this Storage class
         """
         if not hasattr(self, "_flows"):
             return
