@@ -5,8 +5,6 @@ import cloudpickle
 import socket
 from slugify import slugify
 
-from prefect.environments.storage import _healthcheck
-
 import prefect
 from prefect.engine.result_handlers import LocalResultHandler
 from prefect.environments.storage import Storage
