@@ -93,6 +93,20 @@ def test_parse_task_definition_kwargs(monkeypatch, runner_token):
     assert task_definition_kwargs == kwarg_dict
     assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
 
+def test_parse_task_definition_kwargs_errors(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev",
+    }
+
+    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+
+    assert task_definition_kwargs == kwarg_dict
+    assert task_run_kwargs == {"placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev"}
 
 def test_parse_task_run_kwargs(monkeypatch, runner_token):
     boto3_client = MagicMock()
