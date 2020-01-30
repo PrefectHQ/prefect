@@ -265,7 +265,7 @@ class FargateAgent(Agent):
                 try:
                     # Parse kwarg if needed
                     item = literal_eval(item)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
@@ -276,7 +276,7 @@ class FargateAgent(Agent):
                 try:
                     # Parse kwarg if needed
                     item = literal_eval(item)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     pass
                 task_run_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
@@ -290,7 +290,7 @@ class FargateAgent(Agent):
                     try:
                         # Parse env var if needed
                         def_env_value = literal_eval(def_env_value)  # type: ignore
-                    except ValueError:
+                    except (ValueError, SyntaxError):
                         pass
                     task_definition_kwargs.update({key: def_env_value})
 
@@ -301,7 +301,7 @@ class FargateAgent(Agent):
                     try:
                         # Parse env var if needed
                         run_env_value = literal_eval(run_env_value)  # type: ignore
-                    except ValueError:
+                    except (ValueError, SyntaxError):
                         pass
                     task_run_kwargs.update({key: run_env_value})
 
