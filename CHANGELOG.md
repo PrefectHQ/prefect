@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - More graceful handling of Agents competing for work - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
+- Run storage healthchecks on other options besides Docker - [1963](https://github.com/PrefectHQ/prefect/pull/1963)
 
 ### Task Library
 
