@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
 
 ### Deprecations
 
@@ -51,7 +51,6 @@ Released on Jan 30, 2020.
 ### Fixes
 
 - Eliminated possible duplicate flow run issue in all agents - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
-- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
 
 ### Deprecations
 
