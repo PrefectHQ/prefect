@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.2 <Badge text="beta" type="success"/>
+
+Released on Jan 30, 2020.
+
+### Features
+
 - Allow for parameter defaults to vary based on clock - [#1946](https://github.com/PrefectHQ/prefect/pull/1946)
 
 ### Enhancements
