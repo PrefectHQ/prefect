@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
 
 ### Deprecations
 
