@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.2 <Badge text="beta" type="success"/>
+
+Released on Jan 30, 2020.
+
+### Features
+
 - Allow for parameter defaults to vary based on clock - [#1946](https://github.com/PrefectHQ/prefect/pull/1946)
 
 ### Enhancements
@@ -19,7 +51,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Eliminated possible duplicate flow run issue in all agents - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
 
 ### Deprecations
 
