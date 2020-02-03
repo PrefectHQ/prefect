@@ -39,6 +39,7 @@ def run_with_heartbeat(
         self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
         try:
+            p = None
             try:
                 if self._heartbeat():
                     p = subprocess.Popen(self.heartbeat_cmd)
@@ -48,7 +49,8 @@ def run_with_heartbeat(
                 )
             return runner_method(self, *args, **kwargs)
         finally:
-            p.kill()
+            if p is not None:
+                p.kill()
 
     return inner
 
