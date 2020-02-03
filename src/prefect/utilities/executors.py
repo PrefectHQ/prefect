@@ -42,6 +42,13 @@ def run_with_heartbeat(
             p = None
             try:
                 if self._heartbeat():
+                    # we use Popen + a prefect CLI for a few reasons:
+                    # - using threads would interfere with the task; for example, a task
+                    #   which does not release the GIL would prevent the heartbeat thread from
+                    #   firing
+                    # - using multiprocessing.Process would release the GIL but a subprocess
+                    #   cannot be spawned from a deamonic subprocess, and Dask sometimes will
+                    #   submit tasks to run within daemonic subprocesses
                     p = subprocess.Popen(self.heartbeat_cmd)
             except Exception as exc:
                 self.logger.exception(
