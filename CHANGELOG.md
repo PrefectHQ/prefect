@@ -10,9 +10,76 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Identify Flow and Task logs via logging.LogRecord attributes - [#1938](https://github.com/PrefectHQ/prefect/issues/1938)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.2 <Badge text="beta" type="success"/>
+
+Released on Jan 30, 2020.
+
+### Features
+
+- Allow for parameter defaults to vary based on clock - [#1946](https://github.com/PrefectHQ/prefect/pull/1946)
+
+### Enhancements
+
+- More graceful handling of Agents competing for work - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Eliminated possible duplicate flow run issue in all agents - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.1 <Badge text="beta" type="success"/>
+
+Released on Jan 24, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
-- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/issues/1921)
-- Identify Flow and Task logs via logging.LogRecord attributes
+- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/pull/1921)
+- Background all agent flow deployment attempts - [#1928](https://github.com/PrefectHQ/prefect/pull/1928)
+- Add show_flow_logs to Docker agent [#1929](https://github.com/PrefectHQ/prefect/issues/1929)
+- Add per-task checkpointing opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
+- The Task 'checkpoint' kwarg will no longer be deprecated to allow opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
 
 ### Task Library
 
@@ -21,6 +88,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix the Fargate Agent not parsing kwargs as literals - [#1926](https://github.com/PrefectHQ/prefect/pull/1926)
+- Fix issue with result handler default persisting from initialization - [#1936](https://github.com/PrefectHQ/prefect/issues/1936)
 
 ### Deprecations
 

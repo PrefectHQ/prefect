@@ -12,4 +12,4 @@ Tasks for interacting with RSS feeds.
 
 Task for parsing RSS feeds.
 
-[API Reference](/api/unreleased/tasks/rss.html#prefect-tasks-rss-parserssfeed)
+[API Reference](/api/latest/tasks/rss.html#prefect-tasks-rss-parserssfeed)

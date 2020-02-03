@@ -22,7 +22,7 @@ We recommend following [Chris Beam's style guide](https://chris.beams.io/posts/g
 
 ### Changelog
 
-It's important to update Prefect's [changelog](/api/unreleased/changelog.html) with any adjustments to the project. Each release has four sections:
+It's important to update Prefect's [changelog](/api/latest/changelog.html) with any adjustments to the project. Each release has four sections:
 
 - Features: headline additions to the system
 - Enhancements: improvements to existing functionality, or minor additions

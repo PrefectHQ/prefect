@@ -13,40 +13,40 @@ document with two keys: `"ACCESS_KEY"` and `"SECRET_ACCESS_KEY"`.
 
 Task for creating a Lambda function.
 
-[API Reference](/api/unreleased/tasks/aws.html#lambdacreate)
+[API Reference](/api/latest/tasks/aws.html#lambdacreate)
 
 ## LambdaDelete <Badge text="task"/>
 
 Task for deleting a Lambda function.
 
-[API Reference](/api/unreleased/tasks/aws.html#lambdadelete)
+[API Reference](/api/latest/tasks/aws.html#lambdadelete)
 
 ## LambdaInvoke <Badge text="task"/>
 
 Task for invoking a Lambda function.
 
-[API Reference](/api/unreleased/tasks/aws.html#lambdainvoke)
+[API Reference](/api/latest/tasks/aws.html#lambdainvoke)
 
 ## LambdaList <Badge text="task"/>
 
 Task for listing Lambda functions.
 
-[API Reference](/api/unreleased/tasks/aws.html#lambdalist)
+[API Reference](/api/latest/tasks/aws.html#lambdalist)
 
 ## S3Download <Badge text="task"/>
 
 Task for downloading data from an S3 bucket and returning it as a string. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/aws.html#s3download)
+[API Reference](/api/latest/tasks/aws.html#s3download)
 
 ## S3Upload <Badge text="task"/>
 
 Task for uploading string data (e.g., a JSON string) to an S3 bucket. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/aws.html#s3upload)
+[API Reference](/api/latest/tasks/aws.html#s3upload)
 
 ## StepActivate <Badge text="task"/>
 
 Task for triggering the execution of AWS Step Function workflows.
 
-[API Reference](/api/unreleased/tasks/aws.html#stepactivate)
+[API Reference](/api/latest/tasks/aws.html#stepactivate)

@@ -1,6 +1,6 @@
 # Dask Cluster on Kubernetes
 
-This recipe is for a Flow deployed to Kubernetes using a static Dask cluster. This Dask cluster lives on the same Kubernetes cluster that the Flow runs on.
+This recipe is for a flow deployed to Kubernetes using a static Dask cluster. This Dask cluster lives on the same Kubernetes cluster that the flow runs on.
 
 [[toc]]
 
@@ -96,16 +96,17 @@ spec:
 ```
 
 :::warning Dependencies
-One thing to note in this recipe is the fact that the Dask scheduler and worker pods use the base `prefecthq/prefect:latest` image; this is because our Flow has no external dependencies besides Prefect. When running Dask on Kubernetes you should ensure your image contains the dependencies your Flow needs to execute, either by using the Flow's Docker storage as the image for Dask or by building a custom image with all the required dependencies.
+One thing to note in this recipe is the fact that the Dask scheduler and worker pods use the base `prefecthq/prefect:latest` image; this is because our flow has no external dependencies beyond Prefect. When running Dask on Kubernetes you should ensure your image contains the dependencies your flow needs to execute, either by using the flow's Docker storage as the image for Dask or by building a custom image with all the required dependencies.
 :::
 
 ### Flow Source
 
-`dask_flow.py` is a Flow which uses the [Remote Environment](/cloud/execution/remote_environment.html#overview) to execute a Flow on a static Dask cluster. The Dask scheduler address is the one that was assigned from `dask_service.yaml`.
+`dask_flow.py` is a flow which uses the [Remote Environment](/cloud/execution/remote_environment.html#overview) to execute a flow on a static Dask cluster. The Dask scheduler address is the one that was assigned from `dask_service.yaml`.
 
 ```python
 from prefect import task, Flow
 from prefect.environments import RemoteEnvironment
+from prefect.environments.storage import Docker
 
 
 @task

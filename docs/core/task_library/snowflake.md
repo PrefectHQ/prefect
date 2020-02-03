@@ -4,5 +4,5 @@
 
 Task for executing query against a Snowflake database.
 
-[API Reference](/api/unreleased/tasks/snowflake.html#snowflakequery)
+[API Reference](/api/latest/tasks/snowflake.html#snowflakequery)
 

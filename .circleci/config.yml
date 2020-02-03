@@ -6,7 +6,6 @@ references:
     attach_workspace:
       at: *workspace_root
 
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -52,7 +51,7 @@ jobs:
 
       - run:
           name: Run documentation tests
-          command: pytest -rfEsx -k "generate_docs"
+          command: pytest -vvrfEsx -k "generate_docs"
 
   # test a standard install of prefect
   # is importable in python 3.5.2
@@ -105,7 +104,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -137,7 +136,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -165,12 +164,16 @@ jobs:
           command: apt-get update && apt-get install -y graphviz
 
       - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
           name: Install prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -193,12 +196,16 @@ jobs:
           command: apt-get update && apt-get install -y graphviz
 
       - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
           name: Install prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -220,12 +227,16 @@ jobs:
           command: apt-get update && apt-get install -y graphviz
 
       - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
           name: Install prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -rfEsx .
+          command: pytest -vvrfEsx .
 
   test_airflow:
     docker:
@@ -251,7 +262,7 @@ jobs:
 
       - run:
           name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
+          command: pytest -vvrfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -315,7 +326,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
           name: Push versioned tags
           command: |
@@ -330,6 +341,46 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
+
+  build_master_docker_image:
+    docker:
+      - image: docker
+    parameters:
+      python_version:
+        type: string
+    environment:
+      PYTHON_VERSION: << parameters.python_version >>
+    steps:
+      - checkout
+      - run:
+          name: Master branch check
+          command: |
+            apk add git
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build image
+          command: |
+            set -u
+            docker build \
+              --build-arg GIT_SHA=$CIRCLE_SHA1 \
+              --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+              --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              -t prefecthq/prefect:master \
+              .
+      - run:
+          name: Test image
+          command: |
+            docker run -dit prefecthq/prefect:master /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+      - run:
+          name: Push master tag
+          command: |
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+            docker push prefecthq/prefect:master
 
 workflows:
   version: 2
@@ -380,3 +431,8 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_master_docker_image:
+          python_version: "3.7"
+          filters:
+            branches:
+              only: master

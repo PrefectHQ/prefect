@@ -63,10 +63,6 @@ checkpointing = false
 [tasks]
 
     [tasks.defaults]
-
-    # whether all tasks should checkpoint their outputs
-    checkpoint = false
-
     # the number of times tasks retry before they fail.
     # false indicates that tasks should never retry (equivalent to max_retries = 0)
     max_retries = false

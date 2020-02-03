@@ -31,7 +31,7 @@ class MyTask(Task):
 my_task = MyTask(tags=["webservice"])
 ```
 
-These tags are then available via the `tags` attribute on your Task instances. More information about Task settings and initialization keywords can be found in the corresponding [API documentation](../../api/unreleased/core/task.html#task-2).
+These tags are then available via the `tags` attribute on your Task instances. More information about Task settings and initialization keywords can be found in the corresponding [API documentation](../../api/latest/core/task.html#task-2).
 
 ## Setting Concurrency Limits
 

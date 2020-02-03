@@ -5,6 +5,8 @@ export default ({ router }) => {
     // redirect any other `/guide` route to a `/core` route
     { path: '/guide/*', redirect: '/core/*' },
     // redirect from `cloud/cloud_concepts` to `cloud/concepts`
-    {path: '/cloud/cloud_concepts/*', redirect: '/cloud/concepts/*'}
+    {path: '/cloud/cloud_concepts/*', redirect: '/cloud/concepts/*'},
+    // redirect from `api/unreleased` to `api/latest`
+    {path: '/api/unreleased/*', redirect: '/api/latest/*'}
   ])
 }

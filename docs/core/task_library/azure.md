@@ -13,28 +13,28 @@ document with two keys: `"ACCOUNT_NAME"` and either `"ACCOUNT_KEY"` or `"SAS_TOK
 
 Task for downloading data from an Blob Storage container and returning it as a string. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-blobstorage-blobstoragedownload)
+[API Reference](/api/latest/tasks/azure.html#prefect-tasks-azure-blobstorage-blobstoragedownload)
 
 ## BlobStorageUpload <Badge text="task"/>
 
 Task for uploading string data (e.g., a JSON string) to an Blob Storage. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-blobstorage-blobstorageupload)
+[API Reference](/api/latest/tasks/azure.html#prefect-tasks-azure-blobstorage-blobstorageupload)
 
 ## CosmosDBCreateItem <Badge text="task"/>
 
 Task for creating an item in a Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbcreateitem)
+[API Reference](/api/latest/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbcreateitem)
 
 ## CosmosDBReadItems <Badge text="task"/>
 
 Task for reading items from a Azure Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbreaditems)
+[API Reference](/api/latest/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbreaditems)
 
 ## CosmosDBQueryItems <Badge text="task"/>
 
 Task for querying items from a Azure Cosmos database. Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-[API Reference](/api/unreleased/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbqueryitems)
+[API Reference](/api/latest/tasks/azure.html#prefect-tasks-azure-cosmosdb-cosmosdbqueryitems)

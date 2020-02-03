@@ -108,6 +108,11 @@ class LocalAgent(Agent):
 
         stdout = sys.stdout if self.show_flow_logs else PIPE
 
+        # note: we will allow these processes to be orphaned if the agent were to exit
+        # before the flow runs have completed. The lifecycle of the agent should not
+        # dictate the lifecycle of the flow run. However, if the user has elected to
+        # show flow logs, these log entries will continue to stream to the users terminal
+        # until these child processes exit, even if the agent has already exited.
         p = Popen(
             ["prefect", "execute", "cloud-flow"],
             stdout=stdout,

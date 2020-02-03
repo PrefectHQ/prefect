@@ -133,8 +133,7 @@ class Flow:
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution; if not provided, will default
-            to the one specified in your config
+            retrieving and storing state results during execution
 
     """
 
@@ -162,7 +161,7 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = result_handler or getattr(storage, "result_handler", None)
+        self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -832,10 +831,15 @@ class Flow:
         self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
+        base_parameters = parameters or dict()
+
         ## determine time of first run
         try:
             if self.schedule is not None:
-                next_run_time = self.schedule.next(1)[0]
+                next_run_event = self.schedule.next(1, return_events=True)[0]
+                next_run_time = next_run_event.start_time  # type: ignore
+                parameters = base_parameters.copy()
+                parameters.update(next_run_event.parameter_defaults)  # type: ignore
             else:
                 next_run_time = pendulum.now("utc")
         except IndexError:
@@ -927,7 +931,10 @@ class Flow:
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
                 if self.schedule is not None:
-                    next_run_time = self.schedule.next(1)[0]
+                    next_run_event = self.schedule.next(1, return_events=True)[0]
+                    next_run_time = next_run_event.start_time  # type: ignore
+                    parameters = base_parameters.copy()
+                    parameters.update(next_run_event.parameter_defaults)  # type: ignore
                 else:
                     break
             except IndexError:
