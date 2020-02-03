@@ -63,7 +63,7 @@ class CloudTaskRunner(TaskRunner):
 
     def _heartbeat(self) -> bool:
         try:
-            task_run_id = self.task_run_id  # type: ignore
+            task_run_id = self.task_run_id  # type: str
             self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
 
             # use empty string for testing purposes
@@ -71,7 +71,6 @@ class CloudTaskRunner(TaskRunner):
             query = {
                 "query": {
                     with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        "state": True,
                         "flow": {"settings": True},
                     }
                 }
@@ -180,7 +179,7 @@ class CloudTaskRunner(TaskRunner):
                 raise ENDRUN(state=state)
 
         # we assign this so it can be shared with heartbeat thread
-        self.task_run_id = context.get("task_run_id")  # type: ignore
+        self.task_run_id = context.get("task_run_id", "")  # type: str
         context.update(checkpointing=True)
 
         return super().initialize_run(state=state, context=context)
