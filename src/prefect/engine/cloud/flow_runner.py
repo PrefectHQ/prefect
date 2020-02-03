@@ -67,7 +67,8 @@ class CloudFlowRunner(FlowRunner):
         try:
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            self.client.update_flow_run_heartbeat(flow_run_id)
+            self.heartbeat_cmd = ["prefect", "heartbeat", "flow-run", "-i", flow_run_id]
+
             query = {
                 "query": {
                     with_args("flow_run_by_pk", {"id": flow_run_id}): {
@@ -77,9 +78,6 @@ class CloudFlowRunner(FlowRunner):
                 }
             }
             flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.state == "Cancelled":
-                _thread.interrupt_main()
-                return False
             if flow_run.flow.settings.get("disable_heartbeat"):
                 return False
             return True

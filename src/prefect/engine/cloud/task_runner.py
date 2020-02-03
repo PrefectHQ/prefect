@@ -64,7 +64,7 @@ class CloudTaskRunner(TaskRunner):
     def _heartbeat(self) -> bool:
         try:
             task_run_id = self.task_run_id  # type: ignore
-            self.client.update_task_run_heartbeat(task_run_id)  # type: ignore
+            self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
 
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
@@ -77,9 +77,6 @@ class CloudTaskRunner(TaskRunner):
                 }
             }
             flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.state == "Cancelled":
-                _thread.interrupt_main()
-                return False
             if flow_run.flow.settings.get("disable_heartbeat"):
                 return False
             return True
