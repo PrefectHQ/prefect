@@ -139,6 +139,27 @@ class CloudHandler(logging.StreamHandler):
             self.logger.critical("Failed to write log with error: {}".format(str(exc)))
 
 
+def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    """
+    A custom logger LogRecord Factory that injects selected context parameters into newly created logs.
+
+    Args:
+        - *args: arguments to pass to the original LogRecord Factory
+        - **kwargs: keyword arguments to pass to the original LogRecord Factory
+
+    Returns:
+        - logging.LogRecord: the newly created LogRecord
+    """
+    record = _original_log_record_factory(*args, **kwargs)
+
+    for attr in PREFECT_LOG_RECORD_ATTRIBUTES:
+        value = prefect.context.get(attr, None)
+        if value:
+            setattr(record, attr, value)
+
+    return record
+
+
 def configure_logging(testing: bool = False) -> logging.Logger:
     """
     Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
@@ -170,27 +191,6 @@ def configure_logging(testing: bool = False) -> logging.Logger:
 
 
 prefect_logger = configure_logging()
-
-
-def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord:
-    """
-    A custom logger LogRecord Factory that injects selected context parameters into newly created logs.
-
-    Args:
-        - *args: arguments to pass to the original LogRecord Factory
-        - **kwargs: keyword arguments to pass to the original LogRecord Factory
-
-    Returns:
-        - logging.LogRecord: the newly created LogRecord
-    """
-    record = _original_log_record_factory(*args, **kwargs)
-
-    for attr in PREFECT_LOG_RECORD_ATTRIBUTES:
-        value = prefect.context.get(attr, None)
-        if attr:
-            setattr(record, attr, value)
-
-    return record
 
 
 def get_logger(name: str = None) -> logging.Logger:
