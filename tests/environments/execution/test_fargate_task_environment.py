@@ -323,38 +323,79 @@ def test_execute_run_task(monkeypatch):
     boto3_client.run_task.return_value = {}
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    environment = FargateTaskEnvironment(
-        cluster="test", family="test", taskDefinition="test"
-    )
+    with set_temporary_config({"cloud.auth_token": "test"}):
+        environment = FargateTaskEnvironment(
+            cluster="test", family="test", taskDefinition="test"
+        )
 
-    environment.execute(
-        storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
-        flow_location=".prefect/flows",
-    )
+        environment.execute(
+            storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
+            flow_location=".prefect/flows",
+        )
 
-    assert boto3_client.run_task.called
-    assert boto3_client.run_task.call_args[1]["taskDefinition"] == "test"
-    assert boto3_client.run_task.call_args[1]["overrides"] == {
-        "containerOverrides": [
-            {
-                "name": "flow-container",
-                "environment": [
-                    {
-                        "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": prefect.config.cloud.agent.auth_token,
-                    },
-                    {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "unknown"},
-                    {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
-                    {
-                        "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
-                        "value": ".prefect/flows",
-                    },
-                ],
-            }
-        ]
-    }
-    assert boto3_client.run_task.call_args[1]["launchType"] == "FARGATE"
-    assert boto3_client.run_task.call_args[1]["cluster"] == "test"
+        assert boto3_client.run_task.called
+        assert boto3_client.run_task.call_args[1]["taskDefinition"] == "test"
+        assert boto3_client.run_task.call_args[1]["overrides"] == {
+            "containerOverrides": [
+                {
+                    "name": "flow-container",
+                    "environment": [
+                        {
+                            "name": "PREFECT__CLOUD__AUTH_TOKEN",
+                            "value": prefect.config.cloud.get("auth_token"),
+                        },
+                        {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "unknown"},
+                        {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
+                        {
+                            "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
+                            "value": ".prefect/flows",
+                        },
+                    ],
+                }
+            ]
+        }
+        assert boto3_client.run_task.call_args[1]["launchType"] == "FARGATE"
+        assert boto3_client.run_task.call_args[1]["cluster"] == "test"
+
+
+def test_execute_run_task_agent_token(monkeypatch):
+    boto3_client = MagicMock()
+    boto3_client.run_task.return_value = {}
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    with set_temporary_config({"cloud.agent.auth_token": "test"}):
+        environment = FargateTaskEnvironment(
+            cluster="test", family="test", taskDefinition="test"
+        )
+
+        environment.execute(
+            storage=Docker(registry_url="test", image_name="image", image_tag="tag"),
+            flow_location=".prefect/flows",
+        )
+
+        assert boto3_client.run_task.called
+        assert boto3_client.run_task.call_args[1]["taskDefinition"] == "test"
+        assert boto3_client.run_task.call_args[1]["overrides"] == {
+            "containerOverrides": [
+                {
+                    "name": "flow-container",
+                    "environment": [
+                        {
+                            "name": "PREFECT__CLOUD__AUTH_TOKEN",
+                            "value": prefect.config.cloud.agent.get("auth_token"),
+                        },
+                        {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "unknown"},
+                        {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
+                        {
+                            "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
+                            "value": ".prefect/flows",
+                        },
+                    ],
+                }
+            ]
+        }
+        assert boto3_client.run_task.call_args[1]["launchType"] == "FARGATE"
+        assert boto3_client.run_task.call_args[1]["cluster"] == "test"
 
 
 def test_run_flow(monkeypatch):
@@ -431,8 +472,9 @@ def test_entire_environment_process_together(monkeypatch):
     monkeypatch.setenv("AWS_SESSION_TOKEN", "session")
     monkeypatch.setenv("REGION_NAME", "region")
 
-    with prefect.context({"flow_run_id": "id"}):
-
+    with prefect.context({"flow_run_id": "id"}), set_temporary_config(
+        {"cloud.auth_token": "test"}
+    ):
         storage = Docker(registry_url="test", image_name="image", image_tag="tag")
 
         environment = FargateTaskEnvironment(
@@ -503,7 +545,7 @@ def test_entire_environment_process_together(monkeypatch):
                     "environment": [
                         {
                             "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                            "value": prefect.config.cloud.agent.auth_token,
+                            "value": prefect.config.cloud.get("auth_token"),
                         },
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
                         {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},

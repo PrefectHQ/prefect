@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix uncaught Fargate Agent kwarg parse SyntaxError from `literal_eval` - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
+- Fix FargateTaskEnvironment passing empty auth token to run task - [#1976](https://github.com/PrefectHQ/prefect/pull/1976)
 
 ### Deprecations
 
