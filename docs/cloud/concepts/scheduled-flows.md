@@ -1,6 +1,6 @@
 # Auto-Scheduled Flows
 
-If a flow has a `schedule` attached, then Cloud can automatically create new flow runs according to that schedule.
+If a flow has a `schedule` attached, then Cloud can automatically create new flow runs according to that schedule.  In addition, if any of the schedule's clocks have `parameter_defaults` set they will be passed to each flow run generated from that clock (see the corresponding [Schedule documentation here](../../core/concepts/schedules.html#varying-parameter-values)).
 
 Scheduling in this manner is nothing more than a convenient way to generate new runs; users can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
 
@@ -24,4 +24,6 @@ from prefect import Parameter
 
 x = Parameter('x', default=1)
 ```
+
+Note that it is possible to [schedule changing parameter values](../../core/concepts/schedules.html#varying-parameter-values).
 :::
