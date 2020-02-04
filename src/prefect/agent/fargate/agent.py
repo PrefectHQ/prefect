@@ -25,6 +25,46 @@ class FargateAgent(Agent):
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 
+    **Note**: if AWS authentication kwargs such as `aws_access_key_id` and `aws_session_token`
+    are not provided they will be read from the environment.
+
+    This agent may be initialized directly as an object:
+    ```python
+    from prefect.agent.fargate import FargateAgent
+
+    FargateAgent().start()
+    ```
+
+    Environment variables may be set on the agent to be provided to each flow run's Fargate task:
+    ```python
+    import os
+    from prefect.agent.fargate import FargateAgent
+
+    FargateAgent(env_vars={"MY_SECRET_KEY": "secret", "OTHER_VAR": os.getenv("OTHER_VAR")})
+    ```
+
+    Example of boto3 kwargs being provided to the Fargate Agent:
+    ```python
+    from prefect.agent.fargate import FargateAgent
+
+    agent = FargateAgent(
+        aws_access_key_id="...",
+        aws_secret_access_key="...",
+        region_name="us-east-1",
+        cpu="256",
+        memory="512",
+        networkConfiguration={
+            "awsvpcConfiguration": {
+                "assignPublicIp": "ENABLED",
+                "subnets": ["my_subnet_id"],
+                "securityGroups": []
+            }
+        }
+    )
+
+    agent.start()
+    ```
+
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
