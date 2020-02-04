@@ -2,7 +2,7 @@
 
 ## Overview
 
-Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object.
+Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object which allows for subtle date time adjustments and filtering, along with updating `Parameter` values based on the scheduled time.
 
 ## Simple Schedules
 
@@ -31,7 +31,7 @@ You can see a cron schedule in [this example](https://docs.prefect.io/core/examp
 
 Prefect `Schedules` have three components:
 
-- a `clock` that emits events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks.
+- a `clock` that emits events. For example, an `IntervalClock` might emit an event every hour; a `CronClock` could emit an event according to a cron string. A single schedule may include multiple clocks.  Clocks can also be used to specify varying `Parameter` values for each flow run.
 - `filters` that decide whether an event should be included or not. For example, a filter might be set that only allows events on weekdays, or only during business hours.
 - `adjustments` that can be used to modify events that pass the filters. For example, an adjustment could advance an event to the next business day, or the last business day of the month.
 
@@ -108,6 +108,57 @@ schedule = Schedule(
     clocks=[DatesClock([pendulum.now().add(days=1), pendulum.now().add(days=2)])])
 
 schedule.next(2)
+```
+
+#### Varying Parameter Values <Badge text="0.9.2+"/>
+
+All clocks support an optional `parameter_defaults` argument that allows users to specify varying `Parameter` values for each flow run generated from this clock.  For example, suppose we have the following flow that logs the value of the `Parameter` that is passed to it:
+
+```python
+import prefect
+from prefect import task, Flow, Parameter
+
+@task
+def log_param(p):
+    logger = prefect.context['logger']
+    logger.info("Received parameter value {}".format(p))
+
+p = Parameter("p", default=None, required=False)
+
+with Flow("Varying Parameters") as flow:
+    log_param(p)
+```
+
+Each time we run this flow, we can optionally pass a new value for the `p` parameter; if we were to run this flow on a fixed schedule, we might want to pass different values for `p` depending on which schedule is being called - we can do this through the use of clocks:
+
+```python
+import datetime
+from prefect.schedules import clocks, Schedule
+
+now = datetime.datetime.utcnow()
+
+clock1   = clocks.IntervalClock(start_date=now, 
+                                interval=datetime.timedelta(minutes=1), 
+                                parameter_defaults={"p": "CLOCK 1"})
+clock2   = clocks.IntervalClock(start_date=now + datetime.timedelta(seconds=30), 
+                                interval=datetime.timedelta(minutes=1), 
+                                parameter_defaults={"p": "CLOCK 2"})
+
+# the full schedule
+schedule = Schedule(clocks=[clock1, clock2])
+
+flow.schedule = schedule # set the schedule on the Flow
+flow.run()
+```
+
+When we run this flow on its schedule as above, we will see the parameter value change in the log with each new run:
+
+```
+...
+INFO - prefect.Task: log_param | Received parameter value CLOCK 2
+...
+INFO - prefect.Task: log_param | Received parameter value CLOCK 1
+...
 ```
 
 ### Filters
