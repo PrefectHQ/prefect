@@ -43,7 +43,7 @@ class FargateAgent(Agent):
     FargateAgent(env_vars={"MY_SECRET_KEY": "secret", "OTHER_VAR": os.getenv("OTHER_VAR")})
     ```
 
-    Example of boto3 kwargs being provided to the Fargate Agent:
+    boto3 kwargs being provided to the Fargate Agent:
     ```python
     from prefect.agent.fargate import FargateAgent
 
@@ -57,9 +57,9 @@ class FargateAgent(Agent):
             "awsvpcConfiguration": {
                 "assignPublicIp": "ENABLED",
                 "subnets": ["my_subnet_id"],
-                "securityGroups": []
+                "securityGroups": [],
             }
-        }
+        },
     )
 
     agent.start()
