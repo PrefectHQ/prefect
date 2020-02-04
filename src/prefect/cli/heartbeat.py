@@ -1,12 +1,9 @@
-import json
 import time
 
 import click
-from tabulate import tabulate
 
 from prefect import config
 from prefect.client import Client
-from prefect.utilities.graphql import EnumValue, with_args
 
 
 @click.group(hidden=True)
