@@ -184,6 +184,12 @@ class DockerAgent(Agent):
         return "Container ID: {}".format(container.get("Id"))
 
     def stream_container_logs(self, container_id: str) -> None:
+        """
+        Stream container logs back to stdout
+
+        Args:
+            - container_id (str): ID of a container to stream logs
+        """
         for log in self.docker_client.logs(
             container=container_id, stream=True, follow=True
         ):
