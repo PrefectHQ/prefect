@@ -21,6 +21,10 @@
   from = "/guide/core_concepts/*"
   to = "/core/concepts/:splat"
 
+[[redirects]]
+  from = "/cloud/first-steps.html"
+  to = "/cloud/"
+#
 # redirect from /cloud/cloud_concepts to /cloud/concepts
 [[redirects]]
   from = "/cloud/cloud_concepts/*"
