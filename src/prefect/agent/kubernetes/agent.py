@@ -36,26 +36,14 @@ class KubernetesAgent(Agent):
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
-    This agent may be initialized directly as an object:
-    ```python
-    from prefect.agent.kubernetes import KubernetesAgent
-
-    KubernetesAgent().start()
-    ```
-
     Environment variables may be set on the agent to be provided to each flow run's job:
-    ```python
-    import os
-    from prefect.agent.kubernetes import KubernetesAgent
-
-    KubernetesAgent(env_vars={"MY_SECRET_KEY": "secret", "OTHER_VAR": os.getenv("OTHER_VAR")})
+    ```
+    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Specifying a namespace for the agent will create flow run jobs in that namespace:
-    ```python
-    from prefect.agent.kubernetes import KubernetesAgent
-
-    KubernetesAgent(namespace="dev")
+    ```
+    prefect agent start kubernetes --namespace dev
     ```
 
     Args:

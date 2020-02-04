@@ -17,29 +17,17 @@ class LocalAgent(Agent):
     Agent which deploys flow runs locally as subprocesses. There are a range of kwarg
     options to control information which may be provided to these subprocesses.
 
-    This agent may be initialized directly as an object:
-    ```python
-    from prefect.agent.local import LocalAgent
-
-    LocalAgent().start()
-    ```
-
     Optional import paths may be specified to append dependency modules to the PATH:
-    ```python
-    from prefect.agent.local import LocalAgent
-
-    LocalAgent(import_paths=["/usr/local/my_module", "~/other_module"])
+    ```
+    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
 
     # Now the local scripts/packages my_module and other_module will be importable in
     # the flow's subprocess
     ```
 
     Environment variables may be set on the agent to be provided to each flow run's subprocess:
-    ```python
-    import os
-    from prefect.agent.local import LocalAgent
-
-    LocalAgent(env_vars={"MY_SECRET_KEY": "secret", "OTHER_VAR": os.getenv("OTHER_VAR")})
+    ```
+    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     Args:

@@ -16,26 +16,14 @@ class DockerAgent(Agent):
     Agent which deploys flow runs locally as Docker containers. Information on using the
     Docker Agent can be found at https://docs.prefect.io/cloud/agent/docker.html
 
-    This agent may be initialized directly as an object:
-    ```python
-    from prefect.agent.docker import DockerAgent
-
-    DockerAgent().start()
-    ```
-
     Environment variables may be set on the agent to be provided to each flow run's container:
-    ```python
-    import os
-    from prefect.agent.docker import DockerAgent
-
-    DockerAgent(env_vars={"MY_SECRET_KEY": "secret", "OTHER_VAR": os.getenv("OTHER_VAR")})
+    ```
+    prefect agent start docker --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
     ```
 
     The default Docker daemon may be overridden by providing a different `base_url`:
-    ```python
-    from prefect.agent.docker import DockerAgent
-
-    DockerAgent(base_url="tcp://0.0.0.0:2375")
+    ```
+    prefect agent start docker --base-url "tcp://0.0.0.0:2375"
     ```
 
     Args:
