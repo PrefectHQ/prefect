@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Improve heartbeat functionality to be robust across platforms - [#1973](https://github.com/PrefectHQ/prefect/pull/1973)
 - Cloud logger now attempts to elevate logger errors to flow run logs - [#1961](https://github.com/PrefectHQ/prefect/pull/1961)
 
 ### Task Library
@@ -18,7 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix uncaught Fargate Agent kwarg parse SyntaxError from literal_eval - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from `literal_eval` - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
 - Fix FargateTaskEnvironment passing empty auth token to run task - [#1976](https://github.com/PrefectHQ/prefect/pull/1976)
 
 ### Deprecations
@@ -27,7 +28,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove cancellation hooks - [#1973](https://github.com/PrefectHQ/prefect/pull/1973)
 
 ### Contributors
 
