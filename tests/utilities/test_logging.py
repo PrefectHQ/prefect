@@ -7,6 +7,7 @@ import pytest
 
 from prefect import context, utilities
 
+
 def test_root_logger_level_responds_to_config():
     try:
         with utilities.configuration.set_temporary_config({"logging.level": "DEBUG"}):
