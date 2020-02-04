@@ -22,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix uncaught Fargate Agent kwarg parse SyntaxError from `literal_eval` - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
 - Fix FargateTaskEnvironment passing empty auth token to run task - [#1976](https://github.com/PrefectHQ/prefect/pull/1976)
+- Fix imagePullSecrets not being automatically passed to jobs created by Kubernetes Agent - [#1982](https://github.com/PrefectHQ/prefect/pull/1982)
 
 ### Deprecations
 
