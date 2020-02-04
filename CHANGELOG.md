@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Cloud logger now attempts to elevate logger errors to flow run logs - [#1961](https://github.com/PrefectHQ/prefect/pull/1961)
 
 ### Task Library
 
@@ -43,7 +43,6 @@ Released on Jan 30, 2020.
 
 ### Enhancements
 
-- Cloud logger attempts to elevate logger errors to flow run logs - [#1961](https://github.com/PrefectHQ/prefect/pull/1961)
 - More graceful handling of Agents competing for work - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
 
 ### Task Library
