@@ -3,7 +3,9 @@ import logging
 import time
 from unittest.mock import MagicMock
 
-from prefect import utilities
+import pytest
+
+from prefect import context, utilities
 
 
 def test_root_logger_level_responds_to_config():
@@ -169,7 +171,7 @@ def test_cloud_handler_responds_to_config(caplog, monkeypatch):
         logger.handlers = []
 
 
-def test_cloud_handler_removes_bad_logs_from_queue_and_continues(caplog, monkeypatch):
+def test_cloud_handler_removes_bad_logs_from_queue_and_logs_error(caplog, monkeypatch):
     calls = []
 
     class Client:
@@ -192,11 +194,47 @@ def test_cloud_handler_removes_bad_logs_from_queue_and_continues(caplog, monkeyp
         time.sleep(0.75)
         assert len(calls) == 1
         msgs = [c["message"] for c in calls[0]["args"][0]]
-        assert msgs == ["one", "three"]
+
+        assert msgs[0] == "one"
+        assert "is not JSON serializable" in msgs[1]
+        assert msgs[2] == "three"
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
         logger.handlers = []
+
+
+def test_cloud_handler_client_error(caplog, monkeypatch):
+    class Client:
+        def write_run_logs(self, *args, **kwargs):
+            raise utilities.exceptions.ClientError("Error")
+
+    monkeypatch.setattr("prefect.client.Client", Client)
+    try:
+        logger = utilities.logging.configure_logging(testing=True)
+        cloud_handler = logger.handlers[-1]
+        assert isinstance(cloud_handler, utilities.logging.CloudHandler)
+
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger.critical("one")
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
+def test_make_error_log(caplog):
+
+    with context({"flow_run_id": "f_id", "task_run_id": "t_id"}):
+        log = utilities.logging.CloudHandler()._make_error_log("test_message")
+        assert log["flowRunId"] == "f_id"
+        assert log["timestamp"]
+        assert log["name"] == "CloudHandler"
+        assert log["message"] == "test_message"
+        assert log["level"] == "CRITICAL"
+        assert log["info"] == {}
 
 
 def test_get_logger_returns_root_logger():
