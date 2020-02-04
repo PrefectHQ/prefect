@@ -249,6 +249,7 @@ class KubernetesAgent(Agent):
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
+        agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
 
         # Populate job resource env vars
