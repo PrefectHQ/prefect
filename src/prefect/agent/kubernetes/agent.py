@@ -36,6 +36,16 @@ class KubernetesAgent(Agent):
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
+    Environment variables may be set on the agent to be provided to each flow run's job:
+    ```
+    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
+
+    Specifying a namespace for the agent will create flow run jobs in that namespace:
+    ```
+    prefect agent start kubernetes --namespace dev
+    ```
+
     Args:
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.

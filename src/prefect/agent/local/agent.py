@@ -14,7 +14,21 @@ from prefect.utilities.graphql import GraphQLResult
 
 class LocalAgent(Agent):
     """
-    Agent which deploys flow runs locally as subprocesses.
+    Agent which deploys flow runs locally as subprocesses. There are a range of kwarg
+    options to control information which may be provided to these subprocesses.
+
+    Optional import paths may be specified to append dependency modules to the PATH:
+    ```
+    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+
+    # Now the local scripts/packages my_module and other_module will be importable in
+    # the flow's subprocess
+    ```
+
+    Environment variables may be set on the agent to be provided to each flow run's subprocess:
+    ```
+    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
