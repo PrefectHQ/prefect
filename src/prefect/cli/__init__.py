@@ -12,6 +12,7 @@ from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
 from .run import run as _run
+from .heartbeat import heartbeat as _heartbeat
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -37,6 +38,7 @@ def cli():
         create      Create objects
         execute     Execute a flow's environment
         run         Run a flow
+        heartbeat   Send heartbeats for a run
 
     \b
     Setup Commands:
@@ -57,6 +59,7 @@ cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
 cli.add_command(_run)
+cli.add_command(_heartbeat)
 
 
 # Miscellaneous Commands
