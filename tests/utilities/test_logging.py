@@ -247,3 +247,65 @@ def test_get_logger_with_name_returns_child_logger():
 
     assert prefect_logger is child_logger
     assert prefect_logger is logging.getLogger("prefect").getChild("test")
+
+
+def test_context_attributes():
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+        "task_name": "tn",
+        "task_slug": "ts",
+    }
+
+    class DummyFilter(logging.Filter):
+        called = False
+
+        def filter(self, record):
+            self.called = True
+            for k, v in items.items():
+                assert getattr(record, k, None) == v
+
+    test_filter = DummyFilter()
+    logger = logging.getLogger("prefect")
+    logger.addFilter(test_filter)
+
+    with context(items):
+        logger.info("log entry!")
+
+    logger.filters.pop()
+
+    assert test_filter.called
+
+
+def test_context_only_specified_attributes():
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+    }
+
+    class DummyFilter(logging.Filter):
+        called = False
+
+        def filter(self, record):
+            self.called = True
+            for k, v in items.items():
+                assert getattr(record, k, None) == v
+
+            not_expected = set(utilities.logging.PREFECT_LOG_RECORD_ATTRIBUTES) - set(
+                items.keys()
+            )
+            for key in not_expected:
+                assert key not in record.__dict__.keys()
+
+    test_filter = DummyFilter()
+    logger = logging.getLogger("prefect")
+    logger.addFilter(test_filter)
+
+    with context(items):
+        logger.info("log entry!")
+
+    logger.filters.pop()
+
+    assert test_filter.called
