@@ -393,6 +393,11 @@ title = "Local Agent"
 module = "prefect.agent.local"
 classes = ["LocalAgent"]
 
+[pages.agent.docker]
+title = "Docker Agent"
+module = "prefect.agent.docker"
+classes = ["DockerAgent"]
+
 [pages.agent.kubernetes]
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
