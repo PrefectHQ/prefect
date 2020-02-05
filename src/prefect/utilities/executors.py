@@ -1,5 +1,6 @@
 import datetime
 import multiprocessing
+import os
 import signal
 import subprocess
 import sys
@@ -49,7 +50,12 @@ def run_with_heartbeat(
                     # - using multiprocessing.Process would release the GIL but a subprocess
                     #   cannot be spawned from a deamonic subprocess, and Dask sometimes will
                     #   submit tasks to run within daemonic subprocesses
-                    p = subprocess.Popen(self.heartbeat_cmd)
+                    current_env = dict(os.environ).copy()
+                    auth_token = prefect.context.config.cloud.get("auth_token")
+                    api_url = prefect.context.config.cloud.get("api")
+                    current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
+                    current_env.setdefault("PREFECT__CLOUD__API", api_url)
+                    p = subprocess.Popen(self.heartbeat_cmd, env=current_env)
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
