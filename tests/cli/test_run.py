@@ -47,7 +47,7 @@ def test_run_cloud(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -96,7 +96,7 @@ def test_run_cloud_watch(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -152,7 +152,7 @@ def test_run_cloud_logs(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -184,7 +184,7 @@ def test_run_cloud_fails(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -196,7 +196,7 @@ def test_run_cloud_fails(monkeypatch):
 
 def test_run_cloud_no_param_file(monkeypatch):
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -240,7 +240,7 @@ def test_run_cloud_param_file(monkeypatch):
             json.dump({"test": 42}, tmp)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -280,7 +280,7 @@ def test_run_cloud_param_string(monkeypatch):
     monkeypatch.setattr("prefect.cli.run.Client", MagicMock(return_value=mock_client))
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -318,7 +318,7 @@ def test_run_cloud_run_name(monkeypatch):
     monkeypatch.setattr("prefect.cli.run.Client", MagicMock(return_value=mock_client))
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -361,7 +361,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
             json.dump({"test": 42}, tmp)
 
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(

@@ -342,7 +342,7 @@ class DaskKubernetesEnvironment(Environment):
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
-        env[0]["value"] = prefect.config.cloud.graphql
+        env[0]["value"] = prefect.config.cloud.api
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
         env[3]["value"] = prefect.context.get("namespace", "default")
@@ -374,7 +374,7 @@ class DaskKubernetesEnvironment(Environment):
         # set environment variables
         env = yaml_obj["spec"]["containers"][0]["env"]
 
-        env[0]["value"] = prefect.config.cloud.graphql
+        env[0]["value"] = prefect.config.cloud.api
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
 
@@ -423,7 +423,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.api},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,
@@ -481,7 +481,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.api},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,

@@ -214,7 +214,7 @@ class KubernetesJobEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.api},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,

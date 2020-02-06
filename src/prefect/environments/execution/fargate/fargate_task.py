@@ -180,7 +180,7 @@ class FargateTaskEnvironment(Environment):
 
         if not definition_exists:
             env_values = [
-                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
+                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.api},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
