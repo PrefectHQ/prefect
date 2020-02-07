@@ -26,7 +26,7 @@ def test_ifelse(condition_value):
 
     with Flow(name="test") as flow:
         cnd = ifelse(condition, true_branch, false_branch)
-        assert len(flow.tasks) == 5
+        assert len(flow.tasks) == 6
 
     with prefect.context(CONDITION=condition_value):
         state = flow.run()

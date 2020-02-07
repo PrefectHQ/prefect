@@ -27,14 +27,11 @@ class CompareValue(Task):
 
     Args:
         - value (Any): the value this task will attempt to match when it runs
-        - cast (Callable): an optional function that will be called on the provided value
-            prior to comparing it to the stored value
         - **kwargs: keyword arguments for the Task
     """
 
-    def __init__(self, value: Any, cast=None, **kwargs: Any):
+    def __init__(self, value: Any, **kwargs: Any):
         self.value = value
-        self.cast = cast
         kwargs.setdefault("name", 'CompareValue: "{}"'.format(value))
         super().__init__(**kwargs)
 
@@ -46,17 +43,13 @@ class CompareValue(Task):
         Args:
             - value (Any): the value that will be matched against the task's value.
         """
-        if self.cast is not None:
-            value = self.cast(value)
         if value != self.value:
             raise signals.SKIP(
                 'Provided value "{}" did not match "{}"'.format(value, self.value)
             )
 
 
-def switch(
-    condition: Task, cases: Dict[Any, Task], cast_booleans: bool = False
-) -> None:
+def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     """
     Adds a SWITCH to a workflow.
 
@@ -88,9 +81,6 @@ def switch(
         - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
             The value of the `condition` task will be compared to the keys of this dict, and
             the matching task will be executed.
-        - cast_booleans (bool): if True, conditions that are tested against `True`
-            or `False` will automatically be cast as boolean prior to comparison. This means
-            `0` would match against `False`, for example.
 
     Raises:
         - PrefectWarning: if any of the tasks in "cases" have upstream dependencies,
@@ -102,14 +92,7 @@ def switch(
     with prefect.tags("switch"):
         for value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
-
-            # if the value is boolean, cast the condition to a bool as well
-            if cast_booleans and value in (True, False):
-                match_condition = CompareValue(value=value, cast=bool).bind(
-                    value=condition
-                )
-            else:
-                match_condition = CompareValue(value=value).bind(value=condition)
+            match_condition = CompareValue(value=value).bind(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])
 
 
@@ -127,11 +110,11 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         - false_task (Task): a task that will be executed if the condition is False
     """
 
-    switch(
-        condition=condition,
-        cases={True: true_task, False: false_task},
-        cast_booleans=True,
-    )
+    @prefect.task
+    def as_bool(x):
+        return bool(x)
+
+    switch(condition=as_bool(condition), cases={True: true_task, False: false_task})
 
 
 def merge(*tasks: Task) -> Task:
