@@ -1,6 +1,4 @@
-export default ({
-  router
-}) => {
+export default ({ router }) => {
   router.addRoutes([
     // redirect from `guide/core_concepts` to `core/concepts`
     {
@@ -22,10 +20,10 @@ export default ({
       path: '/api/unreleased/*',
       redirect: '/api/latest/*'
     },
-    // redirect from `core/tutorials` to `core/references`
+    // redirect from `core/tutorials` to `core/advanced_tutorials`
     {
       path: '/core/tutorials/*',
-      redirect: '/core/advanced-tutorials/*'
+      redirect: '/core/advanced_tutorials/*'
     }
   ])
 }

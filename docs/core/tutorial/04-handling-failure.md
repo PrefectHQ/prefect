@@ -39,7 +39,7 @@ There are other mechanisms Prefect provides to enable specialized behavior aroun
 
 - [**Task Triggers**](http://localhost:8080/core/concepts/execution.html#triggers): selectively execute Tasks based on the states from other Task runs.
 - [**State Handlers**](http://localhost:8080/core/concepts/states.html#state-handlers-callbacks): provide a python function that is invoked whenever a Flow or Task changes state --see all the things!
-- [**Notifications**](http://localhost:8080/core/concepts/notifications.html): Get [Slack Notifications](https://docs.prefect.io/core/tutorials/slack-notifications.html#slack-notifications) upon state changes of interest or [send emails](https://docs.prefect.io/core/task_library/notifications.html#emailtask) as Trigger Tasks.
+- [**Notifications**](http://localhost:8080/core/concepts/notifications.html): Get [Slack Notifications](https://docs.prefect.io/core/advanced_tutorials/slack-notifications.html#slack-notifications) upon state changes of interest or [send emails](https://docs.prefect.io/core/task_library/notifications.html#emailtask) as Trigger Tasks.
 
 :::
 
