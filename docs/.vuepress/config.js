@@ -3,7 +3,7 @@ const sidebar81 = require('../api/0.8.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -61,8 +61,7 @@ module.exports = {
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
-    nav: [
-      {
+    nav: [{
         text: 'Prefect Core',
         link: '/core/'
       },
@@ -72,8 +71,7 @@ module.exports = {
       },
       {
         text: 'API Reference',
-        items: [
-          {
+        items: [{
             text: 'Latest (0.9.3)',
             link: '/api/latest/'
           },
@@ -95,8 +93,7 @@ module.exports = {
     sidebar: {
       '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
-      '/api/latest/': [
-        {
+      '/api/latest/': [{
           title: 'API Reference',
           path: '/api/latest/'
         },
@@ -151,8 +148,7 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      '/cloud/': [
-        {
+      '/cloud/': [{
           title: 'Welcome',
           collapsable: false,
           children: ['dataflow', 'faq']

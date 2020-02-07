@@ -55,7 +55,7 @@ Data can be exchanged between Prefect Tasks as a first class operation. This is 
 
 ### Result Handlers
 
-During normal execution, the data exchanged between tasks is usually passed in memory. However, there are [many situations](dataflow.html#when-is-data-persisted) in which this data needs to be _persisted_ somewhere. Data is only persisted in Prefect Cloud using a [Result Handler](../../core/concepts/results.html). Note that unless you turn [checkpointing](../../core/concepts/persistence.html#checkpointing) on for your local Core flows, Result Handlers are never exercised in Core.
+During normal execution, the data exchanged between tasks is usually passed in memory. However, there are [many situations](../dataflow.html#when-is-data-persisted) in which this data needs to be _persisted_ somewhere. Data is only persisted in Prefect Cloud using a [Result Handler](../../core/concepts/results.html). Note that unless you turn [checkpointing](../../core/concepts/persistence.html#checkpointing) on for your local Core flows, Result Handlers are never exercised in Core.
 
 You want to choose a result handler that matches both your Task's data type as well as your preferred location for tracking the data. For example, the `JSONResultHandler` is only capable of handling JSON-compatible data, whereas the `GCSResultHandler` can handle any `cloudpickle`-able Python object. You can also always write a completely custom handler for your Flows and Tasks to use.
 
