@@ -37,7 +37,7 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
             assert jira_notifier(Task(), "", new_state) is new_state
 
 
-def test_jira_notifier_pulls_server_url_from_secret(monkeypatch):
+def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
     client = MagicMock()
     jira = MagicMock(client=client)
     monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
