@@ -11,14 +11,14 @@
     "markdown-it-attrs": "^2.4.1",
     "markdown-it-checkbox": "^1.1.0",
     "netlify-identity-widget": "^1.5.5",
-    "vuepress": "^1.0.4",
+    "vuepress": "^1.2.0",
     "vuepress-plugin-code-copy": "^1.0.1-alpha",
     "vuepress-plugin-selected-text-popup": "^1.0.0"
   },
   "scripts": {
     "docs:generate-api": "cd docs && python generate_docs.py",
-    "docs:dev": "yarn docs:generate-api && vuepress dev docs",
-    "docs:build": "yarn docs:generate-api && vuepress build docs"
+    "docs:dev": "yarn docs:generate-api && vuepress dev docs --debug",
+    "docs:build": "yarn docs:generate-api && vuepress build docs --debug"
   },
   "repository": {
     "type": "git",

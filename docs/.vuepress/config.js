@@ -3,7 +3,7 @@ const sidebar81 = require('../api/0.8.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -35,10 +35,10 @@ module.exports = {
         ga: 'UA-115585378-1'
       }
     ],
-    ["vuepress-plugin-code-copy", true],
+    ['vuepress-plugin-code-copy', true],
     'vuepress-plugin-element-tabs',
     [
-    'vuepress-plugin-selected-text-popup',
+      'vuepress-plugin-selected-text-popup',
       {
         github: true,
         githubOwner: 'prefecthq',
@@ -60,30 +60,42 @@ module.exports = {
     editLinks: true,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.svg',
-    nav: [
-      {
+    nav: [{
         text: 'Prefect Core',
         link: '/core/'
       },
       {
-        text: "Prefect Cloud",
-        link: "/cloud/dataflow"
+        text: 'Prefect Cloud',
+        link: '/cloud/dataflow'
       },
       {
         text: 'API Reference',
-        items: [
-          { text: 'Latest (0.9.1)', link: '/api/latest/' },
-          { text: '0.8.1', link: '/api/0.8.1/' },
-          { text: '0.7.3', link: '/api/0.7.3/' },
-          { text: 'Legacy', link: 'https://docs-legacy.prefect.io'},
+        items: [{
+            text: 'Latest (0.9.1)',
+            link: '/api/latest/'
+          },
+          {
+            text: '0.8.1',
+            link: '/api/0.8.1/'
+          },
+          {
+            text: '0.7.3',
+            link: '/api/0.7.3/'
+          },
+          {
+            text: 'Legacy',
+            link: 'https://docs-legacy.prefect.io'
+          }
         ]
       }
     ],
     sidebar: {
       '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
-      '/api/latest/': [
-        { title: 'API Reference', path: '/api/latest/' },
+      '/api/latest/': [{
+          title: 'API Reference',
+          path: '/api/latest/'
+        },
         'changelog',
         {
           title: 'Test Coverage',
@@ -135,16 +147,22 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      '/cloud/': [
-        {
+      '/cloud/': [{
           title: 'Welcome',
           collapsable: false,
-          children: ["dataflow", "faq"]
+          children: ['dataflow', 'faq']
         },
         {
-          title: "Tutorial",
+          title: 'Tutorial',
           collapsable: false,
-          children: ["tutorial/configure", "tutorial/first", "tutorial/multiple", "tutorial/docker", "tutorial/k8s", "tutorial/next-steps"]
+          children: [
+            'tutorial/configure',
+            'tutorial/first',
+            'tutorial/multiple',
+            'tutorial/docker',
+            'tutorial/k8s',
+            'tutorial/next-steps'
+          ]
         },
         {
           title: 'Cloud Concepts',
@@ -155,13 +173,13 @@ module.exports = {
           title: 'Cloud Execution',
           collapsable: true,
           children: [
-            "execution/overview",
-            "execution/storage_options",
-            "execution/remote_environment",
-            "execution/dask_k8s_environment",
-            "execution/k8s_job_environment",
-            "execution/fargate_task_environment",
-            "execution/custom_environment",
+            'execution/overview',
+            'execution/storage_options',
+            'execution/remote_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
           ]
         },
         {
@@ -178,7 +196,13 @@ module.exports = {
         {
           title: 'Deployment Recipes',
           collapsable: true,
-          children: ["recipes/deployment", "recipes/configuring_storage", "recipes/multi_flow_storage", "recipes/k8s_dask", "recipes/k8s_docker_sidecar",]
+          children: [
+            'recipes/deployment',
+            'recipes/configuring_storage',
+            'recipes/multi_flow_storage',
+            'recipes/k8s_dask',
+            'recipes/k8s_docker_sidecar'
+          ]
         }
       ],
       '/core/': [
@@ -204,14 +228,9 @@ module.exports = {
           ]
         },
         {
-          title: 'Tutorials',
+          title: 'Tutorial',
           collapsable: true,
-          children: getChildren('docs/core', 'tutorials')
-        },
-        {
-          title: 'Task Library',
-          collapsable: true,
-          children: getChildren('docs/core', 'task_library')
+          children: getChildren('docs/core', 'tutorial')
         },
         {
           title: 'Core Concepts',
@@ -234,6 +253,16 @@ module.exports = {
             'concepts/best-practices',
             'concepts/common-pitfalls'
           ]
+        },
+        {
+          title: 'Task Library',
+          collapsable: true,
+          children: getChildren('docs/core', 'task_library')
+        },
+        {
+          title: 'Advanced Tutorials',
+          collapsable: true,
+          children: getChildren('docs/core', 'advanced-tutorials')
         },
         {
           title: 'Examples',
@@ -261,6 +290,7 @@ module.exports = {
     }
   },
   extendMarkdown(md) {
+    md.use(require('./highlight-lines.js'))
     md.use(require('markdown-it-attrs'))
     md.use(require('markdown-it-checkbox'))
   }

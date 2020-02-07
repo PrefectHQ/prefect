@@ -1,4 +1,4 @@
-# Advanced Features <Badge text="advanced" type="warn"/><Badge text="0.3.2+"/>
+# Advanced Features <Badge text="advanced" type="warn"/>
 
 > Topics covered: _mapping tasks_, _parallelization_, _parameters_, _flow.run() keyword arguments_
 

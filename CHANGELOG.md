@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
 
 ### Task Library
 
