@@ -37,23 +37,23 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
             assert jira_notifier(Task(), "", new_state) is new_state
 
 
-# def test_slack_notifier_pulls_url_from_secret(monkeypatch):
-#     post = MagicMock(ok=True)
-#     monkeypatch.setattr("prefect.utilities.notifications.requests.post", post)
-#     state = Failed(message="1", result=0)
-#     with set_temporary_config({"cloud.use_local_secrets": True}):
-#         with pytest.raises(ValueError, match="SLACK_WEBHOOK_URL"):
-#             slack_notifier(Task(), "", state)
+def test_jira_notifier_pulls_server_url_from_secret(monkeypatch):
+    client = MagicMock()
+    jira = MagicMock(client=client)
+    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
+    state = Failed(message="1", result=0)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(JIRAUSER="Bob", JIRATOKEN="", JIRASERVER="https://foo/bar", JIRAPROJECT="")):
+            jira_notifier(Task(), "", state)
+            
+        with pytest.raises(ValueError, match="JIRAUSER"):
+            jira_notifier(Task(), "", state)
+            
 
-#         with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="https://foo/bar")):
-#             slack_notifier(Task(), "", state)
+        kwargs = jira.call_args[1]
+        assert kwargs == {'basic_auth': ('Bob', ''), 'options': {'server': 'https://foo/bar'}}
 
-#         assert post.call_args[0][0] == "https://foo/bar"
-
-#         with prefect.context(secrets=dict(TOP_SECRET='"42"')):
-#             slack_notifier(Task(), "", state, webhook_secret="TOP_SECRET")
-
-#         assert post.call_args[0][0] == "42"
+        
 
 
 # def test_slack_notifier_ignores_ignore_states(monkeypatch):
