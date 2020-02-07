@@ -94,12 +94,12 @@ Lastly, Prefect must be able to `inspect` the function signature in order to app
 
 ```python
 @task
-def prefect_zip(x, y):
+def prefect_bool(x):
     """
-    `task(zip)` doesn't work, but this
-    wrapper function gets around the restriction.
+    `prefect.task(bool)` doesn't work because `bool` is
+    a `builtin`, but this wrapper function gets around the restriction.
     """
-    return zip(x, y)
+    return bool(x)
 ```
 
 If you violate any of these restrictions, an error will be thrown immediately at Task creation informing you.
