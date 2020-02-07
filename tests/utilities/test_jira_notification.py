@@ -34,7 +34,7 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     new_state = Failed(message="1", result=0)
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(JIRAUSER="", JIRATOKEN="", JIRASERVER="", JIRAPROJECT="")):
-            assert jira_notifier(Task(), "", new_state) is Success(message="1", result=0)
+            assert jira_notifier(Task(), "", new_state) is new_state
 
 
 # def test_slack_notifier_pulls_url_from_secret(monkeypatch):
