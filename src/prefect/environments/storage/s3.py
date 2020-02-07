@@ -147,6 +147,8 @@ class S3(Storage):
         Raises:
             - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
+        self.run_basic_healthchecks()
+
         for flow_name, flow in self._flows.items():
             # Pickle Flow
             data = cloudpickle.dumps(flow)

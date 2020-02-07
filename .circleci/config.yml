@@ -6,7 +6,6 @@ references:
     attach_workspace:
       at: *workspace_root
 
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -52,7 +51,7 @@ jobs:
 
       - run:
           name: Run documentation tests
-          command: pytest -rfEsx -k "generate_docs"
+          command: pytest -vvrfEsx -k "generate_docs"
 
   # test a standard install of prefect
   # is importable in python 3.5.2
@@ -105,7 +104,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -137,7 +136,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -174,7 +173,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -206,7 +205,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
 
       - persist_to_workspace:
           root: *workspace_root
@@ -237,38 +236,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -rfEsx .
-
-  test_airflow:
-    docker:
-      - image: continuumio/miniconda3:4.6.14
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Install gcc
-          command: apt-get update && apt-get install -y gcc
-
-      - run:
-          name: Create Airflow conda environment
-          command: conda create -n airflow python=3.6 pip -y
-
-      - run:
-          name: Install Airflow
-          command: source activate airflow && SLUGIFY_USES_TEXT_UNIDECODE=yes pip install apache-airflow flask==1.0.4 && source deactivate
-
-      - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
-
-      - run:
-          name: Run tests w/ airflow
-          command: pytest -rfEsx --airflow --cov=prefect --cov-report=xml:/tmp/workspace/coverage/airflow-coverage.xml .
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
+          command: pytest -vvrfEsx .
 
   upload_coverage:
     docker:
@@ -394,13 +362,11 @@ workflows:
       - test_lower_prefect
       - test_vanilla_prefect
       - test_py352_import_prefect
-      - test_airflow
       - upload_coverage:
           requires:
             - test_35
             - test_36
             - test_vanilla_prefect
-            - test_airflow
 
   "Check code style and docs":
     jobs:

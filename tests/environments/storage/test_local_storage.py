@@ -139,3 +139,17 @@ def test_add_flow_with_weird_name_is_cleaned():
         assert "!" not in loc
         assert " " not in loc
         assert "~" not in loc
+
+
+def test_build_healthchecks():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = Local(directory=tmpdir)
+        flow = Flow("TestFlow")
+        s.add_flow(flow)
+        assert s.build()
+
+
+def test_build_healthcheck_returns_on_no_flows():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = Local(directory=tmpdir)
+        assert s.build()

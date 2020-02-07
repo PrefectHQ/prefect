@@ -163,8 +163,8 @@ class Agent:
 
     def on_shutdown(self) -> None:
         """
-        Invoked when the event loop is exiting and the agent is shutting down. Intended 
-        as a hook for child classes to optionally implement. 
+        Invoked when the event loop is exiting and the agent is shutting down. Intended
+        as a hook for child classes to optionally implement.
         """
         pass
 
@@ -207,24 +207,42 @@ class Agent:
         """
         # Deploy flow run and mark failed if any deployment error
         try:
+            self.update_state(flow_run)
             deployment_info = self.deploy_flow(flow_run)
-            self.update_state(flow_run, deployment_info)
+            if getattr(flow_run, "id", None):
+                self.client.write_run_logs(
+                    [
+                        dict(
+                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            name=self.name,
+                            message="Submitted for execution: {}".format(
+                                deployment_info
+                            ),
+                            level="INFO",
+                        )
+                    ]
+                )
         except Exception as exc:
+            ## if the state update failed, we don't want to follow up with another state update
+            if "State update failed" in str(exc):
+                self.logger.debug("Updating Flow Run state failed: {}".format(str(exc)))
+                return
             self.logger.error(
                 "Logging platform error for flow run {}".format(
                     getattr(flow_run, "id", "UNKNOWN")  # type: ignore
                 )
             )
-            self.client.write_run_logs(
-                [
-                    dict(
-                        flowRunId=getattr(flow_run, "id", "UNKNOWN"),  # type: ignore
-                        name="agent",
-                        message=str(exc),
-                        level="ERROR",
-                    )
-                ]
-            )
+            if getattr(flow_run, "id", None):
+                self.client.write_run_logs(
+                    [
+                        dict(
+                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            name=self.name,
+                            message=str(exc),
+                            level="ERROR",
+                        )
+                    ]
+                )
             self.mark_failed(flow_run=flow_run, exc=exc)
 
     def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
@@ -232,7 +250,7 @@ class Agent:
         Indicates that a flow run deployment has been deployed (sucessfully or otherwise).
         This is intended to be a future callback hook, called in the agent's main thread
         when the background thread has completed the deploy_and_update_flow_run() call, either
-        successfully, in error, or cancelled. In all cases the agent should be open to 
+        successfully, in error, or cancelled. In all cases the agent should be open to
         attempting to deploy the flow run if the flow run id is still in the Cloud run queue.
 
         Args:
@@ -304,6 +322,8 @@ class Agent:
             - list: A list of GraphQLResult flow run objects
         """
         self.logger.debug("Querying for flow runs")
+        # keep a copy of what was curringly running before the query (future callbacks may be updating this set)
+        currently_submitting_flow_runs = self.submitting_flow_runs.copy()
 
         # Get scheduled flow runs from queue
         mutation = {
@@ -328,20 +348,22 @@ class Agent:
         # by this agent and are in the process of being submitted in the background. We do not
         # want to act on these "duplicate" flow runs until we've been assured that the background
         # thread has attempted to submit the work (successful or otherwise).
-
         flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
             msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
         else:
             msg = "No flow runs found"
-        already_submitting = flow_run_ids & self.submitting_flow_runs
+
+        already_submitting = flow_run_ids & currently_submitting_flow_runs
+        target_flow_run_ids = flow_run_ids - already_submitting
+
         if already_submitting:
-            msg += " ({} already submitting)".format(len(already_submitting))
+            msg += " ({} already submitting: {})".format(
+                len(already_submitting), list(already_submitting)
+            )
 
         self.logger.debug(msg)
-
-        target_flow_run_ids = flow_run_ids - self.submitting_flow_runs
 
         # Query metadata fow flow runs found in queue
         query = {
@@ -389,22 +411,20 @@ class Agent:
             }
         }
 
-        if flow_run_ids:
+        if target_flow_run_ids:
             self.logger.debug("Querying flow run metadata")
             result = self.client.graphql(query)
             return result.data.flow_run  # type: ignore
         else:
             return []
 
-    def update_state(self, flow_run: GraphQLResult, deployment_info: str) -> None:
+    def update_state(self, flow_run: GraphQLResult) -> None:
         """
         After a flow run is grabbed this function sets the state to Submitted so it
         won't be picked up by any other processes
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
-            - deployment_info (str): Identifier information related to the Flow Run
-                deployment
         """
         self.logger.debug(
             "Updating states for flow run {}".format(flow_run.id)  # type: ignore
@@ -422,7 +442,7 @@ class Agent:
                 flow_run_id=flow_run.id,
                 version=flow_run.version,
                 state=Submitted(
-                    message="Submitted for execution. {}".format(deployment_info),
+                    message="Submitted for execution",
                     state=state.StateSchema().load(flow_run.serialized_state),
                 ),
             )
@@ -440,7 +460,7 @@ class Agent:
                     task_run_id=task_run.id,
                     version=task_run.version,
                     state=Submitted(
-                        message="Submitted for execution. {}".format(deployment_info),
+                        message="Submitted for execution.",
                         state=state.StateSchema().load(task_run.serialized_state),
                     ),
                 )

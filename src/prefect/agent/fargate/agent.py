@@ -25,6 +25,19 @@ class FargateAgent(Agent):
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 
+    **Note**: if AWS authentication kwargs such as `aws_access_key_id` and `aws_session_token`
+    are not provided they will be read from the environment.
+
+    Environment variables may be set on the agent to be provided to each flow run's Fargate task:
+    ```
+    prefect agent start fargate --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
+
+    boto3 kwargs being provided to the Fargate Agent:
+    ```
+    prefect agent start fargate networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
+    ```
+
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
@@ -265,7 +278,7 @@ class FargateAgent(Agent):
                 try:
                     # Parse kwarg if needed
                     item = literal_eval(item)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
@@ -276,7 +289,7 @@ class FargateAgent(Agent):
                 try:
                     # Parse kwarg if needed
                     item = literal_eval(item)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     pass
                 task_run_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
@@ -290,7 +303,7 @@ class FargateAgent(Agent):
                     try:
                         # Parse env var if needed
                         def_env_value = literal_eval(def_env_value)  # type: ignore
-                    except ValueError:
+                    except (ValueError, SyntaxError):
                         pass
                     task_definition_kwargs.update({key: def_env_value})
 
@@ -301,7 +314,7 @@ class FargateAgent(Agent):
                     try:
                         # Parse env var if needed
                         run_env_value = literal_eval(run_env_value)  # type: ignore
-                    except ValueError:
+                    except (ValueError, SyntaxError):
                         pass
                     task_run_kwargs.update({key: run_env_value})
 

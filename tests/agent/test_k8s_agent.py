@@ -437,6 +437,8 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
     deployment = yaml.safe_load(deployment)
 
     assert deployment["spec"]["template"]["spec"].get("imagePullSecrets") is None
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert agent_env[3]["value"] == ""
 
 
 def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
@@ -459,6 +461,8 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
         deployment["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
         == "secrets"
     )
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert agent_env[3]["value"] == "secrets"
 
 
 def test_k8s_agent_generate_deployment_yaml_contains_resources(

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, List
 
 import prefect
 from prefect.engine.result_handlers import ResultHandler
+from prefect.environments.storage import _healthcheck
 from prefect.utilities import logging as prefect_logging
 
 if TYPE_CHECKING:
@@ -110,3 +111,12 @@ class Storage(metaclass=ABCMeta):
         """
         schema = prefect.serialization.storage.StorageSchema()
         return schema.dump(self)
+
+    def run_basic_healthchecks(self) -> None:
+        """
+        Runs basic healthchecks on the flows contained in this Storage class
+        """
+        if not hasattr(self, "_flows"):
+            return
+
+        _healthcheck.result_handler_check(self._flows.values())  # type: ignore

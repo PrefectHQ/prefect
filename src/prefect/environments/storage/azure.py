@@ -129,6 +129,8 @@ class Azure(Storage):
             - Storage: an Azure object that contains information about how and where
                 each flow is stored
         """
+        self.run_basic_healthchecks()
+
         for flow_name, flow in self._flows.items():
             data = cloudpickle.dumps(flow)
 
