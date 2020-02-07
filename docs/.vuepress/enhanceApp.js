@@ -26,11 +26,6 @@ export default ({
     {
       path: '/core/tutorials/*',
       redirect: '/core/advanced-tutorials/*'
-    },
-    // redirect from `core/examples` to `core/reference_examples`
-    {
-      path: '/core/examples/*',
-      redirect: '/core/reference_examples/*'
     }
   ])
 }
