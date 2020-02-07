@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 
 ### Task Library
 
