@@ -5,6 +5,7 @@ A state-handler that will create and assign a Jira ticket.
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
 from datetime import datetime
 from toolz import curry
+
 import prefect
 
 try:
