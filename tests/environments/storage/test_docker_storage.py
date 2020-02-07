@@ -50,6 +50,7 @@ def test_add_flow_to_docker():
 def test_empty_docker_storage(monkeypatch, platform, url):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
+    monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
 
     storage = Docker()
 
@@ -67,10 +68,39 @@ def test_empty_docker_storage(monkeypatch, platform, url):
     assert not storage.local_image
 
 
+@pytest.mark.parametrize(
+    "platform,url",
+    [
+        ("win32", "npipe:////./pipe/docker_engine"),
+        ("darwn", "unix://var/run/docker.sock"),
+    ],
+)
+def test_empty_docker_storage_on_tagged_commit(monkeypatch, platform, url):
+    monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
+    monkeypatch.setattr(prefect, "__version__", "0.9.2")
+
+    storage = Docker()
+
+    assert not storage.registry_url
+    assert storage.base_image == "prefecthq/prefect:0.9.2-python3.6"
+    assert not storage.image_name
+    assert not storage.image_tag
+    assert storage.python_dependencies == ["wheel"]
+    assert storage.env_vars == {
+        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml"
+    }
+    assert not storage.files
+    assert storage.prefect_version
+    assert storage.base_url == url
+    assert not storage.local_image
+
+
 @pytest.mark.parametrize("version_info", [(3, 5), (3, 6), (3, 7)])
 def test_docker_init_responds_to_python_version(monkeypatch, version_info):
     version_mock = MagicMock(major=version_info[0], minor=version_info[1])
     monkeypatch.setattr(sys, "version_info", version_mock)
+    monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
     storage = Docker()
     assert storage.base_image == "python:{}.{}-slim".format(*version_info)
 
@@ -117,11 +147,9 @@ def test_initialized_docker_storage():
 
 
 def test_docker_storage_allows_for_user_provided_config_locations():
-    storage = Docker(env_vars={"PREFECT__USER_CONFIG_PATH": "1"},)
+    storage = Docker(env_vars={"PREFECT__USER_CONFIG_PATH": "1"})
 
-    assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "1",
-    }
+    assert storage.env_vars == {"PREFECT__USER_CONFIG_PATH": "1"}
 
 
 def test_files_not_absolute_path():

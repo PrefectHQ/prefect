@@ -254,7 +254,8 @@ class FargateTaskEnvironment(Environment):
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token,
+                        "value": config.cloud.agent.auth_token
+                        or config.cloud.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},

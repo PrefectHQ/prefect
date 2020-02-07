@@ -1,5 +1,5 @@
 """
-This simple ETL-style flow retrieves the number of GitHub "stargazers" and "watchers" for the Prefect repo and writes them to an
+This ETL-style flow retrieves the number of GitHub "stargazers" and "watchers" for the Prefect repo and writes them to an
 Airtable document every day.
 """
 import datetime

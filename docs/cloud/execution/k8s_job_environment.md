@@ -6,7 +6,7 @@
 
 The Kubernetes Job Environment is an Environment that runs a Flow on a completely custom [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/). This Environment is intended for use in cases where you want complete control over the Job your Flow runs on. This Environment is commonly used for resource management, node allocation, and sidecar containers.
 
-_For more information on the Kubernetes Job Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#kubernetesjobenvironment)._
+_For more information on the Kubernetes Job Environment visit the relevant [API documentation](/api/latest/environments/execution.html#kubernetesjobenvironment)._
 
 ## Process
 
@@ -75,7 +75,7 @@ PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
 ```
 
-All other aspects of your Job will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the YAML block above.
+All other aspects of your Job will remain untouched. In some cases it is easiest to use a dummy first container similar to the YAML block above.
 
 ## Examples
 

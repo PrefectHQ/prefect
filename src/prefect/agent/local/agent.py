@@ -14,13 +14,29 @@ from prefect.utilities.graphql import GraphQLResult
 
 class LocalAgent(Agent):
     """
-    Agent which deploys flow runs locally as subprocesses.
+    Agent which deploys flow runs locally as subprocesses. There are a range of kwarg
+    options to control information which may be provided to these subprocesses.
+
+    Optional import paths may be specified to append dependency modules to the PATH:
+    ```
+    prefect agent start local --import-path "/usr/local/my_module" --import-path "~/other_module"
+
+    # Now the local scripts/packages my_module and other_module will be importable in
+    # the flow's subprocess
+    ```
+
+    Environment variables may be set on the agent to be provided to each flow run's subprocess:
+    ```
+    prefect agent start local --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
@@ -34,6 +50,7 @@ class LocalAgent(Agent):
         self,
         name: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
@@ -41,7 +58,7 @@ class LocalAgent(Agent):
         self.processes = []  # type: list
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
@@ -105,6 +122,11 @@ class LocalAgent(Agent):
 
         stdout = sys.stdout if self.show_flow_logs else PIPE
 
+        # note: we will allow these processes to be orphaned if the agent were to exit
+        # before the flow runs have completed. The lifecycle of the agent should not
+        # dictate the lifecycle of the flow run. However, if the user has elected to
+        # show flow logs, these log entries will continue to stream to the users terminal
+        # until these child processes exit, even if the agent has already exited.
         p = Popen(
             ["prefect", "execute", "cloud-flow"],
             stdout=stdout,
@@ -139,6 +161,7 @@ class LocalAgent(Agent):
             "PREFECT__LOGGING__LEVEL": "DEBUG",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            **self.env_vars,
         }
 
     @staticmethod

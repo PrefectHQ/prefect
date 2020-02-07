@@ -103,7 +103,7 @@ client.logout_from_tenant()
 
 The Cloud API also supports direct GraphQL access. While you can still use `USER`-scoped tokens to access and log in to tenants, you will need to manage the short-lived auth and refresh tokens yourself. Therefore, we recommend using the Python client for `USER`-scoped access.
 
-For `TENANT`-scoped tokens, simply include the token as the authorization header of your GraphQL requests:
+For `TENANT`-scoped tokens, include the token as the authorization header of your GraphQL requests:
 
 ```json
 { "authorization": "Bearer YOUR_TOKEN" }

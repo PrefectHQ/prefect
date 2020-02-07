@@ -16,6 +16,24 @@ def serialize_and_deserialize(schedule: schedules.Schedule):
     return schema.load(json.loads(json.dumps(schema.dump(schedule))))
 
 
+def test_serialize_schedule_with_parameters():
+    dt = pendulum.datetime(2099, 1, 1)
+    s = schedules.Schedule(
+        clocks=[
+            clocks.IntervalClock(timedelta(hours=1), parameter_defaults=dict(x=42)),
+            clocks.CronClock("0 8 * * *", parameter_defaults=dict(y=99)),
+        ]
+    )
+    s2 = serialize_and_deserialize(s)
+
+    assert s2.clocks[0].parameter_defaults == dict(x=42)
+    assert s2.clocks[1].parameter_defaults == dict(y=99)
+
+    output = s2.next(3, after=dt, return_events=True)
+
+    assert all([isinstance(e, clocks.ClockEvent) for e in output])
+
+
 def test_serialize_complex_schedule():
     dt = pendulum.datetime(2019, 1, 3)
     s = schedules.Schedule(
@@ -47,6 +65,35 @@ def test_serialize_complex_schedule():
         # skip jan 8!
         dt.add(days=6).replace(hour=12),
         dt.add(days=6).replace(hour=18),
+    ]
+
+
+def test_interval_clocks_with_sub_minute_intervals_cant_be_serialized():
+    schema = ScheduleSchema()
+    s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(seconds=59))])
+    with pytest.raises(ValueError, match="can not be less than one minute"):
+        schema.dump(s)
+
+
+def test_interval_clocks_with_sub_minute_intervals_cant_be_deserialized():
+    schema = ScheduleSchema()
+    s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(seconds=100))])
+    data = schema.dump(s)
+    data["clocks"][0]["interval"] = 59 * 1e6
+    with pytest.raises(ValueError, match="can not be less than one minute"):
+        schema.load(data)
+
+
+def test_interval_clocks_with_exactly_one_minute_intervals_can_be_serialized():
+    s = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(seconds=60))])
+    t = schedules.Schedule(clocks=[clocks.IntervalClock(timedelta(minutes=1))])
+    s2 = serialize_and_deserialize(s)
+    t2 = serialize_and_deserialize(t)
+    assert s2.next(1, after=pendulum.datetime(2019, 1, 1)) == [
+        pendulum.datetime(2019, 1, 1, 0, 1)
+    ]
+    assert t2.next(1, after=pendulum.datetime(2019, 1, 1)) == [
+        pendulum.datetime(2019, 1, 1, 0, 1)
     ]
 
 

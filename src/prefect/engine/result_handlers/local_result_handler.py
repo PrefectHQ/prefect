@@ -4,29 +4,49 @@ Result Handlers provide the hooks that Prefect uses to store task results in pro
 Anytime a task needs its output or inputs stored, a result handler is used to determine where this data should be stored (and how it can be retrieved).
 """
 import base64
-import tempfile
+import cloudpickle
+import os
+import pendulum
+
+from slugify import slugify
 from typing import Any
 
-import cloudpickle
-
+import prefect
 from prefect.engine.result_handlers import ResultHandler
 
 
 class LocalResultHandler(ResultHandler):
     """
-    Hook for storing and retrieving task results from local file storage. Only intended to be used
-    for local testing and development. Task results are written using `cloudpickle` and stored in the
+    Hook for storing and retrieving task results from local file storage.
+    Task results are written using `cloudpickle` and stored in the
     provided location for use in future runs.
-
-    **NOTE**: Stored results will _not_ be automatically cleaned up after execution.
 
     Args:
         - dir (str, optional): the _absolute_ path to a directory for storing
-            all results; defaults to `$TMPDIR`
+            all results; defaults to `${prefect.config.home_dir}/results`
+        - validate (bool, optional): a boolean specifying whether to validate the
+            provided directory path; if `True`, the directory will be converted to an
+            absolute path and created.  Defaults to `True`
     """
 
-    def __init__(self, dir: str = None):
-        self.dir = dir
+    def __init__(self, dir: str = None, validate: bool = True):
+        full_prefect_path = os.path.abspath(prefect.config.home_dir)
+        if (
+            dir is None
+            or os.path.commonpath([full_prefect_path, os.path.abspath(dir)])
+            == full_prefect_path
+        ):
+            directory = os.path.join(prefect.config.home_dir, "results")
+        else:
+            directory = dir
+
+        if validate:
+            abs_directory = os.path.abspath(os.path.expanduser(directory))
+            if not os.path.exists(abs_directory):
+                os.makedirs(abs_directory)
+        else:
+            abs_directory = directory
+        self.dir = abs_directory
         super().__init__()
 
     def read(self, fpath: str) -> Any:
@@ -55,9 +75,10 @@ class LocalResultHandler(ResultHandler):
         Returns:
             - str: the _absolute_ path to the written result on disk
         """
-        fd, loc = tempfile.mkstemp(prefix="prefect-", dir=self.dir)
+        fname = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
+        loc = os.path.join(self.dir, fname)
         self.logger.debug("Starting to upload result to {}...".format(loc))
-        with open(fd, "wb") as f:
+        with open(loc, "wb") as f:
             f.write(cloudpickle.dumps(result))
         self.logger.debug("Finished uploading result to {}...".format(loc))
         return loc

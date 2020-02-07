@@ -10,7 +10,7 @@ The CLI is being built to comply with Cloud user demands on what is deemed usefu
 
 ## Interacting with the CLI
 
-Once you have Prefect installed (either through `pip` or `conda`) you may begin working with the CLI directly in your terminal. To see the CLI simply run `prefect` from the command line and you should see an output similar to the one below:
+Once you have Prefect installed (either through `pip` or `conda`) you may begin working with the CLI directly in your terminal. To see the CLI run `prefect` from the command line and you should see an output similar to the one below:
 
 ```
 $ prefect
@@ -53,6 +53,7 @@ From this help output you can see that the commands are broken into the categori
 #### get flows
 
 Running `prefect get flows` without any extra arguments will output a table of your current flows.
+
 ```
 $ prefect get flows
 NAME        VERSION   PROJECT NAME   AGE
@@ -93,6 +94,7 @@ my-flow     1         Demo           2 weeks ago
 #### get flow-runs
 
 Running `prefect get flow-runs` without any extra arguments will output a table of your most recent flow runs (default is the 10 most recent).
+
 ```
 $ prefect get flow-runs
 NAME                FLOW NAME    STATE      AGE             START TIME           DURATION
@@ -133,6 +135,7 @@ rapid-gibbon        my-flow      Success    2 weeks ago     2019-07-25 14:36:25 
 #### get projects
 
 Running `prefect get projects` without any extra arguments will output a table of your projects. Optionally you can specify `--name` to retrieve a specific project.
+
 ```
 $ prefect get projects
 NAME                   FLOW COUNT    AGE          DESCRIPTION
@@ -142,6 +145,7 @@ Demo                   1             2 weeks ago
 #### get tasks
 
 Running `prefect get tasks` without any extra arguments will output a table of your current tasks (default is the 10 most recent).
+
 ```
 $ prefect get tasks
 NAME          FLOW NAME   FLOW VERSION   AGE          MAPPED   TYPE
@@ -155,6 +159,7 @@ To increase the amount retrieved you can specify a `--limit` integer. Similar to
 #### get logs
 
 Running `prefect get logs` requires that a flow run name is provided through `--name`. It outputs a table of logs from that flow run.
+
 ```
 $ prefect get logs --name fearless-hyrax
 TIMESTAMP                         LEVEL    MESSAGE
@@ -171,6 +176,7 @@ TIMESTAMP                         LEVEL    MESSAGE
 ```
 
 To retrieve more information about each of the logs in JSON pass the `--info` flag to the command.
+
 ```
 $ prefect get logs --name fearless-hyrax --info
 {
@@ -207,6 +213,7 @@ etc...
 #### describe flows
 
 Running `prefect describe flows` requires that a flow name be provided through the `--name` option. This outputs flow descriptive metadata.
+
 ```
 $ prefect describe flows --name my-flow
 {
@@ -244,6 +251,7 @@ This defaults to the most recent version of a flow and to describe past versions
 #### describe flow-runs
 
 Running `prefect describe flow-runs` requires that a flow run name be provided through the `--name` option. This outputs flow run descriptive metadata.
+
 ```
 $ prefect describe flow-runs --name turquoise-gazelle
 {
@@ -274,6 +282,7 @@ $ prefect describe flow-runs --name turquoise-gazelle
 #### describe tasks
 
 Running `prefect describe tasks` requires that a flow name be provided through the `--name` option. This outputs task descriptive metadata that correspond to a flow.
+
 ```
 $ prefect describe tasks --name my-flow
 {
@@ -320,6 +329,7 @@ This command executes a flow's environment in the context of Prefect Cloud and r
 #### run cloud
 
 Running this command requires that a flow name (`--name`) and project (`--project`) is specified in order to create a flow run for that particular flow in Prefect Cloud.
+
 ```
 $ prefect run cloud --name my-flow --project Demo
 Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
@@ -330,6 +340,7 @@ There is an optional `--version` argument that can be passed in with the command
 This command also supports two live output options, `--watch` and `--logs`. Using `--watch` will live update the command line with the flow run's current state until it reaches a finished state and `--logs` will update the command line with live logs from the flow run. These two flags currently cannot be used at the same time in a single call.
 
 Live updating output with `--watch`:
+
 ```
 $ prefect run cloud --name my-flow --project Demo --watch
 Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
@@ -337,6 +348,7 @@ Scheduled -> Submitted -> Running -> Success
 ```
 
 Live updating output with `--logs`:
+
 ```
 $ prefect run cloud --name my-flow --project Demo --logs
 Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
@@ -366,12 +378,14 @@ Having an API token set as a config value prior to using auth CLI commands, eith
 #### auth login
 
 Running `prefect auth login` requires that a Prefect Cloud API token be provided and when executed the API token is used to login to Prefect Cloud.
+
 ```
 $ prefect auth login --token $MY_TOKEN
 Login successful
 ```
 
 If the API token is not valid then you should see:
+
 ```
 $ prefect auth login --token BAD_TOKEN
 Error attempting to use Prefect API token BAD_TOKEN
@@ -380,6 +394,7 @@ Error attempting to use Prefect API token BAD_TOKEN
 #### auth logout
 
 Running `prefect auth logout` will log you out of your active tenant (if you are logged in)
+
 ```
 $ prefect auth logout
 Are you sure you want to log out of Prefect Cloud? (y/N) Y
@@ -387,6 +402,7 @@ Logged out from tenant PREVIOUS_ACTIVE_TENANT_ID
 ```
 
 If there is no current active tenant then you should see:
+
 ```
 $ prefect auth logout
 Are you sure you want to log out of Prefect Cloud? (y/N) Y
@@ -396,6 +412,7 @@ No tenant currently active
 #### auth list-tenants
 
 Running `prefect auth list-tenants` will output all of the tenants that you have access to use.
+
 ```
 $ prefect auth list-tenants
 NAME                        SLUG                        ID
@@ -406,12 +423,14 @@ test@prefect.io's Account   test-prefect-io-s-account   1971hs9f-e8ha-4a33-8c33-
 #### auth switch-tenants
 
 Running `prefect auth switch-tenants --id TENANT_ID --slug TENANT_SLUG` will switch your active tenants. Either the tenant ID or the tenant slug needs to be provided.
+
 ```
 $ prefect auth switch-tenants --slug test-person
 Tenant switched
 ```
 
 If you are unable to switch tenants for various reasons (bad id, bad slug, not providing either) then you should see:
+
 ```
 $ prefect auth switch-tenants --slug test-person
 Unable to switch tenant
@@ -420,12 +439,14 @@ Unable to switch tenant
 #### auth create-token
 
 Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens go [here](./api.html).
+
 ```
 $ prefect auth create-token -n MyToken -r RUNNER
 ...token output...
 ```
 
 If you are unable to create an API token then you should see:
+
 ```
 $ prefect auth create-token -n MyToken -r RUNNER
 Issue creating API token
@@ -434,12 +455,14 @@ Issue creating API token
 #### auth revoke-token
 
 Running `prefect auth revoke-token --id TOKEN_ID` will revoke API tokens in Prefect Cloud.
+
 ```
 $ prefect auth revoke-token --id TOKEN_ID
 Token successfully revoked
 ```
 
 If the token is not found then you should see:
+
 ```
 $ prefect auth revoke-token --id TOKEN_ID
 Unable to revoke token with ID TOKEN_ID
@@ -448,6 +471,7 @@ Unable to revoke token with ID TOKEN_ID
 #### auth list-tokens
 
 Running `prefect auth list-tokens` will list your available API tokens in Prefect Cloud. Note: only the name and ID of the token will be shown, not the actual token.
+
 ```
 $ prefect auth list-tokens
 NAME        ID
@@ -455,6 +479,7 @@ My_Token    87gh22f4-333c-47fc-ae8f-0b61ghu811c3
 ```
 
 If you are unable to list API tokens then you should see:
+
 ```
 $ prefect auth list-tokens
 Unable to list API tokens
@@ -463,12 +488,14 @@ Unable to list API tokens
 ## Miscellaneous Commands
 
 `prefect version` outputs the current version of Prefect you are using:
+
 ```
 $ prefect version
 0.6.1
 ```
 
 `prefect config` outputs your current Prefect config that will be loaded:
+
 ```
 $ prefect config
 ...config output...

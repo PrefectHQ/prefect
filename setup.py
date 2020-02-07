@@ -19,6 +19,10 @@ extras = {
     ],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
+    "gcp": [
+        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-storage >= 1.13, < 2.0",
+    ],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",

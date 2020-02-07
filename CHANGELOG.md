@@ -10,8 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
-- Prevent duplication of stdout logs from multiple instantiated agents - [#1866](https://github.com/PrefectHQ/prefect/pull/1866)
+- Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 
 ### Task Library
 
@@ -19,7 +18,76 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
+
+### Deprecations
+
 - None
+
+### Breaking Changes
+
+- Remove Airflow Tasks - [#1992](https://github.com/PrefectHQ/prefect/pull/1992)
+
+### Contributors
+
+- None
+
+## 0.9.3 <Badge text="beta" type="success"/>
+
+Released on Feb 05, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Improve heartbeat functionality to be robust across platforms - [#1973](https://github.com/PrefectHQ/prefect/pull/1973)
+- Run storage healthchecks on other options besides Docker - [1963](https://github.com/PrefectHQ/prefect/pull/1963)
+- Cloud logger now attempts to elevate logger errors to flow run logs - [#1961](https://github.com/PrefectHQ/prefect/pull/1961)
+- Attach Flow and Task attributes to LogRecords - [#1938](https://github.com/PrefectHQ/prefect/issues/1938)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix uncaught Fargate Agent kwarg parse SyntaxError from `literal_eval` - [#1968](https://github.com/PrefectHQ/prefect/pull/1968)
+- Fix FargateTaskEnvironment passing empty auth token to run task - [#1976](https://github.com/PrefectHQ/prefect/pull/1976)
+- Fix imagePullSecrets not being automatically passed to jobs created by Kubernetes Agent - [#1982](https://github.com/PrefectHQ/prefect/pull/1982)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Remove cancellation hooks - [#1973](https://github.com/PrefectHQ/prefect/pull/1973)
+
+### Contributors
+
+- None
+
+## 0.9.2 <Badge text="beta" type="success"/>
+
+Released on Jan 30, 2020.
+
+### Features
+
+- Allow for parameter defaults to vary based on clock - [#1946](https://github.com/PrefectHQ/prefect/pull/1946)
+
+### Enhancements
+
+- More graceful handling of Agents competing for work - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Eliminated possible duplicate flow run issue in all agents - [#1956](https://github.com/PrefectHQ/prefect/issues/1956)
 
 ### Deprecations
 
@@ -32,6 +100,91 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
+
+## 0.9.1 <Badge text="beta" type="success"/>
+
+Released on Jan 24, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Docker daemon reconnect attempts + exit on heartbeat failure -[#1918](https://github.com/PrefectHQ/prefect/pull/1918)
+- More responsive agent shutdown - [#1921](https://github.com/PrefectHQ/prefect/pull/1921)
+- Background all agent flow deployment attempts - [#1928](https://github.com/PrefectHQ/prefect/pull/1928)
+- Add show_flow_logs to Docker agent [#1929](https://github.com/PrefectHQ/prefect/issues/1929)
+- Add per-task checkpointing opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
+- The Task 'checkpoint' kwarg will no longer be deprecated to allow opt-out - [#1933](https://github.com/PrefectHQ/prefect/pull/1933)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix the Fargate Agent not parsing kwargs as literals - [#1926](https://github.com/PrefectHQ/prefect/pull/1926)
+- Fix issue with result handler default persisting from initialization - [#1936](https://github.com/PrefectHQ/prefect/issues/1936)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.0 <Badge text="beta" type="success"/>
+
+Released on Jan 15, 2020.
+
+### Features
+
+- Added the ability to leverage native ECS task definition revisions for flow versions in Fargate agent - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Added the ability to pull in kwargs per flow version from S3 on flow submission in Fargate agent - [#1870](https://github.com/PrefectHQ/prefect/pull/1870)
+- Add sensible default result handlers to non-Docker storage options - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+
+### Enhancements
+
+- Allow for task looping to beyond Python's maximum recursion depth - [#1862](https://github.com/PrefectHQ/prefect/pull/1862)
+- Prevent duplication of stdout logs from multiple instantiated agents - [#1866](https://github.com/PrefectHQ/prefect/pull/1866)
+- Allow intervals less than 60 seconds in `IntervalClock`s - [#1880](https://github.com/PrefectHQ/prefect/pull/1880)
+- Introduce new `Secret.exists` method for checking whether a Secret is available - [#1882](https://github.com/PrefectHQ/prefect/pull/1882)
+- Introduce new `-e` CLI options on agent start commands to allow passing environment variables to flow runs - [#1878](https://github.com/PrefectHQ/prefect/issues/1878)
+- Stop persisting `None` when calling result handlers - [#1894](https://github.com/PrefectHQ/prefect/pull/1894)
+- Change Cancelled state to indicate Finished instead of Failed - [#1903](https://github.com/PrefectHQ/prefect/pull/1903)
+- All States now store `cached_inputs` for easier recovery from failure - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+- Always checkpoint tasks which have result handlers - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+
+### Task Library
+
+- Remove implicit requirement that Google Tasks use Prefect Cloud Secrets - [#1882](https://github.com/PrefectHQ/prefect/pull/1882)
+
+### Fixes
+
+- Enforce provision of `max_retries` if specifying `retry_delay` for a `Task` - [#1875](https://github.com/PrefectHQ/prefect/pull/1875)
+- Fix issue with reduce tasks in `flow.visualize()` - [#1793](https://github.com/PrefectHQ/prefect/issues/1793)
+
+### Deprecations
+
+- The checkpointing kwarg will be removed from Tasks as it is now a default behavior - [#1898](https://github.com/PrefectHQ/prefect/issues/1898)
+
+### Breaking Changes
+
+- Remove default value for `aws_credentials_secret` on all S3 hooks - [#1886](https://github.com/PrefectHQ/prefect/issues/1886)
+- Remove `config.engine.result_handler` section of Prefect config - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `credentials_secret` on `GCSResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+- Remove default value for `azure_credentials_secret` on `AzureResultHandler` - [#1888](https://github.com/PrefectHQ/prefect/issues/1888)
+
+### Contributors
+
+- [Daryll Strauss](daryll.strauss@gmail.com)
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.8.1 <Badge text="beta" type="success"/>
 
@@ -56,7 +209,7 @@ Released on Dec 17, 2019.
 
 ### Task Library
 
-- None
+- Add task for scheduling a flow run - [#1871](https://github.com/PrefectHQ/prefect/pull/1871)
 
 ### Fixes
 

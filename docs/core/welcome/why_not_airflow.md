@@ -8,7 +8,7 @@ sidebarDepth: 1
 
 Airflow is a historically important tool in the data engineering ecosystem. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
 
-Today, many data engineers are working more directly with their analytical counterparts. Compute and storage are cheap, so friction is low and experimentation prevails. Processes are fast, dynamic, and unpredictable. Airflow got many things right, but its core assumptions never anticipated the rich variety of data applications that has emerged. It simply does not have the requisite vocabulary to describe many of those activities.
+Today, many data engineers are working more directly with their analytical counterparts. Compute and storage are cheap, so friction is low and experimentation prevails. Processes are fast, dynamic, and unpredictable. Airflow got many things right, but its core assumptions never anticipated the rich variety of data applications that has emerged. It does not have the requisite vocabulary to describe many of those activities.
 
 The seed that would grow into Prefect was first planted all the way back in 2016, in a series of discussions about how Airflow would need to change to support what were rapidly becoming standard data practices. Disappointingly, those observations remain valid today.
 
@@ -17,6 +17,7 @@ We know that questions about how Prefect compares to Airflow are paramount to ou
 _Happy engineering!_
 
 ## Overview
+
 Airflow was designed to run static, slow-moving workflows on a fixed schedule, and it is a great tool for that purpose. Airflow was also the first successful implementation of _workflows-as-code_, a useful and flexible paradigm. It proved that workflows could be built without resorting to config files or obtuse DAG definitions.
 
 However, because of the types of workflows it was designed to handle, Airflow exposes a limited “vocabulary” for defining workflow behavior, especially by modern standards. Users often get into trouble by forcing their use cases to fit into Airflow’s model. A sampling of examples that Airflow can not satisfy in a first-class way includes:
@@ -34,6 +35,7 @@ If your use case resembles any of these, you will need to work _around_ Airflow�
 Prefect is the result of years of experience working on Airflow and related projects. Our research, spanning hundreds of users and companies, has allowed us to discover the hidden pain points that current tools fail to address. It has culminated in an incredibly user-friendly, lightweight API backed by a powerful set of abstractions that fit most data-related use cases.
 
 ## API
+
 > When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 >
 > — Airflow documentation
@@ -51,6 +53,7 @@ One way we achieve this is through our “functional API.” In this mode, Prefe
 Not to worry, Prefect also exposes a full imperative API that will be familiar to Airflow users. The imperative API is useful for specifying more complex task dependencies, or for more explicit control. Users can switch between the two styles at any time depending on their needs and preferences.
 
 ## Scheduling and Time
+
 > Time is an illusion. Lunchtime doubly so.
 >
 > — The Hitchhiker’s Guide to the Galaxy
@@ -69,7 +72,7 @@ AIRFLOW_CTX_EXECUTION_DATE=2015–06–01T00:00:00+00:00
 
 and wondering what all these different times mean.
 
-Airflow has a strict dependency on a specific time: the `execution_date`. No DAG can run without an execution date, and no DAG can run twice for the same execution date. Do you have a specific DAG that needs to run twice, with both instantiations starting at the same time? Airflow doesn’t support that; there are no exceptions. Airflow simply decrees that such workflows do not exist. You’ll need to create two nearly-identical DAGs, or start them a millisecond apart, or employ other creative hacks to get this to work.
+Airflow has a strict dependency on a specific time: the `execution_date`. No DAG can run without an execution date, and no DAG can run twice for the same execution date. Do you have a specific DAG that needs to run twice, with both instantiations starting at the same time? Airflow doesn’t support that; there are no exceptions. Airflow decrees that such workflows do not exist. You’ll need to create two nearly-identical DAGs, or start them a millisecond apart, or employ other creative hacks to get this to work.
 
 More confusingly, the `execution_date` is not interpreted by Airflow as the start time of the DAG, but rather the _end of an interval_ capped by the DAG’s start time. This was originally due to ETL orchestration requirements, where the job for May 2nd’s data would be run on May 3rd. Today, it is a source of major confusion and one of the most common misunderstandings new users have.
 
@@ -85,9 +88,10 @@ then Airflow is the wrong tool.
 
 ### Prefect
 
-In contrast, Prefect treats workflows as standalone objects that can be run any time, with any concurrency, for any reason. A schedule is nothing more than a predefined set of start times, and you can make your schedules as simple or as complex as you want. And if you do want your workflow to depend on time, simply add it as a flow parameter.
+In contrast, Prefect treats workflows as standalone objects that can be run any time, with any concurrency, for any reason. A schedule is nothing more than a predefined set of start times, and you can make your schedules as simple or as complex as you want. And if you do want your workflow to depend on time, add it as a flow parameter.
 
 ## The Scheduler Service
+
 > R2-D2, you know better than to trust a strange computer!
 >
 > — C-3PO
@@ -103,7 +107,7 @@ Conversely, Prefect decouples most of this logic into separate (optional) proces
 
 ### Prefect Flow scheduling
 
-Scheduling a flow in Prefect is a lightweight operation. We simply create a new flow run and place it in a `Scheduled` state. In fact, when we talk about Prefect Cloud’s “scheduler,” that is its sole responsibility. Our scheduler never gets involved in any workflow logic or execution.
+Scheduling a flow in Prefect is a lightweight operation. We create a new flow run and place it in a `Scheduled` state. In fact, when we talk about Prefect Cloud’s “scheduler,” that is its sole responsibility. Our scheduler never gets involved in any workflow logic or execution.
 
 ### Prefect Flow logic
 
@@ -135,6 +139,7 @@ Besides performance, this has a major implication for how flows are designed: Ai
 Furthermore, when running a flow on Prefect Cloud or with a custom database, Task and Flow Runners are responsible for updating database state, not the scheduler.
 
 ### Summary
+
 - the centralized Airflow scheduler loop introduces non-trivial latency between when a Task’s dependencies are met and when that Task begins running. If your use case involves few long-running Tasks, this is completely fine — but if you want to execute a DAG with many tasks or where time is of the essence, this could quickly lead to a bottleneck.
 - Airflow’s tight coupling of time and schedules with workflows also means that you need to instantiate both a database and a scheduler service in order to run your DAGs locally. These are clearly necessary features of a production environment, but can be burdensome when trying to test and iterate quickly.
 - the centralized nature of the Airflow scheduler provides a single point of failure for the system
@@ -142,6 +147,7 @@ Furthermore, when running a flow on Prefect Cloud or with a custom database, Tas
 - central scheduling typically means tasks can’t communicate with each other (no dependency resolution)
 
 ## Dataflow
+
 > It’s a trap!
 >
 > — Admiral Ackbar
@@ -174,6 +180,7 @@ Prefect elevates dataflow to a first class operation. Tasks can receive inputs a
 - because Tasks can directly exchange data, Prefect can support more complicated branching logic, richer Task states, and enforce a stricter contract between Tasks and Runners within a Flow (e.g., a Task cannot alter its downstream Tasks states in the database)
 
 ## Parametrized Workflows
+
 > I’m sorry Dave, I’m afraid I can’t do that.
 >
 > — HAL 9000
@@ -183,6 +190,7 @@ It’s often convenient to have a workflow that is capable of handling or respon
 Because Airflow DAGs are supposed to run on fixed schedules and not receive inputs, this is not a “first class” pattern in Airflow. Of course, it is possible to work around this restriction, but the solutions typically involve “hijacking” the fact that the Airflow scheduler reparses DAG files continually and using an Airflow Variable that the DAG file dynamically responds to. If you must resort to taking advantage of the scheduler’s internal implementation details, you’re probably doing something wrong.
 
 ### Prefect
+
 Prefect offers a convenient abstraction for such situations: that of a `Parameter`. Parameters in Prefect are a special type of Task whose value can be (optionally) overridden at runtime. For example, locally we could have:
 
 ```python
@@ -216,6 +224,7 @@ Earlier, we noted that Airflow didn’t even have a concept of running a workflo
 However, with first-class parametrization, it’s quite easy to understand why I might want to run multiple instances of a workflow at the same time — to send multiple emails, or update multiple models, or any set of activities where the workflow logic is the same but an input value might differ.
 
 ## Dynamic Workflows
+
 > You’re gonna need a bigger boat.
 >
 > — Jaws
@@ -260,6 +269,7 @@ This workflow execution contains 10 true Prefect Tasks: 1 for the list creation,
 - as a first-class feature, the UI also knows how to properly display and report mapped Tasks
 
 ## Versioned Workflows
+
 > It is not enough for code to work.
 >
 > — Robert C. Martin
@@ -278,9 +288,10 @@ In Prefect Cloud, we have elevated versioned workflows to a first-class concept.
 - versioning automatically occurs when you deploy a flow to a Project that already contains a flow of the same name
 - when a flow is versioned, it gets an incremented version number and any prior versions are automatically archived (which turns off automatic scheduling)
 
-Both of these settings can be customized if you have more complicated versioning requirements. For example, you could specify that any flow is a version of any other flow, regardless of name or project. You could override the automatic version promotion to unarchive and enable old versions (for example, for A/B testing). Or you could use versioning simply to maintain a history of your workflow without polluting your UI.
+Both of these settings can be customized if you have more complicated versioning requirements. For example, you could specify that any flow is a version of any other flow, regardless of name or project. You could override the automatic version promotion to unarchive and enable old versions (for example, for A/B testing). Or you could use versioning to maintain a history of your workflow without polluting your UI.
 
 ## Local Testing
+
 > The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong it usually turns out to be impossible to get at or repair.
 >
 > — Mostly Harmless
@@ -290,13 +301,14 @@ Because both Airflow and Prefect are written in Python, it is possible to unit t
 However, to test your _workflow_ logic can be significantly trickier in Airflow than Prefect. This is for a number of reasons:
 
 - DAG-level execution in Airflow is controlled and orchestrated by the centralized scheduler, meaning to run a pass through of your DAG with dummy data requires an initialized Airflow database and a scheduler service running. This can be tricky to put into a CI pipeline and for many people is a barrier to testing at this level.
-- Airflow’s notion of Task “State” is simply a string describing the state; this introduces complexity for testing for data passage, or what types of exceptions get raised, and requires database queries to ascertain
+- Airflow’s notion of Task “State” is a string describing the state; this introduces complexity for testing for data passage, or what types of exceptions get raised, and requires database queries to ascertain
 
 In Prefect, on the other hand, recall that flows can run themselves locally using `flow.run` (with retries) or with a `FlowRunner` for single-pass execution. Additionally, each of these interfaces provides a large number of keyword arguments designed specifically to help you test your flow, critically including a way to manually specify the states of any upstream tasks.
 
 For example, to make sure your trigger logic works for an individual task, you can pass in all upstream task states through the `task_states` keyword argument; because Prefect returns fully hydrated “State” objects (which include such information as data, exceptions, and retry times), you can easily make assertions on the nature of the returned `State` for the task of interest.
 
 ## UI
+
 > I want to believe.
 >
 > — Fox Mulder
@@ -315,6 +327,7 @@ Prefect’s UI is not yet available to the public, so we will refrain from makin
 - timezone handling (this one’s for you, Airflow users!)
 
 ## Conclusions
+
 > If I have seen further than others, it is by standing upon the shoulders of giants.
 >
 > — Isaac Newton

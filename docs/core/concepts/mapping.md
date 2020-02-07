@@ -55,7 +55,7 @@ Even though the user didn't create them explicitly, the children tasks of a mapp
 
 ## Simple mapping
 
-The simplest Prefect map simply takes a tasks and applies it to each element of its inputs.
+The simplest Prefect map takes a tasks and applies it to each element of its inputs.
 
 For example, if we define a task for adding 10 to a number, we can trivially apply that task to each element of a list:
 

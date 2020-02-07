@@ -1,10 +1,11 @@
 # PIN 13: Universal Cloud Deploys
 
 Date: November 5, 2019
+
 Author: Chris White
 
 # Status
-In Progress
+Accepted
 
 # Context
 Certain Prefect Cloud users encounter a non-trivial friction when deploying their Core flows to Cloud because of Docker.  There are three big reasons for this:

@@ -104,6 +104,24 @@ def test_docker_agent_ping_exception(monkeypatch, runner_token):
         agent = DockerAgent()
 
 
+def test_populate_env_vars_uses_user_provided_env_vars(monkeypatch, runner_token):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "token",
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+        }
+    ):
+        agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+
+    assert env_vars["AUTH_THING"] == "foo"
+
+
 def test_populate_env_vars(monkeypatch, runner_token):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
@@ -275,6 +293,61 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
     assert api.start.called
 
 
+def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
+
+    process = MagicMock()
+    monkeypatch.setattr("multiprocessing.Process", process)
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent(show_flow_logs=True)
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    process.assert_called_with(
+        target=agent.stream_container_logs, kwargs={"container_id": "container_id"}
+    )
+    assert len(agent.processes) == 1
+    assert api.create_container.called
+    assert api.start.called
+
+
+def test_docker_agent_shutdown_terminates_child_processes(monkeypatch, runner_token):
+    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    proc = MagicMock(is_alive=MagicMock(return_value=True))
+    agent = DockerAgent(show_flow_logs=True)
+    agent.processes = [proc]
+    agent.on_shutdown()
+
+    assert proc.is_alive.called
+    assert proc.terminate.called
+
+
 def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_token):
 
     api = MagicMock()
@@ -304,3 +377,70 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
     assert not api.pull.called
     assert api.create_container.called
     assert api.start.called
+
+
+def test_docker_agent_heartbeat_gocase(monkeypatch, runner_token):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    agent.heartbeat()
+    assert api.ping.call_count == 2
+
+
+def test_docker_agent_heartbeat_exits_on_failure(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    agent.heartbeat()
+    with pytest.raises(SystemExit):
+        agent.heartbeat()
+    assert "Cannot reconnect to Docker daemon. Agent is shutting down." in caplog.text
+    assert api.ping.call_count == 7
+
+
+def test_docker_agent_heartbeat_logs_reconnect(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    api.ping.return_value = True
+    agent.heartbeat()
+    assert api.ping.call_count == 4
+    assert "Reconnected to Docker daemon" in caplog.text
+
+
+def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, caplog):
+    api = MagicMock()
+    api.ping.return_value = True
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+    )
+
+    agent = DockerAgent()
+    api.ping.return_value = False
+    agent.heartbeat()
+    agent.heartbeat()
+    assert agent.failed_connections == 2
+    api.ping.return_value = True
+    agent.heartbeat()
+    assert agent.failed_connections == 0
+    assert api.ping.call_count == 4

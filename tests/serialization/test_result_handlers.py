@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import os
 import pytest
 
 import prefect
@@ -59,7 +60,7 @@ class TestCustomSchema:
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Dummy()))
         assert isinstance(obj, ResultHandler)
-        assert obj.read(42) == 42  # just the base class, not the Dummy class
+        assert obj.read(42) is None  # just the base class, not the Dummy class
 
     def test_custom_schema_roundtrip_on_stateful_class(self):
         class Stateful(ResultHandler):
@@ -75,7 +76,7 @@ class TestCustomSchema:
         schema = CustomResultHandlerSchema()
         obj = schema.load(schema.dump(Stateful(42)))
         assert isinstance(obj, ResultHandler)
-        assert obj.write("foo") == "foo"  # just the base class, not the Stateful class
+        assert obj.write("foo") is None  # just the base class, not the Stateful class
 
     def test_result_handler_schema_defaults_to_custom(self):
         class Weird(ResultHandler):
@@ -95,7 +96,7 @@ class TestCustomSchema:
 
         obj = schema.load(serialized)
         assert isinstance(obj, ResultHandler)
-        assert obj.write("foo") == "foo"  # just the base class, not the Weird class
+        assert obj.write("foo") is None  # just the base class, not the Weird class
 
     def test_cloud_can_deserialize_custom_handlers(self):
         schema = ResultHandlerSchema()
@@ -111,27 +112,28 @@ class TestLocalResultHandler:
         serialized = ResultHandlerSchema().dump(LocalResultHandler())
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
-        assert serialized["dir"] is None
+        assert serialized["dir"]
 
     def test_deserialize_from_dict(self):
         handler = ResultHandlerSchema().load({"type": "LocalResultHandler"})
         assert isinstance(handler, LocalResultHandler)
-        assert handler.dir is None
+        assert handler.dir
 
     def test_serialize_local_result_handler_with_dir(self):
-        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir="/root/prefect"))
+        root_dir = os.path.abspath(os.sep)
+        serialized = ResultHandlerSchema().dump(LocalResultHandler(dir=root_dir))
         assert isinstance(serialized, dict)
         assert serialized["type"] == "LocalResultHandler"
-        assert serialized["dir"] == "/root/prefect"
+        assert serialized["dir"] == root_dir
 
-    @pytest.mark.parametrize("dir", [None, "/root/prefect"])
-    def test_deserialize_local_result_handler(self, dir):
+    def test_deserialize_local_result_handler(self):
         schema = ResultHandlerSchema()
-        obj = schema.load(schema.dump(LocalResultHandler(dir=dir)))
+        root_dir = os.path.abspath(os.sep)
+        obj = schema.load(schema.dump(LocalResultHandler(dir=root_dir)))
         assert isinstance(obj, LocalResultHandler)
         assert hasattr(obj, "logger")
         assert obj.logger.name == "prefect.LocalResultHandler"
-        assert obj.dir == dir
+        assert obj.dir == root_dir
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
@@ -149,7 +151,19 @@ class TestGCSResultHandler:
         )
         assert isinstance(handler, GCSResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.credentials_secret == "GOOGLE_APPLICATION_CREDENTIALS"
+        assert handler.credentials_secret is None
+
+    def test_deserialize_from_dict_with_creds(self):
+        handler = ResultHandlerSchema().load(
+            {
+                "type": "GCSResultHandler",
+                "bucket": "foo-bar",
+                "credentials_secret": "FOO",
+            }
+        )
+        assert isinstance(handler, GCSResultHandler)
+        assert handler.bucket == "foo-bar"
+        assert handler.credentials_secret == "FOO"
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()
@@ -219,7 +233,7 @@ class TestS3ResultHandler:
         )
         assert isinstance(handler, S3ResultHandler)
         assert handler.bucket == "foo-bar"
-        assert handler.aws_credentials_secret == "AWS_CREDENTIALS"
+        assert handler.aws_credentials_secret is None
 
     def test_roundtrip(self):
         schema = ResultHandlerSchema()

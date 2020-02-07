@@ -11,7 +11,7 @@ Prefect requires Python 3.5.2+, and Python 3.6 or higher is recommended.
 
 ## Installation
 
-To install Prefect, simply run:
+To install Prefect, run:
 
 ```bash
 pip install prefect
@@ -24,6 +24,7 @@ conda install -c conda-forge prefect
 ```
 
 or `pipenv`:
+
 ```
 pipenv install --pre prefect
 ```

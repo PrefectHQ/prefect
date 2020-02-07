@@ -63,7 +63,7 @@ def test_local_agent_responds_to_logging_config(runner_token, flag):
 
 def test_local_agent_config_options_hostname(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent(labels=["test_label"],)
+        agent = LocalAgent(labels=["test_label"])
         assert set(agent.labels) == {
             "test_label",
             socket.gethostname(),
@@ -71,6 +71,21 @@ def test_local_agent_config_options_hostname(runner_token):
             "s3-flow-storage",
             "gcs-flow-storage",
         }
+
+
+def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
+        agent = LocalAgent(env_vars=dict(AUTH_THING="foo"))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+
+    assert env_vars["AUTH_THING"] == "foo"
 
 
 def test_populate_env_vars(runner_token):
@@ -231,7 +246,7 @@ def test_local_agent_deploy_storage_raises_not_supported_storage(
     with pytest.raises(ValueError):
         agent.deploy_flow(
             flow_run=GraphQLResult(
-                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id",}
+                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id"}
             )
         )
 
@@ -262,27 +277,6 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
     assert len(agent.processes) == 0
 
     assert client.called
-
-
-def test_local_agent_deploy_pwd(monkeypatch, runner_token):
-    monkeypatch.setattr(os, "getcwd", lambda: "pwd")
-
-    popen = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.Popen", popen)
-
-    agent = LocalAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
-                "id": "id",
-            }
-        )
-    )
-
-    assert popen.called
-    assert len(agent.processes) == 1
-    assert "pwd" in popen.call_args[1]["env"]["PYTHONPATH"]
 
 
 def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
@@ -373,11 +367,7 @@ def test_generate_supervisor_conf(runner_token):
                 ("agent", "INFO", "awesome output!blerg, eRroR!"),
             ),
         ),
-        (
-            1,
-            True,
-            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
-        ),
+        (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
     ),
 )
 def test_local_agent_heartbeat(

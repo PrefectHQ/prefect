@@ -16,21 +16,20 @@ class GCSResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from a Google Cloud Bucket.
 
+    To authenticate with Google Cloud, you need to ensure that your flow's
+    runtime environment has the proper credentials available
+    (see https://cloud.google.com/docs/authentication/production for all the authentication options).
+
+    You can also optionally provide the name of a Prefect Secret containing your
+    service account key.
+
     Args:
         - bucket (str): the name of the bucket to write to / read from
         - credentials_secret (str, optional): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
-            Defaults to `GOOGLE_APPLICATION_CREDENTIALS`.
-
-    Note that for this result handler to work properly, your Google Application Credentials
-    must be made available.
     """
 
-    def __init__(
-        self,
-        bucket: str = None,
-        credentials_secret: str = "GOOGLE_APPLICATION_CREDENTIALS",
-    ) -> None:
+    def __init__(self, bucket: str = None, credentials_secret: str = None,) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
         super().__init__()
@@ -39,13 +38,13 @@ class GCSResultHandler(ResultHandler):
         """
         Initializes GCS connections.
         """
-        from google.oauth2.service_account import Credentials
-        from google.cloud import storage
+        from prefect.utilities.gcp import get_storage_client
 
-        creds = Secret(self.credentials_secret).get()
-        credentials = Credentials.from_service_account_info(creds)
-        project = credentials.project_id
-        client = storage.Client(project=project, credentials=credentials)
+        if self.credentials_secret:
+            credentials = Secret(self.credentials_secret).get()
+        else:
+            credentials = None
+        client = get_storage_client(credentials=credentials)
         self.gcs_bucket = client.bucket(self.bucket)
 
     @property

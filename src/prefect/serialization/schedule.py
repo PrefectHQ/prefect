@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Any
 
 import marshmallow
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, post_dump
 
 import prefect
 from prefect.serialization import schedule_compat
 from prefect.utilities.serialization import (
     DateTimeTZ,
+    JSONCompatible,
     ObjectSchema,
     OneOfSchema,
     StatefulFunctionReference,
@@ -38,6 +39,29 @@ class IntervalClockSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     interval = fields.TimeDelta(precision="microseconds", required=True)
+    parameter_defaults = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
+
+    @post_dump
+    def _interval_validation(self, data: dict, **kwargs: Any) -> dict:
+        """
+        Ensures interval is at least one minute in length
+        """
+        if data["interval"] / 1e6 < 60:
+            raise ValueError(
+                "Interval can not be less than one minute when deploying to Prefect Cloud."
+            )
+        return data
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any):
+        if data["interval"].total_seconds() < 60:
+            raise ValueError(
+                "Interval can not be less than one minute when deploying to Prefect Cloud."
+            )
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class CronClockSchema(ObjectSchema):
@@ -47,6 +71,9 @@ class CronClockSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     cron = fields.String(required=True)
+    parameter_defaults = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
 
 
 class DatesClockSchema(ObjectSchema):
@@ -56,6 +83,9 @@ class DatesClockSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     dates = DateTimeTZ(required=True, many=True)
+    parameter_defaults = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
 
 
 class ClockSchema(OneOfSchema):

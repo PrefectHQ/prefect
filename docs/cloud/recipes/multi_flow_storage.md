@@ -1,7 +1,7 @@
 
 # Multi Flow Storage
 
-This recipe is for storing multiple Flows inside a single [Docker storage object](/api/unreleased/environments/storage.html#docker). This is useful when you have a suite of Flows that registers off of a CI/CD process or if you want to reduce the number of images stored in a container registry. For this recipe we are going to put two example Flows — [ETL](/core/examples/etl.html) and [Map Reduce](/core/examples/map_reduce.html) — inside of the same Docker storage object.
+This recipe is for storing multiple Flows inside a single [Docker storage object](/api/latest/environments/storage.html#docker). This is useful when you have a suite of Flows that registers off of a CI/CD process or if you want to reduce the number of images stored in a container registry. For this recipe we are going to put two example Flows — [ETL](/core/examples/etl.html) and [Map Reduce](/core/examples/map_reduce.html) — inside of the same Docker storage object.
 
 [[toc]]
 

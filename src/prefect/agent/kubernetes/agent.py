@@ -36,6 +36,16 @@ class KubernetesAgent(Agent):
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
+    Environment variables may be set on the agent to be provided to each flow run's job:
+    ```
+    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
+
+    Specifying a namespace for the agent will create flow run jobs in that namespace:
+    ```
+    prefect agent start kubernetes --namespace dev
+    ```
+
     Args:
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.
@@ -43,12 +53,18 @@ class KubernetesAgent(Agent):
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
     """
 
     def __init__(
-        self, namespace: str = None, name: str = None, labels: Iterable[str] = None
+        self,
+        namespace: str = None,
+        name: str = None,
+        labels: Iterable[str] = None,
+        env_vars: dict = None,
     ) -> None:
-        super().__init__(name=name, labels=labels)
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
 
         self.namespace = namespace
 
@@ -152,6 +168,10 @@ class KubernetesAgent(Agent):
         env[4]["value"] = str(self.labels)
         env[5]["value"] = str(self.log_to_cloud).lower()
 
+        # append all user provided values
+        for key, value in self.env_vars.items():
+            env.append(dict(name=key, value=value))
+
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
             "IMAGE_PULL_SECRETS", ""
@@ -239,6 +259,7 @@ class KubernetesAgent(Agent):
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
+        agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
 
         # Populate job resource env vars

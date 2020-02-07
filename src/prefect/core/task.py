@@ -34,7 +34,19 @@ VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
 def _validate_run_signature(run: Callable) -> None:
     func = getattr(run, "__wrapped__", run)
-    run_sig = inspect.getfullargspec(func)
+    try:
+        run_sig = inspect.getfullargspec(func)
+    except TypeError as exc:
+        if str(exc) == "unsupported callable":
+            raise ValueError(
+                "This function can not be inspected (this is common "
+                "with `builtin` and `numpy` functions). In order to "
+                "use it as a task, please wrap it in a standard "
+                "Python function. For more detail, see "
+                "https://docs.prefect.io/core/tutorials/task-guide.html#the-task-decorator"
+            )
+        raise
+
     if run_sig.varargs:
         raise ValueError(
             "Tasks with variable positional arguments (*args) are not "
@@ -126,8 +138,8 @@ class Task(metaclass=SignatureValidator):
             be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
             Task's database ID if running in Cloud
         - checkpoint (bool, optional): if this Task is successful, whether to
-            store its result using the `result_handler` available during the run; defaults to the value of
-            `tasks.defaults.checkpoint` in your user config
+            store its result using the `result_handler` available during the run; Also note that
+            checkpointing will only occur locally if `prefect.config.flows.checkpointing` is set to `True`
         - result_handler (ResultHandler, optional): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
@@ -198,6 +210,11 @@ class Task(metaclass=SignatureValidator):
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
             )
+        # specify not max retries because the default is false
+        if retry_delay is not None and not max_retries:
+            raise ValueError(
+                "A `max_retries` argument greater than 0 must be provided if specifying a retry delay."
+            )
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
                 "Only integer timeouts (representing seconds) are supported."
@@ -225,11 +242,7 @@ class Task(metaclass=SignatureValidator):
             else prefect.engine.cache_validators.duration_only
         )
         self.cache_validator = cache_validator or default_validator
-        self.checkpoint = (
-            checkpoint
-            if checkpoint is not None
-            else prefect.config.tasks.defaults.checkpoint
-        )
+        self.checkpoint = checkpoint
         self.result_handler = result_handler
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
@@ -1019,8 +1032,8 @@ class Parameter(Task):
             name=name,
             slug=name,
             tags=tags,
-            checkpoint=True,
             result_handler=JSONResultHandler(),
+            checkpoint=True,
         )
 
     def __repr__(self) -> str:

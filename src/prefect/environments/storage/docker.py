@@ -110,7 +110,7 @@ class Docker(Storage):
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.extra_commands.append(
-                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
             raise ValueError(
@@ -125,7 +125,7 @@ class Docker(Storage):
         self.extra_commands.append(
             "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
                 self.prefect_version
-            ),
+            )
         )
 
         not_absolute = [
@@ -137,6 +137,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
+        super().__init__()
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """

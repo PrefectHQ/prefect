@@ -44,7 +44,7 @@ class ResultInterface:
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
-        If no result handler provided, simply returns self.  If a ResultHandler is provided, however,
+        If no result handler provided, returns self.  If a ResultHandler is provided, however,
         it will become the new result handler for this result.
 
         Args:
@@ -83,6 +83,9 @@ class Result(ResultInterface):
         """
         Populate the `safe_value` attribute with a `SafeResult` using the result handler
         """
+        # don't bother with `None` values
+        if self.value is None:
+            return
         if self.safe_value == NoResult:
             assert isinstance(
                 self.result_handler, ResultHandler
@@ -134,11 +137,11 @@ class SafeResult(ResultInterface):
 class NoResultType(SafeResult):
     """
     A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
-    simply returns itself for its `value` and its `safe_value`.
+    returns itself for its `value` and its `safe_value`.
     """
 
     def __init__(self) -> None:
-        pass
+        super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
@@ -151,10 +154,6 @@ class NoResultType(SafeResult):
 
     def __str__(self) -> str:
         return "NoResult"
-
-    @property
-    def value(self) -> "ResultInterface":
-        return self
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """

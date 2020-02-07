@@ -1,6 +1,6 @@
 # Configuring Docker Storage
 
-This recipe is for configuring your Flow's [Docker storage object](/api/unreleased/environments/storage.html#docker) to handle potentially complicated non-Python dependencies. This is useful to understand for Flows which rely on complex environments to run successfully; for example if your Flow uses:
+This recipe is for configuring your Flow's [Docker storage object](/api/latest/environments/storage.html#docker) to handle potentially complicated non-Python dependencies. This is useful to understand for Flows which rely on complex environments to run successfully; for example if your Flow uses:
 - database drivers
 - reliance on C bindings for file-types such as HDF files
 - special environment variables
