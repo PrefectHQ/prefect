@@ -18,7 +18,7 @@ class SuccessTask(Task):
         return 1
 
 
-@pytest.mark.parametrize("condition_value", [True, False, "x"])
+@pytest.mark.parametrize("condition_value", [True, False])
 def test_ifelse(condition_value):
     condition = Condition()
     true_branch = SuccessTask(name="true branch")
@@ -26,7 +26,7 @@ def test_ifelse(condition_value):
 
     with Flow(name="test") as flow:
         cnd = ifelse(condition, true_branch, false_branch)
-        assert len(flow.tasks) == 5
+        assert len(flow.tasks) == 6
 
     with prefect.context(CONDITION=condition_value):
         state = flow.run()
@@ -37,6 +37,38 @@ def test_ifelse(condition_value):
     assert isinstance(
         state.result[false_branch], Success if condition_value is False else Skipped
     )
+
+
+@pytest.mark.parametrize("condition_value", [1, "a", "False", True, [1], {1: 2}])
+def test_ifelse_with_truthy_conditions(condition_value):
+    condition = Condition()
+    true_branch = SuccessTask(name="true branch")
+    false_branch = SuccessTask(name="false branch")
+
+    with Flow(name="test") as flow:
+        cnd = ifelse(condition, true_branch, false_branch)
+
+    with prefect.context(CONDITION=condition_value):
+        state = flow.run()
+
+    assert state.result[true_branch].is_successful()
+    assert state.result[false_branch].is_skipped()
+
+
+@pytest.mark.parametrize("condition_value", [0, "", None, False, [], {}])
+def test_ifelse_with_falsey_conditions(condition_value):
+    condition = Condition()
+    true_branch = SuccessTask(name="true branch")
+    false_branch = SuccessTask(name="false branch")
+
+    with Flow(name="test") as flow:
+        cnd = ifelse(condition, true_branch, false_branch)
+
+    with prefect.context(CONDITION=condition_value):
+        state = flow.run()
+
+    assert state.result[true_branch].is_skipped()
+    assert state.result[false_branch].is_successful()
 
 
 @pytest.mark.parametrize("condition_value", ["a", "b", "c", "d", "x"])
@@ -191,10 +223,6 @@ def test_merge_diamond_flow_with_results():
     with prefect.context(CONDITION=False):
         state = flow.run()
         assert state.result[merge_task].result == 0
-
-    with prefect.context(CONDITION=None):
-        state = flow.run()
-        assert state.result[merge_task].result is None
 
 
 def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
