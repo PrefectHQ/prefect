@@ -26,7 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove Airflow Tasks - [#1992](https://github.com/PrefectHQ/prefect/pull/1992)
 
 ### Contributors
 
