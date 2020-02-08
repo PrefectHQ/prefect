@@ -65,7 +65,7 @@ Additionally, an unnecessarily-linear flow introduces a second problem: workflow
 - If there is an unexpected issue while cleaning the data, the reference data will be lost.
 - If data transformation was suceessful but the DB is unavailable, then the data is lost and the workflow will need to start from the beginning.
 
-These poor behaviors are indicators that the script is not well engineered. The "missing engineering" involved here are the things that we at Prefect refer to "negative engineering", or the inherent precausions you have to take to ensure that your workflow will be well-behaved. The code above has very little (if any) of these precautions.
+These poor behaviors are indicators that the script is not well engineered. The "missing engineering" involved here are the things that we at Prefect refer to "negative engineering", or the inherent precausions one must take to ensure that the workflow will be well-behaved. The code above has very little (if any) of these precautions.
 
 ::: warning Up Next!
 

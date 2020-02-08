@@ -85,6 +85,6 @@ Lastly, take note that our execution graph has changed -- fetching live data now
 
 ::: warning Up Next!
 
-What happens when a task fails? And how can you customize actions taken when things go wrong?
+What happens when a task fails? And how can we customize actions taken when things go wrong?
 
 :::

@@ -11,7 +11,7 @@ python 04_handle_failures.py
 
 ## If at first you don't succeed...
 
-Now that we have a working ETL Flow let's take further steps to ensure it's robustness. The `extract_*` Tasks are making web requests to external API's in order to fetch the data. What if the API is unavailable for a short period? Or if a single request times out for unknown reasons? **Prefect `Tasks` allow you to specify retry behavior**; let's add this to our `extract_*` tasks:
+Now that we have a working ETL Flow let's take further steps to ensure it's robustness. The `extract_*` Tasks are making web requests to external API's in order to fetch the data. What if the API is unavailable for a short period? Or if a single request times out for unknown reasons? **Prefect `Tasks` can be retried on failure**; let's add this to our `extract_*` tasks:
 
 ```python{1,6,12}
 from datetime import timedelta
@@ -45,6 +45,6 @@ There are other mechanisms Prefect provides to enable specialized behavior aroun
 
 ::: warning Up Next!
 
-Schedule your Flow to run periodically or on a custom schedule.
+Schedule our Flow to run periodically or on a custom schedule.
 
 :::

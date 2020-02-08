@@ -9,7 +9,7 @@ python 05_schedules.py
 
 :::
 
-Now that our Aircraft ETL flow is trustworthy enough, we want to be able to run it continuously on a schedule. Prefect allows you to attach schedules directly to flows:
+Now that our Aircraft ETL flow is trustworthy enough, we want to be able to run it continuously on a schedule. Prefect provides `Schedule` objects that can be attached to `Flows`:
 
 ```python{1,2,6,8}
 from datetime import timedelta

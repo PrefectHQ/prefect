@@ -37,7 +37,7 @@ This would be functional, however, it still does not address some of the problem
 - What happens to already-fetched reference data if pulling live data fails?
 - What happends to the already-transformed data if the database is not available?
 
-These points highlight the fact that `extract()` and `load()` are still arbitrarily scoped. This brings us to a rule of thumb when deciding how large to make each function: **_look at the input and output data that your workflow needs at each step._** In our case the reference data and live data come from different sources and are stored separately. Lets refactor a bit more, taking this new insight into consideration:
+These points highlight the fact that `extract()` and `load()` are still arbitrarily scoped. This brings us to a rule of thumb when deciding how large to make each function: **_look at the input and output data that the workflow needs at each step._** In our case the reference data and live data come from different sources and are stored separately. Lets refactor a bit more, taking this new insight into consideration:
 
 ```python
 def extract_reference_data(...):
@@ -70,7 +70,7 @@ Now that we have appropriately sized functions and an idea of how these function
 
 ### **First step**
 
-**Decorate any function that you would like Prefect to run with `prefect.task`:**
+**Decorate any function that Prefect should run with `prefect.task`:**
 
 ```python{1-3,9,15,21,26}
 from prefect import task, Flow
@@ -137,7 +137,7 @@ A huge improvement over our original implementation!
 flow.run()
 ```
 
-At this point, the `Tasks` (your Python functions) are executed in the appropriate order, with data being passed from task-to-task as specified in the execution graph.
+At this point, the `Tasks` (our Python functions) are executed in the appropriate order, with data being passed from task-to-task as specified in the execution graph.
 
 ::: warning Up Next!
 
