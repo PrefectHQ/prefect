@@ -55,29 +55,29 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
 
         
 
-
-# def test_slack_notifier_ignores_ignore_states(monkeypatch):
-#     all_states = [
-#         Running,
-#         Pending,
-#         Finished,
-#         Failed,
-#         TriggerFailed,
-#         Cached,
-#         Scheduled,
-#         Retrying,
-#         Success,
-#         Skipped,
-#     ]
-#     ok = MagicMock(ok=True)
-#     monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
-#     for state in all_states:
-#         s = state()
-#         with set_temporary_config({"cloud.use_local_secrets": True}):
-#             with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
-#                 returned = slack_notifier(Task(), "", s, ignore_states=[State])
-#         assert returned is s
-#         assert ok.called is False
+def test_jira_notifier_ignores_ignore_states(monkeypatch):
+    all_states = [
+        Running,
+        Pending,
+        Finished,
+        Failed,
+        TriggerFailed,
+        Cached,
+        Scheduled,
+        Retrying,
+        Success,
+        Skipped,
+    ]
+    client = MagicMock()
+    jira = MagicMock(client=client)
+    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
+    for state in all_states:
+        s = state()
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(JIRAUSER="Bob", JIRATOKEN="", JIRASERVER="https://foo/bar", JIRAPROJECT="")):
+                returned = jira_notifier(Task(), "", s, ignore_states=[State])
+        assert returned is s
+        assert jira.called is False
 
 
 # @pytest.mark.parametrize(
@@ -95,6 +95,7 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
 #         Skipped,
 #     ],
 # )
+
 # def test_slack_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
 #     state = state()
 #     ok = MagicMock(ok=True)

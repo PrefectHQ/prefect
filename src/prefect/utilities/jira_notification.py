@@ -91,13 +91,11 @@ def jira_notifier(
     only_states = only_states or []
 
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
-        print('here0')
         return new_state
 
     if only_states and not any(
         [isinstance(new_state, included) for included in only_states]
     ):
-        print('here1')
         return new_state
 
     summaryText = str(jira_message_formatter(tracked_obj, new_state))
@@ -111,5 +109,4 @@ def jira_notifier(
     assigned = jira.assign_issue(created, assignee)
     if not assigned:
         raise ValueError("Assigning Jira issue for {} failed".format(tracked_obj))
-    print('here2')
     return new_state
