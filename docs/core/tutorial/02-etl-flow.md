@@ -121,7 +121,7 @@ with Flow("Aircraft-ETL") as flow:
     load_live_data(transformed_live_data)
 ```
 
-Note, **this does not execute your flow**, the `with Flow(...):` context manager allows Prefect to reason about dependencies between tasks and build an execution graph that will _later_ be executed. In this case, the execution graph would look like so:
+Note: **none of the tasks are actually executed at this time**, as the `with Flow(...):` context manager allows Prefect to reason about dependencies between tasks and build an execution graph that will be executed _later_. In this case, the execution graph would look like so:
 
 ![Graph ETL](/prefect-tutorial-etl-dataflow.png)
 
@@ -137,7 +137,7 @@ A huge improvement over our original implementation!
 flow.run()
 ```
 
-By this point the Tasks (your Python functions) are executed in the appropriate order, with data being passed from task-to-task as specified in the execution graph.
+At this point, the `Tasks` (your Python functions) are executed in the appropriate order, with data being passed from task-to-task as specified in the execution graph.
 
 ::: warning Up Next!
 

@@ -25,9 +25,9 @@ def extract_live_data():
 
 ```
 
-It would be ideal to allow fetching data from a wide variety of areas, not just around a single airport. We could allow `extract_live_data` to take `lat` and `long` parameters, however, we can go a step further; it turns out that we already have airport position information in our reference data that we can leverage!
+It would be ideal to allow fetching data from a wide variety of areas, not just around a single airport. One approach would be to allow `extract_live_data` to take `lat` and `long` parameters. However, we can go a step further: it turns out that we already have airport position information in our reference data that we can leverage!
 
-Let's refactor our python function to use a user-specified airport along with the reference data:
+Let's refactor our Python function to take a user-specified airport along with the reference data:
 
 ```python{2, 4-10}
 @task
@@ -49,7 +49,7 @@ def extract_live_data(airport, radius, ref_data):
 
 _(In case you're curious, `area=None` will fetch live data for all known aircraft, regardless of the area it's in)_
 
-How might we make use of these function parameters within a Prefect Flow? By using `prefect.Parameter`:
+How might we make use of these function parameters within a Prefect `Flow`? By using `prefect.Parameter`:
 
 ```python{1,6,7,10}
 from prefect import Parameter
@@ -69,7 +69,7 @@ with Flow("Aircraft-ETL") as flow:
     load_live_data(transformed_live_data)
 ```
 
-Just like Tasks, Parameters are not evaluated until `flow.run()` is called, using default values if provided, or overridden values passed into `run()`:
+Just like `Tasks`, `Parameters` are not evaluated until `flow.run()` is called, using default values if provided, or overridden values passed into `run()`:
 
 ```python
 # Run the Flow with default airport=IAD & radius=200
@@ -79,7 +79,7 @@ flow.run()
 flow.run(airport="DCA")
 ```
 
-Lastly, take note that our execution graph has changed --fetching live data now depends on obtaining the reference data:
+Lastly, take note that our execution graph has changed -- fetching live data now depends on obtaining the reference data:
 
 ![Graph ETL](/prefect-tutorial-etl-parameterized-dataflow.png)
 
