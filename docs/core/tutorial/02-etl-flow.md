@@ -139,6 +139,11 @@ flow.run()
 
 At this point, the `Tasks` (our Python functions) are executed in the appropriate order, with data being passed from task-to-task as specified in the execution graph.
 
+::: tip Prefect Task Library
+
+Prefect provides ready-made `Tasks` in our [Task Library](core/task_library/)!
+:::
+
 ::: warning Up Next!
 
 Let's parameterize our Flow to make it more reusable.
