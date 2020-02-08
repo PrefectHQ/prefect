@@ -9,7 +9,7 @@ python 06_parallel_execution.py
 
 :::
 
-Let's adjust our Flow to distribute our Tasks onto a [Dask](https://dask.org/) Cluster, parallizing our execution. This may sound involved, but will actually be our simplest adjustment yet:
+Let's adjust our Flow to distribute our Tasks onto a [Dask](https://dask.org/) Cluster, parallelizing our execution. This may sound involved, but will actually be our simplest adjustment yet:
 
 ```python{1,7}
 from prefect.engine.executors import DaskExecutor
