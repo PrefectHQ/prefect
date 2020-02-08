@@ -1383,7 +1383,8 @@ class TestContext:
         assert isinstance(
             res.result[return_scheduled_start_time].result, datetime.datetime
         )
-    @pytest.mark.parametrize('run_on_schedule', [True, False])
+
+    @pytest.mark.parametrize("run_on_schedule", [True, False])
     def test_flow_runner_doesnt_override_scheduled_start_time_when_running_on_schedule(
         self, run_on_schedule
     ):
@@ -1392,7 +1393,9 @@ class TestContext:
             return prefect.context.get("scheduled_start_time")
 
         f = Flow(name="test", tasks=[return_scheduled_start_time])
-        res = f.run(context=dict(scheduled_start_time=42), run_on_schedule=run_on_schedule)
+        res = f.run(
+            context=dict(scheduled_start_time=42), run_on_schedule=run_on_schedule
+        )
 
         assert res.is_successful()
         assert res.result[return_scheduled_start_time].result != 42

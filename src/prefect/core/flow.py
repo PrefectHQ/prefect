@@ -831,7 +831,7 @@ class Flow:
         self,
         parameters: Dict[str, Any],
         runner_cls: type,
-        run_on_schedule=True,
+        run_on_schedule: bool = True,
         **kwargs: Any
     ) -> "prefect.engine.state.State":
 
