@@ -35,10 +35,10 @@ module.exports = {
         ga: 'UA-115585378-1'
       }
     ],
-    ["vuepress-plugin-code-copy", true],
+    ['vuepress-plugin-code-copy', true],
     'vuepress-plugin-element-tabs',
     [
-    'vuepress-plugin-selected-text-popup',
+      'vuepress-plugin-selected-text-popup',
       {
         github: true,
         githubOwner: 'prefecthq',
@@ -59,15 +59,15 @@ module.exports = {
     docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    logo: '/assets/logomark-color.svg',
+    logo: '/assets/logomark-color.png',
     nav: [
       {
-        text: 'Prefect Core',
+        text: 'Core',
         link: '/core/'
       },
       {
-        text: "Prefect Cloud",
-        link: "/cloud/dataflow"
+        text: 'Cloud',
+        link: '/cloud/'
       },
       {
         text: 'API Reference',
@@ -75,8 +75,12 @@ module.exports = {
           { text: 'Latest (0.9.3)', link: '/api/latest/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: '0.7.3', link: '/api/0.7.3/' },
-          { text: 'Legacy', link: 'https://docs-legacy.prefect.io'},
+          { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
+      },
+      {
+        text: 'prefect.io',
+        link: 'https://www.prefect.io'
       }
     ],
     sidebar: {
@@ -136,15 +140,18 @@ module.exports = {
         }
       ],
       '/cloud/': [
+        '/cloud/',
         {
-          title: 'Welcome',
-          collapsable: false,
-          children: ["dataflow", "faq"]
-        },
-        {
-          title: "Tutorial",
-          collapsable: false,
-          children: ["tutorial/configure", "tutorial/first", "tutorial/multiple", "tutorial/docker", "tutorial/k8s", "tutorial/next-steps"]
+          title: 'Deployment Tutorial',
+          collapsable: true,
+          children: [
+            'tutorial/configure',
+            'tutorial/first',
+            'tutorial/multiple',
+            'tutorial/docker',
+            'tutorial/k8s',
+            'tutorial/next-steps'
+          ]
         },
         {
           title: 'Cloud Concepts',
@@ -152,20 +159,20 @@ module.exports = {
           children: getChildren('docs/cloud', 'concepts')
         },
         {
-          title: 'Cloud Execution',
+          title: 'Execution Environments',
           collapsable: true,
           children: [
-            "execution/overview",
-            "execution/storage_options",
-            "execution/remote_environment",
-            "execution/dask_k8s_environment",
-            "execution/k8s_job_environment",
-            "execution/fargate_task_environment",
-            "execution/custom_environment",
+            'execution/overview',
+            'execution/storage_options',
+            'execution/remote_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
           ]
         },
         {
-          title: 'Agent',
+          title: 'Agents',
           collapsable: true,
           children: [
             'agent/overview',
@@ -178,20 +185,31 @@ module.exports = {
         {
           title: 'Deployment Recipes',
           collapsable: true,
-          children: ["recipes/deployment", "recipes/configuring_storage", "recipes/multi_flow_storage", "recipes/k8s_dask", "recipes/k8s_docker_sidecar",]
-        }
+          children: [
+            'recipes/deployment',
+            'recipes/configuring_storage',
+            'recipes/multi_flow_storage',
+            'recipes/k8s_dask',
+            'recipes/k8s_docker_sidecar'
+          ]
+        },        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/cloud', 'faq')
+        },
+
       ],
       '/core/': [
         '/core/',
         {
-          title: 'Welcome',
-          collapsable: false,
+          title: 'Introduction',
+          collapsable: true,
           children: [
-            'welcome/what_is_prefect',
-            'welcome/why_prefect',
-            'welcome/why_not_airflow',
-            'welcome/community',
-            'welcome/code_of_conduct'
+            'introduction/what_is_prefect',
+            'introduction/why_prefect',
+            'introduction/why_not_airflow',
+            'introduction/community',
+            'introduction/code_of_conduct'
           ]
         },
         {

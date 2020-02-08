@@ -397,7 +397,7 @@ Released on Nov 5, 2019
 
 - None
 
-## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success">
+## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success"/>
 
 Released October 29, 2019
 

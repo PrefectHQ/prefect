@@ -1,7 +1,7 @@
 ---
 home: true
 heroImage: /assets/wordmark-color-vertical.svg
-heroText: " "
+heroText: ' '
 footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
@@ -9,19 +9,14 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     <div class="action">
         <button class="action-button">
             <router-link to="core/">
-                Read the docs
+                Core Docs
             </router-link>
         </button>
-        <a href="https://github.com/PrefectHQ/prefect">
-            <button class="action-button">
-                Get the code
-            </button>
-        </a>
-        <a href="https://prefect.io/support" target="_blank" >
-            <button class="action-button">
-                Ask us anything
-            </button>
-        </a>
+        <button class="action-button">
+            <router-link to="cloud/">
+                Cloud Docs
+            </router-link>
+        </button>
     </div>
 </div>
 
