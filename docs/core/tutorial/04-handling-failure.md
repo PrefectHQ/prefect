@@ -37,9 +37,9 @@ This is a simple measure that helps our `Flow` gracefully handle transient error
 
 There are other mechanisms Prefect provides to enable specialized behavior around failures:
 
-- [**Task Triggers**](http://localhost:8080/core/concepts/execution.html#triggers): selectively execute `Tasks` based on the states from upstream `Task` runs.
-- [**State Handlers**](http://localhost:8080/core/concepts/states.html#state-handlers-callbacks): provide a Python function that is invoked whenever a `Flow` or `Task` changes state -- see all the things!
-- [**Notifications**](http://localhost:8080/core/concepts/notifications.html): Get [Slack notifications](https://docs.prefect.io/core/advanced_tutorials/slack-notifications.html#slack-notifications) upon state changes of interest or use the [EmailTask](https://docs.prefect.io/core/task_library/notifications.html#emailtask) in combination with Task Triggers.
+- [**Task Triggers**](/core/concepts/execution.html#triggers): selectively execute `Tasks` based on the states from upstream `Task` runs.
+- [**State Handlers**](/core/concepts/states.html#state-handlers-callbacks): provide a Python function that is invoked whenever a `Flow` or `Task` changes state -- see all the things!
+- [**Notifications**](/core/concepts/notifications.html): Get [Slack notifications](/core/advanced_tutorials/slack-notifications.html#slack-notifications) upon state changes of interest or use the [EmailTask](/core/task_library/notifications.html#emailtask) in combination with Task Triggers.
 
 :::
 

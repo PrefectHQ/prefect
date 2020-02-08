@@ -36,7 +36,7 @@ When invoking `flow.run()` our flow will never stop, always starting a new run e
 
 ::: tip More on Schedules
 
-There are several ways to configure schedules to meet a wide variety of needs. For more on Schedules [see our docs](https://docs.prefect.io/core/concepts/schedules.html#schedules).
+There are several ways to configure schedules to meet a wide variety of needs. For more on Schedules [see our docs](/core/concepts/schedules.html#schedules).
 
 :::
 
