@@ -216,7 +216,6 @@ module.exports = {
           title: 'Introduction',
           collapsable: true,
           children: [
-            'introduction/what_is_prefect',
             'introduction/why_prefect',
             'introduction/why_not_airflow',
             'introduction/community',
