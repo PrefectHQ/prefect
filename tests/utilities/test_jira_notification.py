@@ -73,8 +73,8 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
         Skipped,
     ]
     client = MagicMock()
-    jira = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
+    jiraMock = MagicMock(client=client)
+    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jiraMock)
     for state in all_states:
         s = state()
         with set_temporary_config({"cloud.use_local_secrets": True}):
@@ -88,7 +88,7 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
             ):
                 returned = jira_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
-        assert jira.called is False
+        assert jiraMock.called is False
 
 
 @pytest.mark.parametrize(
@@ -109,8 +109,8 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
 def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
     state = state()
     client = MagicMock()
-    jira = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
+    jiraMock = MagicMock(client=client)
+    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jiraMock)
     handler = jira_notifier(ignore_states=[Finished])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
@@ -123,7 +123,7 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
         ):
             returned = handler(Task(), "", state)
     assert returned is state
-    assert jira.called is not state.is_finished()
+    assert jiraMock.called is not state.is_finished()
 
 
 @pytest.mark.parametrize(
@@ -144,8 +144,8 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
 def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     state = state()
     client = MagicMock()
-    jira = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jira)
+    jiraMock = MagicMock(client=client)
+    monkeypatch.setattr("prefect.utilities.jira_notification.JIRA", jiraMock)
     handler = jira_notifier(only_states=[TriggerFailed])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
@@ -158,4 +158,4 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
         ):
             returned = handler(Task(), "", state)
     assert returned is state
-    assert jira.called is isinstance(state, TriggerFailed)
+    assert jiraMock.called is isinstance(state, TriggerFailed)
