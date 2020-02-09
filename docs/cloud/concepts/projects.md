@@ -5,7 +5,10 @@ Projects are used to organize flows that have been registered with Prefect Cloud
 ## Creating a project
 
 ### UI
+
 Projects can be created from the project filter on the [dashboard](/cloud/ui/dashboard) or the [project settings page](/cloud/ui/team-settings.md#projects).
+
+![](/cloud/ui/team-projects.png)
 
 ### Prefect CLI
 
@@ -34,8 +37,8 @@ To create a new project with GraphQL, issue the following mutation:
 mutation {
   createProject(input: { name: "My Project" }) {
     project {
-        id
-        name
+      id
+      name
     }
   }
 }
@@ -43,21 +46,23 @@ mutation {
 
 ## Deleting a project
 
-
 ### UI
+
 Projects can be deleted from the [project settings page](/cloud/ui/team-settings.md#projects).
+
+![](/cloud/ui/team-projects.png)
 
 ### GraphQL <Badge text="GQL"/>
 
 Deleting a project requires tenant admin permissions as well as the project's ID.
+
 ```graphql
-mutation{
-  deleteProject(input: {projectId: "project-UUID"}){
+mutation {
+  deleteProject(input: { projectId: "project-UUID" }) {
     success
   }
 }
 ```
-
 
 ## Querying for projects <Badge text="GQL"/>
 

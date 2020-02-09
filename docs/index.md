@@ -9,12 +9,12 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     <div class="action">
         <button class="action-button">
             <router-link to="core/">
-                Core Docs
+                Prefect Core
             </router-link>
         </button>
         <button class="action-button">
             <router-link to="cloud/">
-                Cloud Docs
+                Prefect Cloud
             </router-link>
         </button>
     </div>

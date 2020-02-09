@@ -16,6 +16,8 @@ There are two standard modes of operation: local execution, intended mainly for 
 
 To set a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
 
+![](/cloud/ui/team-secrets.png)
+
 #### Core Client
 
 To set a secret with the Core client:
@@ -80,6 +82,7 @@ Prefect will interpolate certain values from your OS environment, so you can spe
 ### UI
 
 To delete a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
+![](/cloud/ui/team-secrets.png)
 
 ## Using a secret
 

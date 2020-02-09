@@ -169,7 +169,7 @@ module.exports = {
             'tutorial/next-steps'
           ]
         },
-        
+
         {
           title: 'Cloud Concepts',
           collapsable: true,
@@ -182,10 +182,8 @@ module.exports = {
             'concepts/secrets',
             'concepts/services',
             'concepts/tokens',
-            'concepts/task-concurrency-limiting',
-          ],
-
-          // children: getChildren('docs/cloud', 'concepts')
+            'concepts/task-concurrency-limiting'
+          ]
         },
         {
           title: 'Execution Environments',
