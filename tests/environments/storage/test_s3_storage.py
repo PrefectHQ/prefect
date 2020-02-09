@@ -26,6 +26,7 @@ def test_create_s3_storage_init_args():
         aws_session_token="session",
         bucket="bucket",
         key="key",
+        client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
     )
     assert storage
     assert storage.flows == dict()
@@ -34,13 +35,25 @@ def test_create_s3_storage_init_args():
     assert storage.aws_session_token == "session"
     assert storage.bucket == "bucket"
     assert storage.key == "key"
+    assert storage.client_options == {
+        "endpoint_url": "http://some-endpoint",
+        "use_ssl": False,
+    }
 
 
 def test_serialize_s3_storage():
-    storage = S3(bucket="bucket")
+    storage = S3(
+        bucket="bucket",
+        client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False},
+    )
     serialized_storage = storage.serialize()
 
     assert serialized_storage["type"] == "S3"
+    assert serialized_storage["bucket"] == "bucket"
+    assert serialized_storage["client_options"] == {
+        "endpoint_url": "http://some-endpoint",
+        "use_ssl": False,
+    }
 
 
 def test_boto3_client_property(monkeypatch):
@@ -53,6 +66,7 @@ def test_boto3_client_property(monkeypatch):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="session",
+        client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
     )
 
     boto3_client = storage._boto3_client
@@ -62,6 +76,8 @@ def test_boto3_client_property(monkeypatch):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="session",
+        endpoint_url="http://some-endpoint",
+        use_ssl=False,
     )
 
 
