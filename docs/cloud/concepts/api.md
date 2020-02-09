@@ -2,7 +2,7 @@
 sidebarDepth: 2
 ---
 
-# Cloud API
+# API
 
 Prefect Cloud exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io`. There are a variety of ways you can access the API.
 
@@ -110,6 +110,10 @@ Prefect Cloud exposes a full GraphQL API for querying and interacting with the p
 We've designed this API to be clear and powerful. It is not merely a way to send instructions to Cloud; it allows users to fully introspect every piece of their relevant data.
 
 Throughout these docs, sections directly related to the GraphQL API are denoted with a <Badge text="GQL" vertical="middle"/> badge.
+
+### Interactive API in the UI
+
+For ease of interacting with the GraphQL API, the UI contains a full GraphQL client that automatically handles authentication. See the [Interactive API](/cloud/ui/interactive-api) docs for more.
 
 ### Authentication
 

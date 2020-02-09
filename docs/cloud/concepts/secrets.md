@@ -10,6 +10,36 @@ Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vau
 
 There are two standard modes of operation: local execution, intended mainly for testing and running non-production flows, and cloud execution, which utilizes the Prefect Cloud API.
 
+### Cloud Execution
+
+#### UI
+
+To set a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
+
+#### Core Client
+
+To set a secret with the Core client:
+
+```python
+client.set_secret(name="my secret", value=42)
+```
+
+#### GraphQL <Badge text="GQL"/>
+
+To set a secret using GraphQL, issue the following mutation:
+
+```graphql
+mutation {
+  setSecret(input: { name: "KEY", value: "VALUE" }) {
+    success
+  }
+}
+```
+
+::: tip You can overwrite secrets
+Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
+:::
+
 ### Local testing
 
 During local execution, secrets can easily be set in your configuration file, or set directly in `prefect.context`. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
@@ -45,31 +75,11 @@ prefect.context.secrets["KEY"] = "VALUE"
 Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`. Note that secrets set this way will always result in lowercase names.
 :::
 
-### Cloud Execution
+## Deleting a secret
 
-#### Core Client
+### UI
 
-To set a secret with the Core client:
-
-```python
-client.set_secret(name="my secret", value=42)
-```
-
-#### GraphQL <Badge text="GQL"/>
-
-To set a secret using GraphQL, issue the following mutation:
-
-```graphql
-mutation {
-  setSecret(input: { name: "KEY", value: "VALUE" }) {
-    success
-  }
-}
-```
-
-::: tip You can overwrite secrets
-Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
-:::
+To delete a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
 
 ## Using a secret
 

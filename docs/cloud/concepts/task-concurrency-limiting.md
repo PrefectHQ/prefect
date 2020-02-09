@@ -1,4 +1,8 @@
-# Task Concurrency Limiting <Badge text="0.6.6+">
+# Task Concurrency Limiting
+
+::: tip Platform Feature
+Setting global concurrency limits is a feature of Prefect Cloud's Platform Tier.
+:::
 
 Oftentimes there are situations in which users want to actively prevent too many tasks from running simultaneously; for example, if many tasks across multiple Flows are designed to interact with a database that only allows 10 max connections, we want to ensure that no more than 10 tasks which connect to this database are running at any given time.
 
