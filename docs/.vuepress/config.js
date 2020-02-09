@@ -151,6 +151,7 @@ module.exports = {
             'ui/dashboard',
             'ui/flow',
             'ui/flow-run',
+            'ui/task-run',
             'ui/interactive-api',
             'ui/team-settings'
           ]
