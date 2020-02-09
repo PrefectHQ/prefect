@@ -3,7 +3,7 @@ const sidebar81 = require('../api/0.8.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -60,40 +60,35 @@ module.exports = {
     docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    logo: '/assets/logomark-color.svg',
-    nav: [{
-        text: 'Prefect Core',
+    logo: '/assets/logomark-color.png',
+    nav: [
+      {
+        text: 'Core',
         link: '/core/'
       },
       {
-        text: 'Prefect Cloud',
-        link: '/cloud/dataflow'
+        text: 'Cloud',
+        link: '/cloud/'
       },
       {
         text: 'API Reference',
-        items: [{
-            text: 'Latest (0.9.3)',
-            link: '/api/latest/'
-          },
-          {
-            text: '0.8.1',
-            link: '/api/0.8.1/'
-          },
-          {
-            text: '0.7.3',
-            link: '/api/0.7.3/'
-          },
-          {
-            text: 'Legacy',
-            link: 'https://docs-legacy.prefect.io'
-          }
+        items: [
+          { text: 'Latest (0.9.3)', link: '/api/latest/' },
+          { text: '0.8.1', link: '/api/0.8.1/' },
+          { text: '0.7.3', link: '/api/0.7.3/' },
+          { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
+      },
+      {
+        text: 'prefect.io',
+        link: 'https://www.prefect.io'
       }
     ],
     sidebar: {
       '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
-      '/api/latest/': [{
+      '/api/latest/': [
+        {
           title: 'API Reference',
           path: '/api/latest/'
         },
@@ -148,14 +143,23 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      '/cloud/': [{
-          title: 'Welcome',
-          collapsable: false,
-          children: ['dataflow', 'faq']
+      '/cloud/': [
+        '/cloud/',
+        {
+          title: 'Cloud UI',
+          collapsable: true,
+          children: [
+            'ui/dashboard',
+            'ui/flow',
+            'ui/flow-run',
+            'ui/task-run',
+            'ui/interactive-api',
+            'ui/team-settings'
+          ]
         },
         {
-          title: 'Tutorial',
-          collapsable: false,
+          title: 'Deployment Tutorial',
+          collapsable: true,
           children: [
             'tutorial/configure',
             'tutorial/first',
@@ -165,13 +169,24 @@ module.exports = {
             'tutorial/next-steps'
           ]
         },
+
         {
           title: 'Cloud Concepts',
           collapsable: true,
-          children: getChildren('docs/cloud', 'concepts')
+          children: [
+            'concepts/api',
+            'concepts/cli',
+            'concepts/projects',
+            'concepts/flows',
+            'concepts/flow_runs',
+            'concepts/secrets',
+            'concepts/services',
+            'concepts/tokens',
+            'concepts/task-concurrency-limiting'
+          ]
         },
         {
-          title: 'Cloud Execution',
+          title: 'Execution Environments',
           collapsable: true,
           children: [
             'execution/overview',
@@ -184,14 +199,14 @@ module.exports = {
           ]
         },
         {
-          title: 'Agent',
+          title: 'Agents',
           collapsable: true,
           children: [
-            'agent/overview',
-            'agent/local',
-            'agent/docker',
-            'agent/kubernetes',
-            'agent/fargate'
+            'agents/overview',
+            'agents/local',
+            'agents/docker',
+            'agents/kubernetes',
+            'agents/fargate'
           ]
         },
         {
@@ -204,19 +219,23 @@ module.exports = {
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
           ]
+        },
+        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/cloud', 'faq')
         }
       ],
       '/core/': [
         '/core/',
         {
-          title: 'Welcome',
-          collapsable: false,
+          title: 'Introduction',
+          collapsable: true,
           children: [
-            'welcome/what_is_prefect',
-            'welcome/why_prefect',
-            'welcome/why_not_airflow',
-            'welcome/community',
-            'welcome/code_of_conduct'
+            'introduction/why_prefect',
+            'introduction/why_not_airflow',
+            'introduction/community',
+            'introduction/code_of_conduct'
           ]
         },
         {
@@ -286,6 +305,11 @@ module.exports = {
             'development/contributing',
             'development/release-checklist'
           ]
+        },
+        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/core', 'faq')
         }
       ]
     }
