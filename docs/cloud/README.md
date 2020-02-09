@@ -13,7 +13,7 @@ sidebarDepth: 0
 
 Cloud is powered by Prefect's innovative [Hybrid Execution Engine](https://www.prefect.io/why-prefect/hybrid-model), which means that your code and data **always remain private** on your infrastructure. You can take full advantage of Prefect Cloud's UI, API, scheduler, secrets management, team management, and more without ever worrying about your most valuable information leaving your control.
 
-We built Prefect Cloud to support all workflows, from globally-distributed multi-cloud coordination to blinking lights on a Raspberry Pi. What will you build?
+We built Prefect Cloud to support all workflows, from globally-distributed multi-cloud coordination to blinking a light on a Raspberry Pi. What will you build?
 
 Happy engineering!
 

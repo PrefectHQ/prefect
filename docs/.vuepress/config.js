@@ -142,6 +142,17 @@ module.exports = {
       '/cloud/': [
         '/cloud/',
         {
+          title: 'Cloud UI',
+          collapsable: true,
+          children: [
+            'ui/dashboard',
+            'ui/flow',
+            'ui/flow-run',
+            'ui/interactive-api',
+            'ui/team-settings'
+          ]
+        },
+        {
           title: 'Deployment Tutorial',
           collapsable: true,
           children: [
@@ -175,11 +186,11 @@ module.exports = {
           title: 'Agents',
           collapsable: true,
           children: [
-            'agent/overview',
-            'agent/local',
-            'agent/docker',
-            'agent/kubernetes',
-            'agent/fargate'
+            'agents/overview',
+            'agents/local',
+            'agents/docker',
+            'agents/kubernetes',
+            'agents/fargate'
           ]
         },
         {
@@ -192,12 +203,12 @@ module.exports = {
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
           ]
-        },        {
+        },
+        {
           title: 'FAQ',
           collapsable: true,
           children: getChildren('docs/cloud', 'faq')
-        },
-
+        }
       ],
       '/core/': [
         '/core/',
@@ -274,6 +285,11 @@ module.exports = {
             'development/contributing',
             'development/release-checklist'
           ]
+        },
+        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/core', 'faq')
         }
       ]
     }
