@@ -35,7 +35,7 @@ These tags are then available via the `tags` attribute on your Task instances. M
 
 ## Setting Concurrency Limits
 
-Once you have tagged your various tasks and [registered your Flow(s)](../upandrunning.html#registering-flow-with-cloud) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. There are currently two supported APIs for doing this, and this functionality will also be exposed in the UI in the near future.
+Once you have tagged your various tasks and [registered your Flow(s)](flows.html#registering-a-flow-from-prefect-core) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. There are currently two supported APIs for doing this, and this functionality will also be exposed in the UI in the near future.
 
 ### Python Client
 
