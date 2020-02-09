@@ -146,8 +146,7 @@ classes = [
             "Executor",
             "DaskExecutor",
             "LocalDaskExecutor",
-            "LocalExecutor",
-            "SynchronousExecutor"]
+            "LocalExecutor"]
 
 [pages.engine.result]
 title = "Results"
