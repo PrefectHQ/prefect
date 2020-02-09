@@ -1,4 +1,4 @@
-# Hybrid Model Data: A Guided Tour
+# Data Handling in the Hybrid Model
 
 Prefect Cloud's innovative hybrid execution model was designed to satisfy the majority of on-prem needs while still offering a managed platform. In order to achieve this, Prefect was designed to allow users the ability to ensure both their _code_ and their _data_ never leaves their internal ecosystem. This guide will focus on how _data_ moves between tasks and flows in the Prefect Cloud execution model, as well as call out any caveats that might result in data being exposed to Prefect Cloud.
 
