@@ -309,3 +309,9 @@ def test_context_only_specified_attributes():
     logger.filters.pop()
 
     assert test_filter.called
+
+
+def test_extra_loggers():
+    with utilities.configuration.set_temporary_config({"logging.extra_loggers": ['extra_logger']}):
+        utilities.logging.configure_extra_loggers()
+        assert type(logging.root.manager.loggerDict.get('extra_logger')) == logging.Logger
