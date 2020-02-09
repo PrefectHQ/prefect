@@ -43,7 +43,7 @@ def _validate_run_signature(run: Callable) -> None:
                 "with `builtin` and `numpy` functions). In order to "
                 "use it as a task, please wrap it in a standard "
                 "Python function. For more detail, see "
-                "https://docs.prefect.io/core/tutorials/task-guide.html#the-task-decorator"
+                "https://docs.prefect.io/core/advanced_tutorials/task-guide.html#the-task-decorator"
             )
         raise
 

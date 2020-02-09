@@ -3,7 +3,7 @@ const sidebar81 = require('../api/0.8.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -28,6 +28,7 @@ module.exports = {
       href: '/favicon.ico'
     }
   ],
+  extraWatchFiles: ['.vuepress/highlightLines.js'],
   plugins: [
     [
       '@vuepress/google-analytics',
@@ -86,8 +87,10 @@ module.exports = {
     sidebar: {
       '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
-      '/api/latest/': [
-        { title: 'API Reference', path: '/api/latest/' },
+      '/api/latest/': [{
+          title: 'API Reference',
+          path: '/api/latest/'
+        },
         'changelog',
         {
           title: 'Test Coverage',
@@ -232,14 +235,9 @@ module.exports = {
           ]
         },
         {
-          title: 'Tutorials',
+          title: 'Tutorial',
           collapsable: true,
-          children: getChildren('docs/core', 'tutorials')
-        },
-        {
-          title: 'Task Library',
-          collapsable: true,
-          children: getChildren('docs/core', 'task_library')
+          children: getChildren('docs/core', 'tutorial')
         },
         {
           title: 'Core Concepts',
@@ -262,6 +260,16 @@ module.exports = {
             'concepts/best-practices',
             'concepts/common-pitfalls'
           ]
+        },
+        {
+          title: 'Task Library',
+          collapsable: true,
+          children: getChildren('docs/core', 'task_library')
+        },
+        {
+          title: 'Advanced Tutorials',
+          collapsable: true,
+          children: getChildren('docs/core', 'advanced_tutorials')
         },
         {
           title: 'Examples',
@@ -294,6 +302,7 @@ module.exports = {
     }
   },
   extendMarkdown(md) {
+    md.use(require('./highlightLines.js'))
     md.use(require('markdown-it-attrs'))
     md.use(require('markdown-it-checkbox'))
   }
