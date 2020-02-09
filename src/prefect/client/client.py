@@ -287,6 +287,7 @@ class Client:
             raise ValueError("Invalid method: {}".format(method))
 
         # Check if request returned a successful status
+        print(response.status_code)
         response.raise_for_status()
 
         return response

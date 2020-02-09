@@ -31,7 +31,7 @@ class DaskKubernetesEnvironment(Environment):
     The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
     required for cloud do not need to be included because they are instead automatically added and populated during execution:
 
-    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__CLOUD__API`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__NAMESPACE`
@@ -423,7 +423,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.api},
+            {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,
@@ -481,7 +481,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.api},
+            {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,
