@@ -39,12 +39,12 @@ state = flow.run(executor=LocalExecutor()) # <-- the executor needs to be initia
 
 and you're set! The `executor` keyword can also be provided to the `FlowRunner.run` method.
 
-#### `SynchronousExecutor`
+#### `LocalDaskExecutor`
 
-If you want to upgrade to a more powerful executor but still maintain an easily debuggable environment, we recommend the `SynchronousExecutor`. This executor _does_ defer computation using `dask`, but avoids any parallelism, making for an execution pipeline which is easier to reason about.
+If you want to upgrade to a more powerful executor but still maintain an easily debuggable environment, we recommend the `LocalDaskExecutor`. This executor _does_ defer computation using `dask`, but avoids any parallelism, making for an execution pipeline which is easier to reason about.  You can turn parallelism on by providing either `scheduler="threads"` or `scheduler="processes"` when initializing this executor.
 
 ::: tip Prefect defaults
-The `SynchronousExecutor` is the default executor on your local machine; in production, the `DaskExecutor` will be the default. To change your Prefect settings (including the default executor), you can either:
+You can set the `LocalDaskExecutor` to be the default executor on your local machine. To change your Prefect settings (including the default executor), you can either:
 
 - modify your `~/.prefect/config.toml` file
 - update your OS environment variables; every value in the config file can be overridden by setting `PREFECT__SECTION__SUBSECTION__KEY`. For example, to change the default executor, you can set `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS="prefect.engine.executors.LocalExecutor"`
