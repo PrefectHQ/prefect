@@ -14,7 +14,7 @@ Manage your team's projects. Projects are used to organize flows.
 
 ## API Tokens
 
-Generate and mange `TEAM` and `RUNNER` scoped tokens for interacting programmatically with the Prefect Cloud API.
+Generate and mange `TENANT` and `RUNNER` scoped tokens for interacting programmatically with the Prefect Cloud API.
 
 ![](/cloud/ui/team-api-tokens.png)
 

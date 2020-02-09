@@ -17,5 +17,5 @@ The "versions" page shows a history of all versions of this flow.
 
 ## Run
 
-Kick off a new run of your flow, providing parameter values if necessary.
+From this page, you can schedule a new run of your flow. You may provide parameter values, if appropriate, and give your run a name for easy queries or retrieval in the future.
 ![](/cloud/ui/flow-run.png)
