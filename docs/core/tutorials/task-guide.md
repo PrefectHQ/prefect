@@ -90,6 +90,18 @@ In addition to disallowing `*args`, the following keywords are reserved and cann
 - `task_args`: reserved as a way of overriding task attributes when creating copies in the functional API
 - `flow`: reserved for internal implementation details
 
+Lastly, Prefect must be able to `inspect` the function signature in order to apply these rules. Some functions, including `builtins` and many `numpy` functions, can not be inspected. To use them, wrap them in a normal Python task:
+
+```python
+@task
+def prefect_bool(x):
+    """
+    `prefect.task(bool)` doesn't work because `bool` is
+    a `builtin`, but this wrapper function gets around the restriction.
+    """
+    return bool(x)
+```
+
 If you violate any of these restrictions, an error will be thrown immediately at Task creation informing you.
 :::
 
