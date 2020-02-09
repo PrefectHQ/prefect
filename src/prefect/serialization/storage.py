@@ -14,7 +14,7 @@ from prefect.environments.storage import (
     Storage,
     S3,
 )
-from prefect.utilities.serialization import Bytes as BytesField
+from prefect.utilities.serialization import Bytes as BytesField, JSONCompatible
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
 
 
@@ -111,6 +111,9 @@ class S3Schema(ObjectSchema):
     bucket = fields.String(allow_none=False)
     key = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    client_options = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> S3:

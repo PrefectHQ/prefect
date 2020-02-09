@@ -39,6 +39,7 @@ class S3(Storage):
             `AWS_SESSION_TOKEN` or `None`
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
+        - client_options (dict, optional): Additional options for the `boto3` client.
     """
 
     def __init__(
@@ -47,6 +48,7 @@ class S3(Storage):
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
+        client_options: dict = None,
         key: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
@@ -57,6 +59,7 @@ class S3(Storage):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_session_token = aws_session_token
+        self.client_options = client_options
 
         result_handler = S3ResultHandler(bucket=bucket)
         super().__init__(result_handler=result_handler)
@@ -192,6 +195,7 @@ class S3(Storage):
 
         return boto3_client(
             "s3",
+            **(self.client_options or {}),
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
             aws_session_token=self.aws_session_token,
