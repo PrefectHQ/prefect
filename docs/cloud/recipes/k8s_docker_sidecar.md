@@ -1,6 +1,6 @@
 # Docker Sidecar on Kubernetes
 
-This recipe is for a Flow deployed to Kubernetes, making use of a Docker sidecar container to pull an image and run a container. This is an adaptation of the [Docker Pipeline](core/examples/imperative_docker.html) example where the `prefecthq/prefect:latest` image is pulled and a container is started using that image to run another Flow inside that container.
+This recipe is for a Flow deployed to Kubernetes, making use of a Docker sidecar container to pull an image and run a container. This is an adaptation of the [Docker Pipeline](../../core/examples/imperative_docker.html) example where the `prefecthq/prefect:latest` image is pulled and a container is started using that image to run another Flow inside that container.
 
 [[toc]]
 
@@ -14,17 +14,17 @@ kind: Job
 metadata:
   name: prefect-docker-job
   labels:
-    identifier: ""
+    identifier: ''
 spec:
   template:
     metadata:
       labels:
-        identifier: ""
+        identifier: ''
     spec:
       restartPolicy: Never
       containers:
         - name: flow-container
-          image: ""
+          image: ''
           command: []
           args: []
           env:

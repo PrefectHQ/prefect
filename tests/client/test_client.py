@@ -645,3 +645,30 @@ def test_set_task_run_state_with_error(patch_post):
 
     with pytest.raises(ClientError, match="something went wrong"):
         client.set_task_run_state(task_run_id="76-salt", version=0, state=Pending())
+
+
+def test_create_flow_run_requires_flow_id_or_version_group_id():
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    with pytest.raises(
+        ValueError, match="flow_id or version_group_id must be provided"
+    ):
+        client.create_flow_run()
+
+
+@pytest.mark.parametrize("kwargs", [dict(flow_id="blah"), dict(version_group_id="cat")])
+def test_create_flow_run_with_input(patch_post, kwargs):
+    response = {
+        "data": {"createFlowRun": {"flow_run": {"id": "FOO"}}},
+    }
+    post = patch_post(response)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    assert client.create_flow_run(**kwargs) == "FOO"

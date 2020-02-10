@@ -1,7 +1,7 @@
 """
 Tools and utilities for notifications and callbacks.
 
-For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](/core/tutorials/slack-notifications.html).
+For an in-depth guide to setting up your system for using Slack notifications, [please see our tutorial](/core/advanced_tutorials/slack-notifications.html).
 """
 import smtplib
 from email.header import Header

@@ -4,6 +4,12 @@ Flow runs track the execution of a flow. They represent a discrete instantiation
 
 ## Creating a flow run
 
+### UI
+
+To create a flow run from the UI, visit the [flow page](/cloud/ui/flow.html#run) and click "Run Flow".
+
+![](/cloud/ui/flow-run.png)
+
 ### Core Client
 
 To create a flow run for a specific flow with the Core client:
@@ -13,6 +19,10 @@ client.create_flow_run(flow_id="<flow id>")
 ```
 
 The client method takes a number of optional arguments, including scheduled start time, parameters and an idempotency key. See the API reference for complete detail.
+
+::: tip A Stable API for Flow Runs
+For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`.  If provided, the unique unarchived flow within the version group will be scheduled for execution.  
+:::
 
 ### Core CLI
 
@@ -35,6 +45,8 @@ mutation {
   }
 }
 ```
+
+As with the Core Client, you can instead provide `versionGroupId` as an input to schedule a run for the unique unarchived flow within the provided version group.  This provides a stable API for running flows which are regularly updated.
 
 ### Idempotent run creation <Badge text="GQL"/>
 
@@ -62,7 +74,15 @@ mutation {
 }
 ```
 
-## Updating flow run state <Badge text="GQL"/>
+## Updating flow run state
+### UI
+
+To manually set a flow run state from the UI, visit the [flow run page](/cloud/ui/flowrun).
+
+
+![](/cloud/ui/flowrun-mark-as.png)
+
+### GraphQL  <Badge text="GQL"/>
 
 If you need to manually update the state of a flow run, you can do so by providing a new state at any time. You must also provide a "version" number. If the version number doesn't match the database, the update will fail.
 
