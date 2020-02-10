@@ -86,8 +86,8 @@ def jira_notifier(
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 
-    if not serverURL:
-        serverURL = jira_credentials["JIRASERVER"]
+    if not server_URL:
+        server_URL = jira_credentials["JIRASERVER"]
     # username = cast(str, prefect.client.Secret("JIRAUSER").get())
     # password = cast(str, prefect.client.Secret("JIRATOKEN").get())
     # serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
@@ -118,7 +118,7 @@ def jira_notifier(
 
     # options['summary_text'] = summary_text
 
-    jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
+    jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
