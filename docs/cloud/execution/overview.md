@@ -140,7 +140,7 @@ with Flow("Callback-Example", environment=environment) as flow:
 
 ### Labels
 
-Environments expose a configurable list of `labels`, allowing you to label your Flows and determine where they are executed. This works in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agent/overview.html#flow-affinity:-labels).
+Environments expose a configurable list of `labels`, allowing you to label your Flows and determine where they are executed. This works in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agents/overview.html#flow-affinity:-labels).
 
 #### Label Example
 

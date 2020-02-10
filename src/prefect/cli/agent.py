@@ -163,7 +163,7 @@ def start(
     \b
     Fargate Agent Options:
         Any of the configuration options outlined in the docs can be provided here
-        https://docs.prefect.io/cloud/agent/fargate.html#configuration
+        https://docs.prefect.io/cloud/agents/fargate.html#configuration
     """
 
     # Split context
