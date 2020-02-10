@@ -42,7 +42,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options: dict = {},
+    options: dict = None,
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
@@ -108,19 +108,20 @@ def jira_notifier(
     ):
         return new_state
 
-    project = options.get("project")
-    if not project:
-        project_name = jira_credentials["JIRAPROJECT"]
-        options["project"] = project_name
+    if options:
+        project = options.get("project")
+        if not project:
+            project_name = jira_credentials["JIRAPROJECT"]
+            options["project"] = project_name
 
-    issue = options.get("issuetype")
+        issue = options.get("issuetype")
 
-    if not issue:
-        options["issuetype"] = {"name": "Task"}
+        if not issue:
+            options["issuetype"] = {"name": "Task"}
 
-    summary_text = str(jira_message_formatter(tracked_obj, new_state))
+        summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
-    options["summary"] = summary_text
+        options["summary"] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
