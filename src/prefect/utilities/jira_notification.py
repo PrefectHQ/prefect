@@ -96,7 +96,6 @@ def jira_notifier(
     # ignore_states = options['ignore_states'] or []
     # only_states = options['only_states'] or []
     # project_name: options['project_name'] or []
-    
 
     ignore_states = ignore_states or []
     only_states = only_states or []
@@ -109,9 +108,9 @@ def jira_notifier(
     ):
         return new_state
 
-    project = options.get('project')
+    project = options.get("project")
     if not project:
-        project_name = jira_credentials['JIRAPROJECT']
+        project_name = jira_credentials["JIRAPROJECT"]
         options["project"] = project_name
 
     issue = options.get("issuetype")
@@ -127,7 +126,7 @@ def jira_notifier(
     created = jira.create_issue(options)
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
-    if assignee: 
+    if assignee:
         assigned = jira.assign_issue(created, assignee)
         if not assigned:
             raise ValueError("Assigning Jira issue for {} failed".format(tracked_obj))
