@@ -19,19 +19,19 @@ import aircraftlib as aclib
 from prefect import task, Flow, Parameter
 
 
-@task(max_retries=3, retry_delay=timedelta(seconds=1))
+@task(max_retries=3, retry_delay=timedelta(seconds=10))
 def extract_reference_data():
     # same as before ...
     ...
 
 
-@task(max_retries=3, retry_delay=timedelta(seconds=1))
+@task(max_retries=3, retry_delay=timedelta(seconds=10))
 def extract_live_data(airport, radius, ref_data):
     # same as before ...
     ...
 ```
 
-This is a simple measure that helps our `Flow` gracefully handle transient errors in only the tasks we specify. Now if there are any failed web requests, a maximum of 3 attempts will be made, waiting 1 second between each attempt.
+This is a simple measure that helps our `Flow` gracefully handle transient errors in only the tasks we specify. Now if there are any failed web requests, a maximum of 3 attempts will be made, waiting 10 seconds between each attempt.
 
 ::: tip More Ways to Handle Failures
 
