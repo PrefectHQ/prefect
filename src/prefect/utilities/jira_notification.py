@@ -110,7 +110,7 @@ def jira_notifier(
 
     project = options.get('project_name')
     if not project:
-        project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+        project_name = jira_credentials['JIRAPROJECT']
         options["project_name"] = project_name
 
     issue = options.get("issue_type")
