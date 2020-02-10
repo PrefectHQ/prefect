@@ -99,7 +99,7 @@ def jira_notifier(
 
     ignore_states = ignore_states or []
     only_states = only_states or []
-
+    print("options", options)
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
         return new_state
 
@@ -108,21 +108,24 @@ def jira_notifier(
     ):
         return new_state
 
-    if options:
+    if options is not None:
         print("options", options)
         project = options.get("project")
-        if not project:
-            project_name = jira_credentials["JIRAPROJECT"]
-            options["project"] = project_name
-
         issue = options.get("issuetype")
 
-        if not issue:
-            options["issuetype"] = {"name": "Task"}
+    if options is None:
+        options = {}
 
-        summary_text = str(jira_message_formatter(tracked_obj, new_state))
+    if not project:
+        project_name = jira_credentials["JIRAPROJECT"]
+        options["project"] = project_name
 
-        options["summary"] = summary_text
+    if not issue:
+        options["issuetype"] = {"name": "Task"}
+
+    summary_text = str(jira_message_formatter(tracked_obj, new_state))
+
+    options["summary"] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
