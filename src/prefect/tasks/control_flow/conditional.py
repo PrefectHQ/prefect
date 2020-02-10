@@ -3,7 +3,6 @@ from typing import Any, Dict
 import prefect
 from prefect import Task
 from prefect.engine import signals
-from prefect.engine.result import NoResultType
 
 __all__ = ["switch", "ifelse"]
 
@@ -12,16 +11,12 @@ class Merge(Task):
     def __init__(self, **kwargs) -> None:
         if kwargs.setdefault("skip_on_upstream_skip", False):
             raise ValueError("Merge tasks must have `skip_on_upstream_skip=False`.")
+        kwargs.setdefault("trigger", prefect.triggers.not_all_skipped)
         super().__init__(**kwargs)
 
     def run(self, **task_results: Any) -> Any:
         return next(
-            (
-                v
-                for k, v in sorted(task_results.items())
-                if not isinstance(v, NoResultType)
-            ),
-            None,
+            (v for k, v in sorted(task_results.items()) if v is not None), None,
         )
 
 
@@ -115,7 +110,11 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         - false_task (Task): a task that will be executed if the condition is False
     """
 
-    switch(condition=condition, cases={True: true_task, False: false_task})
+    @prefect.task
+    def as_bool(x):
+        return bool(x)
+
+    switch(condition=as_bool(condition), cases={True: true_task, False: false_task})
 
 
 def merge(*tasks: Task) -> Task:
@@ -124,7 +123,8 @@ def merge(*tasks: Task) -> Task:
 
     A conditional branch in a flow results in one or more tasks proceeding and one or
     more tasks skipping. It is often convenient to merge those branches back into a
-    single result. This function is a simple way to achieve that goal.
+    single result. This function is a simple way to achieve that goal. By default this
+    task will skip if all its upstream dependencies are also skipped.
 
     The merge will return the first real result it encounters, or `None`. If multiple
     tasks might return a result, group them with a list.

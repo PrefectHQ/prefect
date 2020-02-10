@@ -45,27 +45,42 @@ def tags(*tags: str) -> Iterator[None]:
         yield
 
 
-def as_task(
-    x: Any, flow: Optional["Flow"] = None, convert_constants: bool = True
-) -> "prefect.Task":
+def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
     """
-    Wraps a function, collection, or constant with the appropriate Task type.
+    Wraps a function, collection, or constant with the appropriate Task type. If a constant
+    or collection of constants is passed, a `Constant` task is returned.
 
     Args:
         - x (object): any Python object to convert to a prefect Task
         - flow (Flow, optional): Flow to which the prefect Task will be bound
-        - convert_constants (bool, optional): a boolean specifying whether all passed Python
-            objects should be converted; if `False`, only collection types will be handled.
-            Defaults to `True`.
 
     Returns:
         - a prefect Task representing the passed object
     """
+    from prefect.tasks.core.constants import Constant
+
+    def is_constant(x: Any) -> bool:
+        """
+        Helper function for determining if nested collections are constants without calling
+        `bind()`, which would create new tasks on the active graph.
+        """
+        if isinstance(x, (prefect.core.Task, unmapped)):
+            return False
+        elif isinstance(x, (list, tuple, set)):
+            return all(is_constant(xi) for xi in x)
+        elif isinstance(x, dict):
+            return all(is_constant(xi) for xi in x.values())
+        return True
+
     # task objects
     if isinstance(x, prefect.core.Task):  # type: ignore
         return x
     elif isinstance(x, unmapped):
         return x.task
+
+    # handle constants, including collections of constants
+    elif is_constant(x):
+        return_task = Constant(x)  # type: prefect.core.Task
 
     # collections
     elif isinstance(x, list):
@@ -83,9 +98,6 @@ def as_task(
             keys=keys, values=values, flow=flow
         )
 
-    # constants
-    elif convert_constants:
-        return_task = prefect.tasks.core.constants.Constant(value=x)
     else:
         return x
 
@@ -97,8 +109,8 @@ def pause_task(message: str = None, duration: timedelta = None) -> None:
     """
     Utility function for pausing a task during execution to wait for manual intervention.
     Note that the _entire task_ will be rerun if the user decides to run this task again!
-    The only difference is that this utility will simply _not_ raise a `PAUSE` signal.
-    To bypass a `PAUSE` signal being raised, simply put the task into a Resume state.
+    The only difference is that this utility will _not_ raise a `PAUSE` signal.
+    To bypass a `PAUSE` signal being raised, put the task into a Resume state.
 
     Args:
         - message (str): an optional message for the Pause state.

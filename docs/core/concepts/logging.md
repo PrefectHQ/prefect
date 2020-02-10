@@ -16,7 +16,7 @@ To access a Prefect-configured logger, use `prefect.utilities.logging.get_logger
 
 ### Task Classes
 
-To log from a task class, simply use `self.logger`:
+To log from a task class, use `self.logger`:
 
 ```python
 class MyTask(prefect.Task):
@@ -50,4 +50,5 @@ def my_task():
     logger.info("An info message.")
     logger.warning("A warning message.")
 ```
+
 :::

@@ -1,7 +1,5 @@
 # Tokens
 
-[[toc]]
-
 ## Token Types
 
 ### `USER`

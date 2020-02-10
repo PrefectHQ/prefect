@@ -9,7 +9,9 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
 import atexit
+import json
 import logging
+import sys
 import threading
 import time
 from queue import Queue, Empty
@@ -21,12 +23,23 @@ import prefect
 from prefect.utilities.context import context
 
 
+_original_log_record_factory = logging.getLogRecordFactory()
+
+PREFECT_LOG_RECORD_ATTRIBUTES = (
+    "flow_name",
+    "flow_run_id",
+    "task_name",
+    "task_slug",
+    "task_run_id",
+)
+
+
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(sys.stdout)
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
-        handler = logging.StreamHandler()
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
@@ -61,9 +74,15 @@ class CloudHandler(logging.StreamHandler):
                 assert self.client is not None
                 self.client.write_run_logs(logs)
             except Exception as exc:
-                self.logger.critical(
-                    "Failed to write log with error: {}".format(str(exc))
-                )
+                message = "Failed to write log with error: {}".format(str(exc))
+                self.logger.critical(message)
+
+                # Attempt to write batch error log otherwise log invalid cloud communication
+                try:
+                    assert self.client is not None
+                    self.client.write_run_logs([self._make_error_log(message)])
+                except Exception as exc:
+                    self.logger.critical("Unable to write logs to Prefect Cloud")
 
     def _monitor(self) -> None:
         while not self._flush:
@@ -86,7 +105,14 @@ class CloudHandler(logging.StreamHandler):
             atexit.register(self.flush)
 
     def put(self, log: dict) -> None:
-        self.queue.put(log)
+        try:
+            json.dumps(log)  # make sure the payload is serializable
+            self.queue.put(log)
+        except TypeError as exc:
+            message = "Failed to write log with error: {}".format(str(exc))
+            self.logger.critical(message)
+
+            self.queue.put(self._make_error_log(message))
 
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
@@ -119,7 +145,42 @@ class CloudHandler(logging.StreamHandler):
             log["info"] = record_dict
             self.put(log)
         except Exception as exc:
-            self.logger.critical("Failed to write log with error: {}".format(str(exc)))
+            message = "Failed to write log with error: {}".format(str(exc))
+            self.logger.critical(message)
+
+            self.put(self._make_error_log(message))
+
+    def _make_error_log(self, message: str) -> dict:
+        log = dict()
+        log["flowRunId"] = prefect.context.get("flow_run_id", None)
+        log["timestamp"] = pendulum.from_timestamp(time.time()).isoformat()
+        log["name"] = self.logger.name
+        log["message"] = message
+        log["level"] = "CRITICAL"
+        log["info"] = {}
+
+        return log
+
+
+def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    """
+    A custom logger LogRecord Factory that injects selected context parameters into newly created logs.
+
+    Args:
+        - *args: arguments to pass to the original LogRecord Factory
+        - **kwargs: keyword arguments to pass to the original LogRecord Factory
+
+    Returns:
+        - logging.LogRecord: the newly created LogRecord
+    """
+    record = _original_log_record_factory(*args, **kwargs)
+
+    for attr in PREFECT_LOG_RECORD_ATTRIBUTES:
+        value = prefect.context.get(attr, None)
+        if value:
+            setattr(record, attr, value)
+
+    return record
 
 
 def configure_logging(testing: bool = False) -> logging.Logger:
@@ -135,9 +196,11 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     Returns:
         - logging.Logger: a configured logging object
     """
+    logging.setLogRecordFactory(_log_record_context_injector)
+
     name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(context.config.logging.format)
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
@@ -165,6 +228,7 @@ def get_logger(name: str = None) -> logging.Logger:
     Returns:
         - logging.Logger: a configured logging object with the appropriate name
     """
+
     if name is None:
         return prefect_logger
     else:

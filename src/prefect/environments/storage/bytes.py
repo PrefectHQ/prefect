@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 import cloudpickle
 
 import prefect
+from prefect.engine.result_handlers import ResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 class Bytes(Storage):
     """
-    Bytes Storage class, mainly used for testing.  This class represents the Storage
+    Bytes Storage class, intended only for testing.  This class represents the Storage
     interface for Flows stored directly as bytes.
 
     The main difference between this class and `Memory` storage is that `Bytes`
@@ -20,7 +21,7 @@ class Bytes(Storage):
 
     def __init__(self) -> None:
         self.flows = dict()  # type: Dict[str, bytes]
-        super().__init__()
+        super().__init__(result_handler=ResultHandler())
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
@@ -28,7 +29,7 @@ class Bytes(Storage):
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
-                a flow location is simply a Flow's name
+                a flow location is a Flow's name
 
         Returns:
             - Flow: the requested flow

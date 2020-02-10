@@ -38,6 +38,11 @@ class BaseStateSchema(ObjectSchema):
     context = fields.Dict(key=fields.Str(), values=JSONCompatible(), allow_none=True)
     message = fields.String(allow_none=True)
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
+    cached_inputs = fields.Dict(
+        key=fields.Str(),
+        values=Nested(StateResultSchema, value_selection_fn=get_safe),
+        allow_none=True,
+    )
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> state.State:
@@ -50,12 +55,6 @@ class BaseStateSchema(ObjectSchema):
 class PendingSchema(BaseStateSchema):
     class Meta:
         object_class = state.Pending
-
-    cached_inputs = fields.Dict(
-        key=fields.Str(),
-        values=Nested(StateResultSchema, value_selection_fn=get_safe),
-        allow_none=True,
-    )
 
 
 class MetaStateSchema(BaseStateSchema):
@@ -124,13 +123,6 @@ class CachedSchema(SuccessSchema):
     class Meta:
         object_class = state.Cached
 
-    cached_inputs = fields.Dict(
-        key=fields.Str(),
-        values=Nested(
-            StateResultSchema, value_selection_fn=get_safe, attr="cached_inputs"
-        ),
-        allow_none=True,
-    )
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
 
@@ -155,14 +147,8 @@ class FailedSchema(FinishedSchema):
     class Meta:
         object_class = state.Failed
 
-    cached_inputs = fields.Dict(
-        key=fields.Str(),
-        values=Nested(StateResultSchema, value_selection_fn=get_safe),
-        allow_none=True,
-    )
 
-
-class CancelledSchema(FailedSchema):
+class CancelledSchema(FinishedSchema):
     class Meta:
         object_class = state.Cancelled
 
@@ -170,14 +156,6 @@ class CancelledSchema(FailedSchema):
 class TimedOutSchema(FinishedSchema):
     class Meta:
         object_class = state.TimedOut
-
-    cached_inputs = fields.Dict(
-        key=fields.Str(),
-        values=Nested(
-            StateResultSchema, value_selection_fn=get_safe, attr="cached_inputs"
-        ),
-        allow_none=True,
-    )
 
 
 class TriggerFailedSchema(FailedSchema):

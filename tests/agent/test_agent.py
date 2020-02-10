@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+import logging
 
 import pytest
 
@@ -14,17 +15,23 @@ def test_agent_init(runner_token):
     assert agent
 
 
+def test_multiple_agent_init_doesnt_duplicate_logs(runner_token):
+    a, b, c = Agent(), Agent(), Agent()
+    assert len(c.logger.handlers) == 1
+
+
 def test_agent_config_options(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.labels == []
+        assert agent.env_vars == dict()
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.name == "agent"
         assert agent.logger
         assert agent.logger.name == "agent"
 
 
-def test_agent_name_set_options(runner_token, monkeypatch):
+def test_agent_name_set_options(monkeypatch, runner_token):
     # Default
     agent = Agent()
     assert agent.name == "agent"
@@ -54,6 +61,12 @@ def test_agent_log_level_responds_to_config(runner_token):
     ):
         agent = Agent()
         assert agent.logger.level == 10
+
+
+def test_agent_env_vars(runner_token):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent(env_vars=dict(AUTH_THING="foo"))
+        assert agent.env_vars == dict(AUTH_THING="foo")
 
 
 def test_agent_labels(runner_token):
@@ -144,10 +157,13 @@ def test_query_flow_runs(monkeypatch, runner_token):
     assert flow_runs == [{"id": "id"}]
 
 
-def test_update_states_passes_empty(monkeypatch, runner_token):
+def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
-            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
+            data=MagicMock(
+                getRunsInQueue=MagicMock(flow_run_ids=["id1", "id2"]),
+                flow_run=[{"id1": "id1"}],
+            )
         )
     )
     client = MagicMock()
@@ -155,7 +171,41 @@ def test_update_states_passes_empty(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    assert not agent.update_states(flow_runs=[])
+    agent.submitting_flow_runs.add("id2")
+    agent.query_flow_runs(tenant_id="id")
+
+    assert len(gql_return.call_args_list) == 2
+    assert (
+        'id: { _in: ["id1"] }'
+        in list(gql_return.call_args_list[1][0][0]["query"].keys())[0]
+    )
+
+
+def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
+    monkeypatch, runner_token, caplog
+):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                getRunsInQueue=MagicMock(flow_run_ids=["already-submitted-id"]),
+                flow_run=[{"id": "id"}],
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    agent.logger.setLevel(logging.DEBUG)
+    copy_mock = MagicMock(return_value=set(["already-submitted-id"]))
+    agent.submitting_flow_runs = MagicMock(copy=copy_mock)
+
+    flow_runs = agent.query_flow_runs(tenant_id="id")
+
+    assert flow_runs == []
+    assert "1 already submitting: ['already-submitted-id']" in caplog.text
+    copy_mock.assert_called_once_with()
 
 
 def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
@@ -169,17 +219,15 @@ def test_update_states_passes_no_task_runs(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    assert not agent.update_states(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "id": "id",
-                    "serialized_state": Scheduled().serialize(),
-                    "version": 1,
-                    "task_runs": [],
-                }
-            )
-        ]
+    assert not agent.update_state(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [],
+            }
+        )
     )
 
 
@@ -194,31 +242,54 @@ def test_update_states_passes_task_runs(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    assert not agent.update_states(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "id": "id",
-                    "serialized_state": Scheduled().serialize(),
-                    "version": 1,
-                    "task_runs": [
-                        GraphQLResult(
-                            {
-                                "id": "id",
-                                "version": 1,
-                                "serialized_state": Scheduled().serialize(),
-                            }
-                        )
-                    ],
-                }
-            )
-        ]
+    assert not agent.update_state(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [
+                    GraphQLResult(
+                        {
+                            "id": "id",
+                            "version": 1,
+                            "serialized_state": Scheduled().serialize(),
+                        }
+                    )
+                ],
+            }
+        )
+    )
+
+
+def test_mark_failed(monkeypatch, runner_token):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
+    agent = Agent()
+    assert not agent.mark_failed(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [],
+            }
+        ),
+        exc=Exception(),
     )
 
 
 def test_deploy_flows_passes_base_agent(runner_token):
     agent = Agent()
-    assert not agent.deploy_flows([])
+    with pytest.raises(NotImplementedError):
+        agent.deploy_flow(None)
 
 
 def test_heartbeat_passes_base_agent(runner_token):
@@ -255,6 +326,13 @@ def test_agent_connect_no_tenant_id(monkeypatch, runner_token):
         assert agent.agent_connect()
 
 
+def test_on_flow_run_deploy_attempt_removes_id(monkeypatch, runner_token):
+    agent = Agent()
+    agent.submitting_flow_runs.add("id")
+    agent.on_flow_run_deploy_attempt(None, "id")
+    assert len(agent.submitting_flow_runs) == 0
+
+
 def test_agent_process(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -287,9 +365,14 @@ def test_agent_process(monkeypatch, runner_token):
     client.return_value.graphql = gql_return
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
-    # Assert it doesn't return everything but all functions are called properly
+    executor = MagicMock()
+    future_mock = MagicMock()
+    executor.submit = MagicMock(return_value=future_mock)
+
     agent = Agent()
-    assert agent.agent_process("id")
+    assert agent.agent_process(executor, "id")
+    assert executor.submit.called
+    assert future_mock.add_done_callback.called
 
 
 def test_agent_process_no_runs_found(monkeypatch, runner_token):
@@ -307,12 +390,14 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
     client.return_value.graphql = gql_return
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
-    # Assert it doesn't return everything but all functions are called properly
+    executor = MagicMock()
+
     agent = Agent()
-    assert not agent.agent_process("id")
+    assert not agent.agent_process(executor, "id")
+    assert not executor.submit.called
 
 
-def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
+def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(writeRunLogs=MagicMock(success=True)))
     )
@@ -321,46 +406,31 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
 
     agent = Agent()
-    agent._log_flow_run_exceptions(
-        flow_runs=[
-            GraphQLResult(
-                {
-                    "id": "id",
-                    "serialized_state": Scheduled().serialize(),
-                    "version": 1,
-                    "task_runs": [
-                        GraphQLResult(
-                            {
-                                "id": "id",
-                                "version": 1,
-                                "serialized_state": Scheduled().serialize(),
-                            }
-                        )
-                    ],
-                }
-            )
-        ],
-        exc=ValueError("Error Here"),
+    agent.deploy_flow = MagicMock(side_effect=Exception("Error Here"))
+    agent.deploy_and_update_flow_run(
+        flow_run=GraphQLResult(
+            {
+                "id": "id",
+                "serialized_state": Scheduled().serialize(),
+                "version": 1,
+                "task_runs": [
+                    GraphQLResult(
+                        {
+                            "id": "id",
+                            "version": 1,
+                            "serialized_state": Scheduled().serialize(),
+                        }
+                    )
+                ],
+            }
+        )
     )
 
     assert client.write_run_logs.called
     client.write_run_logs.assert_called_with(
         [dict(flowRunId="id", level="ERROR", message="Error Here", name="agent")]
     )
-
-
-def test_agent_logs_flow_run_exceptions_no_flow_runs(monkeypatch, runner_token):
-    gql_return = MagicMock(
-        return_value=MagicMock(data=MagicMock(writeRunLog=MagicMock(success=True)))
-    )
-    client = MagicMock()
-    client.return_value.write_run_log = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock(return_value=client))
-
-    agent = Agent()
-    agent._log_flow_run_exceptions(flow_runs=[], exc=ValueError("Error Here"))
-
-    assert not client.write_run_log.called
+    assert "Logging platform error for flow run" in caplog.text
 
 
 def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
@@ -368,7 +438,9 @@ def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
     client.return_value.graphql.side_effect = ValueError("Error")
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
+    executor = MagicMock()
+
     agent = Agent()
     with pytest.raises(Exception):
-        agent.agent_process("id")
+        agent.agent_process(executor, "id")
         assert client.write_run_log.called

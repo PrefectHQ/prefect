@@ -13,6 +13,7 @@ functions = [
     "all_failed",
     "any_successful",
     "any_failed",
+    "not_all_skipped",
     "some_failed",
     "some_successful",
 ]
@@ -145,8 +146,7 @@ classes = [
             "Executor",
             "DaskExecutor",
             "LocalDaskExecutor",
-            "LocalExecutor",
-            "SynchronousExecutor"]
+            "LocalExecutor"]
 
 [pages.engine.result]
 title = "Results"
@@ -166,7 +166,7 @@ classes = ["CloudFlowRunner", "CloudTaskRunner"]
 [pages.environments.storage]
 title = "Storage"
 module = "prefect.environments.storage"
-classes = ["Docker", "Local", "Memory", "Bytes"]
+classes = ["Docker", "Local", "S3", "GCS", "Azure"]
 
 [pages.environments.execution]
 title = "Execution Environments"
@@ -178,11 +178,6 @@ title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
-
-[pages.tasks.airflow]
-title = "Airflow Tasks"
-module = "prefect.tasks.airflow"
-classes = ["AirflowTask", "AirflowTriggerDAG"]
 
 [pages.tasks.airtable]
 title = "Airtable Tasks"
@@ -213,6 +208,11 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreList",
            "DatastoreGet",
            "DatastoreUpload"]
+
+[pages.tasks.cloud]
+title = "Cloud Tasks"
+module = "prefect.tasks.cloud"
+classes = ["FlowRunTask"]
 
 [pages.tasks.github]
 title = "GitHub Tasks"
@@ -272,9 +272,9 @@ title = "Dropbox Tasks"
 module = "prefect.tasks.dropbox"
 classes = ["DropboxDownload"]
 
-[pages.tasks.google]
+[pages.tasks.gcp]
 title = "Google Cloud Tasks"
-module = "prefect.tasks.google"
+module = "prefect.tasks.gcp"
 classes = [
         "GCSDownload",
         "GCSUpload",
@@ -387,6 +387,11 @@ title = "Local Agent"
 module = "prefect.agent.local"
 classes = ["LocalAgent"]
 
+[pages.agent.docker]
+title = "Docker Agent"
+module = "prefect.agent.docker"
+classes = ["DockerAgent"]
+
 [pages.agent.kubernetes]
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
@@ -422,6 +427,11 @@ functions = ["is_serializable", "raise_on_exception"]
 title = "Executors"
 module = "prefect.utilities.executors"
 functions = ["timeout_handler"]
+
+[pages.utilities.gcp]
+title = "Google Utilities"
+module = "prefect.utilities.gcp"
+functions = ["get_storage_client", "get_bigquery_client"]
 
 [pages.utilities.graphql]
 title = "GraphQL"

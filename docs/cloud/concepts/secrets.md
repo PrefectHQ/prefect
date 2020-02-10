@@ -1,7 +1,7 @@
 # Secrets
 
 Prefect secrets are a way to store any sensitive key-value pairs to which your flow might need access. One such example is
-the [secret URL used to receive Slack notifications from Prefect](../../core/tutorials/slack-notifications.html#using-your-url-to-get-notifications).
+the [secret URL used to receive Slack notifications from Prefect](../../core/advanced_tutorials/slack-notifications.html#using-your-url-to-get-notifications).
 Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
 
 Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io).
@@ -9,6 +9,38 @@ Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vau
 ## Setting a secret
 
 There are two standard modes of operation: local execution, intended mainly for testing and running non-production flows, and cloud execution, which utilizes the Prefect Cloud API.
+
+### Cloud Execution
+
+#### UI
+
+To set a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
+
+![](/cloud/ui/team-secrets.png)
+
+#### Core Client
+
+To set a secret with the Core client:
+
+```python
+client.set_secret(name="my secret", value=42)
+```
+
+#### GraphQL <Badge text="GQL"/>
+
+To set a secret using GraphQL, issue the following mutation:
+
+```graphql
+mutation {
+  setSecret(input: { name: "KEY", value: "VALUE" }) {
+    success
+  }
+}
+```
+
+::: tip You can overwrite secrets
+Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
+:::
 
 ### Local testing
 
@@ -25,7 +57,7 @@ When settings secrets via `.toml` config files, you can use the [TOML Keys](http
 
 This is also the default setting, so you only need to change this if you've changed it yourself.
 
-Now, to populate your local secrets you can simply add an additional section to your user config:
+Now, to populate your local secrets you can add an additional section to your user config:
 
 ```
 [context.secrets]
@@ -45,31 +77,12 @@ prefect.context.secrets["KEY"] = "VALUE"
 Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`. Note that secrets set this way will always result in lowercase names.
 :::
 
-### Cloud Execution
+## Deleting a secret
 
-#### Core Client
+### UI
 
-To set a secret with the Core client:
-
-```python
-client.set_secret(name="my secret", value=42)
-```
-
-#### GraphQL <Badge text="GQL"/>
-
-With GraphQL, simply issue the following mutation:
-
-```graphql
-mutation {
-  setSecret(input: { name: "KEY", value: "VALUE" }) {
-    success
-  }
-}
-```
-
-::: tip You can overwrite secrets
-Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
-:::
+To delete a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
+![](/cloud/ui/team-secrets.png)
 
 ## Using a secret
 

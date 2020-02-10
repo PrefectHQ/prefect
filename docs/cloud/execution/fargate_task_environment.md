@@ -6,7 +6,7 @@
 
 The Fargate Task Environment runs a Flow on a completely custom [Fargate Task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html). This Environment is intended for use in cases where you want complete control over the Fargate Task your Flow runs on.
 
-_For more information on the Fargate Task Environment visit the relevant [API documentation](/api/unreleased/environments/execution.html#fargatetaskenvironment)._
+_For more information on the Fargate Task Environment visit the relevant [API documentation](/api/latest/environments/execution.html#fargatetaskenvironment)._
 
 ## Process
 
@@ -109,7 +109,7 @@ PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
 ```
 
-All other aspects of your `containerDefinitions` will remain untouched. In some cases it is easiest to simply use a dummy first container similar to the code block above.
+All other aspects of your `containerDefinitions` will remain untouched. In some cases it is easiest to use a dummy first container similar to the code block above.
 
 During the execute step of your Environment the following container overrides will be set for boto3's `run_task`:
 
@@ -167,7 +167,7 @@ flow = Flow(
             "essential": True,
         }
     ),
-    storage=storage=Docker(
+    storage=Docker(
         registry_url="gcr.io/dev/", image_name="fargate-task-flow", image_tag="0.1.0"
     ),
 )

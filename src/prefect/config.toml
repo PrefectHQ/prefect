@@ -58,15 +58,11 @@ checkpointing = false
         [flows.defaults.storage]
 
         # the default storage class, specified using a full path
-        default_class = "prefect.environments.storage.Docker"
+        default_class = "prefect.environments.storage.Local"
 
 [tasks]
 
     [tasks.defaults]
-
-    # whether all tasks should checkpoint their outputs
-    checkpoint = false
-
     # the number of times tasks retry before they fail.
     # false indicates that tasks should never retry (equivalent to max_retries = 0)
     max_retries = false
@@ -93,10 +89,6 @@ checkpointing = false
     [engine.flow_runner]
     # the default flow runner, specified using a full path
     default_class = "prefect.engine.flow_runner.FlowRunner"
-
-    [engine.result_handler]
-    # the default result handler, specified using a full path
-    default_class = ""
 
     [engine.task_runner]
     # the default task runner, specified using a full path

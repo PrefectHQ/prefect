@@ -287,7 +287,7 @@ def test_map_skips_dont_leak_out(executor):
     assert s.is_successful()
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert m.result == [NoResult, 4, 5]
+    assert m.result == [None, 4, 5]
     assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 
@@ -920,6 +920,7 @@ def test_mapping_over_constants():
     with Flow("constants") as f:
         output = add_one.map(x=[1, 2, 3, 4])
 
-    flow_state = f.run()
+    with raise_on_exception():
+        flow_state = f.run()
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [2, 3, 4, 5]

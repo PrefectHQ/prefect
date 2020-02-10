@@ -59,6 +59,10 @@ Prefect's documentation -- including concepts, tutorials, and a full API referen
 
 Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/core/development/documentation.html).
 
+## Blog
+
+[The Prefect Blog](https://medium.com/the-prefect-blog) for updates and insights from the Prefect team.
+
 ## Contributing
 
 Read about Prefect's [community](https://docs.prefect.io/core/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.

@@ -45,6 +45,7 @@ FlowRunInfoResult = NamedTuple(
     "FlowRunInfoResult",
     [
         ("id", str),
+        ("name", str),
         ("flow_id", str),
         ("parameters", Dict[str, Any]),
         ("context", Dict[str, Any]),
@@ -496,10 +497,12 @@ class Client:
         compressed: bool = True,
     ) -> str:
         """
+        *Note*: This function will be deprecated soon and should be replaced with `client.register`
+
         Push a new flow to Prefect Cloud
 
         Args:
-            - flow (Flow): a flow to deploy
+            - flow (Flow): a flow to register
             - project_name (str): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
@@ -513,15 +516,66 @@ class Client:
                 compressed
 
         Returns:
-            - str: the ID of the newly-deployed flow
+            - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the deploy failed
+            - ClientError: if the register failed
+        """
+        warnings.warn(
+            "client.deploy() will be deprecated in an upcoming release. Please use client.register()",
+            UserWarning,
+        )
+
+        return self.register(
+            flow=flow,
+            project_name=project_name,
+            build=build,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+            compressed=compressed,
+        )
+
+    def register(
+        self,
+        flow: "Flow",
+        project_name: str,
+        build: bool = True,
+        set_schedule_active: bool = True,
+        version_group_id: str = None,
+        compressed: bool = True,
+    ) -> str:
+        """
+        Push a new flow to Prefect Cloud
+
+        Args:
+            - flow (Flow): a flow to register
+            - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
+            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
+                compressed
+
+        Returns:
+            - str: the ID of the newly-registered flow
+
+        Raises:
+            - ClientError: if the register failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
             raise ClientError(
                 "Flows with required parameters can not be scheduled automatically."
+            )
+        if any(e.key for e in flow.edges) and flow.result_handler is None:
+            warnings.warn(
+                "No result handler was specified on your Flow. Cloud features such as input caching and resuming task runs from failure may not work properly.",
+                UserWarning,
             )
         if compressed:
             create_mutation = {
@@ -683,6 +737,7 @@ class Client:
             "query": {
                 with_args("flow_run_by_pk", {"id": flow_run_id}): {
                     "id": True,
+                    "name": True,
                     "flow_id": True,
                     "parameters": True,
                     "context": True,

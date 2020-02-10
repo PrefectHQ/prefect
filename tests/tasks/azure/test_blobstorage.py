@@ -11,7 +11,7 @@ from prefect.utilities.configuration import set_temporary_config
 class TestBlobStorageDownload:
     def test_initialization(self):
         task = BlobStorageDownload()
-        assert task.azure_credentials_secret == "AZ_CREDENTIALS"
+        assert task.azure_credentials_secret == "AZ_CONNECTION_STRING"
 
     def test_initialization_passes_to_task_constructor(self):
         task = BlobStorageDownload(name="test", tags=["Azure"])
@@ -23,37 +23,23 @@ class TestBlobStorageDownload:
         with pytest.raises(ValueError, match="container"):
             task.run(blob_name="")
 
-    def test_account_key_creds_are_pulled_from_secret(self, monkeypatch):
+    def test_connection_string_creds_are_pulled_from_secret_and_runs(self, monkeypatch):
         task = BlobStorageDownload(container="bob")
-        service = MagicMock()
-        blob = MagicMock(BlockBlobService=service)
-        monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
-            ):
-                task.run(blob_name="")
-        kwargs = service.call_args[1]
-        assert kwargs == {"account_name": "42", "account_key": "99", "sas_token": None}
 
-    def test_sas_token_creds_are_pulled_from_secret(self, monkeypatch):
-        task = BlobStorageDownload(container="bob")
-        service = MagicMock()
-        blob = MagicMock(BlockBlobService=service)
+        client = MagicMock(download_blob=MagicMock())
+        service = MagicMock(get_blob_client=MagicMock(return_value=client))
+        blob = MagicMock(BlockBlobService=MagicMock(service))
         monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
+
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "SAS_TOKEN": "99"})
-            ):
+            with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
                 task.run(blob_name="")
-        kwargs = service.call_args[1]
-        assert kwargs == {"account_name": "42", "sas_token": "99", "account_key": None}
 
 
 class TestBlobStorageUpload:
     def test_initialization(self):
         task = BlobStorageUpload()
-        assert task.azure_credentials_secret == "AZ_CREDENTIALS"
+        assert task.azure_credentials_secret == "AZ_CONNECTION_STRING"
 
     def test_initialization_passes_to_task_constructor(self):
         task = BlobStorageUpload(name="test", tags=["AZ"])
@@ -65,40 +51,14 @@ class TestBlobStorageUpload:
         with pytest.raises(ValueError, match="container"):
             task.run(data="")
 
-    def test_generated_key_is_str(self, monkeypatch):
-        task = BlobStorageUpload(container="test")
-        service = MagicMock()
-        blob = MagicMock(BlockBlobService=MagicMock(return_value=service))
-        monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
-            ):
-                task.run(data="")
-        assert type(service.create_blob_from_text.call_args[1]["blob_name"]) == str
-
-    def test_account_key_creds_are_pulled_from_secret(self, monkeypatch):
+    def test_connection_string_creds_are_pulled_from_secret_and_runs(self, monkeypatch):
         task = BlobStorageUpload(container="bob")
-        service = MagicMock()
-        blob = MagicMock(BlockBlobService=service)
-        monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
-            ):
-                task.run(data="")
-        kwargs = service.call_args[1]
-        assert kwargs == {"account_name": "42", "account_key": "99", "sas_token": None}
 
-    def test_sas_token_creds_are_pulled_from_secret(self, monkeypatch):
-        task = BlobStorageUpload(container="bob")
-        service = MagicMock()
-        blob = MagicMock(BlockBlobService=service)
+        client = MagicMock(download_blob=MagicMock())
+        service = MagicMock(get_blob_client=MagicMock(return_value=client))
+        blob = MagicMock(BlockBlobService=MagicMock(service))
         monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
+
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "SAS_TOKEN": "24"})
-            ):
-                task.run(data="")
-        kwargs = service.call_args[1]
-        assert kwargs == {"account_name": "42", "sas_token": "24", "account_key": None}
+            with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
+                assert task.run(data="")

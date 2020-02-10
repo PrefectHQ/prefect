@@ -36,15 +36,37 @@ class KubernetesAgent(Agent):
     desired cluster. Information on using the Kubernetes Agent can be found at
     https://docs.prefect.io/cloud/agent/kubernetes.html
 
+    Environment variables may be set on the agent to be provided to each flow run's job:
+    ```
+    prefect agent start kubernetes --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
+    ```
+
+    Specifying a namespace for the agent will create flow run jobs in that namespace:
+    ```
+    prefect agent start kubernetes --namespace dev
+    ```
+
     Args:
+        - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
+            to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
+            on each flow run that this agent submits for execution
     """
 
-    def __init__(self, name: str = None, labels: Iterable[str] = None) -> None:
-        super().__init__(name=name, labels=labels)
+    def __init__(
+        self,
+        namespace: str = None,
+        name: str = None,
+        labels: Iterable[str] = None,
+        env_vars: dict = None,
+    ) -> None:
+        super().__init__(name=name, labels=labels, env_vars=env_vars)
+
+        self.namespace = namespace
 
         from kubernetes import client, config
 
@@ -60,33 +82,42 @@ class KubernetesAgent(Agent):
 
         self.batch_client = client.BatchV1Api()
 
-    def deploy_flows(self, flow_runs: list) -> None:
+    def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on to a k8s cluster as jobs
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
+
+        Returns:
+            - str: Information about the deployment
+
+        Raises:
+            - ValueError: if deployment attempted on unsupported Storage type
         """
-        for flow_run in flow_runs:
-            self.logger.debug(
-                "Deploying flow run {}".format(flow_run.id)  # type: ignore
-            )
+        self.logger.info(
+            "Deploying flow run {}".format(flow_run.id)  # type: ignore
+        )
 
-            # Require Docker storage
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-                )
-                continue
-
-            job_spec = self.replace_job_spec_yaml(flow_run)
-
-            self.logger.debug(
-                "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+        # Require Docker storage
+        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+            self.logger.error(
+                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
             )
-            self.batch_client.create_namespaced_job(
-                namespace=os.getenv("NAMESPACE", "default"), body=job_spec
-            )
+            raise ValueError("Unsupported Storage type")
+
+        job_spec = self.replace_job_spec_yaml(flow_run)
+
+        self.logger.debug(
+            "Creating namespaced job {}".format(job_spec["metadata"]["name"])
+        )
+        job = self.batch_client.create_namespaced_job(
+            namespace=self.namespace or os.getenv("NAMESPACE", "default"), body=job_spec
+        )
+
+        self.logger.debug("Job {} created".format(job.metadata.name))
+
+        return "Job {}".format(job.metadata.name)
 
     def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
         """
@@ -135,11 +166,27 @@ class KubernetesAgent(Agent):
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
         env[4]["value"] = str(self.labels)
+        env[5]["value"] = str(self.log_to_cloud).lower()
+
+        # append all user provided values
+        for key, value in self.env_vars.items():
+            env.append(dict(name=key, value=value))
 
         # Use image pull secrets if provided
         job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"] = os.getenv(
             "IMAGE_PULL_SECRETS", ""
         )
+
+        # Set resource requirements if provided
+        resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]
+        if os.getenv("JOB_MEM_REQUEST"):
+            resources["requests"]["memory"] = os.getenv("JOB_MEM_REQUEST")
+        if os.getenv("JOB_MEM_LIMIT"):
+            resources["limits"]["memory"] = os.getenv("JOB_MEM_LIMIT")
+        if os.getenv("JOB_CPU_REQUEST"):
+            resources["requests"]["cpu"] = os.getenv("JOB_CPU_REQUEST")
+        if os.getenv("JOB_CPU_LIMIT"):
+            resources["limits"]["cpu"] = os.getenv("JOB_CPU_LIMIT")
 
         return job
 
@@ -150,6 +197,12 @@ class KubernetesAgent(Agent):
         namespace: str = None,
         image_pull_secrets: str = None,
         resource_manager_enabled: bool = False,
+        rbac: bool = False,
+        latest: bool = False,
+        mem_request: str = None,
+        mem_limit: str = None,
+        cpu_request: str = None,
+        cpu_limit: str = None,
         labels: Iterable[str] = None,
     ) -> str:
         """
@@ -165,6 +218,14 @@ class KubernetesAgent(Agent):
                 for Prefect jobs
             - resource_manager_enabled (bool, optional): Whether to include the resource
                 manager as part of the YAML. Defaults to `False`
+            - rbac (bool, optional): Whether to include default RBAC configuration as
+                part of the YAML. Defaults to `False`
+            - latest (bool, optional): Whether to use the `latest` Prefect image.
+                Defaults to `False`
+            - mem_request (str, optional): Requested memory for Prefect init job.
+            - mem_limit (str, optional): Limit memory for Prefect init job.
+            - cpu_request (str, optional): Requested CPU for Prefect init job.
+            - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
 
@@ -177,9 +238,15 @@ class KubernetesAgent(Agent):
         api = api or "https://api.prefect.io"
         namespace = namespace or "default"
         labels = labels or []
+        mem_request = mem_request or ""
+        mem_limit = mem_limit or ""
+        cpu_request = cpu_request or ""
+        cpu_limit = cpu_limit or ""
 
         version = prefect.__version__.split("+")
-        image_version = "latest" if len(version) > 1 else (version[0] + "-python3.6")
+        image_version = (
+            "latest" if len(version) > 1 or latest else (version[0] + "-python3.6")
+        )
 
         with open(
             path.join(path.dirname(__file__), "deployment.yaml"), "r"
@@ -188,10 +255,18 @@ class KubernetesAgent(Agent):
 
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
+        # Populate env vars
         agent_env[0]["value"] = token
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
+        agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
+
+        # Populate job resource env vars
+        agent_env[5]["value"] = mem_request
+        agent_env[6]["value"] = mem_limit
+        agent_env[7]["value"] = cpu_request
+        agent_env[8]["value"] = cpu_limit
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
@@ -223,7 +298,19 @@ class KubernetesAgent(Agent):
         else:
             del deployment["spec"]["template"]["spec"]["imagePullSecrets"]
 
-        return yaml.safe_dump(deployment)
+        # Load RBAC if specified
+        rbac_yaml = []
+        if rbac:
+            with open(path.join(path.dirname(__file__), "rbac.yaml"), "r") as rbac_file:
+                rbac_generator = yaml.safe_load_all(rbac_file)
+
+                for document in rbac_generator:
+                    document["metadata"]["namespace"] = namespace
+                    rbac_yaml.append(document)
+
+        output_yaml = [deployment]
+        output_yaml.extend(rbac_yaml)
+        return yaml.safe_dump_all(output_yaml, explicit_start=True)
 
     def heartbeat(self) -> None:
         """

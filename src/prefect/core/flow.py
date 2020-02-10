@@ -1,17 +1,16 @@
-import cloudpickle
 import collections
 import copy
 import functools
 import inspect
 import json
 import os
+import socket
 import tempfile
 import time
 import uuid
 import warnings
 from collections import Counter
 from pathlib import Path
-from slugify import slugify
 from typing import (
     Any,
     Callable,
@@ -26,8 +25,10 @@ from typing import (
     cast,
 )
 
+import cloudpickle
 import pendulum
 from mypy_extensions import TypedDict
+from slugify import slugify
 
 import prefect
 import prefect.schedules
@@ -38,6 +39,7 @@ from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import Storage, get_default_storage_class
 from prefect.utilities import logging
+from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.serialization import to_qualified_name
 from prefect.utilities.tasks import as_task, unmapped
@@ -131,8 +133,7 @@ class Flow:
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution; if not provided, will default
-            to the one specified in your config
+            retrieving and storing state results during execution
 
     """
 
@@ -160,9 +161,7 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = (
-            result_handler or prefect.engine.get_default_result_handler_class()()
-        )
+        self.result_handler = result_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -811,8 +810,13 @@ class Flow:
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
             is_mapped = mapped & (not isinstance(t, unmapped))
-            t = as_task(t, flow=self, convert_constants=False)
-            if isinstance(t, Task):
+            t = as_task(t, flow=self)
+
+            # if the task can be represented as a constant and we don't need to map over it
+            # then we can optimize it out of the graph and into the special `constants` dict
+            if isinstance(t, prefect.tasks.core.constants.Constant) and not is_mapped:
+                self.constants[task].update({key: t.value})
+            else:
                 self.add_edge(
                     upstream_task=t,
                     downstream_task=task,
@@ -820,8 +824,6 @@ class Flow:
                     validate=validate,
                     mapped=is_mapped,
                 )
-            else:
-                self.constants[task].update({key: t})
 
     # Execution  ---------------------------------------------------------------
 
@@ -829,10 +831,15 @@ class Flow:
         self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
     ) -> "prefect.engine.state.State":
 
+        base_parameters = parameters or dict()
+
         ## determine time of first run
         try:
             if self.schedule is not None:
-                next_run_time = self.schedule.next(1)[0]
+                next_run_event = self.schedule.next(1, return_events=True)[0]
+                next_run_time = next_run_event.start_time  # type: ignore
+                parameters = base_parameters.copy()
+                parameters.update(next_run_event.parameter_defaults)  # type: ignore
             else:
                 next_run_time = pendulum.now("utc")
         except IndexError:
@@ -924,7 +931,10 @@ class Flow:
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
                 if self.schedule is not None:
-                    next_run_time = self.schedule.next(1)[0]
+                    next_run_event = self.schedule.next(1, return_events=True)[0]
+                    next_run_time = next_run_event.start_time  # type: ignore
+                    parameters = base_parameters.copy()
+                    parameters.update(next_run_event.parameter_defaults)  # type: ignore
                 else:
                     break
             except IndexError:
@@ -951,7 +961,7 @@ class Flow:
 
         Args:
             - parameters (Dict[str, Any], optional): values to pass into the runner
-            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or simply run a single execution;
+            - run_on_schedule (bool, optional): whether to run this flow on its schedule, or run a single execution;
                 if not provided, will default to the value set in your user config
             - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
             - **kwargs: additional keyword arguments; if any provided keywords
@@ -1021,7 +1031,7 @@ class Flow:
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state.result == NoResult:
+        if state._result == NoResult:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(
@@ -1099,9 +1109,7 @@ class Flow:
                             str(id(t)) + str(map_index), name, shape=shape, **kwargs
                         )
                 else:
-                    kwargs = dict(
-                        color=get_color(t), style="filled", colorscheme="svg",
-                    )
+                    kwargs = dict(color=get_color(t), style="filled", colorscheme="svg")
                     graph.node(str(id(t)), name, shape=shape, **kwargs)
             else:
                 kwargs = (
@@ -1134,6 +1142,22 @@ class Flow:
                     graph.edge(
                         str(id(e.upstream_task)),
                         str(id(e.downstream_task)),
+                        e.key,
+                        style=style,
+                    )
+            ## this edge represents a "reduce" step from a mapped task -> normal task
+            elif flow_state and flow_state.result[e.upstream_task].is_mapped():
+                assert isinstance(flow_state.result, dict)  # mypy assert
+                up_state = flow_state.result[e.upstream_task]
+
+                for map_index, _ in enumerate(up_state.map_states):
+                    downstream_id = str(id(e.downstream_task))
+                    if any(edge.mapped for edge in self.edges_to(e.downstream_task)):
+                        downstream_id += str(map_index)
+
+                    graph.edge(
+                        str(id(e.upstream_task)) + str(map_index),
+                        downstream_id,
                         e.key,
                         style=style,
                     )
@@ -1179,6 +1203,9 @@ class Flow:
 
         Returns:
             - dict representing the flow
+
+        Raises:
+            - ValueError: if `build=True` and the flow has no storage
         """
 
         self.validate()
@@ -1203,7 +1230,7 @@ class Flow:
 
         return serialized
 
-    # Deployment ------------------------------------------------------------------
+    # Registration ----------------------------------------------------------------
 
     @classmethod
     def load(cls, fpath: str) -> "Flow":
@@ -1215,15 +1242,17 @@ class Flow:
                 or the name of the Flow you wish to load
         """
         if not os.path.isabs(fpath):
-            path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(slugify(fpath))  # type: ignore
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
+            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
+                slugify(fpath)
+            )  # type: ignore
         with open(str(fpath), "rb") as f:
             return cloudpickle.load(f)
 
     def save(self, fpath: str = None) -> str:
         """
         Saves the Flow to a file by serializing it with cloudpickle.  This method is
-        recommended if you wish to separate out the building of your Flow from its deployment.
+        recommended if you wish to separate out the building of your Flow from its registration.
 
         Args:
             - fpath (str, optional): the filepath where your Flow will be saved; defaults to
@@ -1233,8 +1262,10 @@ class Flow:
             - str: the full location the Flow was saved to
         """
         if fpath is None:
-            path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / "{}.prefect".format(  # type: ignore
+            path = "{home}/flows".format(home=prefect.context.config.home_dir)  # type: ignore
+            fpath = Path(  # type: ignore
+                os.path.expanduser(path)  # type: ignore
+            ) / "{}.prefect".format(  # type: ignore
                 slugify(self.name)
             )
             assert fpath is not None  # mypy assert
@@ -1243,6 +1274,31 @@ class Flow:
             cloudpickle.dump(self, f)
 
         return str(fpath)
+
+    def run_agent(
+        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = True
+    ) -> None:
+        """
+        Runs a Cloud agent for this Flow in-process.
+
+        Args:
+            - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
+                will default to the token found in `config.cloud.agent.auth_token`
+            - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
+                to stdout; defaults to `False`
+            - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should be sent to Prefect Cloud;
+                defaults to `True`
+        """
+        temp_config = {
+            "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
+            "logging.log_to_cloud": log_to_cloud,
+        }
+        with set_temporary_config(temp_config):
+            labels = self.environment.labels
+            agent = prefect.agent.local.LocalAgent(
+                labels=labels, show_flow_logs=show_flow_logs
+            )
+            agent.start()
 
     def deploy(
         self,
@@ -1254,7 +1310,9 @@ class Flow:
         **kwargs: Any
     ) -> str:
         """
-        Deploy the flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        *Note*: This function will be deprecated soon and should be replaced with `flow.register`
+
+        Deploy a flow to Prefect Cloud; if no storage is present on the Flow, the default value from your config
         will be used and initialized with `**kwargs`.
 
         Args:
@@ -1275,25 +1333,73 @@ class Flow:
         Returns:
             - str: the ID of the flow that was deployed
         """
+        warnings.warn(
+            "flow.deploy() will be deprecated in an upcoming release. Please use flow.register()",
+            UserWarning,
+        )
+
+        return self.register(
+            project_name=project_name,
+            build=build,
+            labels=labels,
+            set_schedule_active=set_schedule_active,
+            version_group_id=version_group_id,
+            **kwargs
+        )
+
+    def register(
+        self,
+        project_name: str,
+        build: bool = True,
+        labels: List[str] = None,
+        set_schedule_active: bool = True,
+        version_group_id: str = None,
+        **kwargs: Any
+    ) -> str:
+        """
+        Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
+        will be used and initialized with `**kwargs`.
+
+        Args:
+            - project_name (str): the project that should contain this flow.
+            - build (bool, optional): if `True`, the flow's environment is built
+                prior to serialization; defaults to `True`
+            - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
+            - set_schedule_active (bool, optional): if `False`, will set the
+                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
+                Defaults to `True`. This can be changed later.
+            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
+                in Cloud; if not provided, the version group ID associated with this Flow's project and name
+                will be used.
+            - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
+                will be passed to the initialization method of the default Storage class
+
+        Returns:
+            - str: the ID of the flow that was registered
+        """
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
-        if isinstance(self.storage, prefect.environments.storage.Local):
-            self.environment.labels.add("local")
-            self.environment.labels.add(slugify(self.name))
+        # add auto-labels for various types of storage
+        self.environment.labels.update(self.storage.labels)
 
         if labels:
             self.environment.labels.update(labels)
 
+        # register the flow with a default result handler if one not provided
+        if not self.result_handler:
+            self.result_handler = self.storage.result_handler
+
         client = prefect.Client()
-        deployed_flow = client.deploy(
+        registered_flow = client.register(
             flow=self,
             build=build,
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
         )
-        return deployed_flow
+        return registered_flow
 
     def __mifflin__(self) -> None:  # coverage: ignore
         "Calls Dunder Mifflin"

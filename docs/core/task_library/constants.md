@@ -6,4 +6,4 @@ Constant tasks are usually created automatically for users, and represent a cons
 
 The Constant class represents a single value in the flow graph.
 
-[API Reference](/api/unreleased/tasks/constants.html#prefect-tasks-core-constants-constant)
+[API Reference](/api/latest/tasks/constants.html#prefect-tasks-core-constants-constant)

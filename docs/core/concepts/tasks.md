@@ -4,7 +4,7 @@
 
 A `Task` represents a discrete action in a Prefect workflow.
 
-A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is simply by decorating a Python function:
+A task is like a function: it optionally takes inputs, performs an action, and produces an optional result. In fact, the easiest way to create a task is by decorating a Python function:
 
 ```python
 from prefect import task
@@ -32,7 +32,7 @@ class HTTPGetTask(Task):
 
 All `Task` subclasses must have a `run()` method.
 
-Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/unreleased/core/task.html).
+Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/latest/core/task.html).
 
 ::: tip How big should a task be?
 People often wonder how much code to put in each task.
@@ -44,7 +44,7 @@ To be clear, there's nothing stopping you from putting all of your code in a sin
 
 ## Retries
 
-One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, simply pass appropriate `max_retries` and `retry_delay` parameters to your task:
+One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, pass appropriate `max_retries` and `retry_delay` parameters to your task:
 
 ```python
 # this task will retry up to 3 times, waiting 10 minutes between each retry
@@ -76,7 +76,7 @@ trigger_fn(upstream_states: Set[State]) -> bool
 
 ## Constants
 
-If a non-`Task` input is provided to a task, it is automatically converted to a `ConstantTask`.
+If a non-`Task` input is provided to a task, it is automatically converted to a `Constant`.
 
 ```python
 from prefect import Flow, task
@@ -88,10 +88,11 @@ def add(x, y):
 with Flow('Flow With Constant') as flow:
     add(1, 2)
 
-assert len(flow) == 3
+assert len(flow.tasks) == 1
+assert len(flow.constants) == 2
 ```
 
-This flow has three tasks, even though the user might think they only created one: the `add` task and two `Constants` representing the inputs `1` and `2`.
+Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.
 
 ## Operators
 
@@ -199,7 +200,6 @@ In addition, if the result of a mapped task is passed to an un-mapped task (or u
 
 ## Identification
 
-
 ### Name
 
 A task may be given an optional `name`; if not provided, it will be taken from the task's class name (or function name, in the case of the `@task` decorator). Names are purely for user convenience: they are used to render the task in various visualizations, and can also be used when querying for information about specific tasks. There are no restrictions on task names, and two tasks may have the same name.
@@ -246,7 +246,7 @@ flow.get_tasks(tags=['red'])
 
 ## State handlers
 
-State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/unreleased/utilities/notifications.html#functions)!
+State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/latest/utilities/notifications.html#functions)!
 
 State handlers must have the following signature:
 

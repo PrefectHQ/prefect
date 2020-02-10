@@ -1,5 +1,5 @@
 """
-A simple example Flow that stores the current flow visualization to a file
+An example Flow that stores the current flow visualization to a file
 each time the flow changes state, using a Flow-level state handler.
 
 Uses the same flow from "Retries w/ Mapping" on a minute schedule.

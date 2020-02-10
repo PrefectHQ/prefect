@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 
 import prefect
+from prefect.engine.result_handlers import ResultHandler
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -9,14 +10,14 @@ if TYPE_CHECKING:
 
 class Memory(Storage):
     """
-    Memory Storage class, mainly used for testing.  This class represents the Storage
-    interface for Flows contained in memory, i.e., flows are simply stored as attributes
+    Memory Storage class, intended only for testing.  This class represents the Storage
+    interface for Flows contained in memory, i.e., flows are stored as attributes
     of this class.
     """
 
     def __init__(self) -> None:
         self.flows = dict()  # type: Dict[str, prefect.core.flow.Flow]
-        super().__init__()
+        super().__init__(result_handler=ResultHandler())
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

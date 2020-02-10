@@ -1,9 +1,44 @@
 from datetime import datetime, timedelta
-from typing import Iterable, List, Set
+from typing import Any, Iterable, List, Set, Union
 
 import pendulum
 import pytz
 from croniter import croniter
+
+
+class ClockEvent:
+    """
+    Base class for events emitted by Clocks.
+    """
+
+    def __init__(self, start_time: datetime, parameter_defaults: dict = None) -> None:
+        self.start_time = start_time
+        self.parameter_defaults = parameter_defaults or dict()
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            return False
+        return self.start_time == other
+
+    def __gt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            raise TypeError(
+                "'>' not supported between instances of 'ClockEvent' and {}".format(
+                    type(other).__name__
+                )
+            )
+        else:
+            return self.start_time > other
+
+    def __lt__(self, other: Union[datetime, "ClockEvent"]) -> bool:
+        if not isinstance(other, (ClockEvent, datetime)):
+            raise TypeError(
+                "'<' not supported between instances of 'ClockEvent' and {}".format(
+                    type(other).__name__
+                )
+            )
+        else:
+            return self.start_time < other
 
 
 class Clock:
@@ -13,17 +48,27 @@ class Clock:
     Args:
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
+
     """
 
-    def __init__(self, start_date: datetime = None, end_date: datetime = None):
+    def __init__(
+        self,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        parameter_defaults: dict = None,
+    ):
         if start_date is not None:
             start_date = pendulum.instance(start_date)
         if end_date is not None:
             end_date = pendulum.instance(end_date)
         self.start_date = start_date
         self.end_date = end_date
+        self.parameter_defaults = parameter_defaults or dict()
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -31,7 +76,7 @@ class Clock:
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[datetime]: the next scheduled events
         """
         raise NotImplementedError("Must be implemented on Clock subclasses")
 
@@ -40,7 +85,8 @@ class IntervalClock(Clock):
     """
     A clock formed by adding `timedelta` increments to a start_date.
 
-    IntervalClocks only support intervals of one minute or greater.
+    IntervalClocks support any interval, but if deployed to Prefect Cloud only
+    intervals of one minute or greater are allowed.
 
     NOTE: If the `IntervalClock` start time is provided with a DST-observing timezone,
     then the clock will adjust itself appropriately. Intervals greater than 24
@@ -60,10 +106,13 @@ class IntervalClock(Clock):
         - start_date (datetime, optional): first date of clock. If None, will be set to
             "2019-01-01 00:00:00 UTC"
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
 
     Raises:
         - TypeError: if start_date is not a datetime
-        - ValueError: if provided interval is less than one minute
+        - ValueError: if provided interval is less than or equal to zero
     """
 
     def __init__(
@@ -71,16 +120,21 @@ class IntervalClock(Clock):
         interval: timedelta,
         start_date: datetime = None,
         end_date: datetime = None,
+        parameter_defaults: dict = None,
     ):
         if not isinstance(interval, timedelta):
             raise TypeError("Interval must be a timedelta.")
-        elif interval.total_seconds() < 60:
-            raise ValueError("Interval can not be less than one minute.")
+        elif interval.total_seconds() <= 0:
+            raise ValueError("Interval must be greater than 0.")
 
         self.interval = interval
-        super().__init__(start_date=start_date, end_date=end_date)
+        super().__init__(
+            start_date=start_date,
+            end_date=end_date,
+            parameter_defaults=parameter_defaults,
+        )
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -88,7 +142,7 @@ class IntervalClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         if after is None:
             after = pendulum.now("utc")
@@ -124,7 +178,9 @@ class IntervalClock(Clock):
             next_date = start_date.add(days=days, seconds=seconds)
             if self.end_date and next_date > self.end_date:
                 break
-            yield next_date
+            yield ClockEvent(
+                start_time=next_date, parameter_defaults=self.parameter_defaults
+            )
             interval += self.interval
 
 
@@ -146,21 +202,32 @@ class CronClock(Clock):
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
         - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
 
     Raises:
         - ValueError: if the cron string is invalid
     """
 
     def __init__(
-        self, cron: str, start_date: datetime = None, end_date: datetime = None
+        self,
+        cron: str,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        parameter_defaults: dict = None,
     ):
         # build cron object to check the cron string - will raise an error if it's invalid
         if not croniter.is_valid(cron):
             raise ValueError("Invalid cron string: {}".format(cron))
         self.cron = cron
-        super().__init__(start_date=start_date, end_date=end_date)
+        super().__init__(
+            start_date=start_date,
+            end_date=end_date,
+            parameter_defaults=parameter_defaults,
+        )
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -168,7 +235,7 @@ class CronClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         tz = getattr(self.start_date, "tz", "UTC")
         if after is None:
@@ -211,7 +278,9 @@ class CronClock(Clock):
             if self.end_date and next_date > self.end_date:
                 break
             dates.add(next_date)
-            yield next_date
+            yield ClockEvent(
+                start_time=next_date, parameter_defaults=self.parameter_defaults
+            )
 
 
 class DatesClock(Clock):
@@ -220,13 +289,20 @@ class DatesClock(Clock):
 
     Args:
         - dates (List[datetime]): a list of `datetimes` on which the clock should fire
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter values;
+            if provided, these values will be passed as the Parameter values for all Flow Runs which are
+            run on this clock's events
     """
 
-    def __init__(self, dates: List[datetime]):
-        super().__init__(start_date=min(dates), end_date=max(dates))
+    def __init__(self, dates: List[datetime], parameter_defaults: dict = None):
+        super().__init__(
+            start_date=min(dates),
+            end_date=max(dates),
+            parameter_defaults=parameter_defaults,
+        )
         self.dates = dates
 
-    def events(self, after: datetime = None) -> Iterable[datetime]:
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
         """
         Generator that emits clock events
 
@@ -234,8 +310,12 @@ class DatesClock(Clock):
             - after (datetime, optional): the first result will be after this date
 
         Returns:
-            - Iterable[datetime]: the next scheduled dates
+            - Iterable[ClockEvent]: the next scheduled events
         """
         if after is None:
             after = pendulum.now("UTC")
-        yield from (date for date in sorted(self.dates) if date > after)
+        yield from (
+            ClockEvent(start_time=date, parameter_defaults=self.parameter_defaults)
+            for date in sorted(self.dates)
+            if date > after
+        )

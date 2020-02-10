@@ -6,8 +6,9 @@ from prefect.utilities.serialization import from_qualified_name
 
 _agents = {
     "fargate": "prefect.agent.fargate.FargateAgent",
-    "local": "prefect.agent.local.LocalAgent",
+    "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+    "local": "prefect.agent.local.LocalAgent",
     "nomad": "prefect.agent.nomad.NomadAgent",
 }
 
@@ -36,7 +37,7 @@ def agent():
         ...agent begins running in process...
 
     \b
-        $ prefect agent install --token MY_TOKEN --namespace metrics
+        $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
         ...k8s yaml output...
     """
     pass
@@ -44,7 +45,7 @@ def agent():
 
 @agent.command(
     hidden=True,
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True,),
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.argument("agent-option", default="local")
 @click.option(
@@ -68,16 +69,63 @@ def agent():
     help="Labels the agent will use to query for flow runs.",
     hidden=True,
 )
+@click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variables to set on each submitted flow run.",
+    hidden=True,
+)
+@click.option(
+    "--namespace",
+    required=False,
+    help="Kubernetes namespace to create jobs.",
+    hidden=True,
+)
+@click.option(
+    "--import-path",
+    "-p",
+    multiple=True,
+    help="Import paths the local agent will add to all flow runs.",
+    hidden=True,
+)
+@click.option(
+    "--show-flow-logs",
+    "-f",
+    help="Display logging output from flows run by the agent.",
+    hidden=True,
+    is_flag=True,
+)
 @click.option("--no-pull", is_flag=True, help="Pull images flag.", hidden=True)
+@click.option(
+    "--no-cloud-logs",
+    is_flag=True,
+    help="Turn off Cloud logging for all flows run through this agent.",
+    hidden=True,
+)
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.pass_context
-def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
+def start(
+    ctx,
+    agent_option,
+    token,
+    name,
+    verbose,
+    label,
+    env,
+    namespace,
+    no_pull,
+    no_cloud_logs,
+    base_url,
+    import_path,
+    show_flow_logs,
+):
     """
     Start an agent.
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `local`, `kubernetes`, `fargate`, `nomad`)
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
                                 Defaults to `local`
 
     \b
@@ -88,12 +136,29 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
                                 Defaults to INFO level logging
         --label, -l     TEXT    Labels the agent will use to query for flow runs
                                 Multiple values supported e.g. `-l label1 -l label2`
+        --env, -e       TEXT    Environment variables to set on each submitted flow run.
+                                Note that equal signs in environment variable values are not currently supported from the CLI.
+                                Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
+                                Defaults to `False`
 
     \b
     Local Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a LocalAgent
-        --no-pull               Pull images for a LocalAgent
+        --import-path, -p   TEXT    Import paths which will be provided to each Flow's runtime environment.
+                                    Used for Flows which might import from scripts or local packages.
+                                    Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f        Display logging output from flows run by the agent (available for Local and Docker agents only)
+
+    \b
+    Docker Agent Options:
+        --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
+        --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
+
+    \b
+    Kubernetes Agent Options:
+        --namespace     TEXT    A Kubernetes namespace to create Prefect jobs in
+                                Defaults to env var `NAMESPACE` or `default`
 
     \b
     Fargate Agent Options:
@@ -107,7 +172,10 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
         item = item.replace("--", "")
         kwargs.update([item.split("=")])
 
-    tmp_config = {"cloud.agent.auth_token": token or config.cloud.agent.auth_token}
+    tmp_config = {
+        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
+        "logging.log_to_cloud": False if no_cloud_logs else True,
+    }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
 
@@ -118,22 +186,44 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
             click.secho("{} is not a valid agent".format(agent_option), fg="red")
             return
 
-        _agent = from_qualified_name(retrieved_agent)
+        env_vars = dict()
+        for env_var in env:
+            k, v = env_var.split("=")
+            env_vars[k] = v
 
         if agent_option == "local":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), base_url=base_url, no_pull=no_pull,
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                import_paths=list(import_path),
+                show_flow_logs=show_flow_logs,
+            ).start()
+        elif agent_option == "docker":
+            from_qualified_name(retrieved_agent)(
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                base_url=base_url,
+                no_pull=no_pull,
+                show_flow_logs=show_flow_logs,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), **kwargs
+                name=name, labels=list(label), env_vars=env_vars, **kwargs
+            ).start()
+        elif agent_option == "kubernetes":
+            from_qualified_name(retrieved_agent)(
+                namespace=namespace, name=name, labels=list(label), env_vars=env_vars
             ).start()
         else:
-            from_qualified_name(retrieved_agent)(name=name, labels=list(label)).start()
+            from_qualified_name(retrieved_agent)(
+                name=name, labels=list(label), env_vars=env_vars
+            ).start()
 
 
 @agent.command(hidden=True)
-@click.argument("name", default="kubernetes")
+@click.argument("name")
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
@@ -157,6 +247,31 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
 @click.option(
     "--resource-manager", is_flag=True, help="Enable resource manager.", hidden=True
 )
+@click.option("--rbac", is_flag=True, help="Enable default RBAC.", hidden=True)
+@click.option(
+    "--latest", is_flag=True, help="Use the latest Prefect image.", hidden=True
+)
+@click.option(
+    "--mem-request",
+    required=False,
+    help="Requested memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--mem-limit",
+    required=False,
+    help="Limit memory for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-request",
+    required=False,
+    help="Requested CPU for Prefect init job.",
+    hidden=True,
+)
+@click.option(
+    "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True
+)
 @click.option(
     "--label",
     "-l",
@@ -164,28 +279,75 @@ def start(ctx, agent_option, token, name, verbose, label, no_pull, base_url):
     help="Labels the agent will use to query for flow runs.",
     hidden=True,
 )
-def install(name, token, api, namespace, image_pull_secrets, resource_manager, label):
+@click.option(
+    "--import-path",
+    "-p",
+    multiple=True,
+    help="Import paths the local agent will add to all flow runs.",
+    hidden=True,
+)
+@click.option(
+    "--show-flow-logs",
+    "-f",
+    help="Display logging output from flows run by the agent.",
+    hidden=True,
+    is_flag=True,
+)
+def install(
+    name,
+    token,
+    api,
+    namespace,
+    image_pull_secrets,
+    resource_manager,
+    rbac,
+    latest,
+    mem_request,
+    mem_limit,
+    cpu_request,
+    cpu_limit,
+    label,
+    import_path,
+    show_flow_logs,
+):
     """
     Install an agent. Outputs configuration text which can be used to install on various
     platforms. The Prefect image version will default to your local `prefect.__version__`
 
     \b
     Arguments:
-        name                        TEXT    The name of an agent to start (e.g. `kubernetes`)
-                                            Defaults to `kubernetes`
+        name                        TEXT    The name of an agent to install (e.g. `kubernetes`, `local`)
 
     \b
     Options:
         --token, -t                 TEXT    A Prefect Cloud API token
+        --label, -l                 TEXT    Labels the agent will use to query for flow runs
+                                            Multiple values supported e.g. `-l label1 -l label2`
+
+    \b
+    Kubernetes Agent Options:
         --api, -a                   TEXT    A Prefect Cloud API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
-        --label, -l                 TEXT    Labels the agent will use to query for flow runs
-                                            Multiple values supported e.g. `-l label1 -l label2`
+        --rbac                              Enable default RBAC on install
+        --latest                            Use the `latest` Prefect image
+        --mem-request               TEXT    Requested memory for Prefect init job
+        --mem-limit                 TEXT    Limit memory for Prefect init job
+        --cpu-request               TEXT    Requested CPU for Prefect init job
+        --cpu-limit                 TEXT    Limit CPU for Prefect init job
+
+    \b
+    Local Agent Options:
+        --import-path, -p           TEXT    Absolute import paths to provide to the local agent.
+                                            Multiple values supported e.g. `-p /root/my_scripts -p /utilities`
+        --show-flow-logs, -f                Display logging output from flows run by the agent
     """
 
-    supported_agents = {"kubernetes": "prefect.agent.kubernetes.KubernetesAgent"}
+    supported_agents = {
+        "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
+        "local": "prefect.agent.local.LocalAgent",
+    }
 
     retrieved_agent = supported_agents.get(name, None)
 
@@ -193,12 +355,27 @@ def install(name, token, api, namespace, image_pull_secrets, resource_manager, l
         click.secho("{} is not a supported agent for `install`".format(name), fg="red")
         return
 
-    deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
-        token=token,
-        api=api,
-        namespace=namespace,
-        image_pull_secrets=image_pull_secrets,
-        resource_manager_enabled=resource_manager,
-        labels=list(label),
-    )
-    click.echo(deployment)
+    if name == "kubernetes":
+        deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
+            token=token,
+            api=api,
+            namespace=namespace,
+            image_pull_secrets=image_pull_secrets,
+            resource_manager_enabled=resource_manager,
+            rbac=rbac,
+            latest=latest,
+            mem_request=mem_request,
+            mem_limit=mem_limit,
+            cpu_request=cpu_request,
+            cpu_limit=cpu_limit,
+            labels=list(label),
+        )
+        click.echo(deployment)
+    elif name == "local":
+        conf = from_qualified_name(retrieved_agent).generate_supervisor_conf(
+            token=token,
+            labels=list(label),
+            import_paths=list(import_path),
+            show_flow_logs=show_flow_logs,
+        )
+        click.echo(conf)

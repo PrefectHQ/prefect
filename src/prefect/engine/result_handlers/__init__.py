@@ -1,5 +1,5 @@
 """
-Result handler is simply a specific implementation of a `read` / `write` interface for handling data.
+Result handler is a specific implementation of a `read` / `write` interface for handling data.
 The only requirement for a Result handler implementation is that the `write` method returns a JSON-compatible object.
 
 As a toy example, suppose we want to implement a result handler which stores data on some webserver that we have access to.

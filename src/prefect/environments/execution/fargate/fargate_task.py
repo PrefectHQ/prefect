@@ -254,7 +254,8 @@ class FargateTaskEnvironment(Environment):
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token,
+                        "value": config.cloud.agent.auth_token
+                        or config.cloud.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},
@@ -305,7 +306,7 @@ class FargateTaskEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()
+                executor_cls = get_default_executor_class()()
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(

@@ -1,11 +1,5 @@
-const sidebar64 = require('../api/0.6.4/sidebar')
-const sidebar65 = require('../api/0.6.5/sidebar')
-const sidebar66 = require('../api/0.6.6/sidebar')
-const sidebar67 = require('../api/0.6.7/sidebar')
-const sidebar70 = require('../api/0.7.0/sidebar')
-const sidebar71 = require('../api/0.7.1/sidebar')
-const sidebar72 = require('../api/0.7.2/sidebar')
 const sidebar73 = require('../api/0.7.3/sidebar')
+const sidebar81 = require('../api/0.8.1/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -34,6 +28,7 @@ module.exports = {
       href: '/favicon.ico'
     }
   ],
+  extraWatchFiles: ['.vuepress/highlightLines.js'],
   plugins: [
     [
       '@vuepress/google-analytics',
@@ -42,6 +37,7 @@ module.exports = {
       }
     ],
     ['vuepress-plugin-code-copy', true],
+    'vuepress-plugin-element-tabs',
     [
       'vuepress-plugin-selected-text-popup',
       {
@@ -64,42 +60,38 @@ module.exports = {
     docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    logo: '/assets/logomark-color.svg',
+    logo: '/assets/logomark-color.png',
     nav: [
       {
-        text: 'Prefect Core',
+        text: 'Core',
         link: '/core/'
       },
       {
-        text: 'Prefect Cloud',
-        link: '/cloud/the-basics'
+        text: 'Cloud',
+        link: '/cloud/'
       },
       {
         text: 'API Reference',
         items: [
-          { text: 'Unreleased', link: '/api/unreleased/' },
+          { text: 'Latest (0.9.3)', link: '/api/latest/' },
+          { text: '0.8.1', link: '/api/0.8.1/' },
           { text: '0.7.3', link: '/api/0.7.3/' },
-          { text: '0.7.2', link: '/api/0.7.2/' },
-          { text: '0.7.1', link: '/api/0.7.1/' },
-          { text: '0.7.0', link: '/api/0.7.0/' },
-          { text: '0.6.7', link: '/api/0.6.7/' },
-          { text: '0.6.6', link: '/api/0.6.6/' },
-          { text: '0.6.5', link: '/api/0.6.5/' },
-          { text: '0.6.4', link: '/api/0.6.4/' }
+          { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
+      },
+      {
+        text: 'prefect.io',
+        link: 'https://www.prefect.io'
       }
     ],
     sidebar: {
-      '/api/0.6.4/': sidebar64.sidebar,
-      '/api/0.6.5/': sidebar65.sidebar,
-      '/api/0.6.6/': sidebar66.sidebar,
-      '/api/0.6.7/': sidebar67.sidebar,
-      '/api/0.7.0/': sidebar70.sidebar,
-      '/api/0.7.1/': sidebar71.sidebar,
-      '/api/0.7.2/': sidebar72.sidebar,
       '/api/0.7.3/': sidebar73.sidebar,
-      '/api/unreleased/': [
-        { title: 'API Reference', path: '/api/unreleased/' },
+      '/api/0.8.1/': sidebar81.sidebar,
+      '/api/latest/': [
+        {
+          title: 'API Reference',
+          path: '/api/latest/'
+        },
         'changelog',
         {
           title: 'Test Coverage',
@@ -113,68 +105,92 @@ module.exports = {
         {
           title: 'prefect.client',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'client')
+          children: getChildren('docs/api/latest', 'client')
         },
         {
           title: 'prefect.core',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'core')
+          children: getChildren('docs/api/latest', 'core')
         },
         {
           title: 'prefect.engine',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'engine')
+          children: getChildren('docs/api/latest', 'engine')
         },
         {
           title: 'prefect.environments',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'environments')
+          children: getChildren('docs/api/latest', 'environments')
         },
         {
           title: 'prefect.tasks',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'tasks')
+          children: getChildren('docs/api/latest', 'tasks')
         },
         {
           title: 'prefect.schedules',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'schedules')
+          children: getChildren('docs/api/latest', 'schedules')
         },
         {
           title: 'prefect.agent',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'agent')
+          children: getChildren('docs/api/latest', 'agent')
         },
         {
           title: 'prefect.utilities',
           collapsable: true,
-          children: getChildren('docs/api/unreleased', 'utilities')
+          children: getChildren('docs/api/latest', 'utilities')
         }
       ],
       '/cloud/': [
+        '/cloud/',
         {
-          title: 'Welcome',
-          collapsable: false,
+          title: 'Cloud UI',
+          collapsable: true,
           children: [
-            'the-basics',
-            'upandrunning',
-            'flow-deploy',
-            'dataflow',
-            'deployment',
-            'other-considerations',
-            'faq'
+            'ui/dashboard',
+            'ui/flow',
+            'ui/flow-run',
+            'ui/task-run',
+            'ui/interactive-api',
+            'ui/team-settings'
           ]
         },
         {
+          title: 'Deployment Tutorial',
+          collapsable: true,
+          children: [
+            'tutorial/configure',
+            'tutorial/first',
+            'tutorial/multiple',
+            'tutorial/docker',
+            'tutorial/k8s',
+            'tutorial/next-steps'
+          ]
+        },
+
+        {
           title: 'Cloud Concepts',
           collapsable: true,
-          children: getChildren('docs/cloud', 'concepts')
+          children: [
+            'concepts/api',
+            'concepts/cli',
+            'concepts/projects',
+            'concepts/flows',
+            'concepts/flow_runs',
+            'concepts/secrets',
+            'concepts/services',
+            'concepts/tokens',
+            'concepts/task-concurrency-limiting'
+          ]
         },
         {
-          title: 'Cloud Execution',
+          title: 'Execution Environments',
           collapsable: true,
           children: [
             'execution/overview',
+            'execution/storage_options',
             'execution/remote_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
@@ -183,32 +199,43 @@ module.exports = {
           ]
         },
         {
-          title: 'Agent',
+          title: 'Agents',
           collapsable: true,
           children: [
-            'agent/overview',
-            'agent/local',
-            'agent/kubernetes',
-            'agent/fargate'
+            'agents/overview',
+            'agents/local',
+            'agents/docker',
+            'agents/kubernetes',
+            'agents/fargate'
           ]
         },
         {
           title: 'Deployment Recipes',
           collapsable: true,
-          children: getChildren('docs/cloud', 'recipes')
+          children: [
+            'recipes/deployment',
+            'recipes/configuring_storage',
+            'recipes/multi_flow_storage',
+            'recipes/k8s_dask',
+            'recipes/k8s_docker_sidecar'
+          ]
+        },
+        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/cloud', 'faq')
         }
       ],
       '/core/': [
         '/core/',
         {
-          title: 'Welcome',
-          collapsable: false,
+          title: 'Introduction',
+          collapsable: true,
           children: [
-            'welcome/what_is_prefect',
-            'welcome/why_prefect',
-            'welcome/why_not_airflow',
-            'welcome/community',
-            'welcome/code_of_conduct'
+            'introduction/why_prefect',
+            'introduction/why_not_airflow',
+            'introduction/community',
+            'introduction/code_of_conduct'
           ]
         },
         {
@@ -221,14 +248,9 @@ module.exports = {
           ]
         },
         {
-          title: 'Tutorials',
+          title: 'Tutorial',
           collapsable: true,
-          children: getChildren('docs/core', 'tutorials')
-        },
-        {
-          title: 'Task Library',
-          collapsable: true,
-          children: getChildren('docs/core', 'task_library')
+          children: getChildren('docs/core', 'tutorial')
         },
         {
           title: 'Core Concepts',
@@ -253,6 +275,16 @@ module.exports = {
           ]
         },
         {
+          title: 'Task Library',
+          collapsable: true,
+          children: getChildren('docs/core', 'task_library')
+        },
+        {
+          title: 'Advanced Tutorials',
+          collapsable: true,
+          children: getChildren('docs/core', 'advanced_tutorials')
+        },
+        {
           title: 'Examples',
           collapsable: true,
           children: getChildren('docs/core', 'examples')
@@ -273,11 +305,17 @@ module.exports = {
             'development/contributing',
             'development/release-checklist'
           ]
+        },
+        {
+          title: 'FAQ',
+          collapsable: true,
+          children: getChildren('docs/core', 'faq')
         }
       ]
     }
   },
   extendMarkdown(md) {
+    md.use(require('./highlightLines.js'))
     md.use(require('markdown-it-attrs'))
     md.use(require('markdown-it-checkbox'))
   }

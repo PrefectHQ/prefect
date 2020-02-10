@@ -12,6 +12,11 @@ from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import _healthcheck as healthchecks
 
 
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="These checks only run within UNIX machines"
+)
+
+
 class TestSerialization:
     def test_cloudpickle_deserialization_check_raises_on_bad_imports(self):
         bad_bytes = b"\x80\x04\x95\x18\x00\x00\x00\x00\x00\x00\x00\x8c\x0bfoo_machine\x94\x8c\x04func\x94\x93\x94."

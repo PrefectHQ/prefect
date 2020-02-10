@@ -1,0 +1,5 @@
+pytest >= 5.0, < 6.0
+testfixtures >= 6.10.3, < 7.0
+pytest-cov >= 2.6, < 3.0
+pytest-env >= 0.6.0, < 0.7.0
+pytest-xdist >= 1.23, < 2.0

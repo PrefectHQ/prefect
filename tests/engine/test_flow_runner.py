@@ -907,23 +907,6 @@ def test_flow_runner_handles_timeout_error_with_mproc(mproc):
     assert isinstance(state.result[res].result, TimeoutError)
 
 
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
-def test_flow_runner_handles_mapped_timeouts(executor):
-    sleeper = SlowTask(timeout=1)
-
-    with Flow(name="test") as flow:
-        res = sleeper.map([0, 2, 3])
-
-    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=executor)
-    assert state.is_failed()
-
-    mapped_states = state.result[res]
-    assert mapped_states.map_states[0].is_successful()
-    for fstate in mapped_states.map_states[1:]:
-        assert fstate.is_failed()
-        assert isinstance(fstate.result, TimeoutError)
-
-
 handler_results = collections.defaultdict(lambda: 0)
 
 
@@ -1611,8 +1594,8 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [100] * 10
 
-    ## only add and the List task were submitted
-    assert len(calls) == 2
+    ## only add task was submitted; the list task is a constant
+    assert len(calls) == 1
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0

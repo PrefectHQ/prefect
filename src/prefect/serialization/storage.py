@@ -4,9 +4,34 @@ import marshmallow
 from marshmallow import fields, post_load
 
 import prefect
-from prefect.environments.storage import Bytes, Docker, Local, Memory, Storage
-from prefect.utilities.serialization import Bytes as BytesField
+from prefect.environments.storage import (
+    Azure,
+    Bytes,
+    Docker,
+    GCS,
+    Local,
+    Memory,
+    Storage,
+    S3,
+)
+from prefect.utilities.serialization import Bytes as BytesField, JSONCompatible
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema
+
+
+class AzureSchema(ObjectSchema):
+    class Meta:
+        object_class = Azure
+
+    container = fields.String(allow_none=False)
+    blob_name = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Azure:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
 
 
 class BaseStorageSchema(ObjectSchema):
@@ -19,21 +44,6 @@ class BytesSchema(ObjectSchema):
         object_class = Bytes
 
     flows = fields.Dict(key=fields.Str(), values=BytesField())
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
-
-
-class LocalSchema(ObjectSchema):
-    class Meta:
-        object_class = Local
-
-    directory = fields.Str(allow_none=False)
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -61,6 +71,58 @@ class DockerSchema(ObjectSchema):
         return base_obj
 
 
+class GCSSchema(ObjectSchema):
+    class Meta:
+        object_class = GCS
+
+    bucket = fields.Str(allow_none=False)
+    key = fields.Str(allow_none=True)
+    project = fields.Str(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> GCS:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
+class LocalSchema(ObjectSchema):
+    class Meta:
+        object_class = Local
+
+    directory = fields.Str(allow_none=False)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> Docker:
+        flows = data.pop("flows", dict())
+        data.update(validate=False)
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
+class S3Schema(ObjectSchema):
+    class Meta:
+        object_class = S3
+
+    bucket = fields.String(allow_none=False)
+    key = fields.String(allow_none=True)
+    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    client_options = fields.Dict(
+        key=fields.Str(), values=JSONCompatible(), allow_none=True
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> S3:
+        flows = data.pop("flows", dict())
+        base_obj = super().create_object(data)
+        base_obj.flows = flows
+        return base_obj
+
+
 class MemorySchema(ObjectSchema):
     class Meta:
         object_class = Memory
@@ -73,9 +135,12 @@ class StorageSchema(OneOfSchema):
 
     # map class name to schema
     type_schemas = {
+        "Azure": AzureSchema,
         "Bytes": BytesSchema,
         "Docker": DockerSchema,
-        "Memory": MemorySchema,
+        "GCS": GCSSchema,
         "Local": LocalSchema,
+        "Memory": MemorySchema,
         "Storage": BaseStorageSchema,
+        "S3": S3Schema,
     }

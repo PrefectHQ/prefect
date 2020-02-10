@@ -28,35 +28,32 @@ def test_agent_start_fails_no_token(monkeypatch):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
 
-    docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
-
     runner = CliRunner()
     result = runner.invoke(agent, ["start"])
     assert result.exit_code == 1
 
 
-def test_agent_start_token(monkeypatch, runner_token):
+def test_docker_agent_start_token(monkeypatch, runner_token):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "-t", "test"])
+    result = runner.invoke(agent, ["start", "docker", "-t", "test"])
     assert result.exit_code == 0
 
 
-def test_agent_start_verbose(monkeypatch, runner_token):
+def test_docker_agent_start_verbose(monkeypatch, runner_token):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "-v"])
+    result = runner.invoke(agent, ["start", "docker", "-v"])
     assert result.exit_code == 0
 
 
@@ -64,11 +61,29 @@ def test_agent_start_local(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
 
-    docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
-
     runner = CliRunner()
     result = runner.invoke(agent, ["start", "local"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_local_import_paths(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "local", "-p", "test"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_docker(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
+
+    docker_client = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "docker"])
     assert result.exit_code == 0
 
 
@@ -81,6 +96,18 @@ def test_agent_start_kubernetes(monkeypatch, runner_token):
 
     runner = CliRunner()
     result = runner.invoke(agent, ["start", "kubernetes"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_kubernetes_namespace(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.kubernetes.KubernetesAgent.start", start)
+
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "kubernetes", "--namespace", "test"])
     assert result.exit_code == 0
 
 
@@ -138,56 +165,73 @@ def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
 
     assert fargate_agent.called
     fargate_agent.assert_called_with(
-        labels=[], name=None, taskRoleArn="arn", volumes="vol"
+        labels=[], env_vars=dict(), name=None, taskRoleArn="arn", volumes="vol"
+    )
+
+
+def test_agent_start_with_env_vars(monkeypatch, runner_token):
+    docker_agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent", docker_agent)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        agent, ["start", "docker", "-e", "KEY=VAL", "-e", "SETTING=false"]
+    )
+    assert result.exit_code == 0
+
+    docker_agent.assert_called_with(
+        base_url=None,
+        env_vars={"KEY": "VAL", "SETTING": "false"},
+        labels=[],
+        name=None,
+        no_pull=False,
+        show_flow_logs=False,
     )
 
 
 def test_agent_start_name(monkeypatch, runner_token):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
-    result = runner.invoke(agent, ["start", "--name", "test_agent"])
+    result = runner.invoke(agent, ["start", "docker", "--name", "test_agent"])
     assert result.exit_code == 0
 
 
-def test_agent_start_local_vars(monkeypatch, runner_token):
+def test_agent_start_docker_vars(monkeypatch, runner_token):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(
-        agent, ["start", "-t", "test", "--base-url", "url", "--no-pull"]
+        agent, ["start", "docker", "-t", "test", "--base-url", "url", "--no-pull"]
     )
     assert result.exit_code == 0
 
 
-def test_agent_start_local_labels(monkeypatch, runner_token):
+def test_agent_start_docker_labels(monkeypatch, runner_token):
     start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
 
     docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(
-        agent, ["start", "-t", "test", "--label", "label1", "-l", "label2"]
+        agent, ["start", "docker", "-t", "test", "--label", "label1", "-l", "label2"]
     )
     assert result.exit_code == 0
 
 
-def test_agent_start_fails(monkeypatch):
+def test_agent_start_fails(monkeypatch, runner_token):
     start = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
-
-    docker_client = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.docker.APIClient", docker_client)
 
     runner = CliRunner()
     result = runner.invoke(agent, ["start", "TEST"])
@@ -195,11 +239,11 @@ def test_agent_start_fails(monkeypatch):
     assert "TEST is not a valid agent" in result.output
 
 
-def test_agent_install():
+def test_agent_install_local():
     runner = CliRunner()
-    result = runner.invoke(agent, ["install"])
+    result = runner.invoke(agent, ["install", "local"])
     assert result.exit_code == 0
-    assert "apiVersion" in result.output
+    assert "supervisord" in result.output
 
 
 def test_agent_install_kubernetes():
@@ -216,12 +260,13 @@ def test_agent_install_fails_non_valid_agent():
     assert "fake_agent is not a supported agent for `install`" in result.output
 
 
-def test_agent_install_passes_args():
+def test_agent_install_k8s_asses_args():
     runner = CliRunner()
     result = runner.invoke(
         agent,
         [
             "install",
+            "kubernetes",
             "--token",
             "TEST_TOKEN",
             "--api",
@@ -229,8 +274,18 @@ def test_agent_install_passes_args():
             "--namespace",
             "TEST_NAMESPACE",
             "--resource-manager",
+            "--rbac",
+            "--latest",
             "--image-pull-secrets",
             "secret-test",
+            "--mem-request",
+            "mem_req",
+            "--mem-limit",
+            "mem_lim",
+            "--cpu-request",
+            "cpu_req",
+            "--cpu-limit",
+            "cpu_limt",
             "--label",
             "test_label1",
             "-l",
@@ -242,17 +297,24 @@ def test_agent_install_passes_args():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert "resource-manager" in result.output
+    assert "rbac" in result.output
+    assert "latest" in result.output
+    assert "mem_req" in result.output
+    assert "mem_lim" in result.output
+    assert "cpu_req" in result.output
+    assert "cpu_lim" in result.output
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
 
 
-def test_agent_install_no_resource_manager():
+def test_agent_install_k8s_no_resource_manager():
     runner = CliRunner()
     result = runner.invoke(
         agent,
         [
             "install",
+            "kubernetes",
             "--token",
             "TEST_TOKEN",
             "--api",
@@ -261,6 +323,7 @@ def test_agent_install_no_resource_manager():
             "TEST_NAMESPACE",
             "--image-pull-secrets",
             "secret-test",
+            "--rbac",
         ],
     )
     assert result.exit_code == 0
@@ -268,4 +331,29 @@ def test_agent_install_no_resource_manager():
     assert "TEST_API" in result.output
     assert "TEST_NAMESPACE" in result.output
     assert not "resource-manager" in result.output
+    assert "rbac" in result.output
     assert "secret-test" in result.output
+
+
+def test_agent_install_local_asses_args():
+    runner = CliRunner()
+    result = runner.invoke(
+        agent,
+        [
+            "install",
+            "local",
+            "--token",
+            "TEST_TOKEN",
+            "--label",
+            "test_label1",
+            "-l",
+            "test_label2",
+            "--import-path",
+            "my_path",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "TEST_TOKEN" in result.output
+    assert "test_label1" in result.output
+    assert "test_label2" in result.output
+    assert "my_path" in result.output

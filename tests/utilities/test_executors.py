@@ -11,116 +11,12 @@ import pytest
 
 import prefect
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.executors import Heartbeat, timeout_handler, run_with_heartbeat
-
-
-@pytest.mark.parametrize("interval", [0.2, 1])
-@pytest.mark.parametrize("sleeptime", [1, 2])
-def test_heartbeat_calls_function_on_interval(interval, sleeptime):
-    class A:
-        def __init__(self):
-            self.called = 0
-
-        def __call__(self):
-            self.called += 1
-            return True
-
-    a = A()
-    timer = Heartbeat(interval, a, None)
-    timer.start()
-    time.sleep(sleeptime)
-    assert timer.cancel()
-    assert a.called >= sleeptime / interval
-    assert a.called <= sleeptime / interval + 1
-
-
-def test_heartbeat_cancel_returns_false_if_exception_raised():
-    class A:
-        def __init__(self):
-            self.data = dict()
-
-        def __call__(self):
-            raise ValueError()
-
-    a = A()
-    timer = Heartbeat(0.025, a, None)
-    timer.start()
-    time.sleep(0.025)
-    assert not timer.cancel()
-
-
-def test_heartbeat_preserves_context():
-    class A:
-        def __init__(self):
-            self.data = dict()
-
-        def __call__(self):
-            self.data["key"] = prefect.context["foo"]
-
-    a = A()
-    timer = Heartbeat(0.025, a, None)
-    timer.start()
-    time.sleep(0.025)
-    assert not timer.cancel()
-
-    timer = Heartbeat(0.025, a, None)
-    with prefect.context(foo="bar"):
-        timer.start()
-        time.sleep(0.025)
-        assert timer.cancel()
-
-    assert a.data == dict(key="bar")
-
-
-def test_heartbeat_logs_if_first_call_fails(caplog):
-    class A:
-        def __init__(self):
-            self.logger = prefect.utilities.logging.get_logger("A")
-
-        def _heartbeat(self):
-            raise SyntaxError("oops")
-
-        @run_with_heartbeat
-        def run(self):
-            pass
-
-    a = A()
-    a.run()
-
-    assert caplog.records
-
-    log = caplog.records[0]
-    assert log.name == "prefect.A"
-    assert "Heartbeat" in log.message
-    assert "zombie" in log.message
-
-
-def test_heartbeat_logs_if_thread_dies(caplog):
-    class A:
-        def __init__(self):
-            self.calls = 0
-            self.logger = prefect.utilities.logging.get_logger("A")
-
-        def _heartbeat(self):
-            if self.calls == 1:
-                raise SyntaxError("oops")
-            return True
-
-        @run_with_heartbeat
-        def run(self):
-            self.calls = 1
-            time.sleep(1)
-
-    a = A()
-    with set_temporary_config({"cloud.heartbeat_interval": 0.25}):
-        a.run()
-
-    assert caplog.records
-
-    log = caplog.records[0]
-    assert log.name == "prefect.A"
-    assert "Heartbeat thread appears to have died" in log.message
-    assert "zombie" in log.message
+from prefect.utilities.executors import (
+    timeout_handler,
+    run_with_heartbeat,
+    tail_recursive,
+    RecursiveCall,
+)
 
 
 def test_timeout_handler_times_out():
@@ -224,3 +120,95 @@ def test_timeout_handler_preserves_context():
 def test_timeout_handler_preserves_logging(caplog):
     timeout_handler(prefect.Flow("logs").run, timeout=2)
     assert len(caplog.records) >= 2  # 1 INFO to start, 1 INFO to end
+
+
+def test_recursion_go_case():
+    @tail_recursive
+    def my_func(a=0):
+        if a > 5:
+            return a
+        raise RecursiveCall(my_func, a + 2)
+
+    assert 6 == my_func()
+
+
+def test_recursion_beyond_python_limits():
+    RECURSION_LIMIT = sys.getrecursionlimit()
+
+    @tail_recursive
+    def my_func(calls=0):
+        if calls > RECURSION_LIMIT + 10:
+            return calls
+        raise RecursiveCall(my_func, calls + 1)
+
+    assert my_func() == RECURSION_LIMIT + 11
+
+
+def test_recursion_nested():
+    def utility_func(a):
+        if a > 5:
+            return a
+        raise RecursiveCall(my_func, a + 2)
+
+    @tail_recursive
+    def my_func(a=0):
+        return utility_func(a)
+
+    assert 6 == my_func()
+
+
+def test_recursion_multiple():
+    call_checkpoints = []
+
+    @tail_recursive
+    def a_func(a=0):
+        call_checkpoints.append(("a", a))
+        if a > 5:
+            return a
+        a = b_func(a + 1)
+        raise RecursiveCall(a_func, (a + 1) * 2)
+
+    @tail_recursive
+    def b_func(b=0):
+        call_checkpoints.append(("b", b))
+        if b > 5:
+            return b
+        b = a_func(b + 2)
+        raise RecursiveCall(b_func, b + 2)
+
+    assert a_func() == 42  # :)
+    assert call_checkpoints == [
+        ("a", 0),
+        ("b", 1),
+        ("a", 3),
+        ("b", 4),
+        ("a", 6),
+        ("b", 8),
+        ("a", 18),
+        ("b", 20),
+        ("a", 42),
+    ]
+
+
+def test_recursion_raises_when_not_decorated():
+    call_checkpoints = []
+
+    @tail_recursive
+    def a_func(a=0):
+        call_checkpoints.append(("a", a))
+        if a > 5:
+            return a
+        a = b_func(a + 1)
+        raise RecursiveCall(a_func, (a + 1) * 2)
+
+    def b_func(b=0):
+        call_checkpoints.append(("b", b))
+        if b > 5:
+            return b
+        b = a_func(b + 2)
+        raise RecursiveCall(b_func, b + 2)
+
+    with pytest.raises(RecursionError):
+        assert a_func()
+
+    assert call_checkpoints == [("a", 0), ("b", 1), ("a", 3), ("b", 4), ("a", 6)]

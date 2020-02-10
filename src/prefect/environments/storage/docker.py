@@ -1,6 +1,5 @@
 import filecmp
 import json
-import logging
 import os
 import re
 import shutil
@@ -111,7 +110,7 @@ class Docker(Storage):
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.extra_commands.append(
-                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
             raise ValueError(
@@ -126,7 +125,7 @@ class Docker(Storage):
         self.extra_commands.append(
             "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@{}#egg=prefect[kubernetes]".format(
                 self.prefect_version
-            ),
+            )
         )
 
         not_absolute = [
@@ -138,6 +137,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
+        super().__init__()
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -306,7 +306,7 @@ class Docker(Storage):
                 full_name = self.image_name
 
             # Use the docker client to build the image
-            logging.info("Building the flow's Docker storage...")
+            self.logger.info("Building the flow's Docker storage...")
             output = client.build(
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
@@ -493,7 +493,7 @@ class Docker(Storage):
         """
         client = docker.APIClient(base_url=self.base_url, version="auto")
 
-        logging.info("Pushing image to the registry...")
+        self.logger.info("Pushing image to the registry...")
 
         output = client.push(image_name, tag=image_tag, stream=True, decode=True)
         for line in output:
