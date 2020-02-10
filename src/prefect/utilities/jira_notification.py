@@ -38,9 +38,9 @@ def jira_notifier(
     tracked_obj: TrackedObjectType,
     old_state: "prefect.engine.state.State",
     new_state: "prefect.engine.state.State",
-    ignore_states: list = None
-    only_states: list = None
-    server_URL: str = None
+    ignore_states: list = None,
+    only_states: list = None,
+    server_URL: str = None,
     options
 ) -> "prefect.engine.state.State":
     """
