@@ -120,7 +120,7 @@ def jira_notifier(
 
     summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
-    options["summary_text"] = summary_text
+    options["summary"] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
