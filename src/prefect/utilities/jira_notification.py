@@ -42,7 +42,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options: dict = None,
+    options: dict = {},
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
