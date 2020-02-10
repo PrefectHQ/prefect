@@ -13,7 +13,6 @@ def fetch_routes() -> List[Dict[str, Any]]:
     result = []
     with open(capture_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
-        row = None
         for row in reader:
             result.append(dict(row))
     return result

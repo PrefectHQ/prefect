@@ -105,6 +105,9 @@ ENV/
 # VS Code settings
 .vscode
 
+# PyCharm settings
+.idea
+
 # mypy
 .mypy*
 
