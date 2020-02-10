@@ -41,7 +41,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options
+    options: dict = None,
 ) -> "prefect.engine.state.State":
     """
     Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
@@ -82,18 +82,17 @@ def jira_notifier(
     """
 
     jira_credentials = Secret(jira_credentials_secret).get()
-    username = jira_credentials['JIRAUSER']
-    password = jira_credentials['JIRATOKEN']
+    username = jira_credentials["JIRAUSER"]
+    password = jira_credentials["JIRATOKEN"]
 
     if not serverURL:
-    serverURL = jira_credentials['JIRASERVER']
+        serverURL = jira_credentials["JIRASERVER"]
     # username = cast(str, prefect.client.Secret("JIRAUSER").get())
     # password = cast(str, prefect.client.Secret("JIRATOKEN").get())
     # serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
 
-
-    # ignore_states = options['ignore_states'] or [] 
-    # only_states = options['only_states'] or [] 
+    # ignore_states = options['ignore_states'] or []
+    # only_states = options['only_states'] or []
     # project_name: options['project_name'] or []
     # assignee: str = "-1",
 
@@ -108,19 +107,18 @@ def jira_notifier(
     ):
         return new_state
 
-    if not options['project_name']:
-        options['project_name'] = jira_credentials["JIRAPROJECT"]
+    if not options["project_name"]:
+        options["project_name"] = jira_credentials["JIRAPROJECT"]
         # project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
-    if not options['issue_type']:
-        options['issue_type'] = {"name": "Task"}
+    if not options["issue_type"]:
+        options["issue_type"] = {"name": "Task"}
 
-    options['summary_text'] = str(jira_message_formatter(tracked_obj, new_state))
+    summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
+    # options['summary_text'] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
-    created = jira.create_issue(
-        options
-    )
+    created = jira.create_issue(options)
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
     assigned = jira.assign_issue(created, assignee)
