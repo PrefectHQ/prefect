@@ -38,10 +38,10 @@ def jira_notifier(
     tracked_obj: TrackedObjectType,
     old_state: "prefect.engine.state.State",
     new_state: "prefect.engine.state.State",
-    ignore_states: list = None,
-    only_states: list = None,
-    project_name: str = None,
-    assignee: str = "-1",
+    ignore_states: list = None
+    only_states: list = None
+    server_URL: str = None
+    options
 ) -> "prefect.engine.state.State":
     """
     Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
@@ -80,12 +80,22 @@ def jira_notifier(
             return x + y
         ```
     """
-    username = cast(str, prefect.client.Secret("JIRAUSER").get())
-    password = cast(str, prefect.client.Secret("JIRATOKEN").get())
-    serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
 
-    if not project_name:
-        project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    jira_credentials = Secret(jira_credentials_secret).get()
+    username = jira_credentials['JIRAUSER']
+    password = jira_credentials['JIRATOKEN']
+
+    if not serverURL:
+    serverURL = jira_credentials['JIRASERVER']
+    # username = cast(str, prefect.client.Secret("JIRAUSER").get())
+    # password = cast(str, prefect.client.Secret("JIRATOKEN").get())
+    # serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
+
+
+    # ignore_states = options['ignore_states'] or [] 
+    # only_states = options['only_states'] or [] 
+    # project_name: options['project_name'] or []
+    # assignee: str = "-1",
 
     ignore_states = ignore_states or []
     only_states = only_states or []
@@ -98,11 +108,18 @@ def jira_notifier(
     ):
         return new_state
 
-    summaryText = str(jira_message_formatter(tracked_obj, new_state))
+    if not options['project_name']:
+        options['project_name'] = jira_credentials["JIRAPROJECT"]
+        # project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    if not options['issue_type']:
+        options['issue_type'] = {"name": "Task"}
+
+    options['summary_text'] = str(jira_message_formatter(tracked_obj, new_state))
+
 
     jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
     created = jira.create_issue(
-        project=project_name, summary=summaryText, issuetype={"name": "Task"}
+        options
     )
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
