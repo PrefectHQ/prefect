@@ -109,6 +109,7 @@ def jira_notifier(
         return new_state
 
     if options:
+        print ('options', options)
         project = options.get("project")
         if not project:
             project_name = jira_credentials["JIRAPROJECT"]
