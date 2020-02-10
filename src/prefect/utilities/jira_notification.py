@@ -42,16 +42,17 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options: dict = {"empty": True},
+    options: dict = {},
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
     Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
-    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') and server URL ('JIRASERVER') should be set as Prefect Secrets. 
+    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') should be set as part of a 'JIRASECRETS' object in Prefect Secrets. The server URL can be set as part of the 'JIRASECRETS' object ('JIRASERVER') or passed to the jira notifier state handler as the "server_URL" argument.
     Jira Notifier works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
     Jira Notifier creates a new ticket with the information about the task or flow it is bound to when that task or flow is in a specific state. 
     (For example it will create a ticket to tell you that the flow you set it on is in a failed state.)  
+    You should use the options dictionary to set the project name and issue type (standard issue type can be issuetype = {'name':'Task'}).  
     You can use the "assignee" argument to assign that ticket to a specific member of your team.
 
     Args:
@@ -59,11 +60,12 @@ def jira_notifier(
             registered with
         - old_state (State): previous state of tracked object
         - new_state (State): new state of tracked object
+        - options (Dictionary): Must inlucde a 'project' key and an 'issuetype' key (e.g. options = {'project': 'TEST', issuetype: {'name': 'task'}})
         - ignore_states ([State], optional): list of `State` classes to ignore,
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
-        - project_name (String): The name of the project you want to create the new ticket in.  Can also be set as a Prefect Secret. 
+        - server_URL (String): The URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
         - assignee - the atlassian username of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. 
 
     Returns:
@@ -77,7 +79,7 @@ def jira_notifier(
         from prefect import task
         from prefect.utilities.jira_notification import jira_notifier
 
-        @task(state_handlers=[jira_notifier(only_states=[Failed], project_name='Test', assignee='bob')]) # uses currying
+        @task(state_handlers=[jira_notifier(only_states=[Failed], options={'project': 'TEST', issuetype={'name': 'Task'}}, assignee='bob')]) # uses currying
         def add(x, y):
             return x + y
         ```
@@ -89,13 +91,6 @@ def jira_notifier(
 
     if not server_URL:
         server_URL = jira_credentials["JIRASERVER"]
-    # username = cast(str, prefect.client.Secret("JIRAUSER").get())
-    # password = cast(str, prefect.client.Secret("JIRATOKEN").get())
-    # serverURL = cast(str, prefect.client.Secret("JIRASERVER").get())
-
-    # ignore_states = options['ignore_states'] or []
-    # only_states = options['only_states'] or []
-    # project_name: options['project_name'] or []
 
     ignore_states = ignore_states or []
     only_states = only_states or []
@@ -108,35 +103,16 @@ def jira_notifier(
     ):
         return new_state
 
-    test = options.get("empty")
-
-    if test:
-        options = {}
-    else:
-        print("options", options)
-        project = options.get("project")
-        issue = options.get("issuetype")
-
-    if project:
-        options["project"] = project
-        
-    else:
-        print("options", options)
-        project = jira_credentials["JIRAPROJECT"]
-
-    if issue:
-        options["issuetype"] = issue
-    else:
-        options["issuetype"] = {"name": "Task"}
-
     summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
     options["summary"] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
+
     created = jira.create_issue(options)
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
+
     if assignee:
         assigned = jira.assign_issue(created, assignee)
         if not assigned:
