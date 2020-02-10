@@ -42,7 +42,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options1: dict = None,
+    options: dict = {"empty": True},
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
@@ -106,16 +106,14 @@ def jira_notifier(
     if only_states and not any(
         [isinstance(new_state, included) for included in only_states]
     ):
-        print("here")
         return new_state
 
-    if options is not None:
+    if options.get("empty"):
+        options = {}
+    else:
         print("options", options)
         project = options.get("project")
         issue = options.get("issuetype")
-
-    else:
-        options = {}
 
     if not project:
         project_name = jira_credentials["JIRAPROJECT"]
