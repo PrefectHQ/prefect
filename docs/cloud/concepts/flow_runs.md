@@ -20,6 +20,10 @@ client.create_flow_run(flow_id="<flow id>")
 
 The client method takes a number of optional arguments, including scheduled start time, parameters and an idempotency key. See the API reference for complete detail.
 
+::: tip A Stable API for Flow Runs
+For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`.  If provided, the unique unarchived flow within the version group will be scheduled for execution.  
+:::
+
 ### Core CLI
 
 You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name:
@@ -41,6 +45,8 @@ mutation {
   }
 }
 ```
+
+As with the Core Client, you can instead provide `versionGroupId` as an input to schedule a run for the unique unarchived flow within the provided version group.  This provides a stable API for running flows which are regularly updated.
 
 ### Idempotent run creation <Badge text="GQL"/>
 
