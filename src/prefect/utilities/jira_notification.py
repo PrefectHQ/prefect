@@ -79,7 +79,7 @@ def jira_notifier(
         from prefect import task
         from prefect.utilities.jira_notification import jira_notifier
 
-        @task(state_handlers=[jira_notifier(only_states=[Failed], options={'project': 'TEST', issuetype={'name': 'Task'}}, assignee='bob')]) # uses currying
+        @task(state_handlers=[jira_notifier(only_states=[Failed], options={'project': 'TEST', 'issuetype': {'name': 'Task'}}, assignee='tester')]) # uses currying
         def add(x, y):
             return x + y
         ```

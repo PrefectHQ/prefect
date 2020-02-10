@@ -33,11 +33,10 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
                     "JIRAUSER": "Bob",
                     "JIRATOKEN": "123",
                     "JIRASERVER": "",
-                    "JIRAPROJECT": "TEST",
                 }
             )
         ):
-            assert jira_notifier(Task(), "", new_state) is new_state
+            assert jira_notifier(Task(), "", new_state, options={'project': 'TEST', 'issuetype': {'name': 'Task'}}) is new_state
 
 
 def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
@@ -52,14 +51,13 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
                     "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
                     "JIRASERVER": "https://foo/bar",
-                    "JIRAPROJECT": "",
                 }
             )
         ):
-            jira_notifier(Task(), "", state, options={"project": "TEST"})
+            jira_notifier(Task(), "", state, options={'project': 'TEST', 'issuetype': {'name': 'Task'}})
 
         with pytest.raises(ValueError, match="JIRASECRETS"):
-            jira_notifier(Task(), "", state, options={"project": "TEST"})
+            jira_notifier(Task(), "", state, options={'project': 'TEST', 'issuetype': {'name': 'Task'}})
 
         kwargs = jira.call_args[1]
         assert kwargs == {
@@ -92,13 +90,12 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
                     JIRASECRETS={
                         "JIRAUSER": "Bob",
                         "JIRATOKEN": "",
-                        "JIRASERVER": "",
-                        "JIRAPROJECT": "TEST",
+                        "JIRASERVER": ""
                     }
                 )
             ):
                 returned = jira_notifier(
-                    Task(), "", s, ignore_states=[State], options={"project": "TEST"}
+                    Task(), "", s, ignore_states=[State], options={'project': 'TEST', 'issuetype': {'name': 'Task'}}
                 )
         assert returned is s
         assert jiraMock.called is False
@@ -132,11 +129,10 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
                     "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
                     "JIRASERVER": "",
-                    "JIRAPROJECT": "",
                 }
             )
         ):
-            returned = handler(Task(), "", state, options={"project": "TEST"})
+            returned = handler(Task(), "", state, options={'project': 'TEST', 'issuetype': {'name': 'Task'}})
     assert returned is state
     assert jiraMock.called is not state.is_finished()
 
@@ -169,10 +165,9 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
                     "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
                     "JIRASERVER": "",
-                    "JIRAPROJECT": "",
                 }
             )
         ):
-            returned = handler(Task(), "", state, options={"project": "TEST"})
+            returned = handler(Task(), "", state, options={'project': 'TEST', 'issuetype': {'name': 'Task'}})
     assert returned is state
     assert jiraMock.called is isinstance(state, TriggerFailed)
