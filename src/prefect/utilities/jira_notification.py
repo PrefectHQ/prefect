@@ -99,14 +99,14 @@ def jira_notifier(
 
     ignore_states = ignore_states or []
     only_states = only_states or []
-    
+
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
         return new_state
 
     if only_states and not any(
         [isinstance(new_state, included) for included in only_states]
     ):
-        print('here')
+        print("here")
         return new_state
 
     if options is not None:
