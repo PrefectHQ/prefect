@@ -1320,7 +1320,7 @@ class Flow:
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
-                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agents/overview.html#flow-affinity-labels
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.
@@ -1365,7 +1365,7 @@ class Flow:
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
-                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agents/overview.html#flow-affinity-labels
+                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agent/overview.html#flow-affinity-labels
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.

@@ -51,7 +51,7 @@ def exit_handler(agent: "Agent") -> Generator:
 class Agent:
     """
     Base class for Agents. Information on using the Prefect agents can be found at
-    https://docs.prefect.io/cloud/agents/overview.html
+    https://docs.prefect.io/cloud/agent/overview.html
 
     This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant
     to have subclasses which inherit functionality from this class. The only piece that

@@ -80,7 +80,7 @@ Prefect Cloud workflows are executed inside Docker containers running in the exe
 Prefect makes it easy to control:
 
 - all aspects of the Docker image your Flow is stored within
-- what types of [Prefect Agents](../agents/overview.html) can submit your Flows for execution
+- what types of [Prefect Agents](../agent/overview.html) can submit your Flows for execution
 - what [execution environment](../../api/latest/environments/execution.html) your Flow runs
 
 Note that different workflows will have different resource requirements during execution. For example, if you run a CPU intensive Flow using a Kubernetes Agent you should make sure your Kubernetes cluster has a sufficiently large node pool to run on.

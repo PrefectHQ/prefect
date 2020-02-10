@@ -27,7 +27,7 @@ export default ({ router }) => {
     },
     // redirect from `cloud/agent` to `cloud/agents`
     {
-      path: '/cloud/agents/*',
+      path: '/cloud/agent/*',
       redirect: '/cloud/agents/*'
     }
   ])

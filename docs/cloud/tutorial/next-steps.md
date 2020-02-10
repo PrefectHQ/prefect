@@ -8,7 +8,7 @@ Visit the [Cloud Concept](/cloud/concepts/api.html) docs for actions such as wor
 
 ## Agents
 
-To learn more about Prefect Agents, [Flow affinity](/cloud/agents/overview.html#flow-affinity-labels) via labels, or find information on platform specific Agents visit the [Agent](/cloud/agents/overview.html) documentation.
+To learn more about Prefect Agents, [Flow affinity](/cloud/agent/overview.html#flow-affinity-labels) via labels, or find information on platform specific Agents visit the [Agent](/cloud/agent/overview.html) documentation.
 
 ## Storage Options
 

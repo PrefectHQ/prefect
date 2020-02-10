@@ -524,7 +524,7 @@ def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
         agent = KubernetesAgent()
         agent.heartbeat()
 
-        assert path.exists("{}/.prefect/agents/heartbeat".format(tempdir))
+        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
 
 
 def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
@@ -541,9 +541,9 @@ def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
         agent = KubernetesAgent()
         agent.heartbeat()
 
-        assert path.exists("{}/.prefect/agents/heartbeat".format(tempdir))
+        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
 
-        first = path.getmtime("{}/.prefect/agents/heartbeat".format(tempdir))
+        first = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
 
         # Wait one second until next heartbeat
         import time
@@ -551,7 +551,7 @@ def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
         time.sleep(1)
 
         agent.heartbeat()
-        second = path.getmtime("{}/.prefect/agents/heartbeat".format(tempdir))
+        second = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
 
         assert second > first
 
