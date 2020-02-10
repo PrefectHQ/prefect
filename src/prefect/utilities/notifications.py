@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import prefect.client
     from prefect import Flow, Task
 
-__all__ = ["callback_factory", "gmail_notifier", "slack_notifier", "jira_notifier"]
+__all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
 TrackedObjectType = Union["Flow", "Task"]
 
 
