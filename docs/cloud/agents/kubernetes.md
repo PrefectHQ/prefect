@@ -6,7 +6,7 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 ### Requirements
 
-The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace. During [installation](/cloud/agent/kubernetes.html#installation) the Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
+The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace. During [installation](/cloud/agents/kubernetes.html#installation) the Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
