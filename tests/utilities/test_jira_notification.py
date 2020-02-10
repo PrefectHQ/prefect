@@ -30,14 +30,14 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={
-                    "JIRAUSER": "",
-                    "JIRATOKEN": "",
+                    "JIRAUSER": "Bob",
+                    "JIRATOKEN": "123",
                     "JIRASERVER": "",
-                    "JIRAPROJECT": "",
+                    "JIRAPROJECT": "TEST",
                 }
             )
         ):
-            assert jira_notifier(Task(), "", new_state) is new_state
+            assert jira_notifier(Task(), "", new_state, options={'project':'TEST'}) is new_state
 
 
 def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
@@ -49,9 +49,9 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={
-                    "JIRAUSER": "",
+                    "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
-                    "JIRASERVER": "",
+                    "JIRASERVER": "https://foo/bar",
                     "JIRAPROJECT": "",
                 }
             )
@@ -59,7 +59,7 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
             jira_notifier(Task(), "", state)
 
         with pytest.raises(ValueError, match="JIRAUSER"):
-            jira_notifier(Task(), "", state)
+            jira_notifier(Task(), "", state, options={'project':'TEST'})
 
         kwargs = jira.call_args[1]
         assert kwargs == {
@@ -90,14 +90,14 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
             with prefect.context(
                 secrets=dict(
                     JIRASECRETS={
-                        "JIRAUSER": "",
+                        "JIRAUSER": "Bob",
                         "JIRATOKEN": "",
                         "JIRASERVER": "",
-                        "JIRAPROJECT": "",
+                        "JIRAPROJECT": "TEST",
                     }
                 )
             ):
-                returned = jira_notifier(Task(), "", s, ignore_states=[State])
+                returned = jira_notifier(Task(), "", s, ignore_states=[State], options={'project':'TEST'})
         assert returned is s
         assert jiraMock.called is False
 
@@ -127,14 +127,14 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={
-                    "JIRAUSER": "",
+                    "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
                     "JIRASERVER": "",
                     "JIRAPROJECT": "",
                 }
             )
         ):
-            returned = handler(Task(), "", state)
+            returned = handler(Task(), "", state, options={'project':'TEST'})
     assert returned is state
     assert jiraMock.called is not state.is_finished()
 
@@ -164,7 +164,7 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={
-                    "JIRAUSER": "",
+                    "JIRAUSER": "Bob",
                     "JIRATOKEN": "",
                     "JIRASERVER": "",
                     "JIRAPROJECT": "",

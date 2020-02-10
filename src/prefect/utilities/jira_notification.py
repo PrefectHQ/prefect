@@ -42,7 +42,7 @@ def jira_notifier(
     ignore_states: list = None,
     only_states: list = None,
     server_URL: str = None,
-    options: dict = None,
+    options1: dict = None,
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
@@ -99,13 +99,14 @@ def jira_notifier(
 
     ignore_states = ignore_states or []
     only_states = only_states or []
-    print("options", options)
+    
     if any([isinstance(new_state, ignored) for ignored in ignore_states]):
         return new_state
 
     if only_states and not any(
         [isinstance(new_state, included) for included in only_states]
     ):
+        print('here')
         return new_state
 
     if options is not None:
@@ -113,7 +114,7 @@ def jira_notifier(
         project = options.get("project")
         issue = options.get("issuetype")
 
-    if options is None:
+    else:
         options = {}
 
     if not project:
@@ -135,4 +136,5 @@ def jira_notifier(
         assigned = jira.assign_issue(created, assignee)
         if not assigned:
             raise ValueError("Assigning Jira issue for {} failed".format(tracked_obj))
+
     return new_state
