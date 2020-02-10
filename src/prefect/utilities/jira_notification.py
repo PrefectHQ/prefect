@@ -122,8 +122,6 @@ def jira_notifier(
 
     options["summary"] = summary_text
 
-    print('OPTIONS', options)
-
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
     if not created:
