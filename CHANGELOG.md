@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
@@ -32,7 +33,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Giorgio Pellero](https://github.com/trapped)
 
 ## 0.9.3 <Badge text="beta" type="success"/>
 
@@ -399,7 +400,7 @@ Released on Nov 5, 2019
 
 - None
 
-## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success">
+## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success"/>
 
 Released October 29, 2019
 

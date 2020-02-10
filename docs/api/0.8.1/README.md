@@ -5,7 +5,7 @@ editLink: false
 
 
 <div align="center" style="margin-bottom:40px;">
-<img src="/assets/wordmark-color-horizontal.svg"  width=600 >
+<img src="/assets/prefect-logo-full-gradient.svg"  width=600 >
 </div>
 
 # API Reference

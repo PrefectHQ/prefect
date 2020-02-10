@@ -4,6 +4,12 @@ Flow runs track the execution of a flow. They represent a discrete instantiation
 
 ## Creating a flow run
 
+### UI
+
+To create a flow run from the UI, visit the [flow page](/cloud/ui/flow.html#run) and click "Run Flow".
+
+![](/cloud/ui/flow-run.png)
+
 ### Core Client
 
 To create a flow run for a specific flow with the Core client:
@@ -62,7 +68,15 @@ mutation {
 }
 ```
 
-## Updating flow run state <Badge text="GQL"/>
+## Updating flow run state
+### UI
+
+To manually set a flow run state from the UI, visit the [flow run page](/cloud/ui/flowrun).
+
+
+![](/cloud/ui/flowrun-mark-as.png)
+
+### GraphQL  <Badge text="GQL"/>
 
 If you need to manually update the state of a flow run, you can do so by providing a new state at any time. You must also provide a "version" number. If the version number doesn't match the database, the update will fail.
 
