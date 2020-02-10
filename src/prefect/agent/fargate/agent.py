@@ -279,14 +279,15 @@ class FargateAgent(Agent):
             i: (i not in definition_kwarg_list_no_eval) for i in definition_kwarg_list
         }
         for key, item in user_kwargs.items():
-            if definition_kwarg_list_eval.get(key):
-                try:
-                    # Parse kwarg if needed
-                    item = literal_eval(item)
-                except (ValueError, SyntaxError):
-                    pass
-            task_definition_kwargs.update({key: item})
-            self.logger.debug("{} = {}".format(key, item))
+            if key in definition_kwarg_list:
+                if definition_kwarg_list_eval.get(key):
+                    try:
+                        # Parse kwarg if needed
+                        item = literal_eval(item)
+                    except (ValueError, SyntaxError):
+                        pass
+                task_definition_kwargs.update({key: item})
+                self.logger.debug("{} = {}".format(key, item))
 
         task_run_kwargs = {}
         for key, item in user_kwargs.items():
