@@ -82,7 +82,7 @@ def jira_notifier(
         ```
     """
 
-    jira_credentials = cast(str, prefect.client.Secret(jira_credentials_secret).get())
+    jira_credentials = cast(str, prefect.client.Secret('JIRASECRETS').get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 
