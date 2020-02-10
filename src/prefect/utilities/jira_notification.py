@@ -7,6 +7,7 @@ from datetime import datetime
 from toolz import curry
 
 import prefect
+from prefect.tasks.secrets import Secret
 
 try:
     from jira import JIRA
