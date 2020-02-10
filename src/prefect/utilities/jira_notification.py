@@ -113,10 +113,10 @@ def jira_notifier(
         project_name = jira_credentials['JIRAPROJECT']
         options["project"] = project_name
 
-    issue = options.get("issue_type")
+    issue = options.get("issuetype")
 
     if not issue:
-        options["issue_type"] = {"name": "Task"}
+        options["issuetype"] = {"name": "Task"}
 
     summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
