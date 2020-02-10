@@ -127,7 +127,8 @@ def jira_notifier(
     created = jira.create_issue(options)
     if not created:
         raise ValueError("Creating Jira Issue for {} failed".format(tracked_obj))
-    assigned = jira.assign_issue(created, assignee)
-    if not assigned:
-        raise ValueError("Assigning Jira issue for {} failed".format(tracked_obj))
+    if assignee: 
+        assigned = jira.assign_issue(created, assignee)
+        if not assigned:
+            raise ValueError("Assigning Jira issue for {} failed".format(tracked_obj))
     return new_state
