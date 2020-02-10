@@ -642,6 +642,23 @@ args-list = 'ul.args, ol.args'
         font-weight: font-bold
 
 
+/* for code line highlighting */
+
+div[class*="language-"] .highlight-lines {
+    font-size: 0.95em;
+    line-height: 1.75;
+}
+
+div[class*="language-"] .highlight-lines .highlighted {
+    background-color: $codeHighlightColor; 
+}
+
+div[class*=language-] pre, div[class*=language-] pre[class*=language-] {
+    background: transparent; 
+    position: relative;
+    z-index: 1; 
+}
+
 /*  prefect code snippet languages */
 div[class~="language-bash"]
     &:before
@@ -661,3 +678,5 @@ div[class~="language-json"]
 
 .code-copy
     height: 0
+
+
