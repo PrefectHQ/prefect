@@ -95,7 +95,7 @@ class KubernetesAgent(Agent):
         Raises:
             - ValueError: if deployment attempted on unsupported Storage type
         """
-        self.logger.debug(
+        self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
 
