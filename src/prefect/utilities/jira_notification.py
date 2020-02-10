@@ -108,16 +108,17 @@ def jira_notifier(
     ):
         return new_state
 
-    if options.get("empty"):
-        options = {}
-    else:
-        print("options", options)
-        project = options.get("project")
-        issue = options.get("issuetype")
+    # if options.get("empty"):
+    #     options = {}
+    # else:
+    #     print("options", options)
+    #     project = options.get("project")
+    #     issue = options.get("issuetype")
 
-    if not project:
-        project_name = jira_credentials["JIRAPROJECT"]
-        options["project"] = project_name
+    # if not project:
+    print('options', options)
+    project_name = jira_credentials["JIRAPROJECT"]
+    options["project"] = project_name
 
     if not issue:
         options["issuetype"] = {"name": "Task"}
