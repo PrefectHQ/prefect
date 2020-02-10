@@ -684,7 +684,7 @@ class Client:
         If both `flow_id` and `version_group_id` are provided, only the `flow_id` will be used.
 
         Args:
-            - flow_id (str): the id of the Flow you wish to schedule
+            - flow_id (str, optional): the id of the Flow you wish to schedule
             - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
