@@ -43,6 +43,7 @@ def jira_notifier(
     only_states: list = None,
     server_URL: str = None,
     options: dict = None,
+    assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
     Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
@@ -95,7 +96,7 @@ def jira_notifier(
     # ignore_states = options['ignore_states'] or []
     # only_states = options['only_states'] or []
     # project_name: options['project_name'] or []
-    # assignee: str = "-1",
+    
 
     ignore_states = ignore_states or []
     only_states = only_states or []
