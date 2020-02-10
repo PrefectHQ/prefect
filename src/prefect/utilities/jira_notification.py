@@ -108,12 +108,13 @@ def jira_notifier(
     ):
         return new_state
 
-    # if options.get("empty"):
-    #     options = {}
-    # else:
-    #     print("options", options)
-    #     project = options.get("project")
-    #     issue = options.get("issuetype")
+    test = options.get("empty"):
+    if test:
+        options = {}
+    else:
+        print("options", options)
+        project = options.get("project")
+        issue = options.get("issuetype")
 
     # if not project:
     print('options', options)
