@@ -3,13 +3,13 @@ import aircraftlib as aclib
 from prefect import task, Flow, Parameter
 
 
-@task(max_retries=3, retry_delay=timedelta(seconds=1))
+@task(max_retries=3, retry_delay=timedelta(seconds=10))
 def extract_reference_data():
     print("fetching reference data...")
     return aclib.fetch_reference_data()
 
 
-@task(max_retries=3, retry_delay=timedelta(seconds=1))
+@task(max_retries=3, retry_delay=timedelta(seconds=10))
 def extract_live_data(airport, radius, ref_data):
     # Get the live aircraft vector data around the given airport (or none)
     area = None

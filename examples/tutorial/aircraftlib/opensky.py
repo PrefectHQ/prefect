@@ -5,7 +5,7 @@ import json
 import pathlib
 import struct
 import binascii
-from typing import Any, Optional, List, Dict
+from typing import Any, List, Dict
 
 import requests
 
