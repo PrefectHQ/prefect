@@ -83,7 +83,7 @@ def jira_notifier(
         ```
     """
 
-    jira_credentials = cast(str, prefect.client.Secret("JIRASECRETS").get())
+    jira_credentials = cast(dict, prefect.client.Secret("JIRASECRETS").get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 
@@ -109,7 +109,7 @@ def jira_notifier(
         return new_state
 
     if options:
-        print ('options', options)
+        print("options", options)
         project = options.get("project")
         if not project:
             project_name = jira_credentials["JIRAPROJECT"]
