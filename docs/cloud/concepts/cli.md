@@ -307,7 +307,7 @@ This defaults to the most recent version of a flow and to describe tasks for pas
 
 ### agent
 
-For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agent/overview.html).
+For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agents/overview.html).
 
 ### create
 

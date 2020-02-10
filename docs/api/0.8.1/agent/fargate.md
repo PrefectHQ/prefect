@@ -5,9 +5,9 @@ editLink: false
 # Fargate Agent
 ---
  ## FargateAgent
- <div class='class-sig' id='prefect-agent-fargate-agent-fargateagent'><p class="prefect-sig">class </p><p class="prefect-class">prefect.agent.fargate.agent.FargateAgent</p>(name=None, labels=None, aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None, region_name=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/fargate/agent.py#L12">[source]</a></span></div>
+ <div class='class-sig' id='prefect-agent-fargate-agent-fargateagent'><p class="prefect-sig">class </p><p class="prefect-class">prefect.agent.fargate.agent.FargateAgent</p>(name=None, labels=None, aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None, region_name=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agents/fargate/agent.py#L12">[source]</a></span></div>
 
-Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as long as the proper access configuration variables are set.  Information on using the Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
+Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as long as the proper access configuration variables are set.  Information on using the Fargate Agent can be found at https://docs.prefect.io/cloud/agents/fargate.html
 
 All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition` and `run_task`. For information on the kwargs supported visit the following links:
 
@@ -19,7 +19,7 @@ https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.h
 
 |methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
 |:----|
- | <div class='method-sig' id='prefect-agent-fargate-agent-fargateagent-deploy-flow'><p class="prefect-class">prefect.agent.fargate.agent.FargateAgent.deploy_flow</p>(flow_run)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/fargate/agent.py#L156">[source]</a></span></div>
+ | <div class='method-sig' id='prefect-agent-fargate-agent-fargateagent-deploy-flow'><p class="prefect-class">prefect.agent.fargate.agent.FargateAgent.deploy_flow</p>(flow_run)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agents/fargate/agent.py#L156">[source]</a></span></div>
 <p class="methods">Deploy flow runs to Fargate<br><br>**Args**:     <ul class="args"><li class="args">`flow_run (GraphQLResult)`: A GraphQLResult flow run object</li></ul>**Returns**:     <ul class="args"><li class="args">`str`: Information about the deployment</li></ul>**Raises**:     <ul class="args"><li class="args">`ValueError`: if deployment attempted on unsupported Storage type</li></ul></p>|
 
 ---
