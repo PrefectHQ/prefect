@@ -108,11 +108,12 @@ def jira_notifier(
     ):
         return new_state
 
-    # if not options["project_name"]:
-    #     options["project_name"] = jira_credentials["JIRAPROJECT"]
-    # project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+    project = options.get('project_name')
+    if not project:
+        project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+        options["project_name"] = project_name
 
-    issue = options.get('issue_type')
+    issue = options.get("issue_type")
 
     if not issue:
         options["issue_type"] = {"name": "Task"}
