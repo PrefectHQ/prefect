@@ -82,7 +82,7 @@ def jira_notifier(
         ```
     """
 
-    jira_credentials = cast(str, prefect.client.Secret('JIRASECRETS').get())
+    jira_credentials = cast(str, prefect.client.Secret("JIRASECRETS").get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 
@@ -108,15 +108,18 @@ def jira_notifier(
     ):
         return new_state
 
-    if not options["project_name"]:
-        options["project_name"] = jira_credentials["JIRAPROJECT"]
-        # project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
-    if not options["issue_type"]:
+    # if not options["project_name"]:
+    #     options["project_name"] = jira_credentials["JIRAPROJECT"]
+    # project_name = cast(str, prefect.client.Secret("JIRAPROJECT").get())
+
+    issue = options.get('issue_type')
+
+    if not issue:
         options["issue_type"] = {"name": "Task"}
 
     summary_text = str(jira_message_formatter(tracked_obj, new_state))
 
-    # options['summary_text'] = summary_text
+    options["summary_text"] = summary_text
 
     jira = JIRA(basic_auth=(username, password), options={"server": server_URL})
     created = jira.create_issue(options)
