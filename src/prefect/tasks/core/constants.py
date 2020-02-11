@@ -4,8 +4,6 @@ The tasks in this module can be used to represent constant values.
 In general, users will not instantiate these tasks by hand; they will be automatically created
 whenever the Prefect engine detects that a constant value is required. In many cases, Prefect
 will not add `Constant` tasks to the graph; optimizing them as flow-level attributes instead.
-
-```
 """
 
 from typing import Any
