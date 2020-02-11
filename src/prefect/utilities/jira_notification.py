@@ -52,7 +52,7 @@ def jira_notifier(
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
     Jira Notifier creates a new ticket with the information about the task or flow it is bound to when that task or flow is in a specific state. 
     (For example it will create a ticket to tell you that the flow you set it on is in a failed state.)  
-    You should use the options dictionary to set the project name and issue type (standard issue type can be issuetype = {'name':'Task'}).  
+    You should use the options dictionary to set the project name and issue type.  
     You can use the "assignee" argument to assign that ticket to a specific member of your team.
 
     Args:
@@ -60,7 +60,7 @@ def jira_notifier(
             registered with
         - old_state (State): previous state of tracked object
         - new_state (State): new state of tracked object
-        - options (Dictionary): Must inlucde a 'project' key and an 'issuetype' key (e.g. options = {'project': 'TEST', issuetype: {'name': 'task'}})
+        - options (Dictionary): Must inlucde a 'project' key and an 'issuetype' key (e.g. options = {'project': 'TEST', 'issuetype': {'name': 'task'}}). For jira service desk tickets, the issue type should use the request type id e.g. 'issuetype':  {'id': '10010'}. A description can be added using the key 'description'. Custom fields can also be added e.g.  'customfield_10017': 'SDTS/flowdown'
         - ignore_states ([State], optional): list of `State` classes to ignore,
             e.g., `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states, no notification will occur.
         - only_states ([State], optional): similar to `ignore_states`, but
