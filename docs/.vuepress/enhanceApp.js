@@ -24,6 +24,11 @@ export default ({ router }) => {
     {
       path: '/core/tutorials/*',
       redirect: '/core/advanced_tutorials/*'
+    },
+    // redirect from `cloud/agent` to `cloud/agents`
+    {
+      path: '/cloud/agent/*',
+      redirect: '/cloud/agents/*'
     }
   ])
 }

@@ -38,7 +38,7 @@ Ultimately, Python is Prefect's API; consequently, to run a process external to 
 We have developed an innovative "hybrid" model for Prefect Cloud - it is probably more accurate to think of Prefect Cloud as "on-prem lite". Prefect Cloud hosts a database and associated services which are responsible for tracking _metadata_ about your flows and tasks. The actual execution of your workflows occurs in _your infrastructure_, and is orchestrated through your Prefect agent.
 
 ::: tip Prefect Cloud requires no access to your infrastructure
-Surprisingly, Prefect Cloud requires _no access_ to your infrastructure or code. Information and communication is always initiated in one direction - _from_ your agent and workflows _to_ Cloud, but never the other way around. To better understand how data is managed, please see our write-up on [Cloud Dataflow](dataflow.html).
+Surprisingly, Prefect Cloud requires _no access_ to your infrastructure or code. Information and communication is always initiated in one direction - _from_ your agent and workflows _to_ Cloud, but never the other way around. To better understand how data is managed, please see our write-up on [Cloud Dataflow](/cloud/faq/dataflow.html).
 :::
 
 ### How does the Prefect Scheduler work?
