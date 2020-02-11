@@ -198,6 +198,35 @@ flow_id = flow.register(project_name="<YOUR_PROJECT>")
 s3_key = os.path.join('prefect-artifacts', slugify(flow.name), '{}.json'.format(flow_id[:8]))
 ```
 
+This functionality requires the agent have a proper IAM policy for fetching objects from S3, here is an example:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowListWorkBucket",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketAcl"
+            ],
+            "Resource": "<s3 bucket root>"
+        },
+        {
+            "Sid": "AllowGetPutDeleteWorkObject",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObjectVersion",
+                "s3:GetObject"
+            ],
+            "Resource": "<s3 bucket kwargs path"
+        }
+    ]
+}
+```
+
 #### Task Revisions
 
 By default, a new task definition is created each time there is a new flow version executed. However, ECS does offer the ability to apply changes through the use of revisions. The `enable_task_revisions` flag will enable using revisions by doing the following:
@@ -213,6 +242,58 @@ This means that for each flow, the proper task definition, based on flow ID and 
   - <flow name>:<revision number>
   - <flow name>:<revision number>
   - <flow name>:<revision number>
+```
+
+This functionality requires the agent have a proper IAM policy for creating task definition revisions and using the resource tagging API.  Here is an example IAM policy:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ResourceAllItems",
+            "Effect": "Allow",
+            "Action": [
+                "tag:Get*",
+                "logs:PutLogEvents",
+                "logs:CreateLogStream",
+                "logs:CreateLogGroup",
+                "events:PutTargets",
+                "events:PutRule",
+                "events:DescribeRule",
+                "ecs:StopTask",
+                "ecs:RegisterTaskDefinition",
+                "ecs:Describe*",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability",
+                "ec2:DescribeSubnets"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EcsTaskRun",
+            "Effect": "Allow",
+            "Action": "ecs:RunTask",
+            "Resource": "arn:aws:ecs:<region>:<account_id>:task-definition/*",
+            "Condition": {
+                "ForAllValues:StringEquals": {
+                    "aws:TagKeys": [
+                        "PrefectFlowVersion",
+                        "PrefectFlowId"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "IamPassRole",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "*"
+        }
+    ]
+}
 ```
 
 ### Configuration Examples
