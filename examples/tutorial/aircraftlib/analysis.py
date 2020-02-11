@@ -1,4 +1,3 @@
-import collections
 from typing import List, Any, Dict
 
 from .opensky import AIRCRAFT_VECTOR_FIELDS

@@ -92,7 +92,7 @@ To reenable heartbeats for a flow, rerun this mutation with `value` set to `Fals
 
 ### Disable Lazarus
 
-The Lazarus process is responsible for rescheduling flow runs under the circumstances described [here](lazarus-process.html). If this is not desirable behavior for your flow, use the following GraphQL mutation to disable it:
+The Lazarus process is responsible for rescheduling flow runs under the circumstances described [here](services.html#lazarus). If this is not desirable behavior for your flow, use the following GraphQL mutation to disable it:
 
 ```graphql
 mutation {

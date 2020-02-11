@@ -38,7 +38,7 @@ Registration only sends data about the existence and format of your Flow; **no a
 
 Now that your script is registered with Prefect Cloud, we will use an Agent to watch for Flow Runs that are scheduled by Prefect Cloud and execute them accordingly.
 
-The simplest way to start an [Local Agent](/cloud/agent/local.html) is right from within your script. Add the following line to the bottom of your Flow:
+The simplest way to start an [Local Agent](/cloud/agents/local.html) is right from within your script. Add the following line to the bottom of your Flow:
 
 ```python
 flow.run_agent()

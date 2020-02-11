@@ -35,7 +35,7 @@ def load(all_data):
 This would be functional, however, it still does not address some of the problems from the original code base:
 
 - What happens to already-fetched reference data if pulling live data fails?
-- What happends to the already-transformed data if the database is not available?
+- What happens to the already-transformed data if the database is not available?
 
 These points highlight the fact that `extract()` and `load()` are still arbitrarily scoped. This brings us to a rule of thumb when deciding how large to make each function: **_look at the input and output data that the workflow needs at each step._** In our case the reference data and live data come from different sources and are stored separately. Lets refactor a bit more, taking this new insight into consideration:
 
@@ -141,7 +141,8 @@ At this point, the `Tasks` (our Python functions) are executed in the appropriat
 
 ::: tip Prefect Task Library
 
-Prefect provides ready-made `Tasks` in our [Task Library](core/task_library/)!
+Prefect provides a [Task Library](/core/task_library/) that includes common Task implementations and integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, and more!
+
 :::
 
 ::: warning Up Next!

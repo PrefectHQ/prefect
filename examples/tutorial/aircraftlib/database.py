@@ -1,6 +1,6 @@
-from typing import List, Any, Dict, Tuple
+from typing import List, Any, Dict
 
-from sqlalchemy import Column, DateTime, String, Integer, Boolean, Float
+from sqlalchemy import Column, String, Integer, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

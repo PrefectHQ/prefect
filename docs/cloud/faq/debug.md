@@ -26,7 +26,7 @@ $ prefect get flows
 
 ## My flow is stuck in a `Submitted` state!
 
-Having flows stuck in a Submitted state most commonly indicates an issue with your execution platform (e.g., a full Kubernetes Cluster). A Submitted state means that an Agent found the flow run and _attempted_ to submit it for execution, but something is preventing the Flow Run from entering a Running state.  Note that Flow Runs which stay in Submitted states for too long are eventually "resurrected" and rescheduled with Cloud's [Lazarus Process](lazarus-process.html).
+Having flows stuck in a Submitted state most commonly indicates an issue with your execution platform (e.g., a full Kubernetes Cluster). A Submitted state means that an Agent found the flow run and _attempted_ to submit it for execution, but something is preventing the Flow Run from entering a Running state.  Note that Flow Runs which stay in Submitted states for too long are eventually "resurrected" and rescheduled with Cloud's [Lazarus Process](services.html#lazarus).
 
 Here are are some steps for debugging issues in execution:
 
