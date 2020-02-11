@@ -57,7 +57,7 @@ Many libraries like `boto3` and `snowflake.conector` are setup to emit their own
 with a logging configuration.  You may even have an internal shared library for your team with the same functionality.
 
 If you are doing this via the standard `logging` library you might do this:
-```
+```python
 import logging
 import sys
 for l in ['snowflake.connector', 'boto3', 'botocore']:

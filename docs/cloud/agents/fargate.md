@@ -221,7 +221,7 @@ This functionality requires the agent have a proper IAM policy for fetching obje
                 "s3:GetObjectVersion",
                 "s3:GetObject"
             ],
-            "Resource": "<s3 bucket kwargs path"
+            "Resource": "<s3 bucket kwargs path>"
         }
     ]
 }
