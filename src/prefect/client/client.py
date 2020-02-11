@@ -671,18 +671,20 @@ class Client:
 
     def create_flow_run(
         self,
-        flow_id: str,
+        flow_id: str = None,
         context: dict = None,
         parameters: dict = None,
         scheduled_start_time: datetime.datetime = None,
         idempotency_key: str = None,
         run_name: str = None,
+        version_group_id: str = None,
     ) -> str:
         """
         Create a new flow run for the given flow id.  If `start_time` is not provided, the flow run will be scheduled to start immediately.
+        If both `flow_id` and `version_group_id` are provided, only the `flow_id` will be used.
 
         Args:
-            - flow_id (str): the id of the Flow you wish to schedule
+            - flow_id (str, optional): the id of the Flow you wish to schedule
             - context (dict, optional): the run context
             - parameters (dict, optional): a dictionary of parameter values to pass to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution for; if not provided, defaults to now
@@ -692,6 +694,8 @@ class Client:
                 An error will be raised if parameters or context are provided and don't match the original.
                 Each subsequent request will reset the TTL for 24 hours.
             - run_name (str, optional): The name assigned to this flow run
+            - version_group_id (str, optional): if provided, the unique unarchived flow within this version group will be scheduled
+                to run.  This input can be used as a stable API for running flows which are regularly updated.
 
         Returns:
             - str: the ID of the newly-created flow run
@@ -704,7 +708,12 @@ class Client:
                 "createFlowRun(input: $input)": {"flow_run": "id"}
             }
         }
-        inputs = dict(flowId=flow_id)
+        if not flow_id and not version_group_id:
+            raise ValueError("One of flow_id or version_group_id must be provided")
+
+        inputs = (
+            dict(flowId=flow_id) if flow_id else dict(versionGroupId=version_group_id)  # type: ignore
+        )
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
         if context is not None:

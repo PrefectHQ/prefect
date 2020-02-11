@@ -110,7 +110,11 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         - false_task (Task): a task that will be executed if the condition is False
     """
 
-    switch(condition=condition, cases={True: true_task, False: false_task})
+    @prefect.task
+    def as_bool(x):
+        return bool(x)
+
+    switch(condition=as_bool(condition), cases={True: true_task, False: false_task})
 
 
 def merge(*tasks: Task) -> Task:

@@ -1,3 +1,7 @@
+---
+sidebarDepth: 2
+---
+
 # CLI
 
 In conjunction with both the GraphQL API and the UI, Prefect offers a fully integrated CLI for working with Prefect Cloud. With the GraphQL API being the backbone for communicating with Prefect Cloud, we have designed the CLI to operate as a wrapper for GraphQL queries and mutations.
@@ -303,7 +307,7 @@ This defaults to the most recent version of a flow and to describe tasks for pas
 
 ### agent
 
-For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agent/overview.html).
+For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agents/overview.html).
 
 ### create
 

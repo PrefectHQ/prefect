@@ -2,7 +2,7 @@
 
 ## StringFormatter <Badge text="task"/>
 
-A convenience Task for functionally creating Task instances with arbitrary callable `run` methods. This is the Task that powers Prefect's `@task` decorator.
+A task that formats a string template by apply keyword arguments.
 
 [API Reference](/api/latest/tasks/strings.html#prefect-tasks-templates-strings-stringformattertask)
 

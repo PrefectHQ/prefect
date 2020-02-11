@@ -146,8 +146,7 @@ classes = [
             "Executor",
             "DaskExecutor",
             "LocalDaskExecutor",
-            "LocalExecutor",
-            "SynchronousExecutor"]
+            "LocalExecutor"]
 
 [pages.engine.result]
 title = "Results"
@@ -179,11 +178,6 @@ title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
 classes = ["FilterTask"]
 functions = ["switch", "ifelse", "merge"]
-
-[pages.tasks.airflow]
-title = "Airflow Tasks"
-module = "prefect.tasks.airflow"
-classes = ["AirflowTask", "AirflowTriggerDAG"]
 
 [pages.tasks.airtable]
 title = "Airtable Tasks"

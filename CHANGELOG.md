@@ -10,6 +10,41 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
+- Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
+- Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
+- Add optional `version_group_id` kwarg to `create_flow_run` for a stable API for flow runs - [#1987](https://github.com/PrefectHQ/prefect/issues/1987)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Remove Airflow Tasks - [#1992](https://github.com/PrefectHQ/prefect/pull/1992)
+
+### Contributors
+
+- [Giorgio Pellero](https://github.com/trapped)
+
+## 0.9.3 <Badge text="beta" type="success"/>
+
+Released on Feb 05, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Improve heartbeat functionality to be robust across platforms - [#1973](https://github.com/PrefectHQ/prefect/pull/1973)
 - Run storage healthchecks on other options besides Docker - [1963](https://github.com/PrefectHQ/prefect/pull/1963)
 - Cloud logger now attempts to elevate logger errors to flow run logs - [#1961](https://github.com/PrefectHQ/prefect/pull/1961)
@@ -365,7 +400,7 @@ Released on Nov 5, 2019
 
 - None
 
-## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success">
+## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success"/>
 
 Released October 29, 2019
 

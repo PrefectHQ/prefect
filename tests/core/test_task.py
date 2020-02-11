@@ -228,6 +228,10 @@ class TestCreateTask:
             def run(x, task_args=None):
                 pass
 
+    def test_class_instantiation_raises_helpful_warning_for_unsupported_callables(self):
+        with pytest.raises(ValueError, match="This function can not be inspected"):
+            task(zip)
+
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
         assert t1.cache_validator is never_use
