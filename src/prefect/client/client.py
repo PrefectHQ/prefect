@@ -67,7 +67,7 @@ class Client:
 
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests
-            to; if not provided, will be pulled from `cloud.api` config var
+            to; if not provided, will be pulled from `cloud.graphql` config var
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
@@ -82,7 +82,7 @@ class Client:
         self._active_tenant_id = None
 
         # store api server
-        self.api_server = api_server or prefect.context.config.cloud.get("api")
+        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
 
         # store api token
         self._api_token = api_token or prefect.context.config.cloud.get(
