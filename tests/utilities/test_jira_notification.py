@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("jira")
+
 import prefect
 from prefect import Task, task
 from prefect.engine.state import (
