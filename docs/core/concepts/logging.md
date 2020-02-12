@@ -51,4 +51,34 @@ def my_task():
     logger.warning("A warning message.")
 ```
 
+### Extra Loggers
+
+Many libraries like `boto3` and `snowflake.conector` are setup to emit their own internal logs when configured 
+with a logging configuration.  You may even have an internal shared library for your team with the same functionality.
+
+If you are doing this via the standard `logging` library you might do this:
+```python
+import logging
+import sys
+for l in ['snowflake.connector', 'boto3', 'botocore']:
+    logger = logging.getLogger(l)
+    logger.setLevel('INFO')
+    log_stream = logging.StreamHandler(sys.stdout)
+    log_stream.setFormatter(LOG_FORMAT)
+    logger.addHandler(log_stream)
+```
+
+Given that Prefect already provides a way to configure logging for local and cloud, you can provide these 
+extra loggers to have them inherit the Prefect logging config to stream locally and also show up in cloud.
+
+In order for this to work you need to provide a list to `prefect.config.logging.extra_loggers`.
+
+Here is what the TOML config will look like:
+
+```
+[logging]
+# Extra loggers for Prefect log configuration
+extra_loggers = ['snowflake.connector', 'boto3', 'botocore', 'custom_lib']
+```
+
 :::

@@ -258,6 +258,8 @@ class FargateAgent(Agent):
             "inferenceAccelerators",
         ]
 
+        definition_kwarg_list_no_eval = ["cpu", "memory"]
+
         run_kwarg_list = [
             "cluster",
             "count",
@@ -273,13 +275,17 @@ class FargateAgent(Agent):
         ]
 
         task_definition_kwargs = {}
+        definition_kwarg_list_eval = {
+            i: (i not in definition_kwarg_list_no_eval) for i in definition_kwarg_list
+        }
         for key, item in user_kwargs.items():
             if key in definition_kwarg_list:
-                try:
-                    # Parse kwarg if needed
-                    item = literal_eval(item)
-                except (ValueError, SyntaxError):
-                    pass
+                if definition_kwarg_list_eval.get(key):
+                    try:
+                        # Parse kwarg if needed
+                        item = literal_eval(item)
+                    except (ValueError, SyntaxError):
+                        pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
 
@@ -300,11 +306,12 @@ class FargateAgent(Agent):
                 if not task_definition_kwargs.get(key) and os.getenv(key):
                     self.logger.debug("{} from environment variable".format(key))
                     def_env_value = os.getenv(key)
-                    try:
-                        # Parse env var if needed
-                        def_env_value = literal_eval(def_env_value)  # type: ignore
-                    except (ValueError, SyntaxError):
-                        pass
+                    if definition_kwarg_list_eval.get(key):
+                        try:
+                            # Parse env var if needed
+                            def_env_value = literal_eval(def_env_value)  # type: ignore
+                        except (ValueError, SyntaxError):
+                            pass
                     task_definition_kwargs.update({key: def_env_value})
 
             for key in run_kwarg_list:
