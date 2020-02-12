@@ -38,7 +38,7 @@ def test_auth_login(patch_post, monkeypatch):
     client.return_value.login_to_tenant = MagicMock(return_value=True)
     monkeypatch.setattr("prefect.cli.auth.Client", client)
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["login", "--token", "test"])
         assert result.exit_code == 0
@@ -47,7 +47,7 @@ def test_auth_login(patch_post, monkeypatch):
 def test_auth_login_client_error(patch_post):
     patch_post(dict(errors=dict(error="bad")))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["login", "--token", "test"])
         assert result.exit_code == 0
@@ -68,7 +68,7 @@ def test_auth_logout_after_login(patch_post, monkeypatch):
     client.return_value.login_to_tenant = MagicMock(return_value=True)
     monkeypatch.setattr("prefect.cli.auth.Client", client)
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
 
         result = runner.invoke(auth, ["login", "--token", "test"])
@@ -81,7 +81,7 @@ def test_auth_logout_after_login(patch_post, monkeypatch):
 def test_auth_logout_not_confirm(patch_post):
     patch_post(dict(data=dict(tenant="id")))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["logout"], input="N")
         assert result.exit_code == 1
@@ -90,7 +90,7 @@ def test_auth_logout_not_confirm(patch_post):
 def test_auth_logout_no_active_tenant(patch_post):
     patch_post(dict(data=dict(tenant="id")))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["logout"], input="Y")
         assert result.exit_code == 0
@@ -111,7 +111,7 @@ def test_list_tenants(patch_post):
         )
     )
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["list-tenants"])
         assert result.exit_code == 0
@@ -121,7 +121,7 @@ def test_list_tenants(patch_post):
 
 
 def test_switch_tenants(monkeypatch):
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         monkeypatch.setattr("prefect.cli.auth.Client", MagicMock())
 
         runner = CliRunner()
@@ -131,7 +131,7 @@ def test_switch_tenants(monkeypatch):
 
 
 def test_switch_tenants(monkeypatch):
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         client = MagicMock()
         client.return_value.login_to_tenant = MagicMock(return_value=False)
         monkeypatch.setattr("prefect.cli.auth.Client", client)
@@ -145,7 +145,7 @@ def test_switch_tenants(monkeypatch):
 def test_create_token(patch_post):
     patch_post(dict(data=dict(createAPIToken={"token": "token"})))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["create-token", "-n", "name", "-r", "role"])
         assert result.exit_code == 0
@@ -155,7 +155,7 @@ def test_create_token(patch_post):
 def test_create_token_fails(patch_post):
     patch_post(dict())
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["create-token", "-n", "name", "-r", "role"])
         assert result.exit_code == 0
@@ -165,7 +165,7 @@ def test_create_token_fails(patch_post):
 def test_list_tokens(patch_post):
     patch_post(dict(data=dict(api_token=[{"id": "id", "name": "name"}])))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["list-tokens"])
         assert result.exit_code == 0
@@ -176,7 +176,7 @@ def test_list_tokens(patch_post):
 def test_list_tokens_fails(patch_post):
     patch_post(dict())
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["list-tokens"])
         assert result.exit_code == 0
@@ -186,7 +186,7 @@ def test_list_tokens_fails(patch_post):
 def test_revoke_token(patch_post):
     patch_post(dict(data=dict(deleteAPIToken={"success": True})))
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["revoke-token", "--id", "id"])
         assert result.exit_code == 0
@@ -196,7 +196,7 @@ def test_revoke_token(patch_post):
 def test_revoke_token_fails(patch_post):
     patch_post(dict())
 
-    with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+    with set_temporary_config({"cloud.api": "http://my-cloud.foo"}):
         runner = CliRunner()
         result = runner.invoke(auth, ["revoke-token", "--id", "id"])
         assert result.exit_code == 0

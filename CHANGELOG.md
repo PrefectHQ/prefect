@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Point the Prefect client toward `api.prefect.io` - [#1989](https://github.com/PrefectHQ/prefect/pull/1989)
 - Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
