@@ -66,7 +66,7 @@ def jira_notifier(
         - only_states ([State], optional): similar to `ignore_states`, but
             instead _only_ notifies you if the Task / Flow is in a state from the provided list of `State` classes
         - server_URL (String): The URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
-        - assignee - the atlassian username of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. 
+        - assignee: the atlassian username of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. 
 
     Returns:
         - State: the `new_state` object that was provided
