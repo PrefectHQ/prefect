@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
 - Add optional `version_group_id` kwarg to `create_flow_run` for a stable API for flow runs - [#1987](https://github.com/PrefectHQ/prefect/issues/1987)
+- Add ConditionNotMet signal and state - [#2017](https://github.com/PrefectHQ/prefect/pull/2017)
 
 ### Task Library
 
@@ -23,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
+- Allow ControlFlow switch to be used back-to-back - [#2017](https://github.com/PrefectHQ/prefect/pull/2017)
 
 ### Deprecations
 

@@ -651,6 +651,23 @@ class Success(Finished):
     color = "#28a745"
 
 
+class ConditionNotMet(Success):
+    """
+    Finished state indicating to a downstream Task that an upstream condition was not met.
+
+    Args:
+        - message (str or Exception, optional): Defaults to `None`. A message about the
+            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
+        - result (Any, optional): Defaults to `None`. A data payload for the state.
+        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
+            Used / set if the Task requires retries.
+        - context (dict, optional): A dictionary of execution context information; values
+            should be JSON compatible
+    """
+
+    color = "#fcba03"
+
+
 class Cached(Success):
     """
     Cached, which represents a Task whose outputs have been cached.

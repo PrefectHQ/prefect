@@ -174,6 +174,11 @@ class PausedSchema(ScheduledSchema):
         object_class = state.Paused
 
 
+class ConditionNotMetSchema(SuccessSchema):
+    class Meta:
+        object_class = state.ConditionNotMet
+
+
 class StateSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -200,4 +205,5 @@ class StateSchema(OneOfSchema):
         "Success": SuccessSchema,
         "TimedOut": TimedOutSchema,
         "TriggerFailed": TriggerFailedSchema,
+        "ConditionNotMet": ConditionNotMetSchema,
     }

@@ -175,3 +175,18 @@ class PAUSE(PrefectStateSignal):
     """
 
     _state_cls = state.Paused
+
+
+class CONDITIONNOTMET(PrefectStateSignal):
+    """
+    Indicates that a downstream task should not run due to a failed condition.
+
+    Args:
+        - message (Any, optional): Defaults to `None`. A message about the signal.
+        - *args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
+    """
+
+    _state_cls = state.ConditionNotMet

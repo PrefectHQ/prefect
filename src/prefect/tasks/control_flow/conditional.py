@@ -44,7 +44,7 @@ class CompareValue(Task):
             - value (Any): the value that will be matched against the task's value.
         """
         if value != self.value:
-            raise signals.SKIP(
+            raise signals.CONDITIONNOTMET(
                 'Provided value "{}" did not match "{}"'.format(value, self.value)
             )
 
