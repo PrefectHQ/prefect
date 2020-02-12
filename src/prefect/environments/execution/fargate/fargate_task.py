@@ -21,7 +21,7 @@ class FargateTaskEnvironment(Environment):
     These environment variables are required for cloud but do not need to be included because
     they are instead automatically added and populated during execution:
 
-    - `PREFECT__CLOUD__API`
+    - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__IMAGE`
@@ -180,7 +180,7 @@ class FargateTaskEnvironment(Environment):
 
         if not definition_exists:
             env_values = [
-                {"name": "PREFECT__CLOUD__API", "value": config.cloud.api},
+                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",

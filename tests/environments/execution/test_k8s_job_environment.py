@@ -270,7 +270,7 @@ def test_populate_job_yaml():
             job["spec"]["template"]["spec"]["containers"][0]["env"] = []
 
         with set_temporary_config(
-            {"cloud.api": "gql_test", "cloud.auth_token": "auth_test"}
+            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -330,7 +330,7 @@ def test_populate_job_yaml_no_defaults():
             del job["spec"]["template"]["metadata"]
 
         with set_temporary_config(
-            {"cloud.api": "gql_test", "cloud.auth_token": "auth_test"}
+            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -393,7 +393,7 @@ def test_populate_job_yaml_multiple_containers():
             job["spec"]["template"]["spec"]["containers"][1]["env"] = []
 
         with set_temporary_config(
-            {"cloud.api": "gql_test", "cloud.auth_token": "auth_test"}
+            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(

@@ -10,8 +10,8 @@ spec:
     args: [dask-worker, --no-bokeh, --death-timeout, '60']
     name: dask-worker
     env:
-      - name: PREFECT__CLOUD__API
-        value: PREFECT__CLOUD__API
+      - name: PREFECT__CLOUD__GRAPHQL
+        value: PREFECT__CLOUD__GRAPHQL
       - name: PREFECT__CLOUD__AUTH_TOKEN
         value: PREFECT__CLOUD__AUTH_TOKEN
       - name: PREFECT__CONTEXT__FLOW_RUN_ID
