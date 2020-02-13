@@ -63,7 +63,7 @@ In the above YAML block, `flow-container` will be changed during execution:
 - `env` will have some extra variables automatically appended to it for Cloud-based Flow runs:
 
 ```
-PREFECT__CLOUD__API
+PREFECT__CLOUD__GRAPHQL
 PREFECT__CLOUD__AUTH_TOKEN
 PREFECT__CONTEXT__FLOW_RUN_ID
 PREFECT__CONTEXT__NAMESPACE

@@ -10,7 +10,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Point the Prefect client toward `api.prefect.io` - [#1989](https://github.com/PrefectHQ/prefect/pull/1989)
 - Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
@@ -27,6 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
 - Allow ControlFlow switch to be used back-to-back - [#2017](https://github.com/PrefectHQ/prefect/pull/2017)
 - Do not perform `ast.literal_eval` on cpu and memory task_definition kwargs for Fargate Agent - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
+- Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled - [#2022](https://github.com/PrefectHQ/prefect/pull/2022)
 
 ### Deprecations
 

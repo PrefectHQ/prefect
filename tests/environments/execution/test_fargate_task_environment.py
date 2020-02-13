@@ -254,7 +254,10 @@ def test_setup_definition_register(monkeypatch):
                 "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api,},
+                {
+                    "name": "PREFECT__CLOUD__GRAPHQL",
+                    "value": prefect.config.cloud.graphql,
+                },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -289,7 +292,10 @@ def test_setup_definition_register_no_defintions(monkeypatch):
     ] == [
         {
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api,},
+                {
+                    "name": "PREFECT__CLOUD__GRAPHQL",
+                    "value": prefect.config.cloud.graphql,
+                },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -509,7 +515,10 @@ def test_entire_environment_process_together(monkeypatch):
                     "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
                 ],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": prefect.config.cloud.api,},
+                    {
+                        "name": "PREFECT__CLOUD__GRAPHQL",
+                        "value": prefect.config.cloud.graphql,
+                    },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
