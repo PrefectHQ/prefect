@@ -12,16 +12,20 @@ from prefect.engine.state import (
     Skipped,
     State,
     Success,
+    ConditionNotMet,
 )
 
 
-def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0) -> dict:
+def generate_states(
+    success=0, failed=0, skipped=0, pending=0, retrying=0, condition_not_met=0
+) -> dict:
     state_counts = {
         Success: success,
         Failed: failed,
         Skipped: skipped,
         Pending: pending,
         Retrying: retrying,
+        ConditionNotMet: condition_not_met,
     }
 
     states = set()
@@ -39,6 +43,34 @@ def test_all_successful_with_all_success():
 def test_all_successful_with_all_success_or_skipped():
     # True when all successful or skipped
     assert triggers.all_successful(generate_states(success=3, skipped=3))
+
+
+def test_all_successful_and_ignore_conditions():
+    # True when all successful
+    assert triggers.all_successful_ignore_conditions(
+        generate_states(success=3, condition_not_met=3)
+    )
+
+
+def test_all_successful_and_ignore_conditions_with_only_conditions():
+    # True when all successful
+    assert triggers.all_successful_ignore_conditions(
+        generate_states(condition_not_met=3)
+    )
+
+
+def test_all_successful_with_condition_not_met():
+    # Skip when condition not met
+    with pytest.raises(signals.SKIP):
+        triggers.all_successful(generate_states(success=3, condition_not_met=2))
+
+
+def test_all_successful_with_failure_and_condition_not_met():
+    # Prefer triggering failure over condition not met
+    with pytest.raises(signals.TRIGGERFAIL):
+        triggers.all_successful(
+            generate_states(success=3, failed=3, condition_not_met=2)
+        )
 
 
 def test_all_successful_with_all_failed():

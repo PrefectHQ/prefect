@@ -225,6 +225,57 @@ def test_merge_diamond_flow_with_results():
         assert state.result[merge_task].result == 0
 
 
+def test_back_to_back_switches():
+    # regression test for https://github.com/PrefectHQ/prefect/issues/2017
+    log = []
+
+    @prefect.task()
+    def is_a_enabled():
+        return True
+
+    @prefect.task()
+    def is_b_enabled():
+        return False
+
+    @prefect.task()
+    def is_c_enabled():
+        return True
+
+    @prefect.task()
+    def start():
+        nonlocal log
+        log.append("start")
+
+    @prefect.task(skip_on_upstream_skip=False)
+    def a_task():
+        nonlocal log
+        log.append("a")
+
+    @prefect.task(skip_on_upstream_skip=False)
+    def b_task():
+        nonlocal log
+        log.append("b")
+
+    @prefect.task(skip_on_upstream_skip=False)
+    def c_task():
+        nonlocal log
+        log.append("c")
+
+    @prefect.task(skip_on_upstream_skip=False)
+    def finish():
+        nonlocal log
+        log.append("finish")
+
+    with prefect.Flow("My Flow") as flow:
+        switch(is_a_enabled, {True: a_task})
+        switch(is_b_enabled, {True: b_task})
+        switch(is_c_enabled, {True: c_task})
+        flow.chain(start, a_task, b_task, c_task, finish)
+
+    flow.run()
+    assert log == ["start", "a", "c", "finish"]
+
+
 def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():
     condition = Condition()
 

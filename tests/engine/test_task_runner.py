@@ -542,22 +542,15 @@ class TestCheckUpstreamFinished:
 class TestCheckUpstreamConditions:
     def test_empty(self):
         state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_conditions_met(
+        new_state = TaskRunner(Task()).check_task_trigger(
             state=state, upstream_states={}
-        )
-        assert new_state is state
-
-    def test_ignore_non_condition_states(self):
-        state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_conditions_met(
-            state=state, upstream_states={1: Success(), 2: Failed()}
         )
         assert new_state is state
 
     def test_raises_with_skipped_on_condition_not_met(self):
         state = Pending()
         with pytest.raises(ENDRUN) as exc:
-            TaskRunner(Task()).check_upstream_conditions_met(
+            TaskRunner(Task()).check_task_trigger(
                 state=state, upstream_states={1: ConditionNotMet()}
             )
         assert isinstance(exc.value.state, Skipped)
@@ -567,24 +560,12 @@ class TestCheckUpstreamConditions:
         task = Task()
         with pytest.raises(ENDRUN) as exc:
             edge = Edge(1, 2, mapped=False)
-            new_state = TaskRunner(task).check_upstream_conditions_met(
+            new_state = TaskRunner(task).check_task_trigger(
                 state=state,
                 upstream_states={
                     edge: Mapped(map_states=[ConditionNotMet(), Success()])
                 },
             )
-
-    def test_doesnt_raise_if_single_mapped_upstream_condition_not_met_and_edge_is_mapped(
-        self,
-    ):
-        state = Pending()
-        task = Task()
-        edge = Edge(1, 2, mapped=True)
-        new_state = TaskRunner(task).check_upstream_conditions_met(
-            state=state,
-            upstream_states={edge: Mapped(map_states=[ConditionNotMet(), Success()])},
-        )
-        assert new_state is state
 
 
 class TestCheckUpstreamSkipped:

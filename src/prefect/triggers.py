@@ -81,16 +81,36 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
 
 def all_successful(upstream_states: Set["state.State"]) -> bool:
     """
+    Runs if all upstream tasks were successful and all upstream conditions were met.
+    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are
+    considered failures.
+
+    Args:
+        - upstream_states (set[State]): the set of all upstream states
+    """
+    if not all(s.is_successful() for s in upstream_states):
+        raise signals.TRIGGERFAIL(
+            'Trigger was "all_successful" but some of the upstream tasks failed.'
+        )
+
+    if len([s for s in upstream_states if isinstance(s, state.ConditionNotMet)]) > 0:
+        raise signals.SKIP(
+            'Trigger was "all_successful" but some of the upstream tasks had unmet conditions.'
+        )
+    return True
+
+
+def all_successful_ignore_conditions(upstream_states: Set["state.State"]) -> bool:
+    """
     Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
     successes and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
-
     if not all(s.is_successful() for s in upstream_states):
         raise signals.TRIGGERFAIL(
-            'Trigger was "all_successful" but some of the upstream tasks failed.'
+            'Trigger was "all_successful_ignore_conditions" but some of the upstream tasks failed.'
         )
     return True
 
