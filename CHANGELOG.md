@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
 
 ### Enhancements
 
