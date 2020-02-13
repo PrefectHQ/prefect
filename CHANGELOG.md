@@ -25,7 +25,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
 - Do not perform `ast.literal_eval` on cpu and memory task_definition kwargs for Fargate Agent - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
-- Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled
+- Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled - [#2022](https://github.com/PrefectHQ/prefect/pull/2022)
+
 ### Deprecations
 
 - None
