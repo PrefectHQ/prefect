@@ -22,6 +22,7 @@ import prefect.engine.cache_validators
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
+from prefect.utilities.tasks import unmapped
 from prefect.utilities.notifications import callback_factory
 
 if TYPE_CHECKING:
@@ -476,7 +477,7 @@ class Task(metaclass=SignatureValidator):
             - Task: a new Task instance
         """
         for arg in args:
-            if not hasattr(arg, "__getitem__"):
+            if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
                 raise TypeError(
                     "cannot map over an unsubscriptable object ({})".format(arg)
                 )
