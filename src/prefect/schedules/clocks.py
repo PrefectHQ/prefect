@@ -264,6 +264,11 @@ class CronClock(Clock):
                 microsecond=after.microsecond,
             )
         )
+
+        # Respect microseconds by rounding up
+        if after_localized.microsecond:
+            after_localized = after_localized + timedelta(seconds=1)
+
         cron = croniter(self.cron, after_localized)
         dates = set()  # type: Set[datetime]
 
