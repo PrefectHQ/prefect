@@ -10,9 +10,43 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.4 <Badge text="beta" type="success"/>
+
+Released on Feb 14, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Add incremental tutorial - [#1953](https://github.com/PrefectHQ/prefect/issues/1953)
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
+- Add optional `version_group_id` kwarg to `create_flow_run` for a stable API for flow runs - [#1987](https://github.com/PrefectHQ/prefect/issues/1987)
+- Add `extra_loggers` logging configuration for non-Prefect logs in stdout and cloud - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
 
 ### Task Library
 
@@ -21,6 +55,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
+- Do not perform `ast.literal_eval` on cpu and memory task_definition kwargs for Fargate Agent - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
+- Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled - [#2022](https://github.com/PrefectHQ/prefect/pull/2022)
 
 ### Deprecations
 
@@ -33,6 +69,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Giorgio Pellero](https://github.com/trapped)
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.9.3 <Badge text="beta" type="success"/>
 

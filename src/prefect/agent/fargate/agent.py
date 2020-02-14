@@ -16,7 +16,7 @@ class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
     long as the proper access configuration variables are set.  Information on using the
-    Fargate Agent can be found at https://docs.prefect.io/cloud/agent/fargate.html
+    Fargate Agent can be found at https://docs.prefect.io/cloud/agents/fargate.html
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -104,9 +104,6 @@ class FargateAgent(Agent):
         self.use_external_kwargs = use_external_kwargs
         self.external_kwargs_s3_bucket = external_kwargs_s3_bucket
         self.external_kwargs_s3_key = external_kwargs_s3_key
-
-        # populate task_definition_name as None to start
-        self.task_definition_name = None
 
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(
@@ -258,6 +255,8 @@ class FargateAgent(Agent):
             "inferenceAccelerators",
         ]
 
+        definition_kwarg_list_no_eval = ["cpu", "memory"]
+
         run_kwarg_list = [
             "cluster",
             "count",
@@ -273,13 +272,17 @@ class FargateAgent(Agent):
         ]
 
         task_definition_kwargs = {}
+        definition_kwarg_list_eval = {
+            i: (i not in definition_kwarg_list_no_eval) for i in definition_kwarg_list
+        }
         for key, item in user_kwargs.items():
             if key in definition_kwarg_list:
-                try:
-                    # Parse kwarg if needed
-                    item = literal_eval(item)
-                except (ValueError, SyntaxError):
-                    pass
+                if definition_kwarg_list_eval.get(key):
+                    try:
+                        # Parse kwarg if needed
+                        item = literal_eval(item)
+                    except (ValueError, SyntaxError):
+                        pass
                 task_definition_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
 
@@ -300,11 +303,12 @@ class FargateAgent(Agent):
                 if not task_definition_kwargs.get(key) and os.getenv(key):
                     self.logger.debug("{} from environment variable".format(key))
                     def_env_value = os.getenv(key)
-                    try:
-                        # Parse env var if needed
-                        def_env_value = literal_eval(def_env_value)  # type: ignore
-                    except (ValueError, SyntaxError):
-                        pass
+                    if definition_kwarg_list_eval.get(key):
+                        try:
+                            # Parse env var if needed
+                            def_env_value = literal_eval(def_env_value)  # type: ignore
+                        except (ValueError, SyntaxError):
+                            pass
                     task_definition_kwargs.update({key: def_env_value})
 
             for key in run_kwarg_list:
@@ -341,6 +345,9 @@ class FargateAgent(Agent):
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
 
+        # create task_definition_name dict for passing into verify method
+        task_definition_dict = {}
+
         if self.use_external_kwargs:
             # override from  external kwargs
             self._override_kwargs(
@@ -350,11 +357,11 @@ class FargateAgent(Agent):
         # set proper task_definition_name and tags based on enable_task_revisions flag
         if self.enable_task_revisions:
             # set task definition name
-            self.task_definition_name = slugify(flow_run.flow.name)
+            task_definition_dict["task_definition_name"] = slugify(flow_run.flow.name)
             self._add_flow_tags(flow_run, flow_task_definition_kwargs)
 
         else:
-            self.task_definition_name = "prefect-task-{}".format(  # type: ignore
+            task_definition_dict["task_definition_name"] = "prefect-task-{}".format(  # type: ignore
                 flow_run.flow.id[:8]  # type: ignore
             )  # type: ignore
 
@@ -367,23 +374,32 @@ class FargateAgent(Agent):
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")
-        if not self._verify_task_definition_exists(flow_run):
+        if not self._verify_task_definition_exists(flow_run, task_definition_dict):
             self.logger.debug("No task definition found")
-            self._create_task_definition(flow_run, flow_task_definition_kwargs)
+            self._create_task_definition(
+                flow_run,
+                flow_task_definition_kwargs,
+                task_definition_dict["task_definition_name"],
+            )
 
         # run task
-        task_arn = self._run_task(flow_run, flow_task_run_kwargs)
+        task_arn = self._run_task(
+            flow_run, flow_task_run_kwargs, task_definition_dict["task_definition_name"]
+        )
 
         self.logger.debug("Run created for task {}".format(task_arn))
 
         return "Task ARN: {}".format(task_arn)
 
-    def _verify_task_definition_exists(self, flow_run: GraphQLResult) -> bool:
+    def _verify_task_definition_exists(
+        self, flow_run: GraphQLResult, task_definition_dict: dict
+    ) -> bool:
         """
         Check if a task definition already exists for the flow
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult representing a flow run object
+            - task_definition_dict(dict): Dictionary containing task definition name to update if needed.
 
         Returns:
             - bool: whether or not a preexisting task definition is found for this flow
@@ -392,7 +408,7 @@ class FargateAgent(Agent):
 
         try:
             definition_exists = True
-            task_definition_name = self.task_definition_name
+            task_definition_name = task_definition_dict["task_definition_name"]
             definition_response = self.boto3_client.describe_task_definition(
                 taskDefinition=task_definition_name, include=["TAGS"]
             )
@@ -417,7 +433,7 @@ class FargateAgent(Agent):
                         ResourceTypeFilters=["ecs:task-definition"],
                     )
                     if tag_search["ResourceTagMappingList"]:
-                        self.task_definition_name = [
+                        task_definition_dict["task_definition_name"] = [
                             x.get("ResourceARN")
                             for x in tag_search["ResourceTagMappingList"]
                         ][-1]
@@ -438,7 +454,10 @@ class FargateAgent(Agent):
         return definition_exists
 
     def _create_task_definition(
-        self, flow_run: GraphQLResult, flow_task_definition_kwargs: dict
+        self,
+        flow_run: GraphQLResult,
+        flow_task_definition_kwargs: dict,
+        task_definition_name: str,
     ) -> None:
         """
         Create a task definition for the flow that each flow run will use. This function
@@ -447,13 +466,13 @@ class FargateAgent(Agent):
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
             - flow_task_definition_kwargs (dict): kwargs to use for registration
+            - task_definition_name (str): task definition name to use
         """
         self.logger.debug(
             "Using image {} for task definition".format(
                 StorageSchema().load(flow_run.flow.storage).name  # type: ignore
             )
         )
-        task_definition_name = self.task_definition_name
         container_definitions = [
             {
                 "name": "flow",
@@ -506,13 +525,19 @@ class FargateAgent(Agent):
             **flow_task_definition_kwargs
         )
 
-    def _run_task(self, flow_run: GraphQLResult, flow_task_run_kwargs: dict) -> str:
+    def _run_task(
+        self,
+        flow_run: GraphQLResult,
+        flow_task_run_kwargs: dict,
+        task_definition_name: str,
+    ) -> str:
         """
         Run a task using the flow run.
 
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
             - flow_task_run_kwargs (dict): kwargs to use for task run
+            - task_definition_name (str): task definition name to use
         """
         container_overrides = [
             {
@@ -530,7 +555,6 @@ class FargateAgent(Agent):
             }
         ]
 
-        task_definition_name = self.task_definition_name
         # Run task
         self.logger.debug(
             "Running task using task definition {}".format(

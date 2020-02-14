@@ -422,7 +422,7 @@ def test_deploy_flow_raises(monkeypatch, runner_token):
                     "flow": GraphQLResult({"storage": Local().serialize(), "id": "id"}),
                     "id": "id",
                 }
-            )
+            ),
         )
 
     assert not boto3_client.describe_task_definition.called
@@ -722,8 +722,8 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
         "requiresCompatibilities"
     ] == ["FARGATE"]
     assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
-    assert boto3_client.register_task_definition.call_args[1]["cpu"] == 1
-    assert boto3_client.register_task_definition.call_args[1]["memory"] == 2
+    assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
+    assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
 @pytest.mark.parametrize("flag", [True, False])
@@ -830,8 +830,8 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         "requiresCompatibilities"
     ] == ["FARGATE"]
     assert boto3_client.register_task_definition.call_args[1]["networkMode"] == "awsvpc"
-    assert boto3_client.register_task_definition.call_args[1]["cpu"] == 1
-    assert boto3_client.register_task_definition.call_args[1]["memory"] == 2
+    assert boto3_client.register_task_definition.call_args[1]["cpu"] == "1"
+    assert boto3_client.register_task_definition.call_args[1]["memory"] == "2"
 
 
 def test_deploy_flow_register_task_definition_no_repo_credentials(
@@ -988,7 +988,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
         ],
     )
     assert boto3_client.run_task.called
-    assert agent.task_definition_name == "name"
+    assert boto3_client.run_task.called_with(taskDefinition="name")
 
 
 def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_token):
@@ -1026,8 +1026,7 @@ def test_deploy_flows_enable_task_revisions_tags_current(monkeypatch, runner_tok
     )
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.not_called
-    assert boto3_client.run_task.called
-    assert agent.task_definition_name == "name-1"
+    assert boto3_client.run_task.called_with(taskDefinition="name-1")
 
 
 def test_deploy_flows_enable_task_revisions_old_version_exists(
@@ -1072,10 +1071,8 @@ def test_deploy_flows_enable_task_revisions_old_version_exists(
     assert boto3_client.describe_task_definition.called
     assert boto3_client.get_resources.called
     assert boto3_client.register_task_definition.not_called
-    assert boto3_client.run_task.called
-    assert (
-        agent.task_definition_name
-        == "arn:aws:ecs:us-east-1:12345:task-definition/flow:22"
+    assert boto3_client.run_task.called_with(
+        taskDefinition="arn:aws:ecs:us-east-1:12345:task-definition/flow:22"
     )
 
 
@@ -1126,7 +1123,7 @@ def test_override_kwargs(monkeypatch, runner_token):
 
     assert boto3_resource.called
     assert streaming_body.read().decode.called
-    assert definition_kwargs == {"cpu": 256}
+    assert definition_kwargs == {"cpu": "256"}
     assert run_kwargs == {"networkConfiguration": "test"}
 
 
@@ -1224,7 +1221,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_t
     assert boto3_client.describe_task_definition.called
     assert boto3_client.register_task_definition.not_called
     assert boto3_client.run_task.called
-    assert agent.task_definition_name == "name"
+    assert boto3_client.run_task.called_with(taskDefinition="name")
 
 
 def test_deploy_flows_enable_task_revisions_with_external_kwargs(
@@ -1310,7 +1307,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "essential": True,
             }
         ],
-        cpu=256,
+        cpu="256",
         family="name",
         networkMode="awsvpc",
         requiresCompatibilities=["FARGATE"],
@@ -1338,7 +1335,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         taskDefinition="name",
         tags=[{"key": "test", "value": "test"}],
     )
-    assert agent.task_definition_name == "name"
+    assert boto3_client.run_task.called_with(taskDefinition="name")
 
 
 def test_deploy_flows_disable_task_revisions_with_external_kwargs(
@@ -1411,4 +1408,4 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
         taskDefinition="prefect-task-new_id",
         tags=[{"key": "test", "value": "test"}],
     )
-    assert agent.task_definition_name == "prefect-task-new_id"
+    assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
