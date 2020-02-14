@@ -200,7 +200,7 @@ class CronClock(Clock):
 
     NOTE: `CronClock` respects microseconds meaning for a clock that runs once a day, if
     the start time is `(2020, 1, 1, 0, 0, 0, 1)` then the first scheduled run will be
-    `(2050, 1, 2, 0, 0, 0, 0)`.
+    `(2020, 1, 2, 0, 0, 0, 0)`.
 
     Args:
         - cron (str): a valid cron string
