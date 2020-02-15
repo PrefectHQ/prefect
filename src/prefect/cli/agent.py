@@ -106,7 +106,6 @@ def agent():
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
 @click.option(
     "--volume",
-    "-v",
     multiple=True,
     help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
     hidden=True,
@@ -162,8 +161,8 @@ def start(
         --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
         --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
-        --volume, -v    TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
-                                Multiple values supported e.g. `-v /some/path -v /some/other/path`
+        --volume        TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
+                                Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
 
     \b
     Kubernetes Agent Options:
