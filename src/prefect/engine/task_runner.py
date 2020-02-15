@@ -719,7 +719,7 @@ class TaskRunner(Runner):
                         if not state.is_mapped() or upstream_state._result != NoResult:
                             if not hasattr(upstream_state.result, "__getitem__"):
                                 raise TypeError(
-                                    "cannot map over an unsubscriptable object ({})".format(
+                                    "Cannot map over an unsubscriptable object ({})".format(
                                         upstream_state.result
                                     )
                                 )

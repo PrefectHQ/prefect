@@ -479,7 +479,7 @@ class Task(metaclass=SignatureValidator):
         for arg in args:
             if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
                 raise TypeError(
-                    "cannot map over an unsubscriptable object ({})".format(arg)
+                    "Cannot map over an unsubscriptable object ({})".format(arg)
                 )
         new = self.copy(**(task_args or {}))
         return new.bind(
