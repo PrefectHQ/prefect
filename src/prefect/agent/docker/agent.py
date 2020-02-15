@@ -1,5 +1,7 @@
 from sys import platform
-from typing import Iterable, List
+import os
+import re
+from typing import Iterable, List, Dict, Tuple
 import multiprocessing
 
 import docker
@@ -49,6 +51,7 @@ class DockerAgent(Agent):
         env_vars: dict = None,
         base_url: str = None,
         no_pull: bool = None,
+        volumes: List[str] = None,
         show_flow_logs: bool = False,
     ) -> None:
         super().__init__(name=name, labels=labels, env_vars=env_vars)
@@ -68,6 +71,13 @@ class DockerAgent(Agent):
         # Determine pull specification
         self.no_pull = no_pull or context.get("no_pull", False)
         self.logger.debug("no_pull set to {}".format(self.no_pull))
+
+        # Resolve volumes from specs
+        (
+            self.named_volumes,
+            self.container_mount_paths,
+            self.host_spec,
+        ) = self._parse_volume_spec(volumes or [])
 
         self.failed_connections = 0
         self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
@@ -110,6 +120,70 @@ class DockerAgent(Agent):
             if proc.is_alive():
                 proc.terminate()
 
+    def _is_named_volume(self, canditate_path: str) -> bool:
+        if not canditate_path:
+            return False
+
+        result = not canditate_path.startswith((".", "/", "~"))
+
+        if platform != "win32":
+            return result
+
+        return (
+            result
+            and not re.match(r"^[A-Za-z]\:\\.*", canditate_path)
+            and not canditate_path.startswith("\\")
+        )
+
+    def _parse_volume_spec(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        named_volumes = []  # type: List[str]
+        container_mount_paths = []  # type: List[str]
+        host_spec = {}  # type: Dict[str, Dict[str, str]]
+
+        for volume_spec in volume_specs:
+            fields = volume_spec.split(":")
+
+            if len(fields) > 3:
+                raise ValueError(
+                    "Docker volume format is invalid: {} (should be 'external:internal[:mode]')".format(
+                        volume_spec
+                    )
+                )
+
+            if len(fields) == 1:
+                external = None
+                internal = os.path.normpath(fields[0].strip())
+            else:
+                external = os.path.normpath(fields[0].strip())
+                internal = os.path.normpath(fields[1].strip())
+
+            mode = "rw"
+            if len(fields) == 3:
+                mode = fields[2]
+
+            container_mount_paths.append(internal)
+
+            if external and self._is_named_volume(external):
+                named_volumes.append(external)
+                if mode != "rw":
+                    raise ValueError(
+                        "Named volumes can only have 'rw' mode, provided '{}'".format(
+                            mode
+                        )
+                    )
+            else:
+                if not external:
+                    # no internal container path given, assume the host path is the same as the internal path
+                    external = internal
+                host_spec[external] = {
+                    "bind": internal,
+                    "mode": mode,
+                }
+
+        return named_volumes, container_mount_paths, host_spec
+
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on your local machine as Docker containers
@@ -146,10 +220,33 @@ class DockerAgent(Agent):
                 self.logger.debug(line)
             self.logger.info("Successfully pulled image {}...".format(storage.name))
 
+        # Create any named volumes (if they do not already exist)
+        for named_volume_name in self.named_volumes:
+            try:
+                self.docker_client.inspect_volume(name=named_volume_name)
+            except docker.errors.APIError:
+                self.logger.debug("Creating named volume {}".format(named_volume_name))
+                self.docker_client.create_volume(
+                    name=named_volume_name,
+                    driver="local",
+                    labels={"prefect_created": "true"},
+                )
+
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
+
+        container_mount_paths = self.container_mount_paths
+        if not container_mount_paths:
+            host_config = None
+        else:
+            host_config = self.docker_client.create_host_config(binds=self.host_spec)
+
         container = self.docker_client.create_container(
-            storage.name, command="prefect execute cloud-flow", environment=env_vars
+            storage.name,
+            command="prefect execute cloud-flow",
+            environment=env_vars,
+            volumes=container_mount_paths,
+            host_config=host_config,
         )
 
         # Start the container

@@ -444,3 +444,146 @@ def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, cap
     agent.heartbeat()
     assert agent.failed_connections == 0
     assert api.ping.call_count == 4
+
+
+def test_docker_agent_init_volume_empty_options(monkeypatch, runner_token):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    agent = DockerAgent()
+    assert agent
+    assert agent.named_volumes == []
+    assert agent.container_mount_paths == []
+    assert agent.host_spec == {}
+
+
+@pytest.mark.parametrize(
+    "path,platform,result",
+    [
+        ("name", "osx", True),
+        ("name", "win32", True),
+        ("/some/path", "osx", False),
+        ("./some/path", "osx", False),
+        ("~/some/path", "osx", False),
+        ("../some/path", "osx", False),
+        ("/some/path", "win32", False),
+        ("./some/path", "win32", False),
+        ("~/some/path", "win32", False),
+        ("../some/path", "win32", False),
+        ("C:\\\\some\\path", "win32", False),
+        ("c:\\\\some\\path", "win32", False),
+        ("\\\\some\\path", "win32", False),
+        ("\\\\\\some\\path", "win32", False),
+        (" ../some/path", "osx", True),  # it is up to the caller to strip the string
+        ("\n../some/path", "osx", True),  # it is up to the caller to strip the string
+    ],
+)
+def test_docker_agent_is_named_volume(
+    monkeypatch, runner_token, path, platform, result
+):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
+
+    agent = DockerAgent()
+
+    assert agent._is_named_volume(path) == result
+
+
+@pytest.mark.parametrize(
+    "candidate,named_volumes,container_mount_paths,host_spec",
+    [
+        (
+            # handle no volume spec
+            [],
+            [],
+            [],
+            {},
+        ),
+        (
+            # no external path given (assume same as host path)
+            ["/some/path"],
+            [],
+            ["/some/path"],
+            {"/some/path": {"bind": "/some/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths
+            ["/some/path:/ctr/path"],
+            [],
+            ["/ctr/path"],
+            {"/some/path": {"bind": "/ctr/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths with mode
+            ["/some/path:/ctr/path:ro"],
+            [],
+            ["/ctr/path"],
+            {"/some/path": {"bind": "/ctr/path", "mode": "ro",}},
+        ),
+        (
+            # named volume
+            ["some-name:/ctr/path"],
+            ["some-name"],
+            ["/ctr/path"],
+            {},
+        ),
+        (
+            # multiple volumes
+            [
+                "some-name:/ctr/path3",
+                "/some/path:/ctr/path1",
+                "/another/path:/ctr/path2:ro",
+            ],
+            ["some-name"],
+            ["/ctr/path3", "/ctr/path1", "/ctr/path2"],
+            {
+                "/another/path": {"bind": "/ctr/path2", "mode": "ro"},
+                "/some/path": {"bind": "/ctr/path1", "mode": "rw",},
+            },
+        ),
+    ],
+)
+def test_docker_agent_parse_volume_spec(
+    monkeypatch,
+    runner_token,
+    candidate,
+    named_volumes,
+    container_mount_paths,
+    host_spec,
+):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    agent = DockerAgent()
+
+    (
+        actual_named_volumes,
+        actual_container_mount_paths,
+        actual_host_spec,
+    ) = agent._parse_volume_spec(candidate)
+
+    assert actual_named_volumes == named_volumes
+    assert actual_container_mount_paths == container_mount_paths
+    assert actual_host_spec == host_spec
+
+
+@pytest.mark.parametrize(
+    "candidate,exception_type",
+    [
+        # named volumes cannot be read only
+        ("some-name:/ctr/path:ro", ValueError),
+        # dont attempt to parse too many fields
+        ("/some/path:/ctr/path:rw:something-else", ValueError),
+    ],
+)
+def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
+    monkeypatch, runner_token, candidate, exception_type,
+):
+    api = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+
+    agent = DockerAgent()
+
+    with pytest.raises(exception_type):
+        print(agent._parse_volume_spec([candidate]))
