@@ -1,6 +1,8 @@
 from sys import platform
 import os
 import re
+import ntpath
+import posixpath
 from typing import Iterable, List, Dict, Tuple
 import multiprocessing
 
@@ -120,14 +122,14 @@ class DockerAgent(Agent):
             if proc.is_alive():
                 proc.terminate()
 
-    def _is_named_volume(self, canditate_path: str) -> bool:
+    def _is_named_volume_unix(self, canditate_path: str) -> bool:
         if not canditate_path:
             return False
 
-        result = not canditate_path.startswith((".", "/", "~"))
+        return not canditate_path.startswith((".", "/", "~"))
 
-        if platform != "win32":
-            return result
+    def _is_named_volume_win32(self, canditate_path: str) -> bool:
+        result = self._is_named_volume_unix(canditate_path)
 
         return (
             result
@@ -136,6 +138,83 @@ class DockerAgent(Agent):
         )
 
     def _parse_volume_spec(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        if platform == "win32":
+            return self._parse_volume_spec_win32(volume_specs)
+        return self._parse_volume_spec_unix(volume_specs)
+
+    def _parse_volume_spec_win32(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        named_volumes = []  # type: List[str]
+        container_mount_paths = []  # type: List[str]
+        host_spec = {}  # type: Dict[str, Dict[str, str]]
+
+        for volume_spec in volume_specs:
+            fields = volume_spec.split(":")
+
+            if fields[-1] in ("ro", "rw"):
+                mode = fields.pop()
+            else:
+                mode = "rw"
+
+            # print(fields, len(fields), len(fields[0]))
+
+            if len(fields) == 3 and len(fields[0]) == 1:
+                # C:\path1:/path2   <-- extenal and internal path
+                external = ntpath.normpath(":".join(fields[0:2]))
+                internal = posixpath.normpath(fields[2])
+            elif len(fields) == 2:
+                combined_path = ":".join(fields)
+                (drive, path) = ntpath.splitdrive(combined_path)
+                if drive:
+                    # C:\path1          <-- assumed container path of /path1
+                    external = ntpath.normpath(combined_path)
+
+                    # C:\path1  --> /c/path1
+                    path = str("/" + drive.lower().rstrip(":") + path).replace(
+                        "\\", "/"
+                    )
+                    internal = posixpath.normpath(path)
+                else:
+                    # /path1:\path2     <-- extenal and internal path (relative to current drive)
+                    # C:/path2          <-- valid named volume
+                    external = ntpath.normpath(fields[0])
+                    internal = posixpath.normpath(fields[1])
+            elif len(fields) == 1:
+                # \path1          <-- assumed container path of /path1 (relative to current drive)
+                external = ntpath.normpath(fields[0])
+                internal = external
+            else:
+                raise ValueError(
+                    "Unable to parse volume specification '{}'".format(volume_spec)
+                )
+
+            print(external, internal)
+
+            container_mount_paths.append(internal)
+
+            if external and self._is_named_volume_win32(external):
+                named_volumes.append(external)
+                if mode != "rw":
+                    raise ValueError(
+                        "Named volumes can only have 'rw' mode, provided '{}'".format(
+                            mode
+                        )
+                    )
+            else:
+                if not external:
+                    # no internal container path given, assume the host path is the same as the internal path
+                    external = internal
+                host_spec[external] = {
+                    "bind": internal,
+                    "mode": mode,
+                }
+
+        return named_volumes, container_mount_paths, host_spec
+
+    def _parse_volume_spec_unix(
         self, volume_specs: List[str]
     ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
         named_volumes = []  # type: List[str]
@@ -154,10 +233,10 @@ class DockerAgent(Agent):
 
             if len(fields) == 1:
                 external = None
-                internal = os.path.normpath(fields[0].strip())
+                internal = posixpath.normpath(fields[0].strip())
             else:
-                external = os.path.normpath(fields[0].strip())
-                internal = os.path.normpath(fields[1].strip())
+                external = posixpath.normpath(fields[0].strip())
+                internal = posixpath.normpath(fields[1].strip())
 
             mode = "rw"
             if len(fields) == 3:
@@ -165,7 +244,7 @@ class DockerAgent(Agent):
 
             container_mount_paths.append(internal)
 
-            if external and self._is_named_volume(external):
+            if external and self._is_named_volume_unix(external):
                 named_volumes.append(external)
                 if mode != "rw":
                     raise ValueError(
