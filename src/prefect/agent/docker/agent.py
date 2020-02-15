@@ -44,6 +44,7 @@ class DockerAgent(Agent):
             Defaults to `False` if not provided here or in context.
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
+        - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
     """
 
     def __init__(
