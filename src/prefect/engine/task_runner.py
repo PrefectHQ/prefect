@@ -718,6 +718,13 @@ class TaskRunner(Runner):
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
                         if not state.is_mapped() or upstream_state._result != NoResult:
+                            if not hasattr(upstream_state.result, "__getitem__"):
+                                raise TypeError(
+                                    "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                                        t=type(upstream_state.result),
+                                        preview=repr(upstream_state.result)[:10],
+                                    )
+                                )
                             upstream_result = Result(
                                 upstream_state.result[i],
                                 result_handler=upstream_state._result.result_handler,  # type: ignore
