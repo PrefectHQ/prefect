@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
+- Add DaskGateway tip to docs - [#1959](https://github.com/PrefectHQ/prefect/issues/1959)
 
 ### Task Library
 

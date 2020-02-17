@@ -89,6 +89,37 @@ flow.run(executor=executor)
 
 If you happen to have `bokeh` installed, you can visit the [Dask Web UI](https://distributed.readthedocs.io/en/latest/web.html) and see your tasks being processed when the flow run begins!
 
+::: tip Advanced Dask Configuration
+
+To interface with a secure, production-hardened Dask cluster via [Dask Gateway](https://gateway.dask.org/) you may need to provide TLS details to the `DaskExecutor`. These details can be found on the [GatewayCluster object on creation](https://gateway.dask.org/usage.html#usage-create-new-cluster):
+
+```python
+from dask_gateway import Gateway
+from prefect.engine.executors import DaskExecutor
+
+# ...flow definition...
+
+gateway = Gateway()
+cluster = gateway.new_cluster()
+executor = DaskExecutor(address=cluster.scheduler_address, security=cluster.security)
+flow.run(executor=executor)
+```
+
+Alternatively, TLS details can be provided manually:
+
+```python
+from dask_gateway.client import GatewaySecurity
+from prefect.engine.executors import DaskExecutor
+
+# ...flow definition...
+
+security = GatewaySecurity(tls_cert="path-to-cert", tls_key="path-to-key")
+executor = DaskExecutor(address="a-scheduler-address", security=security)
+flow.run(executor=executor)
+```
+
+:::
+
 ## Next Steps
 
 Let's take this one step further: let's attach a schedule to this flow, and package it up so that we can point it to any Dask cluster we choose, without editing the code which defines the flow. To do this, we will first add a main method to our script above so that it can be executed via CLI:
@@ -98,7 +129,7 @@ def main():
     from prefect.schedules import IntervalSchedule
 
     every_minute = IntervalSchedule(start_date=datetime.datetime.utcnow(),
-                 					interval=datetime.timedelta(minutes=1))
+                                    interval=datetime.timedelta(minutes=1))
     flow.schedule = every_minute
     flow.run() # runs this flow on its schedule
 
