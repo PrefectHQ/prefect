@@ -459,23 +459,21 @@ def test_docker_agent_init_volume_empty_options(monkeypatch, runner_token):
 
 
 @pytest.mark.parametrize(
-    "path,platform,result",
+    "path,result",
     [
-        ("name", "osx", True),
-        ("/some/path", "osx", False),
-        ("./some/path", "osx", False),
-        ("~/some/path", "osx", False),
-        ("../some/path", "osx", False),
-        (" ../some/path", "osx", True),  # it is up to the caller to strip the string
-        ("\n../some/path", "osx", True),  # it is up to the caller to strip the string
+        ("name", True),
+        ("/some/path", False),
+        ("./some/path", False),
+        ("~/some/path", False),
+        ("../some/path", False),
+        (" ../some/path", True),  # it is up to the caller to strip the string
+        ("\n../some/path", True),  # it is up to the caller to strip the string
     ],
 )
-def test_docker_agent_is_named_volume_unix(
-    monkeypatch, runner_token, path, platform, result
-):
+def test_docker_agent_is_named_volume_unix(monkeypatch, runner_token, path, result):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
-    monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
+    monkeypatch.setattr("prefect.agent.docker.agent.platform", "osx")
 
     agent = DockerAgent()
 
@@ -483,21 +481,19 @@ def test_docker_agent_is_named_volume_unix(
 
 
 @pytest.mark.parametrize(
-    "path,platform,result",
+    "path,result",
     [
-        ("name", "win32", True),
-        ("C:\\\\some\\path", "win32", False),
-        ("c:\\\\some\\path", "win32", False),
-        ("\\\\some\\path", "win32", False),
-        ("\\\\\\some\\path", "win32", False),
+        ("name", True),
+        ("C:\\\\some\\path", False),
+        ("c:\\\\some\\path", False),
+        ("\\\\some\\path", False),
+        ("\\\\\\some\\path", False),
     ],
 )
-def test_docker_agent_is_named_volume_win32(
-    monkeypatch, runner_token, path, platform, result
-):
+def test_docker_agent_is_named_volume_win32(monkeypatch, runner_token, path, result):
     api = MagicMock()
     monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
-    monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
+    monkeypatch.setattr("prefect.agent.docker.agent.platform", "win32")
 
     agent = DockerAgent()
 
@@ -648,11 +644,6 @@ def test_docker_agent_parse_volume_spec_win(
         actual_host_spec,
     ) = agent._parse_volume_spec_win32(candidate)
 
-    print("RESULT")
-    print(actual_named_volumes)
-    print(actual_container_mount_paths)
-    print(actual_host_spec)
-
     assert actual_named_volumes == named_volumes
     assert actual_container_mount_paths == container_mount_paths
     assert actual_host_spec == host_spec
@@ -676,4 +667,4 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
     agent = DockerAgent()
 
     with pytest.raises(exception_type):
-        print(agent._parse_volume_spec([candidate]))
+        agent._parse_volume_spec([candidate])

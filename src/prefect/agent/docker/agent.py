@@ -160,8 +160,6 @@ class DockerAgent(Agent):
             else:
                 mode = "rw"
 
-            # print(fields, len(fields), len(fields[0]))
-
             if len(fields) == 3 and len(fields[0]) == 1:
                 # C:\path1:/path2   <-- extenal and internal path
                 external = ntpath.normpath(":".join(fields[0:2]))
@@ -191,8 +189,6 @@ class DockerAgent(Agent):
                 raise ValueError(
                     "Unable to parse volume specification '{}'".format(volume_spec)
                 )
-
-            print(external, internal)
 
             container_mount_paths.append(internal)
 
