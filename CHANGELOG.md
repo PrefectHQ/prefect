@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
+- Upload package to PyPI on tag push to master - [#2030](https://github.com/PrefectHQ/prefect/issues/2030)
 
 ### Task Library
 
