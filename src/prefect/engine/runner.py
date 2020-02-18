@@ -8,6 +8,8 @@ from prefect.engine.state import Failed, Pending, State
 from prefect.utilities import logging
 
 # for backwards compatibility
+from prefect.utilities.local_only import LocalOnly, LocalOnlyError
+
 ENDRUN = signals.ENDRUN
 
 
@@ -43,6 +45,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
     def inner(self: "Runner", state: State, *args: Any, **kwargs: Any) -> State:
         raise_end_run = False
         raise_on_exception = prefect.context.get("raise_on_exception", False)
+        replace_exc = False
 
         try:
             new_state = method(self, state, *args, **kwargs)
@@ -53,20 +56,40 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
         # PrefectStateSignals are trapped and turned into States
         except signals.PrefectStateSignal as exc:
             self.logger.debug(
-                "{name} signal raised: {rep}".format(
-                    name=type(exc).__name__, rep=repr(exc)
-                )
+                "{name} signal raised: {rep}".format(name=type(exc).__name__, rep=repr(exc))
             )
             if raise_on_exception:
                 raise exc
             new_state = exc.state
 
         except Exception as exc:
-            formatted = "Unexpected error: {}".format(repr(exc))
-            self.logger.exception(formatted)
-            if raise_on_exception:
-                raise exc
-            new_state = Failed(formatted, result=exc)
+            if prefect.context.config.logging.log_to_cloud and prefect.config.local_only.enabled:
+                replace_exc = True
+                # Log the message with the local only message.
+                formatted = "Unexpected error: {}".format(exc.__class__.__name__)
+                self.logger.exception(
+                    formatted, extra={LocalOnly.EXTRA_KEY: exc.__class__.__name__}
+                )
+                if raise_on_exception:
+                    raise exc
+                new_state = Failed(formatted, result=exc)
+            else:
+                formatted = "Unexpected error: {}".format(repr(exc))
+                self.logger.exception(formatted)
+                if raise_on_exception:
+                    raise exc
+                new_state = Failed(formatted, result=exc)
+
+        # Replace the exc information in the failed state.
+        # Not sure if we need to do this, but the exc info that is
+        # in the state may have information that we don't want to get out.
+        # This needs to be done outside of the except block or we get
+        # "while handling this exception another one occured: message.
+        if replace_exc:
+            try:
+                raise LocalOnlyError(new_state.result.__class__.__name__)
+            except LocalOnlyError as exc:
+                new_state.result = exc
 
         if new_state is not state:
             new_state = self.handle_state_change(old_state=state, new_state=new_state)
@@ -82,9 +105,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 
 class Runner:
     def __init__(self, state_handlers: Iterable[Callable] = None):
-        if state_handlers is not None and not isinstance(
-            state_handlers, collections.Sequence
-        ):
+        if state_handlers is not None and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         self.heartbeat_cmd = [""]  # type: List[str]

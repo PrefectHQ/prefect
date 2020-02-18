@@ -22,7 +22,6 @@ import pendulum
 import prefect
 from prefect.utilities.context import context
 
-
 _original_log_record_factory = logging.getLogRecordFactory()
 
 PREFECT_LOG_RECORD_ATTRIBUTES = (
@@ -135,7 +134,26 @@ class CloudHandler(logging.StreamHandler):
                 record_dict.pop("created", time.time())
             ).isoformat()
             log["name"] = record_dict.pop("name", None)
-            log["message"] = record_dict.pop("message", None)
+            if (
+                prefect.context.config.logging.log_to_cloud
+                and prefect.config.local_only.enabled
+                and self.formatter
+            ):
+                # Running in local only mode.  Replace the message with the
+                # the local file link in in this PoC case.
+                logging.getLogger("local_only_debug").debug(
+                    f"CloudHandler: formatter {self.formatter}"
+                )
+                log["message"] = self.formatter.format(record)
+                logging.getLogger("local_only_debug").debug(
+                    f"CloudHandler: message {log['message']}"
+                )
+                del record_dict["message"]
+                # Remove he exc information so it doesn't get dumped as a CRITICAL error message.
+                del record_dict["exc_info"]
+                del record_dict["exc_text"]
+            else:
+                log["message"] = record_dict.pop("message", None)
             log["level"] = record_dict.pop("levelname", None)
 
             if record_dict.get("exc_text") is not None:
