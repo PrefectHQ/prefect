@@ -351,6 +351,45 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
+  release_to_pypi:
+    docker:
+      - image: python:3.7
+    environment:
+      TWINE_REPOSITORY: prefect
+      TWINE_USERNAME: __token__
+      # TWINE_PASSWORD: #set as secret
+    steps:
+      - checkout
+
+      - run:
+          # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
+          # commit is not on master.
+          # todo: is there a better way to ensure that this is a commit on master?
+          name: Master branch check
+          command: |
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
+
+      - run:
+          name: Verify Package Version
+          command: python setup.py verify_version
+
+      - run:
+          name: Install Twine
+          command: pip install twine
+
+      - run:
+          name: Build Python Package
+          command: |
+            python setup.py sdist
+            python setup.py bdist_wheel
+
+      - run:
+          name: Upload Package to PyPI
+          command: twine upload dist/*
+
 workflows:
   version: 2
 
@@ -374,7 +413,15 @@ workflows:
       - check_mypy_typing
       - check_documentation
 
-  "Build docker images":
+  "Build and publish development artifacts":
+    jobs:
+      - build_master_docker_image:
+          python_version: "3.7"
+          filters:
+            branches:
+              only: master
+
+  "Build and publish release artifacts":
     jobs:
       - build_docker_image:
           python_version: "3.5"
@@ -398,8 +445,9 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_master_docker_image:
-          python_version: "3.7"
+      - release_to_pypi:
           filters:
             branches:
-              only: master
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
