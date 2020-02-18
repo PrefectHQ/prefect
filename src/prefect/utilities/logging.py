@@ -134,6 +134,8 @@ class CloudHandler(logging.StreamHandler):
                 record_dict.pop("created", time.time())
             ).isoformat()
             log["name"] = record_dict.pop("name", None)
+            # Check to see if we are logging to the cloud and in local only mode.
+            # Also make sure the handle has a formatter.  Currently it doesn't
             if (
                 prefect.context.config.logging.log_to_cloud
                 and prefect.config.local_only.enabled
@@ -141,17 +143,12 @@ class CloudHandler(logging.StreamHandler):
             ):
                 # Running in local only mode.  Replace the message with the
                 # the local file link in in this PoC case.
-                logging.getLogger("local_only_debug").debug(
-                    f"CloudHandler: formatter {self.formatter}"
-                )
                 log["message"] = self.formatter.format(record)
-                logging.getLogger("local_only_debug").debug(
-                    f"CloudHandler: message {log['message']}"
-                )
                 del record_dict["message"]
                 # Remove he exc information so it doesn't get dumped as a CRITICAL error message.
                 del record_dict["exc_info"]
                 del record_dict["exc_text"]
+
             else:
                 log["message"] = record_dict.pop("message", None)
             log["level"] = record_dict.pop("levelname", None)

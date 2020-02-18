@@ -18,6 +18,11 @@ class LocalOnlyError(Exception):
 
 
 class LocalOnly(ABC):
+    """
+    All the things that are needed to update the logging and exceptions to run in
+    local only mode.  Subclass this to provide the concrete implementations.
+    """
+
     EXTRA_KEY = "_local_only"
     DEBUG_LOGGER = "local_only_debug"
 
@@ -66,6 +71,9 @@ class LocalOnly(ABC):
 
     @classmethod
     def logger(cls, name: Optional[str] = None):
+        """
+        Update the logging if it isn't currently updated to run in local only mode.
+        """
         logger = prefect.utilities.logging.get_logger(name)
         if not prefect.config.local_only.enabled:
             return logger
@@ -88,6 +96,10 @@ class LocalOnly(ABC):
 
 
 class FileRemoteFormatter(Formatter):
+    """
+    Format log messages to include a link to the information that is being kept locally.
+    """
+
     def __init__(self, extra_key: str, url_fn: Callable[[], str], **kwargs):
         super().__init__(**kwargs)
         self.extra_key = extra_key
@@ -102,6 +114,10 @@ class FileRemoteFormatter(Formatter):
 
 
 class FileRemoteHandler(Handler):
+    """
+    Write the local only data to a file.
+    """
+
     def __init__(self, extra_key: str, filename_fn: Callable[[], Path], **kwargs):
         super().__init__(**kwargs)
         self.extra_key = extra_key
@@ -124,6 +140,10 @@ class FileRemoteHandler(Handler):
 
 
 class FileLocalOnly(LocalOnly):
+    """
+    Subclass to provide all the logging pieces to keep logs and uncaught exceptions local.
+    """
+
     def __init__(self, root_directory: str):
         self.root_directory = Path(root_directory)
 
@@ -131,7 +151,10 @@ class FileLocalOnly(LocalOnly):
         return (self.root_directory / prefect.context.flow_name).absolute()
 
     def _log_filename(self) -> Path:
-        filename = f'log-{prefect.context.date.isoformat().replace(":", "-").replace("+", "-")}.txt'
+        filename = (
+            f"{prefect.context.task_slug}--"
+            f'{prefect.context.date.isoformat().replace(":", "-").replace("+", "-")}.txt'
+        )
         return self._log_path() / f"{filename}"
 
     def _log_url(self) -> str:

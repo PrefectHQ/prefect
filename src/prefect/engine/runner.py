@@ -63,10 +63,17 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
             new_state = exc.state
 
         except Exception as exc:
+            # Check to see if we are logging to the cloud and running in local only mode.
             if prefect.context.config.logging.log_to_cloud and prefect.config.local_only.enabled:
                 replace_exc = True
                 # Log the message with the local only message.
                 formatted = "Unexpected error: {}".format(exc.__class__.__name__)
+                # Set extra={"_local_only": <something>} to signal the CloudHandler.formatter
+                # that this is local_only data.  Some of the other loggers Task and Flow
+                # loggers propagate the log messages to prefect where everything would
+                # be treated as local only.  This allows for selective logging to the cloud
+                # and to local.   The data in extra is ignored by the default handlers
+                # and formatters.
                 self.logger.exception(
                     formatted, extra={LocalOnly.EXTRA_KEY: exc.__class__.__name__}
                 )
@@ -74,6 +81,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
                     raise exc
                 new_state = Failed(formatted, result=exc)
             else:
+                # Normal processing.
                 formatted = "Unexpected error: {}".format(repr(exc))
                 self.logger.exception(formatted)
                 if raise_on_exception:
