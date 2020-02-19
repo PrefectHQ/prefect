@@ -11,7 +11,10 @@ from prefect.utilities.graphql import GraphQLResult
 
 def test_docker_agent_init(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
     assert agent
@@ -20,8 +23,12 @@ def test_docker_agent_init(monkeypatch, runner_token):
 
 
 def test_docker_agent_config_options(monkeypatch, runner_token):
+    import docker  # DockerAgent imports docker within the constructor
+
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "docker.APIClient", api,
+    )
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "osx")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -34,8 +41,12 @@ def test_docker_agent_config_options(monkeypatch, runner_token):
 
 
 def test_docker_agent_daemon_url_responds_to_system(monkeypatch, runner_token):
+    import docker  # DockerAgent imports docker within the constructor
+
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "docker.APIClient", api,
+    )
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "win32")
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
@@ -47,8 +58,12 @@ def test_docker_agent_daemon_url_responds_to_system(monkeypatch, runner_token):
 
 
 def test_docker_agent_config_options_populated(monkeypatch, runner_token):
+    import docker  # DockerAgent imports docker within the constructor
+
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "docker.APIClient", api,
+    )
 
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = DockerAgent(base_url="url", no_pull=True)
@@ -60,7 +75,10 @@ def test_docker_agent_config_options_populated(monkeypatch, runner_token):
 
 def test_docker_agent_no_pull(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
     assert not agent.no_pull
@@ -85,7 +103,8 @@ def test_docker_agent_ping(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -97,7 +116,8 @@ def test_docker_agent_ping_exception(monkeypatch, runner_token):
     api.ping.return_value = True
     api.ping.side_effect = Exception()
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     with pytest.raises(Exception):
@@ -106,7 +126,10 @@ def test_docker_agent_ping_exception(monkeypatch, runner_token):
 
 def test_populate_env_vars_uses_user_provided_env_vars(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     with set_temporary_config(
         {
@@ -124,7 +147,10 @@ def test_populate_env_vars_uses_user_provided_env_vars(monkeypatch, runner_token
 
 def test_populate_env_vars(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     with set_temporary_config(
         {
@@ -154,7 +180,10 @@ def test_populate_env_vars(monkeypatch, runner_token):
 
 def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     with set_temporary_config(
         {
@@ -187,7 +216,10 @@ def test_populate_env_vars_is_responsive_to_logging_config(
     monkeypatch, runner_token, flag
 ):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     with set_temporary_config(
         {
@@ -207,7 +239,8 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -242,7 +275,8 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, runner_token):
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -268,7 +302,8 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent(no_pull=True)
@@ -302,7 +337,8 @@ def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent(show_flow_logs=True)
@@ -336,7 +372,8 @@ def test_docker_agent_shutdown_terminates_child_processes(monkeypatch, runner_to
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     proc = MagicMock(is_alive=MagicMock(return_value=True))
@@ -354,7 +391,8 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -383,7 +421,8 @@ def test_docker_agent_heartbeat_gocase(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -395,7 +434,8 @@ def test_docker_agent_heartbeat_exits_on_failure(monkeypatch, runner_token, capl
     api = MagicMock()
     api.ping.return_value = True
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -415,7 +455,8 @@ def test_docker_agent_heartbeat_logs_reconnect(monkeypatch, runner_token, caplog
     api = MagicMock()
     api.ping.return_value = True
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()
@@ -432,7 +473,8 @@ def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, cap
     api = MagicMock()
     api.ping.return_value = True
     monkeypatch.setattr(
-        "prefect.agent.docker.agent.docker.APIClient", MagicMock(return_value=api)
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
     )
 
     agent = DockerAgent()

@@ -1,7 +1,7 @@
 import datetime
 
-from prefect.core.task import Task
 from prefect.client.secrets import Secret as _Secret
+from prefect.core.task import Task
 from prefect.engine.result_handlers import SecretResultHandler
 
 

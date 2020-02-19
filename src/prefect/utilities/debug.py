@@ -4,12 +4,11 @@ import sys
 import tempfile
 import textwrap
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator
+from typing import Any, Iterator
 
 import cloudpickle
 
 import prefect
-from prefect.engine import state
 
 
 def is_serializable(obj: Any, raise_on_error: bool = False) -> bool:

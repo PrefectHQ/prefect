@@ -26,7 +26,6 @@ def create():
         $ prefect create project My-Project --description "My description"
         My-Project created
     """
-    pass
 
 
 @create.command(hidden=True)

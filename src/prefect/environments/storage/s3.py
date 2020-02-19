@@ -1,12 +1,10 @@
 import io
 from typing import TYPE_CHECKING, Any, Dict, List
 
-
 import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.result_handlers import S3ResultHandler
 from prefect.environments.storage import Storage
 
@@ -52,7 +50,7 @@ class S3(Storage):
         key: str = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
 
