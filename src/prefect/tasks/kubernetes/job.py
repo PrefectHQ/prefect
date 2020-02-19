@@ -211,7 +211,7 @@ class DeleteNamespacedJob(Task):
         api_client.delete_namespaced_job(
             name=job_name,
             namespace=namespace,
-            body=api_client.V1DeleteOptions(),
+            body=client.V1DeleteOptions(),
             **kube_kwargs
         )
 

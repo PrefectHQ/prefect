@@ -33,8 +33,10 @@ class DaskExecutor(Executor):
             Defaults to `False`.
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
-        - **kwargs (dict, optional): additional kwargs to be passed to the
-            `dask.distributed.Client` upon initialization (e.g., `n_workers`)
+        - **kwargs (dict, optional): additional kwargs to be passed to the [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client) upon 
+            initialization (e.g., `n_workers`, `security`, etc.), which will also pass any unmatched kwargs down to child objects such as 
+            [`distributed.deploy.local.LocalCluster`](https://docs.dask.org/en/latest/setup/single-distributed.html#distributed.deploy.local.LocalCluster).
+            Please see the Dask docs to see all of the options that child objects will respond to.
     """
 
     def __init__(
