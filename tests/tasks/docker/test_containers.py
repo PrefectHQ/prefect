@@ -89,7 +89,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         task = CreateContainer(image_name="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -98,7 +98,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         task = CreateContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(image_name="test")
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -107,7 +107,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         task = CreateContainer(image_name="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(image_name="test")
         assert api.return_value.create_container.call_args[1]["image"] == "test"
@@ -117,7 +117,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         task = CreateContainer(image_name=image_name)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_twice_on_success(task, caplog)
 
@@ -131,7 +131,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.create_container = create_container_mock
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
@@ -141,7 +141,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
 
         api = MagicMock()
 
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
 
@@ -170,7 +170,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
         task = GetContainerLogs(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -179,7 +179,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
         task = GetContainerLogs()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -188,7 +188,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
         task = GetContainerLogs(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.logs.call_args[1]["container"] == "test"
@@ -197,7 +197,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
 
         task = GetContainerLogs(container_id="test")
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_twice_on_success(task, caplog)
 
@@ -215,7 +215,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
 
         task = GetContainerLogs()
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
@@ -235,7 +235,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
         task = ListContainers(all_containers=True)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.containers.call_args[1]["all"]
@@ -244,7 +244,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
         task = ListContainers()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(all_containers=True)
         assert api.return_value.containers.call_args[1]["all"]
@@ -253,7 +253,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
         task = ListContainers(all_containers=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(all_containers=True)
         assert api.return_value.containers.call_args[1]["all"]
@@ -263,7 +263,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
         task = ListContainers(all_containers=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_twice_on_success(task, caplog)
 
@@ -275,7 +275,7 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.containers = list_containers_mock
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
 
@@ -304,7 +304,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
         task = StartContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -313,7 +313,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
         task = StartContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -322,7 +322,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
         task = StartContainer(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.start.call_args[1]["container"] == "test"
@@ -331,7 +331,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
         task = StartContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_twice_on_success(task, caplog)
 
@@ -344,7 +344,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.start = start_container_mock
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
@@ -353,7 +353,7 @@ class TestStartContainerTask(DockerLoggingTestingUtilityMixin):
         task = StartContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
@@ -383,7 +383,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
         task = StopContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run()
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -392,7 +392,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
         task = StopContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -401,7 +401,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
         task = StopContainer(container_id="original")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         task.run(container_id="test")
         assert api.return_value.stop.call_args[1]["container"] == "test"
@@ -411,7 +411,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
         task = StopContainer(container_id="test")
         api = MagicMock()
 
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_twice_on_success(task, caplog)
 
@@ -424,7 +424,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.stop = stop_container_mock
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
@@ -432,7 +432,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
 
         task = StopContainer()
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
@@ -466,7 +466,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="test")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {}
 
         task.run()
@@ -476,7 +476,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="init")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {}
 
         task.run(container_id="test")
@@ -486,7 +486,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="noise")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"StatusCode": 1}
 
         with pytest.raises(FAIL):
@@ -496,7 +496,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="noise")
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"Error": "oops!"}
 
         with pytest.raises(FAIL):
@@ -506,7 +506,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="noise", raise_on_exit_code=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         api.return_value.wait.return_value = {"StatusCode": 1, "Error": "oops!"}
 
         task.run()
@@ -516,7 +516,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer(container_id="noise", raise_on_exit_code=False)
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         self.assert_logs_twice_on_success(task, caplog)
 
     def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
@@ -528,7 +528,7 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.wait = wait_container_mock
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
@@ -537,5 +537,5 @@ class TestWaitOnContainerTask(DockerLoggingTestingUtilityMixin):
         task = WaitOnContainer()
 
         api = MagicMock()
-        monkeypatch.setattr("prefect.tasks.docker.containers.docker.APIClient", api)
+        monkeypatch.setattr("docker.APIClient", api)
         self.assert_doesnt_log_on_param_failure(task, caplog)

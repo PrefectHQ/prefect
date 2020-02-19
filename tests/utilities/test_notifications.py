@@ -5,6 +5,7 @@ import tempfile
 from multiprocessing.pool import ThreadPool
 from unittest.mock import MagicMock
 
+import requests
 import cloudpickle
 import pytest
 
@@ -155,7 +156,7 @@ def test_every_state_gets_a_unique_color():
 
 def test_slack_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     ok = MagicMock(ok=True)
-    monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
+    monkeypatch.setattr(requests, "post", ok)
     new_state = Failed(message="1", result=0)
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
@@ -164,7 +165,7 @@ def test_slack_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
 
 def test_slack_notifier_pulls_url_from_secret(monkeypatch):
     post = MagicMock(ok=True)
-    monkeypatch.setattr("prefect.utilities.notifications.requests.post", post)
+    monkeypatch.setattr("requests.post", post)
     state = Failed(message="1", result=0)
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with pytest.raises(ValueError, match="SLACK_WEBHOOK_URL"):
@@ -195,7 +196,7 @@ def test_slack_notifier_ignores_ignore_states(monkeypatch):
         Skipped,
     ]
     ok = MagicMock(ok=True)
-    monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
+    monkeypatch.setattr(requests, "post", ok)
     for state in all_states:
         s = state()
         with set_temporary_config({"cloud.use_local_secrets": True}):
@@ -223,7 +224,7 @@ def test_slack_notifier_ignores_ignore_states(monkeypatch):
 def test_slack_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
     state = state()
     ok = MagicMock(ok=True)
-    monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
+    monkeypatch.setattr(requests, "post", ok)
     handler = slack_notifier(ignore_states=[Finished])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
@@ -250,7 +251,7 @@ def test_slack_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state)
 def test_slack_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     state = state()
     ok = MagicMock(ok=True)
-    monkeypatch.setattr(prefect.utilities.notifications.requests, "post", ok)
+    monkeypatch.setattr(requests, "post", ok)
     handler = slack_notifier(only_states=[TriggerFailed])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):

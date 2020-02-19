@@ -1,11 +1,11 @@
 import os
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import azureml.core.datastore
 from azureml.core.workspace import Workspace
 from azureml.data.azure_storage_datastore import (
-    AzureBlobDatastore,
     AbstractAzureStorageDatastore,
+    AzureBlobDatastore,
 )
 from azureml.data.data_reference import DataReference
 

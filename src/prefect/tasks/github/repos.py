@@ -1,8 +1,5 @@
 import warnings
-import json
 from typing import Any, List
-
-import requests
 
 from prefect import Task
 from prefect.client import Secret
@@ -75,6 +72,11 @@ class GetRepoInfo(Task):
                 UserWarning,
             )
             token = Secret(self.token_secret).get()
+
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
+
         url = "https://api.github.com/repos/{}".format(repo)
         headers = {
             "AUTHORIZATION": "token {}".format(token),
@@ -166,6 +168,11 @@ class CreateBranch(Task):
                 UserWarning,
             )
             token = Secret(self.token_secret).get()
+
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
+
         url = "https://api.github.com/repos/{}/git/refs".format(repo)
         headers = {
             "AUTHORIZATION": "token {}".format(token),

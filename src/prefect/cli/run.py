@@ -31,7 +31,6 @@ def run():
         Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
         Scheduled -> Submitted -> Running -> Success
     """
-    pass
 
 
 @run.command(hidden=True)

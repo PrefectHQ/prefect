@@ -5,7 +5,6 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.result_handlers import AzureResultHandler
 from prefect.environments.storage import Storage
 
@@ -38,7 +37,7 @@ class Azure(Storage):
         self, container: str, connection_string: str = None, blob_name: str = None
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self._flows = dict()  # type: Dict[str, "Flow"]
 
         self.connection_string = connection_string or os.getenv(
             "AZURE_STORAGE_CONNECTION_STRING"

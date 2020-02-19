@@ -1,21 +1,19 @@
 from typing import Any
 
-import marshmallow
 from marshmallow import fields, post_load
 
-import prefect
 from prefect.environments.storage import (
+    GCS,
+    S3,
     Azure,
     Bytes,
     Docker,
-    GCS,
     Local,
     Memory,
     Storage,
-    S3,
 )
-from prefect.utilities.serialization import Bytes as BytesField, JSONCompatible
-from prefect.utilities.serialization import ObjectSchema, OneOfSchema
+from prefect.utilities.serialization import Bytes as BytesField
+from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
 class AzureSchema(ObjectSchema):

@@ -1,11 +1,9 @@
-from typing import Union, List, Dict
+from typing import Dict, List, Union
 
 import azureml.core.dataset
 from azureml.core.datastore import Datastore
-from azureml.data import DataType, TabularDataset, FileDataset
+from azureml.data import DataType, TabularDataset
 from azureml.data.dataset_type_definitions import PromoteHeadersBehavior
-from azureml.data.azure_sql_database_datastore import AzureSqlDatabaseDatastore
-
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
