@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Ensure microseconds are respected on `start_date` provided to CronClock - [#2031](https://github.com/PrefectHQ/prefect/pull/2031)
 
 ### Deprecations
 
