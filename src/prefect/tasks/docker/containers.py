@@ -1,7 +1,5 @@
 from typing import Any, Union
 
-import docker
-
 from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
@@ -85,6 +83,10 @@ class CreateContainer(Task):
         if not image_name:
             raise ValueError("An image name must be provided.")
 
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         self.logger.debug(
             "Starting to create container {} with command {}".format(
@@ -154,11 +156,16 @@ class GetContainerLogs(Task):
         if not container_id:
             raise ValueError("A container id must be provided.")
 
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
         self.logger.debug(
             "Starting fetching container logs from container with id {}".format(
                 container_id
             )
         )
+
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         api_result = client.logs(container=container_id).decode()
         self.logger.debug(
@@ -212,6 +219,10 @@ class ListContainers(Task):
         Returns:
             - list: A list of dicts, one per container
         """
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
         self.logger.debug("Starting to list containers")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         api_result = client.containers(all=all_containers)
@@ -264,6 +275,10 @@ class StartContainer(Task):
         """
         if not container_id:
             raise ValueError("A container id must be provided.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug("Starting container with id {}".format(container_id))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
@@ -319,6 +334,10 @@ class StopContainer(Task):
         """
         if not container_id:
             raise ValueError("A container id must be provided.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug("Starting to stop container with id {}".format(container_id))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
@@ -385,6 +404,10 @@ class WaitOnContainer(Task):
         """
         if not container_id:
             raise ValueError("A container id must be provided.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug(
             "Starting to wait on container with id {}".format(container_id)

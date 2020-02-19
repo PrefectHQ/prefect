@@ -25,8 +25,10 @@ def test_nomad_agent_config_options(runner_token):
 
 
 def test_nomad_agent_deploy_flow(monkeypatch, runner_token):
-    requests = MagicMock()
-    monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
+    post = MagicMock()
+    import requests  # this is imported within the agent's constructor
+
+    monkeypatch.setattr(requests, "post", post)
 
     agent = NomadAgent()
     agent.deploy_flow(
@@ -45,13 +47,15 @@ def test_nomad_agent_deploy_flow(monkeypatch, runner_token):
         )
     )
 
-    assert requests.post.called
-    assert requests.post.call_args[1]["json"]
+    assert post.called
+    assert post.call_args[1]["json"]
 
 
 def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
-    requests = MagicMock()
-    monkeypatch.setattr("prefect.agent.nomad.agent.requests", requests)
+    post = MagicMock()
+    import requests  # this is imported within the agent's constructor
+
+    monkeypatch.setattr(requests, "post", post)
 
     agent = NomadAgent()
 
@@ -65,7 +69,7 @@ def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
             )
         )
 
-    assert not requests.post.called
+    assert not post.called
 
 
 @pytest.mark.parametrize("flag", [True, False])

@@ -2,7 +2,6 @@ import sqlite3 as sql
 from contextlib import closing
 from typing import Any, cast
 
-import prefect
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 

@@ -1,4 +1,5 @@
 import snowflake.connector as sf
+
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 

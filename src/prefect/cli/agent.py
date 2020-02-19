@@ -40,7 +40,6 @@ def agent():
         $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
         ...k8s yaml output...
     """
-    pass
 
 
 @agent.command(

@@ -5,7 +5,6 @@ In general, users will not instantiate these tasks by hand; they will automatica
 applied when users apply the `@task` decorator.
 """
 
-import inspect
 from typing import Any, Callable
 
 import prefect

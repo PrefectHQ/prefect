@@ -1,8 +1,6 @@
-from typing import Dict, Any, Union, List
+from typing import Any, Dict, List, Union
 
 import azure.cosmos.cosmos_client
-from azure.cosmos.query_iterable import QueryIterable
-
 
 from prefect import Task
 from prefect.client import Secret

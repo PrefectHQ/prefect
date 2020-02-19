@@ -1,6 +1,4 @@
 import click
-import pendulum
-from tabulate import tabulate
 
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
@@ -50,7 +48,6 @@ def describe():
             }
         }
     """
-    pass
 
 
 @describe.command(hidden=True)

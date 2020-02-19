@@ -1,16 +1,14 @@
-import datetime
 import logging
-import queue
 import uuid
-import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable, Iterator, List
-
-import dask
-from distributed import Client, Future, fire_and_forget, worker_client
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List
 
 from prefect import context
 from prefect.engine.executors.base import Executor
+
+if TYPE_CHECKING:
+    import dask
+    from distributed import Future
 
 
 class DaskExecutor(Executor):
@@ -68,6 +66,9 @@ class DaskExecutor(Executor):
 
         Creates a `dask.distributed.Client` and yields it.
         """
+        # import dask client here to decrease our import times
+        from distributed import Client
+
         try:
             if self.address is None:
                 self.kwargs.update(
@@ -114,7 +115,7 @@ class DaskExecutor(Executor):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Future:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "Future":
         """
         Submit a function to the executor for execution. Returns a Future object.
 
@@ -126,6 +127,8 @@ class DaskExecutor(Executor):
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
+        # import dask functions here to decrease our import times
+        from distributed import fire_and_forget, worker_client
 
         dask_kwargs = self._prep_dask_kwargs()
         kwargs.update(dask_kwargs)
@@ -141,7 +144,7 @@ class DaskExecutor(Executor):
         fire_and_forget(future)
         return future
 
-    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> List[Future]:
+    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> List["Future"]:
         """
         Submit a function to be mapped over its iterable arguments.
 
@@ -157,6 +160,9 @@ class DaskExecutor(Executor):
         """
         if not args:
             return []
+
+        # import dask functions here to decrease our import times
+        from distributed import fire_and_forget, worker_client
 
         dask_kwargs = self._prep_dask_kwargs()
         kwargs.update(dask_kwargs)
@@ -183,6 +189,9 @@ class DaskExecutor(Executor):
         Returns:
             - Any: an iterable of resolved futures with similar shape to the input
         """
+        # import dask functions here to decrease our import times
+        from distributed import worker_client
+
         if self.is_started and hasattr(self, "client"):
             return self.client.gather(futures)
         elif self.is_started:
@@ -216,10 +225,13 @@ class LocalDaskExecutor(Executor):
 
         Configures `dask` and yields the `dask.config` contextmanager.
         """
+        # import dask here to reduce prefect import times
+        import dask
+
         with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
             yield cfg
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> dask.delayed:
+    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "dask.delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 
@@ -231,9 +243,12 @@ class LocalDaskExecutor(Executor):
         Returns:
             - dask.delayed: a `dask.delayed` object that represents the computation of `fn(*args, **kwargs)`
         """
+        # import dask here to reduce prefect import times
+        import dask
+
         return dask.delayed(fn)(*args, **kwargs)
 
-    def map(self, fn: Callable, *args: Any) -> List[dask.delayed]:
+    def map(self, fn: Callable, *args: Any) -> List["dask.delayed"]:
         """
         Submit a function to be mapped over its iterable arguments.
 
@@ -265,5 +280,8 @@ class LocalDaskExecutor(Executor):
         Returns:
             - Any: an iterable of resolved futures
         """
+        # import dask here to reduce prefect import times
+        import dask
+
         with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
             return dask.compute(futures)[0]

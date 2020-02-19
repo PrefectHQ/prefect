@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-import marshmallow
-from marshmallow import fields, post_load, post_dump
+from marshmallow import fields, post_dump, post_load
 
 import prefect
 from prefect.serialization import schedule_compat

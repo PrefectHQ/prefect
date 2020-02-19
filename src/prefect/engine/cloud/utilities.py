@@ -1,4 +1,4 @@
-from prefect.engine.state import State, Failed
+from prefect.engine.state import State
 
 
 def prepare_state_for_cloud(state: State) -> State:
