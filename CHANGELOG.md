@@ -16,7 +16,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Fix `V1DeleteOptions` call for Kubernetes tasks - [#2050](https://github.com/PrefectHQ/prefect/pull/2050)
 
 ### Fixes
 
@@ -32,7 +32,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Romain Thalineau](https://github.com/romaintha)
 
 ## 0.9.4 <Badge text="beta" type="success"/>
 
