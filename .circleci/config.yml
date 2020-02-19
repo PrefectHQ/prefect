@@ -53,7 +53,7 @@ jobs:
             if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
               echo "Prefect import time is too slow"
               cat .import-time.txt
-              # exit 3
+              exit 3
             else
               echo "Prefect import time (ms):"
               cat .import-time.txt
