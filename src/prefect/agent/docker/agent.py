@@ -1,13 +1,12 @@
 import multiprocessing
 from sys import platform
-from typing import Iterable, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, List
 
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
-
 
 if TYPE_CHECKING:
     import docker

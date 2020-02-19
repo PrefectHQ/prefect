@@ -1,4 +1,4 @@
-from typing import Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import prefect
 from prefect.engine.result_handlers import ResultHandler

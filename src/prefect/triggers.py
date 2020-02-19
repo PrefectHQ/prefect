@@ -42,8 +42,7 @@ flow.set_reference_tasks([success])
 flow.run()
 ```
 """
-from typing import Callable, Set, TYPE_CHECKING, Union
-
+from typing import TYPE_CHECKING, Callable, Set, Union
 
 from prefect import context
 from prefect.engine import signals

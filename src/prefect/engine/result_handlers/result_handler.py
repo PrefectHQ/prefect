@@ -5,7 +5,6 @@ Anytime a task needs its output or inputs stored, a result handler is used to de
 """
 from typing import Any
 
-
 from prefect.utilities import logging
 
 

@@ -9,7 +9,7 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import Any, Callable, Dict, Iterable, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List
 
 import cloudpickle
 import pendulum
@@ -17,7 +17,6 @@ from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
-
 
 if TYPE_CHECKING:
     import docker

@@ -1,6 +1,6 @@
 import os
 import socket
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from slugify import slugify
 

@@ -8,8 +8,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
-from typing import Any, Callable, List, TYPE_CHECKING, Union
-
+from typing import TYPE_CHECKING, Any, Callable, List, Union
 
 import prefect
 

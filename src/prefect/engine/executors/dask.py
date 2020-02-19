@@ -1,7 +1,7 @@
 import logging
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List
 
 from prefect import context
 from prefect.engine.executors.base import Executor
