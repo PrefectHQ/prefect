@@ -9,7 +9,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
 
-import requests
 from toolz import curry
 
 import prefect
@@ -276,6 +275,10 @@ def slack_notifier(
         [isinstance(new_state, included) for included in only_states]
     ):
         return new_state
+
+    # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+    # the 'import prefect' time low
+    import requests
 
     form_data = slack_message_formatter(tracked_obj, new_state)
     r = requests.post(webhook_url, json=form_data)
