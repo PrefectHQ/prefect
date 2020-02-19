@@ -15,11 +15,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Fix `V1DeleteOptions` call for Kubernetes tasks - [#2050](https://github.com/PrefectHQ/prefect/pull/2050)
 
 ### Fixes
 
-- Fix the DeleteNamespacedJob, DeleteNamespacedDeployment, DeleteNamespacedService and DeleteNamespacedPod tasks. 
+- None
 
 ### Deprecations
 
