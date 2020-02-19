@@ -356,8 +356,6 @@ jobs:
       - image: python:3.7
     environment:
       TWINE_REPOSITORY: prefect
-      TWINE_USERNAME: __token__
-      # TWINE_PASSWORD: #set as secret
     steps:
       - checkout
 
