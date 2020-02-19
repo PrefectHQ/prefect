@@ -9,15 +9,17 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import Any, Callable, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List
 
 import cloudpickle
-import docker
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.environments.storage import Storage
+
+if TYPE_CHECKING:
+    import docker
 
 
 class Docker(Storage):
@@ -157,7 +159,7 @@ class Docker(Storage):
             environment variables set.
             """
             image = "{}:{}".format(self.image_name, self.image_tag)
-            client = docker.APIClient(base_url=self.base_url, version="auto")
+            client = self._get_client()
             container = client.create_container(image, command="tail -f /dev/null")
             client.start(container=container.get("Id"))
             python_script = "import cloudpickle; f = open('{}', 'rb'); flow = cloudpickle.load(f); f.close(); flow.run()".format(
@@ -291,7 +293,7 @@ class Docker(Storage):
                 self.pull_image()
 
             dockerfile_path = self.create_dockerfile_object(directory=tempdir)
-            client = docker.APIClient(base_url=self.base_url, version="auto")
+            client = self._get_client()
 
             # Verify that a registry url has been provided for images that should be pushed
             if self.registry_url:
@@ -461,6 +463,13 @@ class Docker(Storage):
     # Docker Utilities
     ########################
 
+    def _get_client(self) -> "docker.APIClient":
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
+        return docker.APIClient(base_url=self.base_url, version="auto")
+
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.
 
@@ -471,7 +480,7 @@ class Docker(Storage):
         Raises:
             - InterruptedError: if either pulling the image fails
         """
-        client = docker.APIClient(base_url=self.base_url, version="auto")
+        client = self._get_client()
 
         output = client.pull(self.base_image, stream=True, decode=True)
         for line in output:
@@ -491,7 +500,7 @@ class Docker(Storage):
         Raises:
             - InterruptedError: if either pushing the image fails
         """
-        client = docker.APIClient(base_url=self.base_url, version="auto")
+        client = self._get_client()
 
         self.logger.info("Pushing image to the registry...")
 

@@ -1,7 +1,5 @@
 from typing import Any, cast
 
-import requests
-
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
@@ -42,6 +40,9 @@ class SlackTask(Task):
         Returns:
             - None
         """
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
 
         webhook_url = cast(str, Secret(self.webhook_secret).get())
         r = requests.post(webhook_url, json={"text": message})

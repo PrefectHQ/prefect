@@ -10,14 +10,12 @@ Every run is initialized with the `Pending` state, meaning that it is waiting fo
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
 import datetime
-from collections import defaultdict
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 import pendulum
 
 import prefect
-from prefect.engine.result import NoResult, Result, ResultInterface, SafeResult
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import NoResult, Result, ResultInterface
 
 
 class State:

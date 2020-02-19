@@ -1,5 +1,4 @@
-import datetime
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, List
 
 from prefect.engine.executors.base import Executor
 

@@ -1,5 +1,5 @@
-from typing import Any
 import warnings
+from typing import Any
 
 import tweepy
 

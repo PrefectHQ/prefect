@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
 - Upload package to PyPI on tag push to master - [#2030](https://github.com/PrefectHQ/prefect/issues/2030)
 - Add DaskGateway tip to docs - [#1959](https://github.com/PrefectHQ/prefect/issues/1959)
+- Improve package import time - [#2046](https://github.com/PrefectHQ/prefect/issues/2046)
 
 ### Task Library
 
@@ -20,7 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Ensure microseconds are respected on `start_date` provided to CronClock - [#2031](https://github.com/PrefectHQ/prefect/pull/2031)
 
 ### Deprecations
 

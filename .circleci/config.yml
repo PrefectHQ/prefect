@@ -11,33 +11,53 @@ jobs:
   # Check formatting
   # ----------------------------------
 
-  check_black_formatting:
+  check_static_analysis:
     docker:
       - image: python:3.6
     steps:
       - checkout
 
       - run:
-          name: Install Black
-          command: pip install black
+          name: Install python packages for static analysis
+          command: pip install black mypy mypy_extensions autoflake profimp
 
       - run:
           name: Run Black
           command: black --check .
 
-  check_mypy_typing:
-    docker:
-      - image: python:3.6
-    steps:
-      - checkout
-
-      - run:
-          name: Install mypy
-          command: pip install mypy mypy_extensions
-
       - run:
           name: Run mypy
           command: mypy src/
+
+      - run:
+          name: Check for potentially unused imports
+          command: |
+            if [[ $(autoflake --remove-all-unused-imports -r --exclude __init__.py src | tee .unused-imports.txt | wc -c ) -ne 0 ]]; then
+              echo "Potentially unused imports found"
+              cat .unused-imports.txt
+              exit 2
+            fi
+
+      - run:
+          name: Quick installation of Prefect
+          command: pip install -e .
+
+      - run:
+          name: Ensure 'import prefect' is under 1 second
+          command: |
+            apt update && apt install jq bc -y
+
+            # generate pycache
+            python -c 'import prefect'
+
+            if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
+              echo "Prefect import time is too slow"
+              cat .import-time.txt
+              exit 3
+            else
+              echo "Prefect import time (ms):"
+              cat .import-time.txt
+            fi
 
   check_documentation:
     docker:
@@ -407,8 +427,7 @@ workflows:
 
   "Check code style and docs":
     jobs:
-      - check_black_formatting
-      - check_mypy_typing
+      - check_static_analysis
       - check_documentation
 
   "Build and publish development artifacts":
