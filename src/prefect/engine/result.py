@@ -17,7 +17,7 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 whose value is `None`.
 """
 
-from typing import Any, Union
+from typing import Any
 
 from prefect.engine.result_handlers import ResultHandler
 
@@ -59,7 +59,6 @@ class ResultInterface:
 
     def store_safe_value(self) -> None:
         """Performs no computation."""
-        pass
 
 
 class Result(ResultInterface):

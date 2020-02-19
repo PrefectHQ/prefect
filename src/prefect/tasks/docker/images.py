@@ -1,8 +1,6 @@
 import json
 from typing import Any
 
-import docker
-
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -57,6 +55,10 @@ class ListImages(Task):
         Returns:
             - list: A list of dictionaries containing information about the images found
         """
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
         self.logger.debug(
             "Starting docker pull for repository {}...".format(repository_name)
         )
@@ -124,6 +126,10 @@ class PullImage(Task):
         """
         if not repository:
             raise ValueError("A repository to pull the image from must be specified.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         client = docker.APIClient(base_url=docker_server_url, version="auto")
         self.logger.debug(
@@ -197,6 +203,10 @@ class PushImage(Task):
         if not repository:
             raise ValueError("A repository to push the image to must be specified.")
 
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
         self.logger.debug(
             "Starting docker image push for repo {repo} and tag {tag}".format(
                 repo=repository, tag=tag
@@ -262,6 +272,10 @@ class RemoveImage(Task):
         """
         if not image:
             raise ValueError("The name of an image to remove must be provided.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug("Starting to remove Docker images: {}".format(image))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
@@ -333,6 +347,10 @@ class TagImage(Task):
         """
         if not image or not repository:
             raise ValueError("Both image and repository must be provided.")
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug(
             "Starting to tagging Docker image {image} with tag {tag} in repo {repo}".format(
@@ -424,6 +442,10 @@ class BuildImage(Task):
             raise ValueError(
                 "A path to a directory containing a Dockerfile must be provided."
             )
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         self.logger.debug(
             "Starting docker build with path {path} and tag {tag}".format(

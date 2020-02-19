@@ -1,9 +1,9 @@
 from typing import Any
-from prefect import Task
 
+from prefect import Task
 from prefect.client import Client
+from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.utilities.graphql import with_args, EnumValue
 
 
 class FlowRunTask(Task):

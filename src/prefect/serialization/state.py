@@ -1,7 +1,6 @@
-import json
-from typing import Any, Dict, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
-from marshmallow import ValidationError, fields, post_load
+from marshmallow import fields, post_load
 
 from prefect.engine import result, state
 from prefect.serialization.result import StateResultSchema
@@ -14,7 +13,7 @@ from prefect.utilities.serialization import (
 )
 
 if TYPE_CHECKING:
-    import prefect
+    pass
 
 
 def get_safe(obj: state.State, context: dict) -> Any:

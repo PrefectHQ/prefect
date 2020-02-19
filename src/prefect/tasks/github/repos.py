@@ -1,5 +1,4 @@
 import warnings
-import json
 from typing import Any, List
 
 import requests

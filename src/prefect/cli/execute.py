@@ -25,7 +25,6 @@ def execute():
     \b
         $ prefect execute local-flow ~/.prefect/flows/my_flow.prefect
     """
-    pass
 
 
 @execute.command(hidden=True)

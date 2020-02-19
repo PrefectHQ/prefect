@@ -1,8 +1,7 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
-
-import cloudpickle
 import socket
+from typing import Any, Dict, List, TYPE_CHECKING
+
 from slugify import slugify
 
 import prefect

@@ -42,10 +42,14 @@ flow.set_reference_tasks([success])
 flow.run()
 ```
 """
-from typing import Callable, Set, Union
+from typing import Callable, Set, TYPE_CHECKING, Union
+
 
 from prefect import context
-from prefect.engine import signals, state
+from prefect.engine import signals
+
+if TYPE_CHECKING:
+    from prefect.engine import state  # pylint: disable=W0611
 
 
 def all_finished(upstream_states: Set["state.State"]) -> bool:

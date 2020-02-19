@@ -1,11 +1,9 @@
-import io
 from typing import TYPE_CHECKING, Any, Dict, List
 
 import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.result_handlers import GCSResultHandler
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
@@ -38,7 +36,7 @@ class GCS(Storage):
 
     def __init__(self, bucket: str, key: str = None, project: str = None) -> None:
         self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self._flows = dict()  # type: Dict[str, "Flow"]
 
         self.bucket = bucket
         self.key = key

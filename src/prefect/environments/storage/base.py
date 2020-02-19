@@ -1,5 +1,5 @@
-from abc import ABCMeta, abstractmethod
 import logging
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, List
 
 import prefect
@@ -68,7 +68,6 @@ class Storage(metaclass=ABCMeta):
         Returns:
             - str: the location of the newly added flow in this Storage object
         """
-        pass
 
     @property
     def name(self) -> str:
@@ -89,7 +88,6 @@ class Storage(metaclass=ABCMeta):
         """
         Method for determining whether an object is contained within this storage.
         """
-        pass
 
     @abstractmethod
     def build(self) -> "Storage":

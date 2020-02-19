@@ -1,8 +1,9 @@
 import json
 import warnings
-from typing import Any, List
+from typing import Any
 
 import requests
+
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs

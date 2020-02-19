@@ -14,14 +14,13 @@ import logging
 import sys
 import threading
 import time
-from queue import Queue, Empty
+from queue import Empty, Queue
 from typing import Any
 
 import pendulum
 
 import prefect
 from prefect.utilities.context import context
-
 
 _original_log_record_factory = logging.getLogRecordFactory()
 

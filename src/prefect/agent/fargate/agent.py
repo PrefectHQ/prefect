@@ -1,15 +1,16 @@
-from ast import literal_eval
-import os
 import copy
 import json
+import os
+from ast import literal_eval
 from typing import Iterable
+
+from slugify import slugify
 
 from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
-from slugify import slugify
 
 
 class FargateAgent(Agent):

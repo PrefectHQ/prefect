@@ -17,10 +17,11 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.state
     import prefect.client
-    from prefect import Flow, Task
+    from prefect import Flow, Task  # pylint: disable=W0611
+
+TrackedObjectType = Union["Flow", "Task"]
 
 __all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
-TrackedObjectType = Union["Flow", "Task"]
 
 
 def callback_factory(
