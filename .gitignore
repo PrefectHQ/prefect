@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 .unused-imports.txt
+.import-time.txt
 
 # C extensions
 *.so

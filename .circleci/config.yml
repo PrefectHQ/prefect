@@ -18,8 +18,8 @@ jobs:
       - checkout
 
       - run:
-          name: Install packages for static analysis
-          command: pip install black mypy mypy_extensions autoflake
+          name: Install python packages for static analysis
+          command: pip install black mypy mypy_extensions autoflake profimp
 
       - run:
           name: Run Black
@@ -36,6 +36,27 @@ jobs:
               echo "Potentially unused imports found"
               cat .unused-imports.txt
               exit 2
+            fi
+
+      - run:
+          name: Quick installation of Prefect
+          command: pip install -e .
+
+      - run:
+          name: Ensure 'import prefect' is under 1 second
+          command: |
+            apt update && apt install jq bc -y
+
+            # generate pycache
+            python -c 'import prefect'
+
+            if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
+              echo "Prefect import time is too slow"
+              cat .import-time.txt
+              # exit 3
+            else
+              echo "Prefect import time (ms):"
+              cat .import-time.txt
             fi
 
   check_documentation:
