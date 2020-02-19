@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 from prefect import context
 from prefect.tasks.notifications import SlackTask
@@ -20,20 +21,20 @@ class TestInitialization:
 
     def test_webhook_url_pulled_from_secrets(self, monkeypatch):
         req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.notifications.slack_task.requests", req)
+        monkeypatch.setattr(requests, "post", req)
         t = SlackTask()
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with context({"secrets": dict(SLACK_WEBHOOK_URL="http://foo/bar")}):
                 res = t.run(message="o hai mark")
-        assert req.post.call_args[0] == ("http://foo/bar",)
-        assert req.post.call_args[1]["json"]["text"] == "o hai mark"
+        assert req.call_args[0] == ("http://foo/bar",)
+        assert req.call_args[1]["json"]["text"] == "o hai mark"
 
     def test_custom_webhook_url_pulled_from_secrets(self, monkeypatch):
         req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.notifications.slack_task.requests", req)
+        monkeypatch.setattr(requests, "post", req)
         t = SlackTask(webhook_secret="MY_URL")
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with context({"secrets": dict(MY_URL="http://foo/bar")}):
                 res = t.run(message="o hai mark")
-        assert req.post.call_args[0] == ("http://foo/bar",)
-        assert req.post.call_args[1]["json"]["text"] == "o hai mark"
+        assert req.call_args[0] == ("http://foo/bar",)
+        assert req.call_args[1]["json"]["text"] == "o hai mark"
