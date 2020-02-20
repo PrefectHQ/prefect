@@ -22,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Ensure microseconds are respected on `start_date` provided to CronClock - [#2031](https://github.com/PrefectHQ/prefect/pull/2031)
+- Fix duplicate Client connections when using `--logs` flag from `run cloud` CLI command - [#2056](https://github.com/PrefectHQ/prefect/pull/2056)
 
 ### Deprecations
 

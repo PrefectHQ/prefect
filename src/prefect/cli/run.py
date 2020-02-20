@@ -202,7 +202,7 @@ def cloud(
         }
 
         while True:
-            result = Client().graphql(query)
+            result = client.graphql(query)
 
             flow_run = result.data.flow_run
             if not flow_run:
