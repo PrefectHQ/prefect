@@ -1,8 +1,27 @@
 import sys
+import os
 
 from setuptools import find_packages, setup
+from setuptools.command.install import install
 
 import versioneer
+
+
+class VerifyVersionCommand(install):
+    """Verify that the git tag matches our package version"""
+
+    description = "verify that the git tag matches our package version"
+
+    def run(self):
+        version = versioneer.get_version()
+        tag = os.getenv("CIRCLE_TAG")
+
+        if tag != version:
+            info = "Failed version verification: '{0}' does not match the version of this app: '{1}'".format(
+                tag, version
+            )
+            sys.exit(info)
+
 
 ## base requirements
 install_requires = open("requirements.txt").read().strip().split("\n")
@@ -45,10 +64,15 @@ if sys.version_info < (3, 6):
 extras["all_extras"] = sum(extras.values(), [])
 
 
+cmdclass = {
+    "verify_version": VerifyVersionCommand,
+}
+cmdclass.update(versioneer.get_cmdclass())
+
 setup(
     name="prefect",
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=cmdclass,
     install_requires=install_requires,
     extras_require=extras,
     scripts=[],
