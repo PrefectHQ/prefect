@@ -423,6 +423,11 @@ title = "Debugging Tools"
 module = "prefect.utilities.debug"
 functions = ["is_serializable", "raise_on_exception"]
 
+[pages.utilities.diagnostics]
+title = "Diagnostics"
+module = "prefect.utilities.diagnostics"
+functions = ["diagnostic_info", "flow_information", "system_information", "config_overrides", "environment_variables"]
+
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"

@@ -10,7 +10,7 @@ def system_information() -> dict:
     """
     Get system information
 
-    Return:
+    Returns:
         - dict: a dictionary containing some system information
     """
     return dict(
