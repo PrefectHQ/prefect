@@ -14,6 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Upload package to PyPI on tag push to master - [#2030](https://github.com/PrefectHQ/prefect/issues/2030)
 - Add DaskGateway tip to docs - [#1959](https://github.com/PrefectHQ/prefect/issues/1959)
 - Improve package import time - [#2046](https://github.com/PrefectHQ/prefect/issues/2046)
+- Add kwargs to `V1DeleteOptions` for Kubernetes tasks - [#2051](https://github.com/PrefectHQ/prefect/pull/2051)
 
 ### Task Library
 
