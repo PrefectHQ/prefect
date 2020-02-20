@@ -189,7 +189,8 @@ class DeleteNamespacedDeployment(Task):
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
             - delete_option_kwargs (dict, optional): Optional keyword arguments to pass to
-                the V1DeleteOptions object (e.g. {"propagation_policy": "...", "grace_period_seconds": "..."}.
+                the V1DeleteOptions object (e.g. {"propagation_policy": "...",
+                "grace_period_seconds": "..."}.
 
         Raises:
             - ValueError: if `deployment_name` is `None`
