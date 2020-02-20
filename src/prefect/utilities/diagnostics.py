@@ -78,6 +78,7 @@ def flow_information(flow: "prefect.Flow") -> dict:
     Returns:
         - dict: a dictionary of informative flow attributes
     """
+
     def _replace_values(data: dict) -> Dict[Any, Any]:
         if isinstance(data, dict):
             return {k: _replace_values(v) if v else False for k, v in data.items()}
