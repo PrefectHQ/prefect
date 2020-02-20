@@ -34,6 +34,7 @@ from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
+from prefect.utilities import diagnostics
 from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
@@ -1224,6 +1225,18 @@ class Flow:
         serialized.update(schema(only=["storage"]).dump({"storage": storage}))
 
         return serialized
+
+    # Diagnostics  ----------------------------------------------------------------
+
+    def diagnostics(self, secrets: bool = True) -> str:
+        """
+        Get flow and Prefect diagnostic information
+
+        Args:
+            - secrets (bool, optional): toggle output of Secret names, defaults to True.
+                Note: Secret values are never returned, only their names.
+        """
+        return diagnostics.diagnostic_info(self, secrets)
 
     # Registration ----------------------------------------------------------------
 
