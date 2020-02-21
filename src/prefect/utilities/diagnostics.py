@@ -42,7 +42,7 @@ def config_overrides(secrets: bool = True) -> dict:
             }
         return True
 
-    user_config: Dict[Any, Any] = dict()
+    user_config = dict()  # type: ignore
     user_config_path = prefect.configuration.USER_CONFIG
     if user_config_path and os.path.isfile(
         str(prefect.configuration.interpolate_env_vars(user_config_path))
@@ -86,7 +86,7 @@ def flow_information(flow: "prefect.Flow") -> dict:
         return True
 
     # Check presence of environment attributes
-    environment: Dict[Any, Any] = dict()
+    environment = dict()  # type: ignore
     if flow.environment:
         environment = {
             "type": type(flow.environment).__name__,
@@ -94,7 +94,7 @@ def flow_information(flow: "prefect.Flow") -> dict:
         environment.update(_replace_values(flow.environment.__dict__))
 
     # Check presence of storage attributes
-    storage: Dict[Any, Any] = dict()
+    storage = dict()  # type: ignore
     if flow.storage:
         storage = {
             "type": type(flow.storage).__name__,
@@ -102,12 +102,12 @@ def flow_information(flow: "prefect.Flow") -> dict:
         storage.update(_replace_values(flow.storage.__dict__))
 
     # Check presence of a result handler
-    result_handler: Dict[Any, Any] = dict()
+    result_handler = dict()  # type: ignore
     if flow.result_handler:
         result_handler = {"type": type(flow.result_handler).__name__}
 
     # Check presence of a schedule
-    schedule: Dict[Any, Any] = dict()
+    schedule = dict()  # type: ignore
     if flow.schedule:
         schedule = {"type": type(flow.schedule).__name__}
         schedule.update(flow.schedule.__dict__)
