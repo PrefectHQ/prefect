@@ -374,8 +374,6 @@ jobs:
   release_to_pypi:
     docker:
       - image: python:3.7
-    environment:
-      TWINE_REPOSITORY: prefect
     steps:
       - checkout
 
@@ -411,7 +409,7 @@ jobs:
 workflows:
   version: 2
 
-  "Run tests":
+  'Run tests':
     jobs:
       - test_35
       - test_36
@@ -425,37 +423,37 @@ workflows:
             - test_36
             - test_vanilla_prefect
 
-  "Check code style and docs":
+  'Check code style and docs':
     jobs:
       - check_static_analysis
       - check_documentation
 
-  "Build and publish development artifacts":
+  'Build and publish development artifacts':
     jobs:
       - build_master_docker_image:
-          python_version: "3.7"
+          python_version: '3.7'
           filters:
             branches:
               only: master
 
-  "Build and publish release artifacts":
+  'Build and publish release artifacts':
     jobs:
       - build_docker_image:
-          python_version: "3.5"
+          python_version: '3.5'
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: "3.6"
+          python_version: '3.6'
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: "3.7"
+          python_version: '3.7'
           tag_latest: true
           filters:
             branches:
