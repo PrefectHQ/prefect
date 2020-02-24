@@ -101,7 +101,7 @@ class SafeResult(ResultInterface):
     the serialized value of a task's result, and a result handler specifying how to deserialize this value
 
     Args:
-        - value (Any): the safe represenation of a value
+        - value (Any): the safe representation of a value
         - result_handler (ResultHandler): the result handler to use when reading this result's value
     """
 
