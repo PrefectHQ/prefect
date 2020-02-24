@@ -10,25 +10,18 @@ Why would you use result handlers in the first place? One common situation is to
 
 ## Setting up to handle results
 
-The first step to getting the most out of Result Handlers is to enable results storage. You must enable in two places: globally for the Prefect installation, and at the task level by providing a result handler to tasks either through a global setting, a flow-level override, or a task-level override. Depending on your storage backend, you may also need to ensure your authentication credentials are set up properly. For Cloud customers, some of this is handled by default.
+The first step to getting the most out of Result Handlers is to enable results storage. You must enable in two places: globally for the Prefect installation, and at the task level by providing a result handler to tasks either through its flow initialization or as a task-level override. Depending on your storage backend, you may also need to ensure your authentication credentials are set up properly. For Cloud customers, some of this is handled by default.
 
 For Core-only users or Cloud customers on Prefect versions <0.9.1, you must
 - opt-in to checkpointing globally by setting the `prefect.config.flows.checkpointing` to "True".
-- specify the result handler your tasks will use for at least one level of specificity (globally, flow-level, or task-level)
+- specify the result handler your tasks will use for at least one level of specificity (flow-level or task-level)
 
 For Cloud customers on Prefect version 0.9.1+,
 - checkpointing will automatically be turned on; you can disable it by setting `prefect.config.flows.checkpointing` to "False"
  - a result handler that matches the storage backend of your `prefect.config.flows.storage` setting will automatically be applied to all tasks , if available; notably this is not yet supported for Docker Storage
  - you can override the automatic results handler at the global level, flow level, or task level
- 
- 
- #### Globally setting result handlers
- ```bash
-export PREFECT__FLOWS__CHECKPOINTING=true
-export PREFECT__FLOWS__RESULT_HANDLER=prefect.engine.result_handlers.LocalStorageHandler
-```
 
-#### Flow override for result handlers
+#### Setting result handler at the Flow level
 ```bash
 export PREFECT__FLOWS__CHECKPOINTING=true
 ```
@@ -39,12 +32,13 @@ export PREFECT__FLOWS__CHECKPOINTING=true
 def add(x, y=1):
     return x + y
 
+# send the configuration to the Flow object
 with Flow("my handled flow!", result_handler=LocalStorageHandler()):
     first_result = add(1, y=2)
     second_result = add(x=first_result, y=100)
 ```
 
-#### Task override for result handlers
+#### Setting result handler at the task level
 ```bash
 export PREFECT__FLOWS__CHECKPOINTING=true
 ```
@@ -68,7 +62,7 @@ In the above examples, we only used the `LocalStorageHandler` class. This is one
  
 We can write our own result handlers as long as they extend the `ResultHandler` interface, or we can pick an existing implementation from Prefect Core that utilizes a storage backend we like; for example, I will use `prefect.engine.results_handler.GCSResultHandler` so that my data will be persisted in Google Cloud Storage.
 
-### Running a flow with `GCSResultHandler`
+## Running a flow with `GCSResultHandler`
 
 Since the `GCSResultHandler` object must be instantiated with some initialization arguments, we utilize a flow-level override to pass in the Python object after configuring it:
 
@@ -82,18 +76,31 @@ with Flow("my handled flow!", result_handler=gcs_handler):
     ...
 ```
 
-As long as the host of my Prefect installation can authenticate to this GCS bucket, each task's return value will be serialized into its own file in this GCS bucket.
+Make sure your Prefect installation can authenticate to Google's Cloud API; [their documentation is here](https://cloud.google.com/docs/authentication/getting-started). As long as the host of my Prefect installation can authenticate to this GCS bucket, each task's return value will be serialized into its own file in this GCS bucket.
 
-```bash
- > gsutil ls gs://prefect_results
-```
-
-I can see that my task states know the location of their individual result storage when I inspect them in-memory:
+After running my flow, I can see that my task states know the key name of their individual result storage in `Result.safe_value` when I inspect them in-memory:
 
 ```python
-# some stuff here looking at the results.safe_values
+>>> state = flow.run()
+>>> state.result[first_result]._result.safe_value
+<SafeResult: '2020/2/24/21120e41-339f-4f7d-a209-82fb3b1b5507.prefect_result'>
+>>> state.result[second_result]._result.safe_value
+<SafeResult: '2020/2/24/133eaf17-ab77-4468-afdf-734b6540dde0.prefect_result'>
 ```
 
-And as a Cloud customer, I can see that this metadata from the "safe value" is also stored by the scheduler and exposed to me in the UI:
+And I can see that those keys exist in the GCS bucket I configured my results handler to submit data to:
 
-PICTUREEEE??
+```bash
+$ gsutil ls -r gs://prefect_results
+gs://prefect_results/2020/:
+
+gs://prefect_results/2020/2/:
+
+gs://prefect_results/2020/2/24/:
+gs://prefect_results/2020/2/24/59082506-9217-436f-9d69-9ff569b20b7a.prefect_result
+gs://prefect_results/2020/2/24/a07dd6c1-837d-4925-be46-3b525be57779.prefect_result
+```
+
+If you are also a Cloud customer, you can see that this metadata from the "safe value" is also stored by the scheduler and exposed in the UI:
+
+![Task Detail with Result.safe_value showing](/result-stored-in-cloud-UI.png)
