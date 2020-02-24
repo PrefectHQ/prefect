@@ -1,0 +1,66 @@
+---
+title: 'PIN-15: Skip state refactor & conditionals'
+sidebarDepth: 0
+---
+
+# PIN 15: Skip state as Finished + Control Flow Conditional
+
+Date: February 24, 2020
+
+Author: Alex Goodman
+
+## Status
+
+Proposed
+
+## Context
+
+The [ControlFlow](https://docs.prefect.io/api/latest/tasks/control_flow.html) Tasks allow for users to branch conditionally within the execution graph, skipping some tasks and allowing execution of others. However, [back-to-back conditions](https://github.com/PrefectHQ/prefect/issues/2017) have proven to be a problem under the existing implementation. Specifically, the problem appears to be with the semantics with the “Skip” Prefect State: it is considered to be fundamentally a “Success” state. That is, it is not easy (if impossible) to determine why a task was skipped, and if ignoring that Skipped state is OK. This means that using `skip_on_upstream_skip` is not a good enough mechanism to implement back-to-back conditions and hints that more functionality is needed.
+
+## Proposal
+
+This PIN proposes to enhance conditionally executing Tasks within Flows. Ultimately, the proposal is:
+
+1. Change the underlying base State of “Skip” from “Success” to “Finished”. This is more semantically correct: the task has neither completed successfully or in error, it has only completed. If it was not in a completed state it could be misconstrued with a pending-like state, however, we have already determined that no further action is necessary thus it has completed.
+
+Given that it is no longer necessary to stop the continued execution now that Skip is no longer a “Success” state, there are further implied changes:
+
+2. Any triggers that raise `TRIGGERFAILED` signal should now raise `SKIP` instead.
+
+3. Remove `skip_on_upstream_skip` as a Task argument (this can be handled by a user electing to use the new `no_failed` trigger, introduced later).
+
+4. Remove the `TaskRunner.check_upstream_skipped` state logic.
+
+Once these changes are made there is an opportunity to add additional functionality:
+
+5. Add a new `no_failed` trigger, which passes if there are no failed states upstream.
+
+6. Introduce a `conditional` object that acts similar to `switch`, supporting only a single case (the `True` case). This will be a `task.run` wrapper instead of adding an additional CompareValue task. Any task can be a condition, a truthy value will be determined by the result of the given task, and if determined to be “False” then `FAIL` is raised.
+
+   Example usage (within a flow context):
+   `conditional(is_b_enabled, b_task)`
+   instead of
+   `switch(is_b_enabled, {True: b_task})`
+
+7. Add the ability to combine conditions: add `any_condition` and `all_conditions` reducing functions to `prefect.tasks.control_flow.conditional`. This would add an additional task to the flow, with upstreams being the individual conditions, and the new task emitting a “True” result or raising a `FAIL`.
+
+   Example usage (within a flow context):
+   `conditional(all_conditions(is_a_enabled, another_task), a_task)`
+
+## Consequences
+
+Back-to-back `switch` usage would be possible (since `skip_on_upstream_skip` is no longer the mechanism used to determine if a task should respond to upstream Skip).
+
+## Actions
+
+Release the changes in two batches:
+
+1. First release (breaking changes):
+
+   a. Add deprecation warnings for uses of `TRIGGERFAIL` signal, `TriggerFailed` state, and `skip_on_upstream_skip` Task option usage
+
+   b. Implement proposal items 1-7
+
+2. Second release (breaking changes):
+
+   a. Remove functionality for `TRIGGERFAIL` signal, `TriggerFailed` state, `skip_on_upstream_skip`

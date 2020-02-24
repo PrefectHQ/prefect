@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add PIN 15 (skip refactor) - [#2070](https://github.com/PrefectHQ/prefect/issues/2070)
 
 ### Task Library
 
