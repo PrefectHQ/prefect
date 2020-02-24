@@ -103,4 +103,31 @@ gs://prefect_results/2020/2/24/a07dd6c1-837d-4925-be46-3b525be57779.prefect_resu
 
 If you are also a Cloud customer, you can see that this metadata from the "safe value" is also stored by the scheduler and exposed in the UI:
 
-![Task Detail with Result.safe_value showing](/result-stored-in-cloud-UI.png)
+![Task Detail with GCS Result.safe_value showing](/result-stored-in-cloud-UI-gcshandler.png)
+
+## Running a flow with `JSONResultHandler`
+
+A unique case is the `JSONResultHandler`, as it serializes the entire `Result` object as its `Result.safe_value`. This is only useful for small data loads and for data that Cloud customers are comfortable sharing with the Cloud database. When used effectively, they can provide efficient inspection of data output in the UI. For this reason, all `Parameter` type Tasks use this as their result handler.
+
+Let's see this with an example. The same flow that adds numbers together will instead be configured with the JSON result handler:
+
+```python
+# flow.py
+from prefect.engine.result_handlers import JSONResultHandler
+
+with Flow("my handled flow!", result_handler=JSONResultHandler()):
+    ...
+```
+
+Now when I run my flow, the `Result.safe_value` contains the actual return value from my Task in it:
+
+```python
+>>> state.result[first_result]._result.value                                  
+3
+>>> state.result[first_result]._result.safe_value                             
+<SafeResult: '3'>
+```
+
+And this value `3` is also visible to Cloud customers in the UI when inspecting the Task Run details:
+
+![Task Detail with JSON Result.safe_value showing](/result-stored-in-cloud-UI-jsonhandler.png)

@@ -131,3 +131,5 @@ For example, suppose Task A has Result Handler A, and Task B has Result Handler 
 ::: warning Parameters are different
 There is one exception to the rule for Result Handlers: Prefect Parameters. Prefect Parameters always use the `JSONResultHandler` so that their cached values are inspectable in the UI.
 :::
+
+To learn more about using Result Handlers, check out the tutorial on [Using Result Handlers](../advanced_tutorials/using-result-handlers.html).
