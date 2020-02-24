@@ -112,9 +112,6 @@ def test_flow_information():
     assert flow_information["environment"]["on_exit"] is False
     assert flow_information["environment"]["logger"] is True
 
-    # executor': True, 'executor_kwargs': False, 'labels': False,
-    # 'on_start': False, 'on_exit': False, 'logger': True
-
 
 def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
