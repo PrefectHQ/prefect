@@ -22,12 +22,12 @@ def system_information() -> dict:
     )
 
 
-def config_overrides(secrets: bool = True) -> dict:
+def config_overrides(include_secret_names: bool = False) -> dict:
     """
     Get user configuration overrides
 
     Args:
-        - secrets (bool, optional): toggle output of Secret names, defaults to True.
+        - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
             Note: Secret values are never returned, only their names.
 
     Returns:
@@ -37,7 +37,9 @@ def config_overrides(secrets: bool = True) -> dict:
     def _replace_values(data: dict) -> Dict[Any, Any]:
         if isinstance(data, dict):
             return {
-                k: _replace_values(v) if k != "secrets" or secrets else False
+                k: _replace_values(v)
+                if k != "secrets" or include_secret_names
+                else False
                 for k, v in data.items()
             }
         return True
@@ -123,14 +125,16 @@ def flow_information(flow: "prefect.Flow") -> dict:
     )
 
 
-def diagnostic_info(flow: "prefect.Flow" = None, secrets: bool = True) -> str:
+def diagnostic_info(
+    flow: "prefect.Flow" = None, include_secret_names: bool = False
+) -> str:
     """
     Get full diagnostic information
 
     Args:
         - flow ("prefect.Flow", optional): the flow whose attributes to retrieve. If no
             flow is provided then flow information will not be present in output.
-        - secrets (bool, optional): toggle output of Secret names, defaults to True.
+        - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
             Note: Secret values are never returned, only their names.
 
     Returns:
@@ -139,7 +143,7 @@ def diagnostic_info(flow: "prefect.Flow" = None, secrets: bool = True) -> str:
     aggregate_info = dict()
 
     aggregate_info.update(system_information())
-    aggregate_info.update(config_overrides(secrets))
+    aggregate_info.update(config_overrides(include_secret_names))
     aggregate_info.update(environment_variables())
 
     if flow:

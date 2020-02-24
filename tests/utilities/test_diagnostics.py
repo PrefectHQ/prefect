@@ -48,7 +48,7 @@ def test_config_overrides_secrets(monkeypatch):
             "prefect.configuration.USER_CONFIG", "{}/config.toml".format(tempdir)
         )
 
-        config_overrides = diagnostics.config_overrides()
+        config_overrides = diagnostics.config_overrides(include_secret_names=True)
 
         assert config_overrides["config_overrides"] == {"secrets": {"key": True}}
 
@@ -63,7 +63,7 @@ def test_config_overrides_no_secrets(monkeypatch):
             "prefect.configuration.USER_CONFIG", "{}/config.toml".format(tempdir)
         )
 
-        config_overrides = diagnostics.config_overrides(secrets=False)
+        config_overrides = diagnostics.config_overrides()
 
         assert config_overrides["config_overrides"] == {"secrets": False}
 
@@ -144,7 +144,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
 
         monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
 
-        diagnostic_info = diagnostics.diagnostic_info(flow=flow, secrets=False)
+        diagnostic_info = diagnostics.diagnostic_info(flow=flow)
         diagnostic_info = json.loads(diagnostic_info)
 
         config_overrides = diagnostic_info["config_overrides"]

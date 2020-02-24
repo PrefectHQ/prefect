@@ -2188,7 +2188,7 @@ class TestFlowDiagnostics:
 
             monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
 
-            diagnostic_info = flow.diagnostics(secrets=False)
+            diagnostic_info = flow.diagnostics()
             diagnostic_info = json.loads(diagnostic_info)
 
             config_overrides = diagnostic_info["config_overrides"]

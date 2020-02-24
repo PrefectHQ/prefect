@@ -46,7 +46,7 @@ def cli():
 
     \b
     Miscellaneous Commands:
-        version     Get the current Prefect version
+        version     Print the current Prefect version
         config      Output Prefect config
         diagnostics Output Prefect diagnostic information
     """
@@ -84,18 +84,21 @@ def config():
 
 @cli.command(hidden=True)
 @click.option(
-    "--no-secrets",
+    "--include-secret-names",
     help="Output Prefect diagnostic information",
     hidden=True,
     is_flag=True,
-    default=True,
 )
-def diagnostics(no_secrets):
+def diagnostics(include_secret_names):
     """
     Output Prefect diagnostic information
 
     \b
     Options:
-        --no-secrets    Disable output of potential Secret names
+        --include-secret-names    Enable output of potential Secret names
     """
-    click.echo(prefect.utilities.diagnostics.diagnostic_info(secrets=bool(no_secrets)))
+    click.echo(
+        prefect.utilities.diagnostics.diagnostic_info(
+            include_secret_names=bool(include_secret_names)
+        )
+    )

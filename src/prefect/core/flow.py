@@ -1228,15 +1228,15 @@ class Flow:
 
     # Diagnostics  ----------------------------------------------------------------
 
-    def diagnostics(self, secrets: bool = True) -> str:
+    def diagnostics(self, include_secret_names: bool = False) -> str:
         """
         Get flow and Prefect diagnostic information
 
         Args:
-            - secrets (bool, optional): toggle output of Secret names, defaults to True.
+            - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
                 Note: Secret values are never returned, only their names.
         """
-        return diagnostics.diagnostic_info(self, secrets)
+        return diagnostics.diagnostic_info(self, include_secret_names)
 
     # Registration ----------------------------------------------------------------
 
