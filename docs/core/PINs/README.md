@@ -72,13 +72,13 @@ A proposal for a way to loop over single tasks with arbitrary control logic and 
 
 **Status:** Proposed
 
-## PIN 12: Environment Callbacks](PIN-12-Environment-Callbacks.md)
+## [PIN 12: Environment Callbacks](PIN-12-Environment-Callbacks.md)
 
 A proposal to introduce user-provided callbacks for `Environments` which users can use to specify additional behavior before a Flow is run and after a FlowRun has ended.
 
 **Status:** Accepted
 
-## PIN 13: Universal Cloud Deploys](PIN-13-Universal-Deploy.md)
+## [PIN 13: Universal Cloud Deploys](PIN-13-Universal-Deploy.md)
 
 A proposal to run Flows from Prefect Cloud with local Python resources and packages.
 
