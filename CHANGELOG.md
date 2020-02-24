@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Update docs and docstrings related to Result Handlers - [#1792](https://github.com/PrefectHQ/prefect/issues/1792)
 
 ### Task Library
 
