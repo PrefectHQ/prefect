@@ -69,7 +69,15 @@ All Results come equipped with `to_result` / `store_safe_value` methods which re
 
 ## Result Handlers
 
-Result handlers are a more public entity than the `Result` class, as they provide the means to persist the data from an in-memory `Result` object. A result handler is a specific implementation of a `read` / `write` interface for handling data. The only requirement for a result handler implementation is that the `write` method returns a JSON-compatible object. Usually, the `write` method will execute some code that serializes Task data to a storage backend (such the local file system or a cloud storage option like S3) and return a simple JSON structure with metadata only, such as the absolute file path or bucket and key name of that file. For example, we can easily imagine different kinds of result handlers:
+Result handlers are a more public entity than the `Result` class, as they provide the means to persist the data from an in-memory `Result` object. A result handler is a specific implementation of a `read` / `write` interface for handling data. The only actual requirement for a result handler implementation is that the `write` method returns a JSON-compatible object. 
+
+In general, however, result handler `write` methods are implemented so that they do two things:
+1. serialize the return value of a Task in-memory in the Task State's `Result.value` attribute, and persist it to disk in the result handler's storage backend, and
+2. segregate out a "safe value", usually metadata, about that stored return value in the State's `Result.safe_value` attribute and, for Cloud customers, persist that safe value in the scheduler database
+
+On the flip side, result handler `read` methods usually access the metadata in an upstream `Result.safe_value` to locate, and then deserialize, the upstream Task's return value that is in storage.
+
+For example, we can easily imagine different kinds of result handlers:
 
 - a Google Cloud Storage handler which writes a given piece of data to a Google Cloud Storage bucket, and reads data from that bucket; the `write` method in this instance returns a URI
 - a `LocalResultHandler` that reads / writes data from local file storage; the `write` method in this instance returns an absolute file path
