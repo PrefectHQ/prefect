@@ -46,8 +46,8 @@ def cli():
 
     \b
     Miscellaneous Commands:
-        version     Get your current Prefect version
-        config      Output your Prefect config
+        version     Get the current Prefect version
+        config      Output Prefect config
         diagnostics Output Prefect diagnostic information
     """
     pass
@@ -69,7 +69,7 @@ cli.add_command(_heartbeat)
 @cli.command(hidden=True)
 def version():
     """
-    Get your current Prefect version
+    Get the current Prefect version
     """
     click.echo(prefect.__version__)
 
@@ -77,7 +77,7 @@ def version():
 @cli.command(hidden=True)
 def config():
     """
-    Output your Prefect config
+    Output Prefect config
     """
     click.echo(prefect.config.to_dict())
 
