@@ -3,7 +3,7 @@
 Prefect allows data to pass between Tasks as a first class operation. Additionally, Prefect was designed with security and privacy concerns
 in mind. Consequently, Prefect's abstractions allow users to take advantage of all its features without ever needing to surrender control, access, or even visibility of their private data.
 
-One of the primary ways in which this is achieved is through the use of "Results" and "Result Handlers".  At a high level, all `State` objects have a `Result` object associated with them. Tasks can be configured to provide a `ResultHandler` to their `Result` objects, which specifies how the outputs of that Task should be handled if they need to be persisted for any reason. (For background on when / why this might occur, see the Concepts section on [caching](execution.html#caching)). This _includes_ the situation where a _downstream_ task needs to cache its inputs - each input will be stored according to its own individual result handler.
+One of the primary ways in which this is achieved is through the use of "Results" and "Result Handlers".  At a high level, all `State` objects have a `Result` object associated with them. Tasks can be configured to provide a `ResultHandler` to their `Result` objects, which specifies how the outputs of that Task should be handled if they need to be persisted for any reason.
 
 ::: warning Result Handlers are always attached to Task outputs
 For example, suppose Task A has Result Handler A, and Task B has Result Handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. When it stores this data, it will use Result Handler A.
@@ -17,7 +17,7 @@ When running Prefect with Prefect Cloud, only the data contained in a `Result`'s
 
 Results represent Prefect Task outputs. In particular, anytime a Task runs, its output
 is encapsulated in a `Result` object. This object retains information about what the data is and how to "handle" it
-if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed).
+if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed - learn more about the differences in [Persistence and Caching](persistence.md)).
 
 An instantiated Result object has the following attributes:
 
@@ -116,12 +116,14 @@ To showcase this, below is the same example with my flow configured to checkpoin
 In Core, the return value is associated in-memory with the `Result` object attached to flow `State`s. For Cloud customers, the return value of a result handler's `write` method is also persisted in Prefect Cloud's database.
 
 ::: warning Handle your data carefully
-When running on Prefect Cloud, the return value of a Result Handler's `write` method is what is stored in the Cloud database. Though you may serialize your data during your result handler's execution, *only* `return` data that you feel is safe to persist in Prefect Cloud.
+Using Result Handlers means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
+
+When running on Prefect Cloud, the return value of a Result Handler's `write` method is what is stored in the Cloud database. Though you may serialize your data during your result handler's execution, *only* `return` data from Tasks that you feel is safe to persist in Prefect Cloud.
 :::
 
 ### How to specify a `ResultHandler`
 
-`ResultHandler`'s `read` and `write` methods will be called by Prefect only if you enable either checkpointing or caching. Once this configuration is set, there is a hierarchy to determining what `ResultHandler` to use for a given piece of data:
+`ResultHandler`'s `read` and `write` methods will be called by Prefect only if you enable checkpointing. Once this configuration is set, there is a hierarchy to determining what `ResultHandler` to use for a given piece of data:
 
 1. First, users can set a global default in their Prefect user config; if you never mention or think about Result Handlers again, this is the handler that will always be used.
 1. Next, you can specify a Flow-level result handler at Flow-initialization using the `result_handler` keyword argument. Once again, if you never specify another result handler, this is the one that will be used for all your tasks in this particular Flow.
