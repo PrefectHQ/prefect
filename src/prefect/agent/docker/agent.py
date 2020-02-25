@@ -1,18 +1,19 @@
-from sys import platform
 import os
 import re
+import multiprocessing
 import ntpath
 import posixpath
-from typing import Iterable, List, Dict, Tuple
-import multiprocessing
-
-import docker
+from sys import platform
+from typing import TYPE_CHECKING, Iterable, List
 
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
+
+if TYPE_CHECKING:
+    import docker
 
 
 class DockerAgent(Agent):
@@ -58,7 +59,6 @@ class DockerAgent(Agent):
         show_flow_logs: bool = False,
     ) -> None:
         super().__init__(name=name, labels=labels, env_vars=env_vars)
-
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
         else:
@@ -83,7 +83,7 @@ class DockerAgent(Agent):
         ) = self._parse_volume_spec(volumes or [])
 
         self.failed_connections = 0
-        self.docker_client = docker.APIClient(base_url=self.base_url, version="auto")
+        self.docker_client = self._get_docker_client()
         self.show_flow_logs = show_flow_logs
         self.processes = []  # type: List[multiprocessing.Process]
 
@@ -96,6 +96,13 @@ class DockerAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
+
+    def _get_docker_client(self) -> "docker.APIClient":
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
+
+        return docker.APIClient(base_url=self.base_url, version="auto")
 
     def heartbeat(self) -> None:
         try:

@@ -50,6 +50,7 @@ Each version group can only have one active flow at a time. When a new flow is a
 All versions of a flow can be viewed [directly in the UI](/cloud/ui/flow.md#versions). Version groups can be managed from the [team settings page](/cloud/ui/team-settings).
 
 ![](/cloud/ui/flow-versions.png)
+
 ### GraphQL <Badge text="GQL"/>
 
 You can control how Cloud versions your flows by providing a `versionGroupId` whenever you register a flow (exposed via the `version_group_id` keyword argument in `flow.register`). Flows which provide the same `versionGroupId` will be considered versions of each other. By default, flows with the same name in the same Project will be given the same `versionGroupId` and are considered "versions" of each other. Anytime you register a new version of a flow, Prefect Cloud will automatically "archive" the old version in place of the newly registered flow. Archiving means that the old version's schedule is set to "Paused" and no new flow runs can be created.
@@ -78,7 +79,7 @@ Disabling these safeguards can alter fundamental assumptions about how flows run
 
 ### Disable Heartbeats <Badge text="0.8.1+"/>
 
-When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](zombie-killer.html). For most users, this is a useful safeguard. In some rare cases, however, the heartbeat falls victim to thread deadlocking and falsely registers a run as unhealthy. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
+When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](services.html#zombie-killer). For most users, this is a useful safeguard. In some rare cases, however, the heartbeat falls victim to thread deadlocking and falsely registers a run as unhealthy. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
 
 ```graphql
 mutation {

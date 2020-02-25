@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import cloudpickle
 import dask
+import distributed
 import pytest
 
 import prefect
@@ -267,7 +268,7 @@ class TestDaskExecutor:
 
     def test_init_kwargs_are_passed_to_init(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
         executor = DaskExecutor(test_kwarg="test_value")
         with executor.start():
             pass
@@ -276,7 +277,7 @@ class TestDaskExecutor:
 
     def test_task_names_are_passed_to_submit(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
         executor = DaskExecutor()
         with executor.start():
             with prefect.context(task_full_name="FISH!"):
@@ -286,7 +287,7 @@ class TestDaskExecutor:
 
     def test_task_names_are_passed_to_map(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
         executor = DaskExecutor()
         with executor.start():
             with prefect.context(task_full_name="FISH![0]"):
@@ -296,7 +297,7 @@ class TestDaskExecutor:
 
     def test_context_tags_are_passed_to_submit(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
         executor = DaskExecutor()
         with executor.start():
             with prefect.context(task_tags=["dask-resource:GPU=1"]):
@@ -306,7 +307,7 @@ class TestDaskExecutor:
 
     def test_context_tags_are_passed_to_map(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
         executor = DaskExecutor()
         with executor.start():
             with prefect.context(task_tags=["dask-resource:GPU=1"]):
@@ -316,7 +317,7 @@ class TestDaskExecutor:
 
     def test_debug_is_converted_to_silence_logs(self, monkeypatch):
         client = MagicMock()
-        monkeypatch.setattr(prefect.engine.executors.dask, "Client", client)
+        monkeypatch.setattr(distributed, "Client", client)
 
         # debug False
         executor = DaskExecutor(debug=False)

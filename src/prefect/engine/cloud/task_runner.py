@@ -1,18 +1,14 @@
-import copy
 import datetime
-import _thread
 import time
-import warnings
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional
 
 import pendulum
 
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.utilities.executors import tail_recursive
 from prefect.engine.cloud.utilities import prepare_state_for_cloud
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import (
@@ -20,11 +16,12 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Mapped,
-    Retrying,
     Queued,
+    Retrying,
     State,
 )
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
+from prefect.utilities.executors import tail_recursive
 from prefect.utilities.graphql import with_args
 
 

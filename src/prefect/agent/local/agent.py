@@ -1,13 +1,12 @@
 import os
-import sys
 import socket
+import sys
 from subprocess import PIPE, STDOUT, Popen
 from typing import Iterable, List
 
-from prefect import config, context
+from prefect import config
 from prefect.agent import Agent
-from prefect.engine.state import Failed
-from prefect.environments.storage import Azure, GCS, Local, S3
+from prefect.environments.storage import GCS, S3, Azure, Local
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 

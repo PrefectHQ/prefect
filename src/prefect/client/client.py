@@ -8,10 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pendulum
-import requests
 import toml
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 from slugify import slugify
 
 import prefect
@@ -26,6 +23,7 @@ from prefect.utilities.graphql import (
 
 if TYPE_CHECKING:
     from prefect.core import Flow
+    import requests
 JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
@@ -260,6 +258,10 @@ class Client:
         if token is None:
             token = self.get_auth_token()
 
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
+
         url = urljoin(server, path.lstrip("/")).rstrip("/")
 
         params = params or {}
@@ -270,13 +272,13 @@ class Client:
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
         session = requests.Session()
-        retries = Retry(
+        retries = requests.packages.urllib3.util.retry.Retry(
             total=6,
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
+        session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         if method == "GET":
             response = session.get(url, headers=headers, params=params, timeout=30)
         elif method == "POST":

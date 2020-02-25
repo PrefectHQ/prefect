@@ -1,11 +1,10 @@
 import base64
 import gzip
 import json
-import re
 import textwrap
 import uuid
 from collections.abc import KeysView, ValuesView
-from typing import Any, Union
+from typing import Any
 
 from box import Box
 

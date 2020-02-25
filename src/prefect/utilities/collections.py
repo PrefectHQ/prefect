@@ -1,5 +1,4 @@
 import collections
-import json
 from collections.abc import MutableMapping
 from typing import Any, Generator, Iterable, Iterator, Union, cast
 

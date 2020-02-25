@@ -4,8 +4,6 @@ import uuid
 from os import path
 from typing import Iterable
 
-import requests
-
 from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
@@ -50,6 +48,10 @@ class NomadAgent(Agent):
                 "Storage for flow run {} is not of type Docker.".format(flow_run.id)
             )
             raise ValueError("Unsupported Storage type")
+
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
 
         job_spec = self.replace_job_spec_json(flow_run)
         nomad_host = os.getenv("NOMAD_HOST", "http://127.0.0.1:4646")

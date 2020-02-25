@@ -9,7 +9,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING, Any, Callable, Union, cast
 
-import requests
 from toolz import curry
 
 import prefect
@@ -17,10 +16,11 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.state
     import prefect.client
-    from prefect import Flow, Task
+    from prefect import Flow, Task  # pylint: disable=W0611
+
+TrackedObjectType = Union["Flow", "Task"]
 
 __all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
-TrackedObjectType = Union["Flow", "Task"]
 
 
 def callback_factory(
@@ -275,6 +275,10 @@ def slack_notifier(
         [isinstance(new_state, included) for included in only_states]
     ):
         return new_state
+
+    # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+    # the 'import prefect' time low
+    import requests
 
     form_data = slack_message_formatter(tracked_obj, new_state)
     r = requests.post(webhook_url, json=form_data)
