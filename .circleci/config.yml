@@ -258,6 +258,32 @@ jobs:
           name: Run tests
           command: pytest -vvrfEsx .
 
+  test_38:
+    docker:
+      - image: python:3.8
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest -vvrfEsx .
+
   upload_coverage:
     docker:
       - image: python:3.6
@@ -414,6 +440,7 @@ workflows:
       - test_35
       - test_36
       - test_37
+      - test_38
       - test_lower_prefect
       - test_vanilla_prefect
       - test_py352_import_prefect
