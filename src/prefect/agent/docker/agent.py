@@ -1,6 +1,9 @@
+import re
 import multiprocessing
+import ntpath
+import posixpath
 from sys import platform
-from typing import TYPE_CHECKING, Iterable, List
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -41,6 +44,7 @@ class DockerAgent(Agent):
             Defaults to `False` if not provided here or in context.
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
+        - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
     """
 
     def __init__(
@@ -50,6 +54,7 @@ class DockerAgent(Agent):
         env_vars: dict = None,
         base_url: str = None,
         no_pull: bool = None,
+        volumes: List[str] = None,
         show_flow_logs: bool = False,
     ) -> None:
         super().__init__(name=name, labels=labels, env_vars=env_vars)
@@ -68,6 +73,13 @@ class DockerAgent(Agent):
         # Determine pull specification
         self.no_pull = no_pull or context.get("no_pull", False)
         self.logger.debug("no_pull set to {}".format(self.no_pull))
+
+        # Resolve volumes from specs
+        (
+            self.named_volumes,
+            self.container_mount_paths,
+            self.host_spec,
+        ) = self._parse_volume_spec(volumes or [])
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -117,6 +129,143 @@ class DockerAgent(Agent):
             if proc.is_alive():
                 proc.terminate()
 
+    def _is_named_volume_unix(self, canditate_path: str) -> bool:
+        if not canditate_path:
+            return False
+
+        return not canditate_path.startswith((".", "/", "~"))
+
+    def _is_named_volume_win32(self, canditate_path: str) -> bool:
+        result = self._is_named_volume_unix(canditate_path)
+
+        return (
+            result
+            and not re.match(r"^[A-Za-z]\:\\.*", canditate_path)
+            and not canditate_path.startswith("\\")
+        )
+
+    def _parse_volume_spec(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        if platform == "win32":
+            return self._parse_volume_spec_win32(volume_specs)
+        return self._parse_volume_spec_unix(volume_specs)
+
+    def _parse_volume_spec_win32(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        named_volumes = []  # type: List[str]
+        container_mount_paths = []  # type: List[str]
+        host_spec = {}  # type: Dict[str, Dict[str, str]]
+
+        for volume_spec in volume_specs:
+            fields = volume_spec.split(":")
+
+            if fields[-1] in ("ro", "rw"):
+                mode = fields.pop()
+            else:
+                mode = "rw"
+
+            if len(fields) == 3 and len(fields[0]) == 1:
+                # C:\path1:/path2   <-- extenal and internal path
+                external = ntpath.normpath(":".join(fields[0:2]))
+                internal = posixpath.normpath(fields[2])
+            elif len(fields) == 2:
+                combined_path = ":".join(fields)
+                (drive, path) = ntpath.splitdrive(combined_path)
+                if drive:
+                    # C:\path1          <-- assumed container path of /path1
+                    external = ntpath.normpath(combined_path)
+
+                    # C:\path1  --> /c/path1
+                    path = str("/" + drive.lower().rstrip(":") + path).replace(
+                        "\\", "/"
+                    )
+                    internal = posixpath.normpath(path)
+                else:
+                    # /path1:\path2     <-- extenal and internal path (relative to current drive)
+                    # C:/path2          <-- valid named volume
+                    external = ntpath.normpath(fields[0])
+                    internal = posixpath.normpath(fields[1])
+            elif len(fields) == 1:
+                # \path1          <-- assumed container path of /path1 (relative to current drive)
+                external = ntpath.normpath(fields[0])
+                internal = external
+            else:
+                raise ValueError(
+                    "Unable to parse volume specification '{}'".format(volume_spec)
+                )
+
+            container_mount_paths.append(internal)
+
+            if external and self._is_named_volume_win32(external):
+                named_volumes.append(external)
+                if mode != "rw":
+                    raise ValueError(
+                        "Named volumes can only have 'rw' mode, provided '{}'".format(
+                            mode
+                        )
+                    )
+            else:
+                if not external:
+                    # no internal container path given, assume the host path is the same as the internal path
+                    external = internal
+                host_spec[external] = {
+                    "bind": internal,
+                    "mode": mode,
+                }
+
+        return named_volumes, container_mount_paths, host_spec
+
+    def _parse_volume_spec_unix(
+        self, volume_specs: List[str]
+    ) -> Tuple[Iterable[str], Iterable[str], Dict[str, Dict[str, str]]]:
+        named_volumes = []  # type: List[str]
+        container_mount_paths = []  # type: List[str]
+        host_spec = {}  # type: Dict[str, Dict[str, str]]
+
+        for volume_spec in volume_specs:
+            fields = volume_spec.split(":")
+
+            if len(fields) > 3:
+                raise ValueError(
+                    "Docker volume format is invalid: {} (should be 'external:internal[:mode]')".format(
+                        volume_spec
+                    )
+                )
+
+            if len(fields) == 1:
+                external = None
+                internal = posixpath.normpath(fields[0].strip())
+            else:
+                external = posixpath.normpath(fields[0].strip())
+                internal = posixpath.normpath(fields[1].strip())
+
+            mode = "rw"
+            if len(fields) == 3:
+                mode = fields[2]
+
+            container_mount_paths.append(internal)
+
+            if external and self._is_named_volume_unix(external):
+                named_volumes.append(external)
+                if mode != "rw":
+                    raise ValueError(
+                        "Named volumes can only have 'rw' mode, provided '{}'".format(
+                            mode
+                        )
+                    )
+            else:
+                if not external:
+                    # no internal container path given, assume the host path is the same as the internal path
+                    external = internal
+                host_spec[external] = {
+                    "bind": internal,
+                    "mode": mode,
+                }
+
+        return named_volumes, container_mount_paths, host_spec
+
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on your local machine as Docker containers
@@ -133,6 +282,10 @@ class DockerAgent(Agent):
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         storage = StorageSchema().load(flow_run.flow.storage)
         if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
@@ -153,10 +306,33 @@ class DockerAgent(Agent):
                 self.logger.debug(line)
             self.logger.info("Successfully pulled image {}...".format(storage.name))
 
+        # Create any named volumes (if they do not already exist)
+        for named_volume_name in self.named_volumes:
+            try:
+                self.docker_client.inspect_volume(name=named_volume_name)
+            except docker.errors.APIError:
+                self.logger.debug("Creating named volume {}".format(named_volume_name))
+                self.docker_client.create_volume(
+                    name=named_volume_name,
+                    driver="local",
+                    labels={"prefect_created": "true"},
+                )
+
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
+
+        container_mount_paths = self.container_mount_paths
+        if not container_mount_paths:
+            host_config = None
+        else:
+            host_config = self.docker_client.create_host_config(binds=self.host_spec)
+
         container = self.docker_client.create_container(
-            storage.name, command="prefect execute cloud-flow", environment=env_vars
+            storage.name,
+            command="prefect execute cloud-flow",
+            environment=env_vars,
+            volumes=container_mount_paths,
+            host_config=host_config,
         )
 
         # Start the container
