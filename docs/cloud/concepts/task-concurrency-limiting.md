@@ -102,7 +102,7 @@ If you wish to query for the currently set limit on a tag, or see _all_ of your 
 
 ### UI
 
-You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency Limits.
+You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency Limits. You can also view the current number of task runs that are utilizing available concurrency space.
 
 ![](/cloud/ui/task-concurrency-limit-usage.png)
 
