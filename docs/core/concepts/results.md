@@ -44,7 +44,7 @@ All Results also come equipped with `to_result` / `store_safe_value` methods. Fo
 
 ### Interacting with `Result`s
 
-The most common scenario in which a user might need to directly interact with a `Result` object in memory is when running Flows locally. All Prefect States have Result objects built into them, which can be accessed via the private `_result` attribute. For convenience, the public `.result` property retrieves the underlying `Result`'s value.
+The most common scenario in which a user might need to directly interact with a `Result` object in memory is when running flows locally. All Prefect `States` have `Result` objects built into them, which can be accessed via the private `_result` attribute. For convenience, the public `.result` property retrieves the underlying `Result`'s value.
 
 ```python
 >>> task_ref = flow.get_tasks[0]
@@ -65,9 +65,9 @@ Result handlers are a more public entity than the `Result` class, as they provid
 
 In general, however, result handler `write` methods are implemented so that they do two things:
 1. serialize the return value of a Task in-memory in the Task State's `Result.value` attribute, and persist it to disk in the result handler's storage backend, and
-2. segregate out a "safe value", usually metadata, about that stored return value in the State's `Result.safe_value` attribute and, for Cloud customers, persist that safe value in the scheduler database
+2. segregate out a "safe value", usually metadata, about that stored return value in the State's `Result.safe_value` attribute and, for Cloud customers, persist that safe value in the scheduler database.
 
-On the flip side, result handler `read` methods usually access the metadata in an upstream `Result.safe_value` to locate, and then deserialize, the upstream Task's return value that is in storage.
+On the flip side, result handler `read` methods usually access the metadata in an upstream `Result.safe_value` to locate, and then deserialize, the upstream `Task`'s return value that is in storage.
 
 For example, we can easily imagine different kinds of result handlers:
 
@@ -94,7 +94,7 @@ b'\x80\x05K\x03.'
 3
 ```
 
-However, depending on your situation and the size of your data, you can configure Result Handlers to serialize a Task's entire `Result`, not just its metadata. For example, Core's base `JSONResultHandler` serializes the entire `Result` object as its return value. If you have a task which returns a small piece of data such as a string, or a short list of numbers, handling that data directly in the returned JSON string will suffice!
+However, depending on your situation and the size of your data, you can configure result handlers to serialize a task's entire `Result`, not just its metadata. For example, Core's base `JSONResultHandler` serializes the entire `Result` object as its return value. If you have a task which returns a small piece of data such as a string, or a short list of numbers, handling that data directly in the returned JSON string will suffice!
 
 To showcase this, below is the same example with a flow configured to checkpoint each task's output using the `JSONResultHandler`. Note that now both `Result.value` and `Result.safe_value` contain references to the actual return value of its task, the integer `3`.
 
@@ -108,28 +108,28 @@ To showcase this, below is the same example with a flow configured to checkpoint
 In Core, the return value is associated in-memory with the `Result` object attached to flow `State`s. For Cloud customers, the return value of a result handler's `write` method is also persisted in Prefect Cloud's database.
 
 ::: warning Handle your data carefully
-Using Result Handlers means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
+Using result handlers means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
 
-When running on Prefect Cloud, the return value of a Result Handler's `write` method is what is stored in the Cloud database. Though you may serialize your data during your result handler's execution, *only* `return` data from Tasks that you feel is safe to persist in Prefect Cloud.
+When running on Prefect Cloud, the return value of a result handler's `write` method is what is stored in the Cloud database. Though you may serialize your data during your result handler's execution, *only* `return` data from Tasks that you feel is safe to persist in Prefect Cloud.
 :::
 
 ### How to specify a `ResultHandler`
 
 `ResultHandler`'s `read` and `write` methods will be called by Prefect only if you enable checkpointing. Once this configuration is set, there is a hierarchy to determining what `ResultHandler` to use for a given piece of data:
 
-1. You can specify a Flow-level result handler at Flow-initialization using the `result_handler` keyword argument.If you never specify another result handler, this is the one that will be used for all your tasks in this particular Flow.
+1. You can specify a Flow-level result handler at Flow-initialization using the `result_handler` keyword argument. If you never specify another result handler, this is the one that will be used for all your tasks in this particular Flow.
 1. Lastly, you can set a Task-level result handler. This is achieved using the `result_handler` keyword argument at Task initialization (or in the `@task` decorator). If you provide a result handler here, it will _always_ be used if the _output_ of this Task needs to be cached for any reason whatsoever.
 
 ::: tip The Hierarchy
-Task-level result handlers will _always_ be used over Flow-level handlers. Neither will be used if a Task's `checkpointing` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
+Task-level result handlers will _always_ be used over flow-level handlers. Neither will be used if a task's `checkpointing` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
 :::
 
-::: warning Result Handlers are always attached to Task outputs
-For example, suppose Task A has Result Handler A, and Task B has Result Handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. When it stores this data, it will use Result Handler A.
+::: warning result handlers are always attached to task outputs
+For example, suppose task A has result handler A, and task B has result handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. When it stores this data, it will use result handler A.
 :::
 
 ::: warning Parameters are different
 There is one exception to the rule for Result Handlers: Prefect Parameters. Prefect Parameters always use the `JSONResultHandler` so that their cached values are inspectable in the UI.
 :::
 
-To learn more about using Result Handlers, check out the tutorial on [Using Result Handlers](../advanced_tutorials/using-result-handlers.html).
+To learn more about using result handlers, check out the tutorial on [Using Result Handlers](../advanced_tutorials/using-result-handlers.html).
