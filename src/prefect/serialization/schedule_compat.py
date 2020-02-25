@@ -2,9 +2,8 @@
 This module ensures that old-style schedules (pre-0.6.1) can be deserialized as new-style
 schedules. It is deprecated.
 """
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-import marshmallow
 from marshmallow import fields, post_load
 
 import prefect

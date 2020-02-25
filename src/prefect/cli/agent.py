@@ -40,7 +40,6 @@ def agent():
         $ prefect agent install kubernetes --token MY_TOKEN --namespace metrics
         ...k8s yaml output...
     """
-    pass
 
 
 @agent.command(
@@ -104,6 +103,12 @@ def agent():
     hidden=True,
 )
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
+@click.option(
+    "--volume",
+    multiple=True,
+    help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
+    hidden=True,
+)
 @click.pass_context
 def start(
     ctx,
@@ -119,6 +124,7 @@ def start(
     base_url,
     import_path,
     show_flow_logs,
+    volume,
 ):
     """
     Start an agent.
@@ -154,6 +160,8 @@ def start(
         --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
         --no-pull               Pull images for a DockerAgent
                                 Defaults to pulling if not provided
+        --volume        TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
+                                Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
 
     \b
     Kubernetes Agent Options:
@@ -207,6 +215,7 @@ def start(
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
+                volumes=list(volume),
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(

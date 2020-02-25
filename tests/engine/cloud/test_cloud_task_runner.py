@@ -5,11 +5,12 @@ import sys
 import tempfile
 import time
 import uuid
-from box import Box
 from unittest.mock import MagicMock
 
 import cloudpickle
 import pytest
+import requests
+from box import Box
 
 import prefect
 from prefect.client import Client
@@ -26,10 +27,10 @@ from prefect.engine.state import (
     ClientFailed,
     Failed,
     Finished,
-    Queued,
     Mapped,
     Paused,
     Pending,
+    Queued,
     Retrying,
     Running,
     Skipped,
@@ -107,9 +108,7 @@ def test_task_runner_places_task_tags_in_state_context_and_serializes_them(monke
     task = Task(name="test", tags=["1", "2", "tag"])
     session = MagicMock()
     monkeypatch.setattr("prefect.client.client.GraphQLResult", MagicMock())
-    monkeypatch.setattr(
-        "prefect.client.client.requests.Session", MagicMock(return_value=session)
-    )
+    monkeypatch.setattr("requests.Session", MagicMock(return_value=session))
 
     res = CloudTaskRunner(task=task).run()
     assert res.is_successful()

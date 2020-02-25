@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
+- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
 
 ### Task Library
 
@@ -31,6 +31,43 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
+
+## 0.9.5 <Badge text="beta" type="success"/>
+
+Released on Feb 21, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
+- Upload package to PyPI on tag push to master - [#2030](https://github.com/PrefectHQ/prefect/issues/2030)
+- Add DaskGateway tip to docs - [#1959](https://github.com/PrefectHQ/prefect/issues/1959)
+- Improve package import time - [#2046](https://github.com/PrefectHQ/prefect/issues/2046)
+
+### Task Library
+
+- Fix `V1DeleteOptions` call for Kubernetes tasks - [#2050](https://github.com/PrefectHQ/prefect/pull/2050)
+- Add kwargs to `V1DeleteOptions` for Kubernetes tasks - [#2051](https://github.com/PrefectHQ/prefect/pull/2051)
+
+### Fixes
+
+- Ensure microseconds are respected on `start_date` provided to CronClock - [#2031](https://github.com/PrefectHQ/prefect/pull/2031)
+- Fix duplicate Client connections when using `--logs` flag from `run cloud` CLI command - [#2056](https://github.com/PrefectHQ/prefect/pull/2056)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Romain Thalineau](https://github.com/romaintha)
 
 ## 0.9.4 <Badge text="beta" type="success"/>
 

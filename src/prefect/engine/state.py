@@ -11,14 +11,12 @@ execution. During execution a run will enter a `Running` state. Finally, runs be
 """
 import datetime
 import warnings
-from collections import defaultdict
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 import pendulum
 
 import prefect
-from prefect.engine.result import NoResult, Result, ResultInterface, SafeResult
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import NoResult, Result, ResultInterface
 
 
 class State:

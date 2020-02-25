@@ -52,7 +52,6 @@ def auth():
         $ prefect auth create-token -n MyToken -r RUNNER
         ...token output...
     """
-    pass
 
 
 @auth.command(hidden=True)
