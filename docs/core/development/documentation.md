@@ -55,11 +55,17 @@ To write concept docs, add Markdown files to the `docs/guide` directory (or one 
 
 ### Capitalization
 
-Class Object references should be capitalized; specific instantiations of a Class should only be capitalized at the beginning of a sentence.
-Example:
+Concepts that refer to proper nouns or are trademarked should always be capitalized, including "Prefect", "Core" (when referring to Prefect Core), and "Cloud" (when referring to Prefect Cloud).
 
-> `myClass = MyClass(*args*)`
-> An instantiation of **MyClass** can is referenced by **myClass**
+Other Prefect terms, like "flow" or "task", should generally not be capitalized unless they refer to a specific Python class. For example:
+
+> When a flow is run, its tasks are executed in sequence. Each `Task` has a `trigger` function that determines if it should run.
+>
+> To execute a `Flow`, call its `.run()` method.
+>
+> In order to manage data serialization, users can specify one or more `ResultHandlers` for their flows and tasks.
+>
+> Prefect uses a rich state system to communicate information between tasks. Each `State` has multiple attributes, including an informative message. 
 
 ## Previewing docs locally
 
