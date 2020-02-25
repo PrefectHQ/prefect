@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -486,3 +487,244 @@ def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, cap
     agent.heartbeat()
     assert agent.failed_connections == 0
     assert api.ping.call_count == 4
+
+
+def test_docker_agent_init_volume_empty_options(monkeypatch, runner_token):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent()
+    assert agent
+    assert agent.named_volumes == []
+    assert agent.container_mount_paths == []
+    assert agent.host_spec == {}
+
+
+@pytest.mark.parametrize(
+    "path,result",
+    [
+        ("name", True),
+        ("/some/path", False),
+        ("./some/path", False),
+        ("~/some/path", False),
+        ("../some/path", False),
+        (" ../some/path", True),  # it is up to the caller to strip the string
+        ("\n../some/path", True),  # it is up to the caller to strip the string
+    ],
+)
+def test_docker_agent_is_named_volume_unix(monkeypatch, runner_token, path, result):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+    monkeypatch.setattr("prefect.agent.docker.agent.platform", "osx")
+
+    agent = DockerAgent()
+
+    assert agent._is_named_volume_unix(path) == result
+
+
+@pytest.mark.parametrize(
+    "path,result",
+    [
+        ("name", True),
+        ("C:\\\\some\\path", False),
+        ("c:\\\\some\\path", False),
+        ("\\\\some\\path", False),
+        ("\\\\\\some\\path", False),
+    ],
+)
+def test_docker_agent_is_named_volume_win32(monkeypatch, runner_token, path, result):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+    monkeypatch.setattr("prefect.agent.docker.agent.platform", "win32")
+
+    agent = DockerAgent()
+
+    assert agent._is_named_volume_win32(path) == result
+
+
+@pytest.mark.parametrize(
+    "candidate,named_volumes,container_mount_paths,host_spec",
+    [
+        (
+            # handle no volume spec
+            [],
+            [],
+            [],
+            {},
+        ),
+        (
+            # no external path given (assume same as host path)
+            ["/some/path"],
+            [],
+            ["/some/path"],
+            {"/some/path": {"bind": "/some/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths
+            ["/some/path:/ctr/path"],
+            [],
+            ["/ctr/path"],
+            {"/some/path": {"bind": "/ctr/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths with mode
+            ["/some/path:/ctr/path:ro"],
+            [],
+            ["/ctr/path"],
+            {"/some/path": {"bind": "/ctr/path", "mode": "ro",}},
+        ),
+        (
+            # named volume
+            ["some-name:/ctr/path"],
+            ["some-name"],
+            ["/ctr/path"],
+            {},
+        ),
+        (
+            # multiple volumes
+            [
+                "some-name:/ctr/path3",
+                "/some/path:/ctr/path1",
+                "/another/path:/ctr/path2:ro",
+            ],
+            ["some-name"],
+            ["/ctr/path3", "/ctr/path1", "/ctr/path2"],
+            {
+                "/another/path": {"bind": "/ctr/path2", "mode": "ro"},
+                "/some/path": {"bind": "/ctr/path1", "mode": "rw",},
+            },
+        ),
+    ],
+)
+def test_docker_agent_parse_volume_spec_unix(
+    monkeypatch,
+    runner_token,
+    candidate,
+    named_volumes,
+    container_mount_paths,
+    host_spec,
+):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent()
+
+    (
+        actual_named_volumes,
+        actual_container_mount_paths,
+        actual_host_spec,
+    ) = agent._parse_volume_spec_unix(candidate)
+
+    assert actual_named_volumes == named_volumes
+    assert actual_container_mount_paths == container_mount_paths
+    assert actual_host_spec == host_spec
+
+
+@pytest.mark.parametrize(
+    "candidate,named_volumes,container_mount_paths,host_spec",
+    [
+        (
+            # windows host --> linux container
+            ["C:\\some\\path"],
+            [],
+            ["/c/some/path"],
+            {"C:\\some\\path": {"bind": "/c/some/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths
+            ["C:\\some\\path:/ctr/path"],
+            [],
+            ["/ctr/path"],
+            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "rw",}},
+        ),
+        (
+            # internal & external paths with mode
+            ["C:\\some\\path:/ctr/path:ro"],
+            [],
+            ["/ctr/path"],
+            {"C:\\some\\path": {"bind": "/ctr/path", "mode": "ro",}},
+        ),
+        (
+            # named volume
+            ["some-name:/ctr/path"],
+            ["some-name"],
+            ["/ctr/path"],
+            {},
+        ),
+        (
+            # multiple volumes
+            [
+                "some-name:/ctr/path3",
+                "C:\\some\\path:/ctr/path1",
+                "D:\\another\\path:/ctr/path2:ro",
+            ],
+            ["some-name"],
+            ["/ctr/path3", "/ctr/path1", "/ctr/path2"],
+            {
+                "D:\\another\\path": {"bind": "/ctr/path2", "mode": "ro"},
+                "C:\\some\\path": {"bind": "/ctr/path1", "mode": "rw",},
+            },
+        ),
+    ],
+)
+def test_docker_agent_parse_volume_spec_win(
+    monkeypatch,
+    runner_token,
+    candidate,
+    named_volumes,
+    container_mount_paths,
+    host_spec,
+):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent()
+
+    (
+        actual_named_volumes,
+        actual_container_mount_paths,
+        actual_host_spec,
+    ) = agent._parse_volume_spec_win32(candidate)
+
+    assert actual_named_volumes == named_volumes
+    assert actual_container_mount_paths == container_mount_paths
+    assert actual_host_spec == host_spec
+
+
+@pytest.mark.parametrize(
+    "candidate,exception_type",
+    [
+        # named volumes cannot be read only
+        ("some-name:/ctr/path:ro", ValueError),
+        # dont attempt to parse too many fields
+        ("/some/path:/ctr/path:rw:something-else", ValueError),
+    ],
+)
+def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
+    monkeypatch, runner_token, candidate, exception_type,
+):
+    api = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent()
+
+    with pytest.raises(exception_type):
+        agent._parse_volume_spec([candidate])
