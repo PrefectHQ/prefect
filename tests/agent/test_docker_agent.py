@@ -491,7 +491,10 @@ def test_docker_agent_heartbeat_resets_fail_count(monkeypatch, runner_token, cap
 
 def test_docker_agent_init_volume_empty_options(monkeypatch, runner_token):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
     assert agent
@@ -514,7 +517,10 @@ def test_docker_agent_init_volume_empty_options(monkeypatch, runner_token):
 )
 def test_docker_agent_is_named_volume_unix(monkeypatch, runner_token, path, result):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "osx")
 
     agent = DockerAgent()
@@ -534,7 +540,10 @@ def test_docker_agent_is_named_volume_unix(monkeypatch, runner_token, path, resu
 )
 def test_docker_agent_is_named_volume_win32(monkeypatch, runner_token, path, result):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
     monkeypatch.setattr("prefect.agent.docker.agent.platform", "win32")
 
     agent = DockerAgent()
@@ -605,7 +614,10 @@ def test_docker_agent_parse_volume_spec_unix(
     host_spec,
 ):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
 
@@ -676,7 +688,10 @@ def test_docker_agent_parse_volume_spec_win(
     host_spec,
 ):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
 
@@ -704,7 +719,10 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
     monkeypatch, runner_token, candidate, exception_type,
 ):
     api = MagicMock()
-    monkeypatch.setattr("prefect.agent.docker.agent.docker.APIClient", api)
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
 
     agent = DockerAgent()
 
