@@ -73,7 +73,7 @@ class CloudTaskRunner(TaskRunner):
                 }
             }
             flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.flow.settings.get("disable_heartbeat"):
+            if not flow_run.flow.settings.get("heartbeat_enabled", True):
                 return False
             return True
         except Exception as exc:
