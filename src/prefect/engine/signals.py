@@ -2,6 +2,7 @@
 These Exceptions, when raised, are used to signal state changes when tasks or flows are running. Signals
 are used in TaskRunners and FlowRunners as a way of communicating the changes in states.
 """
+import warnings
 
 from prefect.engine import state
 from prefect.utilities.exceptions import PrefectError
@@ -104,7 +105,6 @@ class LOOP(PrefectStateSignal):
 class TRIGGERFAIL(FAIL):
     """
     Indicates that a task trigger failed.
-
     Args:
         - message (Any, optional): Defaults to `None`. A message about the signal.
         - *args (Any, optional): additional arguments to pass to this Signal's
@@ -114,6 +114,13 @@ class TRIGGERFAIL(FAIL):
     """
 
     _state_cls = state.TriggerFailed
+
+    def __init__(self, *args, **kwargs):  # type: ignore
+        super().__init__(*args, **kwargs)  # type: ignore
+        warnings.warn(
+            "The `TRIGGERFAIL` signal is depricated and will be removed in the next major release.",
+            UserWarning,
+        )
 
 
 class SUCCESS(PrefectStateSignal):
@@ -175,18 +182,3 @@ class PAUSE(PrefectStateSignal):
     """
 
     _state_cls = state.Paused
-
-
-class CONDITIONNOTMET(PrefectStateSignal):
-    """
-    Indicates that a downstream task should not run due to a failed condition.
-
-    Args:
-        - message (Any, optional): Defaults to `None`. A message about the signal.
-        - *args (Any, optional): additional arguments to pass to this Signal's
-            associated state constructor
-        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
-            associated state constructor
-    """
-
-    _state_cls = state.ConditionNotMet

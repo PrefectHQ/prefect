@@ -1,3 +1,4 @@
+import functools
 from typing import Any, Dict
 
 import prefect
@@ -49,9 +50,54 @@ class CompareValue(Task):
             - value (Any): the value that will be matched against the task's value.
         """
         if value != self.value:
-            raise signals.CONDITIONNOTMET(
+            raise signals.SKIP(
                 'Provided value "{}" did not match "{}"'.format(value, self.value)
             )
+
+
+def _condition_task_run_fn(fn, name):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        if result:
+            return result
+        raise prefect.engine.signals.FAIL(name)
+
+    return wrapper
+
+
+def _reduce_conditions(reducer, tasks):
+    for t in tasks:
+        t.run = _condition_task_run_fn(t.run, t.name)
+
+    def execute(**items):
+        return reducer(x for x in items.values())
+
+    name = "{}({})".format(reducer.__name__, ", ".join(sorted([t.name for t in tasks])))
+    combined_task = prefect.tasks.core.function.FunctionTask(fn=execute, name=name)
+
+    combined_task.bind(
+        mapped=False,
+        upstream_tasks=None,
+        **{"condition%d" % idx: t for idx, t in enumerate(tasks)},
+    )
+
+    return combined_task
+
+
+def any_condition(*tasks):
+    return _reduce_conditions(any, tasks)
+
+
+def all_conditions(*tasks):
+    return _reduce_conditions(all, tasks)
+
+
+def conditional(condition: Task, case: Task) -> None:
+    with prefect.tags("condition"):
+        condition.run = _condition_task_run_fn(condition.run, condition.name)
+        task = prefect.utilities.tasks.as_task(case)
+        task.set_dependencies(upstream_tasks=[condition])
 
 
 def switch(condition: Task, cases: Dict[Any, Task]) -> None:

@@ -14,7 +14,6 @@ from prefect.engine.state import (
     Cancelled,
     Cached,
     ClientFailed,
-    ConditionNotMet,
     Failed,
     Finished,
     Looped,
@@ -444,7 +443,7 @@ def test_children_method_on_leaf_state_returns_empty():
 
 
 def test_children_method_on_success():
-    expected = {Cached, Mapped, Skipped, ConditionNotMet}
+    expected = {Cached, Mapped, Skipped}
     assert set(Success.children()) == expected
 
 

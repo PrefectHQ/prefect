@@ -30,7 +30,6 @@ from prefect.engine.result_handlers import (
 )
 from prefect.engine.state import (
     Cached,
-    ConditionNotMet,
     Failed,
     Finished,
     Mapped,
@@ -537,35 +536,6 @@ class TestCheckUpstreamFinished:
             upstream_states={edge: Mapped(map_states=[Failed(), Success()])},
         )
         assert new_state is state
-
-
-class TestCheckUpstreamConditions:
-    def test_empty(self):
-        state = Pending()
-        new_state = TaskRunner(Task()).check_task_trigger(
-            state=state, upstream_states={}
-        )
-        assert new_state is state
-
-    def test_raises_with_skipped_on_condition_not_met(self):
-        state = Pending()
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(Task()).check_task_trigger(
-                state=state, upstream_states={1: ConditionNotMet()}
-            )
-        assert isinstance(exc.value.state, Skipped)
-
-    def test_raises_if_single_mapped_upstream_condition_not_met(self):
-        state = Pending()
-        task = Task()
-        with pytest.raises(ENDRUN) as exc:
-            edge = Edge(1, 2, mapped=False)
-            new_state = TaskRunner(task).check_task_trigger(
-                state=state,
-                upstream_states={
-                    edge: Mapped(map_states=[ConditionNotMet(), Success()])
-                },
-            )
 
 
 class TestCheckUpstreamSkipped:
