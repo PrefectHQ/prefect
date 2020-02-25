@@ -17,7 +17,7 @@ Proposed
 
 The [ControlFlow](https://docs.prefect.io/api/latest/tasks/control_flow.html) Tasks allow for users to branch conditionally within the execution graph, skipping some tasks and allowing execution of others. However, [back-to-back conditions](https://github.com/PrefectHQ/prefect/issues/2017) have proven to be a problem under the existing implementation. Specifically, the problem appears to be with the semantics with the “Skip” Prefect State: it is considered to be fundamentally a “Success” state. That is, it is not easy (if impossible) to determine why a task was skipped, and if ignoring that Skipped state is OK. This means that using `skip_on_upstream_skip` is not a good enough mechanism to implement back-to-back conditions and hints that more functionality is needed. Additionally, the current semeantics imply that a Skipped Task was never run, however, it is possible for a Task to manually raise the `SKIP` signal mid-execution. Overall, the above points hint that a base class of `Success` for the `Skipped` state is probably not accurate.
 
-Furthermore, indicating when a trigger condition is not met can also be misleading. By raising the TRIGGERFAIL, a `Failed` state propagates through downstream tasks, which could be misconstrude as these downstream tasks failing, when in fact they have semantically been skipped. Take the following flow as an example:
+Furthermore, indicating when a trigger condition is not met can also be misleading. By raising the TRIGGERFAIL, a `Failed` state propagates through downstream tasks, which could be misconstrued as these downstream tasks failing, when in fact they have semantically been skipped. Take the following flow as an example:
 
 ```python
 @prefect.task()
@@ -51,7 +51,7 @@ with prefect.Flow("My Flow") as flow:
 
 This will result in `B` in a `TriggerFailed` state followed by `C` completing successfully, which is arguably surprising behavior.
 
-Ideally, a trigger should the gatekeeper for Task exection: either attempt to run the current Task (or not) based on upstream states. Or said another way, attempt to run the current Task or Skip it --this does not imply a `Failed` (or `Success`ful) state being determined yet, as that should be the result of the Task itself.
+Ideally, a trigger should be the gatekeeper for Task exection: either attempt to run the current Task (or not) based on upstream states. Or said another way, attempt to run the current Task or Skip it --this does not imply a `Failed` (or `Success`ful) state being determined yet, as that should be the result of the Task itself.
 
 ## Proposal
 
