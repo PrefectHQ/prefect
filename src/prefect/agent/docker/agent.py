@@ -4,7 +4,7 @@ import multiprocessing
 import ntpath
 import posixpath
 from sys import platform
-from typing import TYPE_CHECKING, Iterable, List
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -283,6 +283,10 @@ class DockerAgent(Agent):
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
+
+        # 'import docker' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import docker
 
         storage = StorageSchema().load(flow_run.flow.storage)
         if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
