@@ -1,3 +1,4 @@
+from ast import literal_eval
 import base64
 import json
 import uuid
@@ -49,6 +50,7 @@ class DaskKubernetesEnvironment(Environment):
         - work_stealing (bool, optional): toggle Dask Distributed scheduler work stealing; defaults to False
             Only used when a custom scheduler spec is not provided. Enabling this may cause ClientErrors
             to appear when multiple Dask workers try to run the same Prefect Task.
+        - scheduler_logs (bool, optional): log all Dask scheduler logs, defaults to False
         - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
@@ -68,6 +70,7 @@ class DaskKubernetesEnvironment(Environment):
         min_workers: int = 1,
         max_workers: int = 2,
         work_stealing: bool = False,
+        scheduler_logs: bool = False,
         private_registry: bool = False,
         docker_secret: str = None,
         labels: List[str] = None,
@@ -79,6 +82,7 @@ class DaskKubernetesEnvironment(Environment):
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.work_stealing = work_stealing
+        self.scheduler_logs = scheduler_logs
         self.private_registry = private_registry
         if self.private_registry:
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
@@ -304,6 +308,33 @@ class DaskKubernetesEnvironment(Environment):
             if self.on_exit:
                 self.on_exit()
 
+    def _extra_loggers(self) -> str:
+        """
+        Set dask-kubernetes related loggers for debugging and providing more
+        visibility into the workings of the Dask cluster. These loggers are useful
+        for information about cluster autoscaling and possible kubernetes issues
+        that may otherwise be hidden.
+
+        Specifying `scheduler_logs=True` on this environment will also elevate the Dask
+        scheduler logs. This will lead to a large increase in the amount of logs created
+        and should only be used for debugging purposes.
+
+        Returns:
+            - str: a string representation of a list of extra loggers to use
+        """
+        cluster_loggers = [
+            "dask_kubernetes.core",
+            "distributed.deploy.adaptive",
+            "kubernetes",
+        ]
+        config_extra_loggers = literal_eval(prefect.config.logging.extra_loggers)
+
+        extra_loggers = [*config_extra_loggers, *dask_kubernetes_loggers]
+
+        if self.scheduler_logs:
+            extra_loggers.append("distributed.scheduler")
+        return str(extra_loggers)
+
     ################################
     # Default YAML Spec Manipulation
     ################################
@@ -349,7 +380,7 @@ class DaskKubernetesEnvironment(Environment):
         env[4]["value"] = docker_name
         env[5]["value"] = flow_file_path
         env[13]["value"] = str(self.work_stealing)
-        env[15]["value"] = prefect.config.logging.extra_loggers
+        env[15]["value"] = self._extra_loggers()
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -378,7 +409,7 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
-        env[11]["value"] = prefect.config.logging.extra_loggers
+        env[11]["value"] = self._extra_loggers()
 
         if self.private_registry:
             namespace = prefect.context.get("namespace", "default")
