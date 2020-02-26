@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix `extra_loggers` config variable not being able to be set via environment variable - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Fix environments not passing down their `extra_loggers` to any created infrastructure - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
 
 ### Deprecations
 
