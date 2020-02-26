@@ -216,7 +216,7 @@ class DeleteNamespacedPod(Task):
         api_client.delete_namespaced_pod(
             name=pod_name,
             namespace=namespace,
-            body=client.V1DeleteOptions(delete_option_kwargs),
+            body=client.V1DeleteOptions(**delete_option_kwargs),
             **kube_kwargs
         )
 

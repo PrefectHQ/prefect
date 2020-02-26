@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Fix `V1DeleteOptions` kwargs for Kubernetes tasks 
 
 ### Fixes
 
