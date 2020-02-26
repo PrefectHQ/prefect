@@ -11,6 +11,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- `DaskKubernetesEnvironment` now elevates important autoscaling logs as well as possible Kubernetes issues - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Add optional `scheduler_logs` kwarg to the`DaskKubernetesEnvironment` - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
 
 ### Task Library
 
@@ -18,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix `extra_loggers` config variable not being able to be set via environment variable - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
 
 ### Deprecations
 
