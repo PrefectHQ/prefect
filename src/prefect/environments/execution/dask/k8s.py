@@ -329,7 +329,7 @@ class DaskKubernetesEnvironment(Environment):
         ]
         config_extra_loggers = literal_eval(prefect.config.logging.extra_loggers)
 
-        extra_loggers = [*config_extra_loggers, *dask_kubernetes_loggers]
+        extra_loggers = [*config_extra_loggers, *cluster_loggers]
 
         if self.scheduler_logs:
             extra_loggers.append("distributed.scheduler")
@@ -485,6 +485,10 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                 "value": str(prefect.config.logging.log_to_cloud).lower(),
             },
+            {
+                "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                "value": self._extra_loggers(),
+            },
         ]
 
         # set environment variables
@@ -539,6 +543,10 @@ class DaskKubernetesEnvironment(Environment):
             {
                 "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
                 "value": str(prefect.config.logging.log_to_cloud).lower(),
+            },
+            {
+                "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                "value": self._extra_loggers(),
             },
         ]
 
