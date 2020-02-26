@@ -10,7 +10,7 @@ Why would you use result handlers in the first place? One common situation is to
 
 ## Setting up to handle results
 
-The first step to getting the most out of result handlers is to enable results storage. You must enable in two places: globally for the Prefect installation, and at the task level by providing a result handler to tasks either through its flow initialization or as a task-level override. Depending on your storage backend, you may also need to ensure your authentication credentials are set up properly. For Cloud users, some of this is handled by default.
+Checkpointing must be enabled for result handlers to be called. You must enable in two places: globally for the Prefect installation, and at the task level by providing a result handler to tasks either through its flow initialization or as a task-level override. Depending on which results handlers you configure, you may also need to ensure your authentication credentials are set up properly. For Cloud users on Prefect 0.9.1+, some of this is handled by default.
 
 For Core-only users or Cloud users on Prefect versions <0.9.1, you must:
 
@@ -19,7 +19,7 @@ For Core-only users or Cloud users on Prefect versions <0.9.1, you must:
 
 For Cloud users on Prefect version 0.9.1+:
 
-- Checkpointing will automatically be turned on; you can disable it by setting `prefect.config.flows.checkpointing` to "False"
+- Checkpointing will automatically be turned on; you can disable it by passing `checkpoint=False` to each task you want to turn it off for
 - A result handler that matches the storage backend of your `prefect.config.flows.storage` setting will automatically be applied to all tasks, if available; notably this is not yet supported for Docker Storage
 - You can override the automatic result handler at the global level, flow level, or task level
 

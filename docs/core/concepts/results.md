@@ -110,7 +110,7 @@ In Core, the return value is associated in-memory with the `Result` object attac
 ::: warning Handle your data carefully
 Using result handlers means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
 
-When running on Prefect Cloud, the return value of a result handler's `write` method is what is stored in the Cloud database. Though you may serialize your data during your result handler's execution, *only* `return` data from Tasks that you feel is safe to persist in Prefect Cloud.
+In particular, when running on Prefect Cloud, the return value of a result handler's `write` method is stored in the Cloud database and visible in Cloud UI. Carefully consider your configured result handler's `write`  methods.
 :::
 
 ### How to specify a `ResultHandler`
@@ -124,8 +124,8 @@ When running on Prefect Cloud, the return value of a result handler's `write` me
 Task-level result handlers will _always_ be used over flow-level handlers. Neither will be used if a task's `checkpointing` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
 :::
 
-::: warning result handlers are always attached to task outputs
-For example, suppose task A has result handler A, and task B has result handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. When it stores this data, it will use result handler A.
+::: warning Result handlers are always attached to task outputs
+For example, suppose task A has result handler A, and task B has result handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use result handlers to persist the input cache](https://docs.prefect.io/cloud/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use result handler A.
 :::
 
 ::: warning Parameters are different
