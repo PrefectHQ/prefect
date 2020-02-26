@@ -286,7 +286,7 @@ jobs:
 
   upload_coverage:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - *attach_workspace
       - run:
@@ -448,6 +448,8 @@ workflows:
           requires:
             - test_35
             - test_36
+            - test_37
+            - test_38
             - test_vanilla_prefect
 
   'Check code style and docs':
@@ -482,6 +484,13 @@ workflows:
       - build_docker_image:
           python_version: '3.7'
           tag_latest: true
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.8'
           filters:
             branches:
               ignore: /.*/
