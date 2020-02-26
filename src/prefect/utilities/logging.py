@@ -258,3 +258,19 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+class RedirectToLog:
+    def write(self, s: str) -> None:
+        """
+        Write message from stdout to a prefect logger.
+        Note: blank newlines will not be logged.
+
+        Args:
+            s (str): the message from stdout to be logged
+        """
+        if s.strip():
+            get_logger("stdout").debug(s)
+
+
+log_stdout = RedirectToLog()
