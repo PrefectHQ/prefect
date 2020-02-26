@@ -21,7 +21,7 @@ For Cloud users on Prefect version 0.9.1+:
 
 - Checkpointing will automatically be turned on; you can disable it by setting `prefect.config.flows.checkpointing` to "False"
 - A result handler that matches the storage backend of your `prefect.config.flows.storage` setting will automatically be applied to all tasks, if available; notably this is not yet supported for Docker Storage
-- Uou can override the automatic result handler at the global level, flow level, or task level
+- You can override the automatic result handler at the global level, flow level, or task level
 
 #### Setting result handler at the flow level
 ```bash
@@ -65,7 +65,7 @@ with Flow("my handled flow!"):
 
 ## Choosing your result handlers
 
-In the above examples, we only used the `LocalStorageHandler` class. This is one of several result handlers that integrate with different storage backends; the full list is in the API docs for [prefect.engine.results_handler](../../api/latest/engine/result_handlers.html) and more details on this interface is described in the concept ["Results and Result Handlers"](../concepts/results.md) documentation.
+In the above examples, we only used the `LocalResultHandler` class. This is one of several result handlers that integrate with different storage backends; the full list is in the API docs for [prefect.engine.results_handler](../../api/latest/engine/result_handlers.html) and more details on this interface is described in the concept ["Results and Result Handlers"](../concepts/results.md) documentation.
 
 We can write our own result handlers as long as they extend the [`ResultHandler`](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result_handlers/result_handler.py) interface, or we can pick an existing implementation from Prefect Core that utilizes a storage backend we like; for example, I will use `prefect.engine.results_handler.GCSResultHandler` so that my data will be persisted in Google Cloud Storage.
 
