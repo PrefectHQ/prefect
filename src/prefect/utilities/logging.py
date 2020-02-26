@@ -270,7 +270,7 @@ class RedirectToLog:
             s (str): the message from stdout to be logged
         """
         if s.strip():
-            get_logger("stdout").debug(s)
+            get_logger("stdout").info(s)
 
 
 log_stdout = RedirectToLog()
