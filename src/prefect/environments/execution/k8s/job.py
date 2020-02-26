@@ -32,6 +32,7 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
     - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
     `$ /bin/sh -c "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`

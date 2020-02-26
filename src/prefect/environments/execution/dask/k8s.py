@@ -43,6 +43,7 @@ class DaskKubernetesEnvironment(Environment):
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS`
     - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Args:
         - min_workers (int, optional): the minimum allowed number of Dask worker pods; defaults to 1
