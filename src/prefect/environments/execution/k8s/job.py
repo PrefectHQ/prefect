@@ -236,6 +236,10 @@ class KubernetesJobEnvironment(Environment):
                 "value": "prefect.engine.cloud.CloudTaskRunner",
             },
             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+            {
+                "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                "value": prefect.config.logging.extra_loggers,
+            },
         ]
 
         # set environment variables on all containers
