@@ -349,6 +349,7 @@ class DaskKubernetesEnvironment(Environment):
         env[4]["value"] = docker_name
         env[5]["value"] = flow_file_path
         env[13]["value"] = str(self.work_stealing)
+        env[15]["value"] = prefect.config.logging.extra_loggers
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -377,6 +378,7 @@ class DaskKubernetesEnvironment(Environment):
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
+        env[11]["value"] = prefect.config.logging.extra_loggers
 
         if self.private_registry:
             namespace = prefect.context.get("namespace", "default")
