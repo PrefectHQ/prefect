@@ -23,11 +23,12 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
+from prefect.utilities.tasks import unmapped
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
     from prefect.engine.result_handlers import ResultHandler
-    from prefect.engine.state import State
+    from prefect.engine.state import State  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -289,7 +290,6 @@ class Task(metaclass=SignatureValidator):
                     flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`. </li></ul>
         </li></ul>
         """
-        pass
 
     # Dependencies -------------------------------------------------------------
 
@@ -475,6 +475,13 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task: a new Task instance
         """
+        for arg in args:
+            if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
+                raise TypeError(
+                    "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                        t=type(arg), preview=repr(arg)[:10]
+                    )
+                )
         new = self.copy(**(task_args or {}))
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs

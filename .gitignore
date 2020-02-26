@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.unused-imports.txt
+.import-time.txt
+
 # C extensions
 *.so
 
@@ -104,6 +107,9 @@ ENV/
 
 # VS Code settings
 .vscode
+
+# PyCharm settings
+.idea
 
 # mypy
 .mypy*

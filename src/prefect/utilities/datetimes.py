@@ -1,8 +1,6 @@
 import datetime
 from typing import Any, Callable
 
-import pendulum
-
 
 def retry_delay(
     interval: datetime.timedelta = None,

@@ -1,8 +1,6 @@
 import json
-from typing import Any, List
 import warnings
-
-import requests
+from typing import Any, List
 
 from prefect import Task
 from prefect.client import Secret
@@ -86,6 +84,10 @@ class OpenGitHubIssue(Task):
                 UserWarning,
             )
             token = Secret(self.token_secret).get()
+
+        # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+        # the 'import prefect' time low
+        import requests
 
         url = "https://api.github.com/repos/{}/issues".format(repo)
         headers = {

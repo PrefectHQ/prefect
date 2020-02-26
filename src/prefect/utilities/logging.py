@@ -14,14 +14,13 @@ import logging
 import sys
 import threading
 import time
-from queue import Queue, Empty
+from queue import Empty, Queue
 from typing import Any
 
 import pendulum
 
 import prefect
 from prefect.utilities.context import context
-
 
 _original_log_record_factory = logging.getLogRecordFactory()
 
@@ -183,22 +182,19 @@ def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord
     return record
 
 
-def configure_logging(testing: bool = False) -> logging.Logger:
+def _create_logger(name: str) -> logging.Logger:
     """
-    Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
+    Creates a logger with a `StreamHandler` that has level and formatting
     set from `prefect.config`.
 
     Args:
-        - testing (bool, optional): a boolean specifying whether this configuration
-            is for testing purposes only; this helps us isolate any global state during testing
-            by configuring a "prefect-test-logger" instead of the standard "prefect" logger
+        - name (str): Name to use for logger.
 
     Returns:
         - logging.Logger: a configured logging object
     """
     logging.setLogRecordFactory(_log_record_context_injector)
 
-    name = "prefect-test-logger" if testing else "prefect"
     logger = logging.getLogger(name)
     handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(context.config.logging.format)
@@ -213,7 +209,36 @@ def configure_logging(testing: bool = False) -> logging.Logger:
     return logger
 
 
+def configure_logging(testing: bool = False) -> logging.Logger:
+    """
+    Creates a "prefect" root logger with a `StreamHandler` that has level and formatting
+    set from `prefect.config`.
+
+    Args:
+        - testing (bool, optional): a boolean specifying whether this configuration
+            is for testing purposes only; this helps us isolate any global state during testing
+            by configuring a "prefect-test-logger" instead of the standard "prefect" logger
+
+    Returns:
+        - logging.Logger: a configured logging object
+    """
+    name = "prefect-test-logger" if testing else "prefect"
+    return _create_logger(name)
+
+
 prefect_logger = configure_logging()
+
+
+def configure_extra_loggers() -> None:
+    """
+    Creates a "Prefect" configured logger for all strings in extra_loggers config list.
+    The logging.extra_loggers config defaults to an empty list.
+    """
+    for l in context.config.logging.extra_loggers:
+        _create_logger(l)
+
+
+configure_extra_loggers()
 
 
 def get_logger(name: str = None) -> logging.Logger:

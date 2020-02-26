@@ -11,13 +11,16 @@ python 05_schedules.py
 
 Now that our Aircraft ETL flow is trustworthy enough, we want to be able to run it continuously on a schedule. Prefect provides `Schedule` objects that can be attached to `Flows`:
 
-```python{1,2,6,8}
-from datetime import timedelta
+```python{1,2,6,11}
+from datetime import timedelta, datetime
 from prefect.schedules import IntervalSchedule
 
 # ... task definitions ...
 
-schedule = IntervalSchedule(interval=timedelta(minutes=1))
+schedule = IntervalSchedule(
+    start_date=datetime.utcnow() + timedelta(seconds=1),
+    interval=timedelta(minutes=1),
+)
 
 with Flow("Aircraft-ETL", schedule=schedule) as flow:
     airport = Parameter("airport", default="IAD")

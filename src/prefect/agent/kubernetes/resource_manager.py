@@ -5,7 +5,6 @@ import time
 from typing import TYPE_CHECKING
 
 import pendulum
-from requests.exceptions import HTTPError
 
 from prefect import Client
 from prefect import config as prefect_config
@@ -242,6 +241,9 @@ class ResourceManager:
         """
         Report pods that failed for reasons outside of a flow run. Write cloud log
         """
+        # deferred import to reduce import time for prefect
+        from requests.exceptions import HTTPError
+
         core_client = self.k8s_client.CoreV1Api()
         name = pod.metadata.name
 
@@ -280,6 +282,9 @@ class ResourceManager:
         """
         Write cloud log of pods that entered unknonw states
         """
+        # deferred import to reduce import time for prefect
+        from requests.exceptions import HTTPError
+
         name = pod.metadata.name
         self.logger.info(
             "Reporting unknown pod {} in namespace {}".format(name, self.namespace)
@@ -303,6 +308,9 @@ class ResourceManager:
         """
         Write cloud log of pods that ahd image pull errors
         """
+        # deferred import to reduce import time for prefect
+        from requests.exceptions import HTTPError
+
         for status in pod.status.container_statuses:
             waiting = status.state.waiting
 
