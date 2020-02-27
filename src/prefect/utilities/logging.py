@@ -261,7 +261,16 @@ def get_logger(name: str = None) -> logging.Logger:
 
 
 class RedirectToLog:
-    stdout_logger = get_logger("stdout")
+    """
+    Custom redirect of stdout messages to logs
+
+    Args:
+        - logger (logging.Logger, optional): an optional logger to redirect stdout. If
+            not provided a logger names `stdout` will be created.
+    """
+
+    def __init__(self, logger: logging.Logger = None) -> None:
+        self.stdout_logger = logger or get_logger("stdout")
 
     def write(self, s: str) -> None:
         """

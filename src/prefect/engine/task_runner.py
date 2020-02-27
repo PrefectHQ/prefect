@@ -876,7 +876,7 @@ class TaskRunner(Runner):
             raw_inputs = {k: r.value for k, r in inputs.items()}
 
             if self.task.log_stdout:
-                with redirect_stdout(prefect.utilities.logging.log_stdout):  # type: ignore
+                with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
                     result = timeout_handler(
                         self.task.run, timeout=self.task.timeout, **raw_inputs
                     )
