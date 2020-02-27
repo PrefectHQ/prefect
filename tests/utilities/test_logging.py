@@ -328,3 +328,5 @@ def test_redirect_to_log(caplog):
 
     logs = [r.message for r in caplog.records]
     assert logs == ["TEST1", "TEST2"]
+
+    log_stdout.flush()

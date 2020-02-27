@@ -261,6 +261,8 @@ def get_logger(name: str = None) -> logging.Logger:
 
 
 class RedirectToLog:
+    stdout_logger = get_logger("stdout")
+
     def write(self, s: str) -> None:
         """
         Write message from stdout to a prefect logger.
@@ -270,7 +272,14 @@ class RedirectToLog:
             s (str): the message from stdout to be logged
         """
         if s.strip():
-            get_logger("stdout").info(s)
+            self.stdout_logger.info(s)
+
+    def flush(self) -> None:
+        """
+        Implemented flush operation for logger handler
+        """
+        for handler in self.stdout_logger.handlers:
+            handler.flush()
 
 
 log_stdout = RedirectToLog()
