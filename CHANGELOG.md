@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
 
 ### Enhancements
 
@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- Fix `V1DeleteOptions` kwargs for Kubernetes tasks 
+- Fix expanding of `V1DeleteOptions` kwargs for Kubernetes tasks - [#2083](https://github.com/PrefectHQ/prefect/pull/2083)
 
 ### Fixes
 
