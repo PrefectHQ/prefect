@@ -264,10 +264,10 @@ class TestCreateTask:
 
     def test_create_task_with_and_without_log_stdout(self):
         t = Task()
-        assert t.log_stdout is True
+        assert t.log_stdout is False
 
-        s = Task(log_stdout=False)
-        assert s.log_stdout is False
+        s = Task(log_stdout=True)
+        assert s.log_stdout is True
 
 
 def test_task_has_logger():

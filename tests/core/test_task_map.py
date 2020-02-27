@@ -890,11 +890,11 @@ def test_all_tasks_only_called_once(capsys, executor):
     See https://github.com/PrefectHQ/prefect/issues/556
     """
 
-    @prefect.task(log_stdout=False)
+    @prefect.task
     def my_list():
         return list(range(5))
 
-    @prefect.task(log_stdout=False)
+    @prefect.task
     def add_one(x):
         print("adding one to {}".format(x))
         return x + 1

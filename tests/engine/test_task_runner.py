@@ -2249,7 +2249,7 @@ def test_task_runner_logs_stdout(caplog):
         def run(self):
             print("TEST_HERE")
 
-    task = MyTask()
+    task = MyTask(log_stdout=True)
     TaskRunner(task=task).run()
 
     logs = [r.message for r in caplog.records]
@@ -2261,7 +2261,7 @@ def test_task_runner_logs_stdout_disabled(caplog):
         def run(self):
             print("TEST_HERE")
 
-    task = MyTask(log_stdout=False)
+    task = MyTask()
     TaskRunner(task=task).run()
 
     logs = [r.message for r in caplog.records]
