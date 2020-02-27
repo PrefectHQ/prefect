@@ -34,12 +34,12 @@ from prefect.engine.result_handlers import LocalResultHandler
 
 @task
 def add(x, y=1):
-   return x + y
+    return x + y
 
 # send the configuration to the Flow object
 with Flow("my handled flow!", result_handler=LocalResultHandler()):
-   first_result = add(1, y=2)
-   second_result = add(x=first_result, y=100)
+    first_result = add(1, y=2)
+    second_result = add(x=first_result, y=100)
 ```
 
 #### Setting result handler at the task level
@@ -48,19 +48,25 @@ with Flow("my handled flow!", result_handler=LocalResultHandler()):
 export PREFECT__FLOWS__CHECKPOINTING=true
 ```
 
-```python{4-5,11-12}
+```python{4-5,13-14}
 # flow.py
 from prefect.engine.result_handlers import LocalResultHandler
 
 # configure on the task decorator
 @task(result_handler=LocalResultHandler())
 def add(x, y=1):
-   return x + y
+    return x + y
+
+class AddTask(Task):
+        def run(self, x, y):
+            return x + y
+
+# or when instantiating a Task object
+a = AddTask(result_handler=LocalResultHandler())
 
 with Flow("my handled flow!"):
-   first_result = add(1, y=2)
-   # or send as a keyword argument at task initialization
-   second_result = add(x=first_result, y=100, result_handler=LocalResultHandler())
+    first_result = add(1, y=2)
+    second_result = add(x=first_result, y=100)
 ```
 
 ## Choosing your result handlers
@@ -80,7 +86,7 @@ from prefect.engine.result_handlers import GCSResultHandler
 gcs_handler = GCSResultHandler(bucket='prefect_results')
 
 with Flow("my handled flow!", result_handler=gcs_handler):
-   ...
+    ...
 ```
 
 Make sure your Prefect installation can [authenticate to Google's Cloud API](https://cloud.google.com/docs/authentication/getting-started). As long as the host of my Prefect installation can authenticate to this GCS bucket, each task's return value will be serialized into its own file in this GCS bucket.
