@@ -326,7 +326,7 @@ def test_redirect_to_log(caplog):
     log_stdout.write("")
     log_stdout.write("TEST2")
 
-    logs = [r.message for r in caplog.records]
+    logs = [r.message for r in caplog.records if r.levelname == "INFO"]
     assert logs == ["TEST1", "TEST2"]
 
     log_stdout.flush()
