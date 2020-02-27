@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- Add ERROR log if heartbeat process dies - [#2097](https://github.com/PrefectHQ/prefect/issues/2097)
 
 ### Task Library
 

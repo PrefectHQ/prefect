@@ -56,6 +56,11 @@ def run_with_heartbeat(
             return runner_method(self, *args, **kwargs)
         finally:
             if p is not None:
+                exit_code = p.poll()
+                if exit_code is not None:
+                    self.logger.error(
+                        "Heartbeat process died with exit code {}".format(exit_code)
+                    )
                 p.kill()
 
     return inner
