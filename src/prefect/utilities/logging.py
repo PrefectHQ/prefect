@@ -290,5 +290,3 @@ class RedirectToLog:
         for handler in self.stdout_logger.handlers:
             handler.flush()
 
-
-log_stdout = RedirectToLog()
