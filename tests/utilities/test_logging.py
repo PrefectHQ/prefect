@@ -320,7 +320,7 @@ def test_context_only_specified_attributes():
 
 
 def test_redirect_to_log(caplog):
-    log_stdout = utilities.logging.log_stdout
+    log_stdout = utilities.logging.RedirectToLog()
 
     log_stdout.write("TEST1")
     log_stdout.write("")
