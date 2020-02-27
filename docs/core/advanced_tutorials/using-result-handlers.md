@@ -108,7 +108,7 @@ gs://prefect_results/2020/2/24/59082506-9217-436f-9d69-9ff569b20b7a.prefect_resu
 gs://prefect_results/2020/2/24/a07dd6c1-837d-4925-be46-3b525be57779.prefect_result
 ```
 
-If you are using Prefect Cloud, you can see that this metadata from the "safe value" is also stored by the scheduler and exposed in the UI:
+If you are using Prefect Cloud, you can see that this metadata from the "safe value" is also stored and exposed in the UI:
 
 ![Task Detail with GCS Result.safe_value showing](/result-stored-in-cloud-UI-gcshandler.png)
 
