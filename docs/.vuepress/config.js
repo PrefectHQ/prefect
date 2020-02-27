@@ -303,7 +303,8 @@ module.exports = {
             'development/documentation',
             'development/tests',
             'development/contributing',
-            'development/release-checklist'
+            'development/release-checklist',
+            'development/sprints'
           ]
         },
         {

@@ -218,7 +218,7 @@ class DeleteNamespacedService(Task):
         api_client.delete_namespaced_service(
             name=service_name,
             namespace=namespace,
-            body=client.V1DeleteOptions(delete_option_kwargs),
+            body=client.V1DeleteOptions(**delete_option_kwargs),
             **kube_kwargs
         )
 

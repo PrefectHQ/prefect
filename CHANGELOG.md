@@ -6,15 +6,16 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
 
 ### Enhancements
 
+- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
 - Update docs and docstrings related to Result Handlers - [#1792](https://github.com/PrefectHQ/prefect/issues/1792)
 
 ### Task Library
 
-- None
+- Fix expanding of `V1DeleteOptions` kwargs for Kubernetes tasks - [#2083](https://github.com/PrefectHQ/prefect/pull/2083)
 
 ### Fixes
 
