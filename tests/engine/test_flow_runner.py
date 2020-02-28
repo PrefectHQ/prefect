@@ -812,7 +812,12 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
 
     assert state.is_failed()
     assert isinstance(state.result, TypeError)
-    assert str(state.result) == "can't pickle _thread.lock objects"
+
+    # assert two possible result outputs for different Python versions
+    assert str(state.result) in [
+        "can't pickle _thread.lock objects",
+        "cannot pickle '_thread.lock' object",
+    ]
 
 
 @pytest.mark.xfail(
