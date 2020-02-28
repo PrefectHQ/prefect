@@ -6,9 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-<<<<<<< HEAD
 - Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
-=======
 - Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
 
 ### Enhancements
@@ -81,7 +79,6 @@ Released on Feb 14, 2020.
 ### Features
 
 - None
->>>>>>> f02186266d48357b8b930a9544d1a9419aeb3992
 
 ### Enhancements
 
