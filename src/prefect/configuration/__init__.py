@@ -300,8 +300,8 @@ def load_configuration(paths: List[str], env_var_prefix: str = None) -> Config:
     return config
 
 
-# load prefect configuration
-config_paths = [DEFAULT_CONFIGS]
+# load prefect configuration but don't mutate DEFAULT CONFIGS
+config_paths = list(DEFAULT_CONFIGS)
 if os.path.isfile(str(interpolate_env_vars(USER_CONFIG))):
     config_paths.append(USER_CONFIG)
 
