@@ -35,7 +35,7 @@ Prefect tasks support basic python operations such as addition, subtraction, and
 
 Here we see a nice static representation of the underlying flow graph: the nodes correspond to tasks (labeled with the task name) and the edges to dependencies (labeled with the underlying argument name if data is being passed). This can be helpful with understanding task dependencies, and possibly debugging your logic without having to execute your tasks.
 
-To see how this might be helpful, let's create a more complicated dependency chain.
+Let's now create a more complicated dependency chain.
 
 ```python
 from prefect import task
@@ -50,40 +50,24 @@ with Flow("math") as f:
     a = x + y
     switch(a, cases={0: handle_zero(),
                      1: 6 / a})
-##    PrefectWarning: One of the tasks passed to the switch condition
-##    has upstream dependencies: <Task: Div>.
-##    Those upstream tasks could run even if the switch condition fails,
-##    which might cause unexpected results.
-```
 
-Hmmm - we received a warning which tells us that the `Div` Task has an upstream dependency that may run even if the switch condition fails... what does that mean exactly? Let's visualize the flow to find out:
-
-```python
+# if running in an Jupyter notebook, 
+# visualize will render in-line, otherwise
+# a new window will open
 f.visualize()
 ```
 
 ![output switch condition fail](/output_5_0.svg){.viz-md .viz-padded}
 
-We can now see what the warning was telling us: the `Div` task has an upstream dependency of "6" which exists outside of the switch condition. Morever, this "6" task has no upstream dependencies so it is considered a "root" task:
-
-::: tip Everything is a task
-Internally, Prefect represents _everything_ as a task. In this case, Prefect creates a task called "6" that returns the integer 6 when it runs.
-:::
-
-```python
-f.root_tasks()
-# {<Parameter: x>, <Parameter: y>, <Task: 6>}
-```
-
-These are the tasks the flow will execute first; consequently, the task "6" will be run _regardless_ of whether the `Div` task is skipped by the switch condition. If, instead of merely returning the number 6, this task performed a lot of computation, we might want it executed _only if_ the switch condition passes; in this case we would need to rearrange our flow.
-
-::: tip Note
-Notice that we have identified this situation and possibly remediated it _all without executing our code_!
-:::
+From this visualization we can learn a lot about how Prefect is operating under the hood:
+- Constant inputs to Prefect tasks (e.g., `6` above) are not represented as tasks; instead they are stored on the flow object under the `constants` attribute; this attribute containts a dictionary relating tasks to which constant values they rely on
+- Some of Prefect's utility tasks (such as `switch` above) create multiple tasks under the hood; in this case `switch` created a new `CompareValue` task for each case we provided
+- Every type of operation on a task is itself represented by another task; above we can see that division resulted in a new `Div` task. This highlights a principle to remember when building your workflows: all runtime logic should be represented by a task
+- Some types of task dependencies rely on data (represented by labeled edges in the visualization) whereas others represent pure state dependencies (represented by unlabeled edges in the visualization)
 
 ### Static Flow Visualization - Post Run
 
-In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=1` (a condition not handled by the `switch`). In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
+In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=2` (a condition not handled by the `switch`). In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
 
 ::: tip State colors
 The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/latest/engine/state.html).
@@ -96,8 +80,8 @@ f.visualize(flow_state=flow_state)
 
 ![flow with colored post-run task states](/flow_visualize_colors.svg){.viz-md .viz-padded}
 
-We can see that the `6` task was still executed (as we suspected), and both branches of the `switch` were skipped.
+We can see that both branches of the `switch` were skipped in this case.
 
-::: tip Visualization is a useful debug tool
-Fully understanding why our flow failed might have been trickier without the visualization aids that Prefect provides.
+::: tip Live Updating Visualizations
+All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../cloud/ui/flow-run.html#schematic).
 :::

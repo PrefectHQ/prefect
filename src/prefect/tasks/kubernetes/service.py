@@ -172,6 +172,7 @@ class DeleteNamespacedService(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        delete_option_kwargs: dict = None,
     ) -> None:
         """
         Task run method.
@@ -185,6 +186,9 @@ class DeleteNamespacedService(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+            - delete_option_kwargs (dict, optional): Optional keyword arguments to pass to
+                the V1DeleteOptions object (e.g. {"propagation_policy": "...",
+                "grace_period_seconds": "..."}.
 
         Raises:
             - ValueError: if `service_name` is `None`
@@ -209,11 +213,12 @@ class DeleteNamespacedService(Task):
             api_client = client.CoreV1Api()
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
+        delete_option_kwargs = delete_option_kwargs or {}
 
         api_client.delete_namespaced_service(
             name=service_name,
             namespace=namespace,
-            body=api_client.V1DeleteOptions(),
+            body=client.V1DeleteOptions(**delete_option_kwargs),
             **kube_kwargs
         )
 

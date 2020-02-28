@@ -14,14 +14,13 @@ import logging
 import sys
 import threading
 import time
-from queue import Queue, Empty
+from queue import Empty, Queue
 from typing import Any
 
 import pendulum
 
 import prefect
 from prefect.utilities.context import context
-
 
 _original_log_record_factory = logging.getLogRecordFactory()
 
@@ -259,3 +258,34 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+class RedirectToLog:
+    """
+    Custom redirect of stdout messages to logs
+
+    Args:
+        - logger (logging.Logger, optional): an optional logger to redirect stdout. If
+            not provided a logger names `stdout` will be created.
+    """
+
+    def __init__(self, logger: logging.Logger = None) -> None:
+        self.stdout_logger = logger or get_logger("stdout")
+
+    def write(self, s: str) -> None:
+        """
+        Write message from stdout to a prefect logger.
+        Note: blank newlines will not be logged.
+
+        Args:
+            s (str): the message from stdout to be logged
+        """
+        if s.strip():
+            self.stdout_logger.info(s)
+
+    def flush(self) -> None:
+        """
+        Implemented flush operation for logger handler
+        """
+        for handler in self.stdout_logger.handlers:
+            handler.flush()

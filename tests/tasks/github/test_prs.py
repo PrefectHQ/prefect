@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 import prefect
 from prefect.tasks.github import CreateGitHubPR
@@ -38,9 +39,9 @@ class TestCredentialsandProjects:
         task = CreateGitHubPR(token_secret="GITHUB_ACCESS_TOKEN")
 
         req = MagicMock()
-        monkeypatch.setattr("prefect.tasks.github.prs.requests", req)
+        monkeypatch.setattr(requests, "post", req)
 
         with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
             task.run(repo="org/repo")
 
-        assert req.post.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
+        assert req.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"

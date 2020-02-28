@@ -3,7 +3,6 @@ from typing import List
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from google.oauth2.service_account import Credentials
 
 from prefect.client import Secret
 from prefect.core import Task

@@ -1,7 +1,6 @@
-import json
-from typing import Any, Dict, Optional
+from typing import Any
 
-from marshmallow import ValidationError, fields, post_load
+from marshmallow import fields, post_load
 
 from prefect.engine.result_handlers import (
     AzureResultHandler,

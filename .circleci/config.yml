@@ -11,33 +11,53 @@ jobs:
   # Check formatting
   # ----------------------------------
 
-  check_black_formatting:
+  check_static_analysis:
     docker:
       - image: python:3.6
     steps:
       - checkout
 
       - run:
-          name: Install Black
-          command: pip install black
+          name: Install python packages for static analysis
+          command: pip install black mypy mypy_extensions autoflake profimp
 
       - run:
           name: Run Black
           command: black --check .
 
-  check_mypy_typing:
-    docker:
-      - image: python:3.6
-    steps:
-      - checkout
-
-      - run:
-          name: Install mypy
-          command: pip install mypy mypy_extensions
-
       - run:
           name: Run mypy
           command: mypy src/
+
+      - run:
+          name: Check for potentially unused imports
+          command: |
+            if [[ $(autoflake --remove-all-unused-imports -r --exclude __init__.py src | tee .unused-imports.txt | wc -c ) -ne 0 ]]; then
+              echo "Potentially unused imports found"
+              cat .unused-imports.txt
+              exit 2
+            fi
+
+      - run:
+          name: Quick installation of Prefect
+          command: pip install -e .
+
+      - run:
+          name: Ensure 'import prefect' is under 1 second
+          command: |
+            apt update && apt install jq bc -y
+
+            # generate pycache
+            python -c 'import prefect'
+
+            if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
+              echo "Prefect import time is too slow"
+              cat .import-time.txt
+              exit 3
+            else
+              echo "Prefect import time (ms):"
+              cat .import-time.txt
+            fi
 
   check_documentation:
     docker:
@@ -238,9 +258,35 @@ jobs:
           name: Run tests
           command: pytest -vvrfEsx .
 
+  test_38:
+    docker:
+      - image: python:3.8
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install -U pip
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Run tests
+          command: pytest -vvrfEsx .
+
   upload_coverage:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - *attach_workspace
       - run:
@@ -351,14 +397,50 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
+  release_to_pypi:
+    docker:
+      - image: python:3.7
+    steps:
+      - checkout
+
+      - run:
+          # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
+          # commit is not on master.
+          # todo: is there a better way to ensure that this is a commit on master?
+          name: Master branch check
+          command: |
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
+
+      - run:
+          name: Verify Package Version
+          command: python setup.py verify_version
+
+      - run:
+          name: Install Twine
+          command: pip install twine
+
+      - run:
+          name: Build Python Package
+          command: |
+            python setup.py sdist
+            python setup.py bdist_wheel
+
+      - run:
+          name: Upload Package to PyPI
+          command: twine upload dist/*
+
 workflows:
   version: 2
 
-  "Run tests":
+  'Run tests':
     jobs:
       - test_35
       - test_36
       - test_37
+      - test_38
       - test_lower_prefect
       - test_vanilla_prefect
       - test_py352_import_prefect
@@ -366,40 +448,57 @@ workflows:
           requires:
             - test_35
             - test_36
+            - test_37
+            - test_38
             - test_vanilla_prefect
 
-  "Check code style and docs":
+  'Check code style and docs':
     jobs:
-      - check_black_formatting
-      - check_mypy_typing
+      - check_static_analysis
       - check_documentation
 
-  "Build docker images":
+  'Build and publish development artifacts':
+    jobs:
+      - build_master_docker_image:
+          python_version: '3.7'
+          filters:
+            branches:
+              only: master
+
+  'Build and publish release artifacts':
     jobs:
       - build_docker_image:
-          python_version: "3.5"
+          python_version: '3.5'
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: "3.6"
+          python_version: '3.6'
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: "3.7"
+          python_version: '3.7'
           tag_latest: true
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_master_docker_image:
-          python_version: "3.7"
+      - build_docker_image:
+          python_version: '3.8'
           filters:
             branches:
-              only: master
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - release_to_pypi:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/

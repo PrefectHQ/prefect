@@ -20,7 +20,6 @@ def heartbeat():
         task-run   Send heartbeat for a given task run ID
         flow-run   Send heartbeat for a given flow run ID
     """
-    pass
 
 
 @heartbeat.command(hidden=True)

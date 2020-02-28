@@ -32,6 +32,15 @@ class HTTPGetTask(Task):
 
 All `Task` subclasses must have a `run()` method.
 
+::: tip Tasks may be run individually
+A task's `run` method can be called anytime for testing:
+
+```python
+plus_one.run(2)  # 3
+```
+
+:::
+
 Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/latest/core/task.html).
 
 ::: tip How big should a task be?

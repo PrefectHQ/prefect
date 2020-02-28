@@ -262,6 +262,13 @@ class TestCreateTask:
         s = Task(checkpoint=True)
         assert s.checkpoint is True
 
+    def test_create_task_with_and_without_log_stdout(self):
+        t = Task()
+        assert t.log_stdout is False
+
+        s = Task(log_stdout=True)
+        assert s.log_stdout is True
+
 
 def test_task_has_logger():
     t = Task()
@@ -581,3 +588,9 @@ class TestTaskArgs:
                 t2 = t(1, 2, task_args={"name": "test-tags", "tags": ["new-tag"]})
 
         assert t2.tags == {"math", "test", "new-tag"}
+
+    def test_task_check_mapped_args_are_subscriptable_in_advance(self):
+        t = Task()
+        with pytest.raises(TypeError):
+            with Flow(name="test") as f:
+                res = t.map({1, 2, 3, 4})

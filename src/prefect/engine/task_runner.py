@@ -1,8 +1,6 @@
-import collections
 import copy
+from contextlib import redirect_stdout
 import itertools
-import threading
-from functools import partial, wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -47,9 +45,9 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.executors import (
+    RecursiveCall,
     run_with_heartbeat,
     tail_recursive,
-    RecursiveCall,
 )
 
 if TYPE_CHECKING:
@@ -79,8 +77,7 @@ class TaskRunner(Runner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one);
-            if not provided here or by the Task, will default to the one specified in your config
+            retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
     def __init__(
@@ -717,6 +714,13 @@ class TaskRunner(Runner):
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
                         if not state.is_mapped() or upstream_state._result != NoResult:
+                            if not hasattr(upstream_state.result, "__getitem__"):
+                                raise TypeError(
+                                    "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                                        t=type(upstream_state.result),
+                                        preview=repr(upstream_state.result)[:10],
+                                    )
+                                )
                             upstream_result = Result(
                                 upstream_state.result[i],
                                 result_handler=upstream_state._result.result_handler,  # type: ignore
@@ -869,9 +873,16 @@ class TaskRunner(Runner):
                 timeout_handler or prefect.utilities.executors.timeout_handler
             )
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            result = timeout_handler(
-                self.task.run, timeout=self.task.timeout, **raw_inputs
-            )
+
+            if self.task.log_stdout:
+                with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
+                    result = timeout_handler(
+                        self.task.run, timeout=self.task.timeout, **raw_inputs
+                    )
+            else:
+                result = timeout_handler(
+                    self.task.run, timeout=self.task.timeout, **raw_inputs
+                )
 
         except KeyboardInterrupt:
             self.logger.debug("Interrupt signal raised, cancelling task run.")

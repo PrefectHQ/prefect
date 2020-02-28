@@ -2,7 +2,6 @@ import click
 import pendulum
 from tabulate import tabulate
 
-from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -42,7 +41,6 @@ def get():
         first_task    Test-Flow   1              5 days ago   False    prefect.tasks.core.function.FunctionTask
         second_task   Test-Flow   1              5 days ago   True     prefect.tasks.core.function.FunctionTask
     """
-    pass
 
 
 @get.command(hidden=True)

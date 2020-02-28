@@ -23,11 +23,12 @@ import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
+from prefect.utilities.tasks import unmapped
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
     from prefect.engine.result_handlers import ResultHandler
-    from prefect.engine.state import State
+    from prefect.engine.state import State  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -153,6 +154,8 @@ class Task(metaclass=SignatureValidator):
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
             with will be called anytime this Task enters a failure state
+        - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
+            the Prefect logger. Defaults to `False`.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -179,8 +182,8 @@ class Task(metaclass=SignatureValidator):
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
+        log_stdout: bool = False,
     ):
-
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
 
@@ -254,6 +257,8 @@ class Task(metaclass=SignatureValidator):
             )
         self.auto_generated = False
 
+        self.log_stdout = log_stdout
+
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 
@@ -289,7 +294,6 @@ class Task(metaclass=SignatureValidator):
                     flow, depending on whether downstream tasks have `skip_on_upstream_skip=True`. </li></ul>
         </li></ul>
         """
-        pass
 
     # Dependencies -------------------------------------------------------------
 
@@ -475,6 +479,13 @@ class Task(metaclass=SignatureValidator):
         Returns:
             - Task: a new Task instance
         """
+        for arg in args:
+            if not hasattr(arg, "__getitem__") and not isinstance(arg, unmapped):
+                raise TypeError(
+                    "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                        t=type(arg), preview=repr(arg)[:10]
+                    )
+                )
         new = self.copy(**(task_args or {}))
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs

@@ -6,7 +6,82 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+<<<<<<< HEAD
 - Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
+=======
+- Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
+
+### Enhancements
+
+- Update docs and docstrings related to Result Handlers - [#1792](https://github.com/PrefectHQ/prefect/issues/1792)
+- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
+
+### Task Library
+
+- Fix expanding of `V1DeleteOptions` kwargs for Kubernetes tasks - [#2083](https://github.com/PrefectHQ/prefect/pull/2083)
+
+### Fixes
+
+- Don't mutate data when serializing or deserializing - [#2098](https://github.com/PrefectHQ/prefect/issues/2098)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.5 <Badge text="beta" type="success"/>
+
+Released on Feb 21, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Better exception for unsubscriptable mapping arguments - [#1821](https://github.com/PrefectHQ/prefect/issues/1821)
+- Upload package to PyPI on tag push to master - [#2030](https://github.com/PrefectHQ/prefect/issues/2030)
+- Add DaskGateway tip to docs - [#1959](https://github.com/PrefectHQ/prefect/issues/1959)
+- Improve package import time - [#2046](https://github.com/PrefectHQ/prefect/issues/2046)
+
+### Task Library
+
+- Fix `V1DeleteOptions` call for Kubernetes tasks - [#2050](https://github.com/PrefectHQ/prefect/pull/2050)
+- Add kwargs to `V1DeleteOptions` for Kubernetes tasks - [#2051](https://github.com/PrefectHQ/prefect/pull/2051)
+
+### Fixes
+
+- Ensure microseconds are respected on `start_date` provided to CronClock - [#2031](https://github.com/PrefectHQ/prefect/pull/2031)
+- Fix duplicate Client connections when using `--logs` flag from `run cloud` CLI command - [#2056](https://github.com/PrefectHQ/prefect/pull/2056)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Romain Thalineau](https://github.com/romaintha)
+
+## 0.9.4 <Badge text="beta" type="success"/>
+
+Released on Feb 14, 2020.
+
+### Features
+
+- None
+>>>>>>> f02186266d48357b8b930a9544d1a9419aeb3992
 
 ### Enhancements
 
@@ -24,6 +99,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
 - Do not perform `ast.literal_eval` on cpu and memory task_definition kwargs for Fargate Agent - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
+- Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled - [#2022](https://github.com/PrefectHQ/prefect/pull/2022)
 
 ### Deprecations
 

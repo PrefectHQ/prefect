@@ -198,6 +198,10 @@ class CronClock(Clock):
 
     Note that this behavior is different from the `IntervalClock`.
 
+    NOTE: `CronClock` respects microseconds meaning for a clock that runs once a day, if
+    the start time is `(2020, 1, 1, 0, 0, 0, 1)` then the first scheduled run will be
+    `(2020, 1, 2, 0, 0, 0, 0)`.
+
     Args:
         - cron (str): a valid cron string
         - start_date (datetime, optional): an optional start date for the clock
@@ -264,6 +268,11 @@ class CronClock(Clock):
                 microsecond=after.microsecond,
             )
         )
+
+        # Respect microseconds by rounding up
+        if after_localized.microsecond:
+            after_localized = after_localized + timedelta(seconds=1)
+
         cron = croniter(self.cron, after_localized)
         dates = set()  # type: Set[datetime]
 
