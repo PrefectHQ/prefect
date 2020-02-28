@@ -2,12 +2,12 @@
 A state-handler that will create and assign a Jira ticket. 
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import TYPE_CHECKING, Union, cast
 from datetime import datetime
 from toolz import curry
 
 import prefect
-from prefect.tasks.secrets import Secret
+
 
 try:
     from jira import JIRA
