@@ -1,0 +1,27 @@
+[cloud]
+
+# the Prefect Server address
+api = "https://api.prefect.io"
+graphql = "${cloud.api}/graphql/alpha"
+use_local_secrets = true
+heartbeat_interval = 30.0
+
+# rate at which to batch upload logs
+logging_heartbeat = 5
+
+queue_interval = 30.0
+
+    [cloud.agent]
+    name = "agent"
+    labels = "[]"
+
+    # Set to `DEBUG` for verbose logging
+    level = "INFO"
+
+    # Agents require different API tokens
+    auth_token = ""
+
+        [cloud.agent.resource_manager]
+        # Separate loop interval for resource managers
+        loop_interval = 60
+

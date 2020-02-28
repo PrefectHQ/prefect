@@ -70,7 +70,7 @@ def config(test_config_file_path, monkeypatch):
     )
 
     yield configuration.load_configuration(
-        test_config_file_path, env_var_prefix="PREFECT_TEST"
+        [test_config_file_path], env_var_prefix="PREFECT_TEST"
     )
 
 
@@ -180,6 +180,51 @@ def test_copy_doesnt_make_keys_mutable(config):
     assert "z" not in config.general
 
 
+def test_load_multiple_config_files():
+
+    with tempfile.TemporaryDirectory() as test_config_dir:
+        path_1 = os.path.join(test_config_dir, "path_1.toml")
+        with open(path_1, "wb") as test_config:
+            test_config.write(
+                b"""
+                [x]
+                key = 1
+             
+                [y]
+                    [y.z]
+                    key = 1
+                    key2 = 2
+                """
+            )
+
+        path_2 = os.path.join(test_config_dir, "path_2.toml")
+        with open(path_2, "wb") as test_config:
+            test_config.write(
+                b"""
+                [x]
+                key = 1
+             
+                [y]
+                    [y.z]
+                    key = 200
+                    key3 = 3
+                """
+            )
+
+        config = configuration.load_configuration([path_1, path_2])
+        assert config.x.key == 1
+        assert config.y.z.key == 200
+        assert config.y.z.key2 == 2
+        assert config.y.z.key3 == 3
+
+        # reverse order
+        config = configuration.load_configuration([path_2, path_1])
+        assert config.x.key == 1
+        assert config.y.z.key == 1
+        assert config.y.z.key2 == 2
+        assert config.y.z.key3 == 3
+
+
 class TestUserConfig:
     def test_load_user_config(self, test_config_file_path):
 
@@ -196,7 +241,7 @@ class TestUserConfig:
                     """
                 )
             config = configuration.load_configuration(
-                path=test_config_file_path, user_config_path=user_config_loc
+                paths=[test_config_file_path, user_config_loc]
             )
 
             # check that user values are loaded
@@ -317,7 +362,7 @@ class TestConfigValidation:
                 )
 
             with pytest.raises(ValueError):
-                configuration.load_configuration(test_config_loc)
+                configuration.load_configuration([test_config_loc])
 
     def test_invalid_env_var_raises_error(self, monkeypatch):
         monkeypatch.setenv("PREFECT_TEST__X__Y__KEYS__Z", "TEST")
@@ -328,7 +373,7 @@ class TestConfigValidation:
                 test_config.write(b"")
             with pytest.raises(ValueError):
                 configuration.load_configuration(
-                    test_config_loc, env_var_prefix="PREFECT_TEST"
+                    [test_config_loc], env_var_prefix="PREFECT_TEST"
                 )
 
     def test_mixed_case_keys_are_ok(self):
@@ -342,7 +387,7 @@ class TestConfigValidation:
                     """
                 )
 
-            config = configuration.load_configuration(test_config_loc)
+            config = configuration.load_configuration([test_config_loc])
 
         assert "KeY" in config.SeCtIoN
         assert config.SeCtIoN.KeY == 1
@@ -362,7 +407,7 @@ class TestConfigValidation:
                 )
 
             config = configuration.load_configuration(
-                test_config_loc, env_var_prefix="PREFECT_TEST"
+                [test_config_loc], env_var_prefix="PREFECT_TEST"
             )
 
         assert "KeY" in config.SeCtIoN
@@ -393,7 +438,7 @@ class TestConfigValidation:
                 )
 
             config = configuration.load_configuration(
-                test_config_loc, env_var_prefix="PREFECT_TEST"
+                [test_config_loc], env_var_prefix="PREFECT_TEST"
             )
 
         assert "secrets" in config.context
