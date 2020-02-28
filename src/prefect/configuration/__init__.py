@@ -107,20 +107,6 @@ def interpolate_env_vars(env_var: str) -> Optional[Union[bool, int, float, str]]
     return None
 
 
-def create_user_config(dest_path: str, source_path: str = DEFAULT_CONFIGS) -> None:
-    """
-    Copies the default configuration to a user-customizable file at `dest_path`
-    """
-    dest_path = cast(str, interpolate_env_vars(dest_path))
-    if os.path.isfile(dest_path):
-        raise ValueError("File already exists: {}".format(dest_path))
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-    with open(dest_path, "w") as dest:
-        with open(source_path, "r") as source:
-            dest.write(source.read())
-
-
 # Process Config -------------------------------------------------------------
 
 
