@@ -100,4 +100,4 @@ assert prefect.config.user == "admin"
 
 #### Validation
 
-Configs are recursively validated when first loaded. `ValueErrors` are raised for invalid config definitions. The checks include: - invalid keys: because `Config` objects have dictionary-like methods, it can create problems if any of their keys shadow one of their methods. For example, `"keys"` is an invalid key because `Config.keys()` is an important method.
+Configs are recursively validated when first loaded. `ValueErrors` are raised for invalid config definitions. The checks include invalid keys; because `Config` objects have dictionary-like methods, it can create problems if any of their keys shadow one of their methods. For example, `"keys"` is an invalid key because `Config.keys()` is an important method.

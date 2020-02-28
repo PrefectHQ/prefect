@@ -195,6 +195,7 @@ def test_agent_start_with_env_vars(monkeypatch, runner_token):
         name=None,
         no_pull=False,
         show_flow_logs=False,
+        volumes=[],
     )
 
 
