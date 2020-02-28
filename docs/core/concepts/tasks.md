@@ -12,8 +12,6 @@ from prefect import task
 @task
 def plus_one(x):
     return x + 1
-
-plus_one.run(x=2)  # 3
 ```
 
 For more sophisticated tasks that may require customization, you can subclass the `Task` class directly:
@@ -33,6 +31,15 @@ class HTTPGetTask(Task):
 ```
 
 All `Task` subclasses must have a `run()` method.
+
+::: tip Tasks may be run individually
+A task's `run` method can be called anytime for testing:
+
+```python
+plus_one.run(2)  # 3
+```
+
+:::
 
 Tasks take a variety of arguments that may be provided either to the `Task` class constructor or the `@task` decorator. For a complete description, see the [Task API docs](/api/latest/core/task.html).
 
