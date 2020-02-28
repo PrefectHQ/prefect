@@ -65,7 +65,7 @@ def log_my_stdout():
 
 ### Extra Loggers
 
-Many libraries like `boto3` and `snowflake.conector` are setup to emit their own internal logs when configured with a logging configuration. You may even have an internal shared library for your team with the same functionality.
+Many libraries like `boto3` and `snowflake.connector` are setup to emit their own internal logs when configured with a logging configuration. You may even have an internal shared library for your team with the same functionality.
 
 If you are doing this via the standard `logging` library you might do this:
 

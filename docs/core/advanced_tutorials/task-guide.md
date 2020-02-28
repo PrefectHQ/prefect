@@ -545,7 +545,7 @@ def task_two():
 
 #### Use a Task class for "templating" Tasks
 
-Using the [subclass approach](subclassing-the-task-class) approach to desiging Tasks can be beneficial whenever you want to provide a configurable task "template", whose default values can be both set at initialization time and optionally overwritten at runtime. For example, let's alter the `add_task` we created above to provide a default value for `y`:
+Using the [subclass approach](subclassing-the-task-class) to designing Tasks can be beneficial whenever you want to provide a configurable task "template", whose default values can be both set at initialization time and optionally overwritten at runtime. For example, let's alter the `add_task` we created above to provide a default value for `y`:
 
 ```python
 class AddTask(Task):
