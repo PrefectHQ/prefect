@@ -12,6 +12,8 @@ from prefect import task
 @task
 def plus_one(x):
     return x + 1
+
+plus_one.run(x=2)  # 3
 ```
 
 For more sophisticated tasks that may require customization, you can subclass the `Task` class directly:
