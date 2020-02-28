@@ -19,7 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Don't mutate data when serializing or deserializing - [#2098](https://github.com/PrefectHQ/prefect/issues/2098)
 
 ### Deprecations
 
