@@ -2242,3 +2242,27 @@ def test_task_runner_uses_upstream_result_handlers():
     state = TaskRunner(task=t).run(upstream_states=upstream_states)
     assert state.is_successful()
     assert state.result == "cool"
+
+
+def test_task_runner_logs_stdout(caplog):
+    class MyTask(Task):
+        def run(self):
+            print("TEST_HERE")
+
+    task = MyTask(log_stdout=True)
+    TaskRunner(task=task).run()
+
+    logs = [r.message for r in caplog.records]
+    assert logs[1] == "TEST_HERE"
+
+
+def test_task_runner_logs_stdout_disabled(caplog):
+    class MyTask(Task):
+        def run(self):
+            print("TEST_HERE")
+
+    task = MyTask()
+    TaskRunner(task=task).run()
+
+    logs = [r.message for r in caplog.records]
+    assert "TEST_HERE" not in logs
