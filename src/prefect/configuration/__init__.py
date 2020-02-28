@@ -1,7 +1,7 @@
 import datetime
 import os
 import re
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union, cast, Dict, Any
 
 import toml
 from box import Box
@@ -172,11 +172,12 @@ def load_toml(paths: List[str]) -> dict:
     """
     Loads a config dictionary from TOML
     """
-    config = {}
+    config = {}  # type: Dict[str, Any]
     for path in paths:
-        config = collections.merge_dicts(
-            config, toml.load(cast(str, interpolate_env_vars(path)))
-        )
+        # cast variables for mypy
+        interpolated_path = cast(str, interpolate_env_vars(path))
+        path_config = cast(Dict[str, Any], toml.load(interpolated_path))
+        config = cast(Dict[str, Any], collections.merge_dicts(config, path_config))
     return config
 
 
