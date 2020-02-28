@@ -220,7 +220,7 @@ class DeleteNamespacedDeployment(Task):
         api_client.delete_namespaced_deployment(
             name=deployment_name,
             namespace=namespace,
-            body=client.V1DeleteOptions(delete_option_kwargs),
+            body=client.V1DeleteOptions(**delete_option_kwargs),
             **kube_kwargs
         )
 

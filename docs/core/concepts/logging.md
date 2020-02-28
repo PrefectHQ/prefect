@@ -51,16 +51,28 @@ def my_task():
     logger.warning("A warning message.")
 ```
 
+:::
+
+### Logging stdout
+
+Prefect tasks natively support forwarding the output of stdout to a logger. This can be enabled by setting `log_stdout=True` on your task.
+
+```python
+@task(log_stdout=True)
+def log_my_stdout():
+    print("I will be logged!")
+```
+
 ### Extra Loggers
 
-Many libraries like `boto3` and `snowflake.conector` are setup to emit their own internal logs when configured 
-with a logging configuration.  You may even have an internal shared library for your team with the same functionality.
+Many libraries like `boto3` and `snowflake.conector` are setup to emit their own internal logs when configured with a logging configuration. You may even have an internal shared library for your team with the same functionality.
 
 If you are doing this via the standard `logging` library you might do this:
+
 ```python
 import logging
 import sys
-for l in ['snowflake.connector', 'boto3', 'botocore']:
+for l in ['snowflake.connector', 'boto3', 'custom_lib']:
     logger = logging.getLogger(l)
     logger.setLevel('INFO')
     log_stream = logging.StreamHandler(sys.stdout)
@@ -68,17 +80,20 @@ for l in ['snowflake.connector', 'boto3', 'botocore']:
     logger.addHandler(log_stream)
 ```
 
-Given that Prefect already provides a way to configure logging for local and cloud, you can provide these 
-extra loggers to have them inherit the Prefect logging config to stream locally and also show up in cloud.
+Given that Prefect already provides a way to configure logging for local and cloud, you can provide these extra loggers to have them inherit the Prefect logging config to stream locally and also show up in cloud.
 
 In order for this to work you need to provide a list to `prefect.config.logging.extra_loggers`.
 
 Here is what the TOML config will look like:
 
-```
+```toml
 [logging]
 # Extra loggers for Prefect log configuration
-extra_loggers = ['snowflake.connector', 'boto3', 'botocore', 'custom_lib']
+extra_loggers = "['snowflake.connector', 'boto3', 'custom_lib']"
 ```
 
-:::
+As an environment variable:
+
+```bash
+export PREFECT__LOGGING__EXTRA_LOGGERS="['snowflake.connector', 'boto3', 'custom_lib']"
+```

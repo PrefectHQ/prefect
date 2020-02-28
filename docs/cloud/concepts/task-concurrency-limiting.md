@@ -39,9 +39,25 @@ These tags are then available via the `tags` attribute on your Task instances. M
 
 ## Setting Concurrency Limits
 
-Once you have tagged your various tasks and [registered your Flow(s)](flows.html#registering-a-flow-from-prefect-core) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. There are currently two supported APIs for doing this, and this functionality will also be exposed in the UI in the near future.
+Once you have tagged your various tasks and [registered your Flow(s)](flows.html#registering-a-flow-from-prefect-core) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. You can set limits in any of the following three ways.
 
-### Python Client
+### UI
+
+To set Task tag concurrency limits from the UI, go to Prefect Cloud and navigate to Team Settings -> Task Concurrency Limits.
+
+![](/cloud/ui/task-concurrency-limits.png)
+
+Select _Add Tag_ to open a dialog where you can set the concurrency limit on a tag. For example, you could set a concurrency limit of 10 on tasks with the "database" tag.
+
+![](/cloud/ui/task-concurrency-add-limit.png)
+
+This means that Prefect Cloud will ensure that _no more than 10 tasks with the "database" tag will be running at any given time_. You are free to set / update as many of your task tags as you wish, and _all_ of your concurrency limits will be respected.
+
+You can edit and remove the concurrency limit of tags at any time. Select the blue edit icon for your tag to change its concurrency limit. Select the red delete icon for your tag to remove its concurrency limit.
+
+![](/cloud/ui/task-concurrency-limit-icons.png)
+
+### Core Client
 
 Assuming you are set up with the proper [authentication](api.html) with Prefect Cloud, setting Task tag concurrency limits in the Prefect Client is simple:
 
@@ -54,15 +70,13 @@ client = Client()
 client.update_task_tag_limit("database", 10)
 ```
 
-This means that Prefect Cloud will ensure that _no more than 10 tasks with the "database" tag will be running at any given time_. You are free to set / update as many of your task tags as you wish, and _all_ of your concurrency limits will be respected.
-
 ### GraphQL <Badge text="GQL"/>
 
 To update your tag concurrency limits with GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
-  updateTaskTagLimit(input: { tag: "aws", limit: 2 }) {
+  updateTaskTagLimit(input: { tag: "database", limit: 10 }) {
     id
   }
 }
@@ -84,9 +98,15 @@ mutation {
 
 ## Querying Concurrency Limits
 
-If you wish to query for the currently set limit on a tag, or see _all_ of your limits across all of your tags, you can similarly use both Prefect's Python Client as well as GraphQL directly.
+If you wish to query for the currently set limit on a tag, or see _all_ of your limits across all of your tags, you can do so in any of the following three ways.
 
-### Python Client
+### UI
+
+You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency Limits. You can also view the current number of task runs that are utilizing available concurrency space.
+
+![](/cloud/ui/task-concurrency-limit-usage.png)
+
+### Core Client
 
 ```python
 from prefect import Client
@@ -100,10 +120,7 @@ client.get_task_tag_limit("database")
 
 ### GraphQL <Badge text="GQL"/>
 
-GraphQL allows you to retrieve more, including:
-
-- _all_ of your tag limits
-- your tag limit IDs (useful for deleting limits)
+GraphQL allows you to retrieve tag limit IDs, which is useful for deleting limits:
 
 ```graphql
 query {
@@ -114,9 +131,16 @@ query {
 }
 ```
 
-::: tip In GraphQL, everything is equal to `null`
-To retrieve _all_ limits across all tags, replace the value of `"webservice"` above with `null`.
-:::
+You can query for specific tags, as shown above, or retrieve _all_ of your tag limits:
+
+```graphql
+query {
+  task_tag_limit {
+    limit
+    id
+  }
+}
+```
 
 ## Execution Behavior
 

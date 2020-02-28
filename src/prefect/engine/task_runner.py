@@ -1,4 +1,5 @@
 import copy
+from contextlib import redirect_stdout
 import itertools
 from typing import (
     TYPE_CHECKING,
@@ -873,9 +874,16 @@ class TaskRunner(Runner):
                 timeout_handler or prefect.utilities.executors.timeout_handler
             )
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            result = timeout_handler(
-                self.task.run, timeout=self.task.timeout, **raw_inputs
-            )
+
+            if self.task.log_stdout:
+                with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
+                    result = timeout_handler(
+                        self.task.run, timeout=self.task.timeout, **raw_inputs
+                    )
+            else:
+                result = timeout_handler(
+                    self.task.run, timeout=self.task.timeout, **raw_inputs
+                )
 
         except KeyboardInterrupt:
             self.logger.debug("Interrupt signal raised, cancelling task run.")

@@ -7,14 +7,16 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - Add new diagnostics utility to assist in troubleshooting issues - [#2062](https://github.com/PrefectHQ/prefect/pull/2062)
+- Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
 
 ### Enhancements
 
-- None
+- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
 
 ### Task Library
 
-- None
+- Fix expanding of `V1DeleteOptions` kwargs for Kubernetes tasks - [#2083](https://github.com/PrefectHQ/prefect/pull/2083)
 
 ### Fixes
 
