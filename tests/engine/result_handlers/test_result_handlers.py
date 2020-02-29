@@ -14,12 +14,10 @@ from prefect.engine.result_handlers import (
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
+    PandasResultHandler,
     ResultHandler,
     S3ResultHandler,
     SecretResultHandler,
-)
-from prefect.engine.result_handlers.pandas_result_handler import (
-    _generate_pandas_io_methods,
 )
 from prefect.utilities.configuration import set_temporary_config
 
@@ -105,7 +103,7 @@ class TestPandasHandler:
         mock_pandas.read_thing = dummy_io_func
         mock_pandas.DataFrame.to_thing = dummy_io_func
 
-        read_io_ops, write_io_ops = _generate_pandas_io_methods()
+        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
 
         expected_read_io_ops = {"thing": dummy_io_func}
         expected_write_io_ops = {"thing": "to_thing"}
@@ -118,7 +116,7 @@ class TestPandasHandler:
         dummy_io_func = lambda x: x
         mock_pandas.read_thing = dummy_io_func
 
-        read_io_ops, write_io_ops = _generate_pandas_io_methods()
+        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
 
         expected_read_io_ops = {}
         expected_write_io_ops = {}
@@ -131,13 +129,17 @@ class TestPandasHandler:
         dummy_io_func = lambda x: x
         mock_pandas.DataFrame.to_thing = dummy_io_func
 
-        read_io_ops, write_io_ops = _generate_pandas_io_methods()
+        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
 
         expected_read_io_ops = {}
         expected_write_io_ops = {}
 
         assert expected_read_io_ops == read_io_ops
         assert expected_write_io_ops == write_io_ops
+
+    def test_all_read_handlers_have_matching_write_handlers(self):
+        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
+        assert sorted(list(read_io_ops.keys())) == sorted(list(write_io_ops.keys()))
 
 
 def test_result_handler_base_class_is_a_passthrough():

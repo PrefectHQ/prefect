@@ -53,3 +53,8 @@ try:
     from prefect.engine.result_handlers.azure_result_handler import AzureResultHandler
 except ImportError:
     pass
+
+try:
+    from prefect.engine.result_handlers.pandas_result_handler import PandasResultHandler
+except ImportError:
+    pass
