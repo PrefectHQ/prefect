@@ -57,10 +57,9 @@ class PandasResultHandler(ResultHandler):
         self.write_kwargs = write_kwargs if write_kwargs is not None else {}
         super().__init__()
 
-    # This signature (and the one in the ``write`` method) is a kludge, because the other result
-    # handlers expect the filename to be passed into the function. With this signature any attempts
-    # to pass that handler will be ignored, without accidentally being treated as the ``input_mapping``
-    # kwarg
+    # This signature is a kludge, because the other result handlers expect the filename
+    # to be passed into the function. With this signature any attempts to pass that handler
+    # will be ignored, without accidentally being treated as the ``input_mapping`` kwarg
     def read(self, _, *, input_mapping=None) -> pd.DataFrame:
         """
         Read a result from the specified ``path`` using the appropriate ``read_[FILETYPE]`` method.
@@ -83,13 +82,13 @@ class PandasResultHandler(ResultHandler):
         self.logger.debug("Finished reading result from {}...".format(formatted_path))
         return data
 
-    def write(self, result: pd.DataFrame, input_mapping=None) -> str:
+    def write(self, result: pd.DataFrame, **kwargs: typing.Any) -> str:
         """
         Serialize the provided result to local disk using the appropriate ``to_[FILETYPE]`` method.
 
         Args:
             - result (pd.DataFrame): the result to write and store.
-            - input_mapping (dict, optional): If present, passed to ``path.format()`` to set the final
+            - kwargs (Any): If present, passed to ``path.format()`` to set the final
             filename. This is necessary for mapped tasks, to prevent the same file from being read
             from for each map sub-step.
 
@@ -99,8 +98,7 @@ class PandasResultHandler(ResultHandler):
                 the ``read`` method.
         """
         _, write_ops_mapping = self._generate_pandas_io_methods()
-        input_mapping = {} if input_mapping is None else input_mapping
-        formatted_path = self.path.format(**input_mapping)
+        formatted_path = self.path.format(**kwargs)
         self.logger.debug("Starting to write result to {}...".format(formatted_path))
         write_function = getattr(result, self.write_ops_mapping[self.file_type.lower()])
         write_function(formatted_path, **self.write_kwargs)
