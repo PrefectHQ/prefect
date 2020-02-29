@@ -134,7 +134,7 @@ with Flow('unmapped inputs') as flow:
 
 This map will iterate over the `x` inputs but not over the `y` input. The result will be `[11, 12, 13]`.
 
-The `unmapped` function can be applied to any number of input arguments. This means that a mapped task can depend on both mapped- and reduced- upstream tasks, seamlessly.
+The `unmapped` function can be applied to any number of input arguments. This means that a mapped task can depend on both mapped and reduced upstream tasks seamlessly.
 
 ## State behavior with mapped tasks
 
