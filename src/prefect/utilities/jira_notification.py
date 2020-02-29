@@ -28,7 +28,7 @@ def jira_message_formatter(
     tracked_obj: TrackedObjectType, state: "prefect.engine.state.State"
 ) -> str:
     time = datetime.utcnow()
-    msg = "Message from Prefect.io: {0} is in a {1} state at {2}".format(
+    msg = "Message from Prefect: {0} entered a {1} state at {2}".format(
         tracked_obj.name, type(state).__name__, time
     )
     return msg
