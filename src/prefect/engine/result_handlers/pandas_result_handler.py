@@ -2,7 +2,9 @@ import pandas as pd
 import typing
 
 
-def _generate_pandas_io_methods() -> typing.Tuple[typing.Dict[str, typing.Callable], typing.Dict[str, str]]:
+def _generate_pandas_io_methods() -> typing.Tuple[
+    typing.Dict[str, typing.Callable], typing.Dict[str, str]
+]:
     """
     Helper function to automatically identify possible file types to read to and write from.
     Returns:
@@ -15,7 +17,9 @@ def _generate_pandas_io_methods() -> typing.Tuple[typing.Dict[str, typing.Callab
     # Get all methods/attributes in the pandas module that start with "read_", and all
     # methods/attributes in the pandas.DataFrame class that start with "to_"
     all_read_ops = [method for method in dir(pd) if method.lower().startswith("read_")]
-    all_write_ops = [method for method in dir(pd.DataFrame) if method.lower().startswith("to_")]
+    all_write_ops = [
+        method for method in dir(pd.DataFrame) if method.lower().startswith("to_")
+    ]
 
     # Split out the file suffixes from the "read_"/"to_" methods
     read_suffixes = [method.lower().split("_")[1] for method in all_read_ops]

@@ -18,7 +18,9 @@ from prefect.engine.result_handlers import (
     S3ResultHandler,
     SecretResultHandler,
 )
-from prefect.engine.result_handlers.pandas_result_handler import _generate_pandas_io_methods
+from prefect.engine.result_handlers.pandas_result_handler import (
+    _generate_pandas_io_methods,
+)
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -90,6 +92,7 @@ class TestLocalHandler:
         new = cloudpickle.loads(cloudpickle.dumps(handler))
         assert isinstance(new, LocalResultHandler)
 
+
 class TestPandasHandler:
     @pytest.fixture(scope="class")
     def tmp_dir(self):
@@ -135,9 +138,6 @@ class TestPandasHandler:
 
         assert expected_read_io_ops == read_io_ops
         assert expected_write_io_ops == write_io_ops
-
-
-
 
 
 def test_result_handler_base_class_is_a_passthrough():
