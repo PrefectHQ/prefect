@@ -1,5 +1,5 @@
 include LICENSE
-include src/prefect/config.toml
+include src/prefect/configuration/*.toml
 include versioneer.py
 include requirements.txt
 include dev-requirements.txt
