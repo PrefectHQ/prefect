@@ -1,10 +1,12 @@
-# Prefect FAQ
+# FAQ
 
 [[toc]]
 
 ### Does Prefect have a UI, and if so, how can I use it?
 
-Prefect absolutely has a user interface (UI). The [Prefect Core Engine](https://github.com/PrefectHQ/prefect) is designed for building and testing Prefect workflows locally, and consequently does not require a database or any other sort of monitoring service running (which is what any UI _requires_ in order to expose stateful information!). Prefect Cloud is our recommended persistent orchestration layer for monitoring and orchestrating workflows in a production setting, and the Cloud API is what drives our UI. To gain access to Cloud, please [contact us](https://www.prefect.io/lighthouse-partners).
+The Prefect Cloud platform includes a great UI for monitoring and managing any workflows you build with Prefect Core. You can kick off new runs, get live-updating states, browse workflow structures, stream logs,  and more. 
+
+You can sign up for a free Cloud account [right here](https://www.prefect.io/pricing) or check out the [UI docs](/cloud/ui/dashboard.html) if you're only curious.
 
 ### What is the difference between Prefect Core and Prefect Cloud?
 
