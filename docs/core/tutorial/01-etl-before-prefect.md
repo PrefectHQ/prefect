@@ -1,6 +1,10 @@
-# ETL: Before Prefect
+---
+sidebarDepth: 0
+---
 
-To better explore the features of Prefect, let's jump into an ETL ("extract, transform, load") example that doesn't use Prefect.
+# Introduction to ETL
+
+Before we even `import prefect`, let's begin by reviewing a typical real-life ETL workflow.
 
 ::: tip Follow along in the Terminal
 
