@@ -100,7 +100,7 @@ class PandasResultHandler(ResultHandler):
         _, write_ops_mapping = self._generate_pandas_io_methods()
         formatted_path = self.path.format(**kwargs)
         self.logger.debug("Starting to write result to {}...".format(formatted_path))
-        write_function = getattr(result, self.write_ops_mapping[self.file_type.lower()])
+        write_function = getattr(result, write_ops_mapping[self.file_type.lower()])
         write_function(formatted_path, **self.write_kwargs)
         self.logger.debug("Finished writing result to {}...".format(formatted_path))
 
