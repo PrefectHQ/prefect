@@ -1,3 +1,7 @@
+---
+sidebarDepth: 0
+---
+
 # Next Steps
 
 In the [introduction](first-steps.md), we took a look at creating tasks and combining them into flows. Prefect's functional and imperative APIs make that easy, but the result was a fairly vanilla data pipeline. In this section, we're going to explore how Prefect enables advanced mechanisms for overlaying complex business logic on your workflow.
