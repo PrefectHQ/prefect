@@ -47,8 +47,12 @@ def jira_notifier(
     """
     Jira Notifier requires a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
     The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') should be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
+
     An example 'JIRASECRETS' object looks like this:
+    ```
     JIRASECRETS = { JIRATOKEN = "XXXXXXXXX", JIRAUSER = "xxxxx@yyy.com", JIRASERVER = "https://???.atlassian.net", JIRAPROJECT = "TEST" }
+    ```
+
     The server URL can be set as part of the 'JIRASECRETS' object ('JIRASERVER') or passed to the jira notifier state handler as the "server_URL" argument.
     Jira Notifier works as a standalone state handler, or can be called from within a custom
     state handler.  This function is curried meaning that it can be called multiple times to partially bind any keyword arguments (see example below).
