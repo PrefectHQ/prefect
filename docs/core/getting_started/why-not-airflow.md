@@ -4,9 +4,13 @@ sidebarDepth: 1
 
 # Why Not Airflow?
 
+:::tip Read the original post
+You can view the original version of this post [on our blog](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
+:::
+
 > Why should I choose Prefect over Airflow?
 
-Airflow is a historically important tool in the data engineering ecosystem. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
+Airflow is a historically important tool in the data engineering ecosystem, and we have spent a great deal of time working on it. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
 
 Today, many data engineers are working more directly with their analytical counterparts. Compute and storage are cheap, so friction is low and experimentation prevails. Processes are fast, dynamic, and unpredictable. Airflow got many things right, but its core assumptions never anticipated the rich variety of data applications that has emerged. It does not have the requisite vocabulary to describe many of those activities.
 
@@ -313,18 +317,30 @@ For example, to make sure your trigger logic works for an individual task, you c
 >
 > — Fox Mulder
 
-One of the most popular aspects of Airflow is its web interface. From the UI, you can turn schedules on / off, visualize your DAG’s progress, even make SQL queries against the Airflow database.
+One of the most popular aspects of Airflow is its web interface. From the UI, you can turn schedules on / off, visualize your DAG’s progress, even make SQL queries against the Airflow database. It is an extremely functional way to access Airflow's metadata.
 
-Prefect’s UI is not yet available to the public, so we will refrain from making any direct comparisons. However, here is a non-exhaustive preview of features you can expect from the Prefect UI:
+![](/cloud/ui/cloud-ui.gif)
 
-- dashboard style pages for operational visibility and critical information
-- tabular views for custom queries
-- full GraphQL playground for those extra-custom queries
-- live updating
+
+
+The Prefect UI supports:
+- dashboards for system overviews
+- scheduling new parameterized runs
+- live-updating task and run states
+- manually updating states
+- streaming logs, including the ability to jump immediately to the latest error log
+- a full interactive GraphQL API
 - global search
+- agent management
 - projects for organizing flows
-- keyboard shortcuts
-- timezone handling (this one’s for you, Airflow users!)
+- team management and permissions 
+- API token generation
+- secret management
+- global concurrency limits
+- timezones (this one's for you, Airflow users!)
+- ...and quite a bit more
+
+The UI is part of Prefect Cloud because it is backed by the same infrastructure that allows us to deliver production-grade workflow management to our customers. However, we are committed to making it increasingly available to users of our open-source products, beginning with its inclusion in Cloud's [free tier](https://prefect.io/pricing). We are working on other ways of delivering elements from the UI to our open-source users.
 
 ## Conclusions
 
