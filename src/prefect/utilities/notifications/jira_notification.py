@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     import prefect.client
     from prefect import Flow, Task 
 
-TrackedObjectType = Union[Flow, Task]
+TrackedObjectType = Union['Flow', 'Task']
 
 
 def jira_message_formatter(
