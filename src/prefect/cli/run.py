@@ -1,9 +1,12 @@
 import json
+from os.path import join
+import re
 import time
 
 import click
 from tabulate import tabulate
 
+from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -66,8 +69,22 @@ def run():
 @click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
+@click.option(
+    "--flow-run-id-only",
+    is_flag=True,
+    help="Only output flow run id instead of link.",
+    hidden=True,
+)
 def cloud(
-    name, project, version, parameters_file, parameters_string, run_name, watch, logs
+    name,
+    project,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    flow_run_id_only,
 ):
     """
     Run a registered flow in Prefect Cloud.
@@ -82,6 +99,7 @@ def cloud(
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
+        --flow-run-id-only                      Only output the flow run id instead of a link
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values passed
@@ -147,7 +165,26 @@ def cloud(
     flow_run_id = client.create_flow_run(
         flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
     )
-    click.echo("Flow Run ID: {}".format(flow_run_id))
+
+    if flow_run_id_only:
+        click.echo("Flow Run ID: {}".format(flow_run_id))
+    else:
+        # Generate direct link to Cloud run
+        slug = client.graphql(
+            query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
+        )
+        user = slug.get("data").user
+        tenant_slug = user[0].default_membership.tenant.slug
+
+        url = (
+            re.sub("api-", "", config.cloud.api)
+            if re.search("api-", config.cloud.api)
+            else re.sub("api", "cloud", config.cloud.api)
+        )
+
+        click.echo(
+            "Flow Run: {}".format(join(url, tenant_slug, "flow-run", flow_run_id))
+        )
 
     if watch:
         current_states = []
