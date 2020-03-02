@@ -2191,7 +2191,7 @@ class TestFlowRegister:
                 registry_url="FOO",
                 image_name="BAR",
                 image_tag="BIG",
-                flow_run_id_only=True,
+                flow_id_only=True,
             )
 
         assert isinstance(f.storage, prefect.environments.storage.Docker)

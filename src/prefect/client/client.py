@@ -546,7 +546,7 @@ class Client:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         compressed: bool = True,
-        flow_run_id_only: bool = False,
+        flow_id_only: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -564,7 +564,7 @@ class Client:
                 will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
-            - flow_run_id_only (bool, optional): if `True`, the stdout from this function will not contain the
+            - flow_id_only (bool, optional): if `True`, the stdout from this function will not contain the
                 URL link to the newly-registered flow in the Cloud UI
 
         Returns:
@@ -645,8 +645,8 @@ class Client:
             else res.data.createFlow.id
         )
 
-        if not flow_run_id_only:
-            # Generate direct link to Cloud run
+        if not flow_id_only:
+            # Generate direct link to Cloud flow
             tenant_slug = self.get_default_tenant_slug()
 
             url = (
