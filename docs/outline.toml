@@ -449,7 +449,6 @@ title = "Notifications and Callback Tools"
 module = "prefect.utilities.notifications"
 functions = ["callback_factory", "slack_notifier", "gmail_notifier", "jira_notifier"]
 
-
 [pages.utilities.serialization]
 title = "Serialization"
 module = "prefect.utilities.serialization"

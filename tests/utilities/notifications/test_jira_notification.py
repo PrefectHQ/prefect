@@ -97,7 +97,9 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
     ]
     client = MagicMock()
     jiraMock = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.notifications.jira_notification.JIRA", jiraMock)
+    monkeypatch.setattr(
+        "prefect.utilities.notifications.jira_notification.JIRA", jiraMock
+    )
     for state in all_states:
         s = state()
         with set_temporary_config({"cloud.use_local_secrets": True}):
@@ -136,7 +138,9 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
     state = state()
     client = MagicMock()
     jiraMock = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.notifications.jira_notification.JIRA", jiraMock)
+    monkeypatch.setattr(
+        "prefect.utilities.notifications.jira_notification.JIRA", jiraMock
+    )
     handler = jira_notifier(ignore_states=[Finished])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(
@@ -173,7 +177,9 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     state = state()
     client = MagicMock()
     jiraMock = MagicMock(client=client)
-    monkeypatch.setattr("prefect.utilities.notifications.jira_notification.JIRA", jiraMock)
+    monkeypatch.setattr(
+        "prefect.utilities.notifications.jira_notification.JIRA", jiraMock
+    )
     handler = jira_notifier(only_states=[TriggerFailed])
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(

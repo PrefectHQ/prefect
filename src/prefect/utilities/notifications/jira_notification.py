@@ -19,9 +19,9 @@ except ImportError:
 if TYPE_CHECKING:
     import prefect.engine.state
     import prefect.client
-    from prefect import Flow, Task # pylint: disable=W0611
+    from prefect import Flow, Task  # pylint: disable=W0611
 
-TrackedObjectType = Union['Flow', 'Task']
+TrackedObjectType = Union["Flow", "Task"]
 
 
 def jira_message_formatter(
