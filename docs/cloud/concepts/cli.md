@@ -336,7 +336,7 @@ Running this command requires that a flow name (`--name`) and project (`--projec
 
 ```
 $ prefect run cloud --name my-flow --project Demo
-Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 ```
 
 There is an optional `--version` argument that can be passed in with the command to run any version of a flow that exists in Prefect Cloud.
@@ -347,7 +347,7 @@ Live updating output with `--watch`:
 
 ```
 $ prefect run cloud --name my-flow --project Demo --watch
-Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 Scheduled -> Submitted -> Running -> Success
 ```
 
@@ -355,7 +355,7 @@ Live updating output with `--logs`:
 
 ```
 $ prefect run cloud --name my-flow --project Demo --logs
-Flow Run ID: 2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
+Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3ddfd-411c-4d99-bb2a-f64a6dea87f9
 TIMESTAMP                         LEVEL    MESSAGE
 2019-07-17T23:37:22.816988+00:00  INFO     Beginning Flow run for 'my-flow'
 2019-07-17T23:37:23.214365+00:00  INFO     Starting flow run.

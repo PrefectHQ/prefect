@@ -27,11 +27,11 @@ def run():
     \b
     Examples:
         $ prefect run cloud --name Test-Flow --project My-Project
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
 
     \b
         $ prefect run cloud --name Test-Flow --project My-Project --watch
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
         Scheduled -> Submitted -> Running -> Success
     """
 
