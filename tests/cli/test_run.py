@@ -397,6 +397,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
             assert create_flow_run_mock.called
             assert create_flow_run_mock.call_args[1]["parameters"] == {"test": 43}
 
+
 def test_run_cloud_flow_run_id_link(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -418,20 +419,12 @@ def test_run_cloud_flow_run_id_link(monkeypatch):
     ):
         runner = CliRunner()
         result = runner.invoke(
-            run,
-            [
-                "cloud",
-                "--name",
-                "flow",
-                "--project",
-                "project",
-                "--version",
-                "2",
-            ],
+            run, ["cloud", "--name", "flow", "--project", "project", "--version", "2",],
         )
         assert result.exit_code == 0
         assert "Flow Run" in result.output
         assert "https://cloud.foo/tslug/flow-run/id" in result.output
+
 
 def test_run_cloud_flow_run_id_no_link(monkeypatch):
     post = MagicMock(
@@ -463,7 +456,7 @@ def test_run_cloud_flow_run_id_no_link(monkeypatch):
                 "project",
                 "--version",
                 "2",
-                "--flow-run-id-only"
+                "--flow-run-id-only",
             ],
         )
         assert result.exit_code == 0

@@ -1349,6 +1349,7 @@ class Flow:
         labels: List[str] = None,
         set_schedule_active: bool = True,
         version_group_id: str = None,
+        flow_run_id_only: bool = False,
         **kwargs: Any
     ) -> str:
         """
@@ -1367,6 +1368,8 @@ class Flow:
             - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
                 in Cloud; if not provided, the version group ID associated with this Flow's project and name
                 will be used.
+            - flow_run_id_only (bool, optional): if `True`, the stdout from this function will not contain the
+                URL link to the newly-registered flow in the Cloud UI
             - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
                 will be passed to the initialization method of the default Storage class
 
@@ -1393,6 +1396,7 @@ class Flow:
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
+            flow_run_id_only=flow_run_id_only,
         )
         return registered_flow
 

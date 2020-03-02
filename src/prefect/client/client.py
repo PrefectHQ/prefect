@@ -655,9 +655,7 @@ class Client:
                 else re.sub("api", "cloud", prefect.config.cloud.api)
             )
 
-            print(
-                "Flow Run: {}".format(os.path.join(url, tenant_slug, "flow", flow_id))
-            )
+            print("Flow: {}".format(os.path.join(url, tenant_slug, "flow", flow_id)))
 
         return flow_id
 
