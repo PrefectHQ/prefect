@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import re
 import uuid
 import warnings
 from pathlib import Path
@@ -545,6 +546,7 @@ class Client:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         compressed: bool = True,
+        flow_run_id_only: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -562,6 +564,8 @@ class Client:
                 will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
+            - flow_run_id_only (bool, optional): if `True`, the stdout from this function will not contain the
+                URL link to the newly-registered flow in the Cloud UI
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -640,6 +644,25 @@ class Client:
             if compressed
             else res.data.createFlow.id
         )
+
+        if not flow_run_id_only:
+            # Generate direct link to Cloud run
+            slug = self.graphql(
+                query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
+            )
+            user = slug.get("data").user
+            tenant_slug = user[0].default_membership.tenant.slug
+
+            url = (
+                re.sub("api-", "", prefect.config.cloud.api)
+                if re.search("api-", prefect.config.cloud.api)
+                else re.sub("api", "cloud", prefect.config.cloud.api)
+            )
+
+            print(
+                "Flow Run: {}".format(os.path.join(url, tenant_slug, "flow", flow_id))
+            )
+
         return flow_id
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
