@@ -1,5 +1,5 @@
 ---
-sidebarDepth: 1
+sidebarDepth: 0
 title: Installation
 ---
 
@@ -25,7 +25,7 @@ conda install -c conda-forge prefect
 
 or `pipenv`:
 
-```
+```bash
 pipenv install --pre prefect
 ```
 
