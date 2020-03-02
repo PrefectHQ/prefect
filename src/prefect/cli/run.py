@@ -170,12 +170,6 @@ def cloud(
         click.echo("Flow Run ID: {}".format(flow_run_id))
     else:
         # Generate direct link to Cloud run
-        # slug = client.graphql(
-        #     query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
-        # )
-        # user = slug.get("data").user
-        # tenant_slug = user[0].default_membership.tenant.slug
-
         tenant_slug = client.get_default_tenant_slug()
 
         url = (
@@ -183,12 +177,6 @@ def cloud(
             if re.search("api-", config.cloud.api)
             else re.sub("api", "cloud", config.cloud.api)
         )
-
-
-        import logging
-        logging.error(url)
-        logging.error(tenant_slug)
-        logging.error(flow_run_id)
 
         click.echo(
             "Flow Run: {}".format(join(url, tenant_slug, "flow-run", flow_run_id))

@@ -647,11 +647,7 @@ class Client:
 
         if not flow_run_id_only:
             # Generate direct link to Cloud run
-            slug = self.graphql(
-                query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
-            )
-            user = slug.get("data").user
-            tenant_slug = user[0].default_membership.tenant.slug
+            tenant_slug = self.get_default_tenant_slug()
 
             url = (
                 re.sub("api-", "", prefect.config.cloud.api)
