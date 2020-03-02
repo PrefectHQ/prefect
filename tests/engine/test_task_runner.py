@@ -45,7 +45,7 @@ from prefect.engine.state import (
     Submitted,
     Success,
     TimedOut,
-    TriggerFailed,
+    Skipped,
 )
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
@@ -139,7 +139,7 @@ def test_task_that_has_an_error_is_marked_fail():
 def test_task_that_raises_fail_is_marked_fail():
     task_runner = TaskRunner(task=RaiseFailTask())
     assert isinstance(task_runner.run(), Failed)
-    assert not isinstance(task_runner.run(), TriggerFailed)
+    assert not isinstance(task_runner.run(), Skipped)
 
 
 def test_task_that_fails_gets_retried_up_to_max_retry_time():
@@ -223,14 +223,6 @@ def test_task_that_raises_retry_gets_retried_even_if_max_retries_is_set():
 def test_task_that_raises_skip_gets_skipped():
     task_runner = TaskRunner(task=RaiseSkipTask())
     assert isinstance(task_runner.run(), Skipped)
-
-
-def test_task_that_has_upstream_skip_gets_skipped_with_informative_message():
-    task_runner = TaskRunner(task=SuccessTask())
-    edge = Edge(RaiseSkipTask(), SuccessTask(skip_on_upstream_skip=True))
-    state = task_runner.run(upstream_states={edge: Skipped()})
-    assert isinstance(state, Skipped)
-    assert "skip_on_upstream_skip" in state.message
 
 
 def test_task_that_is_running_doesnt_run():
@@ -538,58 +530,6 @@ class TestCheckUpstreamFinished:
         assert new_state is state
 
 
-class TestCheckUpstreamSkipped:
-    def test_empty(self):
-        state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_skipped(
-            state=state, upstream_states={}
-        )
-        assert new_state is state
-
-    def test_unskipped_states(self):
-        state = Pending()
-        new_state = TaskRunner(Task()).check_upstream_skipped(
-            state=state, upstream_states={1: Success(), 2: Failed()}
-        )
-        assert new_state is state
-
-    def test_raises_with_skipped(self):
-        state = Pending()
-        with pytest.raises(ENDRUN) as exc:
-            TaskRunner(Task()).check_upstream_skipped(
-                state=state, upstream_states={1: Skipped()}
-            )
-        assert isinstance(exc.value.state, Skipped)
-
-    def test_doesnt_raise_with_skipped_and_flag_set(self):
-        state = Pending()
-        task = Task(skip_on_upstream_skip=False)
-        new_state = TaskRunner(task).check_upstream_skipped(
-            state=state, upstream_states={1: Skipped()}
-        )
-        assert new_state is state
-
-    def test_raises_if_single_mapped_upstream_skipped(self):
-        state = Pending()
-        task = Task()
-        with pytest.raises(ENDRUN) as exc:
-            edge = Edge(1, 2, mapped=False)
-            new_state = TaskRunner(task).check_upstream_skipped(
-                state=state,
-                upstream_states={edge: Mapped(map_states=[Skipped(), Success()])},
-            )
-
-    def test_doesnt_raise_if_single_mapped_upstream_skipped_and_edge_is_mapped(self):
-        state = Pending()
-        task = Task()
-        edge = Edge(1, 2, mapped=True)
-        new_state = TaskRunner(task).check_upstream_skipped(
-            state=state,
-            upstream_states={edge: Mapped(map_states=[Skipped(), Success()])},
-        )
-        assert new_state is state
-
-
 class TestCheckTaskTrigger:
     def test_all_successful_pass(self):
         task = Task(trigger=prefect.triggers.all_successful)
@@ -606,7 +546,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success(), 2: Failed()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert 'Trigger was "all_successful"' in str(exc.value.state)
 
     def test_all_successful_empty(self):
@@ -630,7 +570,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success(), 2: Failed()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert 'Trigger was "all_failed"' in str(exc.value.state)
 
     def test_all_failed_empty(self):
@@ -654,7 +594,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Failed(), 2: Failed()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert 'Trigger was "any_successful"' in str(exc.value.state)
 
     def test_any_successful_empty(self):
@@ -678,7 +618,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success(), 2: Success()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert 'Trigger was "any_failed"' in str(exc.value.state)
 
     def test_any_failed_empty(self):
@@ -702,7 +642,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success(), 2: Pending()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert 'Trigger was "all_finished"' in str(exc.value.state)
 
     def test_all_finished_empty(self):
@@ -748,7 +688,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
         assert isinstance(exc.value.state.result, ZeroDivisionError)
 
     def test_custom_trigger_returns_false(self):
@@ -761,7 +701,7 @@ class TestCheckTaskTrigger:
             TaskRunner(task).check_task_trigger(
                 state=state, upstream_states={1: Success()}
             )
-        assert isinstance(exc.value.state, TriggerFailed)
+        assert isinstance(exc.value.state, Skipped)
 
 
 class TestCheckTaskReady:
@@ -773,7 +713,7 @@ class TestCheckTaskReady:
         assert new_state is state
 
     @pytest.mark.parametrize(
-        "state", [Running(), Finished(), TriggerFailed(), Skipped(), Success()]
+        "state", [Running(), Finished(), Skipped(), Skipped(), Success()]
     )
     def test_not_ready_doesnt_run(self, state):
 
@@ -1621,15 +1561,6 @@ class TestTaskStateHandlers:
         assert on_failure.call_args[0][0] is task
         assert on_failure.call_args[0][1].is_failed()
 
-    def test_task_on_trigger_failure_is_called(self):
-        on_failure = MagicMock()
-        task = Task(on_failure=on_failure)
-        edge = Edge(Task(), task)
-        TaskRunner(task=task).run(upstream_states={edge: Failed()})
-        assert on_failure.call_count == 1
-        assert on_failure.call_args[0][0] is task
-        assert isinstance(on_failure.call_args[0][1], TriggerFailed)
-
     def test_task_handlers_are_called_on_retry(self):
         task_handler = MagicMock(side_effect=lambda t, o, n: n)
 
@@ -1736,8 +1667,8 @@ class TestTaskRunnerStateHandlers:
             state_handlers=[task_runner_handler],
         )
         state = runner.run(upstream_states={Edge(Task(), Task()): Success()})
-        # the task changed state one time: Pending -> TriggerFailed
-        assert isinstance(state, TriggerFailed)
+        # the task changed state one time: Pending -> Skipped
+        assert isinstance(state, Skipped)
         assert task_runner_handler.call_count == 1
 
     def test_task_runner_handlers_are_called_on_mapped(self):
@@ -1895,7 +1826,7 @@ def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_childre
         )
         res.map_states = executor.wait(res.map_states)
     assert isinstance(res, Mapped)
-    assert all([isinstance(s, TriggerFailed) for s in res.map_states])
+    assert all([isinstance(s, Skipped) for s in res.map_states])
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():
@@ -1950,10 +1881,10 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
         upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
     )
     # the parent task changed state two times: Pending -> Mapped -> Mapped
-    # the child task changed state one time: Pending -> TriggerFailed
+    # the child task changed state one time: Pending -> Skipped
     assert isinstance(state, Mapped)
     assert task_runner_handler.call_count == 3
-    assert isinstance(state.map_states[0], TriggerFailed)
+    assert isinstance(state.map_states[0], Skipped)
 
 
 def test_retry_has_updated_metadata():
@@ -2011,7 +1942,7 @@ def test_skips_arent_checkpointed(checkpoint):
         new_state = TaskRunner(task=fn).run(
             upstream_states={Edge(Task(), Task()): Skipped()}
         )
-    assert new_state.is_successful()
+    assert new_state.is_skipped()
 
 
 def test_task_runner_provides_logger():

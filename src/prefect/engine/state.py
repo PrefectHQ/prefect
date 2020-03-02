@@ -10,6 +10,7 @@ Every run is initialized with the `Pending` state, meaning that it is waiting fo
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
 import datetime
+import warnings
 from typing import Any, Dict, List, Optional, Type
 
 import pendulum
@@ -796,21 +797,26 @@ class TimedOut(Failed):
 class TriggerFailed(Failed):
     """
     Finished state indicating failure due to trigger.
-
     Args:
         - message (str or Exception, optional): Defaults to `None`. A message about the
             state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
         - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): A dictionary of input keys to fully hydrated `Result`s.
-            Used / set if the Task requires retries.
-        - context (dict, optional): A dictionary of execution context information; values
-            should be JSON compatible
+        - cached_inputs (dict): Defaults to `None`. A dictionary of input
+            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
+        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
     """
 
     color = "#ff5131"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        warnings.warn(
+            "The `TriggerFailed` state is depricated and will be removed in the next major release.",
+            UserWarning,
+        )
 
-class Skipped(Success):
+
+class Skipped(Finished):
     """
     Finished state indicating success on account of being skipped.
 

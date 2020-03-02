@@ -59,7 +59,7 @@ def all_finished(upstream_states: Set["state.State"]) -> bool:
         - upstream_states (set[State]): the set of all upstream states
     """
     if not all(s.is_finished() for s in upstream_states):
-        raise signals.TRIGGERFAIL(
+        raise signals.SKIP(
             'Trigger was "all_finished" but some of the upstream tasks were not finished.'
         )
 
@@ -84,15 +84,13 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
 
 def all_successful(upstream_states: Set["state.State"]) -> bool:
     """
-    Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
-    successes and `TRIGGER_FAILED` tasks are considered failures.
+    Runs if all upstream tasks were successful.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
-
     if not all(s.is_successful() for s in upstream_states):
-        raise signals.TRIGGERFAIL(
+        raise signals.SKIP(
             'Trigger was "all_successful" but some of the upstream tasks failed.'
         )
     return True
@@ -100,15 +98,14 @@ def all_successful(upstream_states: Set["state.State"]) -> bool:
 
 def all_failed(upstream_states: Set["state.State"]) -> bool:
     """
-    Runs if all upstream tasks failed. Note that `SKIPPED` tasks are considered successes
-    and `TRIGGER_FAILED` tasks are considered failures.
+    Runs if all upstream tasks failed.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
 
     if not all(s.is_failed() for s in upstream_states):
-        raise signals.TRIGGERFAIL(
+        raise signals.SKIP(
             'Trigger was "all_failed" but some of the upstream tasks succeeded.'
         )
     return True
@@ -116,15 +113,14 @@ def all_failed(upstream_states: Set["state.State"]) -> bool:
 
 def any_successful(upstream_states: Set["state.State"]) -> bool:
     """
-    Runs if any tasks were successful. Note that `SKIPPED` tasks are considered successes
-    and `TRIGGER_FAILED` tasks are considered failures.
+    Runs if any tasks were successful.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
 
     if upstream_states and not any(s.is_successful() for s in upstream_states):
-        raise signals.TRIGGERFAIL(
+        raise signals.SKIP(
             'Trigger was "any_successful" but none of the upstream tasks succeeded.'
         )
     return True
@@ -132,15 +128,14 @@ def any_successful(upstream_states: Set["state.State"]) -> bool:
 
 def any_failed(upstream_states: Set["state.State"]) -> bool:
     """
-    Runs if any tasks failed. Note that `SKIPPED` tasks are considered successes and
-    `TRIGGER_FAILED` tasks are considered failures.
+    Runs if any tasks failed.
 
     Args:
         - upstream_states (set[State]): the set of all upstream states
     """
 
     if upstream_states and not any(s.is_failed() for s in upstream_states):
-        raise signals.TRIGGERFAIL(
+        raise signals.SKIP(
             'Trigger was "any_failed" but none of the upstream tasks failed.'
         )
     return True
@@ -152,8 +147,6 @@ def some_failed(
     """
     Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
-
-    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
         - at_least (Union[int, float], optional): the minimum number of upstream failures that must occur for
@@ -190,9 +183,7 @@ def some_failed(
             max_num = num_states
 
         if not (min_num <= num_failed <= max_num):
-            raise signals.TRIGGERFAIL(
-                'Trigger was "some_failed" but thresholds were not met.'
-            )
+            raise signals.SKIP('Trigger was "some_failed" but thresholds were not met.')
         return True
 
     return _some_failed
@@ -204,8 +195,6 @@ def some_successful(
     """
     Runs if some amount of upstream tasks succeed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
-
-    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
         - at_least (Union[int, float], optional): the minimum number of upstream successes that must occur for
@@ -242,7 +231,7 @@ def some_successful(
             max_num = num_states
 
         if not (min_num <= num_success <= max_num):
-            raise signals.TRIGGERFAIL(
+            raise signals.SKIP(
                 'Trigger was "some_successful" but thresholds were not met.'
             )
         return True
@@ -260,10 +249,27 @@ def not_all_skipped(upstream_states: Set["state.State"]) -> bool:
 
     if all(state.is_skipped() for state in upstream_states):
         raise signals.SKIP("All upstreams were skipped", result=None)
-    elif not all(state.is_successful() for state in upstream_states):
-        raise signals.TRIGGERFAIL(
+    elif not all(
+        state.is_successful() or state.is_skipped() for state in upstream_states
+    ):
+        raise signals.SKIP(
             'Trigger was "not_all_skipped" but some of the upstream tasks failed.'
         )
+    return True
+
+
+def no_failed(upstream_states: Set["state.State"]) -> bool:
+    """
+    Runs if no upstream tasks were failures and and all upstream conditions were met.
+
+    Args:
+        - upstream_states (set[State]): the set of all upstream states
+    """
+    if any(s.is_failed() for s in upstream_states):
+        raise signals.SKIP(
+            'Trigger was "no_failed" but some of the upstream tasks failed.'
+        )
+
     return True
 
 

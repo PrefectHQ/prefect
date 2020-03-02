@@ -188,12 +188,12 @@ def test_map_failures_dont_leak_out(executor):
 
     s = f.run(executor=executor)
     m = s.result[res]
-    assert s.is_failed()
+    assert s.is_successful()
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
     assert m.result[1:] == [1, 0.5]
-    assert isinstance(m.result[0], prefect.engine.signals.TRIGGERFAIL)
-    assert isinstance(m.map_states[0], prefect.engine.state.TriggerFailed)
+    assert isinstance(m.result[0], prefect.engine.signals.SKIP)
+    assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 
 @pytest.mark.parametrize(
@@ -427,11 +427,11 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
         res = register.map(div.map(zeros()), upstream_tasks=[unmapped(div(1))])
 
     s = f.run(executor=executor)
-    assert s.is_failed()
+    assert s.is_successful()
     assert all([sub.is_failed() for sub in s.result[res].map_states])
     assert all(
         [
-            isinstance(sub, prefect.engine.state.TriggerFailed)
+            isinstance(sub, prefect.engine.state.Skipped)
             for sub in s.result[res].map_states
         ]
     )
@@ -589,9 +589,9 @@ def test_reduce_task_honors_trigger_across_all_mapped_states(executor):
         s = take_sum(d)
 
     state = f.run(executor=executor)
-    assert state.is_failed()
+    assert state.is_successful()
     assert state.result[s].is_failed()
-    assert isinstance(state.result[s], prefect.engine.state.TriggerFailed)
+    assert isinstance(state.result[s], prefect.engine.state.Skipped)
 
 
 @pytest.mark.parametrize(
@@ -679,11 +679,9 @@ def test_task_map_downstreams_handle_single_failures(executor):
     state = f.run(executor=executor)
     assert state.is_failed()
     assert len(state.result[dived].result) == 3
-    assert isinstance(state.result[big_list], prefect.engine.state.TriggerFailed)
+    assert isinstance(state.result[big_list], prefect.engine.state.Skipped)
     assert state.result[again].result[0::2] == [1, 3]
-    assert isinstance(
-        state.result[again].map_states[1], prefect.engine.state.TriggerFailed
-    )
+    assert isinstance(state.result[again].map_states[1], prefect.engine.state.Skipped)
 
 
 @pytest.mark.parametrize(

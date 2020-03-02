@@ -374,9 +374,6 @@ class TestStateHierarchy:
     def test_skipped_is_finished(self):
         assert issubclass(Skipped, Finished)
 
-    def test_skipped_is_success(self):
-        assert issubclass(Skipped, Success)
-
     def test_timedout_is_failed(self):
         assert issubclass(TimedOut, Failed)
 
@@ -403,9 +400,7 @@ class TestStateHierarchy:
         ),
         dict(state=Running(), assert_true={"is_running"}),
         dict(state=Scheduled(), assert_true={"is_pending", "is_scheduled"}),
-        dict(
-            state=Skipped(), assert_true={"is_finished", "is_successful", "is_skipped"}
-        ),
+        dict(state=Skipped(), assert_true={"is_finished", "is_skipped"}),
         dict(state=Submitted(), assert_true={"is_meta_state", "is_submitted"}),
         dict(state=Success(), assert_true={"is_finished", "is_successful"}),
         dict(state=TimedOut(), assert_true={"is_finished", "is_failed"}),

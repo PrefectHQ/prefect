@@ -196,11 +196,6 @@ def test_list_of_tasks():
         assert isinstance(state.result[false_branch], Success)
 
 
-def test_merge_with_upstream_skip_arg_raises_error():
-    with pytest.raises(ValueError, match="skip_on_upstream_skip=False"):
-        prefect.tasks.control_flow.conditional.Merge(skip_on_upstream_skip=True)
-
-
 def test_merge_diamond_flow_with_results():
     condition = Condition()
 
@@ -223,6 +218,52 @@ def test_merge_diamond_flow_with_results():
     with prefect.context(CONDITION=False):
         state = flow.run()
         assert state.result[merge_task].result == 0
+
+
+def test_back_to_back_switches():
+    # regression test for https://github.com/PrefectHQ/prefect/issues/2017
+    log = []
+
+    @prefect.task()
+    def is_a_enabled():
+        return True
+
+    @prefect.task()
+    def is_b_enabled():
+        return False
+
+    @prefect.task()
+    def is_c_enabled():
+        return True
+
+    @prefect.task()
+    def start():
+        log.append("start")
+
+    @prefect.task()
+    def a_task():
+        log.append("a")
+
+    @prefect.task()
+    def b_task():
+        log.append("b")
+
+    @prefect.task()
+    def c_task():
+        log.append("c")
+
+    @prefect.task()
+    def finish():
+        log.append("finish")
+
+    with prefect.Flow("My Flow") as flow:
+        switch(is_a_enabled, {True: a_task})
+        switch(is_b_enabled, {True: b_task})
+        switch(is_c_enabled, {True: c_task})
+        flow.chain(start, a_task, b_task, c_task, finish)
+
+    flow.run()
+    assert log == ["start", "a"]
 
 
 def test_merge_can_distinguish_between_a_none_result_and_an_unrun_task():

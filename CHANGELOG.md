@@ -83,6 +83,7 @@ Released on Feb 14, 2020.
 - Improve error handling for unsupported callables - [#1993](https://github.com/PrefectHQ/prefect/pull/1993)
 - Accept additional `boto3` client parameters in S3 storage - [#2000](https://github.com/PrefectHQ/prefect/pull/2000)
 - Add optional `version_group_id` kwarg to `create_flow_run` for a stable API for flow runs - [#1987](https://github.com/PrefectHQ/prefect/issues/1987)
+- Add ConditionNotMet signal and state - [#2017](https://github.com/PrefectHQ/prefect/issues/2017)
 - Add `extra_loggers` logging configuration for non-Prefect logs in stdout and cloud - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
 
 ### Task Library
@@ -92,6 +93,7 @@ Released on Feb 14, 2020.
 ### Fixes
 
 - Ensure `ifelse` casts its condition to `bool` prior to evaluation - [#1991](https://github.com/PrefectHQ/prefect/pull/1991)
+- Allow ControlFlow switch to be used back-to-back - [#2017](https://github.com/PrefectHQ/prefect/pull/2017)
 - Do not perform `ast.literal_eval` on cpu and memory task_definition kwargs for Fargate Agent - [#2010](https://github.com/PrefectHQ/prefect/pull/2010)
 - Fix new agent processing with Threadpool causing problem for Fargate Agent with task revisions enabled - [#2022](https://github.com/PrefectHQ/prefect/pull/2022)
 

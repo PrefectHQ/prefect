@@ -1,3 +1,4 @@
+import functools
 from typing import Any, Dict
 
 import prefect
@@ -9,14 +10,17 @@ __all__ = ["switch", "ifelse"]
 
 class Merge(Task):
     def __init__(self, **kwargs) -> None:
-        if kwargs.setdefault("skip_on_upstream_skip", False):
-            raise ValueError("Merge tasks must have `skip_on_upstream_skip=False`.")
         kwargs.setdefault("trigger", prefect.triggers.not_all_skipped)
         super().__init__(**kwargs)
 
     def run(self, **task_results: Any) -> Any:
         return next(
-            (v for k, v in sorted(task_results.items()) if v is not None), None,
+            (
+                v
+                for k, v in sorted(task_results.items())
+                if not isinstance(v, signals.SKIP)
+            ),
+            None,
         )
 
 
@@ -47,6 +51,60 @@ class CompareValue(Task):
             raise signals.SKIP(
                 'Provided value "{}" did not match "{}"'.format(value, self.value)
             )
+
+
+def _condition_task_run_fn(fn, name):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        if result:
+            return result
+        raise prefect.engine.signals.FAIL(name)
+
+    return wrapper
+
+
+def _reduce_conditions(reducer, tasks):
+    for t in tasks:
+        t.run = _condition_task_run_fn(t.run, t.name)
+
+    def reduce(**items):
+        results = []
+        for result in items.values():
+            if isinstance(result, signals.PrefectStateSignal):
+                result = result.state.is_successful()
+            results.append(bool(result))
+        return reducer(bool(result) for result in results)
+
+    name = "{}({})".format(reducer.__name__, ", ".join(sorted([t.name for t in tasks])))
+    combined_task = prefect.tasks.core.function.FunctionTask(
+        fn=_condition_task_run_fn(reduce, name), name=name
+    )
+
+    combined_task.bind(
+        mapped=False,
+        upstream_tasks=None,
+        **{"condition%d" % idx: t for idx, t in enumerate(tasks)},
+    )
+
+    combined_task.trigger = prefect.triggers.all_finished
+
+    return combined_task
+
+
+def any_condition(*tasks):
+    return _reduce_conditions(any, tasks)
+
+
+def all_conditions(*tasks):
+    return _reduce_conditions(all, tasks)
+
+
+def conditional(condition: Task, case: Task) -> None:
+    with prefect.tags("condition"):
+        condition.run = _condition_task_run_fn(condition.run, condition.name)
+        task = prefect.utilities.tasks.as_task(case)
+        task.set_dependencies(upstream_tasks=[condition])
 
 
 def switch(condition: Task, cases: Dict[Any, Task]) -> None:
