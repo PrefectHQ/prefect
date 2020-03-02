@@ -45,7 +45,7 @@ def jira_notifier(
     assignee: str = "-1",
 ) -> "prefect.engine.state.State":
     """
-    Jira Notifier requires a Jira account and API token.  They API token can be created at: https://id.atlassian.com/manage/api-tokens 
+    Jira Notifier requires a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
     The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') should be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
     An example 'JIRASECRETS' object looks like this:
     JIRASECRETS = { JIRATOKEN = "XXXXXXXXX", JIRAUSER = "xxxxx@yyy.com", JIRASERVER = "https://???.atlassian.net", JIRAPROJECT = "TEST" }
