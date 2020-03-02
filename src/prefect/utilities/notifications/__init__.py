@@ -7,4 +7,3 @@ try:
     from prefect.utilities.notifications.jira_notification import jira_notifier
 except ImportError:
     pass
-    
