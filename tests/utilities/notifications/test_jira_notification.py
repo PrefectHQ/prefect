@@ -20,7 +20,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.jira_notification import jira_notifier
+from prefect.utilities.notifications.jira_notification import jira_notifier
 
 
 def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
