@@ -1,3 +1,7 @@
+---
+sidebarDepth: 0
+---
+
 # Handling Failure
 
 ::: tip Follow along in the Terminal
@@ -11,7 +15,7 @@ python 04_handle_failures.py
 
 ## If at first you don't succeed...
 
-Now that we have a working ETL Flow let's take further steps to ensure its robustness. The `extract_*` Tasks are making web requests to external APIs in order to fetch the data. What if the API is unavailable for a short period? Or if a single request times out for unknown reasons? **Prefect `Tasks` can be retried on failure**; let's add this to our `extract_*` tasks:
+Now that we have a [working ETL flow](/core/tutorial/03-parameterized-flow.html) let's take further steps to ensure its robustness. The `extract_*` tasks are making web requests to external APIs in order to fetch the data. What if the API is unavailable for a short period? Or if a single request times out for unknown reasons? **Prefect `Tasks` can be retried on failure**; let's add this to our `extract_*` tasks:
 
 ```python{1,6,12}
 from datetime import timedelta
