@@ -317,18 +317,30 @@ For example, to make sure your trigger logic works for an individual task, you c
 >
 > — Fox Mulder
 
-One of the most popular aspects of Airflow is its web interface. From the UI, you can turn schedules on / off, visualize your DAG’s progress, even make SQL queries against the Airflow database.
+One of the most popular aspects of Airflow is its web interface. From the UI, you can turn schedules on / off, visualize your DAG’s progress, even make SQL queries against the Airflow database. It is an extremely functional way to access Airflow's metadata.
 
-Prefect’s UI is not yet available to the public, so we will refrain from making any direct comparisons. However, here is a non-exhaustive preview of features you can expect from the Prefect UI:
+![](/cloud/ui/cloud-ui.gif)
 
-- dashboard style pages for operational visibility and critical information
-- tabular views for custom queries
-- full GraphQL playground for those extra-custom queries
-- live updating
+
+
+The Prefect UI supports:
+- dashboards for system overviews
+- scheduling new parameterized runs
+- live-updating task and run states
+- manually updating states
+- streaming logs, including the ability to jump immediately to the latest error log
+- a full interactive GraphQL API
 - global search
+- agent management
 - projects for organizing flows
-- keyboard shortcuts
-- timezone handling (this one’s for you, Airflow users!)
+- team management and permissions 
+- API token generation
+- secret management
+- global concurrency limits
+- timezones (this one's for you, Airflow users!)
+- ...and quite a bit more
+
+The UI is part of Prefect Cloud because it is backed by the same infrastructure that allows us to deliver production-grade workflow management to our customers. However, we are committed to making it increasingly available to users of our open-source products, beginning with its inclusion in Cloud's [free tier](www.prefect.io/pricing). We are working on other ways of delivering elements from the UI to our open-source users.
 
 ## Conclusions
 
