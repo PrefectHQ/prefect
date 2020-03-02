@@ -665,6 +665,20 @@ class Client:
 
         return flow_id
 
+    def get_default_tenant_slug(self) -> str:
+        """
+        Get the default tenant slug for the currently authenticated user
+
+        Returns:
+            - str: the slug of the current default tenant for this user
+        """
+        res = self.graphql(
+            query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
+        )
+
+        user = res.get("data").user[0]
+        return user.default_membership.tenant.slug
+
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
         Create a new Project

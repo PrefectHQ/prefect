@@ -31,19 +31,29 @@ def test_run_help():
 @pytest.mark.skipif(
     sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
 )
-def test_run_cloud(monkeypatch):
+def test_run_cloud2(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
+            json=MagicMock(
+                return_value=dict(
+                    data=dict(
+                        flow=[{"id": "flow"}],
+                        # user=[{"default_membership": {"tenant": {"slug": "tslug"}}}],
+                    )
+                )
+            )
         )
     )
     session = MagicMock()
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    create_flow_run = MagicMock(return_value="id")
     monkeypatch.setattr(
-        "prefect.client.Client.create_flow_run", MagicMock(return_value=create_flow_run)
+        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+    )
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
     with set_temporary_config(
@@ -54,7 +64,7 @@ def test_run_cloud(monkeypatch):
             run, ["cloud", "--name", "flow", "--project", "project", "--version", "2"]
         )
         assert result.exit_code == 0
-        assert "Flow Run ID" in result.output
+        assert "Flow Run" in result.output
 
         query = """
         query {
