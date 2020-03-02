@@ -92,6 +92,7 @@ class TestLocalHandler:
         assert isinstance(new, LocalResultHandler)
 
 
+@pytest.mark.xfail(raises=ImportError, reason="Pandas not installed.")
 class TestPandasHandler:
     @pytest.fixture(scope="class")
     def tmp_dir(self):

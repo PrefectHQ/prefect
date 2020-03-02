@@ -136,6 +136,12 @@ class TestLocalResultHandler:
         assert obj.dir == root_dir
 
 
+@pytest.mark.xfail(raises=ImportError, reason="Pandas not installed.")
+class TestPandasResultHandler:
+    def test_serialize_result_handler(self):
+        assert False
+
+
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
 class TestGCSResultHandler:
     def test_serialize(self):
