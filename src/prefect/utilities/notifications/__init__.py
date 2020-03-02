@@ -6,7 +6,5 @@ from prefect.utilities.notifications.notifications import slack_message_formatte
 try:
     from prefect.utilities.notifications.jira_notification import jira_notifier
 except ImportError:
-    raise ImportError(
-        'Using `jira_notifier` requires Prefect to be installed with the "jira" extra.'
-    )
+    pass
     
