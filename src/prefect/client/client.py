@@ -655,7 +655,14 @@ class Client:
                 else re.sub("api", "cloud", prefect.config.cloud.api)
             )
 
-            print("Flow: {}".format(os.path.join(url, tenant_slug, "flow", flow_id)))
+            def join(url: str, items: list) -> str:
+                if len(items) == 1:
+                    return urljoin(url, items[0])
+                return join(urljoin(url, items[0]) + "/", items[1:])
+
+            flow_url = join(url, [tenant_slug, "flow", flow_id])
+
+            print("Flow: {}".format(flow_url))
 
         return flow_id
 
