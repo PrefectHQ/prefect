@@ -17,7 +17,7 @@ Prefect is indebted to the open source community. We'd love to meet you and work
 | ------------- | ------------- |  ------------- |  ------------- |  ------------- |
 | PyCon 2020  | Pittsburg, PA  | April 20, 2020|  [@lauralorenz](https://github.com/lauralorenz), [@cicdw](https://github.com/cicdw) <br>  | #pycon2020 |
 
-We prioritize an inclusive community and rigorously uphold our [Code of Conduct](../introduction/code_of_conduct.html). In addition, we are happy to support new Pythonistas as well as long-developing Python gurus and have issues for any level of Python experience.
+We prioritize an inclusive community and rigorously uphold our [Code of Conduct](../code_of_conduct.html). In addition, we are happy to support new Pythonistas as well as long-developing Python gurus and have issues for any level of Python experience.
 
 ## Getting Started at Sprints
 
