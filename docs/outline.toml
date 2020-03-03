@@ -447,7 +447,7 @@ functions = ["configure_logging", "get_logger"]
 [pages.utilities.notifications]
 title = "Notifications and Callback Tools"
 module = "prefect.utilities.notifications"
-functions = ["callback_factory", "slack_notifier", "gmail_notifier", "jira_notifier"]
+functions = ["callback_factory", "slack_notifier", "gmail_notifier", "jira_notification.jira_notifier"]
 
 [pages.utilities.serialization]
 title = "Serialization"
