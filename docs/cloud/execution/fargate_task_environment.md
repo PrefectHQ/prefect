@@ -107,6 +107,7 @@ PREFECT__CLOUD__USE_LOCAL_SECRETS
 PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
 PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
 PREFECT__LOGGING__LOG_TO_CLOUD
+PREFECT__LOGGING__EXTRA_LOGGERS
 ```
 
 All other aspects of your `containerDefinitions` will remain untouched. In some cases it is easiest to use a dummy first container similar to the code block above.
