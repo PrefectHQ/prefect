@@ -81,7 +81,17 @@ Another common use of Prefect signals is when the task in question will be neste
 
 Prefect provides a powerful `Context` object to share information without requiring explicit arguments on a task's `run()` method.
 
-The `Context` can be accessed at any time, and Prefect will populate it with information during flow and task execution. The context object itself can be populated with any arbitrary user-defined key-value pair, which in turn can be accessed with dot notation.
+The `Context` can be accessed at any time, and Prefect will populate it with information during flow and task execution. The context object itself can be populated with any arbitrary user-defined key-value pair, which in turn can be accessed with dot notation or with dictionary-like indexing. For example, the following code assumes a user has provided the context `a=1` , and can access it one of three ways:
+
+```python
+>>> import prefect
+>>> prefect.context.a
+1
+>>> prefect.context['a']
+1
+>>> prefect.context.get('a')
+1
+```
 
 ### Adding context globally
 Adding context globally is possible via your `config.toml` in a section called `[context]`. For any keys specified here, as long as Prefect Core does not override this key internally, it will be accessible globally from `prefect.context`, even outside of a flow run.
@@ -93,7 +103,7 @@ a = 1
 
 ```python
 >>> import prefect
->>> prefect.context.to_dict()['a']
+>>> prefect.context.a
 1
 ```
 
@@ -102,7 +112,7 @@ Modifying context, even globally set context keys, at specific times is possible
 ```python
 >>> import prefect
 >>> with prefect.context(a=2):
-...    print(prefect.context.to_dict()['a'])
+...    print(prefect.context.a)
 ...
 2
 ```
