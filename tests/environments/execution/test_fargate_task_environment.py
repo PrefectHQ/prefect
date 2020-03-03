@@ -268,6 +268,7 @@ def test_setup_definition_register(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "essential": True,
         }
@@ -306,6 +307,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "name": "flow-container",
             "image": "test/image:tag",
@@ -473,7 +475,7 @@ def test_entire_environment_process_together(monkeypatch):
     monkeypatch.setenv("REGION_NAME", "region")
 
     with prefect.context({"flow_run_id": "id"}), set_temporary_config(
-        {"cloud.auth_token": "test"}
+        {"cloud.auth_token": "test", "logging.extra_loggers": "['test_logger']",}
     ):
         storage = Docker(registry_url="test", image_name="image", image_tag="tag")
 
@@ -529,6 +531,10 @@ def test_entire_environment_process_together(monkeypatch):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                     {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {
+                        "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                        "value": "['test_logger']",
+                    },
                 ],
                 "essential": True,
             }
