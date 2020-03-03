@@ -6,7 +6,6 @@ import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin
 
 import pendulum
 import toml

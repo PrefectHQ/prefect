@@ -1,7 +1,6 @@
 import json
 import re
 import time
-from urllib.parse import urljoin
 
 import click
 from tabulate import tabulate
