@@ -311,7 +311,7 @@ def test_context_only_specified_attributes():
     assert test_filter.called
 
     with utilities.configuration.set_temporary_config(
-        {"logging.extra_loggers": ["extra_logger"]}
+        {"logging.extra_loggers": "['extra_logger']"}
     ):
         utilities.logging.configure_extra_loggers()
         assert (

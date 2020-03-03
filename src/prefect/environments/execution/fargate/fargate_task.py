@@ -30,6 +30,7 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
     - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
 
@@ -191,6 +192,10 @@ class FargateTaskEnvironment(Environment):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {
+                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+                    "value": config.logging.extra_loggers,
+                },
             ]
 
             # create containerDefinitions if they do not exist

@@ -8,6 +8,7 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+from ast import literal_eval
 import atexit
 import json
 import logging
@@ -234,7 +235,8 @@ def configure_extra_loggers() -> None:
     Creates a "Prefect" configured logger for all strings in extra_loggers config list.
     The logging.extra_loggers config defaults to an empty list.
     """
-    for l in context.config.logging.extra_loggers:
+    loggers = literal_eval(context.config.logging.get("extra_loggers", "[]"))
+    for l in loggers:
         _create_logger(l)
 
 
