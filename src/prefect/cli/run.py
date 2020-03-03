@@ -178,12 +178,7 @@ def cloud(
             else re.sub("api", "cloud", config.cloud.api)
         )
 
-        def join(url: str, items: list) -> str:
-            if len(items) == 1:
-                return urljoin(url, items[0])
-            return join(urljoin(url, items[0]) + "/", items[1:])
-
-        flow_run_url = join(url, [tenant_slug, "flow-run", flow_run_id])
+        flow_run_url = "/".join([url.rstrip("/"), tenant_slug, "flow-run", flow_run_id])
 
         click.echo("Flow Run: {}".format(flow_run_url))
 

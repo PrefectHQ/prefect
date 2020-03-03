@@ -417,9 +417,7 @@ def test_client_register_flow_id_output(patch_post, compressed, monkeypatch, cap
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_flow_id_no_output(
-    patch_post, compressed, monkeypatch, capsys
-):
+def test_client_register_flow_id_no_output(patch_post, compressed, monkeypatch, capsys):
     if compressed:
         response = {
             "data": {
