@@ -20,6 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add ERROR log if heartbeat process dies - [#2097](https://github.com/PrefectHQ/prefect/issues/2097)
 - Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
 - Direct links to Cloud flows and flow runs now shown on creation time - [#2109](https://github.com/PrefectHQ/prefect/pull/2109)
+- Update docs related to using Context - [#2077](https://github.com/PrefectHQ/prefect/issues/2077)
 
 ### Task Library
 
