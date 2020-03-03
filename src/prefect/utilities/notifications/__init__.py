@@ -3,5 +3,7 @@ from prefect.utilities.notifications.notifications import slack_notifier
 from prefect.utilities.notifications.notifications import gmail_notifier
 from prefect.utilities.notifications.notifications import slack_message_formatter
 
-
-from prefect.utilities.notifications.jira_notification import jira_notifier
+try:
+    from prefect.utilities.notifications.jira_notification import jira_notifier
+except ImportError:
+    pass
