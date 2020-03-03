@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add optional `scheduler_logs` kwarg to the`DaskKubernetesEnvironment` - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
 - Add ERROR log if heartbeat process dies - [#2097](https://github.com/PrefectHQ/prefect/issues/2097)
 - Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
+- Update docs related to using Context - [#2077](https://github.com/PrefectHQ/prefect/issues/2077)
 
 ### Task Library
 
