@@ -417,7 +417,7 @@ def test_client_register_flow_id_output(patch_post, compressed, monkeypatch, cap
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_flow_id__no_output(
+def test_client_register_flow_id_no_output(
     patch_post, compressed, monkeypatch, capsys
 ):
     if compressed:
@@ -449,7 +449,7 @@ def test_client_register_flow_id__no_output(
         project_name="my-default-project",
         compressed=compressed,
         version_group_id=str(uuid.uuid4()),
-        flow_id_only=True,
+        no_url=True,
     )
     assert flow_id == "long-id"
 

@@ -456,7 +456,7 @@ def test_run_cloud_flow_run_id_no_link(monkeypatch):
                 "project",
                 "--version",
                 "2",
-                "--flow-run-id-only",
+                "--no-url",
             ],
         )
         assert result.exit_code == 0

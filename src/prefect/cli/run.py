@@ -70,7 +70,7 @@ def run():
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
 @click.option(
-    "--flow-run-id-only",
+    "--no-url",
     is_flag=True,
     help="Only output flow run id instead of link.",
     hidden=True,
@@ -84,7 +84,7 @@ def cloud(
     run_name,
     watch,
     logs,
-    flow_run_id_only,
+    no_url,
 ):
     """
     Run a registered flow in Prefect Cloud.
@@ -99,7 +99,7 @@ def cloud(
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
-        --flow-run-id-only                      Only output the flow run id instead of a link
+        --no-url                                Only output the flow run id instead of a link
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values passed
@@ -166,7 +166,7 @@ def cloud(
         flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
     )
 
-    if flow_run_id_only:
+    if no_url:
         click.echo("Flow Run ID: {}".format(flow_run_id))
     else:
         # Generate direct link to Cloud run
