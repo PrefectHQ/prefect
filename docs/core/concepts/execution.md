@@ -164,6 +164,8 @@ Using this context can be useful to write time-aware tasks, such as tasks that t
 For an exhaustive list of values that you can find in context, see the corresponding [API documentation](../../api/latest/utilities/context.html).
 :::
 
-::: warning Avoid modifying Prefect-supplied context
-Since Prefect uses context internally to track metadata during the flow and task run logic, modifying Prefect-supplied context keys can have unintended consequences. It is recommended to avoid overriding the key names described in the API documentation.
+::: warning Caveats to modifying Prefect-supplied context
+Since Prefect uses some context internally to track metadata during the flow and task run logic, modifying Prefect-supplied context keys can have unintended consequences. It is recommended to generally avoid overriding the key names described in the API documentation.
+
+One exception to this is the timestamp related keys such as `prefect.context.today`. Users may wish to modify this context per flow run in order to implement "backfills", where individual flow runs execute on a subset of timeseries data.
 :::
