@@ -262,6 +262,13 @@ class TestCreateTask:
         s = Task(checkpoint=True)
         assert s.checkpoint is True
 
+    def test_create_task_with_and_without_log_stdout(self):
+        t = Task()
+        assert t.log_stdout is False
+
+        s = Task(log_stdout=True)
+        assert s.log_stdout is True
+
 
 def test_task_has_logger():
     t = Task()

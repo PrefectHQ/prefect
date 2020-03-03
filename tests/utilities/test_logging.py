@@ -310,8 +310,6 @@ def test_context_only_specified_attributes():
 
     assert test_filter.called
 
-
-def test_extra_loggers():
     with utilities.configuration.set_temporary_config(
         {"logging.extra_loggers": "['extra_logger']"}
     ):
@@ -319,3 +317,16 @@ def test_extra_loggers():
         assert (
             type(logging.root.manager.loggerDict.get("extra_logger")) == logging.Logger
         )
+
+
+def test_redirect_to_log(caplog):
+    log_stdout = utilities.logging.RedirectToLog()
+
+    log_stdout.write("TEST1")
+    log_stdout.write("")
+    log_stdout.write("TEST2")
+
+    logs = [r.message for r in caplog.records if r.levelname == "INFO"]
+    assert logs == ["TEST1", "TEST2"]
+
+    log_stdout.flush()

@@ -154,6 +154,8 @@ class Task(metaclass=SignatureValidator):
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
             with will be called anytime this Task enters a failure state
+        - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
+            the Prefect logger. Defaults to `False`.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -180,8 +182,8 @@ class Task(metaclass=SignatureValidator):
         result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
+        log_stdout: bool = False,
     ):
-
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
 
@@ -254,6 +256,8 @@ class Task(metaclass=SignatureValidator):
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
         self.auto_generated = False
+
+        self.log_stdout = log_stdout
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)

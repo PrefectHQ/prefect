@@ -66,7 +66,7 @@ It is often desirable to take action when a certain event happens, for example w
         return new_state
 ```
 
-Whenever the task's state changes, the handler will be called with the task itself, the old (previous) state, and then new (current) state. The handler must return a `State` object, which is used as the task's new state. This provides an opportunity to either react to certain states or even modify them. If multiple handlers are provided, then they are called in sequence with the state returned by one becoming the `new_state` value of the next.
+Whenever the task's state changes, the handler will be called with the task itself, the old (previous) state, and the new (current) state. The handler must return a `State` object, which is used as the task's new state. This provides an opportunity to either react to certain states or even modify them. If multiple handlers are provided, then they are called in sequence with the state returned by one becoming the `new_state` value of the next.
 
 For example, to send a notification whenever a task is retried:
 

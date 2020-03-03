@@ -815,7 +815,7 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=False)
+        self.graphql(mutation, raise_on_error=True)
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -834,7 +834,7 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=False)
+        self.graphql(mutation, raise_on_error=True)
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"

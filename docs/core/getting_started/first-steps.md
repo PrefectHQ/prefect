@@ -1,6 +1,12 @@
+---
+sidebarDepth: 0
+---
+
 # First Steps
 
-Welcome to Prefect! These docs will give you a gentle introduction to building data applications.
+Welcome to Prefect! These docs will give you a gentle introduction to Prefect's core concepts. 
+
+We also have a [full tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
 
 ## Thinking Prefectly
 
