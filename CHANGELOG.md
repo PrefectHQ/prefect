@@ -37,7 +37,7 @@ Released on Mar 4, 2020.
 
 ### Fixes
 
-- Change task.log_stdout retrieval from task runner to getattr in order to preserve running flows of older 0.9.x versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
+- Change `task.log_stdout` retrieval from task runner to `getattr` in order to preserve running flows of older 0.9.x versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
 
 ## 0.9.6 <Badge text="beta" type="success"/>
 
