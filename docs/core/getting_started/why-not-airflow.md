@@ -319,11 +319,12 @@ For example, to make sure your trigger logic works for an individual task, you c
 
 One of the most popular aspects of Airflow is its web interface. From the UI, you can turn schedules on / off, visualize your DAG’s progress, even make SQL queries against the Airflow database. It is an extremely functional way to access Airflow's metadata.
 
+From day one, we designed Prefect to support a beautiful, real-time UI. We didn't want to follow Airflow's model of simply exposing database views, but rather take advantage of best practices to immediately surface the answers to our users' most pressing questions: What is the health of my system; and, if something is wrong, how quickly can I identify it? 
+
 ![](/cloud/ui/cloud-ui.gif)
 
-
-
 The Prefect UI supports:
+
 - dashboards for system overviews
 - scheduling new parameterized runs
 - live-updating task and run states
@@ -333,7 +334,7 @@ The Prefect UI supports:
 - global search
 - agent management
 - projects for organizing flows
-- team management and permissions 
+- team management and permissions
 - API token generation
 - secret management
 - global concurrency limits

@@ -77,49 +77,71 @@ These safeguards can be toggled on a flow-by-flow basis using flow settings.
 Disabling these safeguards can alter fundamental assumptions about how flows run in Cloud. Be sure to read the docs and understand how each of these settings alters flow behavior in Cloud.
 :::
 
-### Disable Heartbeats <Badge text="0.8.1+"/>
+### Toggling Heartbeats <Badge text="0.8.1+"/>
 
-When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](services.html#zombie-killer). For most users, this is a useful safeguard. In some rare cases, however, the heartbeat falls victim to thread deadlocking and falsely registers a run as unhealthy. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
+When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud every 30 seconds. These heartbeats are used to confirm the flow run and its task runs are healthy, and runs missing four heartbeats in a row will be marked as `Failed` by the [Zombie Killer](services.html#zombie-killer). For most users, this is a useful safeguard. In some cases, however, this is not useful to users. To prevent this, users may disable flow heartbeats, which will disable heartbeats and the Zombie Killer for runs of this flow. To do so, use the following GraphQL mutation:
 
 ```graphql
 mutation {
-  disableFlowHeartbeat(input: { flowId: "your-flow-id-here", value: true }) {
+  disableFlowHeartbeat(input: { flowId: "your-flow-id-here" }) {
     success
   }
 }
 ```
 
-To reenable heartbeats for a flow, rerun this mutation with `value` set to `False`. Future runs of this flow will resume standard heartbeat functionality.
+To reenable heartbeats for a flow, run the following GraphQL mutation:
 
-### Disable Lazarus
+```graphql
+mutation {
+  enableFlowHeartbeat(input: { flowId: "your-flow-id-here" }) {
+    success
+  }
+}
+```
+
+### Toggling Lazarus
 
 The Lazarus process is responsible for rescheduling flow runs under the circumstances described [here](services.html#lazarus). If this is not desirable behavior for your flow, use the following GraphQL mutation to disable it:
 
 ```graphql
 mutation {
-  disableLazarusForFlow(input: { flowId: "your-flow-id-here", value: true }) {
+  disableFlowLazarusProcess(input: { flowId: "your-flow-id-here" }) {
     success
   }
 }
 ```
 
-To reenable Lazarus resurrections for a flow, rerun this mutation with `value` set to `False`. Future runs of this flow will be subject to Lazarus resurrection.
+To reenable Lazarus resurrections for a flow, run the following GraphQL mutation:
 
-### Enable Version Locking
+```graphql
+mutation {
+  enableFlowLazarusProcess(input: { flowId: "your-flow-id-here" }) {
+    success
+  }
+}
+```
+
+### Toggle Version Locking
 
 Prefect Cloud's _opt-in_ version locking mechanism enforces the assertion that your work runs once _and only once_. To enable version locking for a flow and its tasks, use the following GraphQL mutation:
 
 ```graphql
 mutation {
-  enableFlowVersionLocking(
-    input: { flowId: "your-flow-id-here", value: true }
-  ) {
+  enableFlowVersionLock(input: { flowId: "your-flow-id-here" }) {
     success
   }
 }
 ```
 
-To disable this functionality again, rerun this mutation with `value` set to `False`. Future runs of this flow will once again ignore the version locking mechanism.
+To disable this functionality again, run the following GraphQL mutation:
+
+```graphql
+mutation {
+  disableFlowVersionLock(input: { flowId: "your-flow-id-here" }) {
+    success
+  }
+}
+```
 
 ## Scheduling
 
