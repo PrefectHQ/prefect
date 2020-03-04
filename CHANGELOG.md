@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
 - Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
+- Added `PandasResultHandler` result handler - [#2115](https://github.com/PrefectHQ/prefect/pull/2115)
 
 ### Task Library
 
