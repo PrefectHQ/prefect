@@ -2254,7 +2254,11 @@ class TestFlowRegister:
             }
         ):
             f.register(
-                "My-project", registry_url="FOO", image_name="BAR", image_tag="BIG"
+                "My-project",
+                registry_url="FOO",
+                image_name="BAR",
+                image_tag="BIG",
+                no_url=True,
             )
 
         assert isinstance(f.storage, prefect.environments.storage.Docker)
