@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## Unreleased <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Features
+
 - Add new diagnostics utility to assist in troubleshooting issues - [#2062](https://github.com/PrefectHQ/prefect/pull/2062)
 - Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
 - Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
@@ -42,7 +74,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Romain Thalineau](https://github.com/romaintha)
 
 ## 0.9.5 <Badge text="beta" type="success"/>
 
