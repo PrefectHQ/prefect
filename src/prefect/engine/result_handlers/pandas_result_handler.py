@@ -60,7 +60,7 @@ class PandasResultHandler(ResultHandler):
     # This signature is a kludge, because the other result handlers expect the filename
     # to be passed into the function. With this signature any attempts to pass that handler
     # will be ignored, without accidentally being treated as the ``input_mapping`` kwarg
-    def read(self, _, *, input_mapping=None) -> pd.DataFrame:
+    def read(self, _: typing.Any, *, input_mapping: dict = None) -> pd.DataFrame:
         """
         Read a result from the specified ``path`` using the appropriate ``read_[FILETYPE]`` method.
 
