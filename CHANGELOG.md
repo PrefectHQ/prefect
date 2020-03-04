@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix `task.log_stdout` attribute retieval for patch versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
 
 ### Deprecations
 
