@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix `task.log_stdout` attribute retieval for patch versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
+- None
 
 ### Deprecations
 
@@ -30,9 +30,16 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
 
-## Unreleased <Badge text="beta" type="success"/>
+## 0.9.7 <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Fixes
+
+- Fix `task.log_stdout` attribute retieval for patch versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
+
+## 0.9.6 <Badge text="beta" type="success"/>
 
 Released on Mar 4, 2020.
 
