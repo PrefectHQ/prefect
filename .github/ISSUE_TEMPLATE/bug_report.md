@@ -28,4 +28,4 @@ assignees: ''
 ## Environment
 *Any additional information about your environment*
 
-You may optionally run `prefect diagnostics` from the command line and paste the information here.
+*Optionally run `prefect diagnostics` from the command line and paste the information here*
