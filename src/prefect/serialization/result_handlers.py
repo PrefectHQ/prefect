@@ -110,6 +110,7 @@ class ResultHandlerSchema(OneOfSchema):
         "S3ResultHandler": S3ResultHandlerSchema,
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
+        "PandasResultHandler": PandasResultHandlerSchema,
         "AzureResultHandler": AzureResultHandlerSchema,
         "SecretResultHandler": SecretResultHandlerSchema,
         "CustomResultHandler": CustomResultHandlerSchema,
