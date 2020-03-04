@@ -156,7 +156,7 @@ classes = ["Result", "SafeResult", "NoResultType"]
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
-classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
+classes = ["JSONResultHandler", "GCSResultHandler", "LocalResultHandler", "PandsResultHandler", ""S3ResultHandler", "AzureResultHandler", "SecretResultHandler"]
 
 [pages.engine.cloud]
 title = "Cloud"
