@@ -46,7 +46,7 @@ To the left of the Limit selector there is also an Offset selector. The Offset s
 
 ### Query Filters
 
-Another way to limit the results returned would be to filter your search results.  For the flow query example, you could filter the results by looking only for flows with a certain name using the 'where' argument:
+Another way to limit the results returned would be to filter your search results. Building on our earlier flow query, we add a `where` argument to look for flows with a certain name:
 
 ```graphql
 query {
@@ -104,7 +104,6 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
 
 
