@@ -37,7 +37,7 @@ query {
   }
 }
 ```
-
+We've nested `tasks` within the `flow` object, which tells the server to retrieve tasks only within the context of each flow that it returns.
 ### Limits and Offset
 
 To limit the number of items that are returned, you can use the Limit selector at the top of the Interactive API page. The default limit is 10 and the maximum is 100. Inline limit arguments are overriden by the value set in the Limit selector. 
@@ -104,7 +104,6 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
 
 
