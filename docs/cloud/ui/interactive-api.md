@@ -60,7 +60,7 @@ query {
 }
 ```
 
-You could also filter the results by looking only for flows with tasks with a certain name:
+We can also filter the results by looking only for flows with tasks with a certain name:
 
 ```graphql
 query {
@@ -104,7 +104,6 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
 
 
