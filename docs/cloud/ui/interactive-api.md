@@ -8,7 +8,7 @@ The Interactive API is an embedded GraphQL client that allows you to access all 
 
 ### Example Query
 
-To find out information about your flows, you could use a flow query.  The basics for that query would be:
+Let's start with an example of how you might find basic information about your flows.
 
 ```graphql
 query {
@@ -106,4 +106,3 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
