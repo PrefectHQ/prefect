@@ -19,7 +19,7 @@ class PandasResultHandler(ResultHandler):
         - read_kwargs (dict, optional): If present, passed as **kwargs to the ``read_[FILETYPE]`` method.
         - write_kwargs (dict, optional): If present, passed as **kwargs to the ``to_[FILETYPE]`` method.
 
-    .. note::
+    **Note:**
         Because the filepath is fully specified, when using this handler in a ``map``
         can lead to the same file being read to or written from by every iteration of
         the map. To deal with this case this handler allows for Python's ``str.format``
