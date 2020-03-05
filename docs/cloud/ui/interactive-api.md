@@ -24,6 +24,8 @@ We've told the server to return a list of `flow` objects, each containing their 
 
 ![](/cloud/ui/dropdown-on-interactive-api.png)
 
+You can see more information about GraphQL mutations and queries in the [GraphQL Docs](https://graphql.org/learn/)
+
 ### Nested Query
 
 Let's build on our earlier query to get information about the tasks associated with our flows. One way to accomplish this would be to use a nested query:
@@ -91,16 +93,13 @@ query {
     }
 }
 ```
-
-### Docs
-
-In the docs for the Interactive API (included on the Interactive API page itself) you can find the queries and mutations you can run and see more information about what fields you can request (for queries) or change (for mutations).
-
-![](/cloud/ui/interactive-api-inline-docs.png)  
-
 You can see more about query filters in the [Hasura Docs](https://hasura.io/docs/1.0/graphql/manual/queries/query-filters.html).
 
-You can see more information about GraphQL mutations and queries in the [GraphQL Docs](https://graphql.org/learn/)
+### Schema
+
+In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).
+
+![](/cloud/ui/interactive-api-inline-docs.png)  
 
 Finally, as you read further through the Prefect Cloud docs, look out for the GraphQL header:
 ### GraphQL <Badge text="GQL"/>
