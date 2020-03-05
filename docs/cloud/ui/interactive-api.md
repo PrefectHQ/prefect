@@ -24,7 +24,7 @@ You can also use the autocomplete to show what other fields you could query:
 
 ### Nested Query
 
-To get information about the tasks connected to your flows, you could use a nested query:
+Let's build on our earlier query to get information about the tasks associated with our flows. One way to accomplish this would be to use a nested query:
 
 ```graphql
 query {
@@ -104,6 +104,5 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
 
