@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- - Add examples to Interactive API Docs [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 
 ### Task Library
 
