@@ -42,7 +42,7 @@ query {
 
 To limit the number of items that are returned, you can use the Limit selector at the top of the Interactive API page. The default limit is 10 and the maximum is 100. Inline limit arguments are overriden by the value set in the Limit selector. 
 
-To the left of the Limit selector there is also an Offset selector. The Offset selector lets you say where your queries should start. So for example, if your query returned 5 flows and you set the limit to 2 and the offset to 0, you would see the first 2 items returned from your query.  If you set the limit to 2 and the offset to 2, you would see the next 2 items. 
+To the left of the Limit selector there is also an Offset selector. The Offset selector tells the server at which index your queries should start. For example, if your unlimited query would return 5 flows and you set the limit to 2, an offset of 0 would would return the first two items in the set. To get the next two items with no overlap, you would set the offset to 2.
 
 ### Query Filters
 
@@ -104,7 +104,6 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
 
 
