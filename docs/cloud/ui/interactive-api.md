@@ -18,7 +18,9 @@ query {
     }
 }
 ```
-You can also use the autocomplete to show what other fields you could query:
+Notice that when we want to get the `flow` object, we must wrap it in a `query` block. This tells GraphQL that we're _retrieving_ something from the schema, as opposed to a `mutation` block which allows us to manipulate our data.
+
+We've told the server to return a list of `flow` objects, each containing their respective `name` and `id` fields. As you interact with the schema in the editor window, you'll see an autocomplete window that will show hints of other available fields, which you can select to insert into your query. 
 
 ![](/cloud/ui/dropdown-on-interactive-api.png)
 
@@ -104,5 +106,4 @@ Finally, as you read further through the Prefect Cloud docs, look out for the Gr
 ### GraphQL <Badge text="GQL"/>
 
 This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
 
