@@ -97,7 +97,7 @@ You can see more about query filters in the [Hasura Docs](https://hasura.io/docs
 
 ### Schema
 
-In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).
+In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).  The schema also tells what type (String, Object, uuid) each field (and argument) should be. 
 
 ![](/cloud/ui/interactive-api-inline-docs.png)  
 
