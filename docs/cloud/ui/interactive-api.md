@@ -101,7 +101,16 @@ In the docs for the Interactive API (included on the Interactive API page itself
 
 ![](/cloud/ui/interactive-api-inline-docs.png)  
 
-Finally, as you read further through the Prefect Cloud docs, look out for the GraphQL header:
-### GraphQL <Badge text="GQL"/>
+### More Examples
 
-This header shows that we are giving an example of a query or mutation you can run using the Interactive API. 
+Finally, as you read further through the Prefect Cloud docs, look out for the GraphQL badge:
+
+<Badge text="GQL"/>
+
+This shows that we are giving an example of a query or mutation you can run using the Interactive API. 
+
+ 
+
+
+
+
