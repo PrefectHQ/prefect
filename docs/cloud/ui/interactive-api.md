@@ -6,7 +6,7 @@ The Interactive API is an embedded GraphQL client that allows you to access all 
 ![](/cloud/ui/interactive-api.png)
 
 
-### Example Query
+### Basic Query
 
 Let's start with an example of how you might find basic information about your flows.
 
