@@ -8,6 +8,8 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+import copy
+import importlib
 from ast import literal_eval
 import atexit
 import json
@@ -43,8 +45,43 @@ class CloudHandler(logging.StreamHandler):
         formatter = logging.Formatter(context.config.logging.format)
         formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
+        try:
+            # Try to get a pre-cloud handler based on the configuration.
+            self.pre_handler = self._config_local_handler()
+        except KeyError:
+            self.pre_handler = None
         self.logger.addHandler(handler)
         self.logger.setLevel(context.config.logging.level)
+
+    @staticmethod
+    def _config_local_handler():
+        """
+        Configure a logging handler to attach to the CloudHandler.  The CloudHandler
+        will run this before it handles/emits the message.  A simple handler can be used
+        to log the message to a local file and replace the record.message with the uri to
+        the message.   Then when the CloudHandler logs the message it will show up in the
+        run log with the uri instead of the sensitive information.
+
+        The pre-cloud-handler is configured:
+        [logging]
+            [logging.local]
+            # Pre-cloud logging handler
+            handler_class = "prefect.utilities.logging_local.LocalHandler"
+            root_dir = "/tmp/logs"
+
+        :return:  Handler or raises an exception.
+        """
+        try:
+            handler_cls = context.config.logging.local.handler_class
+        except KeyError as exc:
+            return
+
+        # split the module and class
+        module_name, cls_name = handler_cls.rsplit(".", maxsplit=1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, cls_name)
+        handler = cls()
+        return handler
 
     @property
     def queue(self) -> Queue:
@@ -126,6 +163,12 @@ class CloudHandler(logging.StreamHandler):
                 self.client = Client()  # type: ignore
 
             assert isinstance(self.client, Client)  # mypy assert
+
+            # Run pre-handlers (local-only) on the record.
+            # Expect that the pre-handler will mutate the record.
+            if self.pre_handler:
+                record = copy.deepcopy(record)
+                self.pre_handler.emit(record)
 
             record_dict = record.__dict__.copy()
             log = dict()
