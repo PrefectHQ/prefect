@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import tempfile
 from unittest.mock import MagicMock
@@ -220,9 +221,13 @@ def test_run_cloud_no_param_file(monkeypatch):
             ],
         )
         assert result.exit_code == 2
-        assert (
-            'Invalid value for "--parameters-file" / "-pf": Path "no_file.json" does not exist.'
-            in result.output
+        # note: click changed the output format for errors between 7.0 & 7.1, this test should be agnostic to which click version is used.
+        # ensure message ~= Invalid value for "--parameters-file" / "-pf": Path "no_file.json" does not exist
+        assert re.search(
+            r"Invalid value for [\"']--parameters-file", result.output, re.MULTILINE
+        )
+        assert re.search(
+            r"Path [\"']no_file.json[\"'] does not exist", result.output, re.MULTILINE
         )
 
 
