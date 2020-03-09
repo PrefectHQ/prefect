@@ -65,9 +65,9 @@ class S3ResultHandler(ResultHandler):
 
     @property
     def client(self) -> "boto3.client":
-        if not prefect.context.caches.get("boto3client"):
+        if not prefect.context.get("boto3client"):
             self.initialize_client()
-            prefect.context.caches["boto3client"] = self._client
+            prefect.context["boto3client"] = self._client
         return self._client
 
     @client.setter
