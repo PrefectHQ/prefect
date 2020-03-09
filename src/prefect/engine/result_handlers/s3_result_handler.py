@@ -54,7 +54,8 @@ class S3ResultHandler(ResultHandler):
             aws_access_key = aws_credentials["ACCESS_KEY"]
             aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
 
-        s3_client = boto3.client(
+        session = boto3.session.Session()
+        s3_client = session.client(
             "s3",
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
@@ -63,8 +64,8 @@ class S3ResultHandler(ResultHandler):
 
     @property
     def client(self) -> "boto3.client":
-        if not hasattr(self, "_client"):
-            self.initialize_client()
+        # reinitialize every time it is requested in case we are in different threads
+        self.initialize_client()
         return self._client
 
     @client.setter
