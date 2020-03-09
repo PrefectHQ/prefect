@@ -181,7 +181,8 @@ class TestS3ResultHandler:
         assert session.Session().client.called is False
 
         with prefect.context(
-            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
+            caches={},
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 handler.initialize_client()
@@ -194,7 +195,7 @@ class TestS3ResultHandler:
         handler = S3ResultHandler(bucket="bob", aws_credentials_secret="MY_FOO")
 
         with prefect.context(
-            secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+            secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999)), caches={}
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 handler.initialize_client()
@@ -209,7 +210,8 @@ class TestS3ResultHandler:
         handler = S3ResultHandler(bucket="foo")
 
         with prefect.context(
-            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
+            caches={},
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 uri = handler.write("so-much-data")
@@ -236,7 +238,8 @@ class TestS3ResultHandler:
             boto3.session.Session().client = client
 
             with prefect.context(
-                secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
+                secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
+                caches={},
             ):
                 with set_temporary_config({"cloud.use_local_secrets": True}):
                     handler = S3ResultHandler(bucket="foo")

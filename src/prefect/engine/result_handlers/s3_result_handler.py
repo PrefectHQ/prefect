@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import cloudpickle
 import pendulum
 
+import prefect
 from prefect.client import Secret
 from prefect.engine.result_handlers import ResultHandler
 
@@ -64,8 +65,9 @@ class S3ResultHandler(ResultHandler):
 
     @property
     def client(self) -> "boto3.client":
-        # reinitialize every time it is requested in case we are in different threads
-        self.initialize_client()
+        if not prefect.context.caches.get("boto3client"):
+            self.initialize_client()
+            prefect.context.caches["boto3client"] = self._client
         return self._client
 
     @client.setter
