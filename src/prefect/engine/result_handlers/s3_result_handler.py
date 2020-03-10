@@ -55,6 +55,8 @@ class S3ResultHandler(ResultHandler):
             aws_access_key = aws_credentials["ACCESS_KEY"]
             aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
 
+        # use a new boto session when initializing in case we are in a new thread
+        # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
         session = boto3.session.Session()
         s3_client = session.client(
             "s3",
@@ -65,6 +67,10 @@ class S3ResultHandler(ResultHandler):
 
     @property
     def client(self) -> "boto3.client":
+        """
+        Initializes a client if we believe we are in a new thread.
+        We consider ourselves in a new thread if we haven't stored a client yet in the current context.
+        """
         if not prefect.context.get("boto3client"):
             self.initialize_client()
             prefect.context["boto3client"] = self._client
