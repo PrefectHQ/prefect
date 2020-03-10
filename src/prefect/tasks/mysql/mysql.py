@@ -68,13 +68,13 @@ class MySQLExecute(Task):
 
         
         conn = pymysql.connect(host=self.host, 
-								user=self.user, 
-								password=self.password,
-								db=self.db_name, 
-								charset=self.charset,
-								cursor_class=self.cursor_class)
+				user=self.user, 
+				password=self.password,
+				db=self.db_name, 
+				charset=self.charset,
+				cursor_class=self.cursor_class)
 
-        try: 
+        try:
         	with conn: 
 	        	with conn.cursor() as cursor: 
 	        		executed = cursor.execute(query) 
@@ -165,11 +165,11 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(host=self.host, 
-								user=self.user, 
-								password=self.password,
-								db=self.db_name, 
-								charset=self.charset,
-								cursor_class=self.cursor_class)
+				user=self.user, 
+				password=self.password,
+				db=self.db_name, 
+				charset=self.charset,
+				cursor_class=self.cursor_class)
 
         try: 
         	with conn: 
