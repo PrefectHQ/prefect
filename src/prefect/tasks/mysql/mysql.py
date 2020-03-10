@@ -68,11 +68,11 @@ class MySQLExecute(Task):
 
         
         conn = pymysql.connect(host=self.host, 
-        					   user=self.user, 
-        					   password=self.password,
-        					   db=self.db_name, 
-        					   charset=self.charset,
-        					   cursor_class=self.cursor_class)
+								user=self.user, 
+								password=self.password,
+								db=self.db_name, 
+								charset=self.charset,
+								cursor_class=self.cursor_class)
 
         try: 
         	with conn: 
@@ -165,11 +165,11 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(host=self.host, 
-        					   user=self.user, 
-        					   password=self.password,
-        					   db=self.db_name, 
-        					   charset=self.charset,
-        					   cursor_class=self.cursor_class)
+								user=self.user, 
+								password=self.password,
+								db=self.db_name, 
+								charset=self.charset,
+								cursor_class=self.cursor_class)
 
         try: 
         	with conn: 
@@ -192,13 +192,3 @@ class MySQLFetch(Task):
 	    except Error as e: #TODO: have more granular error catching
 	    	conn.close() 
 	    	return e
-
-
-
-
-
-
-
-
-
-
