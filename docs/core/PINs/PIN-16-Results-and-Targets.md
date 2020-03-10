@@ -34,7 +34,7 @@ With this new collection of result "types", we can now introduce the following n
 - individual tasks can optionally override the default Flow type (identical to the current way result handlers work)
 - tasks can receive an optional set of validation functions under the `validators` kwarg which will be appended to the validators attached to the task's result type
 - when `validate=True` on the `Result` type, the `validate` method described above will be called as an additional pipeline step in the `TaskRunner`; if validation fails, the task run will enter a new `ValidationError` failed state
-- a new `target: Result` kwarg on tasks which serves two purposes: a) the output result type can be overriden through this kwarg and b) the new `exists` method will be called as a pre-run pipeline check; if the result exists, it will be `read` and optionally validated, and the task run will then enter a `Success` state with the data that was read
+- a new `target: Result` kwarg on tasks which serves two purposes: a) the output result type can be overriden through this kwarg and b) the new `exists` method will be called as a pre-run pipeline check; if the result exists, it will be `read` and optionally validated, and the task run will then enter a `Cached` state with the data that was read
 - if configured, a Result's `cache_for` or `cache_validators` will be run during the pre-run pipeline check on the read Result, and if successful the task run instead enter a `Cached` State with the data that was read
 
 ## Consequences
