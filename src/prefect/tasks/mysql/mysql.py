@@ -33,9 +33,9 @@ class MySQLExecute(Task):
         data: tuple = None,
         commit: bool = False,
         charset: str = 'utf8mb4', 
-        cursor_class: pymyql.cursors = pymysql.cursors.Cursor, #include this? 
+        cursor_class: pymyql.cursors = pymysql.cursors.Cursor, #include this?
         **kwargs
-    ): 
+    ):
         self.db_name = db_name
         self.user = user
         self.password = password
