@@ -432,7 +432,7 @@ class Client:
             token=self._api_token,
         )  # type: ignore
         self._access_token = payload.data.switchTenant.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.parse(
+        self._access_token_expires_at = pendulum.parse(  # type: ignore
             payload.data.switchTenant.expiresAt  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
@@ -479,7 +479,7 @@ class Client:
             token=self._refresh_token,
         )  # type: ignore
         self._access_token = payload.data.refreshToken.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.parse(
+        self._access_token_expires_at = pendulum.parse(  # type: ignore
             payload.data.refreshToken.expiresAt  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore

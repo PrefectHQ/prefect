@@ -21,7 +21,7 @@ def check_heartbeat() -> None:
     """
     Check the agent's heartbeat by verifying heartbeat file has been recently modified
     """
-    current_timestamp = pendulum.now().timestamp()
+    current_timestamp = pendulum.now().timestamp()  # type: ignore
     last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
 
     # If file has not been modified in the last 40 seconds then raise an exit code of 1

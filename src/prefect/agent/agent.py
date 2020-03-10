@@ -381,7 +381,7 @@ class Agent:
                                     "state": {"_eq": "Running"},
                                     "task_runs": {
                                         "state_start_time": {
-                                            "_lte": str(now.subtract(seconds=3))
+                                            "_lte": str(now.subtract(seconds=3))  # type: ignore
                                         }
                                     },
                                 },
@@ -401,7 +401,7 @@ class Agent:
                         {
                             "where": {
                                 "state_start_time": {
-                                    "_lte": str(now.subtract(seconds=3))
+                                    "_lte": str(now.subtract(seconds=3))  # type: ignore
                                 }
                             }
                         },
