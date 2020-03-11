@@ -10,8 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
 - Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
+- Add examples to Interactive API Docs [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 
 ### Task Library
 
@@ -31,7 +31,58 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+
+## 0.9.7 <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Fixes
+
+- Change `task.log_stdout` retrieval from task runner to `getattr` in order to preserve running flows of older 0.9.x versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
+
+## 0.9.6 <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Features
+
+- Add new diagnostics utility to assist in troubleshooting issues - [#2062](https://github.com/PrefectHQ/prefect/pull/2062)
+- Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
+- Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
+
+### Enhancements
+
+- Add PIN 15 (skip refactor) - [#2070](https://github.com/PrefectHQ/prefect/issues/2070)
+- Update docs and docstrings related to Result Handlers - [#1792](https://github.com/PrefectHQ/prefect/issues/1792)
+- Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- `DaskKubernetesEnvironment` now elevates important autoscaling logs as well as possible Kubernetes issues - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Add optional `scheduler_logs` kwarg to the`DaskKubernetesEnvironment` - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Add ERROR log if heartbeat process dies - [#2097](https://github.com/PrefectHQ/prefect/issues/2097)
+- Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
+- Direct links to Cloud flows and flow runs now shown on creation time - [#2109](https://github.com/PrefectHQ/prefect/pull/2109)
+- Update docs related to using Context - [#2077](https://github.com/PrefectHQ/prefect/issues/2077)
+
+### Task Library
+
+- Fix expanding of `V1DeleteOptions` kwargs for Kubernetes tasks - [#2083](https://github.com/PrefectHQ/prefect/pull/2083)
+
+### Fixes
+
+- Fix `extra_loggers` config variable not being able to be set via environment variable - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Fix environments not passing down their `extra_loggers` to any created infrastructure - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Don't mutate data when serializing or deserializing - [#2098](https://github.com/PrefectHQ/prefect/issues/2098)
+
+### Deprecations
+
 - None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Romain Thalineau](https://github.com/romaintha)
 
 ## 0.9.5 <Badge text="beta" type="success"/>
 

@@ -1,6 +1,8 @@
 import datetime
 import logging
+import json
 import os
+import platform
 import random
 import sys
 import tempfile
@@ -11,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import cloudpickle
 import pendulum
 import pytest
+import toml
 
 import prefect
 from prefect.core.edge import Edge
@@ -2156,6 +2159,70 @@ class TestFlowRunMethod:
         assert "interrupt" in state.message.lower()
 
 
+class TestFlowDiagnostics:
+    def test_flow_diagnostics(self, monkeypatch):
+        with tempfile.TemporaryDirectory() as tempdir:
+            file = open("{}/config.toml".format(tempdir), "w+")
+            toml.dump({"secrets": {"key": "value"}}, file)
+            file.close()
+
+            monkeypatch.setattr(
+                "prefect.configuration.USER_CONFIG", "{}/config.toml".format(tempdir)
+            )
+
+            @prefect.task
+            def t1():
+                pass
+
+            @prefect.task
+            def t2():
+                pass
+
+            flow = prefect.Flow(
+                "test",
+                tasks=[t1, t2],
+                storage=prefect.environments.storage.Local(),
+                schedule=prefect.schedules.Schedule(clocks=[]),
+                result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+            )
+
+            monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
+
+            diagnostic_info = flow.diagnostics()
+            diagnostic_info = json.loads(diagnostic_info)
+
+            config_overrides = diagnostic_info["config_overrides"]
+            env_vars = diagnostic_info["env_vars"]
+            flow_information = diagnostic_info["flow_information"]
+            system_info = diagnostic_info["system_information"]
+
+            assert config_overrides == {"secrets": False}
+
+            assert "PREFECT__TEST" in env_vars
+            assert "NOT__PREFECT" not in env_vars
+
+            assert flow_information
+
+            # Type information
+            assert flow_information["environment"]["type"] == "RemoteEnvironment"
+            assert flow_information["storage"]["type"] == "Local"
+            assert flow_information["result_handler"]["type"] == "JSONResultHandler"
+            assert flow_information["schedule"]["type"] == "Schedule"
+            assert flow_information["task_count"] == 2
+
+            # Kwargs presence check
+            assert flow_information["environment"]["executor"] is True
+            assert flow_information["environment"]["executor_kwargs"] is False
+            assert flow_information["environment"]["labels"] is False
+            assert flow_information["environment"]["on_start"] is False
+            assert flow_information["environment"]["on_exit"] is False
+            assert flow_information["environment"]["logger"] is True
+
+            assert system_info["prefect_version"] == prefect.__version__
+            assert system_info["platform"] == platform.platform()
+            assert system_info["python_version"] == platform.python_version()
+
+
 class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
@@ -2187,7 +2254,11 @@ class TestFlowRegister:
             }
         ):
             f.register(
-                "My-project", registry_url="FOO", image_name="BAR", image_tag="BIG"
+                "My-project",
+                registry_url="FOO",
+                image_name="BAR",
+                image_tag="BIG",
+                no_url=True,
             )
 
         assert isinstance(f.storage, prefect.environments.storage.Docker)

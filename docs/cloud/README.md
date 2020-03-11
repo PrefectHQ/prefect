@@ -3,11 +3,12 @@ title: Welcome
 sidebarDepth: 0
 ---
 
-<div align="center" style="margin-top:100px; margin-bottom:40px;">
-<img src="/assets/prefect-cloud-logo.svg"  width=600 >
+<div align="center" style="margin-top:50px; margin-bottom:40px;">
+    <img src="/illustrations/cloud-illustration.svg"  width=300 >
 </div>
-
-# Welcome!
+<div  style="float:left; width:100%; margin-bottom:40px;">
+    <img src="/assets/prefect-cloud-logo.svg"  width=400 >
+</div>
 
 [Prefect Cloud](https://www.prefect.io/products/cloud) is a complete negative engineering solution. Start by building a workflow in the open-source [Prefect Core](https://www.prefect.io/products/core) engine and then instantly supercharge it by deploying it with our managed orchestration platform.
 

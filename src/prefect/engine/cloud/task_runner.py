@@ -43,8 +43,7 @@ class CloudTaskRunner(TaskRunner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one);
-            if not provided here or by the Task, will default to the one specified in your config
+            retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
     def __init__(

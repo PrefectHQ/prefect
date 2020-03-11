@@ -34,6 +34,7 @@ from prefect.engine.result import NoResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
+from prefect.utilities import diagnostics
 from prefect.utilities import logging
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.notifications import callback_factory
@@ -1225,6 +1226,18 @@ class Flow:
 
         return serialized
 
+    # Diagnostics  ----------------------------------------------------------------
+
+    def diagnostics(self, include_secret_names: bool = False) -> str:
+        """
+        Get flow and Prefect diagnostic information
+
+        Args:
+            - include_secret_names (bool, optional): toggle output of Secret names, defaults to False.
+                Note: Secret values are never returned, only their names.
+        """
+        return diagnostics.diagnostic_info(self, include_secret_names)
+
     # Registration ----------------------------------------------------------------
 
     @classmethod
@@ -1349,6 +1362,7 @@ class Flow:
         labels: List[str] = None,
         set_schedule_active: bool = True,
         version_group_id: str = None,
+        no_url: bool = False,
         **kwargs: Any
     ) -> str:
         """
@@ -1367,6 +1381,8 @@ class Flow:
             - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
                 in Cloud; if not provided, the version group ID associated with this Flow's project and name
                 will be used.
+            - no_url (bool, optional): if `True`, the stdout from this function will not contain the
+                URL link to the newly-registered flow in the Cloud UI
             - **kwargs (Any): if instantiating a Storage object from default settings, these keyword arguments
                 will be passed to the initialization method of the default Storage class
 
@@ -1393,6 +1409,7 @@ class Flow:
             project_name=project_name,
             set_schedule_active=set_schedule_active,
             version_group_id=version_group_id,
+            no_url=no_url,
         )
         return registered_flow
 

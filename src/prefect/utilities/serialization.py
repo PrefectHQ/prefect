@@ -102,6 +102,8 @@ class ObjectSchema(Schema):
         Returns:
             - dict: the data dict, without its __version__ field
         """
+        # don't mutate data
+        data = data.copy()
         data.pop("__version__", None)
         return data
 
@@ -116,6 +118,8 @@ class ObjectSchema(Schema):
         Returns:
             - dict: the data dict, with an additional __version__ field
         """
+        # don't mutate data
+        data = data.copy()
         data.setdefault("__version__", prefect.__version__)
         return data
 

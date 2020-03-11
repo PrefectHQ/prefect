@@ -73,7 +73,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.9.5)', link: '/api/latest/' },
+          { text: 'Latest (0.9.7)', link: '/api/latest/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: '0.7.3', link: '/api/0.7.3/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -146,7 +146,7 @@ module.exports = {
       '/cloud/': [
         '/cloud/',
         {
-          title: 'Cloud UI',
+          title: 'UI',
           collapsable: true,
           children: [
             'ui/dashboard',
@@ -157,19 +157,6 @@ module.exports = {
             'ui/team-settings'
           ]
         },
-        {
-          title: 'Deployment Tutorial',
-          collapsable: true,
-          children: [
-            'tutorial/configure',
-            'tutorial/first',
-            'tutorial/multiple',
-            'tutorial/docker',
-            'tutorial/k8s',
-            'tutorial/next-steps'
-          ]
-        },
-
         {
           title: 'Cloud Concepts',
           collapsable: true,
@@ -183,6 +170,18 @@ module.exports = {
             'concepts/services',
             'concepts/tokens',
             'concepts/task-concurrency-limiting'
+          ]
+        },
+        {
+          title: 'Deployment Tutorial',
+          collapsable: true,
+          children: [
+            'tutorial/configure',
+            'tutorial/first',
+            'tutorial/multiple',
+            'tutorial/docker',
+            'tutorial/k8s',
+            'tutorial/next-steps'
           ]
         },
         {
@@ -229,22 +228,14 @@ module.exports = {
       '/core/': [
         '/core/',
         {
-          title: 'Introduction',
-          collapsable: true,
-          children: [
-            'introduction/why_prefect',
-            'introduction/why_not_airflow',
-            'introduction/community',
-            'introduction/code_of_conduct'
-          ]
-        },
-        {
           title: 'Getting Started',
           collapsable: true,
           children: [
             'getting_started/installation',
             'getting_started/first-steps',
-            'getting_started/next-steps'
+            'getting_started/next-steps',
+            'getting_started/why-prefect',
+            'getting_started/why-not-airflow'
           ]
         },
         {
@@ -303,14 +294,13 @@ module.exports = {
             'development/documentation',
             'development/tests',
             'development/contributing',
-            'development/release-checklist'
+            'development/release-checklist',
+            'development/sprints'
           ]
         },
-        {
-          title: 'FAQ',
-          collapsable: true,
-          children: getChildren('docs/core', 'faq')
-        }
+        '/core/faq',
+        '/core/community',
+        '/core/code_of_conduct'
       ]
     }
   },
