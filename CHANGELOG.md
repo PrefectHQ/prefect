@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - - Add examples to Interactive API Docs [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
+- - Add exists, read, and write interfaces to Result [#2139]
 
 ### Task Library
 
