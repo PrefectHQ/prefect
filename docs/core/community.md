@@ -30,4 +30,4 @@ See our [Development Guide](/core/development/overview.html) for more informatio
 We'd love to have you involved. Here are a few ways to participate:
 
 - **joining us at sprints**: join Prefect at an upcoming in-person event and jumpstart your contributions. More information is available [here](/core/development/sprints.html).
-- **user research**: We pride ourselves on our user research programs - we're interested in learning what you do and how you do it, so we can deliver a better product. Please [contact us](mailto:research@prefect.io) to learn more.
+- **user research**: we pride ourselves on our user research programs - we're interested in learning what you do and how you do it, so we can deliver a better product. Please [contact us](mailto:research@prefect.io) to learn more.
