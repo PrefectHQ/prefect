@@ -12,32 +12,22 @@ Please consider [Chris White](https://github.com/cicdw) the main point of contac
 
 - We have a public [Slack](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE) for chatting about Prefect, asking questions, and sharing tips.
 - For feature requests or bug reports, please open a [new GitHub issue](https://github.com/PrefectHQ/prefect/issues/new).
-- Important architectural and design decisions are memorialized in [Prefect Improvement Notices (PINs)](../PINs/PIN-01-Introduce-PINs.html).
+- Important architectural and design decisions are memorialized in [Prefect Improvement Notices (PINs)](/core/PINs/PIN-01-Introduce-PINs.html).
 
 ## Contributing
 
-Prefect encourages users to contribute in any way they can!
+Prefect encourages users to contribute in any way they can! There are a number of ways you can get involved:
 
-There are a number of ways you can get started contributing:
-
-- **closing issues**: the [issue board](https://github.com/PrefectHQ/prefect/issues) contains issues with the tag ["good first issue"](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) which should be approachable for first time contributors
+- **closing issues**: the [issue board](https://github.com/PrefectHQ/prefect/issues) contains issues with the tag ["good first issue"](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) that should be approachable for first-time contributors
 - **documentation**: Prefect prioritizes its documentation, as this is usually the first place users go to look for help. If you find any typos, or want to update something for clarity, users everywhere will thank you!
-- **the task library**: Prefect's task library helps users build workflows even quicker by abstracting away common boilerplate. If you know of a common operation that isn't represented, open a Pull Request to add a new task to the library!
-- **joining us at sprints**: join Prefect at an upcoming in-person event and jumpstart your contributions. See more information at [Join Prefect at Sprints](../development/sprints.html).
+- **the task library**: Prefect's task library helps users build workflows even quicker by abstracting away common boilerplate. If you know of a common operation that isn't represented, open a pull request to add a new task to the library!
 
-See our [Development Guide](../development/overview.html) for more information on how to get started.
+See our [Development Guide](/core/development/overview.html) for more information on how to get started.
 
-## The Prefect Cloud Platform
 
-The "Prefect Core" engine is maintained by [Prefect Technologies, Inc.](https://www.prefect.io/) and is the driving engine of the Prefect Cloud Platform, which extends Prefect Core to include:
+## Participating 
 
-- a full GraphQL API
-- a complete UI for flows and jobs
-- remote execution clusters
-- automatic and asynchronous scheduling
-- permissions and authorization
-- projects for flow organization
-- secure runtime secrets and parameters
-- many more features...
+We'd love to have you involved. Here are a few ways to participate:
 
-Please [get in touch](mailto:hello@prefect.io) to apply for access.
+- **joining us at sprints**: join Prefect at an upcoming in-person event and jumpstart your contributions. More information is available [here](/core/development/sprints.html).
+- **user research**: We pride ourselves on our user research programs - we're interested in learning what you do and how you do it, so we can deliver a better product. Please [contact us](mailto:research@prefect.io) to learn more.
