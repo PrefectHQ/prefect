@@ -112,6 +112,7 @@ classes = [
             "Failed",
             "Cancelled",
             "TriggerFailed",
+            "ValidationFailed",
             "TimedOut",
         ]
 
@@ -123,6 +124,7 @@ classes = [
             "FAIL",
             "LOOP",
             "TRIGGERFAIL",
+            "VALIDATIONFAIL",
             "SUCCESS",
             "RETRY",
             "SKIP",
