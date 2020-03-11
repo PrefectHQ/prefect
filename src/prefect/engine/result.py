@@ -17,8 +17,10 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 whose value is `None`.
 """
 
-from typing import Any
+import datetime
+from typing import Any, Callable, Iterable, Optional
 
+from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 
 
@@ -71,12 +73,39 @@ class Result(ResultInterface):
         - value (Any): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
             when storing / serializing this result's value; required if you intend on persisting this result in some way
+        - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
+            the result to ensure it is `valid`.
+        - should_validate_result (bool): Whether the result value should be validated.
+        - cache_for (timedelta, optional): The amount of time to maintain a cache
+            of this result.  Useful for situations where the containing Flow
+            will be rerun multiple times, but this task doesn't need to be.
+        - cache_validator (Callable, optional): Validator that will determine
+            whether the cache for this result is still valid (only required if `cache_for`
+            is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - filename_template (str, optional): Template file name to be used for saving the
+            result to the destination.
     """
 
-    def __init__(self, value: Any, result_handler: ResultHandler = None):
+    def __init__(
+        self,
+        value: Any,
+        result_handler: ResultHandler = None,
+        validators: Iterable[Callable] = None,
+        should_validate_result: bool = True,
+        cache_for: Optional[datetime.timedelta] = None,
+        cache_validator: Optional[Callable] = None,
+        filename_template: Optional[str] = None,
+    ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
+        self.validators = validators
+        self.should_validate_result = should_validate_result
+        if cache_for is not None and cache_validator is None:
+            cache_validator = duration_only
+        self.cache_for = cache_for
+        self.cache_validator = cache_validator
+        self.filename_template = filename_template
 
     def store_safe_value(self) -> None:
         """
@@ -93,6 +122,35 @@ class Result(ResultInterface):
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
+
+    def exists(self) -> bool:
+        """
+        Checks whether the target result exists.
+
+        Does not validate whether the result is `valid`, only that it is present.
+
+        Returns:
+            - bool: whether or not the target result exists.
+        """
+        raise NotImplementedError()
+
+    def read(self) -> Any:
+        """
+        Reads from the target result.
+
+        Returns:
+            - Any: The value saved to the result.
+        """
+        raise NotImplementedError()
+
+    def write(self) -> Any:
+        """
+        Serialize and write the result to the target location.
+
+        Returns:
+            - Any: Result specific metadata about the written data.
+        """
+        raise NotImplementedError()
 
 
 class SafeResult(ResultInterface):

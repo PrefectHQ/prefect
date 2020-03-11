@@ -1,3 +1,5 @@
+import datetime
+
 import cloudpickle
 import pytest
 
@@ -25,11 +27,19 @@ class TestInitialization:
         assert r.value == 3
         assert r.safe_value is NoResult
         assert r.result_handler is None
+        assert r.validators is None
+        assert r.cache_for is None
+        assert r.cache_validator is None
+        assert r.filename_template is None
 
         s = Result(value=5)
         assert s.value == 5
         assert s.safe_value is NoResult
         assert s.result_handler is None
+        assert s.validators is None
+        assert s.cache_for is None
+        assert s.cache_validator is None
+        assert s.filename_template is None
 
     def test_result_inits_with_handled_and_result_handler(self):
         handler = JSONResultHandler()
@@ -37,6 +47,27 @@ class TestInitialization:
         assert r.value == 3
         assert r.safe_value is NoResult
         assert r.result_handler == handler
+
+    def test_cache_validator_provided_if_needed(self):
+        """
+        If `cache_for` is provided, and `cache_validator` is not,
+        a `cache_validator` should be provided.
+        """
+        r = Result(value=3, cache_for=datetime.timedelta(days=2))
+        assert r.cache_validator is not None
+        assert callable(r.cache_validator)
+
+    def test_uses_provided_cache_validator(self):
+        def custom_cache_validator(*args, **kwargs):
+            # Creating a custom function for identity comparison
+            return True
+
+        r = Result(
+            value=3,
+            cache_for=datetime.timedelta(days=2),
+            cache_validator=custom_cache_validator,
+        )
+        assert r.cache_validator is custom_cache_validator
 
     def test_result_ignores_none_values(self):
         handler = JSONResultHandler()
@@ -62,6 +93,19 @@ class TestInitialization:
         assert res.value == "3"
         assert res.result_handler == JSONResultHandler()
         assert res.safe_value is res
+
+
+@pytest.mark.parametrize("abstract_interface", ["exists", "read", "write"])
+def test_has_abstract_interfaces(abstract_interface: str):
+    """
+    Tests to make sure that calling the abstract interfaces directly
+    on the base `Result` class results in `NotImplementedError`s.
+    """
+    r = Result(value=3)
+
+    func = getattr(r, abstract_interface)
+    with pytest.raises(NotImplementedError):
+        func()
 
 
 def test_noresult_is_safe():
