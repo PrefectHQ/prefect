@@ -1,6 +1,6 @@
 from typing import Any
 
-from prefect.engine.result import Result, NoResultType
+from prefect.engine.result import Result
 
 
 class ConstantResult(Result):
