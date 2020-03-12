@@ -475,6 +475,7 @@ class Docker(Storage):
         if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """
+                
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     flow_file_paths=", ".join(
