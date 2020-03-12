@@ -17,8 +17,42 @@ from prefect.engine.result_handlers import (
     ResultHandler,
     S3ResultHandler,
     SecretResultHandler,
+    ConstantResultHandler,
 )
 from prefect.utilities.configuration import set_temporary_config
+
+
+class TestConstantResultHandler:
+    def test_instantiates_with_value(self):
+        handler = ConstantResultHandler(5)
+        assert handler.value == 5
+
+        handler = ConstantResultHandler(value=10)
+        assert handler.value == 10
+
+    def test_read_returns_value(self):
+        handler = ConstantResultHandler("hello world")
+        assert handler.read("this param isn't used") == "hello world"
+
+    def test_write_doesnt_overwrite_value(self):
+        handler = ConstantResultHandler("untouchable!")
+
+        handler.write("a different value")
+        assert handler.value == "untouchable!"
+        assert handler.read("still unused") == "untouchable!"
+
+    def test_write_returns_value(self):
+        handler = ConstantResultHandler("constant value")
+
+        output = handler.write("a different value")
+        assert output == "'constant value'"
+
+    def test_handles_none_as_constant(self):
+
+        handler = ConstantResultHandler(None)
+        assert handler.read("still not used") is None
+        output = handler.write("also not used")
+        assert output == "None"
 
 
 class TestJSONHandler:
