@@ -134,9 +134,12 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def read(self) -> Any:
+    def read(self, loc: Optional[str] = None) -> Any:
         """
         Reads from the target result.
+
+        Args:
+            - loc (str): Location of the result in the specific result target.
 
         Returns:
             - Any: The value saved to the result.
