@@ -594,3 +594,21 @@ class TestTaskArgs:
         with pytest.raises(TypeError):
             with Flow(name="test") as f:
                 res = t.map({1, 2, 3, 4})
+
+
+def test_cache_options_show_deprecation():
+    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+        Task(cache_for=object())
+
+    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+        Task(cache_validator=object())
+
+    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+        Task(cache_key=object())
+
+
+def test_result_handler_option_shows_deprecation():
+    with pytest.warns(
+        UserWarning, match="the result_handler Task option is deprecated.*"
+    ):
+        Task(result_handler=object())

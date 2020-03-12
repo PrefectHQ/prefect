@@ -128,7 +128,7 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
-        - result_handler (ResultHandler, optional): the handler to use for
+        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution
 
     """
@@ -158,6 +158,12 @@ class Flow:
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
         self.result_handler = result_handler
+
+        if result_handler:
+            warnings.warn(
+                "DEPRECATED: the result_handler Flow option is deprecated, this is being replaced by the prefect.engine.Result object.",
+                UserWarning,
+            )
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

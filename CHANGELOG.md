@@ -23,14 +23,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- None
+- Deprecate cache\_\* and result_handler options on Task and Flow objects [#2140](https://github.com/PrefectHQ/prefect/issues/2140)
 
 ### Breaking Changes
 
 - None
 
 ### Contributors
-
 
 ## 0.9.7 <Badge text="beta" type="success"/>
 
