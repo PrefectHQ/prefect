@@ -255,6 +255,7 @@ class CronClock(Clock):
         assert isinstance(after, datetime)  # mypy assertion
         after = pendulum.instance(after)
         assert isinstance(after, pendulum.DateTime)  # mypy assertion
+        assert isinstance(after.tz, pendulum.tz._Timezone)  # mypy assertion
 
         # croniter's DST logic interferes with all other datetime libraries except pytz
         after_localized = pytz.timezone(after.tz.name).localize(
