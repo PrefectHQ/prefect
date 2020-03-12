@@ -66,6 +66,7 @@ def test_empty_docker_storage(monkeypatch, platform, url):
     assert storage.prefect_version
     assert storage.base_url == url
     assert not storage.local_image
+    assert not storage.ignore_healthchecks
 
 
 @pytest.mark.parametrize(
@@ -519,8 +520,8 @@ def test_create_dockerfile_from_everything():
             assert "COPY other.flow /root/.prefect/flows/other.prefect" in output
 
 
-@pytest.mark.parametrize("run_healthchecks", [True, False])
-def test_run_healthchecks_arg(run_healthchecks):
+@pytest.mark.parametrize("ignore_healthchecks", [True, False])
+def test_run_healthchecks_arg(ignore_healthchecks):
 
     with tempfile.TemporaryDirectory() as tempdir_outside:
 
@@ -528,8 +529,8 @@ def test_run_healthchecks_arg(run_healthchecks):
             t.write("asdf")
 
         with tempfile.TemporaryDirectory() as tempdir:
-            storage = Docker(run_healthchecks=run_healthchecks)
-            
+            storage = Docker(ignore_healthchecks=ignore_healthchecks)
+
             f = Flow("test")
             storage.add_flow(f)
             dpath = storage.create_dockerfile_object(directory=tempdir)
@@ -537,10 +538,10 @@ def test_run_healthchecks_arg(run_healthchecks):
             with open(dpath, "r") as dockerfile:
                 output = dockerfile.read()
 
-            if run_healthchecks:
-                assert "RUN python /root/.prefect/healthcheck.py" in output
-            else:
+            if ignore_healthchecks:
                 assert "RUN python /root/.prefect/healthcheck.py" not in output
+            else:
+                assert "RUN python /root/.prefect/healthcheck.py" in output
 
 
 def test_pull_image(capsys, monkeypatch):

@@ -64,8 +64,9 @@ class Docker(Storage):
             version is ahead of the latest tag
         - local_image (bool, optional): an optional flag whether or not to use a
             local docker image, if True then a pull will not be attempted
-        - run_healthchecks (bool, optional): if True (default), a series of
-            healthchecks are run as part of the Dockerfile
+        - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
+            are not added to the Dockerfile. If False (default), healthchecks 
+            are included.
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -85,7 +86,7 @@ class Docker(Storage):
         base_url: str = None,
         prefect_version: str = None,
         local_image: bool = False,
-        run_healthchecks: bool = False,
+        ignore_healthchecks: bool = False,
     ) -> None:
         self.registry_url = registry_url
 
@@ -110,7 +111,7 @@ class Docker(Storage):
         self.base_url = base_url or default_url
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
-        self.run_healthchecks = run_healthchecks
+        self.ignore_healthchecks = ignore_healthchecks
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -471,7 +472,7 @@ class Docker(Storage):
         )
 
         # append the line that runs the healthchecks
-        if self.run_healthchecks:
+        if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
