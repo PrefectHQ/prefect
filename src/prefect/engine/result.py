@@ -75,7 +75,7 @@ class Result(ResultInterface):
             when storing / serializing this result's value; required if you intend on persisting this result in some way
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
             the result to ensure it is `valid`.
-        - should_validate_result (bool): Whether the result value should be validated.
+        - run_validators (bool): Whether the result value should be validated.
         - cache_for (timedelta, optional): The amount of time to maintain a cache
             of this result.  Useful for situations where the containing Flow
             will be rerun multiple times, but this task doesn't need to be.
@@ -91,7 +91,7 @@ class Result(ResultInterface):
         value: Any,
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
-        should_validate_result: bool = True,
+        run_validators: bool = True,
         cache_for: Optional[datetime.timedelta] = None,
         cache_validator: Optional[Callable] = None,
         filename_template: Optional[str] = None,
@@ -100,7 +100,7 @@ class Result(ResultInterface):
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
-        self.should_validate_result = should_validate_result
+        self.run_validators = run_validators
         if cache_for is not None and cache_validator is None:
             cache_validator = duration_only
         self.cache_for = cache_for

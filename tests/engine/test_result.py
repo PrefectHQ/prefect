@@ -31,6 +31,7 @@ class TestInitialization:
         assert r.cache_for is None
         assert r.cache_validator is None
         assert r.filename_template is None
+        assert r.run_validators is True
 
         s = Result(value=5)
         assert s.value == 5
@@ -40,6 +41,7 @@ class TestInitialization:
         assert s.cache_for is None
         assert s.cache_validator is None
         assert s.filename_template is None
+        assert r.run_validators is True
 
     def test_result_inits_with_handled_and_result_handler(self):
         handler = JSONResultHandler()
