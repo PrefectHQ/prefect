@@ -519,6 +519,30 @@ def test_create_dockerfile_from_everything():
             assert "COPY other.flow /root/.prefect/flows/other.prefect" in output
 
 
+@pytest.mark.parametrize("run_healthchecks", [True, False])
+def test_run_healthchecks_arg(run_healthchecks):
+
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            storage = Docker(run_healthchecks=run_healthchecks)
+            
+            f = Flow("test")
+            storage.add_flow(f)
+            dpath = storage.create_dockerfile_object(directory=tempdir)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            if run_healthchecks:
+                assert "RUN python /root/.prefect/healthcheck.py" in output
+            else:
+                assert "RUN python /root/.prefect/healthcheck.py" not in output
+
+
 def test_pull_image(capsys, monkeypatch):
     storage = Docker(base_image="python:3.6")
 
