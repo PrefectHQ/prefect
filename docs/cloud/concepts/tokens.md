@@ -40,7 +40,7 @@ $ prefect auth create-token -n my-runner-token -r RUNNER
 
 ### GraphQL
 
-To create a token using GraphQL execute the `createAPIToken` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](graphql.html).
+To create a token using GraphQL execute the `createAPIToken` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](api.html).
 
 ```graphql
 mutation {
