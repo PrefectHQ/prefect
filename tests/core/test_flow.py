@@ -2014,7 +2014,7 @@ class TestFlowRunMethod:
 
         @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
         def return_x(x, y):
-            return 1 / (y - 1) + round(random.random(), 4)
+            return 1 / (y - 1) + round(random.random(), 8)
 
         storage = {"y": []}
 
