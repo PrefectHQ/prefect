@@ -121,7 +121,7 @@ def between_times(start: time, end: time) -> Callable[[datetime], bool]:
     Filter that allows events between a start time and end time
 
     For example, `between_times(start=datetime.time(14), end=datetime.time(16))` would only
-    allow runs between the hours of 2 PM and 5 PM in the given timezone.
+    allow runs between the hours of 2 PM and 4 PM in the given timezone.
 
     Args:
         - start (time): the start time
