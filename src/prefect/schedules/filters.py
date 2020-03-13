@@ -100,7 +100,7 @@ def at_time(t: time) -> Callable[[datetime], bool]:
     """
     Filter that allows events that match a specific time.
 
-    For example, `at_time(datetime.time(4))` would only allow runs during the hour of 4 AM
+    For example, `at_time(datetime.time(4))` would only allow runs at 4 AM
     in the given timezone.
 
     Args:
