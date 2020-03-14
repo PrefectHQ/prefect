@@ -6,7 +6,7 @@ formatters:
     standard:
         format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     filename_redactor:
-        (): redactor.logging.FileRedactorFormatter
+        (): redactor.local_file_redactor.LocalFileRedactor.Formatter
         root_dir: /tmp
         format: "%(asctime)s - %(name)s - %(levelname)s - Redacted"
 
@@ -18,7 +18,7 @@ handlers:
         stream: ext://sys.stdout
 
     file_redactor:
-        (): redactor.logging.FileRedactorHandler
+        (): redactor.local_file_redactor.LocalFileRedactor.Handler
         root_dir: /tmp
         formatter: standard
 
@@ -42,4 +42,4 @@ root:
     level: NOTSET
     handlers:
       - console
-
+...
