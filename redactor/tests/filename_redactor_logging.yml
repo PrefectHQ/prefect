@@ -1,0 +1,38 @@
+---
+version: 1
+disable_existing_loggers: true
+
+formatters:
+    standard:
+        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    filename_redactor:
+        (): redactor.logging.FileRedactorFormatter
+        root_dir: /tmp
+        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+
+handlers:
+    console:
+        class: logging.StreamHandler
+        formatter: filename_redactor
+        stream: ext://sys.stdout
+
+    file_redactor:
+        (): redactor.logging.FileRedactorHandler
+        root_dir: /tmp
+        formatter: standard
+
+
+loggers:
+    Task:
+        level: INFO
+        handlers:
+          - console
+          - file_redactor
+        propagate: false
+
+root:
+    level: NOTSET
+    handlers:
+      - console
+
