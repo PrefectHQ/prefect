@@ -4,16 +4,19 @@ from pathlib import Path
 
 
 def datetime_to_path_str(time) -> str:
-    msg = time.isoformat().replace(":", "-")
-    return msg
+    return time.isoformat().replace(":", "-")
+
+
+def asctime_to_path_str(time: str) -> str:
+    return time.replace(":", "-").replace(",", "-").replace(" ", "_")
 
 
 def redacted_path(record: LogRecord, root_dir: str):
     filename = (
         f"{root_dir}/"
         f"{record.flow_name}/"
-        f"{datetime_to_path_str(record.started)}"
-        f"/{datetime_to_path_str(datetime.now())}.log"
+        f"{datetime_to_path_str(record.started)}/"
+        f"{asctime_to_path_str(record.asctime)}.log"
     )
     return filename
 
@@ -29,6 +32,9 @@ class FileRedactorFormatter(Formatter):
 
     def format(self, record: LogRecord):
         msg = super().format(record)
+        if record.exc_info:
+            msg = msg.split("Redacted")[0]
+            msg += "Redacted Exception"
         path = redacted_url(record, self._root_dir)
         redacted_msg = msg + "\n" + path
         return redacted_msg

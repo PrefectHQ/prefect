@@ -8,7 +8,7 @@ formatters:
     filename_redactor:
         (): redactor.logging.FileRedactorFormatter
         root_dir: /tmp
-        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format: "%(asctime)s - %(name)s - %(levelname)s - Redacted"
 
 
 handlers:
@@ -25,6 +25,13 @@ handlers:
 
 loggers:
     Task:
+        level: INFO
+        handlers:
+          - console
+          - file_redactor
+        propagate: false
+
+    TaskRunner:
         level: INFO
         handlers:
           - console

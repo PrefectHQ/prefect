@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from redactor.tasks import task_plain_message
+from redactor.tasks import task_plain_message, task_uncaught_exception, task_runner
 
 
 def dump_logging_cfg(fh=sys.stdout):
@@ -43,48 +43,49 @@ def dump_logging_cfg(fh=sys.stdout):
         dump_handlers(logger.handlers, indent, fh)
 
 
-def clear_logging_cfg():
+def clear_handlers_cfg():
     mgr = logging.Logger.manager
-    # Skip the loggers added by PyCharm when using the debugger.
-    logger_names = [
-        name
-        for name in mgr.loggerDict
-        if name not in ("concurrent.futures", "concurrent", "asyncio")
-    ]
-    for name in logger_names:
-        del mgr.loggerDict[name]
+    for name, logger in mgr.loggerDict.items():
+        # Skip the loggers added by PyCharm when using the debugger.
+        if name in ("concurrent.futures", "concurrent", "asyncio"):
+            continue
+        logger.handlers = []
 
 
 default_factory = logging.getLogRecordFactory()
-context = dict()
 
 
-def logging_cfg(cfg_file: str):
-    clear_logging_cfg()
+def fake_prefect_logging_cfg():
     ctx = {"flow_name": "Redactor", "started": datetime.now(), "redactor_root": "/tmp"}
 
     def context_factory(*args, **kwargs):
         record = default_factory(*args, **kwargs)
+        # Add the context to the log record to use in the formatter.
         for key, value in ctx.items():
             setattr(record, key, value)
         return record
-
-    with Path(cfg_file).open("rt") as fh:
-        cfg = yaml.safe_load(fh)
 
     cur_factory = logging.getLogRecordFactory()
     if cur_factory == default_factory:
         logging.setLogRecordFactory(context_factory)
 
+
+def logging_cfg(cfg_file: str):
+    clear_handlers_cfg()
+    fake_prefect_logging_cfg()
+    with Path(cfg_file).open("rt") as fh:
+        cfg = yaml.safe_load(fh)
+
     logging.config.dictConfig(cfg)
-
-
-def test_logging_setup_teardown():
-    logging_cfg("setup_teardown_logging.yml")
-    task_plain_message()
 
 
 def test_file_redactor():
     logging_cfg("filename_redactor_logging.yml")
-    dump_logging_cfg()
+    print()
     task_plain_message()
+
+
+def test_exc_redactor():
+    logging_cfg("filename_redactor_logging.yml")
+    print()
+    task_runner(task_uncaught_exception)
