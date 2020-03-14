@@ -1,18 +1,22 @@
-[tool.black]
-exclude = '''
-    (
-        \.eggs
-        | \.git
-        | \.hg
-        | \.mypy_cache
-        | \.tox
-        | \.venv
-        | _build
-        | buck-out
-        | build
-        | dist
+[tool.poetry]
+name = "prefect"
+version = "0.1.0"
+description = ""
+authors = ["Nate Atkins <atkinsnw@gmail.com>"]
 
-        # prefect-specific
-        | node_modules
-    )
-    '''
+[tool.poetry.dependencies]
+python = "^3.7"
+pyyaml = "^5.3"
+python-dateutil = "^2.8.1"
+pytz = "^2019.3"
+requests = "^2.23.0"
+websocket = "^0.2.1"
+websocket-client = "^0.57.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.3.5"
+testfixtures = "^6.14.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
