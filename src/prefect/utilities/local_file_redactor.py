@@ -1,7 +1,11 @@
+import json
 import logging
+import time
 from logging import LogRecord, Formatter, Handler
 from pathlib import Path
+from typing import Dict
 
+import pendulum
 import prefect
 
 
@@ -20,7 +24,7 @@ class LocalFileRedactor:
             f"{root_dir}/"
             f"{record.flow_name}/"
             # It would be good to get the scheduled_start_time from the record instead of prefect.context.
-            f"{cls.datetime_to_path_str(prefect.context.scheduled_start_time)}/"
+            f"{cls.datetime_to_path_str(record.scheduled_start_time)}/"
             f"{cls.asctime_to_path_str(record.asctime)}.log"
         )
         return filename
@@ -29,24 +33,31 @@ class LocalFileRedactor:
     def redacted_uri(cls, record: LogRecord, root_dir: str) -> str:
         return "file://" + cls.redacted_path(record, root_dir)
 
-    class Formatter(Formatter):
+    class RedactorFormatter(Formatter):
         """
         Formatter to redact log messages by replacing the message with the URI of a local file
         the contains the unredacted message.
         """
 
-        def __init__(self, root_dir, format=None, datefmt=None, style="%"):
+        def __init__(
+            self,
+            redactor_root_dir,
+            redactor_format=None,
+            redactor_datefmt=None,
+            redactor_style="%",
+            **kwargs,
+        ):
             """
             Initialize the formatter with information about the root directory to write log messages.
             Args:
-                root_dir: Root directory for unredacted log messages.
-                format: Format of the message portion of the log record.
+                redactor_root_dir: Root directory for unredacted log messages.
+                redactor_format: Format of the message portion of the log record.
                 datefmt: Date format.
                 style: Message Style.
             """
-            super().__init__(format, datefmt, style)
-            self._root_dir = root_dir
-            self._default_formatter = logging.Formatter(prefect.config.logging.format)
+            super().__init__(redactor_format, redactor_datefmt, redactor_style)
+            self._root_dir = redactor_root_dir
+            self._default_formatter = logging.Formatter(redactor_format)
 
         def format(self, record: LogRecord) -> str:
             """
@@ -80,20 +91,20 @@ class LocalFileRedactor:
                 fh.write(f"Redacted Formatter ({record.name}) - unredacted: {unredacted_msg}\n")
             return unredacted_msg
 
-    class Handler(Handler):
+    class RedactorHandler(Handler):
         """
         Log handler that writes each individual message to a local file.
         """
 
-        def __init__(self, root_dir):
+        def __init__(self, redactor_root_dir, **kwargs):
             """
             Initialize the handler with the root directory to write the log messages.
 
             Args:
-                root_dir: Root directory for unredacted log messages.
+                redactor_root_dir: Root directory for unredacted log messages.
             """
             super().__init__()
-            self._root_dir = root_dir
+            self._root_dir = redactor_root_dir
 
         def emit(self, record: LogRecord):
             """
@@ -112,3 +123,37 @@ class LocalFileRedactor:
                 path.parent.mkdir(exist_ok=True, parents=True)
                 with path.open("wt") as fh:
                     fh.write(msg + "\n")
+
+
+def redactor_mapper(record: LogRecord, formatter: Formatter) -> Dict:
+    """
+    Convert the log record into the log dictionary that is json serializable for transmission to Cloud.
+
+    Args:
+        record: Log record being processed.
+        formatter: Formatter fo this message.
+
+    Returns: Dictionary of the log data to send to Cloud.
+
+    """
+    record_dict = record.__dict__.copy()
+    log = dict()
+    log["message"] = formatter.format(record)
+    log["flowRunId"] = prefect.context.get("flow_run_id", None)
+    log["taskRunId"] = prefect.context.get("task_run_id", None)
+    log["timestamp"] = pendulum.from_timestamp(record_dict.pop("created", time.time())).isoformat()
+    log["name"] = record_dict.pop("name", None)
+    # Remove the original message
+    record_dict.pop("message", None)
+    log["level"] = record_dict.pop("levelname", None)
+
+    if record_dict.get("exc_text") is not None:
+        record_dict.pop("exc_info", None)
+
+    # Remove anything else that shouldn't got to the cloud or is json serializable.
+    log["info"] = record_dict
+    for attribute in ["scheduled_start_time", "pathname", "msg"]:
+        record_dict.pop(attribute, None)
+    with Path("/tmp/logging-trace.txt").open("at") as fh:
+        fh.write(f"reactor_mapper: {json.dumps(log, indent=2)}\n")
+    return log

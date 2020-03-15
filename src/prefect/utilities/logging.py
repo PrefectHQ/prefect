@@ -8,6 +8,7 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+import importlib
 from ast import literal_eval
 import atexit
 import json
@@ -17,7 +18,7 @@ import threading
 import time
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, Dict
 
 import pendulum
 
@@ -32,11 +33,15 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
     "task_name",
     "task_slug",
     "task_run_id",
+    # Add start time to help the LocalFileRedactor build logical sorted directories of messages.
+    "scheduled_start_time",
 )
 
 
 class CloudHandler(logging.StreamHandler):
     def __init__(self) -> None:
+        with Path("/tmp/logging-trace.txt").open("at") as fh:
+            fh.write(f"CloudHandler init: \n")
         super().__init__(sys.stdout)
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
@@ -46,6 +51,7 @@ class CloudHandler(logging.StreamHandler):
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         self.logger.setLevel(context.config.logging.level)
+        self.log_mapper = self._default_log_mapper
 
     @property
     def queue(self) -> Queue:
@@ -115,6 +121,39 @@ class CloudHandler(logging.StreamHandler):
 
             self.queue.put(self._make_error_log(message))
 
+    @staticmethod
+    def _default_log_mapper(record: logging.LogRecord, formatter: logging.Formatter) -> Dict:
+        """
+        Convert the log record into the log dictionary that is json serializable for transmission to Cloud.
+        This function is replaced with Redaction is in place.
+
+        Args:
+            record: Log record being processed.
+            formatter: Formatter fo this message.   It is configured for the CloudHandler, but I haven't
+                found where it is getting called.
+
+        Returns: Dictionary of the log data to send to Cloud.
+
+        """
+        # Code pulled out of emit so it can be replaced when Redactor is enabled.
+        record_dict = record.__dict__.copy()
+        log = dict()
+        log["flowRunId"] = prefect.context.get("flow_run_id", None)
+        log["taskRunId"] = prefect.context.get("task_run_id", None)
+        log["timestamp"] = pendulum.from_timestamp(
+            record_dict.pop("created", time.time())
+        ).isoformat()
+        log["name"] = record_dict.pop("name", None)
+        log["message"] = record_dict.pop("message", None)
+        log["level"] = record_dict.pop("levelname", None)
+
+        if record_dict.get("exc_text") is not None:
+            log["message"] += "\n" + record_dict.pop("exc_text", "")
+            record_dict.pop("exc_info", None)
+        record_dict.pop("scheduled_start_time", None)
+        log["info"] = record_dict
+        return log
+
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
         if not prefect.context.config.logging.log_to_cloud:
@@ -128,28 +167,7 @@ class CloudHandler(logging.StreamHandler):
 
             assert isinstance(self.client, Client)  # mypy assert
 
-            record_dict = record.__dict__.copy()
-            log = dict()
-            log["message"] = self.format(record)
-            record_dict.pop("message", None)
-            log["flowRunId"] = prefect.context.get("flow_run_id", None)
-            log["taskRunId"] = prefect.context.get("task_run_id", None)
-            log["timestamp"] = pendulum.from_timestamp(
-                record_dict.pop("created", time.time())
-            ).isoformat()
-            log["name"] = record_dict.pop("name", None)
-            log["level"] = record_dict.pop("levelname", None)
-
-            if record_dict.get("exc_text") is not None:
-            #     log["message"] += "\n" + record_dict.pop("exc_text", "")
-                record_dict.pop("exc_info", None)
-
-            log["info"] = record_dict
-            with Path("/tmp/logging-trace.txt").open("at") as fh:
-                fh.write(f"CloudHandler: {json.dumps(log, indent=2)}\n")
-                fh.write(f"\tFormatter: {self.formatter.__class__}\n")
-                fh.write(f"\tFormat: {self.formatter._fmt}\n\n")
-
+            log = self.log_mapper(record, self.formatter)
             self.put(log)
         except Exception as exc:
             message = "Failed to write log with error: {}".format(str(exc))
@@ -190,6 +208,38 @@ def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord
     return record
 
 
+def _add_redactor():
+    try:
+        redactor_cfg = context.config.logging.redactor
+    except KeyError:
+        pass
+    else:
+        module_name, class_name = redactor_cfg.redactor_class.rsplit(".", 1)
+        redactor_module = importlib.import_module(module_name)
+        redactor_class = getattr(redactor_module, class_name)
+        local_handler = redactor_class.RedactorHandler(**redactor_cfg)
+
+        prefect_logger = logging.getLogger("prefect")
+        standard_formatter = logging.Formatter(context.config.logging.format)
+        local_handler.setFormatter(standard_formatter)
+
+        # Add the local file handler for redacted messages to the prefect logger.
+        # Probably can add this through the normal logging configuration?
+        for handler in prefect_logger.handlers:
+            if handler.name == "LocalFileHandler":
+                break
+        else:
+            prefect_logger.addHandler(local_handler)
+
+        # Add the redactor Filter to the CloudHandler
+        redactor_formatter = redactor_class.RedactorFormatter(**redactor_cfg)
+        cloud_handler = [
+            handler for handler in prefect_logger.handlers if isinstance(handler, CloudHandler)
+        ][0]
+        cloud_handler.setFormatter(redactor_formatter)
+        cloud_handler.log_mapper = getattr(redactor_module, "redactor_mapper")
+
+
 def _create_logger(name: str) -> logging.Logger:
     """
     Creates a logger with a `StreamHandler` that has level and formatting
@@ -201,6 +251,8 @@ def _create_logger(name: str) -> logging.Logger:
     Returns:
         - logging.Logger: a configured logging object
     """
+    with Path("/tmp/logging-trace.txt").open("at") as fh:
+        fh.write(f"_create_logger: {name}\n")
     logging.setLogRecordFactory(_log_record_context_injector)
 
     logger = logging.getLogger(name)
@@ -214,6 +266,9 @@ def _create_logger(name: str) -> logging.Logger:
     cloud_handler = CloudHandler()
     cloud_handler.setLevel("DEBUG")
     logger.addHandler(cloud_handler)
+
+    _add_redactor()
+
     return logger
 
 
