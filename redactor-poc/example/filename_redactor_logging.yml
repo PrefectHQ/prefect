@@ -1,0 +1,43 @@
+---
+version: 1
+disable_existing_loggers: true
+
+formatters:
+    standard:
+        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    filename_redactor:
+        (): prefect.utilities.local_file_redactor.LocalFileRedactor.Formatter
+        root_dir: /tmp
+        format: "%(asctime)s - %(name)s - %(levelname)s - Redacted"
+
+
+handlers:
+    console:
+        class: logging.StreamHandler
+        formatter: filename_redactor
+        stream: ext://sys.stdout
+
+    file_redactor:
+        (): prefect.utilities.local_file_redactor.LocalFileRedactor.Handler
+        root_dir: /tmp
+        formatter: standard
+
+
+loggers:
+    prefect.Task:
+        level: INFO
+        handlers:
+          - file_redactor
+        propagate: true
+
+    prefect.TaskRunner:
+        level: INFO
+        handlers:
+          - file_redactor
+        propagate: true
+
+root:
+    level: NOTSET
+    handlers:
+      - console
+...

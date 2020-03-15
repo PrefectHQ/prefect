@@ -15,6 +15,7 @@ import logging
 import sys
 import threading
 import time
+from pathlib import Path
 from queue import Empty, Queue
 from typing import Any
 
@@ -129,20 +130,26 @@ class CloudHandler(logging.StreamHandler):
 
             record_dict = record.__dict__.copy()
             log = dict()
+            log["message"] = self.format(record)
+            record_dict.pop("message", None)
             log["flowRunId"] = prefect.context.get("flow_run_id", None)
             log["taskRunId"] = prefect.context.get("task_run_id", None)
             log["timestamp"] = pendulum.from_timestamp(
                 record_dict.pop("created", time.time())
             ).isoformat()
             log["name"] = record_dict.pop("name", None)
-            log["message"] = record_dict.pop("message", None)
             log["level"] = record_dict.pop("levelname", None)
 
             if record_dict.get("exc_text") is not None:
-                log["message"] += "\n" + record_dict.pop("exc_text", "")
+            #     log["message"] += "\n" + record_dict.pop("exc_text", "")
                 record_dict.pop("exc_info", None)
 
             log["info"] = record_dict
+            with Path("/tmp/logging-trace.txt").open("at") as fh:
+                fh.write(f"CloudHandler: {json.dumps(log, indent=2)}\n")
+                fh.write(f"\tFormatter: {self.formatter.__class__}\n")
+                fh.write(f"\tFormat: {self.formatter._fmt}\n\n")
+
             self.put(log)
         except Exception as exc:
             message = "Failed to write log with error: {}".format(str(exc))
