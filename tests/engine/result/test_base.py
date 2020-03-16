@@ -18,9 +18,9 @@ class TestInitialization:
         with pytest.raises(TypeError):
             n()
 
-    def test_result_requires_value(self):
-        with pytest.raises(TypeError, match="value"):
-            r = Result()
+    def test_result_does_not_require_a_value(self):
+        # this may seem like a silly test, however, it is a regression to assert new result behavior
+        assert Result().value == None
 
     def test_result_inits_with_value(self):
         r = Result(3)

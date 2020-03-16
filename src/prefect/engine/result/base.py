@@ -20,6 +20,7 @@ whose value is `None`.
 import datetime
 from typing import Any, Callable, Iterable, Optional
 
+import prefect
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 
@@ -88,7 +89,7 @@ class Result(ResultInterface):
 
     def __init__(
         self,
-        value: Any,
+        value: Any = None,
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
@@ -122,6 +123,9 @@ class Result(ResultInterface):
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
+
+    def render_destination(self) -> str:
+        return self.filename_template.format(**prefect.context)
 
     def exists(self) -> bool:
         """
