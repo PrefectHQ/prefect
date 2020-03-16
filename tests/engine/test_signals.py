@@ -24,7 +24,7 @@ from prefect.engine.state import (
     State,
     Success,
     TriggerFailed,
-    ValidationFailed
+    ValidationFailed,
 )
 
 

@@ -414,7 +414,7 @@ class TestStateHierarchy:
         dict(state=Success(), assert_true={"is_finished", "is_successful"}),
         dict(state=TimedOut(), assert_true={"is_finished", "is_failed"}),
         dict(state=TriggerFailed(), assert_true={"is_finished", "is_failed"}),
-        dict(state=ValidationFailed(), assert_true={"is_finished", "is_failed"})
+        dict(state=ValidationFailed(), assert_true={"is_finished", "is_failed"}),
     ],
 )
 def test_state_is_methods(state_check):
