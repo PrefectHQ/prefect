@@ -12,6 +12,7 @@ from prefect.utilities import logging
 
 if TYPE_CHECKING:
     import google.cloud
+    import boto3
 
 
 class S3Result(Result):
@@ -32,7 +33,9 @@ class S3Result(Result):
             will fall back on standard AWS rules for authentication.
     """
 
-    def __init__(self, bucket: str, credentials_secret: str = None, **kwargs) -> None:
+    def __init__(
+        self, bucket: str, credentials_secret: str = None, **kwargs: Any
+    ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
         self.logger = logging.get_logger(type(self).__name__)
