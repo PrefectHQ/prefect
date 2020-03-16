@@ -1,5 +1,5 @@
 import base64
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import cloudpickle
 
@@ -80,7 +80,7 @@ class GCSResult(Result):
 
         return uri
 
-    def read(self, loc: str = None) -> Any:
+    def read(self, loc: Optional[str] = None) -> Any:
         """
         Reads a result from a GCS bucket
 

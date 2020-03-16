@@ -31,9 +31,7 @@ class TestGCSResult:
         result.gcs_bucket()
         assert google_client.return_value.bucket.call_args[0][0] == "bob"
 
-    def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
-        self, google_client
-    ):
+    def test_gcs_writes_to_blob_using_rendered_template_name(self, google_client):
         bucket = MagicMock()
         google_client.return_value.bucket = MagicMock(return_value=bucket)
         result = GCSResult(bucket="foo", filename_template="{thing}/here.txt")
