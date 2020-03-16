@@ -483,14 +483,16 @@ class TestHeartBeats:
         assert log.levelname == "ERROR"
         assert "Heartbeat failed for Task 'Task'" in log.message
 
-    def test_task_runner_heartbeat_sets_command(self, monkeypatch):
+    @pytest.mark.parametrize("setting_available", [True, False])
+    def test_task_runner_heartbeat_sets_command(self, monkeypatch, setting_available):
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
-        client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-            disable_heartbeat=False
+        client.graphql.return_value.data.flow_run_by_pk.flow.settings = (
+            dict(heartbeat_enabled=True) if setting_available else {}
         )
+
         runner = CloudTaskRunner(task=Task())
         runner.task_run_id = "foo"
         res = runner._heartbeat()
@@ -504,7 +506,7 @@ class TestHeartBeats:
             "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
         )
         client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-            disable_heartbeat=True
+            heartbeat_enabled=False
         )
         runner = CloudTaskRunner(task=Task())
         runner.task_run_id = "foo"
