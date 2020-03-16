@@ -6,12 +6,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
+- None
 
 ### Enhancements
 
 - Add examples to Interactive API Docs [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Use a new boto3 session per thread when using S3ResultHandlers [#2108](https://github.com/PrefectHQ/prefect/issues/2108)
+- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 
 ### Task Library
 
