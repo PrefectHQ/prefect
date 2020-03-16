@@ -3,6 +3,7 @@ import datetime
 import cloudpickle
 import pytest
 
+import prefect
 from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -290,3 +291,15 @@ def test_results_are_pickleable_with_their_safe_values():
     res = Result(3, result_handler=JSONResultHandler())
     res.store_safe_value()
     assert cloudpickle.loads(cloudpickle.dumps(res)) == res
+
+
+def test_result_render_filename_template_from_context():
+    res = Result(filename_template="{this}/{works}/yes?")
+    with prefect.context(this="indeed", works="functional"):
+        assert res.render_destination() == "indeed/functional/yes?"
+
+
+def test_result_render_fails_on_no_template_given():
+    with pytest.raises(ValueError):
+        res = Result()
+        res.render_destination()

@@ -125,6 +125,8 @@ class Result(ResultInterface):
             )
 
     def render_destination(self) -> str:
+        if not self.filename_template:
+            raise ValueError("No filename_template provided")
         return self.filename_template.format(**prefect.context)
 
     def exists(self) -> bool:
