@@ -651,4 +651,4 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     }
 
     task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
-    assert task_run_ids == ["TESTME"] * 3
+    assert len(task_run_ids) >= 3
