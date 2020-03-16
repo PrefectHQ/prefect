@@ -86,7 +86,7 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
@@ -122,7 +122,7 @@ def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
