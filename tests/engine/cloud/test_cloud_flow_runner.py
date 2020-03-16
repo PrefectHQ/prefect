@@ -387,14 +387,17 @@ def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     assert "Heartbeat failed for Flow 'bad'" in log.message
 
 
-def test_flow_runner_heartbeat_sets_command(monkeypatch):
+@pytest.mark.parametrize("setting_available", [True, False])
+def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available):
     client = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
-    client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-        disable_heartbeat=False
+
+    client.graphql.return_value.data.flow_run_by_pk.flow.settings = (
+        dict(heartbeat_enabled=True) if setting_available else {}
     )
+
     runner = CloudFlowRunner(flow=prefect.Flow(name="test"))
     with prefect.context(flow_run_id="foo"):
         res = runner._heartbeat()
@@ -409,7 +412,7 @@ def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-        disable_heartbeat=True
+        heartbeat_enabled=False
     )
 
     # set up the CloudFlowRunner
@@ -638,7 +641,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     time.sleep(0.75)
     logs = [log for call in calls for log in call[0]]
-    assert len(logs) == 6  # actual number of logs
+    assert len(logs) >= 6  # actual number of logs
 
     loggers = [c["name"] for c in logs]
     assert set(loggers) == {
@@ -648,4 +651,4 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     }
 
     task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
-    assert task_run_ids == ["TESTME"] * 3
+    assert set(task_run_ids) == {"TESTME"}

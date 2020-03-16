@@ -24,32 +24,49 @@ if TYPE_CHECKING:
 
 class Docker(Storage):
     """
-    Docker storage provides a mechanism for storing Prefect flows in Docker images
-    and optionally pushing them to a registry.
+    Docker storage provides a mechanism for storing Prefect flows in Docker
+    images and optionally pushing them to a registry.
 
-    A user specifies a `registry_url`, `base_image` and other optional dependencies (e.g., `python_dependencies`)
-    and `build()` will create a temporary Dockerfile that is used to build the image.
+    A user specifies a `registry_url`, `base_image` and other optional
+    dependencies (e.g., `python_dependencies`) and `build()` will create a
+    temporary Dockerfile that is used to build the image.
 
-    Note that the `base_image` must be capable of `pip` installing.  Note that registry behavior with respect to
-    image names can differ between providers - for example, Google's GCR registry allows for registry URLs of the form
-    `gcr.io/my-registry/subdir/my-image-name` whereas DockerHub requires the registry URL to be separate from the image name.
+    Note that the `base_image` must be capable of `pip` installing.  Note that
+    registry behavior with respect to image names can differ between providers -
+    for example, Google's GCR registry allows for registry URLs of the form
+    `gcr.io/my-registry/subdir/my-image-name` whereas DockerHub requires the
+    registry URL to be separate from the image name.
 
     Args:
-        - registry_url (str, optional): URL of a registry to push the image to; image will not be pushed if not provided
-        - base_image (str, optional): the base image for this environment (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image
-            matching your python version and prefect core library version used at runtime.
-        - dockerfile (str, optional): a path to a Dockerfile to use in building this storage; note that, if provided,
-            your present working directory will be used as the build context
-        - python_dependencies (List[str], optional): list of pip installable dependencies for the image
-        - image_name (str, optional): name of the image to use when building, populated with a UUID after build
-        - image_tag (str, optional): tag of the image to use when building, populated with a UUID after build
-        - env_vars (dict, optional): a dictionary of environment variables to use when building
-        - files (dict, optional): a dictionary of files to copy into the image when building
-        - base_url: (str, optional): a URL of a Docker daemon to use when for Docker related functionality
-        - prefect_version (str, optional): an optional branch, tag, or commit specifying the version of prefect
-            you want installed into the container; defaults to the version you are currently using or `"master"` if your version is ahead of
-            the latest tag
-        - local_image(bool, optional): an optional flag whether or not to use a local docker image, if True then a pull will not be attempted
+        - registry_url (str, optional): URL of a registry to push the image to;
+            image will not be pushed if not provided
+        - base_image (str, optional): the base image for this environment (e.g.
+            `python:3.6`), defaults to the `prefecthq/prefect` image matching your
+            python version and prefect core library version used at runtime.
+        - dockerfile (str, optional): a path to a Dockerfile to use in building
+            this storage; note that, if provided, your present working directory
+            will be used as the build context
+        - python_dependencies (List[str], optional): list of pip installable
+            dependencies for the image
+        - image_name (str, optional): name of the image to use when building,
+            populated with a UUID after build
+        - image_tag (str, optional): tag of the image to use when building,
+            populated with a UUID after build
+        - env_vars (dict, optional): a dictionary of environment variables to
+            use when building
+        - files (dict, optional): a dictionary of files to copy into the image
+            when building
+        - base_url: (str, optional): a URL of a Docker daemon to use when for
+            Docker related functionality
+        - prefect_version (str, optional): an optional branch, tag, or commit
+            specifying the version of prefect you want installed into the container;
+            defaults to the version you are currently using or `"master"` if your
+            version is ahead of the latest tag
+        - local_image (bool, optional): an optional flag whether or not to use a
+            local docker image, if True then a pull will not be attempted
+        - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
+            are not added to the Dockerfile. If False (default), healthchecks 
+            are included.
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -69,6 +86,7 @@ class Docker(Storage):
         base_url: str = None,
         prefect_version: str = None,
         local_image: bool = False,
+        ignore_healthchecks: bool = False,
     ) -> None:
         self.registry_url = registry_url
 
@@ -93,6 +111,7 @@ class Docker(Storage):
         self.base_url = base_url or default_url
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
+        self.ignore_healthchecks = ignore_healthchecks
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -300,7 +319,8 @@ class Docker(Storage):
                 full_name = str(PurePosixPath(self.registry_url, self.image_name))
             elif push is True:
                 warnings.warn(
-                    "This Docker storage object has no `registry_url`, and will not be pushed.",
+                    "This Docker storage object has no `registry_url`, and "
+                    "will not be pushed.",
                     UserWarning,
                 )
                 full_name = self.image_name
@@ -319,7 +339,9 @@ class Docker(Storage):
 
             if len(client.images(name=full_name)) == 0:
                 raise ValueError(
-                    "Your docker image failed to build!  Your flow might have failed one of its deployment health checks - please ensure that all necessary files and dependencies have been included."
+                    "Your docker image failed to build!  Your flow might have "
+                    "failed one of its deployment health checks - please ensure "
+                    "that all necessary files and dependencies have been included."
                 )
 
             # Push the image if requested
@@ -346,11 +368,13 @@ class Docker(Storage):
         Dockerfile that it can use to define the container. This function takes the
         specified arguments then writes them to a temporary file called Dockerfile.
 
-        *Note*: if `files` are added to this container, they will be copied to this directory as well.
+        *Note*: if `files` are added to this container, they will be copied to this 
+        directory as well.
 
         Args:
-            - directory (str, optional): A directory where the Dockerfile will be created,
-                if no directory is specified is will be created in the current working directory
+            - directory (str, optional): A directory where the Dockerfile will be 
+                created, if no directory is specified is will be created in the 
+                current working directory
 
         Returns:
             - str: the absolute file path to the Dockerfile
@@ -434,8 +458,6 @@ class Docker(Storage):
             {copy_files}
 
             {env_vars}
-
-            RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
             """.format(
                 base_commands=base_commands,
                 extra_commands=extra_commands,
@@ -446,12 +468,22 @@ class Docker(Storage):
                 else "healthcheck.py",
                 copy_files=copy_files,
                 env_vars=env_vars,
-                flow_file_paths=", ".join(
-                    ['"{}"'.format(k) for k in self.flows.values()]
-                ),
-                python_version=(sys.version_info.major, sys.version_info.minor),
             )
         )
+
+        # append the line that runs the healthchecks
+        if not self.ignore_healthchecks:
+            file_contents += textwrap.dedent(
+                """
+                
+                RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
+                """.format(
+                    flow_file_paths=", ".join(
+                        ['"{}"'.format(k) for k in self.flows.values()]
+                    ),
+                    python_version=(sys.version_info.major, sys.version_info.minor),
+                )
+            )
 
         file_contents = "\n".join(line.lstrip() for line in file_contents.split("\n"))
         dockerfile_path = os.path.join(directory, "Dockerfile")
