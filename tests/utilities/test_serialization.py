@@ -263,6 +263,13 @@ class TestStatefulFunctionReferenceField:
         )
         assert deserialized["f"](100) == outer(x=1, y=2, z=99)(100)
 
+    def test_deserialize_outer_with_state_doesnt_mutate_payload(self):
+        payload = self.Schema().dump(dict(f=outer(x=1, y=2, z=datetime.time(4))))
+        deserialized = self.Schema().load(payload)
+        assert payload["f"]["kwargs"]["x"] == 1
+        assert payload["f"]["kwargs"]["y"] == 2
+        assert isinstance(payload["f"]["kwargs"]["z"], str)
+
     def test_deserialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"f": {"fn": "hello"}})
