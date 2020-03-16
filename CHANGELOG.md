@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
 - Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
 - Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
+- Add S3Result type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
 
 ### Task Library
 
