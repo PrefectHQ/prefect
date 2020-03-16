@@ -1626,7 +1626,7 @@ class TestFlowRunMethod:
         a = prefect.schedules.clocks.DatesClock(
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
         )
-        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.25)])
+        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.35)])
 
         x = prefect.Parameter("x", default=3, required=False)
         outputs = []

@@ -429,7 +429,7 @@ class StatefulFunctionReference(fields.Field):
             return None
 
         # call function on state
-        kwargs = value.get("kwargs")
+        kwargs = value.get("kwargs", {}).copy()
 
         # if there are no kwargs, then this function isn't stateful
         if not kwargs:
