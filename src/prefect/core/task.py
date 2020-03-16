@@ -15,6 +15,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    Optional,
 )
 
 import prefect
@@ -27,6 +28,7 @@ from prefect.utilities.tasks import unmapped
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
+    from prefect.engine.result import Result
     from prefect.engine.result_handlers import ResultHandler
     from prefect.engine.state import State  # pylint: disable=W0611
 
@@ -144,6 +146,7 @@ class Task(metaclass=SignatureValidator):
         - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
+        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -179,10 +182,11 @@ class Task(metaclass=SignatureValidator):
         cache_validator: Callable = None,
         cache_key: str = None,
         checkpoint: bool = None,
-        result_handler: "ResultHandler" = None,
+        result_handler: Optional["ResultHandler"] = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         log_stdout: bool = False,
+        result: Optional["Result"] = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
@@ -256,7 +260,7 @@ class Task(metaclass=SignatureValidator):
 
         if result_handler:
             warnings.warn(
-                "DEPRECATED: the result_handler Task option is deprecated, this is being replaced by the prefect.engine.Result object.",
+                "DEPRECATED: the result_handler Task option is deprecated, please provide a 'prefect.engine.result.Result' object to the 'result' option instead.",
                 UserWarning,
             )
 

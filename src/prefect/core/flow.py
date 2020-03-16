@@ -30,7 +30,7 @@ import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.engine.result import NoResult
+from prefect.engine.result import NoResult, Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
@@ -114,6 +114,9 @@ class Flow:
         - edges ([Edge], optional): A list of edges between tasks
         - reference_tasks ([Task], optional): A list of tasks that determine the final
             state of a flow
+        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
+        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
+            retrieving and storing state results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the flow changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -128,9 +131,6 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
-            retrieving and storing state results during execution
-
     """
 
     def __init__(
@@ -145,7 +145,8 @@ class Flow:
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         validate: bool = None,
-        result_handler: ResultHandler = None,
+        result_handler: Optional[ResultHandler] = None,
+        result: Optional[Result] = None,
     ):
         self._cache = {}  # type: dict
 
@@ -161,7 +162,7 @@ class Flow:
 
         if result_handler:
             warnings.warn(
-                "DEPRECATED: the result_handler Flow option is deprecated, this is being replaced by the prefect.engine.Result object.",
+                "DEPRECATED: the result_handler Flow option is deprecated, please provide a 'prefect.engine.result.Result' object to the 'result' option instead.",
                 UserWarning,
             )
 
