@@ -53,6 +53,7 @@ classes = [
 title = "Filters"
 module = "prefect.schedules.filters"
 functions = [
+    "at_time",
     "between_datetimes",
     "between_dates",
     "between_times",
