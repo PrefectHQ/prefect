@@ -24,13 +24,19 @@ class Schedule:
     Example:
 
     ```python
+    from datetime import time, timedelta
+    from prefect.schedules import Schedule, filters
+    from prefect.schedules.clocks import IntervalClock
+
     schedule = Schedule(
         # emit an event every hour
-        clocks=[IntervalSchedule(interval=timedelta(hours=1))]
+        clocks=[IntervalClock(interval=timedelta(hours=1))],
+
         # only include weekdays
-        filters=[is_weekday]
+        filters=[filters.is_weekday],
+
         # only include 9am and 5pm
-        or_filters=[time_between(Time(9), Time(9)), time_between(Time(17), Time(17))]
+        or_filters=[filters.between_times(time(9), time(9)), filters.between_times(time(17), time(17))]
     )
 
     schedule.next(4) # returns the next 4 occurences of 9am and 5pm on weekdays
