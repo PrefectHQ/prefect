@@ -23,18 +23,24 @@ class GCSResult(Result):
     service account key.
 
     Args:
+        - value (Any, optional): the value of the result
         - bucket (str): the name of the bucket to write to / read from
         - credentials_secret (str, optional): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
+        - **kwargs (Any, optional): any prefect.engine.result.Result options
     """
 
     def __init__(
-        self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
+        self,
+        value: Any = None,
+        bucket: str = None,
+        credentials_secret: str = None,
+        **kwargs: Any
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
         self.logger = logging.get_logger(type(self).__name__)
-        super().__init__(**kwargs)
+        super().__init__(value, **kwargs)
 
     @property
     def gcs_bucket(self) -> "google.cloud.storage.bucket.Bucket":
@@ -70,10 +76,10 @@ class GCSResult(Result):
             - str: the GCS URI
         """
 
-        uri = self.render_destination()
+        uri = self.render_filepath()
 
         self.logger.debug("Starting to upload result to {}...".format(uri))
-        binary_data = base64.b64encode(cloudpickle.dumps(self.value)).decode()
+        binary_data = self.serialize()
 
         self.gcs_bucket.blob(uri).upload_from_string(binary_data)
         self.logger.debug("Finished uploading result to {}.".format(uri))
@@ -91,12 +97,12 @@ class GCSResult(Result):
             - Any: the read result
         """
         try:
-            uri = loc or self.render_destination()
+            uri = loc or self.render_filepath()
 
             self.logger.debug("Starting to download result from {}...".format(uri))
-            result = self.gcs_bucket.blob(uri).download_as_string()
+            serialized_value = self.gcs_bucket.blob(uri).download_as_string()
             try:
-                self.value = cloudpickle.loads(base64.b64decode(result))
+                self.value = self.deserialize(serialized_value)
             except EOFError:
                 self.value = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
@@ -118,6 +124,5 @@ class GCSResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        uri = self.render_destination()
-
+        uri = self.render_filepath()
         return self.gcs_bucket.blob(uri).exists()

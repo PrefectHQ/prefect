@@ -16,9 +16,11 @@ To distinguish between a Task that runs but does not return output from a Task t
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
 whose value is `None`.
 """
-
+import base64
 import datetime
 from typing import Any, Callable, Iterable, Optional
+
+import cloudpickle
 
 import prefect
 from prefect.engine.cache_validators import duration_only
@@ -71,7 +73,7 @@ class Result(ResultInterface):
     and a `safe_value` attribute which holds information about the current "safe" representation of this result.
 
     Args:
-        - value (Any): the value of the result
+        - value (Any, optional): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
             when storing / serializing this result's value; required if you intend on persisting this result in some way
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
@@ -83,7 +85,7 @@ class Result(ResultInterface):
         - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this result is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - filename_template (str, optional): Template file name to be used for saving the
+        - filepath_template (str, optional): Template file path to be used for saving the
             result to the destination.
     """
 
@@ -95,7 +97,7 @@ class Result(ResultInterface):
         run_validators: bool = True,
         cache_for: Optional[datetime.timedelta] = None,
         cache_validator: Optional[Callable] = None,
-        filename_template: Optional[str] = None,
+        filepath_template: Optional[str] = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -106,7 +108,7 @@ class Result(ResultInterface):
             cache_validator = duration_only
         self.cache_for = cache_for
         self.cache_validator = cache_validator
-        self.filename_template = filename_template
+        self.filepath_template = filepath_template
 
     def store_safe_value(self) -> None:
         """
@@ -124,10 +126,17 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
-    def render_destination(self) -> str:
-        if not self.filename_template:
-            raise ValueError("No filename_template provided")
-        return self.filename_template.format(**prefect.context)
+    def serialize(self) -> str:
+        return base64.b64encode(cloudpickle.dumps(self.value)).decode()
+
+    @classmethod
+    def deserialize(cls, serialized_value: str) -> Any:
+        return cloudpickle.loads(base64.b64decode(serialized_value))
+
+    def render_filepath(self) -> str:
+        if not self.filepath_template:
+            raise ValueError("No filepath_template provided")
+        return self.filepath_template.format(**prefect.context)
 
     def exists(self) -> bool:
         """
