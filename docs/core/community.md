@@ -24,6 +24,11 @@ Prefect encourages users to contribute in any way they can! There are a number o
 
 See our [Development Guide](/core/development/overview.html) for more information on how to get started.
 
+### Community-supported plugins and related projects
+
+Prefect is intended to be endlessly extensible and our users are always pursuing new use cases for the platform. Though we actively seek to incorporate community contributions directly into core, here are a few other projects or plugins that extend Prefect:
+
+- [`prefect_ds`](https://github.com/AndrewRook/prefect_ds) by [@AndrewRook](https://github.com/AndrewRook)
 
 ## Participating 
 

@@ -10,10 +10,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
 - Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Use a new boto3 session per thread when using S3ResultHandlers- [#2108](https://github.com/PrefectHQ/prefect/issues/2108)
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
 - Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
+- Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
 
 ### Task Library
 
@@ -21,7 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix issue with stateful function reference deserialization logic mutating state - [#2159](https://github.com/PrefectHQ/prefect/pull/2159)
 
 ### Deprecations
 
