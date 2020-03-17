@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from prefect.engine.result import Result
 
@@ -16,7 +16,7 @@ class ConstantResult(Result):
         self.value = value
         super().__init__(value=value)
 
-    def read(self, arg: str) -> Any:
+    def read(self, arg: Optional[str] = None) -> Any:
         """
         Returns the underlying value regardless of the argument passed.
 
@@ -25,12 +25,9 @@ class ConstantResult(Result):
         """
         return self.value
 
-    def write(self, result: Any) -> str:
+    def write(self) -> str:
         """
         Returns the repr of the underlying value, purely for convenience.
-
-        Args:
-            - result (Any): the result to represent
 
         Returns:
             - str: the repr of the result

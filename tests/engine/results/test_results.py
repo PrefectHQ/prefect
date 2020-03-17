@@ -21,21 +21,21 @@ class TestConstantResult:
     def test_write_doesnt_overwrite_value(self):
         constant_result = ConstantResult("untouchable!")
 
-        constant_result.write("a different value")
+        constant_result.write()
         assert constant_result.value == "untouchable!"
         assert constant_result.read("still unused") == "untouchable!"
 
     def test_write_returns_value(self):
         constant_result = ConstantResult("constant value")
 
-        output = constant_result.write("a different value")
+        output = constant_result.write()
         assert output == "'constant value'"
 
     def test_handles_none_as_constant(self):
 
         constant_result = ConstantResult(None)
         assert constant_result.read("still not used") is None
-        output = constant_result.write("also not used")
+        output = constant_result.write()
         assert output == "None"
 
     @pytest.mark.parametrize(
