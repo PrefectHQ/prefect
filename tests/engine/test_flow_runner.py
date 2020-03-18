@@ -1540,8 +1540,8 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     assert flow_state.result[log_stuff].result == (42, "original")
 
     time.sleep(0.75)
-    assert len(calls) == 1
-    assert len(calls[0][0]) == 6  # actual number of logs
+    assert len(calls) >= 1
+    assert len([log for call in calls for log in call[0]]) == 6  # actual number of logs
 
     logs = calls[0][0]
     loggers = [c["name"] for c in logs]
