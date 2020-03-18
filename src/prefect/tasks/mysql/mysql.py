@@ -5,8 +5,8 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 
 class MySQLExecute(Task): 
-	'''
-	Task for executing a query against a MySQL database. 
+    '''
+    Task for executing a query against a MySQL database. 
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
@@ -20,9 +20,9 @@ class MySQLExecute(Task):
         - cursor_class (pymysql.cursors, optional): PyMySQL Cursor object (defaults to pymysql.cursors.Cursor)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
-	'''
+    '''
 
-	def __init__(
+    def __init__(
         self,
         db_name: str,
         user: str,
@@ -69,33 +69,33 @@ class MySQLExecute(Task):
         
         conn = pymysql.connect(
             host=self.host, 
-			user=self.user, 
-			password=self.password,
-			db=self.db_name, 
-			charset=self.charset,
-			cursor_class=self.cursor_class
+            user=self.user, 
+            password=self.password,
+            db=self.db_name, 
+            charset=self.charset,
+            cursor_class=self.cursor_class
         )
 
         try:
-        	with conn: 
-	        	with conn.cursor() as cursor: 
-	        		executed = cursor.execute(query) 
-	        		if commit: 
-	        			conm.commit()
+            with conn: 
+                with conn.cursor() as cursor: 
+                    executed = cursor.execute(query) 
+                    if commit: 
+                        conm.commit()
 
-	        conn.close() 
-	        return executed 
+            conn.close() 
+            return executed 
 
-	    except Error as e: #TODO: have more granular error catching
-	    	conn.close() 
-	    	return e
+        except Error as e: #TODO: have more granular error catching
+            conn.close() 
+            return e
 
 
 class MySQLFetch(Task):
     '''
     Task for fetching results of query from MySQL database.
-	
-	Args:
+    
+    Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
@@ -168,31 +168,31 @@ class MySQLFetch(Task):
 
         conn = pymysql.connect(
             host=self.host, 
-			user=self.user, 
-			password=self.password,
-			db=self.db_name, 
-			charset=self.charset,
-			cursor_class=self.cursor_class
+            user=self.user, 
+            password=self.password,
+            db=self.db_name, 
+            charset=self.charset,
+            cursor_class=self.cursor_class
         )
 
         try: 
-        	with conn: 
-	        	with conn.cursor() as cursor: 
-	        		executed = cursor.execute(query) 
+            with conn: 
+                with conn.cursor() as cursor: 
+                    executed = cursor.execute(query) 
 
-	        		if fetch == "all":
+                    if fetch == "all":
                         results = cursor.fetchall()
                     elif fetch == "many":
                         results = cursor.fetchmany(fetch_count)
                     else:
                         results = cursor.fetchone()
 
-	        		if commit: 
-	        			conm.commit()
+                    if commit: 
+                        conm.commit()
 
-	        conn.close() 
-	        return executed 
+            conn.close() 
+            return executed 
 
-	    except Error as e: #TODO: have more granular error catching
-	    	conn.close() 
-	    	return e
+        except Error as e: #TODO: have more granular error catching
+            conn.close() 
+            return e
