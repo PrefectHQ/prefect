@@ -700,10 +700,12 @@ class Client:
         """
         Get the default tenant slug for the currently authenticated user
 
-        Returns:
-            - str: the slug of the current default tenant for this user
+        Args:
             - as_user (bool, optional): whether this query is being made from a USER scoped token;
                 defaults to `True`. Only used internally for queries made from RUNNERs
+
+        Returns:
+            - str: the slug of the current default tenant for this user
         """
         if as_user:
             query = {
