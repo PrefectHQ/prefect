@@ -260,7 +260,7 @@ class Task(metaclass=SignatureValidator):
 
         if result_handler:
             warnings.warn(
-                "DEPRECATED: the result_handler Task option is deprecated, please provide a 'prefect.engine.result.Result' object to the 'result' option instead.",
+                "DEPRECATED: the result_handler Task option will be deprecated in 0.11.0, and removed in 0.12.0, in favor of the `result` option instead.",
                 UserWarning,
             )
 
