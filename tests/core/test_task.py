@@ -597,18 +597,24 @@ class TestTaskArgs:
 
 
 def test_cache_options_show_deprecation():
-    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
         Task(cache_for=object())
 
-    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
         Task(cache_validator=object())
 
-    with pytest.warns(UserWarning, match="all cache_\* Task options are deprecated.*"):
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
         Task(cache_key=object())
 
 
 def test_result_handler_option_shows_deprecation():
     with pytest.warns(
-        UserWarning, match="the result_handler Task option is deprecated.*"
+        UserWarning, match="the result_handler Task option will be deprecated*"
     ):
         Task(result_handler=object())

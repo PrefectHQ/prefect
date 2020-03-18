@@ -2641,6 +2641,6 @@ def test_timeout_actually_stops_execution(executor):
 
 def test_result_handler_option_shows_deprecation():
     with pytest.warns(
-        UserWarning, match="the result_handler Flow option is deprecated.*"
+        UserWarning, match="the result_handler Flow option will be deprecated*"
     ):
         Flow("dummy", result_handler=object())
