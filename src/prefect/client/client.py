@@ -661,13 +661,15 @@ class Client:
 
         return flow_id
 
-    def get_cloud_url(self, subdirectory: str, id: str) -> str:
+    def get_cloud_url(self, subdirectory: str, id: str, as_user: bool = True) -> str:
         """
         Convenience method for creating Prefect Cloud URLs for a given subdirectory.
 
         Args:
             - subdirectory (str): the subdirectory to use (e.g., `"flow-run"`)
             - id (str): the ID of the page
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
 
         Returns:
             - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory and ID
@@ -683,7 +685,7 @@ class Client:
         ```
         """
         # Generate direct link to Cloud flow
-        tenant_slug = self.get_default_tenant_slug()
+        tenant_slug = self.get_default_tenant_slug(as_user=as_user)
 
         base_url = (
             re.sub("api-", "", prefect.config.cloud.api)
@@ -694,19 +696,28 @@ class Client:
         full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
         return full_url
 
-    def get_default_tenant_slug(self) -> str:
+    def get_default_tenant_slug(self, as_user=True) -> str:
         """
         Get the default tenant slug for the currently authenticated user
 
         Returns:
             - str: the slug of the current default tenant for this user
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
         """
-        res = self.graphql(
-            query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
-        )
+        if as_user:
+            query = {"query": {"user": {"default_membership": {"tenant": "slug"}}}}
+        else:
+            query = {"query": {"tenant": {"slug"}}}
 
-        user = res.get("data").user[0]
-        return user.default_membership.tenant.slug
+        res = self.graphql(query)
+
+        if as_user:
+            user = res.get("data").user[0]
+            slug = user.default_membership.tenant.slug
+        else:
+            slug = res.get("data").tenant[0].slug
+        return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
