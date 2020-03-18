@@ -655,11 +655,44 @@ class Client:
                 else re.sub("api", "cloud", prefect.config.cloud.api)
             )
 
-            flow_url = "/".join([url.rstrip("/"), tenant_slug, "flow", flow_id])
+            flow_url = self.get_cloud_url("flow", flow_id)
 
             print("Flow: {}".format(flow_url))
 
         return flow_id
+
+    def get_cloud_url(self, subdirectory: str, id: str) -> str:
+        """
+        Convenience method for creating Prefect Cloud URLs for a given subdirectory.
+
+        Args:
+            - subdirectory (str): the subdirectory to use (e.g., `"flow-run"`)
+            - id (str): the ID of the page
+
+        Returns:
+            - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory and ID
+
+        Example:
+
+        ```python
+        from prefect import Client
+
+        client = Client()
+        client.get_cloud_url("flow-run", "424242-ca-94611-111-55")
+        # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
+        ```
+        """
+        # Generate direct link to Cloud flow
+        tenant_slug = self.get_default_tenant_slug()
+
+        base_url = (
+            re.sub("api-", "", prefect.config.cloud.api)
+            if re.search("api-", prefect.config.cloud.api)
+            else re.sub("api", "cloud", prefect.config.cloud.api)
+        )
+
+        full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
+        return full_url
 
     def get_default_tenant_slug(self) -> str:
         """
