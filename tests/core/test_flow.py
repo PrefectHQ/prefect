@@ -2637,3 +2637,10 @@ def test_timeout_actually_stops_execution(executor):
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+
+
+def test_result_handler_option_shows_deprecation():
+    with pytest.warns(
+        UserWarning, match="the result_handler Flow option will be deprecated*"
+    ):
+        Flow("dummy", result_handler=object())

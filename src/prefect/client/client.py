@@ -575,9 +575,16 @@ class Client:
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
-            raise ClientError(
-                "Flows with required parameters can not be scheduled automatically."
-            )
+            required_names = {p.name for p in required_parameters}
+            if not all(
+                [
+                    required_names == set(c.parameter_defaults.keys())
+                    for c in flow.schedule.clocks
+                ]
+            ):
+                raise ClientError(
+                    "Flows with required parameters can not be scheduled automatically."
+                )
         if any(e.key for e in flow.edges) and flow.result_handler is None:
             warnings.warn(
                 "No result handler was specified on your Flow. Cloud features such as input caching and resuming task runs from failure may not work properly.",
@@ -647,33 +654,73 @@ class Client:
 
         if not no_url:
             # Generate direct link to Cloud flow
-            tenant_slug = self.get_default_tenant_slug()
-
-            url = (
-                re.sub("api-", "", prefect.config.cloud.api)
-                if re.search("api-", prefect.config.cloud.api)
-                else re.sub("api", "cloud", prefect.config.cloud.api)
-            )
-
-            flow_url = "/".join([url.rstrip("/"), tenant_slug, "flow", flow_id])
+            flow_url = self.get_cloud_url("flow", flow_id)
 
             print("Flow: {}".format(flow_url))
 
         return flow_id
 
-    def get_default_tenant_slug(self) -> str:
+    def get_cloud_url(self, subdirectory: str, id: str, as_user: bool = True) -> str:
+        """
+        Convenience method for creating Prefect Cloud URLs for a given subdirectory.
+
+        Args:
+            - subdirectory (str): the subdirectory to use (e.g., `"flow-run"`)
+            - id (str): the ID of the page
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
+
+        Returns:
+            - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory and ID
+
+        Example:
+
+        ```python
+        from prefect import Client
+
+        client = Client()
+        client.get_cloud_url("flow-run", "424242-ca-94611-111-55")
+        # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
+        ```
+        """
+        # Generate direct link to Cloud flow
+        tenant_slug = self.get_default_tenant_slug(as_user=as_user)
+
+        base_url = (
+            re.sub("api-", "", prefect.config.cloud.api)
+            if re.search("api-", prefect.config.cloud.api)
+            else re.sub("api", "cloud", prefect.config.cloud.api)
+        )
+
+        full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
+        return full_url
+
+    def get_default_tenant_slug(self, as_user: bool = True) -> str:
         """
         Get the default tenant slug for the currently authenticated user
+
+        Args:
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
 
         Returns:
             - str: the slug of the current default tenant for this user
         """
-        res = self.graphql(
-            query={"query": {"user": {"default_membership": {"tenant": "slug"}}}}
-        )
+        if as_user:
+            query = {
+                "query": {"user": {"default_membership": {"tenant": "slug"}}}
+            }  # type: dict
+        else:
+            query = {"query": {"tenant": {"slug"}}}
 
-        user = res.get("data").user[0]
-        return user.default_membership.tenant.slug
+        res = self.graphql(query)
+
+        if as_user:
+            user = res.get("data").user[0]
+            slug = user.default_membership.tenant.slug
+        else:
+            slug = res.get("data").tenant[0].slug
+        return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
