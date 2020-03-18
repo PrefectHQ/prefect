@@ -1,11 +1,9 @@
 import json
-import re
 import time
 
 import click
 from tabulate import tabulate
 
-from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -168,17 +166,7 @@ def cloud(
     if no_url:
         click.echo("Flow Run ID: {}".format(flow_run_id))
     else:
-        # Generate direct link to Cloud run
-        tenant_slug = client.get_default_tenant_slug()
-
-        url = (
-            re.sub("api-", "", config.cloud.api)
-            if re.search("api-", config.cloud.api)
-            else re.sub("api", "cloud", config.cloud.api)
-        )
-
-        flow_run_url = "/".join([url.rstrip("/"), tenant_slug, "flow-run", flow_run_id])
-
+        flow_run_url = client.get_cloud_url("flow-run", flow_run_id)
         click.echo("Flow Run: {}".format(flow_run_url))
 
     if watch:
