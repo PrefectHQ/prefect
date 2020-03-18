@@ -52,7 +52,7 @@ class TestMySQLFetch:
         )
         with pytest.raises(
             ValueError,
-            match="The 'fetch' parameter must be one of the following - \('one', 'many', 'all'\)"
+            match="The 'fetch' parameter must be one of the following - \('one', 'many', 'all'\)",
         ):
             task.run(query="SELECT * FROM some_table", fetch="not a valid parameter")
 
