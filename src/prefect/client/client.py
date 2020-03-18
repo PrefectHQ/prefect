@@ -647,14 +647,6 @@ class Client:
 
         if not no_url:
             # Generate direct link to Cloud flow
-            tenant_slug = self.get_default_tenant_slug()
-
-            url = (
-                re.sub("api-", "", prefect.config.cloud.api)
-                if re.search("api-", prefect.config.cloud.api)
-                else re.sub("api", "cloud", prefect.config.cloud.api)
-            )
-
             flow_url = self.get_cloud_url("flow", flow_id)
 
             print("Flow: {}".format(flow_url))
