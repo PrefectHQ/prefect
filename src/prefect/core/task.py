@@ -254,7 +254,7 @@ class Task(metaclass=SignatureValidator):
 
         if cache_for or cache_key or cache_validator:
             warnings.warn(
-                "DEPRECATED: all cache_* Task options are deprecated, these functionalities have been moved to the prefect.engine.Result object.",
+                "DEPRECATED: all cache_* options on a Task will be deprecated in 0.11.0, and removed in 0.12.0; the options will be moved to a Task's prefect.engine.Result object.",
                 UserWarning,
             )
 
