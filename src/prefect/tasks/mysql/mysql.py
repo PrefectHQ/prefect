@@ -4,8 +4,8 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class MySQLExecute(Task): 
-    '''
+class MySQLExecute(Task):
+    """
     Task for executing a query against a MySQL database. 
     Args:
         - db_name (str): name of MySQL database
@@ -19,7 +19,7 @@ class MySQLExecute(Task):
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
-    '''
+    """
 
     def __init__(
         self,
@@ -31,7 +31,7 @@ class MySQLExecute(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        charset: str = 'utf8mb4', 
+        charset: str = "utf8mb4",
         **kwargs
     ):
         self.db_name = db_name
@@ -63,32 +63,31 @@ class MySQLExecute(Task):
         if not query:
             raise ValueError("A query string must be provided")
 
-        
         conn = pymysql.connect(
-            host=self.host, 
-            user=self.user, 
+            host=self.host,
+            user=self.user,
             password=self.password,
-            db=self.db_name, 
+            db=self.db_name,
             charset=self.charset,
         )
 
         try:
-            with conn: 
-                with conn.cursor() as cursor: 
-                    executed = cursor.execute(query) 
-                    if commit: 
+            with conn:
+                with conn.cursor() as cursor:
+                    executed = cursor.execute(query)
+                    if commit:
                         conm.commit()
 
-            conn.close() 
-            return executed 
+            conn.close()
+            return executed
 
-        except Error as e: #TODO: have more granular error catching
-            conn.close() 
+        except Error as e:  # TODO: have more granular error catching
+            conn.close()
             return e
 
 
 class MySQLFetch(Task):
-    '''
+    """
     Task for fetching results of query from MySQL database.
     
     Args:
@@ -104,7 +103,7 @@ class MySQLFetch(Task):
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
-    '''
+    """
 
     def __init__(
         self,
@@ -163,17 +162,17 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=self.host, 
-            user=self.user, 
+            host=self.host,
+            user=self.user,
             password=self.password,
-            db=self.db_name, 
+            db=self.db_name,
             charset=self.charset,
         )
 
-        try: 
-            with conn: 
-                with conn.cursor() as cursor: 
-                    executed = cursor.execute(query) 
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    executed = cursor.execute(query)
 
                     if fetch == "all":
                         results = cursor.fetchall()
@@ -182,12 +181,12 @@ class MySQLFetch(Task):
                     else:
                         results = cursor.fetchone()
 
-                    if commit: 
+                    if commit:
                         conm.commit()
 
-            conn.close() 
-            return executed 
+            conn.close()
+            return executed
 
-        except Error as e: #TODO: have more granular error catching
-            conn.close() 
+        except Error as e:  # TODO: have more granular error catching
+            conn.close()
             return e
