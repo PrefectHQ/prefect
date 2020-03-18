@@ -46,7 +46,6 @@ Released on Mar 18, 2020.
 - Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
 - Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
-- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 - Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
 
 ### Task Library
