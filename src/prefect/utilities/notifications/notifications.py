@@ -147,10 +147,19 @@ def slack_message_formatter(
     }
 
     if prefect.context.get("flow_run_id"):
-        flow_run_url = prefect.client.Client().get_cloud_url(
-            "flow-run", prefect.context["flow_run_id"], as_user=False
-        )
-        notification_payload.update(title_link=flow_run_url)
+        url = None
+
+        if isinstance(tracked_obj, prefect.Flow):
+            url = prefect.client.Client().get_cloud_url(
+                "flow-run", prefect.context["flow_run_id"], as_user=False
+            )
+        elif isinstance(tracked_obj, prefect.Task):
+            url = prefect.client.Client().get_cloud_url(
+                "task-run", prefect.context.get("task_run_id", ""), as_user=False
+            )
+
+        if url:
+            notification_payload.update(title_link=url)
 
     data = {"attachments": [notification_payload]}
     return data

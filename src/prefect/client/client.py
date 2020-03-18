@@ -696,7 +696,7 @@ class Client:
         full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
         return full_url
 
-    def get_default_tenant_slug(self, as_user=True) -> str:
+    def get_default_tenant_slug(self, as_user: bool = True) -> str:
         """
         Get the default tenant slug for the currently authenticated user
 
@@ -706,7 +706,9 @@ class Client:
                 defaults to `True`. Only used internally for queries made from RUNNERs
         """
         if as_user:
-            query = {"query": {"user": {"default_membership": {"tenant": "slug"}}}}
+            query = {
+                "query": {"user": {"default_membership": {"tenant": "slug"}}}
+            }  # type: dict
         else:
             query = {"query": {"tenant": {"slug"}}}
 
