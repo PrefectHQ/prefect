@@ -109,6 +109,7 @@ class Result(ResultInterface):
         self.cache_for = cache_for
         self.cache_validator = cache_validator
         self.filepath_template = filepath_template
+        self._rendered_filepath = None  # type: Optional[str]
 
     def store_safe_value(self) -> None:
         """
@@ -133,10 +134,12 @@ class Result(ResultInterface):
     def deserialize(cls, serialized_value: str) -> Any:
         return cloudpickle.loads(base64.b64decode(serialized_value))
 
-    def render_filepath(self) -> str:
+    def render_filepath(self, **kwargs: Any) -> "Result":
         if not self.filepath_template:
             raise ValueError("No filepath_template provided")
-        return self.filepath_template.format(**prefect.context)
+
+        self._rendered_filepath = self.filepath_template.format(**kwargs)
+        return self
 
     def exists(self) -> bool:
         """

@@ -76,15 +76,20 @@ class GCSResult(Result):
             - str: the GCS URI
         """
 
-        uri = self.render_filepath()
+        if not self._rendered_filepath:
+            raise ValueError("must call Result.render_filepath() first")
 
-        self.logger.debug("Starting to upload result to {}...".format(uri))
+        self.logger.debug(
+            "Starting to upload result to {}...".format(self._rendered_filepath)
+        )
         binary_data = self.serialize()
 
-        self.gcs_bucket.blob(uri).upload_from_string(binary_data)
-        self.logger.debug("Finished uploading result to {}.".format(uri))
+        self.gcs_bucket.blob(self._rendered_filepath).upload_from_string(binary_data)
+        self.logger.debug(
+            "Finished uploading result to {}.".format(self._rendered_filepath)
+        )
 
-        return uri
+        return self._rendered_filepath
 
     def read(self, loc: Optional[str] = None) -> Any:
         """
@@ -96,9 +101,12 @@ class GCSResult(Result):
         Returns:
             - Any: the read result
         """
-        try:
-            uri = loc or self.render_filepath()
+        uri = loc or self._rendered_filepath
 
+        if not uri:
+            raise ValueError("must call Result.render_filepath() first")
+
+        try:
             self.logger.debug("Starting to download result from {}...".format(uri))
             serialized_value = self.gcs_bucket.blob(uri).download_as_string()
             try:
@@ -124,5 +132,6 @@ class GCSResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        uri = self.render_filepath()
-        return self.gcs_bucket.blob(uri).exists()
+        if not self._rendered_filepath:
+            raise ValueError("must call Result.render_filepath() first")
+        return self.gcs_bucket.blob(self._rendered_filepath).exists()

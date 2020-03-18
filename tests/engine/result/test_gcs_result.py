@@ -41,8 +41,8 @@ class TestGCSResult:
         google_client.return_value.bucket = MagicMock(return_value=bucket)
         result = GCSResult(bucket="foo", filepath_template="{thing}/here.txt")
         result.value = "so-much-data"
-        with prefect.context(thing="42"):
-            result.write()
+        result.render_filepath(thing=42)
+        result.write()
         assert bucket.blob.called
         assert bucket.blob.call_args[0][0] == "42/here.txt"
 
@@ -62,6 +62,7 @@ class TestGCSResult:
         )
         result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
         result.value = None
+        result.render_filepath()
         result.write()
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
@@ -77,3 +78,18 @@ class TestGCSResult:
         result = GCSResult("foo")
         res = cloudpickle.loads(cloudpickle.dumps(result))
         assert isinstance(res, GCSResult)
+
+    def test_gcs_write_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.write()
+
+    def test_gcs_read_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.read()
+
+    def test_gcs_exists_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.exists()

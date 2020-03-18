@@ -296,7 +296,8 @@ def test_results_are_pickleable_with_their_safe_values():
 def test_result_render_filepath_template_from_context():
     res = Result(filepath_template="{this}/{works}/yes?")
     with prefect.context(this="indeed", works="functional"):
-        assert res.render_filepath() == "indeed/functional/yes?"
+        res.render_filepath(**prefect.context)
+        assert res._rendered_filepath == "indeed/functional/yes?"
 
 
 def test_result_render_fails_on_no_template_given():
