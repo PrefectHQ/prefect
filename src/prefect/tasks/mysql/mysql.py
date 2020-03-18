@@ -48,8 +48,8 @@ class MySQLExecute(Task):
         self.cursor_class = cursor_class
         super().__init__(**kwargs)
 
-        @defaults_from_attrs("query", "data", "commit")
-        def run(self, query: str = None, data: tuple = None, commit: bool = False) -> None:
+    @defaults_from_attrs("query", "data", "commit")
+    def run(self, query: str = None, data: tuple = None, commit: bool = False) -> None:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -67,12 +67,14 @@ class MySQLExecute(Task):
             raise ValueError("A query string must be provided")
 
         
-        conn = pymysql.connect(host=self.host, 
-				user=self.user, 
-				password=self.password,
-				db=self.db_name, 
-				charset=self.charset,
-				cursor_class=self.cursor_class)
+        conn = pymysql.connect(
+            host=self.host, 
+			user=self.user, 
+			password=self.password,
+			db=self.db_name, 
+			charset=self.charset,
+			cursor_class=self.cursor_class
+        )
 
         try:
         	with conn: 
@@ -164,12 +166,14 @@ class MySQLFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
             )
 
-        conn = pymysql.connect(host=self.host, 
-				user=self.user, 
-				password=self.password,
-				db=self.db_name, 
-				charset=self.charset,
-				cursor_class=self.cursor_class)
+        conn = pymysql.connect(
+            host=self.host, 
+			user=self.user, 
+			password=self.password,
+			db=self.db_name, 
+			charset=self.charset,
+			cursor_class=self.cursor_class
+        )
 
         try: 
         	with conn: 
