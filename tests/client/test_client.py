@@ -896,10 +896,9 @@ def test_get_default_tenant_slug_as_user(patch_post):
 
         assert slug == "tslug"
 
+
 def test_get_default_tenant_slug_not_as_user(patch_post):
-    response = {
-        "data": {"tenant": [{"slug": "tslug"}]}
-    }
+    response = {"data": {"tenant": [{"slug": "tslug"}]}}
 
     patch_post(response)
 
@@ -910,6 +909,7 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         slug = client.get_default_tenant_slug(as_user=False)
 
         assert slug == "tslug"
+
 
 def test_get_cloud_url_as_user(patch_post):
     response = {
@@ -929,10 +929,9 @@ def test_get_cloud_url_as_user(patch_post):
         url = client.get_cloud_url(subdirectory="flow-run", id="id2")
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
+
 def test_get_cloud_url_not_as_user(patch_post):
-    response = {
-        "data": {"tenant": [{"slug": "tslug"}]}
-    }
+    response = {"data": {"tenant": [{"slug": "tslug"}]}}
 
     patch_post(response)
 
@@ -946,6 +945,7 @@ def test_get_cloud_url_not_as_user(patch_post):
 
         url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=False)
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
+
 
 def test_get_cloud_url_different_regex(patch_post):
     response = {
@@ -964,4 +964,3 @@ def test_get_cloud_url_different_regex(patch_post):
 
         url = client.get_cloud_url(subdirectory="flow-run", id="id2")
         assert url == "http://hello.prefect.io/tslug/flow-run/id2"
-
