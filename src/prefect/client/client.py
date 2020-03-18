@@ -575,9 +575,16 @@ class Client:
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
-            raise ClientError(
-                "Flows with required parameters can not be scheduled automatically."
-            )
+            required_names = {p.name for p in required_parameters}
+            if not all(
+                [
+                    required_names == set(c.parameter_defaults.keys())
+                    for c in flow.schedule.clocks
+                ]
+            ):
+                raise ClientError(
+                    "Flows with required parameters can not be scheduled automatically."
+                )
         if any(e.key for e in flow.edges) and flow.result_handler is None:
             warnings.warn(
                 "No result handler was specified on your Flow. Cloud features such as input caching and resuming task runs from failure may not work properly.",
