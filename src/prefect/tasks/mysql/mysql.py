@@ -17,7 +17,6 @@ class MySQLExecute(Task):
         - data (tuple, optional): values to use in query, must be specified using placeholder in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
-        - cursor_class (pymysql.cursors, optional): PyMySQL Cursor object (defaults to pymysql.cursors.Cursor)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     '''
@@ -33,7 +32,6 @@ class MySQLExecute(Task):
         data: tuple = None,
         commit: bool = False,
         charset: str = 'utf8mb4', 
-        cursor_class: pymyql.cursors = pymysql.cursors.Cursor, #include this?
         **kwargs
     ):
         self.db_name = db_name
@@ -45,7 +43,6 @@ class MySQLExecute(Task):
         self.data = data
         self.commit = commit
         self.charset = charset
-        self.cursor_class = cursor_class
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "commit")
@@ -73,7 +70,6 @@ class MySQLExecute(Task):
             password=self.password,
             db=self.db_name, 
             charset=self.charset,
-            cursor_class=self.cursor_class
         )
 
         try:
@@ -172,7 +168,6 @@ class MySQLFetch(Task):
             password=self.password,
             db=self.db_name, 
             charset=self.charset,
-            cursor_class=self.cursor_class
         )
 
         try: 
