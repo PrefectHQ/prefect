@@ -10,11 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
-- Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
-- Use a new boto3 session per thread when using S3ResultHandlers- [#2108](https://github.com/PrefectHQ/prefect/issues/2108)
-- Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
-- Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
+- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 
 ### Task Library
 
@@ -22,6 +18,43 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.9.8
+
+Released on Mar 18, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
+- Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
+- Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
+- Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
+- Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix S3ResultHandler use of a new boto3 session per thread - [#2108](https://github.com/PrefectHQ/prefect/issues/2108)
 - Fix issue with stateful function reference deserialization logic mutating state - [#2159](https://github.com/PrefectHQ/prefect/pull/2159)
 - Fix issue with `DateClock` serializer - [#2166](https://github.com/PrefectHQ/prefect/issues/2166)
 - Fix issue with scheduling required parameters - [#2166](https://github.com/PrefectHQ/prefect/issues/2166)
@@ -35,6 +68,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - None
 
 ### Contributors
+
+- [alexisprince1994](https://github.com/alexisprince1994)
 
 ## 0.9.7 <Badge text="beta" type="success"/>
 
