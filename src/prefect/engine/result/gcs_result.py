@@ -17,7 +17,8 @@ class GCSResult(Result):
     (see https://cloud.google.com/docs/authentication/production for all the authentication options).
 
     You can also optionally provide the name of a Prefect Secret containing your
-    service account key.
+    service account key. To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
+    To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
         - value (Any, optional): the value of the result
