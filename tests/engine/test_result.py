@@ -301,7 +301,7 @@ class TestResultValidate:
         r = Result(value=None, validators=[_example_function])
         r.validate()
 
-        _example_function.assert_called_once()
+        _example_function.assert_called_once_with(r)
 
     def test_result_validate_returns_false_on_any_invalid(self):
         one_false_validators_fns = [lambda r: True, lambda r: False]
