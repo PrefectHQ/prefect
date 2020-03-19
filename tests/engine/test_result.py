@@ -3,6 +3,8 @@ import datetime
 import cloudpickle
 import pytest
 
+from unittest.mock import MagicMock
+
 from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -290,3 +292,52 @@ def test_results_are_pickleable_with_their_safe_values():
     res = Result(3, result_handler=JSONResultHandler())
     res.store_safe_value()
     assert cloudpickle.loads(cloudpickle.dumps(res)) == res
+
+
+class TestResultValidate:
+    def test_result_validate_calls_validate_functions_from_attribute(self):
+        _example_function = MagicMock(return_value=True)
+
+        r = Result(value=None, validators=[_example_function])
+        r.validate()
+
+        _example_function.assert_called_once()
+
+    def test_result_validate_returns_false_on_any_invalid(self):
+        one_false_validators_fns = [lambda r: True, lambda r: False]
+
+        r = Result(value=None, validators=one_false_validators_fns)
+        is_valid = r.validate()
+
+        assert is_valid is False
+
+    def test_result_validate_returns_true_on_none_invalid(self):
+        no_false_validators_fns = [lambda r: True, lambda r: True]
+
+        r = Result(value=None, validators=no_false_validators_fns)
+        is_valid = r.validate()
+
+        assert is_valid is True
+
+    @pytest.mark.parametrize(
+        "r", [Result(value=None), Result(value=None, validators=[])]
+    )
+    def test_result_validate_ok_when_none_provided(self, r):
+        is_valid = r.validate()
+        assert is_valid is True
+
+    def test_result_validate_raises_exceptions(self):
+        def _example_function(result):
+            raise TypeError
+
+        r = Result(value=None, validators=[_example_function])
+        with pytest.raises(TypeError):
+            r.validate()
+
+    def test_result_validate_does_not_run_without_run_validators_flag(self):
+        _example_function = MagicMock(return_value=True)
+
+        r = Result(value=None, validators=[_example_function], run_validators=False)
+        r.validate()
+
+        _example_function.assert_not_called()

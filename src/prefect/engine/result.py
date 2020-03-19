@@ -123,6 +123,23 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
+    def validate(self) -> bool:
+        """
+        Run any validator functions associated with this result and return whether the result is valid or not.
+
+        Returns:
+            - bool: whether or not the Result passed all validation functions
+        """
+        if self.run_validators and self.validators:
+            for validation_fn in self.validators:
+                is_valid = validation_fn(self)
+                if not is_valid:
+                    # once a validator is found to be false, this result is invalid
+                    return False
+
+        # if all validators passed or we had none, this result is valid
+        return True
+
     def exists(self) -> bool:
         """
         Checks whether the target result exists.
