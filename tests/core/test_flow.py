@@ -1626,7 +1626,7 @@ class TestFlowRunMethod:
         a = prefect.schedules.clocks.DatesClock(
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
         )
-        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.25)])
+        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.35)])
 
         x = prefect.Parameter("x", default=3, required=False)
         outputs = []
@@ -2014,7 +2014,7 @@ class TestFlowRunMethod:
 
         @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
         def return_x(x, y):
-            return 1 / (y - 1) + round(random.random(), 4)
+            return 1 / (y - 1) + round(random.random(), 8)
 
         storage = {"y": []}
 
@@ -2637,3 +2637,10 @@ def test_timeout_actually_stops_execution(executor):
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+
+
+def test_result_handler_option_shows_deprecation():
+    with pytest.warns(
+        UserWarning, match="the result_handler Flow option will be deprecated*"
+    ):
+        Flow("dummy", result_handler=object())

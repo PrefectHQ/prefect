@@ -162,6 +162,11 @@ class TriggerFailedSchema(FailedSchema):
         object_class = state.TriggerFailed
 
 
+class ValidationFailedSchema(FailedSchema):
+    class Meta:
+        object_class = state.ValidationFailed
+
+
 class SkippedSchema(SuccessSchema):
     class Meta:
         object_class = state.Skipped
@@ -199,4 +204,5 @@ class StateSchema(OneOfSchema):
         "Success": SuccessSchema,
         "TimedOut": TimedOutSchema,
         "TriggerFailed": TriggerFailedSchema,
+        "ValidationFailed": ValidationFailedSchema,
     }

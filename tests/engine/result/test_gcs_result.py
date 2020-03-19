@@ -25,21 +25,24 @@ class TestGCSResult:
 
     def test_gcs_init(self, google_client):
         result = GCSResult(bucket="bob")
+        assert result.value == None
         assert result.bucket == "bob"
         assert result.credentials_secret == None
         assert google_client.called is False
         result.gcs_bucket()
         assert google_client.return_value.bucket.call_args[0][0] == "bob"
 
-    def test_gcs_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
-        self, google_client
-    ):
+    def test_gcs_init_with_value(self):
+        result = GCSResult(3, bucket="bob")
+        assert result.value == 3
+
+    def test_gcs_writes_to_blob_using_rendered_template_name(self, google_client):
         bucket = MagicMock()
         google_client.return_value.bucket = MagicMock(return_value=bucket)
-        result = GCSResult(bucket="foo", filename_template="{thing}/here.txt")
+        result = GCSResult(bucket="foo", filepath_template="{thing}/here.txt")
         result.value = "so-much-data"
-        with prefect.context(thing="42"):
-            result.write()
+        result.render_filepath(thing=42)
+        result.write()
         assert bucket.blob.called
         assert bucket.blob.call_args[0][0] == "42/here.txt"
 
@@ -57,8 +60,9 @@ class TestGCSResult:
         google_client.return_value.bucket = MagicMock(
             return_value=MagicMock(blob=MagicMock(return_value=blob))
         )
-        result = GCSResult(bucket="foo", filename_template="nothing/here.txt")
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
         result.value = None
+        result.render_filepath()
         result.write()
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
@@ -74,3 +78,18 @@ class TestGCSResult:
         result = GCSResult("foo")
         res = cloudpickle.loads(cloudpickle.dumps(result))
         assert isinstance(res, GCSResult)
+
+    def test_gcs_write_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.write()
+
+    def test_gcs_read_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.read()
+
+    def test_gcs_exists_fails_if_render_filepath_not_called_first(self, google_client):
+        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
+        with pytest.raises(ValueError):
+            result.exists()

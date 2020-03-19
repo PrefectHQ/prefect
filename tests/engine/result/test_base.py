@@ -31,7 +31,7 @@ class TestInitialization:
         assert r.validators is None
         assert r.cache_for is None
         assert r.cache_validator is None
-        assert r.filename_template is None
+        assert r.filepath_template is None
         assert r.run_validators is True
 
         s = Result(value=5)
@@ -41,7 +41,7 @@ class TestInitialization:
         assert s.validators is None
         assert s.cache_for is None
         assert s.cache_validator is None
-        assert s.filename_template is None
+        assert s.filepath_template is None
         assert r.run_validators is True
 
     def test_result_inits_with_handled_and_result_handler(self):
@@ -293,13 +293,14 @@ def test_results_are_pickleable_with_their_safe_values():
     assert cloudpickle.loads(cloudpickle.dumps(res)) == res
 
 
-def test_result_render_filename_template_from_context():
-    res = Result(filename_template="{this}/{works}/yes?")
+def test_result_render_filepath_template_from_context():
+    res = Result(filepath_template="{this}/{works}/yes?")
     with prefect.context(this="indeed", works="functional"):
-        assert res.render_destination() == "indeed/functional/yes?"
+        res.render_filepath(**prefect.context)
+        assert res._rendered_filepath == "indeed/functional/yes?"
 
 
 def test_result_render_fails_on_no_template_given():
     with pytest.raises(ValueError):
         res = Result()
-        res.render_destination()
+        res.render_filepath()
