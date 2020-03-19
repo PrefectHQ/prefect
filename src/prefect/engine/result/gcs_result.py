@@ -74,7 +74,7 @@ class GCSResult(Result):
         """
 
         if not self._rendered_filepath:
-            raise ValueError("must call Result.render_filepath() first")
+            raise ValueError("Must call `Result.render_filepath()` first")
 
         self.logger.debug(
             "Starting to upload result to {}...".format(self._rendered_filepath)
