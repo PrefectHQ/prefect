@@ -4,7 +4,7 @@
 
 A `Flow` is a container for `Tasks`. It represents an entire workflow or application by describing the dependencies between tasks.
 
-Flows are DAGs, or "directed acyclic graphs." This is a mathematical way of describing certain organizational principals:
+Flows are DAGs, or "directed acyclic graphs." This is a mathematical way of describing certain organizational principles:
 
 - A **graph** is a data structure that uses "edges" to connect "nodes." Prefect models each `Flow` as a graph in which `Task` dependencies are modeled by `Edges`.
 - A **directed** graph means that edges have a start and an end: when two tasks are connected, one of them unambiguously runs first and the other one runs second.
