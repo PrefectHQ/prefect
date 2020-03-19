@@ -81,7 +81,7 @@ class MySQLExecute(Task):
             conn.close()
             return executed
 
-        except (Exception, pymysql.DatabaseError) as e: 
+        except (Exception, pymysql.DatabaseError) as e:
             conn.close()
             return e
 
@@ -187,6 +187,6 @@ class MySQLFetch(Task):
             conn.close()
             return executed
 
-        except (Exception, pymysql.DatabaseError) as e: 
+        except (Exception, pymysql.DatabaseError) as e:
             conn.close()
             return e
