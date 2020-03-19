@@ -34,8 +34,34 @@ The executor classes are responsible for actually running tasks. For example, th
 
 Executors have a relatively simple API - users can `submit` functions and `wait` for their results.
 
-For testing and development, the `LocalExecutor` is preferred. It runs every function synchronously in the local process.
+For testing and development, the `LocalExecutor` is preferred. It runs every function synchronously in the local process and is the default executor for flows unless otherwise specified.
 
 The `SynchronousExecutor` is slightly more complex. It still runs functions in a single thread, but uses Dask's scheduling logic.
 
 The `DaskExecutor` is a completely asynchronous engine that can run functions in a distributed Dask cluster. This is the recommended engine for production.
+
+### Using a Dask Executor
+
+An executor can be provided to a flow at runtime:
+
+```python{10, 12-13}
+from prefect import task, Flow
+
+@task
+def say_hello():
+    print("Hello, world!")
+
+with Flow("Run Me") as flow:
+    h = say_hello()
+
+from prefect.engine.executors import DaskExecutor
+
+executor = DaskExecutor(address="tcp://localhost:8786")
+flow.run(executor=executor)
+```
+
+This `DaskExecutor` will connect to a Dask scheduler over the address `tcp://localhost:8786` and begin submitting work to be executed on Dask workers.
+
+:::tip Dynamic Scheduler
+If no scheduler `address` is specified for the `DaskExecutor` than an in-process scheduler will be created and torn down upon completion. See the [DaskExecutor API Documentation](/api/latest/engine/executors.html#daskexecutor) for more information.
+:::
