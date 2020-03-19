@@ -101,7 +101,7 @@ class GCSResult(Result):
         uri = loc or self._rendered_filepath
 
         if not uri:
-            raise ValueError("must call Result.render_filepath() first")
+            raise ValueError("Must call `Result.render_filepath()` first")
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
