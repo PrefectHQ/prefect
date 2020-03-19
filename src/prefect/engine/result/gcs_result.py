@@ -130,5 +130,5 @@ class GCSResult(Result):
             - bool: whether or not the target result exists.
         """
         if not self._rendered_filepath:
-            raise ValueError("must call Result.render_filepath() first")
+            raise ValueError("Must call `Result.render_filepath()` first")
         return self.gcs_bucket.blob(self._rendered_filepath).exists()
