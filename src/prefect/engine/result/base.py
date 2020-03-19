@@ -22,7 +22,6 @@ from typing import Any, Callable, Iterable, Optional
 
 import cloudpickle
 
-import prefect
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 
@@ -128,13 +127,37 @@ class Result(ResultInterface):
             )
 
     def serialize(self) -> str:
+        """
+        Serializes the result value into a string.
+
+        Returns:
+            - str: the serialized result value
+        """
         return base64.b64encode(cloudpickle.dumps(self.value)).decode()
 
     @classmethod
     def deserialize(cls, serialized_value: str) -> Any:
+        """
+        Takes a given serialized result value and returns a deserialized value.
+
+        Args:
+            - serialized_value (str): The serialized result value
+
+        Returns:
+            - Any: the deserialized result value
+        """
         return cloudpickle.loads(base64.b64decode(serialized_value))
 
     def render_filepath(self, **kwargs: Any) -> "Result":
+        """
+        Takes a set of string format key-value pairs and renders the result.filepath_template to a final filepath string
+
+        Args:
+            - **kwargs (Any): string format arguments for result.filepath_template
+
+        Returns:
+            - Any: the current result instance
+        """
         if not self.filepath_template:
             raise ValueError("No filepath_template provided")
 

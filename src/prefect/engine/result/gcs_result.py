@@ -1,7 +1,4 @@
-import base64
 from typing import TYPE_CHECKING, Any, Optional
-
-import cloudpickle
 
 from prefect.engine.result.base import Result
 from prefect.client import Secret
