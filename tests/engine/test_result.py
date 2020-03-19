@@ -338,6 +338,8 @@ class TestResultValidate:
         _example_function = MagicMock(return_value=True)
 
         r = Result(value=None, validators=[_example_function], run_validators=False)
-        r.validate()
+        is_valid = r.validate()
 
         _example_function.assert_not_called()
+
+        assert is_valid is True
