@@ -75,7 +75,7 @@ class GCSResult(Result):
         """
 
         if not self._rendered_filepath:
-            raise ValueError("Must call `Result.render_filepath()` first")
+            raise ValueError("Must call `Result.format()` first")
 
         self.logger.debug(
             "Starting to upload result to {}...".format(self._rendered_filepath)
@@ -102,7 +102,7 @@ class GCSResult(Result):
         uri = loc or self._rendered_filepath
 
         if not uri:
-            raise ValueError("Must call `Result.render_filepath()` first")
+            raise ValueError("Must call `Result.format()` first")
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
@@ -131,5 +131,5 @@ class GCSResult(Result):
             - bool: whether or not the target result exists.
         """
         if not self._rendered_filepath:
-            raise ValueError("Must call `Result.render_filepath()` first")
+            raise ValueError("Must call `Result.format()` first")
         return self.gcs_bucket.blob(self._rendered_filepath).exists()

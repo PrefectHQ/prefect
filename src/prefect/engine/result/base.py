@@ -17,6 +17,7 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 whose value is `None`.
 """
 import base64
+import copy
 import datetime
 from typing import Any, Callable, Iterable, Optional
 
@@ -126,6 +127,12 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
+    def copy(self) -> "Result":
+        """
+        Return a copy of the current result object.
+        """
+        return copy.copy(self)
+
     def serialize(self) -> str:
         """
         Serializes the result value into a string.
@@ -148,7 +155,7 @@ class Result(ResultInterface):
         """
         return cloudpickle.loads(base64.b64decode(serialized_value))
 
-    def render_filepath(self, **kwargs: Any) -> "Result":
+    def format(self, **kwargs: Any) -> "Result":
         """
         Takes a set of string format key-value pairs and renders the result.filepath_template to a final filepath string
 
@@ -158,11 +165,13 @@ class Result(ResultInterface):
         Returns:
             - Any: the current result instance
         """
-        if not self.filepath_template:
+        new = self.copy()
+
+        if not new.filepath_template:
             raise ValueError("No filepath_template provided")
 
-        self._rendered_filepath = self.filepath_template.format(**kwargs)
-        return self
+        new._rendered_filepath = new.filepath_template.format(**kwargs)
+        return new
 
     def exists(self) -> bool:
         """
