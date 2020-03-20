@@ -76,6 +76,13 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--max-polls",
+    required=False,
+    help="Maximum number of polls for the agent",
+    hidden=True,
+    type=int,
+)
+@click.option(
     "--namespace",
     required=False,
     help="Kubernetes namespace to create jobs.",
@@ -108,9 +115,6 @@ def agent():
     multiple=True,
     help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
     hidden=True,
-)
-@click.option(
-    "--max-polls", required=False, help="MAX POLLS", hidden=True, type=int
 )
 @click.pass_context
 def start(
@@ -149,6 +153,8 @@ def start(
         --env, -e       TEXT    Environment variables to set on each submitted flow run.
                                 Note that equal signs in environment variable values are not currently supported from the CLI.
                                 Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --max-polls     INT     Maximum number of times the agent should poll Prefect Cloud for flow runs. Will run forever
+                                if not specified.
         --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
                                 Defaults to `False`
 

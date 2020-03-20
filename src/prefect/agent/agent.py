@@ -70,6 +70,8 @@ class Agent:
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
     """
 
     def __init__(
@@ -157,7 +159,7 @@ class Agent:
                         and remaining_polls
                     ):
                         self.heartbeat()
-                        print(remaining_polls)
+
                         if self.agent_process(executor, tenant_id):
                             index = 0
                         elif index < max(loop_intervals.keys()):
