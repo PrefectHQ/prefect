@@ -67,7 +67,9 @@ class KubernetesAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
     ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars, max_polls=max_polls)
+        super().__init__(
+            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+        )
 
         self.namespace = namespace
 
