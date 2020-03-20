@@ -214,15 +214,16 @@ def start(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
-                max_polls=max_polls,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
@@ -230,15 +231,23 @@ def start(
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars, **kwargs
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                **kwargs
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                namespace=namespace, name=name, labels=list(label), env_vars=env_vars
+                namespace=namespace,
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars
+                name=name, labels=list(label), env_vars=env_vars, max_polls=max_polls,
             ).start()
 
 
