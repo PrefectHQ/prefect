@@ -109,6 +109,9 @@ def agent():
     help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
     hidden=True,
 )
+@click.option(
+    "--max-polls", required=False, help="MAX POLLS", hidden=True, type=int
+)
 @click.pass_context
 def start(
     ctx,
@@ -125,6 +128,7 @@ def start(
     import_path,
     show_flow_logs,
     volume,
+    max_polls,
 ):
     """
     Start an agent.
@@ -206,6 +210,7 @@ def start(
                 env_vars=env_vars,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
+                max_polls=max_polls,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(

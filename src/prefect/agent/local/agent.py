@@ -53,11 +53,12 @@ class LocalAgent(Agent):
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
+        max_polls: int = None,
     ) -> None:
         self.processes = []  # type: list
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(name=name, labels=labels, env_vars=env_vars, max_polls=max_polls)
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
