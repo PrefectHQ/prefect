@@ -16,9 +16,12 @@ To distinguish between a Task that runs but does not return output from a Task t
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
 whose value is `None`.
 """
-
+import base64
+import copy
 import datetime
 from typing import Any, Callable, Iterable, Optional
+
+import cloudpickle
 
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
@@ -70,7 +73,7 @@ class Result(ResultInterface):
     and a `safe_value` attribute which holds information about the current "safe" representation of this result.
 
     Args:
-        - value (Any): the value of the result
+        - value (Any, optional): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
             when storing / serializing this result's value; required if you intend on persisting this result in some way
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
@@ -82,19 +85,19 @@ class Result(ResultInterface):
         - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this result is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - filename_template (str, optional): Template file name to be used for saving the
+        - filepath_template (str, optional): Template file path to be used for saving the
             result to the destination.
     """
 
     def __init__(
         self,
-        value: Any,
+        value: Any = None,
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         cache_for: Optional[datetime.timedelta] = None,
         cache_validator: Optional[Callable] = None,
-        filename_template: Optional[str] = None,
+        filepath_template: Optional[str] = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -105,7 +108,8 @@ class Result(ResultInterface):
             cache_validator = duration_only
         self.cache_for = cache_for
         self.cache_validator = cache_validator
-        self.filename_template = filename_template
+        self.filepath_template = filepath_template
+        self._rendered_filepath = None  # type: Optional[str]
 
     def store_safe_value(self) -> None:
         """
@@ -122,6 +126,52 @@ class Result(ResultInterface):
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
+
+    def copy(self) -> "Result":
+        """
+        Return a copy of the current result object.
+        """
+        return copy.copy(self)
+
+    def serialize(self) -> str:
+        """
+        Serializes the result value into a string.
+
+        Returns:
+            - str: the serialized result value
+        """
+        return base64.b64encode(cloudpickle.dumps(self.value)).decode()
+
+    @classmethod
+    def deserialize(cls, serialized_value: str) -> Any:
+        """
+        Takes a given serialized result value and returns a deserialized value.
+
+        Args:
+            - serialized_value (str): The serialized result value
+
+        Returns:
+            - Any: the deserialized result value
+        """
+        return cloudpickle.loads(base64.b64decode(serialized_value))
+
+    def format(self, **kwargs: Any) -> "Result":
+        """
+        Takes a set of string format key-value pairs and renders the result.filepath_template to a final filepath string
+
+        Args:
+            - **kwargs (Any): string format arguments for result.filepath_template
+
+        Returns:
+            - Any: the current result instance
+        """
+        new = self.copy()
+
+        if not new.filepath_template:
+            raise ValueError("No filepath_template provided")
+
+        new._rendered_filepath = new.filepath_template.format(**kwargs)
+        return new
 
     def exists(self) -> bool:
         """
