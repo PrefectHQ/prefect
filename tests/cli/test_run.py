@@ -403,7 +403,14 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
             assert create_flow_run_mock.call_args[1]["parameters"] == {"test": 43}
 
 
-def test_run_cloud_flow_run_id_link(monkeypatch):
+@pytest.mark.parametrize(
+    "api,expected",
+    [
+        ("https://api.foo", "https://cloud.foo/flow-run/id"),
+        ("https://api-foo.prefect.io", "https://foo.prefect.io/tslug/flow-run/id"),
+    ],
+)
+def test_run_cloud_flow_run_id_link(monkeypatch, api, expected):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
@@ -419,16 +426,14 @@ def test_run_cloud_flow_run_id_link(monkeypatch):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config(
-        {"cloud.api": "https://api.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.api": api, "cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
             run, ["cloud", "--name", "flow", "--project", "project", "--version", "2",],
         )
         assert result.exit_code == 0
         assert "Flow Run" in result.output
-        assert "https://cloud.foo/tslug/flow-run/id" in result.output
+        assert expected in result.output
 
 
 def test_run_cloud_flow_run_id_no_link(monkeypatch):

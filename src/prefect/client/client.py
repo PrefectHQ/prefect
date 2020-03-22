@@ -6,7 +6,7 @@ import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import pendulum
 import toml
@@ -635,8 +635,11 @@ class Client:
         # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
         ```
         """
-        # Generate direct link to Cloud flow
-        tenant_slug = self.get_default_tenant_slug(as_user=as_user)
+        # Generate direct link to UI
+        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+            tenant_slug = self.get_default_tenant_slug(as_user=as_user)
+        else:
+            tenant_slug = ""
 
         base_url = (
             re.sub("api-", "", prefect.config.cloud.api)
@@ -644,7 +647,10 @@ class Client:
             else re.sub("api", "cloud", prefect.config.cloud.api)
         )
 
-        full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
+        if tenant_slug:
+            full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
+        else:
+            full_url = "/".join([base_url.rstrip("/"), subdirectory, id])
         return full_url
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:
