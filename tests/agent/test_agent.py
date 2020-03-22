@@ -144,7 +144,8 @@ def test_query_flow_runs(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]), flow_run=[{"id": "id"}]
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
+                flow_run=[{"id": "id"}],
             )
         )
     )
@@ -161,7 +162,7 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_t
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["id1", "id2"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id1", "id2"]),
                 flow_run=[{"id1": "id1"}],
             )
         )
@@ -187,7 +188,7 @@ def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["already-submitted-id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["already-submitted-id"]),
                 flow_run=[{"id": "id"}],
             )
         )
@@ -339,7 +340,7 @@ def test_agent_process(monkeypatch, runner_token):
             data=MagicMock(
                 set_flow_run_state=None,
                 set_task_run_state=None,
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
                 flow_run=[
                     GraphQLResult(
                         {
@@ -381,7 +382,7 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
             data=MagicMock(
                 set_flow_run_state=None,
                 set_task_run_state=None,
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
                 flow_run=[],
             )
         )

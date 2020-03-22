@@ -326,8 +326,8 @@ class Agent:
 
         # Get scheduled flow runs from queue
         mutation = {
-            "mutation($input: getRunsInQueueInput!)": {
-                "getRunsInQueue(input: $input)": {"flow_run_ids"}
+            "mutation($input: get_runs_in_queue_input!)": {
+                "get_runs_in_queue(input: $input)": {"flow_run_ids"}
             }
         }
 
@@ -347,10 +347,12 @@ class Agent:
         # by this agent and are in the process of being submitted in the background. We do not
         # want to act on these "duplicate" flow runs until we've been assured that the background
         # thread has attempted to submit the work (successful or otherwise).
-        flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
+        flow_run_ids = set(result.data.get_runs_in_queue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
-            msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
+            msg = "Found flow runs {}".format(
+                result.data.get_runs_in_queue.flow_run_ids
+            )
         else:
             msg = "No flow runs found"
 
