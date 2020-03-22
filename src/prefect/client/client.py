@@ -592,14 +592,14 @@ class Client:
             )
         if compressed:
             create_mutation = {
-                "mutation($input: createFlowFromCompressedStringInput!)": {
-                    "createFlowFromCompressedString(input: $input)": {"id"}
+                "mutation($input: create_flow_from_compressed_string_input!)": {
+                    "create_flow_from_compressed_string(input: $input)": {"id"}
                 }
             }
         else:
             create_mutation = {
-                "mutation($input: createFlowInput!)": {
-                    "createFlow(input: $input)": {"id"}
+                "mutation($input: create_flow_input!)": {
+                    "create_flow(input: $input)": {"id"}
                 }
             }
 
@@ -638,18 +638,18 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    projectId=project[0].id,
-                    serializedFlow=serialized_flow,
-                    setScheduleActive=set_schedule_active,
-                    versionGroupId=version_group_id,
+                    project_id=project[0].id,
+                    serialized_flow=serialized_flow,
+                    set_schedule_active=set_schedule_active,
+                    version_group_id=version_group_id,
                 )
             ),
         )  # type: Any
 
         flow_id = (
-            res.data.createFlowFromCompressedString.id
+            res.data.create_flow_from_compressed_string.id
             if compressed
-            else res.data.createFlow.id
+            else res.data.create_flow.id
         )
 
         if not no_url:
