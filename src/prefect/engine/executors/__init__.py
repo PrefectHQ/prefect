@@ -15,7 +15,7 @@ for an Executor consists of the following methods:
 Currently, the available executor options are:
 
 - `LocalExecutor`: the no frills, straightforward executor - great for debugging;
-    tasks are executed immediately upon being called by `executor.submit()`.Note 
+    tasks are executed immediately upon being called by `executor.submit()`.Note
     that the `LocalExecutor` is not capable of parallelism.  Currently the default executor.
 - `LocalDaskExecutor`: an executor that runs on `dask` primitives with a
     configurable dask scheduler.
@@ -24,6 +24,14 @@ Currently, the available executor options are:
 
 Which executor you choose depends on whether you intend to use things like parallelism
 of task execution.
+
+The key difference between the `LocalDaskExecutor` and the `DaskExecutor` is the choice
+of scheduler. The `LocalDaskExecutor` is configurable to use
+[any number of schedulers](https://docs.dask.org/en/latest/scheduler-overview.html) while the
+`DaskExecutor` uses the [distributed scheduler](https://docs.dask.org/en/latest/scheduling.html).
+This means that the `LocalDaskExecutor` can help achieve some multithreading / multiprocessing
+however it does not provide as many distributed features as the `DaskExecutor`.
+
 """
 import prefect
 from prefect.engine.executors.base import Executor
