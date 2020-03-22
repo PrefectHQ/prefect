@@ -601,7 +601,6 @@ def test_k8s_agent_start_max_polls(monkeypatch, runner_token):
     agent.start()
 
     assert agent_process.called
-    assert agent_process.call_args[0][1] == "id"
     assert heartbeat.called
 
 

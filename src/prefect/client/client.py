@@ -293,7 +293,12 @@ class Client:
             raise ValueError("Invalid method: {}".format(method))
 
         # Check if request returned a successful status
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except:
+            from IPython import embed
+
+            embed()
 
         return response
 
@@ -748,7 +753,7 @@ class Client:
         """
         create_mutation = {
             "mutation($input: create_flow_run_input!)": {
-                "create_flow_run(input: $input)": {"flow_run": "id"}
+                "create_flow_run(input: $input)": {"id": True}
             }
         }
         if not flow_id and not version_group_id:
@@ -770,7 +775,7 @@ class Client:
         if run_name is not None:
             inputs.update(flow_run_name=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
-        return res.data.create_flow_run.flow_run.id  # type: ignore
+        return res.data.create_flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """

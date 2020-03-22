@@ -835,7 +835,7 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
 @pytest.mark.parametrize("kwargs", [dict(flow_id="blah"), dict(version_group_id="cat")])
 def test_create_flow_run_with_input(patch_post, kwargs):
     response = {
-        "data": {"create_flow_run": {"flow_run": {"id": "FOO"}}},
+        "data": {"create_flow_run": {"id": "FOO"}},
     }
     post = patch_post(response)
 
