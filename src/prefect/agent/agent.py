@@ -1,6 +1,7 @@
 import ast
 import functools
 import logging
+import math
 import os
 import signal
 import sys
@@ -70,16 +71,23 @@ class Agent:
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
     """
 
     def __init__(
-        self, name: str = None, labels: Iterable[str] = None, env_vars: dict = None
+        self,
+        name: str = None,
+        labels: Iterable[str] = None,
+        env_vars: dict = None,
+        max_polls: int = None,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
         self.env_vars = env_vars or dict()
+        self.max_polls = max_polls
         self.log_to_cloud = config.logging.log_to_cloud
 
         token = config.cloud.agent.get("auth_token")
@@ -140,6 +148,7 @@ class Agent:
                 }
 
                 index = 0
+                remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
                 # the max workers default has changed in 3.5 and 3.8. For stable results the
                 # default 3.8 behavior is elected here.
@@ -147,13 +156,18 @@ class Agent:
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     self.logger.debug("Max Workers: {}".format(max_workers))
-                    while not exit_event.wait(timeout=loop_intervals[index]):
+                    while (
+                        not exit_event.wait(timeout=loop_intervals[index])
+                        and remaining_polls
+                    ):
                         self.heartbeat()
 
                         if self.agent_process(executor):
                             index = 0
                         elif index < max(loop_intervals.keys()):
                             index += 1
+
+                        remaining_polls -= 1
 
                         self.logger.debug(
                             "Next query for flow runs in {} seconds".format(
