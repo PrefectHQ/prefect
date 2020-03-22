@@ -89,7 +89,10 @@ class Client:
         )
 
         # if no api token was passed, attempt to load state from local storage
-        if not self._api_token:
+        if (
+            not self._api_token
+            and "prefect.io" in urlparse(prefect.config.cloud.api).netloc
+        ):
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
