@@ -212,7 +212,7 @@ class Agent:
                 self.client.write_run_logs(
                     [
                         dict(
-                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
                             name=self.name,
                             message="Submitted for execution: {}".format(
                                 deployment_info
@@ -235,7 +235,7 @@ class Agent:
                 self.client.write_run_logs(
                     [
                         dict(
-                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
                             name=self.name,
                             message=str(exc),
                             level="ERROR",

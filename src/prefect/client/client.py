@@ -963,7 +963,7 @@ class Client:
                     "getOrCreateTaskRun",
                     {
                         "input": {
-                            "flowRunId": flow_run_id,
+                            "flow_run_id": flow_run_id,
                             "taskId": task_id,
                             "mapIndex": -1 if map_index is None else map_index,
                         }

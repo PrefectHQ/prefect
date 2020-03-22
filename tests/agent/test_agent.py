@@ -428,7 +428,7 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog):
 
     assert client.write_run_logs.called
     client.write_run_logs.assert_called_with(
-        [dict(flowRunId="id", level="ERROR", message="Error Here", name="agent")]
+        [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
     assert "Logging platform error for flow run" in caplog.text
 
