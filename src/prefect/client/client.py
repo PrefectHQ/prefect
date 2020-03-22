@@ -737,8 +737,8 @@ class Client:
             - ClientError: if the project creation failed
         """
         project_mutation = {
-            "mutation($input: createProjectInput!)": {
-                "createProject(input: $input)": {"id"}
+            "mutation($input: create_project_input!)": {
+                "create_project(input: $input)": {"id"}
             }
         }
 
@@ -749,7 +749,7 @@ class Client:
             ),
         )  # type: Any
 
-        return res.data.createProject.id
+        return res.data.create_project.id
 
     def create_flow_run(
         self,
@@ -786,30 +786,30 @@ class Client:
             - ClientError: if the GraphQL query is bad for any reason
         """
         create_mutation = {
-            "mutation($input: createFlowRunInput!)": {
-                "createFlowRun(input: $input)": {"flow_run": "id"}
+            "mutation($input: create_flow_run_input!)": {
+                "create_flow_run(input: $input)": {"flow_run": "id"}
             }
         }
         if not flow_id and not version_group_id:
             raise ValueError("One of flow_id or version_group_id must be provided")
 
         inputs = (
-            dict(flowId=flow_id) if flow_id else dict(versionGroupId=version_group_id)  # type: ignore
+            dict(flow_id=flow_id) if flow_id else dict(version_group_id=version_group_id)  # type: ignore
         )
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
         if context is not None:
             inputs.update(context=context)  # type: ignore
         if idempotency_key is not None:
-            inputs.update(idempotencyKey=idempotency_key)  # type: ignore
+            inputs.update(idempotency_key=idempotency_key)  # type: ignore
         if scheduled_start_time is not None:
             inputs.update(
-                scheduledStartTime=scheduled_start_time.isoformat()
+                scheduled_start_time=scheduled_start_time.isoformat()
             )  # type: ignore
         if run_name is not None:
-            inputs.update(flowRunName=run_name)  # type: ignore
+            inputs.update(flow_run_name=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
-        return res.data.createFlowRun.flow_run.id  # type: ignore
+        return res.data.create_flow_run.flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """
@@ -891,7 +891,7 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "updateFlowRunHeartbeat", {"input": {"flowRunId": flow_run_id}}
+                    "update_flow_run_heartbeat", {"input": {"flow_run_id": flow_run_id}}
                 ): {"success"}
             }
         }
@@ -910,7 +910,7 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "updateTaskRunHeartbeat", {"input": {"taskRunId": task_run_id}}
+                    "update_task_run_heartbeat", {"input": {"task_run_id": task_run_id}}
                 ): {"success"}
             }
         }
@@ -931,8 +931,8 @@ class Client:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
-            "mutation($input: setFlowRunStatesInput!)": {
-                "setFlowRunStates(input: $input)": {"states": {"id"}}
+            "mutation($input: set_flow_run_states_input!)": {
+                "set_flow_run_states(input: $input)": {"states": {"id"}}
             }
         }
 
@@ -945,7 +945,7 @@ class Client:
                     states=[
                         dict(
                             state=serialized_state,
-                            flowRunId=flow_run_id,
+                            flow_run_id=flow_run_id,
                             version=version,
                         )
                     ]
@@ -1062,8 +1062,8 @@ class Client:
             - State: the state the current task run should be considered in
         """
         mutation = {
-            "mutation($input: setTaskRunStatesInput!)": {
-                "setTaskRunStates(input: $input)": {
+            "mutation($input: set_task_run_states_input!)": {
+                "set_task_run_states(input: $input)": {
                     "states": {"id", "status", "message"}
                 }
             }
@@ -1078,14 +1078,14 @@ class Client:
                     states=[
                         dict(
                             state=serialized_state,
-                            taskRunId=task_run_id,
+                            task_run_id=task_run_id,
                             version=version,
                         )
                     ]
                 )
             ),
         )  # type: Any
-        state_payload = result.data.setTaskRunStates.states[0]
+        state_payload = result.data.set_task_run_states.states[0]
         if state_payload.status == "QUEUED":
             # If appropriate, the state attribute of the Queued state can be
             # set by the caller of this method
@@ -1111,8 +1111,8 @@ class Client:
             - ValueError: if the secret-setting was unsuccessful
         """
         mutation = {
-            "mutation($input: setSecretInput!)": {
-                "setSecret(input: $input)": {"success"}
+            "mutation($input: set_secret_input!)": {
+                "set_secret(input: $input)": {"success"}
             }
         }
 
@@ -1120,7 +1120,7 @@ class Client:
             mutation, variables=dict(input=dict(name=name, value=value))
         )  # type: Any
 
-        if not result.data.setSecret.success:
+        if not result.data.set_secret.success:
             raise ValueError("Setting secret failed.")
 
     def get_task_tag_limit(self, tag: str) -> Optional[int]:
@@ -1163,8 +1163,8 @@ class Client:
             raise ValueError("Concurrency limits must be >= 0")
 
         mutation = {
-            "mutation($input: updateTaskTagLimitInput!)": {
-                "updateTaskTagLimit(input: $input)": {"id"}
+            "mutation($input: update_task_tag_limit_input!)": {
+                "update_task_tag_limit(input: $input)": {"id"}
             }
         }
 
@@ -1172,7 +1172,7 @@ class Client:
             mutation, variables=dict(input=dict(tag=tag, limit=limit))
         )  # type: Any
 
-        if not result.data.updateTaskTagLimit.id:
+        if not result.data.update_task_tag_limit.id:
             raise ValueError("Updating the task tag concurrency limit failed.")
 
     def delete_task_tag_limit(self, limit_id: str) -> None:
@@ -1187,16 +1187,16 @@ class Client:
             - ValueError: if the tag deletion was unsuccessful, or if a bad tag ID was provided
         """
         mutation = {
-            "mutation($input: deleteTaskTagLimitInput!)": {
-                "deleteTaskTagLimit(input: $input)": {"success"}
+            "mutation($input: delete_task_tag_limit_input!)": {
+                "delete_task_tag_limit(input: $input)": {"success"}
             }
         }
 
         result = self.graphql(
-            mutation, variables=dict(input=dict(limitId=limit_id))
+            mutation, variables=dict(input=dict(limit_id=limit_id))
         )  # type: Any
 
-        if not result.data.deleteTaskTagLimit.success:
+        if not result.data.delete_task_tag_limit.success:
             raise ValueError("Deleting the task tag concurrency limit failed.")
 
     def write_run_log(
@@ -1230,8 +1230,8 @@ class Client:
             UserWarning,
         )
         mutation = {
-            "mutation($input: writeRunLogInput!)": {
-                "writeRunLog(input: $input)": {"success"}
+            "mutation($input: write_run_log_input!)": {
+                "write_run_log(input: $input)": {"success"}
             }
         }
 
@@ -1242,8 +1242,8 @@ class Client:
             mutation,
             variables=dict(
                 input=dict(
-                    flowRunId=flow_run_id,
-                    taskRunId=task_run_id,
+                    flow_run_id=flow_run_id,
+                    task_run_id=task_run_id,
                     timestamp=timestamp_str,
                     name=name,
                     message=message,
@@ -1253,7 +1253,7 @@ class Client:
             ),
         )  # type: Any
 
-        if not result.data.writeRunLog.success:
+        if not result.data.write_run_log.success:
             raise ValueError("Writing log failed.")
 
     def write_run_logs(self, logs: List[Dict]) -> None:
@@ -1267,8 +1267,8 @@ class Client:
             - ValueError: if uploading the logs fail
         """
         mutation = {
-            "mutation($input: writeRunLogsInput!)": {
-                "writeRunLogs(input: $input)": {"success"}
+            "mutation($input: write_run_logs_input!)": {
+                "write_run_logs(input: $input)": {"success"}
             }
         }
 
@@ -1276,5 +1276,5 @@ class Client:
             mutation, variables=dict(input=dict(logs=logs))
         )  # type: Any
 
-        if not result.data.writeRunLogs.success:
+        if not result.data.write_run_logs.success:
             raise ValueError("Writing logs failed.")
