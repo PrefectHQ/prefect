@@ -184,16 +184,18 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
 
-        self.logger.debug("Querying for tenant ID")
-        tenant_id = self.query_tenant_id()
+        tenant_id = ""
+        if "prefect.io" in urlparse(config.cloud.api).netloc:
+            self.logger.debug("Querying for tenant ID")
+            tenant_id = self.query_tenant_id()
 
-        if not tenant_id:
-            raise ConnectionError(
-                "Tenant ID not found. Verify that you are using the proper API token."
-            )
+            if not tenant_id:
+                raise ConnectionError(
+                    "Tenant ID not found. Verify that you are using the proper API token."
+                )
 
-        self.logger.debug("Tenant ID: {} found".format(tenant_id))
-        self.logger.info("Agent successfully connected to Prefect Cloud")
+            self.logger.debug("Tenant ID: {} found".format(tenant_id))
+            self.logger.info("Agent successfully connected to Prefect Cloud")
         self.logger.info("Waiting for flow runs...")
 
         return tenant_id
