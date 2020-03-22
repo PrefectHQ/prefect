@@ -359,7 +359,6 @@ class Agent:
                 ): {
                     "id": True,
                     "version": True,
-                    "tenant_id": True,
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,
