@@ -87,42 +87,6 @@ def test_graphql_errors_get_raised(patch_post):
         client.graphql("query: {}")
 
 
-@pytest.mark.parametrize("compressed", [True, False])
-def test_client_deploy(patch_post, compressed, monkeypatch):
-    if compressed:
-        response = {
-            "data": {
-                "project": [{"id": "proj-id"}],
-                "create_flow_from_compressed_string": {"id": "long-id"},
-            }
-        }
-    else:
-        response = {
-            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
-        }
-    patch_post(response)
-
-    monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
-    )
-
-    with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
-        client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
-    flow.result_handler = flow.storage.result_handler
-
-    with pytest.warns(expected_warning=UserWarning):
-        flow_id = client.deploy(
-            flow,
-            project_name="my-default-project",
-            compressed=compressed,
-            version_group_id=str(uuid.uuid4()),
-        )
-        assert flow_id == "long-id"
-
-
 def test_client_register_raises_if_required_param_isnt_scheduled(
     patch_post, monkeypatch
 ):
