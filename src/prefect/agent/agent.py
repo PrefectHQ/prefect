@@ -9,6 +9,7 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Set, Union
+from urllib.parse import urlparse
 
 import pendulum
 
@@ -84,7 +85,8 @@ class Agent:
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
-        self._verify_token(token)
+        if "prefect.io" in urlparse(config.cloud.api).netloc:
+            self._verify_token(token)
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
