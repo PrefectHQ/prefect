@@ -12,7 +12,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add ValidationFailed state and signal in anticipation of validating task outputs - [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 - Add max polling option to all agents - [#2037](https://github.com/PrefectHQ/prefect/issues/2037)
-- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 - Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
 
 ### Task Library
