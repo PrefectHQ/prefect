@@ -88,6 +88,21 @@ def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     assert env_vars["AUTH_THING"] == "foo"
 
 
+def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(runner_token):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
+        agent = LocalAgent(env_vars=dict(MISSING_VAR=None))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+
+    assert "MISSING_VAR" not in env_vars
+
+
 def test_populate_env_vars(runner_token):
     with set_temporary_config(
         {
