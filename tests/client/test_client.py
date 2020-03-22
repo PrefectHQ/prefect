@@ -674,29 +674,29 @@ def test_set_flow_run_state_with_error(patch_post):
         client.set_flow_run_state(flow_run_id="74-salt", version=0, state=Pending())
 
 
-def test_get_task_run_info(patch_post):
-    response = {
-        "getOrCreateTaskRun": {
-            "task_run": {
-                "id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",
-                "version": 0,
-                "serialized_state": {
-                    "type": "Pending",
-                    "_result": {
-                        "type": "SafeResult",
-                        "value": "42",
-                        "result_handler": {"type": "JSONResultHandler"},
-                    },
-                    "message": None,
-                    "__version__": "0.3.3+310.gd19b9b7.dirty",
-                    "cached_inputs": None,
+def test_get_task_run_info(patch_posts):
+    mutation_resp = {
+        "get_or_create_task_run": {"id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",}
+    }
+    query_resp = {
+        "task_run": {
+            "version": 0,
+            "serialized_state": {
+                "type": "Pending",
+                "_result": {
+                    "type": "SafeResult",
+                    "value": "42",
+                    "result_handler": {"type": "JSONResultHandler"},
                 },
-                "task": {"slug": "slug"},
-            }
+                "message": None,
+                "__version__": "0.3.3+310.gd19b9b7.dirty",
+                "cached_inputs": None,
+            },
+            "task": {"slug": "slug"},
         }
     }
 
-    post = patch_post(dict(data=response))
+    post = patch_posts([dict(data=mutation_resp), dict(data=query_resp)])
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
@@ -714,7 +714,7 @@ def test_get_task_run_info(patch_post):
 
 def test_get_task_run_info_with_error(patch_post):
     response = {
-        "data": {"getOrCreateTaskRun": None},
+        "data": {"get_or_create_task_run": None},
         "errors": [{"message": "something went wrong"}],
     }
     post = patch_post(response)

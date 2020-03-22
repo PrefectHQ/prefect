@@ -966,30 +966,43 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "getOrCreateTaskRun",
+                    "get_or_create_task_run",
                     {
                         "input": {
                             "flow_run_id": flow_run_id,
-                            "taskId": task_id,
-                            "mapIndex": -1 if map_index is None else map_index,
+                            "task_id": task_id,
+                            "map_index": -1 if map_index is None else map_index,
                         }
                     },
                 ): {
-                    "task_run": {
-                        "id": True,
-                        "version": True,
-                        "serialized_state": True,
-                        "task": {"slug": True},
-                    }
+                    "id": True,
                 }
             }
         }
         result = self.graphql(mutation)  # type: Any
-        task_run = result.data.getOrCreateTaskRun.task_run
+
+        if result is None:
+            raise ClientError("Failed to create task run.")
+
+        task_run_id = result.data.get_or_create_task_run.id
+
+        query = {
+            "query": {
+                with_args("task_run", {"where": {"id": {"_eq": task_run_id}}}): {
+                    "version": True,
+                    "serialized_state": True,
+                    "task": {"slug": True},
+                }
+            }
+        }
+        task_run = self.graphql(query).data.task_run  # type: ignore
+
+        if task_run is None:
+            raise ClientError('Task run ID not found: "{}"'.format(task_run_id))
 
         state = prefect.engine.state.State.deserialize(task_run.serialized_state)
         return TaskRunInfoResult(
-            id=task_run.id,
+            id=task_run_id,
             task_id=task_id,
             task_slug=task_run.task.slug,
             version=task_run.version,
