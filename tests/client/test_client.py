@@ -93,12 +93,12 @@ def test_client_deploy(patch_post, compressed, monkeypatch):
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -127,7 +127,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
     patch_post, monkeypatch
 ):
     response = {
-        "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+        "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
     }
     patch_post(response)
 
@@ -175,12 +175,12 @@ def test_client_register_doesnt_raise_for_scheduled_params(
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -223,12 +223,12 @@ def test_client_register(patch_post, compressed, monkeypatch):
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -260,12 +260,12 @@ def test_client_register_raises_for_keyed_flows_with_no_result_handler(
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -305,12 +305,12 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -340,12 +340,12 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch):
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     post = patch_post(response)
 
@@ -368,12 +368,12 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch):
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
-                "serializedFlow"
+                "serialized_flow"
             ]
         )
     else:
         serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serializedFlow"
+            "serialized_flow"
         ]
     assert serialized_flow["storage"] is not None
 
@@ -386,12 +386,12 @@ def test_client_register_optionally_avoids_building_flow(
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     post = patch_post(response)
 
@@ -414,12 +414,12 @@ def test_client_register_optionally_avoids_building_flow(
     if compressed:
         serialized_flow = decompress(
             json.loads(post.call_args[1]["json"]["variables"])["input"][
-                "serializedFlow"
+                "serialized_flow"
             ]
         )
     else:
         serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serializedFlow"
+            "serialized_flow"
         ]
     assert serialized_flow["storage"] is None
 
@@ -478,12 +478,12 @@ def test_client_register_flow_id_output(patch_post, compressed, monkeypatch, cap
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -516,12 +516,12 @@ def test_client_register_flow_id_no_output(patch_post, compressed, monkeypatch, 
         response = {
             "data": {
                 "project": [{"id": "proj-id"}],
-                "createFlowFromCompressedString": {"id": "long-id"},
+                "create_flow_from_compressed_string": {"id": "long-id"},
             }
         }
     else:
         response = {
-            "data": {"project": [{"id": "proj-id"}], "createFlow": {"id": "long-id"}}
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
         }
     patch_post(response)
 
@@ -767,7 +767,7 @@ def test_get_task_run_info_with_error(patch_post):
 
 
 def test_set_task_run_state(patch_post):
-    response = {"data": {"setTaskRunStates": {"states": [{"status": "SUCCESS"}]}}}
+    response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
     post = patch_post(response)
     state = Pending()
 
@@ -781,7 +781,7 @@ def test_set_task_run_state(patch_post):
 
 
 def test_set_task_run_state_responds_to_status(patch_post):
-    response = {"data": {"setTaskRunStates": {"states": [{"status": "QUEUED"}]}}}
+    response = {"data": {"set_task_run_states": {"states": [{"status": "QUEUED"}]}}}
     post = patch_post(response)
     state = Pending()
 
@@ -798,7 +798,9 @@ def test_set_task_run_state_responds_to_status(patch_post):
 def test_set_task_run_state_responds_to_config_when_queued(patch_post):
     response = {
         "data": {
-            "setTaskRunStates": {"states": [{"status": "QUEUED", "message": "hol up"}]}
+            "set_task_run_states": {
+                "states": [{"status": "QUEUED", "message": "hol up"}]
+            }
         }
     }
     post = patch_post(response)
@@ -823,7 +825,7 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
 
 
 def test_set_task_run_state_serializes(patch_post):
-    response = {"data": {"setTaskRunStates": {"states": [{"status": "SUCCESS"}]}}}
+    response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
     post = patch_post(response)
 
     with set_temporary_config(
@@ -840,7 +842,7 @@ def test_set_task_run_state_serializes(patch_post):
 
 def test_set_task_run_state_with_error(patch_post):
     response = {
-        "data": {"setTaskRunStates": None},
+        "data": {"set_task_run_states": None},
         "errors": [{"message": "something went wrong"}],
     }
     post = patch_post(response)
@@ -869,7 +871,7 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
 @pytest.mark.parametrize("kwargs", [dict(flow_id="blah"), dict(version_group_id="cat")])
 def test_create_flow_run_with_input(patch_post, kwargs):
     response = {
-        "data": {"createFlowRun": {"flow_run": {"id": "FOO"}}},
+        "data": {"create_flow_run": {"flow_run": {"id": "FOO"}}},
     }
     post = patch_post(response)
 
