@@ -48,9 +48,10 @@ def run_with_heartbeat(
                     api_url = prefect.context.config.cloud.get("api")
                     current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
                     current_env.setdefault("PREFECT__CLOUD__API", api_url)
+                    clean_env = {k: v for k, v in current_env.items() if v is not None}
                     p = subprocess.Popen(
                         self.heartbeat_cmd,
-                        env=current_env,
+                        env=clean_env,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                     )
