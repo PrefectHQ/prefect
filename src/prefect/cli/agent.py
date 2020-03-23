@@ -76,6 +76,13 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--max-polls",
+    required=False,
+    help="Maximum number of polls for the agent",
+    hidden=True,
+    type=int,
+)
+@click.option(
     "--namespace",
     required=False,
     help="Kubernetes namespace to create jobs.",
@@ -125,6 +132,7 @@ def start(
     import_path,
     show_flow_logs,
     volume,
+    max_polls,
 ):
     """
     Start an agent.
@@ -145,6 +153,8 @@ def start(
         --env, -e       TEXT    Environment variables to set on each submitted flow run.
                                 Note that equal signs in environment variable values are not currently supported from the CLI.
                                 Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
+        --max-polls     INT     Maximum number of times the agent should poll Prefect Cloud for flow runs. Will run forever
+                                if not specified.
         --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
                                 Defaults to `False`
 
@@ -204,6 +214,7 @@ def start(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
             ).start()
@@ -212,6 +223,7 @@ def start(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
@@ -219,15 +231,23 @@ def start(
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars, **kwargs
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                **kwargs
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                namespace=namespace, name=name, labels=list(label), env_vars=env_vars
+                namespace=namespace,
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars
+                name=name, labels=list(label), env_vars=env_vars, max_polls=max_polls,
             ).start()
 
 
