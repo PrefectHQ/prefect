@@ -293,12 +293,7 @@ class Client:
             raise ValueError("Invalid method: {}".format(method))
 
         # Check if request returned a successful status
-        try:
-            response.raise_for_status()
-        except:
-            from IPython import embed
-
-            embed()
+        response.raise_for_status()
 
         return response
 
