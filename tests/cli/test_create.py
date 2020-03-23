@@ -27,7 +27,7 @@ def test_create_help():
 
 
 def test_create_project(patch_post):
-    patch_post(dict(data=dict(createProject=dict(id="id"))))
+    patch_post(dict(data=dict(create_project=dict(id="id"))))
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
@@ -51,7 +51,7 @@ def test_create_project_error(patch_post):
 
 
 def test_create_project_description(patch_post):
-    patch_post(dict(data=dict(createProject=dict(id="id"))))
+    patch_post(dict(data=dict(create_project=dict(id="id"))))
 
     with set_temporary_config(
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
