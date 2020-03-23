@@ -22,6 +22,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
+from prefect.utilities import logging
 
 
 class ResultInterface:
@@ -106,6 +107,7 @@ class Result(ResultInterface):
         self.cache_for = cache_for
         self.cache_validator = cache_validator
         self.filename_template = filename_template
+        self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
         """
@@ -126,11 +128,21 @@ class Result(ResultInterface):
     def validate(self) -> bool:
         """
         Run any validator functions associated with this result and return whether the result is valid or not.
+        All individual validator functions must return True for this method to return True.
+        Emits a warning log if run_validators isn't true, and proceeds to run validation functions anyway.
+
 
         Returns:
             - bool: whether or not the Result passed all validation functions
         """
-        if self.run_validators and self.validators:
+        if not self.run_validators:
+            self.logger.warning(
+                "A Result's validate method has been called, but its run_validators attribute is False. "
+                "Prefect will not honor the validators without run_validators=True, so please change it "
+                "if you expect validation to occur automatically for this Result in your pipeline."
+            )
+
+        if self.validators:
             for validation_fn in self.validators:
                 is_valid = validation_fn(self)
                 if not is_valid:

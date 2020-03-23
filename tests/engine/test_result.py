@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import cloudpickle
 import pytest
@@ -334,12 +335,17 @@ class TestResultValidate:
         with pytest.raises(TypeError):
             r.validate()
 
-    def test_result_validate_does_not_run_without_run_validators_flag(self):
+    def test_result_validate_warns_when_run_without_run_validators_flag(self, caplog):
         _example_function = MagicMock(return_value=True)
 
         r = Result(value=None, validators=[_example_function], run_validators=False)
-        is_valid = r.validate()
+        with caplog.at_level(logging.WARNING, "prefect.Result"):
+            is_valid = r.validate()
 
-        _example_function.assert_not_called()
-
+        # it should have acted normal and called the validate functions
+        _example_function.assert_called_once_with(r)
         assert is_valid is True
+
+        # but ALSO it should published a warning log, going on about run_validators not being set
+        assert caplog.text.find("WARNING") > -1
+        assert caplog.text.find("run_validators") > -1
