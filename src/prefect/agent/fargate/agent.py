@@ -46,6 +46,8 @@ class FargateAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -77,6 +79,7 @@ class FargateAgent(Agent):
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
+        max_polls: int = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -87,7 +90,9 @@ class FargateAgent(Agent):
         external_kwargs_s3_key: str = None,
         **kwargs
     ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(
+            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+        )
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource

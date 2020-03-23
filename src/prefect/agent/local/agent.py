@@ -36,6 +36,8 @@ class LocalAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
@@ -53,11 +55,14 @@ class LocalAgent(Agent):
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
+        max_polls: int = None,
     ) -> None:
         self.processes = []  # type: list
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(
+            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+        )
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
