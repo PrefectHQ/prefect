@@ -29,9 +29,6 @@ def test_run_help():
     assert "Run Prefect flows." in result.output
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_run_cloud(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
