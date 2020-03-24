@@ -819,6 +819,7 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
         "cannot pickle '_thread.lock' object",
     ]
 
+
 @pytest.mark.xfail(
     reason="This test fails on CircleCI for Python 3.5+ if not enough cores/workers are available."
 )
