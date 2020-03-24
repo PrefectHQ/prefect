@@ -5,6 +5,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
 
+
 class MySQLExecute(Task):
     """
     Task for executing a query against a MySQL database. 
@@ -47,7 +48,13 @@ class MySQLExecute(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "data", "commit", "charset")
-    def run(self, query: str = None, data: tuple = None, commit: bool = False, charset: str = 'utf8mb4') -> None:
+    def run(
+        self,
+        query: str = None,
+        data: tuple = None,
+        commit: bool = False,
+        charset: str = "utf8mb4",
+    ) -> None:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -80,12 +87,12 @@ class MySQLExecute(Task):
                         conm.commit()
 
             conn.close()
-            print('Execute Results: ', executed)
+            print("Execute Results: ", executed)
             return executed
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            print('EXECUTE ERROR: ', e)
+            print("EXECUTE ERROR: ", e)
             return e
 
 
@@ -144,7 +151,7 @@ class MySQLFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        charset: str = "utf8mb4"
+        charset: str = "utf8mb4",
     ):
         """
         Task run method. Executes a query against MySQL database and fetches results.
@@ -190,10 +197,10 @@ class MySQLFetch(Task):
                         conm.commit()
 
             conn.close()
-            print('Fetch Results: ', results)
+            print("Fetch Results: ", results)
             return results
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            print('FETCH ERROR: ', e)
+            print("FETCH ERROR: ", e)
             return e
