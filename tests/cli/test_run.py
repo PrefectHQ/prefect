@@ -135,10 +135,10 @@ def test_run_cloud_logs(monkeypatch):
                                         "message": "test_message",
                                         "level": "test_level",
                                     }
-                                ]
+                                ],
+                                "state": "Success",
                             }
                         ],
-                        flow_run_by_pk=dict(state="Success"),
                     )
                 )
             )
