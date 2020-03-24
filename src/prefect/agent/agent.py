@@ -150,7 +150,7 @@ class Agent:
                 index = 0
                 remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
-                # the max workers default has changed in 3.5 and 3.8. For stable results the
+                # the max workers default has changed in 3.8. For stable results the
                 # default 3.8 behavior is elected here.
                 max_workers = min(32, (os.cpu_count() or 1) + 4)
 

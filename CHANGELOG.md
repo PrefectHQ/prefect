@@ -29,6 +29,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
+- Drop support for Python 3.5 - [#2191](https://github.com/PrefectHQ/prefect/pull/2191)
 - Remove `Client.write_run_log` - [#2184](https://github.com/PrefectHQ/prefect/issues/2184)
 - Remove `Client.deploy` and `flow.deploy` - [#2183](https://github.com/PrefectHQ/prefect/issues/2183)
 
