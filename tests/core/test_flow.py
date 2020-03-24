@@ -2127,7 +2127,7 @@ class TestFlowRunMethod:
 
     def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
 
-        start_times = [pendulum.now().add(seconds=i * 0.1) for i in range(1, 4)]
+        start_times = [pendulum.now().add(seconds=i * 0.2) for i in range(1, 4)]
         REPORTED_START_TIMES = []
 
         @task
