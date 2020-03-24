@@ -1,5 +1,3 @@
-import prefect
-from prefect import Flow
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
