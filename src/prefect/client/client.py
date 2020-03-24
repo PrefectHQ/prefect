@@ -320,6 +320,7 @@ class Client:
         with self._local_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
+
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage

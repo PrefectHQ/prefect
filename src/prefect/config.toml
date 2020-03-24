@@ -4,6 +4,13 @@ debug = false
 # base configuration directory (typically you won't change this!)
 home_dir = "~/.prefect"
 
+use = "server"
+
+api = "${${use}.api}"
+graphql = "${api}/graphql/alpha"
+
+[server]
+api = "http://localhost:4200"
 
 [cloud]
 # the Prefect Server address

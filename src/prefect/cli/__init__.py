@@ -102,3 +102,27 @@ def diagnostics(include_secret_names):
             include_secret_names=bool(include_secret_names)
         )
     )
+
+@cli.command(hidden=True)
+@click.argument("use")
+def backend(use):
+    from prefect import configuration
+    from prefect import Client
+    import toml
+    mtoml = configuration.load_toml(configuration.USER_CONFIG)
+
+    mtoml["use"] = use
+
+    import os
+
+    # print(str(configuration.interpolate_env_vars(configuration.USER_CONFIG)))
+
+    # print(configuration.DEFAULT_CONFIG)
+    # print(configuration.USER_CONFIG)
+
+
+    with open(str(configuration.interpolate_env_vars(configuration.USER_CONFIG)), 'w+') as f:
+        toml.dump(mtoml, f)
+
+    # c = Client()
+    # c.load_and_save_use(use)
