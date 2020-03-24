@@ -49,7 +49,7 @@ def config_overrides(include_secret_names: bool = False) -> dict:
     if user_config_path and os.path.isfile(
         str(prefect.configuration.interpolate_env_vars(user_config_path))
     ):
-        user_config = prefect.configuration.load_toml(user_config_path)
+        user_config = prefect.configuration.load_toml([user_config_path])
         user_config = _replace_values(user_config)
 
     return dict(config_overrides=user_config)
