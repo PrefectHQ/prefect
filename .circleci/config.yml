@@ -13,7 +13,7 @@ jobs:
 
   check_static_analysis:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - checkout
 
@@ -61,7 +61,7 @@ jobs:
 
   check_documentation:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - checkout
       - setup_remote_docker
@@ -74,29 +74,11 @@ jobs:
           command: pytest -vvrfEsx -k "generate_docs"
 
   # test a standard install of prefect
-  # is importable in python 3.5.2
-  # there was a typing bug in 3.5.2 that this attempts to catch
-  test_py352_import_prefect:
-    docker:
-      - image: python:3.5.2
-
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Install vanilla prefect
-          command: pip install .
-
-      - run:
-          name: Test Prefect imports cleanly
-          command: python -c "import prefect"
-
-  # test a standard install of prefect
   # with all requriements pinned to their lowest allowed versions
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
-      - image: python:3.5.2
+      - image: python:3.6
 
     steps:
       - *attach_workspace
@@ -136,7 +118,7 @@ jobs:
   # caused by many package dependency options
   test_vanilla_prefect:
     docker:
-      - image: python:3.6
+      - image: python:3.7
 
     steps:
       - *attach_workspace
@@ -164,41 +146,8 @@ jobs:
             - coverage
 
   # ----------------------------------
-  # Run unit tests in Python 3.5-3.7
+  # Run unit tests in Python 3.6-3.8
   # ----------------------------------
-
-  test_35:
-    docker:
-      - image: python:3.5
-
-    steps:
-      - *attach_workspace
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
-
-      - run:
-          name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz
-
-      - run:
-          name: Upgrade pip
-          command: pip install -U pip
-
-      - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
-
-      - run:
-          name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
 
   test_36:
     docker:
@@ -437,16 +386,13 @@ workflows:
 
   'Run tests':
     jobs:
-      - test_35
       - test_36
       - test_37
       - test_38
       - test_lower_prefect
       - test_vanilla_prefect
-      - test_py352_import_prefect
       - upload_coverage:
           requires:
-            - test_35
             - test_36
             - test_37
             - test_38
@@ -467,13 +413,6 @@ workflows:
 
   'Build and publish release artifacts':
     jobs:
-      - build_docker_image:
-          python_version: '3.5'
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.6'
           filters:

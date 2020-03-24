@@ -81,7 +81,7 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 ### Requirements
 
-Prefect requires Python 3.5.2+.
+Prefect requires Python 3.6+.
 
 ### Install latest release
 

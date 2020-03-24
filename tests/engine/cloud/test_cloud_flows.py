@@ -558,10 +558,6 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     assert t3_0.state.is_failed()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6),
-    reason="Mysteriously fails in different ways on Python 3.5. TODO: Investigate.",
-)
 def test_deep_map_with_a_retry(monkeypatch):
     """
     Creates a situation in which a deeply-mapped Flow encounters a one-time error in one

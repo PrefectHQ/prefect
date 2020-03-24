@@ -13,6 +13,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add ValidationFailed state and signal in anticipation of validating task outputs - [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 - Add max polling option to all agents - [#2037](https://github.com/PrefectHQ/prefect/issues/2037)
 - Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
+- Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185)
 
 ### Task Library
 
@@ -20,7 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix issue with heartbeat failing if any Cloud config var is not present - [#2190](https://github.com/PrefectHQ/prefect/issues/2190)
 
 ### Deprecations
 
@@ -28,7 +29,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Drop support for Python 3.5 - [#2191](https://github.com/PrefectHQ/prefect/pull/2191)
+- Remove `Client.write_run_log` - [#2184](https://github.com/PrefectHQ/prefect/issues/2184)
+- Remove `Client.deploy` and `flow.deploy` - [#2183](https://github.com/PrefectHQ/prefect/issues/2183)
 
 ### Contributors
 

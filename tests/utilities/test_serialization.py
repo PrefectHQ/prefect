@@ -236,7 +236,6 @@ class TestStatefulFunctionReferenceField:
         assert not serialized["f"]["kwargs"]
 
     def test_serialize_outer_with_state(self):
-        """Have to account for order because of Python 3.5"""
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
         assert serialized["f"]["fn"] == "tests.utilities.test_serialization.outer"
         assert serialized["f"]["kwargs"] == {"x": 1, "y": 2, "z": 99}
