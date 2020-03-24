@@ -393,7 +393,6 @@ workflows:
       - test_vanilla_prefect
       - upload_coverage:
           requires:
-            - test_35
             - test_36
             - test_37
             - test_38
