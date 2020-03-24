@@ -1,8 +1,9 @@
-import pymysql.cursors
-
+import prefect
+from prefect import Flow
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
+import pymysql.cursors
 
 class MySQLExecute(Task):
     """
@@ -45,8 +46,8 @@ class MySQLExecute(Task):
         self.charset = charset
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "data", "commit")
-    def run(self, query: str = None, data: tuple = None, commit: bool = False) -> None:
+    @defaults_from_attrs("query", "data", "commit", "charset")
+    def run(self, query: str = None, data: tuple = None, commit: bool = False, charset: str = 'utf8mb4') -> None:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -79,10 +80,12 @@ class MySQLExecute(Task):
                         conm.commit()
 
             conn.close()
+            print('Execute Results: ', executed)
             return executed
 
-        except (Exception, pymysql.DatabaseError) as e:
+        except (Exception, pymysql.MySQLError) as e:
             conn.close()
+            print('EXECUTE ERROR: ', e)
             return e
 
 
@@ -117,6 +120,7 @@ class MySQLFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
+        charset: str = "utf8mb4",
         **kwargs
     ):
         self.db_name = db_name
@@ -129,9 +133,10 @@ class MySQLFetch(Task):
         self.query = query
         self.data = data
         self.commit = commit
+        self.charset = charset
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "data", "commit")
+    @defaults_from_attrs("fetch", "fetch_count", "query", "data", "commit", "charset")
     def run(
         self,
         fetch: str = "one",
@@ -139,6 +144,7 @@ class MySQLFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
+        charset: str = "utf8mb4"
     ):
         """
         Task run method. Executes a query against MySQL database and fetches results.
@@ -172,8 +178,7 @@ class MySQLFetch(Task):
         try:
             with conn:
                 with conn.cursor() as cursor:
-                    executed = cursor.execute(query)
-
+                    cursor.execute(query)
                     if fetch == "all":
                         results = cursor.fetchall()
                     elif fetch == "many":
@@ -185,8 +190,10 @@ class MySQLFetch(Task):
                         conm.commit()
 
             conn.close()
-            return executed
+            print('Fetch Results: ', results)
+            return results
 
-        except (Exception, pymysql.DatabaseError) as e:
+        except (Exception, pymysql.MySQLError) as e:
             conn.close()
+            print('FETCH ERROR: ', e)
             return e
