@@ -86,7 +86,7 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
@@ -122,7 +122,7 @@ def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
@@ -229,7 +229,7 @@ def test_make_error_log(caplog):
 
     with context({"flow_run_id": "f_id", "task_run_id": "t_id"}):
         log = utilities.logging.CloudHandler()._make_error_log("test_message")
-        assert log["flowRunId"] == "f_id"
+        assert log["flow_run_id"] == "f_id"
         assert log["timestamp"]
         assert log["name"] == "CloudHandler"
         assert log["message"] == "test_message"
@@ -311,7 +311,7 @@ def test_context_only_specified_attributes():
     assert test_filter.called
 
     with utilities.configuration.set_temporary_config(
-        {"logging.extra_loggers": ["extra_logger"]}
+        {"logging.extra_loggers": "['extra_logger']"}
     ):
         utilities.logging.configure_extra_loggers()
         assert (

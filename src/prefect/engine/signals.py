@@ -116,6 +116,21 @@ class TRIGGERFAIL(FAIL):
     _state_cls = state.TriggerFailed
 
 
+class VALIDATIONFAIL(FAIL):
+    """
+    Indicates that a task's result validation failed.
+
+    Args:
+        - message (Any, optional): Defaults to `None`. A message about the signal.
+        - *args (Any, optional): additional arguments to pass to this Signal's
+            associated state constructor
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's
+            associated state constructor
+    """
+
+    _state_cls = state.ValidationFailed
+
+
 class SUCCESS(PrefectStateSignal):
     """
     Indicates that a task succeeded.

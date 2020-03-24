@@ -6,13 +6,104 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- Add ValidationFailed state and signal in anticipation of validating task outputs - [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
+- Add max polling option to all agents - [#2037](https://github.com/PrefectHQ/prefect/issues/2037)
+- Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
+- Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix issue with heartbeat failing if any Cloud config var is not present - [#2190](https://github.com/PrefectHQ/prefect/issues/2190)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Remove `Client.write_run_log` - [#2184](https://github.com/PrefectHQ/prefect/issues/2184)
+- Remove `Client.deploy` and `flow.deploy` - [#2183](https://github.com/PrefectHQ/prefect/issues/2183)
+
+### Contributors
+
+- None
+
+## 0.9.8
+
+Released on Mar 18, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
+- Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
+- Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
+- Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
+- Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix S3ResultHandler use of a new boto3 session per thread - [#2108](https://github.com/PrefectHQ/prefect/issues/2108)
+- Fix issue with stateful function reference deserialization logic mutating state - [#2159](https://github.com/PrefectHQ/prefect/pull/2159)
+- Fix issue with `DateClock` serializer - [#2166](https://github.com/PrefectHQ/prefect/issues/2166)
+- Fix issue with scheduling required parameters - [#2166](https://github.com/PrefectHQ/prefect/issues/2166)
+
+### Deprecations
+
+- Deprecate cache\_\* and result_handler options on Task and Flow objects [#2140](https://github.com/PrefectHQ/prefect/issues/2140)
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [alexisprince1994](https://github.com/alexisprince1994)
+
+## 0.9.7 <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Fixes
+
+- Change `task.log_stdout` retrieval from task runner to `getattr` in order to preserve running flows of older 0.9.x versions - [#2120](https://github.com/PrefectHQ/prefect/pull/2120)
+
+## 0.9.6 <Badge text="beta" type="success"/>
+
+Released on Mar 4, 2020.
+
+### Features
+
+- Add new diagnostics utility to assist in troubleshooting issues - [#2062](https://github.com/PrefectHQ/prefect/pull/2062)
+- Add a jira_notification state handler to create jira tickets for failed tasks or flows - [#1861](https://github.com/PrefectHQ/prefect/pull/1861)
 - Add support for Python 3.8 - [#2080](https://github.com/PrefectHQ/prefect/pull/2080)
 
 ### Enhancements
 
+- Add PIN 15 (skip refactor) - [#2070](https://github.com/PrefectHQ/prefect/issues/2070)
 - Update docs and docstrings related to Result Handlers - [#1792](https://github.com/PrefectHQ/prefect/issues/1792)
 - Add volume option to Docker Agent - [#2013](https://github.com/PrefectHQ/prefect/issues/2013)
+- `DaskKubernetesEnvironment` now elevates important autoscaling logs as well as possible Kubernetes issues - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Add optional `scheduler_logs` kwarg to the`DaskKubernetesEnvironment` - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Add ERROR log if heartbeat process dies - [#2097](https://github.com/PrefectHQ/prefect/issues/2097)
 - Enable stdout logging from inside a task with the kwarg `log_stdout=True` - [#2092](https://github.com/PrefectHQ/prefect/pull/2092)
+- Direct links to Cloud flows and flow runs now shown on creation time - [#2109](https://github.com/PrefectHQ/prefect/pull/2109)
+- Update docs related to using Context - [#2077](https://github.com/PrefectHQ/prefect/issues/2077)
 
 ### Task Library
 
@@ -20,6 +111,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Fix `extra_loggers` config variable not being able to be set via environment variable - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
+- Fix environments not passing down their `extra_loggers` to any created infrastructure - [#2089](https://github.com/PrefectHQ/prefect/pull/2089)
 - Don't mutate data when serializing or deserializing - [#2098](https://github.com/PrefectHQ/prefect/issues/2098)
 
 ### Deprecations
@@ -32,7 +125,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Romain Thalineau](https://github.com/romaintha)
 
 ## 0.9.5 <Badge text="beta" type="success"/>
 

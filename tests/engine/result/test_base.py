@@ -1,6 +1,9 @@
+import datetime
+
 import cloudpickle
 import pytest
 
+import prefect
 from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -16,20 +19,30 @@ class TestInitialization:
         with pytest.raises(TypeError):
             n()
 
-    def test_result_requires_value(self):
-        with pytest.raises(TypeError, match="value"):
-            r = Result()
+    def test_result_does_not_require_a_value(self):
+        # this may seem like a silly test, however, it is a regression to assert new result behavior
+        assert Result().value == None
 
     def test_result_inits_with_value(self):
         r = Result(3)
         assert r.value == 3
         assert r.safe_value is NoResult
         assert r.result_handler is None
+        assert r.validators is None
+        assert r.cache_for is None
+        assert r.cache_validator is None
+        assert r.filepath_template is None
+        assert r.run_validators is True
 
         s = Result(value=5)
         assert s.value == 5
         assert s.safe_value is NoResult
         assert s.result_handler is None
+        assert s.validators is None
+        assert s.cache_for is None
+        assert s.cache_validator is None
+        assert s.filepath_template is None
+        assert r.run_validators is True
 
     def test_result_inits_with_handled_and_result_handler(self):
         handler = JSONResultHandler()
@@ -37,6 +50,27 @@ class TestInitialization:
         assert r.value == 3
         assert r.safe_value is NoResult
         assert r.result_handler == handler
+
+    def test_cache_validator_provided_if_needed(self):
+        """
+        If `cache_for` is provided, and `cache_validator` is not,
+        a `cache_validator` should be provided.
+        """
+        r = Result(value=3, cache_for=datetime.timedelta(days=2))
+        assert r.cache_validator is not None
+        assert callable(r.cache_validator)
+
+    def test_uses_provided_cache_validator(self):
+        def custom_cache_validator(*args, **kwargs):
+            # Creating a custom function for identity comparison
+            return True
+
+        r = Result(
+            value=3,
+            cache_for=datetime.timedelta(days=2),
+            cache_validator=custom_cache_validator,
+        )
+        assert r.cache_validator is custom_cache_validator
 
     def test_result_ignores_none_values(self):
         handler = JSONResultHandler()
@@ -62,6 +96,19 @@ class TestInitialization:
         assert res.value == "3"
         assert res.result_handler == JSONResultHandler()
         assert res.safe_value is res
+
+
+@pytest.mark.parametrize("abstract_interface", ["exists", "read", "write"])
+def test_has_abstract_interfaces(abstract_interface: str):
+    """
+    Tests to make sure that calling the abstract interfaces directly
+    on the base `Result` class results in `NotImplementedError`s.
+    """
+    r = Result(value=3)
+
+    func = getattr(r, abstract_interface)
+    with pytest.raises(NotImplementedError):
+        func()
 
 
 def test_noresult_is_safe():
@@ -244,3 +291,17 @@ def test_results_are_pickleable_with_their_safe_values():
     res = Result(3, result_handler=JSONResultHandler())
     res.store_safe_value()
     assert cloudpickle.loads(cloudpickle.dumps(res)) == res
+
+
+def test_result_format_template_from_context():
+    res = Result(filepath_template="{this}/{works}/yes?")
+    with prefect.context(this="indeed", works="functional"):
+        new = res.format(**prefect.context)
+        assert new._rendered_filepath == "indeed/functional/yes?"
+        assert res._rendered_filepath == None
+
+
+def test_result_render_fails_on_no_template_given():
+    with pytest.raises(ValueError):
+        res = Result()
+        res.format()

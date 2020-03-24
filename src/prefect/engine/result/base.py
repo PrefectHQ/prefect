@@ -16,9 +16,14 @@ To distinguish between a Task that runs but does not return output from a Task t
 also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
 whose value is `None`.
 """
+import base64
+import copy
+import datetime
+from typing import Any, Callable, Iterable, Optional
 
-from typing import Any
+import cloudpickle
 
+from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 
 
@@ -68,15 +73,43 @@ class Result(ResultInterface):
     and a `safe_value` attribute which holds information about the current "safe" representation of this result.
 
     Args:
-        - value (Any): the value of the result
+        - value (Any, optional): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
             when storing / serializing this result's value; required if you intend on persisting this result in some way
+        - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
+            the result to ensure it is `valid`.
+        - run_validators (bool): Whether the result value should be validated.
+        - cache_for (timedelta, optional): The amount of time to maintain a cache
+            of this result.  Useful for situations where the containing Flow
+            will be rerun multiple times, but this task doesn't need to be.
+        - cache_validator (Callable, optional): Validator that will determine
+            whether the cache for this result is still valid (only required if `cache_for`
+            is provided; defaults to `prefect.engine.cache_validators.duration_only`)
+        - filepath_template (str, optional): Template file path to be used for saving the
+            result to the destination.
     """
 
-    def __init__(self, value: Any, result_handler: ResultHandler = None):
+    def __init__(
+        self,
+        value: Any = None,
+        result_handler: ResultHandler = None,
+        validators: Iterable[Callable] = None,
+        run_validators: bool = True,
+        cache_for: Optional[datetime.timedelta] = None,
+        cache_validator: Optional[Callable] = None,
+        filepath_template: Optional[str] = None,
+    ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
+        self.validators = validators
+        self.run_validators = run_validators
+        if cache_for is not None and cache_validator is None:
+            cache_validator = duration_only
+        self.cache_for = cache_for
+        self.cache_validator = cache_validator
+        self.filepath_template = filepath_template
+        self._rendered_filepath = None  # type: Optional[str]
 
     def store_safe_value(self) -> None:
         """
@@ -93,6 +126,84 @@ class Result(ResultInterface):
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
+
+    def copy(self) -> "Result":
+        """
+        Return a copy of the current result object.
+        """
+        return copy.copy(self)
+
+    def serialize(self) -> str:
+        """
+        Serializes the result value into a string.
+
+        Returns:
+            - str: the serialized result value
+        """
+        return base64.b64encode(cloudpickle.dumps(self.value)).decode()
+
+    @classmethod
+    def deserialize(cls, serialized_value: str) -> Any:
+        """
+        Takes a given serialized result value and returns a deserialized value.
+
+        Args:
+            - serialized_value (str): The serialized result value
+
+        Returns:
+            - Any: the deserialized result value
+        """
+        return cloudpickle.loads(base64.b64decode(serialized_value))
+
+    def format(self, **kwargs: Any) -> "Result":
+        """
+        Takes a set of string format key-value pairs and renders the result.filepath_template to a final filepath string
+
+        Args:
+            - **kwargs (Any): string format arguments for result.filepath_template
+
+        Returns:
+            - Any: the current result instance
+        """
+        new = self.copy()
+
+        if not new.filepath_template:
+            raise ValueError("No filepath_template provided")
+
+        new._rendered_filepath = new.filepath_template.format(**kwargs)
+        return new
+
+    def exists(self) -> bool:
+        """
+        Checks whether the target result exists.
+
+        Does not validate whether the result is `valid`, only that it is present.
+
+        Returns:
+            - bool: whether or not the target result exists.
+        """
+        raise NotImplementedError()
+
+    def read(self, loc: Optional[str] = None) -> Any:
+        """
+        Reads from the target result.
+
+        Args:
+            - loc (str): Location of the result in the specific result target.
+
+        Returns:
+            - Any: The value saved to the result.
+        """
+        raise NotImplementedError()
+
+    def write(self) -> Any:
+        """
+        Serialize and write the result to the target location.
+
+        Returns:
+            - Any: Result specific metadata about the written data.
+        """
+        raise NotImplementedError()
 
 
 class SafeResult(ResultInterface):

@@ -270,7 +270,11 @@ def test_populate_job_yaml():
             job["spec"]["template"]["spec"]["containers"][0]["env"] = []
 
         with set_temporary_config(
-            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+            {
+                "cloud.graphql": "gql_test",
+                "cloud.auth_token": "auth_test",
+                "logging.extra_loggers": "['test_logger']",
+            }
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -296,6 +300,7 @@ def test_populate_job_yaml():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -356,6 +361,7 @@ def test_populate_job_yaml_no_defaults():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "[]"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -393,7 +399,11 @@ def test_populate_job_yaml_multiple_containers():
             job["spec"]["template"]["spec"]["containers"][1]["env"] = []
 
         with set_temporary_config(
-            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+            {
+                "cloud.graphql": "gql_test",
+                "cloud.auth_token": "auth_test",
+                "logging.extra_loggers": "['test_logger']",
+            }
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -420,6 +430,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -443,6 +454,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][1]["image"]

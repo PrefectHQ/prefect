@@ -174,7 +174,12 @@ def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
 
     assert fargate_agent.called
     fargate_agent.assert_called_with(
-        labels=[], env_vars=dict(), name=None, taskRoleArn="arn", volumes="vol"
+        labels=[],
+        env_vars=dict(),
+        max_polls=None,
+        name=None,
+        taskRoleArn="arn",
+        volumes="vol",
     )
 
 
@@ -191,6 +196,27 @@ def test_agent_start_with_env_vars(monkeypatch, runner_token):
     docker_agent.assert_called_with(
         base_url=None,
         env_vars={"KEY": "VAL", "SETTING": "false"},
+        max_polls=None,
+        labels=[],
+        name=None,
+        no_pull=False,
+        show_flow_logs=False,
+        volumes=[],
+    )
+
+
+def test_agent_start_with_max_polls(monkeypatch, runner_token):
+    docker_agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent", docker_agent)
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "docker", "--max-polls", "5"])
+    assert result.exit_code == 0
+
+    docker_agent.assert_called_with(
+        base_url=None,
+        env_vars={},
+        max_polls=5,
         labels=[],
         name=None,
         no_pull=False,
@@ -211,6 +237,21 @@ def test_agent_start_name(monkeypatch, runner_token):
 
     runner = CliRunner()
     result = runner.invoke(agent, ["start", "docker", "--name", "test_agent"])
+    assert result.exit_code == 0
+
+
+def test_agent_start_max_polls(monkeypatch, runner_token):
+    start = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.DockerAgent.start", start)
+
+    docker_client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=docker_client),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(agent, ["start", "docker", "--max-polls", "1"])
     assert result.exit_code == 0
 
 

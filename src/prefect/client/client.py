@@ -1,11 +1,12 @@
 import datetime
 import json
 import os
+import re
 import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import pendulum
 import toml
@@ -88,7 +89,10 @@ class Client:
         )
 
         # if no api token was passed, attempt to load state from local storage
-        if not self._api_token:
+        if (
+            not self._api_token
+            and "prefect.io" in urlparse(prefect.config.cloud.api).netloc
+        ):
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
@@ -431,7 +435,7 @@ class Client:
             token=self._api_token,
         )  # type: ignore
         self._access_token = payload.data.switchTenant.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.parse(
+        self._access_token_expires_at = pendulum.parse(  # type: ignore
             payload.data.switchTenant.expiresAt  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
@@ -478,7 +482,7 @@ class Client:
             token=self._refresh_token,
         )  # type: ignore
         self._access_token = payload.data.refreshToken.accessToken  # type: ignore
-        self._access_token_expires_at = pendulum.parse(
+        self._access_token_expires_at = pendulum.parse(  # type: ignore
             payload.data.refreshToken.expiresAt  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
@@ -489,54 +493,6 @@ class Client:
     # Actions
     # -------------------------------------------------------------------------
 
-    def deploy(
-        self,
-        flow: "Flow",
-        project_name: str,
-        build: bool = True,
-        set_schedule_active: bool = True,
-        version_group_id: str = None,
-        compressed: bool = True,
-    ) -> str:
-        """
-        *Note*: This function will be deprecated soon and should be replaced with `client.register`
-
-        Push a new flow to Prefect Cloud
-
-        Args:
-            - flow (Flow): a flow to register
-            - project_name (str): the project that should contain this flow.
-            - build (bool, optional): if `True`, the flow's environment is built
-                prior to serialization; defaults to `True`
-            - set_schedule_active (bool, optional): if `False`, will set the
-                schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
-                Defaults to `True`. This can be changed later.
-            - version_group_id (str, optional): the UUID version group ID to use for versioning this Flow
-                in Cloud; if not provided, the version group ID associated with this Flow's project and name
-                will be used.
-            - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
-                compressed
-
-        Returns:
-            - str: the ID of the newly-registered flow
-
-        Raises:
-            - ClientError: if the register failed
-        """
-        warnings.warn(
-            "client.deploy() will be deprecated in an upcoming release. Please use client.register()",
-            UserWarning,
-        )
-
-        return self.register(
-            flow=flow,
-            project_name=project_name,
-            build=build,
-            set_schedule_active=set_schedule_active,
-            version_group_id=version_group_id,
-            compressed=compressed,
-        )
-
     def register(
         self,
         flow: "Flow",
@@ -545,6 +501,7 @@ class Client:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         compressed: bool = True,
+        no_url: bool = False,
     ) -> str:
         """
         Push a new flow to Prefect Cloud
@@ -562,6 +519,8 @@ class Client:
                 will be used.
             - compressed (bool, optional): if `True`, the serialized flow will be; defaults to `True`
                 compressed
+            - no_url (bool, optional): if `True`, the stdout from this function will not contain the
+                URL link to the newly-registered flow in the Cloud UI
 
         Returns:
             - str: the ID of the newly-registered flow
@@ -571,9 +530,16 @@ class Client:
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
-            raise ClientError(
-                "Flows with required parameters can not be scheduled automatically."
-            )
+            required_names = {p.name for p in required_parameters}
+            if not all(
+                [
+                    required_names == set(c.parameter_defaults.keys())
+                    for c in flow.schedule.clocks
+                ]
+            ):
+                raise ClientError(
+                    "Flows with required parameters can not be scheduled automatically."
+                )
         if any(e.key for e in flow.edges) and flow.result_handler is None:
             warnings.warn(
                 "No result handler was specified on your Flow. Cloud features such as input caching and resuming task runs from failure may not work properly.",
@@ -581,14 +547,14 @@ class Client:
             )
         if compressed:
             create_mutation = {
-                "mutation($input: createFlowFromCompressedStringInput!)": {
-                    "createFlowFromCompressedString(input: $input)": {"id"}
+                "mutation($input: create_flow_from_compressed_string_input!)": {
+                    "create_flow_from_compressed_string(input: $input)": {"id"}
                 }
             }
         else:
             create_mutation = {
-                "mutation($input: createFlowInput!)": {
-                    "createFlow(input: $input)": {"id"}
+                "mutation($input: create_flow_input!)": {
+                    "create_flow(input: $input)": {"id"}
                 }
             }
 
@@ -627,20 +593,95 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    projectId=project[0].id,
-                    serializedFlow=serialized_flow,
-                    setScheduleActive=set_schedule_active,
-                    versionGroupId=version_group_id,
+                    project_id=project[0].id,
+                    serialized_flow=serialized_flow,
+                    set_schedule_active=set_schedule_active,
+                    version_group_id=version_group_id,
                 )
             ),
         )  # type: Any
 
         flow_id = (
-            res.data.createFlowFromCompressedString.id
+            res.data.create_flow_from_compressed_string.id
             if compressed
-            else res.data.createFlow.id
+            else res.data.create_flow.id
         )
+
+        if not no_url:
+            # Generate direct link to Cloud flow
+            flow_url = self.get_cloud_url("flow", flow_id)
+
+            print("Flow: {}".format(flow_url))
+
         return flow_id
+
+    def get_cloud_url(self, subdirectory: str, id: str, as_user: bool = True) -> str:
+        """
+        Convenience method for creating Prefect Cloud URLs for a given subdirectory.
+
+        Args:
+            - subdirectory (str): the subdirectory to use (e.g., `"flow-run"`)
+            - id (str): the ID of the page
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
+
+        Returns:
+            - str: the URL corresponding to the appropriate base URL, tenant slug, subdirectory and ID
+
+        Example:
+
+        ```python
+        from prefect import Client
+
+        client = Client()
+        client.get_cloud_url("flow-run", "424242-ca-94611-111-55")
+        # returns "https://cloud.prefect.io/my-tenant-slug/flow-run/424242-ca-94611-111-55"
+        ```
+        """
+        # Generate direct link to UI
+        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+            tenant_slug = self.get_default_tenant_slug(as_user=as_user)
+        else:
+            tenant_slug = ""
+
+        base_url = (
+            re.sub("api-", "", prefect.config.cloud.api)
+            if re.search("api-", prefect.config.cloud.api)
+            else re.sub("api", "cloud", prefect.config.cloud.api)
+        )
+
+        if tenant_slug:
+            full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
+        else:
+            full_url = "/".join([base_url.rstrip("/"), subdirectory, id])
+        return full_url
+
+    def get_default_tenant_slug(self, as_user: bool = True) -> str:
+        """
+        Get the default tenant slug for the currently authenticated user
+
+        Args:
+            - as_user (bool, optional): whether this query is being made from a USER scoped token;
+                defaults to `True`. Only used internally for queries made from RUNNERs
+
+        Returns:
+            - str: the slug of the current default tenant for this user
+        """
+        if as_user:
+            query = {
+                "query": {"user": {"default_membership": {"tenant": "slug"}}}
+            }  # type: dict
+        else:
+            query = {"query": {"tenant": {"slug"}}}
+
+        res = self.graphql(query)
+
+        if as_user:
+            user = res.get("data").user[0]
+            slug = user.default_membership.tenant.slug
+        else:
+            slug = res.get("data").tenant[0].slug
+        return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
         """
@@ -657,8 +698,8 @@ class Client:
             - ClientError: if the project creation failed
         """
         project_mutation = {
-            "mutation($input: createProjectInput!)": {
-                "createProject(input: $input)": {"id"}
+            "mutation($input: create_project_input!)": {
+                "create_project(input: $input)": {"id"}
             }
         }
 
@@ -669,7 +710,7 @@ class Client:
             ),
         )  # type: Any
 
-        return res.data.createProject.id
+        return res.data.create_project.id
 
     def create_flow_run(
         self,
@@ -706,30 +747,30 @@ class Client:
             - ClientError: if the GraphQL query is bad for any reason
         """
         create_mutation = {
-            "mutation($input: createFlowRunInput!)": {
-                "createFlowRun(input: $input)": {"flow_run": "id"}
+            "mutation($input: create_flow_run_input!)": {
+                "create_flow_run(input: $input)": {"id": True}
             }
         }
         if not flow_id and not version_group_id:
             raise ValueError("One of flow_id or version_group_id must be provided")
 
         inputs = (
-            dict(flowId=flow_id) if flow_id else dict(versionGroupId=version_group_id)  # type: ignore
+            dict(flow_id=flow_id) if flow_id else dict(version_group_id=version_group_id)  # type: ignore
         )
         if parameters is not None:
             inputs.update(parameters=parameters)  # type: ignore
         if context is not None:
             inputs.update(context=context)  # type: ignore
         if idempotency_key is not None:
-            inputs.update(idempotencyKey=idempotency_key)  # type: ignore
+            inputs.update(idempotency_key=idempotency_key)  # type: ignore
         if scheduled_start_time is not None:
             inputs.update(
-                scheduledStartTime=scheduled_start_time.isoformat()
+                scheduled_start_time=scheduled_start_time.isoformat()
             )  # type: ignore
         if run_name is not None:
-            inputs.update(flowRunName=run_name)  # type: ignore
+            inputs.update(flow_run_name=run_name)  # type: ignore
         res = self.graphql(create_mutation, variables=dict(input=inputs))
-        return res.data.createFlowRun.flow_run.id  # type: ignore
+        return res.data.create_flow_run.id  # type: ignore
 
     def get_flow_run_info(self, flow_run_id: str) -> FlowRunInfoResult:
         """
@@ -811,11 +852,11 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "updateFlowRunHeartbeat", {"input": {"flowRunId": flow_run_id}}
+                    "update_flow_run_heartbeat", {"input": {"flow_run_id": flow_run_id}}
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=False)
+        self.graphql(mutation, raise_on_error=True)
 
     def update_task_run_heartbeat(self, task_run_id: str) -> None:
         """
@@ -830,11 +871,11 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "updateTaskRunHeartbeat", {"input": {"taskRunId": task_run_id}}
+                    "update_task_run_heartbeat", {"input": {"task_run_id": task_run_id}}
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=False)
+        self.graphql(mutation, raise_on_error=True)
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
@@ -851,8 +892,8 @@ class Client:
             - ClientError: if the GraphQL mutation is bad for any reason
         """
         mutation = {
-            "mutation($input: setFlowRunStatesInput!)": {
-                "setFlowRunStates(input: $input)": {"states": {"id"}}
+            "mutation($input: set_flow_run_states_input!)": {
+                "set_flow_run_states(input: $input)": {"states": {"id"}}
             }
         }
 
@@ -865,7 +906,7 @@ class Client:
                     states=[
                         dict(
                             state=serialized_state,
-                            flowRunId=flow_run_id,
+                            flow_run_id=flow_run_id,
                             version=version,
                         )
                     ]
@@ -928,30 +969,43 @@ class Client:
         mutation = {
             "mutation": {
                 with_args(
-                    "getOrCreateTaskRun",
+                    "get_or_create_task_run",
                     {
                         "input": {
-                            "flowRunId": flow_run_id,
-                            "taskId": task_id,
-                            "mapIndex": -1 if map_index is None else map_index,
+                            "flow_run_id": flow_run_id,
+                            "task_id": task_id,
+                            "map_index": -1 if map_index is None else map_index,
                         }
                     },
                 ): {
-                    "task_run": {
-                        "id": True,
-                        "version": True,
-                        "serialized_state": True,
-                        "task": {"slug": True},
-                    }
+                    "id": True,
                 }
             }
         }
         result = self.graphql(mutation)  # type: Any
-        task_run = result.data.getOrCreateTaskRun.task_run
+
+        if result is None:
+            raise ClientError("Failed to create task run.")
+
+        task_run_id = result.data.get_or_create_task_run.id
+
+        query = {
+            "query": {
+                with_args("task_run", {"where": {"id": {"_eq": task_run_id}}}): {
+                    "version": True,
+                    "serialized_state": True,
+                    "task": {"slug": True},
+                }
+            }
+        }
+        task_run = self.graphql(query).data.task_run  # type: ignore
+
+        if task_run is None:
+            raise ClientError('Task run ID not found: "{}"'.format(task_run_id))
 
         state = prefect.engine.state.State.deserialize(task_run.serialized_state)
         return TaskRunInfoResult(
-            id=task_run.id,
+            id=task_run_id,
             task_id=task_id,
             task_slug=task_run.task.slug,
             version=task_run.version,
@@ -982,8 +1036,8 @@ class Client:
             - State: the state the current task run should be considered in
         """
         mutation = {
-            "mutation($input: setTaskRunStatesInput!)": {
-                "setTaskRunStates(input: $input)": {
+            "mutation($input: set_task_run_states_input!)": {
+                "set_task_run_states(input: $input)": {
                     "states": {"id", "status", "message"}
                 }
             }
@@ -998,14 +1052,14 @@ class Client:
                     states=[
                         dict(
                             state=serialized_state,
-                            taskRunId=task_run_id,
+                            task_run_id=task_run_id,
                             version=version,
                         )
                     ]
                 )
             ),
         )  # type: Any
-        state_payload = result.data.setTaskRunStates.states[0]
+        state_payload = result.data.set_task_run_states.states[0]
         if state_payload.status == "QUEUED":
             # If appropriate, the state attribute of the Queued state can be
             # set by the caller of this method
@@ -1031,8 +1085,8 @@ class Client:
             - ValueError: if the secret-setting was unsuccessful
         """
         mutation = {
-            "mutation($input: setSecretInput!)": {
-                "setSecret(input: $input)": {"success"}
+            "mutation($input: set_secret_input!)": {
+                "set_secret(input: $input)": {"success"}
             }
         }
 
@@ -1040,7 +1094,7 @@ class Client:
             mutation, variables=dict(input=dict(name=name, value=value))
         )  # type: Any
 
-        if not result.data.setSecret.success:
+        if not result.data.set_secret.success:
             raise ValueError("Setting secret failed.")
 
     def get_task_tag_limit(self, tag: str) -> Optional[int]:
@@ -1083,8 +1137,8 @@ class Client:
             raise ValueError("Concurrency limits must be >= 0")
 
         mutation = {
-            "mutation($input: updateTaskTagLimitInput!)": {
-                "updateTaskTagLimit(input: $input)": {"id"}
+            "mutation($input: update_task_tag_limit_input!)": {
+                "update_task_tag_limit(input: $input)": {"id"}
             }
         }
 
@@ -1092,7 +1146,7 @@ class Client:
             mutation, variables=dict(input=dict(tag=tag, limit=limit))
         )  # type: Any
 
-        if not result.data.updateTaskTagLimit.id:
+        if not result.data.update_task_tag_limit.id:
             raise ValueError("Updating the task tag concurrency limit failed.")
 
     def delete_task_tag_limit(self, limit_id: str) -> None:
@@ -1107,74 +1161,17 @@ class Client:
             - ValueError: if the tag deletion was unsuccessful, or if a bad tag ID was provided
         """
         mutation = {
-            "mutation($input: deleteTaskTagLimitInput!)": {
-                "deleteTaskTagLimit(input: $input)": {"success"}
+            "mutation($input: delete_task_tag_limit_input!)": {
+                "delete_task_tag_limit(input: $input)": {"success"}
             }
         }
 
         result = self.graphql(
-            mutation, variables=dict(input=dict(limitId=limit_id))
+            mutation, variables=dict(input=dict(limit_id=limit_id))
         )  # type: Any
 
-        if not result.data.deleteTaskTagLimit.success:
+        if not result.data.delete_task_tag_limit.success:
             raise ValueError("Deleting the task tag concurrency limit failed.")
-
-    def write_run_log(
-        self,
-        flow_run_id: str,
-        task_run_id: str = None,
-        timestamp: datetime.datetime = None,
-        name: str = None,
-        message: str = None,
-        level: str = None,
-        info: Any = None,
-    ) -> None:
-        """
-        Uploads a log to Cloud.
-
-        Args:
-            - flow_run_id (str): the flow run id
-            - task_run_id (str, optional): the task run id
-            - timestamp (datetime, optional): the timestamp; defaults to now
-            - name (str, optional): the name of the logger
-            - message (str, optional): the log message
-            - level (str, optional): the log level as a string. Defaults to INFO, should be one of
-                DEBUG, INFO, WARNING, ERROR, or CRITICAL.
-            - info (Any, optional): a JSON payload of additional information
-
-        Raises:
-            - ValueError: if writing the log fails
-        """
-        warnings.warn(
-            "DEPRECATED: Client.write_run_log is deprecated, use Client.write_run_logs instead",
-            UserWarning,
-        )
-        mutation = {
-            "mutation($input: writeRunLogInput!)": {
-                "writeRunLog(input: $input)": {"success"}
-            }
-        }
-
-        if timestamp is None:
-            timestamp = pendulum.now("UTC")
-        timestamp_str = pendulum.instance(timestamp).isoformat()
-        result = self.graphql(
-            mutation,
-            variables=dict(
-                input=dict(
-                    flowRunId=flow_run_id,
-                    taskRunId=task_run_id,
-                    timestamp=timestamp_str,
-                    name=name,
-                    message=message,
-                    level=level,
-                    info=info,
-                )
-            ),
-        )  # type: Any
-
-        if not result.data.writeRunLog.success:
-            raise ValueError("Writing log failed.")
 
     def write_run_logs(self, logs: List[Dict]) -> None:
         """
@@ -1187,8 +1184,8 @@ class Client:
             - ValueError: if uploading the logs fail
         """
         mutation = {
-            "mutation($input: writeRunLogsInput!)": {
-                "writeRunLogs(input: $input)": {"success"}
+            "mutation($input: write_run_logs_input!)": {
+                "write_run_logs(input: $input)": {"success"}
             }
         }
 
@@ -1196,5 +1193,5 @@ class Client:
             mutation, variables=dict(input=dict(logs=logs))
         )  # type: Any
 
-        if not result.data.writeRunLogs.success:
+        if not result.data.write_run_logs.success:
             raise ValueError("Writing logs failed.")

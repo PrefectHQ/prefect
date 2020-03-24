@@ -24,11 +24,11 @@ def run():
     \b
     Examples:
         $ prefect run cloud --name Test-Flow --project My-Project
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
 
     \b
         $ prefect run cloud --name Test-Flow --project My-Project --watch
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
         Scheduled -> Submitted -> Running -> Success
     """
 
@@ -66,8 +66,22 @@ def run():
 @click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
+@click.option(
+    "--no-url",
+    is_flag=True,
+    help="Only output flow run id instead of link.",
+    hidden=True,
+)
 def cloud(
-    name, project, version, parameters_file, parameters_string, run_name, watch, logs
+    name,
+    project,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    no_url,
 ):
     """
     Run a registered flow in Prefect Cloud.
@@ -82,6 +96,7 @@ def cloud(
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
+        --no-url                                Only output the flow run id instead of a link
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values passed
@@ -147,7 +162,12 @@ def cloud(
     flow_run_id = client.create_flow_run(
         flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
     )
-    click.echo("Flow Run ID: {}".format(flow_run_id))
+
+    if no_url:
+        click.echo("Flow Run ID: {}".format(flow_run_id))
+    else:
+        flow_run_url = client.get_cloud_url("flow-run", flow_run_id)
+        click.echo("Flow Run: {}".format(flow_run_url))
 
     if watch:
         current_states = []

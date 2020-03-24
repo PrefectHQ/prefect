@@ -12,6 +12,7 @@ from prefect.engine.signals import (
     SKIP,
     SUCCESS,
     TRIGGERFAIL,
+    VALIDATIONFAIL,
     PrefectStateSignal,
 )
 from prefect.engine.state import (
@@ -23,6 +24,7 @@ from prefect.engine.state import (
     State,
     Success,
     TriggerFailed,
+    ValidationFailed,
 )
 
 
@@ -85,6 +87,7 @@ def test_retry_signals_prefer_supplied_run_count_to_context():
     [
         (FAIL, Failed),
         (TRIGGERFAIL, TriggerFailed),
+        (VALIDATIONFAIL, ValidationFailed),
         (SUCCESS, Success),
         (PAUSE, Paused),
         (RETRY, Retrying),
