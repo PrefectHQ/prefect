@@ -18,7 +18,7 @@ class NomadAgent(Agent):
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+            the environment variable `PREFECT__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
@@ -85,11 +85,11 @@ class NomadAgent(Agent):
         )
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
-        env["PREFECT__CLOUD__API"] = config.cloud.api or "https://api.prefect.io"
-        env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = config.cloud.agent.auth_token
+        env["PREFECT__API"] = config.api or "https://api.prefect.io"
+        env["PREFECT__AGENT__AUTH_TOKEN"] = config.agent.auth_token
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
-        env["PREFECT__LOGGING__LOG_TO_CLOUD"] = str(self.log_to_cloud).lower()
+        env["PREFECT__LOGGING__LOG_TO_API"] = str(self.log_to_api).lower()
 
         for key, value in self.env_vars.items():
             env[key] = value

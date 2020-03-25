@@ -86,9 +86,9 @@ $ prefect agent start --label dev --label staging
 - As an environment variable:
 
 ```
-$ export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
+$ export PREFECT__AGENT__LABELS='["dev", "staging"]'
 ```
 
 :::tip Environment Variable
-Setting labels through the `PREFECT__CLOUD__AGENT__LABELS` environment variable will make those labels the default unless overridden through initialization of an Agent class or through the CLI's `agent start` command.
+Setting labels through the `PREFECT__AGENT__LABELS` environment variable will make those labels the default unless overridden through initialization of an Agent class or through the CLI's `agent start` command.
 :::

@@ -107,7 +107,7 @@ class TestGCSResultHandler:
             "prefect.engine.result_handlers.gcs.get_storage_client", client_util
         )
         with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 yield client_util
 
     def test_gcs_init(self, google_client):
@@ -135,7 +135,7 @@ class TestGCSResultHandler:
         handler = GCSResultHandler(bucket="foo", credentials_secret="TEST_SECRET")
 
         with prefect.context(secrets=dict(TEST_SECRET=94611)):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_client()
 
         assert google_client.call_args[1]["credentials"] == 94611
@@ -183,7 +183,7 @@ class TestS3ResultHandler:
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_client()
         assert session.Session().client.call_args[1] == {
             "aws_access_key_id": 1,
@@ -196,7 +196,7 @@ class TestS3ResultHandler:
         with prefect.context(
             secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_client()
 
         assert handler.bucket == "bob"
@@ -211,7 +211,7 @@ class TestS3ResultHandler:
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 uri = handler.write("so-much-data")
 
         used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
@@ -238,7 +238,7 @@ class TestS3ResultHandler:
             with prefect.context(
                 secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
             ):
-                with set_temporary_config({"cloud.use_local_secrets": True}):
+                with set_temporary_config({"use_local_secrets": True}):
                     handler = S3ResultHandler(bucket="foo")
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, S3ResultHandler)
@@ -265,7 +265,7 @@ class TestAzureResultHandler:
         with prefect.context(
             secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME="1", ACCOUNT_KEY="42"))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_service()
 
         assert azure_service.call_args[1] == {
@@ -282,7 +282,7 @@ class TestAzureResultHandler:
         with prefect.context(
             secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME="1", SAS_TOKEN="24"))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_service()
 
         assert azure_service.call_args[1] == {
@@ -297,7 +297,7 @@ class TestAzureResultHandler:
         with prefect.context(
             secrets=dict(MY_FOO=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=999))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 handler.initialize_service()
 
         assert handler.container == "bob"
@@ -315,7 +315,7 @@ class TestAzureResultHandler:
         with prefect.context(
             secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=42))
         ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 uri = handler.write("so-much-data")
 
         used_uri = azure_service.return_value.create_blob_from_text.call_args[1][
@@ -340,7 +340,7 @@ class TestAzureResultHandler:
             with prefect.context(
                 secrets=dict(AZ_CREDENTIALS=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=42))
             ):
-                with set_temporary_config({"cloud.use_local_secrets": True}):
+                with set_temporary_config({"use_local_secrets": True}):
                     handler = AzureResultHandler(container="foo")
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, AzureResultHandler)
@@ -369,7 +369,7 @@ class TestSecretHandler:
     @pytest.mark.parametrize("res", [42, "stringy", None])
     def test_secret_handler_writes_and_reads(self, res, secret_task):
         handler = SecretResultHandler(secret_task)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(test=res)):
                 final = handler.read(handler.write(res))
         assert final == res

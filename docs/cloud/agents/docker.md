@@ -34,7 +34,7 @@ The Docker Agent can be started either through the Prefect CLI or by importing t
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start docker -t MY_TOKEN`
-- environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
+- environment variable `export PREFECT__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
 :::

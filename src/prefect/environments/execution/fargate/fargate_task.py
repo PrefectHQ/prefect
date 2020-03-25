@@ -21,15 +21,15 @@ class FargateTaskEnvironment(Environment):
     These environment variables are required for cloud but do not need to be included because
     they are instead automatically added and populated during execution:
 
-    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
-    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
-    - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__LOGGING__LOG_TO_API`
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
@@ -181,8 +181,8 @@ class FargateTaskEnvironment(Environment):
 
         if not definition_exists:
             env_values = [
-                {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__GRAPHQL", "value": config.graphql},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -191,7 +191,7 @@ class FargateTaskEnvironment(Environment):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                     "value": config.logging.extra_loggers,
@@ -259,8 +259,7 @@ class FargateTaskEnvironment(Environment):
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token
-                        or config.cloud.auth_token,
+                        "value": config.agent.auth_token or config.cloud.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
                     {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},

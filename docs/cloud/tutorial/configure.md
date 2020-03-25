@@ -27,5 +27,5 @@ prefect auth create-token -n my-runner-token -r RUNNER
 Keep this runner token handy for future steps, or store it as an environment variable:
 
 ```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<COPIED_RUNNER_TOKEN>
+export PREFECT__AGENT__AUTH_TOKEN=<COPIED_RUNNER_TOKEN>
 ```

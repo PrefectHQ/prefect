@@ -191,11 +191,11 @@ def start(
         kwargs.update([item.split("=")])
 
     tmp_config = {
-        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
-        "logging.log_to_cloud": False if no_cloud_logs else True,
+        "agent.auth_token": token or config.agent.auth_token,
+        "logging.log_to_api": False if no_cloud_logs else True,
     }
     if verbose:
-        tmp_config["cloud.agent.level"] = "DEBUG"
+        tmp_config["agent.level"] = "DEBUG"
 
     with set_temporary_config(tmp_config):
         retrieved_agent = _agents.get(agent_option, None)

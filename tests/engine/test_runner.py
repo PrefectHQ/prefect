@@ -125,6 +125,6 @@ def test_bad_heartbeat_doesnt_prevent_completion_of_run():
             sleep(2)
             return state.Success()
 
-    with set_temporary_config({"cloud.heartbeat_interval": 1.0}):
+    with set_temporary_config({"heartbeat_interval": 1.0}):
         res = BadHeartBeatRunner().run()
         assert res.is_successful()

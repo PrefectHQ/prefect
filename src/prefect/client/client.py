@@ -66,7 +66,7 @@ class Client:
 
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests
-            to; if not provided, will be pulled from `cloud.graphql` config var
+            to; if not provided, will be pulled from `graphql` config var
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
@@ -81,7 +81,7 @@ class Client:
         self._active_tenant_id = None
 
         # store api server
-        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
+        self.api_server = api_server or prefect.context.config.get("graphql")
 
         # store api token
         self._api_token = api_token or prefect.context.config.cloud.get(
@@ -89,10 +89,7 @@ class Client:
         )
 
         # if no api token was passed, attempt to load state from local storage
-        if (
-            not self._api_token
-            and "prefect.io" in urlparse(prefect.config.cloud.api).netloc
-        ):
+        if not self._api_token and "prefect.io" in urlparse(prefect.config.api).netloc:
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
@@ -319,7 +316,6 @@ class Client:
         self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
         with self._local_settings_path.open("w+") as f:
             toml.dump(settings, f)
-
 
     def _load_local_settings(self) -> dict:
         """
@@ -640,15 +636,15 @@ class Client:
         ```
         """
         # Generate direct link to UI
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if "prefect.io" in urlparse(prefect.config.api).netloc:
             tenant_slug = self.get_default_tenant_slug(as_user=as_user)
         else:
             tenant_slug = ""
 
         base_url = (
-            re.sub("api-", "", prefect.config.cloud.api)
-            if re.search("api-", prefect.config.cloud.api)
-            else re.sub("api", "cloud", prefect.config.cloud.api)
+            re.sub("api-", "", prefect.config.api)
+            if re.search("api-", prefect.config.api)
+            else re.sub("api", "cloud", prefect.config.api)
         )
 
         if tenant_slug:
@@ -1067,7 +1063,7 @@ class Client:
             return prefect.engine.state.Queued(
                 message=state_payload.get("message"),
                 start_time=pendulum.now("UTC").add(
-                    seconds=prefect.context.config.cloud.queue_interval
+                    seconds=prefect.context.config.queue_interval
                 ),
             )
         return state

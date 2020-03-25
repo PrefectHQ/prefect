@@ -23,7 +23,7 @@ class TestInitialization:
         req = MagicMock()
         monkeypatch.setattr(requests, "post", req)
         t = SlackTask()
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with context({"secrets": dict(SLACK_WEBHOOK_URL="http://foo/bar")}):
                 res = t.run(message="o hai mark")
         assert req.call_args[0] == ("http://foo/bar",)
@@ -33,7 +33,7 @@ class TestInitialization:
         req = MagicMock()
         monkeypatch.setattr(requests, "post", req)
         t = SlackTask(webhook_secret="MY_URL")
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with context({"secrets": dict(MY_URL="http://foo/bar")}):
                 res = t.run(message="o hai mark")
         assert req.call_args[0] == ("http://foo/bar",)

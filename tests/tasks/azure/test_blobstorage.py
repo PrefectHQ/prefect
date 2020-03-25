@@ -31,7 +31,7 @@ class TestBlobStorageDownload:
         blob = MagicMock(BlockBlobService=MagicMock(service))
         monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
                 task.run(blob_name="")
 
@@ -59,6 +59,6 @@ class TestBlobStorageUpload:
         blob = MagicMock(BlockBlobService=MagicMock(service))
         monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
                 assert task.run(data="")

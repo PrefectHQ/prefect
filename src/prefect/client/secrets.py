@@ -89,7 +89,7 @@ class Secret:
         secrets = prefect.context.get("secrets", {})
         if self.name in secrets:
             return True
-        elif prefect.context.config.cloud.use_local_secrets is False:
+        elif prefect.context.config.use_local_secrets is False:
             cloud_secrets = self.client.graphql("query{secretNames}").data.secretNames
             if self.name in cloud_secrets:
                 return True
@@ -120,7 +120,7 @@ class Secret:
         try:
             value = secrets[self.name]
         except KeyError:
-            if prefect.context.config.cloud.use_local_secrets is False:
+            if prefect.context.config.use_local_secrets is False:
                 result = self.client.graphql(
                     """
                     query($name: String!) {

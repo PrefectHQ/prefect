@@ -38,7 +38,7 @@ def test_get_flows(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["flows"])
@@ -76,7 +76,7 @@ def test_get_flows_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -122,7 +122,7 @@ def test_get_projects(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["projects"])
@@ -162,7 +162,7 @@ def test_get_projects_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["projects", "--name", "name"])
@@ -198,7 +198,7 @@ def test_get_flow_runs(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["flow-runs"])
@@ -242,7 +242,7 @@ def test_get_flow_runs_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -288,7 +288,7 @@ def test_get_tasks(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["tasks"])
@@ -330,7 +330,7 @@ def test_get_tasks_populated(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -397,7 +397,7 @@ def test_get_logs(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run"])
@@ -439,7 +439,7 @@ def test_get_logs_info(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run", "--info"])
@@ -473,7 +473,7 @@ def test_get_logs_fails(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run"])

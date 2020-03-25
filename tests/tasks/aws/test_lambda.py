@@ -32,7 +32,7 @@ class TestLambdaCreate:
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.lambda_function.boto3", boto3)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
                     AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
@@ -53,7 +53,7 @@ class TestLambdaDelete:
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.lambda_function.boto3", boto3)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
                     AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
@@ -74,7 +74,7 @@ class TestLambdaInvoke:
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.lambda_function.boto3", boto3)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
                     AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
@@ -95,7 +95,7 @@ class TestLambdaList:
         client = MagicMock()
         boto3 = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.aws.lambda_function.boto3", boto3)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
                     AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}

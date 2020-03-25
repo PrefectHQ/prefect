@@ -31,7 +31,7 @@ def test_k8s_agent_config_options(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = KubernetesAgent(name="test", labels=["test"], namespace="namespace")
         assert agent
         assert agent.labels == ["test"]
@@ -128,7 +128,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, runner_token):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"agent.auth_token": "token", "logging.log_to_api": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.replace_job_spec_yaml(flow_run)
@@ -142,7 +142,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, runner_token):
 
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        assert env[0]["value"] == "https://api.prefect.io"
+        assert env[0]["value"] == "http://localhost:4200"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
         assert env[3]["value"] == "default"
@@ -182,7 +182,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"agent.auth_token": "token", "logging.log_to_api": True}
     ):
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
@@ -196,7 +196,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
 
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        assert env[0]["value"] == "https://api.prefect.io"
+        assert env[0]["value"] == "http://localhost:4200"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
         assert env[3]["value"] == "default"
@@ -238,7 +238,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
+        {"agent.auth_token": "token", "logging.log_to_api": flag}
     ):
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)

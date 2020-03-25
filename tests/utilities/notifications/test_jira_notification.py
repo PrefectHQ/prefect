@@ -28,7 +28,7 @@ def test_jira_notifier_returns_new_state_and_old_state_is_ignored(monkeypatch):
     jira = MagicMock(client=client)
     monkeypatch.setattr("prefect.utilities.notifications.jira_notification.JIRA", jira)
     new_state = Failed(message="1", result=0)
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "123", "JIRASERVER": "",}
@@ -50,7 +50,7 @@ def test_jira_notifier_pulls_creds_from_secret(monkeypatch):
     jira = MagicMock(client=client)
     monkeypatch.setattr("prefect.utilities.notifications.jira_notification.JIRA", jira)
     state = Failed(message="1", result=0)
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={
@@ -102,7 +102,7 @@ def test_jira_notifier_ignores_ignore_states(monkeypatch):
     )
     for state in all_states:
         s = state()
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
                     JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": ""}
@@ -142,7 +142,7 @@ def test_jira_notifier_is_curried_and_ignores_ignore_states(monkeypatch, state):
         "prefect.utilities.notifications.jira_notification.JIRA", jiraMock
     )
     handler = jira_notifier(ignore_states=[Finished])
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "",}
@@ -181,7 +181,7 @@ def test_jira_notifier_is_curried_and_uses_only_states(monkeypatch, state):
         "prefect.utilities.notifications.jira_notification.JIRA", jiraMock
     )
     handler = jira_notifier(only_states=[TriggerFailed])
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(
             secrets=dict(
                 JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "",}

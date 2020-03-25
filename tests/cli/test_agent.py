@@ -4,6 +4,7 @@ from click.testing import CliRunner
 import pytest
 
 from prefect.cli.agent import agent
+from prefect.utilities.configuration import set_temporary_config
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -25,12 +26,13 @@ def test_agent_help():
 
 
 def test_agent_start_fails_no_token(monkeypatch):
-    start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
+    with set_temporary_config({"api": "https://api.prefect.io"}):
+        start = MagicMock()
+        monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
 
-    runner = CliRunner()
-    result = runner.invoke(agent, ["start"])
-    assert result.exit_code == 1
+        runner = CliRunner()
+        result = runner.invoke(agent, ["start"])
+        assert result.exit_code == 1
 
 
 def test_docker_agent_start_token(monkeypatch, runner_token):

@@ -32,7 +32,7 @@ class DockerAgent(Agent):
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+            the environment variable `PREFECT__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
@@ -382,12 +382,12 @@ class DockerAgent(Agent):
             - dict: a dictionary representing the populated environment variables
         """
         return {
-            "PREFECT__CLOUD__API": config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
-            "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+            "PREFECT__API": config.api,
+            "PREFECT__CLOUD__AUTH_TOKEN": config.agent.auth_token,
+            "PREFECT__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+            "PREFECT__USE_LOCAL_SECRETS": "false",
+            "PREFECT__LOGGING__LOG_TO_API": str(self.log_to_api).lower(),
             "PREFECT__LOGGING__LEVEL": "DEBUG",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",

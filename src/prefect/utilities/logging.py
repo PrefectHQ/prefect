@@ -96,7 +96,7 @@ class CloudHandler(logging.StreamHandler):
 
     def start(self) -> None:
         if not hasattr(self, "_thread"):
-            self.heartbeat = context.config.cloud.logging_heartbeat
+            self.heartbeat = context.config.logging_heartbeat
             self._thread = t = threading.Thread(
                 target=self._monitor, name="PrefectCloudLoggingThread"
             )
@@ -116,7 +116,7 @@ class CloudHandler(logging.StreamHandler):
 
     def emit(self, record) -> None:  # type: ignore
         # if we shouldn't log to cloud, don't emit
-        if not prefect.context.config.logging.log_to_cloud:
+        if not prefect.context.config.logging.log_to_api:
             return
 
         try:

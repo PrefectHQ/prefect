@@ -61,12 +61,12 @@ class Agent:
     way to keep Prefect Cloud logic standard but allows for platform specific
     customizability.
 
-    In order for this to operate `PREFECT__CLOUD__AGENT__AUTH_TOKEN` must be set as an
+    In order for this to operate `PREFECT__AGENT__AUTH_TOKEN` must be set as an
     environment variable or in your user configuration file.
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+            the environment variable `PREFECT__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
@@ -82,22 +82,20 @@ class Agent:
         env_vars: dict = None,
         max_polls: int = None,
     ) -> None:
-        self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = list(
-            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
-        )
+        self.name = name or config.agent.get("name", "agent")
+        self.labels = list(labels or ast.literal_eval(config.agent.get("labels", "[]")))
         self.env_vars = env_vars or dict()
         self.max_polls = max_polls
-        self.log_to_cloud = config.logging.log_to_cloud
+        self.log_to_api = config.logging.log_to_api
 
-        token = config.cloud.agent.get("auth_token")
+        token = config.agent.get("auth_token")
 
         self.client = Client(api_token=token)
-        if "prefect.io" in urlparse(config.cloud.api).netloc:
+        if "prefect.io" in urlparse(config.api).netloc:
             self._verify_token(token)
 
         logger = logging.getLogger(self.name)
-        logger.setLevel(config.cloud.agent.get("level"))
+        logger.setLevel(config.agent.get("level"))
         if not any([isinstance(h, logging.StreamHandler) for h in logger.handlers]):
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(context.config.logging.format)
@@ -195,7 +193,7 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
 
-        if "prefect.io" in urlparse(config.cloud.api).netloc:
+        if "prefect.io" in urlparse(config.api).netloc:
             self.logger.info("Agent successfully connected to Prefect Cloud")
         self.logger.info("Waiting for flow runs...")
 

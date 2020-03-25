@@ -17,7 +17,7 @@ from prefect.utilities.configuration import set_temporary_config
 
 @pytest.fixture
 def kube_secret():
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
             yield
 
@@ -149,7 +149,7 @@ class TestCreateNamespacedDeploymentTask:
             MagicMock(ExtensionsV1beta1Api=MagicMock(return_value=extensionsapi)),
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
                 task.run(body={"test": "a"})
         assert extensionsapi.create_namespaced_deployment.call_args[1]["body"] == {

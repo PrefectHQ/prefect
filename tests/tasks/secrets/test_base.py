@@ -39,14 +39,14 @@ def test_create_secret_with_result_handler():
 
 def test_secret_raises_if_doesnt_exist():
     secret = Secret(name="test")
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with pytest.raises(ValueError, match="not found"):
             secret.run()
 
 
 def test_secret_value_pulled_from_context():
     secret = Secret(name="test")
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(secrets=dict(test=42)):
             assert secret.run() == 42
         with pytest.raises(ValueError):
@@ -61,9 +61,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     secret = Secret(name="test")
-    with set_temporary_config(
-        {"cloud.use_local_secrets": False, "cloud.auth_token": None}
-    ):
+    with set_temporary_config({"use_local_secrets": False, "cloud.auth_token": None}):
         with prefect.context(secrets=dict()):
             with pytest.raises(ClientError):
                 secret.run()
@@ -76,7 +74,7 @@ def test_secrets_use_client(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.run()
@@ -90,7 +88,7 @@ def test_cloud_secrets_use_context_first(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "use_local_secrets": False}
     ):
         with prefect.context(secrets={"the-key": "foo"}):
             my_secret = Secret(name="the-key")
@@ -105,7 +103,7 @@ def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "use_local_secrets": False}
     ):
         with prefect.context(secrets={}):
             my_secret = Secret(name="the-key")
@@ -120,7 +118,7 @@ def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.run()
@@ -139,7 +137,7 @@ def test_cloud_secrets_auto_load_json_strings(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.auth_token": "secret_token", "use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.run()
@@ -149,7 +147,7 @@ def test_cloud_secrets_auto_load_json_strings(monkeypatch):
 
 def test_local_secrets_auto_load_json_strings():
     secret = Secret(name="test")
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(secrets=dict(test='{"x": 42}')):
             assert secret.run() == {"x": 42}
         with pytest.raises(ValueError):
@@ -158,7 +156,7 @@ def test_local_secrets_auto_load_json_strings():
 
 def test_local_secrets_remain_plain_dictionaries():
     secret = Secret(name="test")
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         with prefect.context(secrets=dict(test={"x": 42})):
             assert isinstance(prefect.context.secrets["test"], dict)
             val = secret.run()

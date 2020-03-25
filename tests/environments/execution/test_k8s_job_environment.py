@@ -271,7 +271,7 @@ def test_populate_job_yaml():
 
         with set_temporary_config(
             {
-                "cloud.graphql": "gql_test",
+                "graphql": "gql_test",
                 "cloud.auth_token": "auth_test",
                 "logging.extra_loggers": "['test_logger']",
             }
@@ -335,7 +335,7 @@ def test_populate_job_yaml_no_defaults():
             del job["spec"]["template"]["metadata"]
 
         with set_temporary_config(
-            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+            {"graphql": "gql_test", "cloud.auth_token": "auth_test"}
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -400,7 +400,7 @@ def test_populate_job_yaml_multiple_containers():
 
         with set_temporary_config(
             {
-                "cloud.graphql": "gql_test",
+                "graphql": "gql_test",
                 "cloud.auth_token": "auth_test",
                 "logging.extra_loggers": "['test_logger']",
             }

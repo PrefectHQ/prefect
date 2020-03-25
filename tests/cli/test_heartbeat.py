@@ -26,9 +26,9 @@ def test_heartbeat_task_run(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "graphql": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
-            "cloud.heartbeat_interval": 0.1,
+            "heartbeat_interval": 0.1,
         }
     ):
         runner = CliRunner()
@@ -41,9 +41,9 @@ def test_heartbeat_multiple_task_run_heartbeats(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "graphql": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
-            "cloud.heartbeat_interval": 0.1,
+            "heartbeat_interval": 0.1,
         }
     ):
         runner = CliRunner()
@@ -58,9 +58,9 @@ def test_heartbeat_flow_run(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "graphql": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
-            "cloud.heartbeat_interval": 0.1,
+            "heartbeat_interval": 0.1,
         }
     ):
         runner = CliRunner()
@@ -73,9 +73,9 @@ def test_heartbeat_multiple_flow_run_heartbeats(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "graphql": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
-            "cloud.heartbeat_interval": 0.1,
+            "heartbeat_interval": 0.1,
         }
     ):
         runner = CliRunner()

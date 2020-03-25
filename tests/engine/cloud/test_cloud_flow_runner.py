@@ -39,7 +39,7 @@ from prefect.utilities.configuration import set_temporary_config
 def cloud_settings():
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "graphql": "http://my-cloud.foo",
             "cloud.auth_token": "token",
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
@@ -590,7 +590,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     class CustomFlowRunner(CloudFlowRunner):
         def run_task(self, *args, **kwargs):
             with prefect.utilities.configuration.set_temporary_config(
-                {"logging.log_to_cloud": False, "cloud.auth_token": ""}
+                {"logging.log_to_api": False, "cloud.auth_token": ""}
             ):
                 return super().run_task(*args, **kwargs)
 
@@ -624,11 +624,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     prefect.utilities.logging.prefect_logger.handlers[-1].client = Client()
 
     with prefect.utilities.configuration.set_temporary_config(
-        {
-            "logging.log_to_cloud": True,
-            "special_key": 42,
-            "cloud.auth_token": "original",
-        }
+        {"logging.log_to_api": True, "special_key": 42, "cloud.auth_token": "original",}
     ):
         # captures config at init
         runner = CustomFlowRunner(flow=prefect.Flow("test", tasks=[log_stuff]))

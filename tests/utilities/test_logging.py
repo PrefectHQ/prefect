@@ -28,9 +28,7 @@ def test_root_logger_level_responds_to_config():
 
 def test_remote_handler_is_configured_for_cloud():
     try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
     finally:
@@ -42,7 +40,7 @@ def test_remote_handler_is_configured_for_cloud():
 def test_remote_handler_captures_errors_and_logs_them(caplog, monkeypatch):
     try:
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True, "cloud.auth_token": None}
+            {"logging.log_to_api": True, "cloud.auth_token": None}
         ):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
@@ -70,9 +68,7 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
     monkeypatch.setattr("prefect.client.Client", MagicMock)
     client = MagicMock()
     try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
             logger.handlers[-1].client = client
@@ -105,9 +101,7 @@ def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
     monkeypatch.setattr("prefect.client.Client", MagicMock)
     client = MagicMock()
     try:
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger = utilities.logging.configure_logging(testing=True)
             assert hasattr(logger.handlers[-1], "client")
             logger.handlers[-1].client = client
@@ -149,17 +143,15 @@ def test_cloud_handler_responds_to_config(caplog, monkeypatch):
         assert isinstance(cloud_handler, utilities.logging.CloudHandler)
 
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False}
+            {"logging.log_to_api": False}
         ):
             logger.critical("testing")
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger.critical("testing")
 
         with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": False}
+            {"logging.log_to_api": False}
         ):
             logger.critical("testing")
 
@@ -184,9 +176,7 @@ def test_cloud_handler_removes_bad_logs_from_queue_and_logs_error(caplog, monkey
         cloud_handler = logger.handlers[-1]
         assert isinstance(cloud_handler, utilities.logging.CloudHandler)
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger.critical("one")
             logger.critical(b"two")
             logger.critical("three")
@@ -215,9 +205,7 @@ def test_cloud_handler_client_error(caplog, monkeypatch):
         cloud_handler = logger.handlers[-1]
         assert isinstance(cloud_handler, utilities.logging.CloudHandler)
 
-        with utilities.configuration.set_temporary_config(
-            {"logging.log_to_cloud": True}
-        ):
+        with utilities.configuration.set_temporary_config({"logging.log_to_api": True}):
             logger.critical("one")
     finally:
         # reset root_logger

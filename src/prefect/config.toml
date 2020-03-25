@@ -4,18 +4,11 @@ debug = false
 # base configuration directory (typically you won't change this!)
 home_dir = "~/.prefect"
 
-use = "server"
+backend = "server"
 
-api = "${${use}.api}"
+api = "${${backend}.api}"
 graphql = "${api}/graphql/alpha"
 
-[server]
-api = "http://localhost:4200"
-
-[cloud]
-# the Prefect Server address
-api = "https://api.prefect.io"
-graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
 
@@ -24,19 +17,30 @@ logging_heartbeat = 5
 
 queue_interval = 30.0
 
-    [cloud.agent]
-    name = "agent"
-    labels = "[]"
+[server]
+api = "${server.host}:${server.port}"
+host = "http://localhost"
+port = "4200"
 
-    # Set to `DEBUG` for verbose logging
-    level = "INFO"
+    [server.ui]
+    port = "8080"
 
-    # Agents require different API tokens
-    auth_token = ""
+[cloud]
+api = "https://api.prefect.io"
 
-        [cloud.agent.resource_manager]
-        # Separate loop interval for resource managers
-        loop_interval = 60
+[agent]
+name = "agent"
+labels = "[]"
+
+# Set to `DEBUG` for verbose logging
+level = "INFO"
+
+# Agents require different API tokens
+auth_token = ""
+
+    [agent.resource_manager]
+    # Separate loop interval for resource managers
+    loop_interval = 60
 
 
 [logging]
@@ -46,8 +50,8 @@ level = "INFO"
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
-# Send logs to Prefect Cloud
-log_to_cloud = false
+# Send logs to a Prefect API
+log_to_api = false
 
 # Extra loggers for Prefect log configuration
 extra_loggers = "[]"

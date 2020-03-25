@@ -19,19 +19,19 @@ spec:
           command: ["/bin/sh", "-c"]
           args: ["prefect execute cloud-flow"]
           env:
-            - name: PREFECT__CLOUD__API
-              value: PREFECT__CLOUD__API
+            - name: PREFECT__API
+              value: PREFECT__API
             - name: PREFECT__CLOUD__AUTH_TOKEN
               value: PREFECT__CLOUD__AUTH_TOKEN
             - name: PREFECT__CONTEXT__FLOW_RUN_ID
               value: PREFECT__CONTEXT__FLOW_RUN_ID
             - name: PREFECT__CONTEXT__NAMESPACE
               value: PREFECT__CONTEXT__NAMESPACE
-            - name: PREFECT__CLOUD__AGENT__LABELS
-              value: PREFECT__CLOUD__AGENT__LABELS
-            - name: PREFECT__LOGGING__LOG_TO_CLOUD
-              value: PREFECT__LOGGING__LOG_TO_CLOUD
-            - name: PREFECT__CLOUD__USE_LOCAL_SECRETS
+            - name: PREFECT__AGENT__LABELS
+              value: PREFECT__AGENT__LABELS
+            - name: PREFECT__LOGGING__LOG_TO_API
+              value: PREFECT__LOGGING__LOG_TO_API
+            - name: PREFECT__USE_LOCAL_SECRETS
               value: "false"
             - name: PREFECT__LOGGING__LEVEL
               value: "DEBUG"

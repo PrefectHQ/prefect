@@ -22,7 +22,7 @@ class TestInitialization:
         smtp = MagicMock()
         monkeypatch.setattr("prefect.tasks.notifications.email_task.smtplib", smtp)
         t = EmailTask(msg="")
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
                 res = t.run()
         assert smtp.SMTP_SSL.return_value.login.call_args[0] == ("foo", "bar")
@@ -31,7 +31,7 @@ class TestInitialization:
         smtp = MagicMock()
         monkeypatch.setattr("prefect.tasks.notifications.email_task.smtplib", smtp)
         t = EmailTask(msg="", email_from="test@lvh.me")
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
                 res = t.run()
         assert smtp.SMTP_SSL.return_value.sendmail.call_args[0][0] == ("test@lvh.me")

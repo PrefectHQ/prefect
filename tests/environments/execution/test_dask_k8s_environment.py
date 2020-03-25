@@ -264,7 +264,7 @@ def test_populate_job_yaml():
 
     with set_temporary_config(
         {
-            "cloud.graphql": "gql_test",
+            "graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.extra_loggers": "['test_logger']",
         }
@@ -314,7 +314,7 @@ def test_populate_worker_pod_yaml():
 
     with set_temporary_config(
         {
-            "cloud.graphql": "gql_test",
+            "graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.extra_loggers": "['test_logger']",
         }
@@ -346,9 +346,7 @@ def test_populate_worker_pod_yaml_with_private_registry():
     with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
         pod = yaml.safe_load(pod_file)
 
-    with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
-    ):
+    with set_temporary_config({"graphql": "gql_test", "cloud.auth_token": "auth_test"}):
         with prefect.context(
             flow_run_id="id_test", image="my_image", namespace="foo-man"
         ):
@@ -387,9 +385,9 @@ def test_populate_custom_worker_spec_yaml(log_flag):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "gql_test",
+            "graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "logging.log_to_api": log_flag,
             "logging.extra_loggers": "['test_logger']",
         }
     ):
@@ -429,9 +427,9 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "gql_test",
+            "graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "logging.log_to_api": log_flag,
             "logging.extra_loggers": "['test_logger']",
         }
     ):

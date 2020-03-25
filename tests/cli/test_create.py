@@ -30,7 +30,7 @@ def test_create_project(patch_post):
     patch_post(dict(data=dict(create_project=dict(id="id"))))
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test"])
@@ -42,7 +42,7 @@ def test_create_project_error(patch_post):
     patch_post(dict(errors=dict(error="bad")))
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test"])
@@ -54,7 +54,7 @@ def test_create_project_description(patch_post):
     patch_post(dict(data=dict(create_project=dict(id="id"))))
 
     with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(create, ["project", "test", "-d", "description"])

@@ -47,7 +47,7 @@ class TestDatastoreRegisterBlobContainer:
             datastore_class,
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
             ):
@@ -68,7 +68,7 @@ class TestDatastoreRegisterBlobContainer:
             datastore_class,
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
             ):
@@ -89,7 +89,7 @@ class TestDatastoreRegisterBlobContainer:
             datastore_class,
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "ACCOUNT_KEY": "99"})
             ):
@@ -110,7 +110,7 @@ class TestDatastoreRegisterBlobContainer:
             datastore_class,
         )
 
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(AZ_CREDENTIALS={"ACCOUNT_NAME": "42", "SAS_TOKEN": "24"})
             ):

@@ -107,13 +107,13 @@ $ prefect agent start -t TOKEN_VALUE
 - Specify the token as an environment variable. This method means the token will only be available to processes which have the variable set.
 
 ```bash
-$ export PREFECT__CLOUD__AGENT__AUTH_TOKEN=TOKEN_VALUE
+$ export PREFECT__AGENT__AUTH_TOKEN=TOKEN_VALUE
 ```
 
 - Manually save your token in `$HOME/.prefect/config.toml`. This method ensures that the token will be available at all times if it is not overridden.
 
 ```toml
-[cloud.agent]
+[agent]
 auth_token = TOKEN_VALUE
 ```
 

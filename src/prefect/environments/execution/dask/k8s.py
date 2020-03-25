@@ -32,17 +32,17 @@ class DaskKubernetesEnvironment(Environment):
     The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
     required for cloud do not need to be included because they are instead automatically added and populated during execution:
 
-    - `PREFECT__CLOUD__GRAPHQL`
+    - `PREFECT__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
     - `PREFECT__CONTEXT__FLOW_FILE_PATH`
-    - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
+    - `PREFECT__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS`
-    - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__LOGGING__LOG_TO_API`
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Args:
@@ -374,7 +374,7 @@ class DaskKubernetesEnvironment(Environment):
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
 
-        env[0]["value"] = prefect.config.cloud.graphql
+        env[0]["value"] = prefect.config.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
         env[3]["value"] = prefect.context.get("namespace", "default")
@@ -407,7 +407,7 @@ class DaskKubernetesEnvironment(Environment):
         # set environment variables
         env = yaml_obj["spec"]["containers"][0]["env"]
 
-        env[0]["value"] = prefect.config.cloud.graphql
+        env[0]["value"] = prefect.config.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = prefect.context.get("flow_run_id", "")
         env[11]["value"] = self._extra_loggers()
@@ -457,7 +457,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {"name": "PREFECT__GRAPHQL", "value": prefect.config.graphql},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,
@@ -469,7 +469,7 @@ class DaskKubernetesEnvironment(Environment):
             },
             {"name": "PREFECT__CONTEXT__IMAGE", "value": docker_name},
             {"name": "PREFECT__CONTEXT__FLOW_FILE_PATH", "value": flow_file_path},
-            {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+            {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
             {
                 "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                 "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -483,8 +483,8 @@ class DaskKubernetesEnvironment(Environment):
                 "value": "prefect.engine.executors.DaskExecutor",
             },
             {
-                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": str(prefect.config.logging.log_to_cloud).lower(),
+                "name": "PREFECT__LOGGING__LOG_TO_API",
+                "value": str(prefect.config.logging.log_to_api).lower(),
             },
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
@@ -519,7 +519,7 @@ class DaskKubernetesEnvironment(Environment):
 
         # Required Cloud environment variables
         env_values = [
-            {"name": "PREFECT__CLOUD__GRAPHQL", "value": prefect.config.cloud.graphql},
+            {"name": "PREFECT__GRAPHQL", "value": prefect.config.graphql},
             {
                 "name": "PREFECT__CLOUD__AUTH_TOKEN",
                 "value": prefect.config.cloud.auth_token,
@@ -528,7 +528,7 @@ class DaskKubernetesEnvironment(Environment):
                 "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                 "value": prefect.context.get("flow_run_id", ""),
             },
-            {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+            {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
             {
                 "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                 "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -542,8 +542,8 @@ class DaskKubernetesEnvironment(Environment):
                 "value": "prefect.engine.executors.DaskExecutor",
             },
             {
-                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": str(prefect.config.logging.log_to_cloud).lower(),
+                "name": "PREFECT__LOGGING__LOG_TO_API",
+                "value": str(prefect.config.logging.log_to_api).lower(),
             },
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",

@@ -24,7 +24,7 @@ from prefect.utilities.graphql import GraphQLResult, decompress
 class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
-            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
+            {"graphql": "api_server", "cloud.auth_token": "token"}
         ):
             client = Client()
         assert client.api_server == "api_server"
@@ -32,7 +32,7 @@ class TestClientConfig:
 
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
-            {"cloud.graphql": "api_server", "cloud.auth_token": "token"}
+            {"graphql": "api_server", "cloud.auth_token": "token"}
         ):
             client = Client(api_server="my-graphql")
         assert client.api_server == "my-graphql"
@@ -60,24 +60,21 @@ class TestClientConfig:
             assert str(path) == os.path.expanduser(expected)
 
     def test_client_token_initializes_from_file(selfmonkeypatch):
-        with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
-                path = Path(tmp) / "client" / "xyz" / "settings.toml"
-                path.parent.mkdir(parents=True)
-                with path.open("w") as f:
-                    toml.dump(dict(api_token="FILE_TOKEN"), f)
+        with set_temporary_config({"api": "https://api.prefect.io"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                with set_temporary_config({"home_dir": tmp, "graphql": "xyz"}):
+                    path = Path(tmp) / "client" / "xyz" / "settings.toml"
+                    path.parent.mkdir(parents=True)
+                    with path.open("w") as f:
+                        toml.dump(dict(api_token="FILE_TOKEN"), f)
 
-                client = Client()
-        assert client._api_token == "FILE_TOKEN"
+                    client = Client()
+            assert client._api_token == "FILE_TOKEN"
 
     def test_client_token_priotizes_config_over_file(selfmonkeypatch):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config(
-                {
-                    "home_dir": tmp,
-                    "cloud.graphql": "xyz",
-                    "cloud.auth_token": "CONFIG_TOKEN",
-                }
+                {"home_dir": tmp, "graphql": "xyz", "cloud.auth_token": "CONFIG_TOKEN",}
             ):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
                 path.parent.mkdir(parents=True)
@@ -94,7 +91,7 @@ class TestClientConfig:
 
     def test_save_local_settings(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
+            with set_temporary_config({"home_dir": tmp, "graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
 
                 client = Client(api_token="a")
@@ -121,15 +118,16 @@ class TestClientConfig:
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
         self,
     ):
-        with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp}):
-                client = Client(api_token="a")
-                client.save_api_token()
+        with set_temporary_config({"api": "https://api.prefect.io"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                with set_temporary_config({"home_dir": tmp}):
+                    client = Client(api_token="a")
+                    client.save_api_token()
 
-                client = Client(api_token="b")
-                assert client._api_token == "b"
+                    client = Client(api_token="b")
+                    assert client._api_token == "b"
 
-                assert Client()._api_token == "a"
+                    assert Client()._api_token == "a"
 
 
 class TestTenantAuth:
@@ -241,29 +239,30 @@ class TestTenantAuth:
     def test_login_to_tenant_writes_tenant_and_reloads_it_when_token_is_reloaded(
         self, patch_post
     ):
-        tenant_id = str(uuid.uuid4())
-        post = patch_post(
-            {
-                "data": {
-                    "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
-                    },
+        with set_temporary_config({"api": "https://api.prefect.io"}):
+            tenant_id = str(uuid.uuid4())
+            post = patch_post(
+                {
+                    "data": {
+                        "tenant": [{"id": tenant_id}],
+                        "switchTenant": {
+                            "accessToken": "ACCESS_TOKEN",
+                            "expiresAt": "2100-01-01",
+                            "refreshToken": "REFRESH_TOKEN",
+                        },
+                    }
                 }
-            }
-        )
+            )
 
-        client = Client(api_token="abc")
-        assert client._active_tenant_id is None
-        client.login_to_tenant(tenant_id=tenant_id)
-        client.save_api_token()
-        assert client._active_tenant_id == tenant_id
+            client = Client(api_token="abc")
+            assert client._active_tenant_id is None
+            client.login_to_tenant(tenant_id=tenant_id)
+            client.save_api_token()
+            assert client._active_tenant_id == tenant_id
 
-        # new client loads the active tenant and token
-        assert Client()._active_tenant_id == tenant_id
-        assert Client()._api_token == "abc"
+            # new client loads the active tenant and token
+            assert Client()._active_tenant_id == tenant_id
+            assert Client()._api_token == "abc"
 
     def test_login_to_client_doesnt_reload_active_tenant_when_token_isnt_loaded(
         self, patch_post
@@ -441,29 +440,30 @@ class TestTenantAuth:
     def test_client_clears_active_tenant_if_login_fails_on_initialization(
         self, patch_post
     ):
-        post = patch_post(
-            {
-                "errors": [
-                    {
-                        "message": "",
-                        "locations": [],
-                        "path": ["tenant"],
-                        "extensions": {"code": "UNAUTHENTICATED"},
-                    }
-                ]
-            }
-        )
+        with set_temporary_config({"api": "https://api.prefect.io"}):
+            post = patch_post(
+                {
+                    "errors": [
+                        {
+                            "message": "",
+                            "locations": [],
+                            "path": ["tenant"],
+                            "extensions": {"code": "UNAUTHENTICATED"},
+                        }
+                    ]
+                }
+            )
 
-        # create a client just so we can use its settings methods to store settings
-        client = Client()
-        settings = client._load_local_settings()
-        settings.update(api_token="API_TOKEN", active_tenant_id=str(uuid.uuid4()))
-        client._save_local_settings(settings)
+            # create a client just so we can use its settings methods to store settings
+            client = Client()
+            settings = client._load_local_settings()
+            settings.update(api_token="API_TOKEN", active_tenant_id=str(uuid.uuid4()))
+            client._save_local_settings(settings)
 
-        # this initialization will fail with the patched error
-        client = Client()
-        settings = client._load_local_settings()
-        assert "active_tenant_id" not in settings
+            # this initialization will fail with the patched error
+            client = Client()
+            settings = client._load_local_settings()
+            assert "active_tenant_id" not in settings
 
 
 class TestPassingHeadersAndTokens:
@@ -473,7 +473,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.get = get
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.get("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -490,7 +490,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.post("/foo/bar", headers={"x": "y", "Authorization": "z"})
@@ -507,7 +507,7 @@ class TestPassingHeadersAndTokens:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
         ):
             client = Client()
         client.graphql("query {}", headers={"x": "y", "Authorization": "z"})
@@ -523,7 +523,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.get = get
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+        with set_temporary_config({"graphql": "http://my-cloud.foo"}):
             client = Client()
         client.get("/foo/bar", token="secret_token")
         assert get.called
@@ -537,7 +537,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+        with set_temporary_config({"graphql": "http://my-cloud.foo"}):
             client = Client()
         client.post("/foo/bar", token="secret_token")
         assert post.called
@@ -551,7 +551,7 @@ class TestPassingHeadersAndTokens:
         session = MagicMock()
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
-        with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
+        with set_temporary_config({"graphql": "http://my-cloud.foo"}):
             client = Client()
         client.graphql("query {}", token="secret_token")
         assert post.called

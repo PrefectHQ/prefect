@@ -363,7 +363,7 @@ def test_task_runner_can_handle_timeouts_by_default():
 
 def test_task_runner_handles_secrets():
     t = SecretTask()
-    with set_temporary_config({"cloud.use_local_secrets": True}):
+    with set_temporary_config({"use_local_secrets": True}):
         state = TaskRunner(t).run(context=dict(secrets=dict(testing="my_private_str")))
     assert state.is_successful()
     assert state.result == "my_private_str"

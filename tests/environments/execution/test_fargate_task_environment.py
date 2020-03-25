@@ -254,11 +254,8 @@ def test_setup_definition_register(monkeypatch):
                 "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
             ],
             "environment": [
-                {
-                    "name": "PREFECT__CLOUD__GRAPHQL",
-                    "value": prefect.config.cloud.graphql,
-                },
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__GRAPHQL", "value": prefect.config.graphql,},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -267,7 +264,7 @@ def test_setup_definition_register(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                 {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "essential": True,
@@ -293,11 +290,8 @@ def test_setup_definition_register_no_defintions(monkeypatch):
     ] == [
         {
             "environment": [
-                {
-                    "name": "PREFECT__CLOUD__GRAPHQL",
-                    "value": prefect.config.cloud.graphql,
-                },
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__GRAPHQL", "value": prefect.config.graphql,},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -306,7 +300,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                 {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "name": "flow-container",
@@ -365,7 +359,7 @@ def test_execute_run_task_agent_token(monkeypatch):
     boto3_client.run_task.return_value = {}
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    with set_temporary_config({"cloud.agent.auth_token": "test"}):
+    with set_temporary_config({"agent.auth_token": "test"}):
         environment = FargateTaskEnvironment(
             cluster="test", family="test", taskDefinition="test"
         )
@@ -384,7 +378,7 @@ def test_execute_run_task_agent_token(monkeypatch):
                     "environment": [
                         {
                             "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                            "value": prefect.config.cloud.agent.get("auth_token"),
+                            "value": prefect.config.agent.get("auth_token"),
                         },
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "unknown"},
                         {"name": "PREFECT__CONTEXT__IMAGE", "value": "test/image:tag"},
@@ -517,11 +511,8 @@ def test_entire_environment_process_together(monkeypatch):
                     "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
                 ],
                 "environment": [
-                    {
-                        "name": "PREFECT__CLOUD__GRAPHQL",
-                        "value": prefect.config.cloud.graphql,
-                    },
-                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
+                    {"name": "PREFECT__GRAPHQL", "value": prefect.config.graphql,},
+                    {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudFlowRunner",
@@ -530,7 +521,7 @@ def test_entire_environment_process_together(monkeypatch):
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                     {
                         "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
                         "value": "['test_logger']",

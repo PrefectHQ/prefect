@@ -50,7 +50,7 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
     monkeypatch.delenv("AWS_SESSION_TOKEN")
     monkeypatch.delenv("REGION_NAME")
 
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = FargateAgent(name="test", labels=["test"])
         assert agent
         assert agent.labels == ["test"]
@@ -663,7 +663,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
         "propagateTags": "test",
     }
 
-    with set_temporary_config({"logging.log_to_cloud": True}):
+    with set_temporary_config({"logging.log_to_api": True}):
         agent = FargateAgent(
             aws_access_key_id="id",
             aws_secret_access_key="secret",
@@ -701,10 +701,10 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__API", "value": "http://localhost:4200"},
+                {"name": "PREFECT__AGENT__LABELS", "value": "[]"},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -767,7 +767,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         "propagateTags": "test",
     }
 
-    with set_temporary_config({"logging.log_to_cloud": flag}):
+    with set_temporary_config({"logging.log_to_api": flag}):
         agent = FargateAgent(
             aws_access_key_id="id",
             aws_secret_access_key="secret",
@@ -806,13 +806,10 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {
-                    "name": "PREFECT__CLOUD__AGENT__LABELS",
-                    "value": "['aws', 'staging']",
-                },
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": str(flag).lower()},
+                {"name": "PREFECT__API", "value": "http://localhost:4200"},
+                {"name": "PREFECT__AGENT__LABELS", "value": "['aws', 'staging']",},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": str(flag).lower()},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -845,7 +842,7 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
 
     monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
 
-    with set_temporary_config({"logging.log_to_cloud": True}):
+    with set_temporary_config({"logging.log_to_api": True}):
         agent = FargateAgent()
 
     agent.deploy_flow(
@@ -874,10 +871,10 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
             "image": "test/name:tag",
             "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
             "environment": [
-                {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
-                {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                {"name": "PREFECT__API", "value": "http://localhost:4200"},
+                {"name": "PREFECT__AGENT__LABELS", "value": "[]"},
+                {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
+                {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "true"},
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -962,10 +959,10 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                    {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
-                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__API", "value": "http://localhost:4200"},
+                    {"name": "PREFECT__AGENT__LABELS", "value": "[]"},
+                    {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "false"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1287,13 +1284,10 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "image": "test/name:tag",
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
-                    {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
-                    {
-                        "name": "PREFECT__CLOUD__AGENT__LABELS",
-                        "value": "['aws', 'staging']",
-                    },
-                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__API", "value": "http://localhost:4200"},
+                    {"name": "PREFECT__AGENT__LABELS", "value": "['aws', 'staging']",},
+                    {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_API", "value": "false"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",

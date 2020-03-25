@@ -16,7 +16,7 @@ def test_nomad_agent_init(runner_token):
 
 
 def test_nomad_agent_config_options(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = NomadAgent(name="test")
         assert agent
         assert agent.name == "test"
@@ -30,25 +30,26 @@ def test_nomad_agent_deploy_flow(monkeypatch, runner_token):
 
     monkeypatch.setattr(requests, "post", post)
 
-    agent = NomadAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "id": "id",
-                    }
-                ),
-                "id": "id",
-            }
+    with set_temporary_config({"api": "https://api.prefect.io"}):
+        agent = NomadAgent()
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Docker(
+                                registry_url="test", image_name="name", image_tag="tag"
+                            ).serialize(),
+                            "id": "id",
+                        }
+                    ),
+                    "id": "id",
+                }
+            )
         )
-    )
 
-    assert post.called
-    assert post.call_args[1]["json"]
+        assert post.called
+        assert post.call_args[1]["json"]
 
 
 def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
@@ -74,7 +75,7 @@ def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_nomad_agent_replace_yaml(runner_token, flag):
-    with set_temporary_config({"cloud.agent.auth_token": "token"}):
+    with set_temporary_config({"agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -89,7 +90,7 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
             }
         )
 
-        with set_temporary_config({"logging.log_to_cloud": flag}):
+        with set_temporary_config({"logging.log_to_api": flag}):
             agent = NomadAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.replace_job_spec_json(flow_run)
 
@@ -100,10 +101,10 @@ def test_nomad_agent_replace_yaml(runner_token, flag):
         )
 
         env = job["Job"]["TaskGroups"][0]["Tasks"][0]["Env"]
-        assert env["PREFECT__CLOUD__API"] == "https://api.prefect.io"
-        assert env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] == "token"
+        assert env["PREFECT__API"] == "http://localhost:4200"
+        assert env["PREFECT__AGENT__AUTH_TOKEN"] == "token"
         assert env["PREFECT__CONTEXT__FLOW_RUN_ID"] == "id"
         assert env["PREFECT__CONTEXT__NAMESPACE"] == "default"
-        assert env["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+        assert env["PREFECT__LOGGING__LOG_TO_API"] == str(flag).lower()
         assert env["AUTH_THING"] == "foo"
         assert env["PKG_SETTING"] == "bar"

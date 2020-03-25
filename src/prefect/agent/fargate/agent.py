@@ -41,7 +41,7 @@ class FargateAgent(Agent):
 
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+            the environment variable `PREFECT__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
@@ -488,17 +488,14 @@ class FargateAgent(Agent):
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {
-                        "name": "PREFECT__CLOUD__API",
-                        "value": config.cloud.api or "https://api.prefect.io",
+                        "name": "PREFECT__API",
+                        "value": config.api or "https://api.prefect.io",
                     },
+                    {"name": "PREFECT__AGENT__LABELS", "value": str(self.labels),},
+                    {"name": "PREFECT__USE_LOCAL_SECRETS", "value": "false"},
                     {
-                        "name": "PREFECT__CLOUD__AGENT__LABELS",
-                        "value": str(self.labels),
-                    },
-                    {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {
-                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                        "value": str(self.log_to_cloud).lower(),
+                        "name": "PREFECT__LOGGING__LOG_TO_API",
+                        "value": str(self.log_to_api).lower(),
                     },
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
@@ -551,7 +548,7 @@ class FargateAgent(Agent):
                 "environment": [
                     {
                         "name": "PREFECT__CLOUD__AUTH_TOKEN",
-                        "value": config.cloud.agent.auth_token,
+                        "value": config.agent.auth_token,
                     },
                     {
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",

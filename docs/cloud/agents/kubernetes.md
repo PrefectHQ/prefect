@@ -68,7 +68,7 @@ The Kubernetes Agent can be started either through the Prefect CLI or by importi
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start kubernetes -t MY_TOKEN`
-- environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=MY_TOKEN`
+- environment variable `export PREFECT__AGENT__AUTH_TOKEN=MY_TOKEN`
 - token will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
 
 :::
@@ -157,10 +157,10 @@ To specify a set of labels for a Kubernetes Agent during install you may specify
 $ prefect agent install kubernetes -t MY_TOKEN --label dev --label staging
 ```
 
-This will update the `PREFECT__CLOUD__AGENT__LABELS` environment variable on the Agent deployment YAML to include a string representation of a the list of labels. This means that providing the `dev` and `staging` labels above would be represented as:
+This will update the `PREFECT__AGENT__LABELS` environment variable on the Agent deployment YAML to include a string representation of a the list of labels. This means that providing the `dev` and `staging` labels above would be represented as:
 
 ```yaml
-- name: PREFECT__CLOUD__AGENT__LABELS
+- name: PREFECT__AGENT__LABELS
   value: "['dev', 'staging']"
 ```
 

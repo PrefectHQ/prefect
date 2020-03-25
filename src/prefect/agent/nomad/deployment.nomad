@@ -32,8 +32,8 @@ job "prefect-agent" {
 
       env {
         NOMAD_HOST = "http://127.0.0.1:4646"
-        PREFECT__CLOUD__AGENT__AUTH_TOKEN = "TOKEN"
-        PREFECT__CLOUD__API = "https://api.prefect.io"
+        PREFECT__AGENT__AUTH_TOKEN = "TOKEN"
+        PREFECT__API = "https://api.prefect.io"
         NAMESPACE = "default"
       }
 

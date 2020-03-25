@@ -50,7 +50,7 @@ class KubernetesAgent(Agent):
         - namespace (str, optional): A Kubernetes namespace to create jobs in. Defaults
             to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
-            the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
+            the environment variable `PREFECT__AGENT__NAME`. Defaults to "agent"
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
@@ -166,12 +166,12 @@ class KubernetesAgent(Agent):
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
 
-        env[0]["value"] = config.cloud.api or "https://api.prefect.io"
-        env[1]["value"] = config.cloud.agent.auth_token
+        env[0]["value"] = config.api or "https://api.prefect.io"
+        env[1]["value"] = config.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
         env[3]["value"] = os.getenv("NAMESPACE", "default")
         env[4]["value"] = str(self.labels)
-        env[5]["value"] = str(self.log_to_cloud).lower()
+        env[5]["value"] = str(self.log_to_api).lower()
 
         # append all user provided values
         for key, value in self.env_vars.items():

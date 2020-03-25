@@ -57,7 +57,7 @@ def task_run(id, num):
         client.update_task_run_heartbeat(id)  # type: ignore
         if num:
             iter_count += 1
-        time.sleep(config.cloud.heartbeat_interval)
+        time.sleep(config.heartbeat_interval)
 
 
 @heartbeat.command(hidden=True)
@@ -95,4 +95,4 @@ def flow_run(id, num):
         client.update_flow_run_heartbeat(id)  # type: ignore
         if num:
             iter_count += 1
-        time.sleep(config.cloud.heartbeat_interval)
+        time.sleep(config.heartbeat_interval)

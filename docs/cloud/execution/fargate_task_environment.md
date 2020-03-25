@@ -102,11 +102,11 @@ The container dictionary above will be changed during setup:
 - `environment` will have some extra variables automatically appended to it for Cloud-based Flow runs:
 
 ```
-PREFECT__CLOUD__GRAPHQL
-PREFECT__CLOUD__USE_LOCAL_SECRETS
+PREFECT__GRAPHQL
+PREFECT__USE_LOCAL_SECRETS
 PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
 PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
-PREFECT__LOGGING__LOG_TO_CLOUD
+PREFECT__LOGGING__LOG_TO_API
 PREFECT__LOGGING__EXTRA_LOGGERS
 ```
 

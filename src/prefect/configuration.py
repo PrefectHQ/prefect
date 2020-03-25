@@ -10,6 +10,7 @@ from prefect.utilities import collections
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(__file__), "config.toml")
 USER_CONFIG = os.getenv("PREFECT__USER_CONFIG_PATH", "~/.prefect/config.toml")
+BACKEND_CONFIG = os.getenv("PREFECT__BACKEND_CONFIG_PATH", "~/.prefect/backend.toml")
 ENV_VAR_PREFIX = "PREFECT"
 INTERPOLATION_REGEX = re.compile(r"\${(.[^${}]*)}")
 
@@ -285,7 +286,10 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
 
 
 def load_configuration(
-    path: str, user_config_path: str = None, env_var_prefix: str = None
+    path: str,
+    user_config_path: str = None,
+    backend_config_path: str = None,
+    env_var_prefix: str = None,
 ) -> Config:
     """
     Loads a configuration from a known location.
@@ -312,6 +316,16 @@ def load_configuration(
             dict, collections.merge_dicts(default_config, user_config)
         )
 
+    # load backend config
+    if backend_config_path and os.path.isfile(
+        str(interpolate_env_vars(backend_config_path))
+    ):
+        backend_config = load_toml(backend_config_path)
+        # merge backend config into default config
+        default_config = cast(
+            dict, collections.merge_dicts(default_config, backend_config)
+        )
+
     # interpolate after user config has already been merged
     config = interpolate_config(default_config, env_var_prefix=env_var_prefix)
 
@@ -321,7 +335,10 @@ def load_configuration(
 
 # load prefect configuration
 config = load_configuration(
-    path=DEFAULT_CONFIG, user_config_path=USER_CONFIG, env_var_prefix=ENV_VAR_PREFIX
+    path=DEFAULT_CONFIG,
+    user_config_path=USER_CONFIG,
+    backend_config_path=BACKEND_CONFIG,
+    env_var_prefix=ENV_VAR_PREFIX,
 )
 
 # add task defaults

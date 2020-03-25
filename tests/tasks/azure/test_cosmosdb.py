@@ -47,7 +47,7 @@ class TestCosmosDBCreateItem:
             "prefect.tasks.azure.cosmosdb.azure.cosmos.cosmos_client", cosmos_client
         )
         auth_dict = {"AZ_COSMOS_AUTH": {"masterKey": "42"}}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=auth_dict)):
                 task.run()
         kwargs = client.call_args[1]
@@ -83,7 +83,7 @@ class TestCosmosDBReadItem:
             "prefect.tasks.azure.cosmosdb.azure.cosmos.cosmos_client", cosmos_client
         )
         auth_dict = {"AZ_COSMOS_AUTH": {"masterKey": "42"}}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=auth_dict)):
                 task.run()
         kwargs = client.call_args[1]
@@ -98,7 +98,7 @@ class TestCosmosDBReadItem:
             "prefect.tasks.azure.cosmosdb.azure.cosmos.cosmos_client", cosmos_client
         )
         auth_dict = {"AZ_COSMOS_AUTH": {"masterKey": "42"}}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=auth_dict)):
                 task.run()
         called_function = client.mock_calls[1][0]
@@ -113,7 +113,7 @@ class TestCosmosDBReadItem:
             "prefect.tasks.azure.cosmosdb.azure.cosmos.cosmos_client", cosmos_client
         )
         auth_dict = {"AZ_COSMOS_AUTH": {"masterKey": "42"}}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=auth_dict)):
                 task.run()
         called_function = client.mock_calls[1][0]
@@ -155,7 +155,7 @@ class TestCosmosDBQueryItem:
             "prefect.tasks.azure.cosmosdb.azure.cosmos.cosmos_client", cosmos_client
         )
         auth_dict = {"AZ_COSMOS_AUTH": {"masterKey": "42"}}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=auth_dict)):
                 task.run()
         kwargs = client.call_args[1]

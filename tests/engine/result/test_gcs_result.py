@@ -50,7 +50,7 @@ class TestGCSResult:
         result = GCSResult(bucket="foo", credentials_secret="TEST_SECRET")
 
         with prefect.context(secrets=dict(TEST_SECRET=94611)):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
+            with set_temporary_config({"use_local_secrets": True}):
                 result.gcs_bucket()
 
         assert google_client.call_args[1]["credentials"] == 94611

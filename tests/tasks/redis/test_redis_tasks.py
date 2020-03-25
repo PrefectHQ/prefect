@@ -35,7 +35,7 @@ class TestRedisSet:
         task = RedisSet()
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_key="foo", redis_val="bar")
         assert redis.call_args[1]["password"] == 42
@@ -45,7 +45,7 @@ class TestRedisSet:
         task = RedisSet(redis_connection_params=redis_params)
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_key="foo", redis_val="bar")
         assert redis.call_args[1]["custom_parameter"] == "value"
@@ -65,7 +65,7 @@ class TestRedisGet:
         task = RedisGet()
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_key="foo")
         assert redis.call_args[1]["password"] == 42
@@ -75,7 +75,7 @@ class TestRedisGet:
         task = RedisGet(redis_connection_params=redis_params)
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_key="foo")
         assert redis.call_args[1]["custom_parameter"] == "value"
@@ -95,7 +95,7 @@ class TestRedisExecute:
         task = RedisExecute()
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_cmd="GET foo")
         assert redis.call_args[1]["password"] == 42
@@ -105,7 +105,7 @@ class TestRedisExecute:
         task = RedisExecute(redis_connection_params=redis_params)
         redis = MagicMock()
         monkeypatch.setattr("prefect.tasks.redis.redis_tasks.redis.Redis", redis)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
+        with set_temporary_config({"use_local_secrets": True}):
             with prefect.context(secrets=dict(REDIS_PASSWORD="42")):
                 task.run(redis_cmd="GET foo")
         assert redis.call_args[1]["custom_parameter"] == "value"

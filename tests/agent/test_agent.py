@@ -21,7 +21,7 @@ def test_multiple_agent_init_doesnt_duplicate_logs(runner_token):
 
 
 def test_agent_config_options(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.labels == []
         assert agent.env_vars == dict()
@@ -44,61 +44,62 @@ def test_agent_name_set_options(monkeypatch, runner_token):
     assert agent.logger.name == "test1"
 
     # Config
-    with set_temporary_config({"cloud.agent.name": "test2"}):
+    with set_temporary_config({"agent.name": "test2"}):
         agent = Agent()
         assert agent.name == "test2"
         assert agent.logger.name == "test2"
 
 
 def test_agent_log_level(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.logger.level == 20
 
 
 def test_agent_log_level_responds_to_config(runner_token):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+        {"agent.auth_token": "TEST_TOKEN", "agent.level": "DEBUG"}
     ):
         agent = Agent()
         assert agent.logger.level == 10
 
 
 def test_agent_env_vars(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(env_vars=dict(AUTH_THING="foo"))
         assert agent.env_vars == dict(AUTH_THING="foo")
 
 
 def test_agent_max_polls(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(max_polls=10)
         assert agent.max_polls == 10
 
 
 def test_agent_labels(runner_token):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(labels=["test", "2"])
         assert agent.labels == ["test", "2"]
 
 
 def test_agent_labels_from_config_var(runner_token):
-    with set_temporary_config({"cloud.agent.labels": "['test', '2']"}):
+    with set_temporary_config({"agent.labels": "['test', '2']"}):
         agent = Agent()
         assert agent.labels == ["test", "2"]
 
 
 def test_agent_log_level_debug(runner_token):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+        {"agent.auth_token": "TEST_TOKEN", "agent.level": "DEBUG"}
     ):
         agent = Agent()
         assert agent.logger.level == 10
 
 
 def test_agent_fails_no_auth_token():
-    with pytest.raises(AuthorizationError):
-        agent = Agent()
+    with set_temporary_config({"api": "https://api.prefect.io"}):
+        with pytest.raises(AuthorizationError):
+            agent = Agent()
 
 
 def test_agent_fails_no_runner_token(monkeypatch):
@@ -113,8 +114,9 @@ def test_agent_fails_no_runner_token(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with pytest.raises(AuthorizationError):
-        agent = Agent()
+    with set_temporary_config({"api": "https://api.prefect.io"}):
+        with pytest.raises(AuthorizationError):
+            agent = Agent()
 
 
 def test_query_flow_runs(monkeypatch, runner_token):
