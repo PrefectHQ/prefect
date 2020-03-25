@@ -4,10 +4,19 @@ debug = false
 # base configuration directory (typically you won't change this!)
 home_dir = "~/.prefect"
 
+backend = "cloud"
+
+[server]
+host = "http://localhost"
+port = "4200"
+endpoint = "${server.host}:${server.port}"
+
+    [server.ui]
+    port = "8080"
 
 [cloud]
-# the Prefect Server address
-api = "https://api.prefect.io"
+api = "${${backend}.endpoint}"
+endpoint = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0

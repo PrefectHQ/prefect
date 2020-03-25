@@ -4,6 +4,7 @@
 import click
 
 import prefect
+from prefect.utilities import backend as backend_util
 
 from .agent import agent as _agent
 from .auth import auth as _auth
@@ -102,3 +103,9 @@ def diagnostics(include_secret_names):
             include_secret_names=bool(include_secret_names)
         )
     )
+
+
+@cli.command(hidden=True)
+@click.argument("api")
+def backend(api):
+    backend_util.save_backend(api)
