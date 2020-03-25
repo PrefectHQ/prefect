@@ -207,6 +207,7 @@ def cloud(
                 "logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}
             ): {"timestamp": True, "message": True, "level": True},
             "start_time": True,
+            "state": True,
         }
 
         query = {
@@ -257,18 +258,7 @@ def cloud(
                     tabulate(output, tablefmt="plain", numalign="left", stralign="left")
                 )
 
-            # Check if state is either Success or Failed, exit if it is
-            pk_query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {"state": True}
-                }
-            }
-            result = client.graphql(pk_query)
-
-            if (
-                result.data.flow_run_by_pk.state == "Success"
-                or result.data.flow_run_by_pk.state == "Failed"
-            ):
+            if new_run.state == "Success" or new_run.state == "Failed":
                 return
 
             time.sleep(3)
