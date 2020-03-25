@@ -991,14 +991,14 @@ class Client:
 
         query = {
             "query": {
-                with_args("task_run", {"where": {"id": {"_eq": task_run_id}}}): {
+                with_args("task_run_by_pk", {"id": task_run_id}): {
                     "version": True,
                     "serialized_state": True,
                     "task": {"slug": True},
                 }
             }
         }
-        task_run = self.graphql(query).data.task_run  # type: ignore
+        task_run = self.graphql(query).data.task_run_by_pk  # type: ignore
 
         if task_run is None:
             raise ClientError('Task run ID not found: "{}"'.format(task_run_id))

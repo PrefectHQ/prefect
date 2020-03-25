@@ -679,7 +679,7 @@ def test_get_task_run_info(patch_posts):
         "get_or_create_task_run": {"id": "772bd9ee-40d7-479c-9839-4ab3a793cabd",}
     }
     query_resp = {
-        "task_run": {
+        "task_run_by_pk": {
             "version": 0,
             "serialized_state": {
                 "type": "Pending",
