@@ -328,7 +328,7 @@ class DockerAgent(Agent):
 
         container_mount_paths = self.container_mount_paths
         if not container_mount_paths:
-            host_config = {}  # type: ignore
+            host_config = None
         else:
             host_config = self.docker_client.create_host_config(binds=self.host_spec)
 
