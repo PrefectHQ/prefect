@@ -650,10 +650,12 @@ class Client:
             else re.sub("api", "cloud", prefect.config.cloud.api)
         )
 
+        full_url = prefect.config.cloud.api
         if tenant_slug:
             full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
         elif prefect.config.backend == "server":
             full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id,])
+
         return full_url
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:
