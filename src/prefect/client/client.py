@@ -422,23 +422,23 @@ class Client:
 
         payload = self.graphql(
             {
-                "mutation($input: switchTenantInput!)": {
-                    "switchTenant(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
-                        "refreshToken",
+                "mutation($input: switch_tenant_input!)": {
+                    "switch_tenant(input: $input)": {
+                        "access_token",
+                        "expires_at",
+                        "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(tenantId=tenant_id)),
+            variables=dict(input=dict(tenant_id=tenant_id)),
             # Use the API token to switch tenants
             token=self._api_token,
         )  # type: ignore
-        self._access_token = payload.data.switchTenant.accessToken  # type: ignore
+        self._access_token = payload.data.switch_tenant.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switchTenant.expiresAt  # type: ignore
+            payload.data.switch_tenant.expires_at  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
+        self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
@@ -469,23 +469,23 @@ class Client:
         """
         payload = self.graphql(
             {
-                "mutation($input: refreshTokenInput!)": {
-                    "refreshToken(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
-                        "refreshToken",
+                "mutation($input: refresh_token!)": {
+                    "refresh_token(input: $input)": {
+                        "access_token",
+                        "expires_at",
+                        "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(accessToken=self._access_token)),
+            variables=dict(input=dict(access_token=self._access_token)),
             # pass the refresh token as the auth header
             token=self._refresh_token,
         )  # type: ignore
-        self._access_token = payload.data.refreshToken.accessToken  # type: ignore
+        self._access_token = payload.data.refresh_token.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.refreshToken.expiresAt  # type: ignore
+            payload.data.refresh_token.expires_at  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
+        self._refresh_token = payload.data.refresh_token.refresh_token  # type: ignore
 
         return True
 
