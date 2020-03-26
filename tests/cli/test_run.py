@@ -68,6 +68,45 @@ def test_run_cloud(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
+def test_run_server(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}],)))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+    )
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config(
+        {"cloud.api": "http://localhost:4200", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            run, ["server", "--name", "flow", "--project", "project", "--version", "2"]
+        )
+        assert result.exit_code == 0
+        assert "Flow Run" in result.output
+
+        query = """
+        query {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+                id
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
 def test_run_cloud_watch(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(

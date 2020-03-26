@@ -44,6 +44,7 @@ def cli():
     \b
     Setup Commands:
         auth        Handle Prefect Cloud authorization
+        backend     Switch between `server` and `cloud` backends
 
     \b
     Miscellaneous Commands:
@@ -108,4 +109,12 @@ def diagnostics(include_secret_names):
 @cli.command(hidden=True)
 @click.argument("api")
 def backend(api):
+    """
+    Switch Prefect API backend to either `server` or `cloud`
+    """
+    if api not in ["server", "cloud"]:
+        click.secho("{} is not a valid backend API".format(api), fg="red")
+        return
+
     backend_util.save_backend(api)
+    click.secho("Backend switched to {}".format(api), fg="green")
