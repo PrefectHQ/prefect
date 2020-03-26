@@ -4,9 +4,9 @@ sidebarDepth: 2
 
 # API
 
-Prefect Cloud exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io`. There are a variety of ways you can access the API.
+Prefect exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io` when using Prefect Cloud or `http://localhost:4200` when using the default Server setup. There are a variety of ways you can access the API.
 
-## Authentication
+## Authentication <Badge text="Cloud"/>
 
 In order to interact with Cloud from your local machine, you'll need to generate an API token.
 
@@ -40,9 +40,32 @@ Prefect Cloud can generate API tokens with three different scopes.
 
 ### About the Client
 
-Prefect Core includes a Python client for Prefect Cloud. The Python client was designed for both interactive and programmatic use, and includes convenience methods for transparently managing authentication when used with `USER`-scoped tokens.
+Prefect Core includes a Python client for interacting with the API. The Python client was designed for both interactive and programmatic use, and includes convenience methods for transparently managing authentication when used with `USER`-scoped tokens.
 
-### Getting started
+### Getting Started
+
+Prefect Server does not contain any authentication aspect and this means the Python client can be used immediately without any extra configuration:
+
+```python
+import prefect
+client = prefect.Client()
+```
+
+GraphQL queries and mutations can now be used against the API:
+
+```python
+client.graphql(
+    {
+        'query': {
+            'flow': {
+                'id'
+            }
+        }
+    }
+)
+```
+
+### Authenticating the Client with Cloud <Badge text="Cloud"/>
 
 For interactive use, the most common way to use the Cloud Client is to generate a `USER`-scoped token and provide it to the client. After doing so, users can save the token so it persists across all Python sessions:
 
@@ -105,9 +128,9 @@ client.logout_from_tenant()
 
 ## GraphQL
 
-Prefect Cloud exposes a full GraphQL API for querying and interacting with the platform.
+Prefect exposes a full GraphQL API for querying and interacting with the platform.
 
-We've designed this API to be clear and powerful. It is not merely a way to send instructions to Cloud; it allows users to fully introspect every piece of their relevant data.
+We've designed this API to be clear and powerful. It is not merely a way to send instructions to the API; it allows users to fully introspect every piece of their relevant data.
 
 Throughout these docs, sections directly related to the GraphQL API are denoted with a <Badge text="GQL" vertical="middle"/> badge.
 
@@ -115,7 +138,7 @@ Throughout these docs, sections directly related to the GraphQL API are denoted 
 
 For ease of interacting with the GraphQL API, the UI contains a full GraphQL client that automatically handles authentication. See the [Interactive API](/cloud/ui/interactive-api) docs for more.
 
-### Authentication
+### Authentication <Badge text="Cloud"/>
 
 The Cloud API also supports direct GraphQL access. While you can still use `USER`-scoped tokens to access and log in to tenants, you will need to manage the short-lived auth and refresh tokens yourself. Therefore, we recommend using the Python client for `USER`-scoped access. You can make GraphQL queries directly from the client:
 
@@ -139,7 +162,7 @@ To use `TENANT`-scoped tokens in programmatic requests, include the token as the
 
 ### Queries
 
-All Prefect Cloud data may be queried via GraphQL. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields. In general, Cloud exposes a SQL-like interface for accessing data.
+All Prefect API metadata may be queried via GraphQL. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields. In general, the API exposes a SQL-like interface for accessing data.
 
 For example, the following query retrieves the id and name of all flows with names ending in "train", as well as the state of their most recent flow run:
 
@@ -175,7 +198,7 @@ query {
 
 ### Mutations
 
-In order to interact with Prefect Cloud, users can issue "mutations," which represent various actions. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields.
+In order to interact with the Prefect API, users can issue "mutations," which represent various actions. You can view the interactive GraphQL schema browser for an API reference and complete details on available fields.
 
 Most sections of these concepts docs show examples of relevant mutations.
 

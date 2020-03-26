@@ -1,7 +1,7 @@
 # Interactive API
 
 
-The Interactive API is an embedded GraphQL client that allows you to access all of your data with complete flexibility. Thanks to features like schema introspection and automatic authentication, the interactive API makes it simple to access Cloud. You can also see the GraphQL API documentation directly inline.  
+The Interactive API is an embedded GraphQL client that allows you to access all of your data with complete flexibility. Thanks to features like schema introspection and automatic authentication, the interactive API makes it simple to access all metadata. You can also see the GraphQL API documentation directly inline.
 
 ![](/cloud/ui/interactive-api.png)
 
@@ -33,7 +33,7 @@ Let's build on our earlier query to get information about the tasks associated w
 ```graphql
 query {
   flow {
-    name 
+    name
     id
     tasks {
       name
@@ -44,7 +44,7 @@ query {
 We've nested `tasks` within the `flow` object, which tells the server to retrieve tasks only within the context of each flow that it returns.
 ### Limits and Offset
 
-To limit the number of items that are returned, you can use the Limit selector at the top of the Interactive API page. The default limit is 10 and the maximum is 100. Inline limit arguments are overriden by the value set in the Limit selector. 
+To limit the number of items that are returned, you can use the Limit selector at the top of the Interactive API page. The default limit is 10 and the maximum is 100. Inline limit arguments are overriden by the value set in the Limit selector.
 
 To the left of the Limit selector there is also an Offset selector. The Offset selector tells the server at which index your queries should start. For example, if your unlimited query would return 5 flows and you set the limit to 2, an offset of 0 would would return the first two items in the set. To get the next two items with no overlap, you would set the offset to 2.
 
@@ -55,7 +55,7 @@ Another way to limit the results returned would be to filter your search results
 ```graphql
 query {
   flow (where: {name: {_eq: "My Flow Name"}}){
-    name 
+    name
     id
     tasks {
       name
@@ -97,20 +97,14 @@ You can see more about query filters in the [Hasura Docs](https://hasura.io/docs
 
 ### Schema
 
-In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).  The schema also tells what type (String, Object, uuid) each field (and argument) should be. 
+In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).  The schema also tells what type (String, Object, uuid) each field (and argument) should be.
 
-![](/cloud/ui/interactive-api-inline-docs.png)  
+![](/cloud/ui/interactive-api-inline-docs.png)
 
 ### More Examples
 
-Finally, as you read further through the Prefect Cloud docs, look out for the GraphQL badge:
+Finally, as you read further through the Prefect docs, look out for the GraphQL badge:
 
 <Badge text="GQL"/>
 
-This shows that we are giving an example of a query or mutation you can run using the Interactive API. 
-
- 
-
-
-
-
+This shows that we are giving an example of a query or mutation you can run using the Interactive API.

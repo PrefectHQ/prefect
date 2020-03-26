@@ -1,21 +1,6 @@
 # Services
 
-Prefect Cloud runs a variety of automatic services to ensure workflow semantics are respected robustly.
-
-## Lazarus
-
-The `Lazarus` process is responsible for rescheduling any submitted or running flow runs without
-corresponding submitted or running task runs.
-
-### How is it useful?
-
-The Lazarus process is meant to gracefully retry failures caused by factors outside of Prefect's control. The most common situations requiring Lazarus intervention are infrastructure issues, such as Kubernetes pods not spinning up or being deleted before they're able to complete a run.
-
-### How does it work?
-
-Once every 10 minutes, the Lazarus process searches for distressed flow runs. Each flow run found in this manner is rescheduled; this intervention by Lazarus is reflected in the flow run's logs.
-
-Where necessary, flow runs without submitted or running task runs will be rescheduled by the Lazarus process up to 10 times. Should the Lazarus process attempt to reschedule a flow run for the eleventh time, it will be marked failed instead.
+The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. Besides the Scheduler, these other services are provided when using Prefect Cloud.
 
 ## Scheduler
 
@@ -33,7 +18,22 @@ Periodically, the scheduler queries for flows with active schedules and creates 
 
 If you pause a schedule, any future auto-scheduled runs that have not started will be deleted. Reactivating the schedule will cause them to be recreated, as long as they are scheduled to start in the future. The scheduler will never create runs that were scheduled to start in the past.
 
-## Zombie Killer
+## Lazarus <Badge text="Cloud"/>
+
+The `Lazarus` process is responsible for rescheduling any submitted or running flow runs without
+corresponding submitted or running task runs.
+
+### How is it useful?
+
+The Lazarus process is meant to gracefully retry failures caused by factors outside of Prefect's control. The most common situations requiring Lazarus intervention are infrastructure issues, such as Kubernetes pods not spinning up or being deleted before they're able to complete a run.
+
+### How does it work?
+
+Once every 10 minutes, the Lazarus process searches for distressed flow runs. Each flow run found in this manner is rescheduled; this intervention by Lazarus is reflected in the flow run's logs.
+
+Where necessary, flow runs without submitted or running task runs will be rescheduled by the Lazarus process up to 10 times. Should the Lazarus process attempt to reschedule a flow run for the eleventh time, it will be marked failed instead.
+
+## Zombie Killer <Badge text="Cloud"/>
 
 The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes.
 
@@ -45,7 +45,7 @@ Zombies are tasks that started running but -- for some reason -- are no longer i
 
 Periodically, Prefect Cloud queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
 
-## Towel
+## Towel <Badge text="Cloud"/>
 
 The `Towel` service is an orchestration layer for maintenance routines that are critical to Cloud's operation, including some of the services on this page.
 

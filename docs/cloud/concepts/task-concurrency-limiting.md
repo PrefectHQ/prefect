@@ -1,4 +1,4 @@
-# Task Concurrency Limiting
+# Task Concurrency Limiting <Badge text="Cloud"/>
 
 ::: tip Platform Feature
 Setting global concurrency limits is a feature of Prefect Cloud's Platform Tier.

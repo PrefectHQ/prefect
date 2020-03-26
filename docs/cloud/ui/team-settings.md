@@ -1,4 +1,4 @@
-# Team Settings
+# Team Settings <Badge text="Cloud"/>
 
 ## Membership
 

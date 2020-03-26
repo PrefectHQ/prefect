@@ -4,9 +4,9 @@ Prefect secrets are a way to store any sensitive key-value pairs to which your f
 the [secret URL used to receive Slack notifications from Prefect](../../core/advanced_tutorials/slack-notifications.html#using-your-url-to-get-notifications).
 Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
 
-Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io).
+Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io) however when using Prefect Server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/cloud/concepts/secrets.html#local-testing) section below.
 
-## Setting a secret
+## Setting a secret <Badge text="Cloud"/>
 
 There are two standard modes of operation: local execution, intended mainly for testing and running non-production flows, and cloud execution, which utilizes the Prefect Cloud API.
 
@@ -77,7 +77,7 @@ prefect.context.secrets["KEY"] = "VALUE"
 Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`. Note that secrets set this way will always result in lowercase names.
 :::
 
-## Deleting a secret
+## Deleting a secret <Badge text="Cloud"/>
 
 ### UI
 
@@ -108,7 +108,7 @@ Note that `s.get()` will _not_ work locally unless `use_local_secrets` is set to
 You cannot query for the value of a secret after it has been set. Calls to `Secret.get()` will _only_ work during Cloud execution.
 :::
 
-## Querying for secret names <Badge text="GQL"/>
+## Querying for secret names <Badge text="Cloud"/> <Badge text="GQL"/>
 
 Viewing all secrets by name:
 

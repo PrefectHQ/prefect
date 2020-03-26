@@ -143,6 +143,7 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
+      // condider changing this path and adding a redirect
       '/cloud/': [
         '/cloud/',
         {
@@ -158,7 +159,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Cloud Concepts',
+          title: 'Concepts',
           collapsable: true,
           children: [
             'concepts/api',

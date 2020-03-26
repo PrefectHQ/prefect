@@ -1,4 +1,4 @@
-# Tokens
+# Tokens <Badge text="Cloud"/>
 
 ## Token Types
 
