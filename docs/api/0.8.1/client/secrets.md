@@ -21,7 +21,7 @@ To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or se
 
 ```graphql
 mutation {
-  set_secret(input: { name: "KEY", value: "VALUE" }) {
+  setSecret(input: { name: "KEY", value: "VALUE" }) {
     success
   }
 }
