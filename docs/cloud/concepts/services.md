@@ -1,6 +1,6 @@
 # Services
 
-The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. Besides the Scheduler, these other services are provided when using Prefect Cloud.
+The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. The Scheduler is present in both Prefect Server and Cloud, while the others are exclusive to Prefect Cloud.
 
 ## Scheduler
 
@@ -14,7 +14,7 @@ More importantly, the scheduler service is not responsible for actually running 
 
 ### How does it work?
 
-Periodically, the scheduler queries for flows with active schedules and creates flow runs corresponding to the next 10 scheduled start times of the flow. Therefore, to disable scheduling, simply toggle your flow's schedule to `PAUSED`, and reactivate it whenever you want scheduling to resume.
+The scheduler periodically queries for flows with active schedules and creates flow runs corresponding to the next 10 scheduled start times of the flow. Therefore, to disable scheduling, simply toggle your flow's schedule to `PAUSED`, and reactivate it whenever you want scheduling to resume.
 
 If you pause a schedule, any future auto-scheduled runs that have not started will be deleted. Reactivating the schedule will cause them to be recreated, as long as they are scheduled to start in the future. The scheduler will never create runs that were scheduled to start in the past.
 

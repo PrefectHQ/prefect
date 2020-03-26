@@ -1,6 +1,6 @@
 # Execution Overview
 
-Executing Flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, Flows can be saved, shared, and executed across various platforms.
+Executing flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows can be saved, shared, and executed across various platforms.
 
 [[toc]]
 
