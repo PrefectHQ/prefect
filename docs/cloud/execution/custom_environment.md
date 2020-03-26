@@ -6,7 +6,7 @@ Prefect Environments allow for completely custom, user-created Environments. The
 
 ### Process
 
-Custom Environments can be attached to Flows in the same manner as any preexisting Prefect Environment, and are stored in Docker alongside your flow. It will never be sent to Prefect Cloud and will only exist inside your Flow's Docker storage.
+Custom Environments can be attached to Flows in the same manner as any preexisting Prefect Environment, and are stored in the storage option alongside your flow. It will never be sent to the Prefect API and will only exist inside your Flow's storage.
 
 :::warning Custom Environment Naming
 Make sure the name of your custom Environment does not match the names of any preexisting [Prefect Environments](/api/latest/environments/execution.html) because it could behave unpredictably when working with Prefect Serializers.

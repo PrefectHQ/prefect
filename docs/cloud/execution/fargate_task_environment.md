@@ -1,6 +1,10 @@
-# Fargate Task Environment
+# Fargate Task Environment <Badge text="Cloud"/>
 
 [[toc]]
+
+::: warning Server not supported, yet
+Currently this environment is not directly supported with Prefect Server. Deployments using Prefect Server and Fargate will be added in a future release.
+:::
 
 ## Overview
 

@@ -1,6 +1,10 @@
-# Dask Kubernetes Environment
+# Dask Kubernetes Environment <Badge text="Cloud"/>
 
 [[toc]]
+
+::: warning Server not supported, yet
+Currently this environment is not directly supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
+:::
 
 ## Overview
 
