@@ -9,7 +9,7 @@ from prefect.utilities.graphql import EnumValue, with_args
 @click.group(hidden=True)
 def get():
     """
-    Get commands that refer to querying Prefect Cloud metadata.
+    Get commands that refer to querying the Prefect API metadata.
 
     \b
     Usage:

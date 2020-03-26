@@ -19,7 +19,8 @@ def run():
 
     \b
     Arguments:
-        cloud   Run flows in Prefect Cloud
+        cloud   Run flows with Prefect Cloud
+        server  Run flows with Prefect Server
 
     \b
     Examples:
