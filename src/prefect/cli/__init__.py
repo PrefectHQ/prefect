@@ -13,6 +13,7 @@ from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
 from .run import run as _run
+from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
 
 
@@ -45,6 +46,7 @@ def cli():
     Setup Commands:
         auth        Handle Prefect Cloud authorization
         backend     Switch between `server` and `cloud` backends
+        server      Interact with the Prefect Server
 
     \b
     Miscellaneous Commands:
@@ -62,6 +64,7 @@ cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
 cli.add_command(_run)
+cli.add_command(_server)
 cli.add_command(_heartbeat)
 
 
