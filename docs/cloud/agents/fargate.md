@@ -1,8 +1,12 @@
-# Fargate Agent
+# Fargate Agent <Badge text="Cloud"/>
 
 The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargate. This agent can be run anywhere so long as the proper AWS configuration credentials are provided.
 
 [[toc]]
+
+::: warning Server not supported, yet
+Currently this agent is not directly supported with Prefect Server. Deployments using Prefect Server and Fargate will be added in a future release.
+:::
 
 ### Requirements
 

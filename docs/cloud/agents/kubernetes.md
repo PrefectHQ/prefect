@@ -1,8 +1,12 @@
-# Kubernetes Agent
+# Kubernetes Agent <Badge text="Cloud"/>
 
 The Kubernetes Agent is an agent designed to interact directly with a Kubernetes API server to run workflows as jobs on a Kubernetes cluster. This agent is intended to be deployed to a cluster where it uses in-cluster communication to create jobs; however it can also run by accessing whichever cluster is currently active in a kubeconfig.
 
 [[toc]]
+
+::: warning Server not supported, yet
+Currently this agent is not directly supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
+:::
 
 ### Requirements
 

@@ -1,6 +1,6 @@
 # Local Agent
 
-The Local Agent is designed to operate in any environment that has Prefect installed. Common use cases for the Local Agent include testing Flows on personal machines, running in virtual boxes that don't use external tools such as Docker or Kubernetes, or quickly getting acclimated with using Prefect Cloud. The Local Agent is a fully functioning method of executing Flows in conjunction with Prefect Cloud however for production use our recommended use case involves using one of the other Agents which relies on Flows being stored in a containe registry registry for modularity and scale.
+The Local Agent is designed to operate in any environment that has Prefect installed. Common use cases for the Local Agent include testing Flows on personal machines, running in virtual boxes that don't use external tools such as Docker or Kubernetes, or quickly getting acclimated with using the Prefect API. The Local Agent is a fully functioning method of executing Flows in conjunction with the Prefect API however for production use our recommended use case involves using one of the other Agents which relies on Flows being stored in a containe registry registry for modularity and scale.
 
 [[toc]]
 
@@ -25,7 +25,7 @@ def welcome():
 
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
-# Register Flow to Prefect Cloud
+# Register Flow with the Prefect API
 flow.register("My Project")
 
 # Spawn a local agent and run in process
@@ -50,11 +50,11 @@ def welcome():
 
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
-# Register Flow to Prefect Cloud
+# Register Flow with the Prefect API
 flow.register("My Project")
 ```
 
-This Flow is registered with Prefect Cloud with the actual Flow code stored in your local `~/.prefect/flows` directory. Now we can start a Local Agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
+This Flow is registered with the Prefect API with the actual Flow code stored in your local `~/.prefect/flows` directory. Now we can start a Local Agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.
 
 ```
 $ prefect agent start -t TOKEN -l welcome-flow
@@ -74,7 +74,7 @@ $ prefect agent start -t TOKEN -l welcome-flow
 
 The agent is started with the `-l/--label` _welcome-flow_. All Flows stored locally will exist with a slugified name and in this example _Welcome Flow_ becomes _welcome-flow_. This means that you can set your Local Agent to run multiple local Flows by providing a label for each Flow's slugified name.
 
-::: tip Tokens
+::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start -t MY_TOKEN`
@@ -167,4 +167,4 @@ For more information on configuring supervisor, please see [http://supervisord.o
 
 When started, the Local Agent will use [Environment Labels](/cloud/execution/overview.html#environments) to watch for scheduled Flow runs that partain to a particular flow. This means that starting a Local Agent by calling `flow.run_agent()` will only pick up runs of that specific Flow.
 
-The Local Agent periodically polls for new Flow runs to execute. When a Flow run is retrieved from Prefect Cloud, the Agent confirms that the Flow was registered with a Local storage option and runs that Flow in a subprocess.
+The Local Agent periodically polls for new Flow runs to execute. When a Flow run is retrieved from the Prefect API, the Agent confirms that the Flow was registered with a Local storage option and runs that Flow in a subprocess.

@@ -1,6 +1,6 @@
 # Overview
 
-The Prefect Agent is a small process spun up to orchestrate Flow runs. The agent queries Prefect Cloud for new or incomplete Flow runs and allocates resources for them on the deployment's platform of choice.
+The Prefect Agent is a small process spun up to orchestrate Flow runs. The agent queries the Prefect API for new or incomplete Flow runs and allocates resources for them on the deployment's platform of choice.
 
 Prefect Cloud follows a hybrid approach to workflow execution. This means that Prefect processes run inside the tenant's infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect Agent and all Prefect Flows which run using Cloud follow this communication pattern.
 
@@ -8,7 +8,7 @@ Prefect Cloud follows a hybrid approach to workflow execution. This means that P
 
 ### Agent Process
 
-Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries Prefect Cloud for Flow runs to be started on that agent's platform.
+Agents start by first querying the Prefect API for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries the Prefect API for Flow runs to be started on that agent's platform.
 
 Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant to which this flow run belongs will then see that there is work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker Agent or a job in the case of a Kubernetes Agent.
 
@@ -59,7 +59,7 @@ from prefect.agent import DockerAgent
 DockerAgent().start()
 ```
 
-### Tokens
+### Tokens <Badge text="Cloud"/>
 
 Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
 
