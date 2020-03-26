@@ -653,13 +653,7 @@ class Client:
         if tenant_slug:
             full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
         elif prefect.config.backend == "server":
-            full_url = "/".join(
-                [
-                    prefect.config.server.ui.endpoint,
-                    subdirectory,
-                    id,
-                ]
-            )
+            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id,])
         return full_url
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:
