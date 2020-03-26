@@ -1,10 +1,10 @@
 # Next Steps
 
-So far we've run a Flow locally a variety of ways and moved up to distributing the Flow execution with Kubernetes. This is just the beginning because Prefect Cloud has many more features to explore!
+So far we've run a Flow locally a variety of ways and moved up to distributing the Flow execution with Kubernetes and Prefect Cloud. This is just the beginning because the Prefect API has many more features to explore!
 
 ## Concepts
 
-Visit the [Cloud Concept](/cloud/concepts/api.html) docs for actions such as working directly with Prefect Cloud's [GraphQL API](/cloud/concepts/graphql.html), diving into the [CLI](/cloud/concepts/cli.html), setting [concurrency limits](/cloud/concepts/concurrency-limiting.html) on your runs, and more.
+Visit the [Concept](/cloud/concepts/api.html) docs for actions such as working directly with Prefect's [GraphQL API](/cloud/concepts/graphql.html), diving into the [CLI](/cloud/concepts/cli.html), setting [concurrency limits](/cloud/concepts/concurrency-limiting.html) on your Cloud runs, and more.
 
 ## Agents
 
@@ -16,7 +16,7 @@ Store your Flows in the cloud using Azure, GCS, or S3! For more information visi
 
 ## Execution Environments
 
-For information related to Execution Environments take a look at the [Cloud Execution](/cloud/execution/overview.html) documentation.
+For information related to Execution Environments take a look at the [Execution](/cloud/execution/overview.html) documentation.
 
 ## Deployment Recipes
 

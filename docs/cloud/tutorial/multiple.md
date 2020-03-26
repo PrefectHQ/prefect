@@ -1,6 +1,6 @@
-# Multiple Cloud Flows
+# Multiple Flows
 
-Running an in-process Agent is simple when developing a single Flow. A more scalable approach is to use the CLI to run a standalone Local Agent that can execute multiple Flows at a time scheduled by Prefect Cloud.
+Running an in-process Agent is simple when developing a single Flow. A more scalable approach is to use the CLI to run a standalone Local Agent that can execute multiple Flows at a time scheduled by the Prefect API.
 
 ## Run an Agent Manually
 
@@ -26,12 +26,11 @@ In another terminal, start the Local Agent:
 prefect agent start
 ```
 
-
-::: tip Runner Token
+::: tip Runner Token <Badge text="Cloud"/>
 This Local Agent will use the _RUNNER_ token stored in your environment but if you want to manually pass it a token you may do so with `--token <COPIED_RUNNER_TOKEN>`.
 :::
 
-Now you have a Local Agent running which can execute multiple Flows that you register with Prefect Cloud:
+Now you have a Local Agent running which can execute multiple Flows that you register with the Prefect API:
 
 ```bash
 prefect run cloud --name hello-flow --project 'Hello, World!'
@@ -53,6 +52,10 @@ The Prefect CLI has an installation command for the Local Agent which will outpu
 ```bash
 prefect agent install local --token <YOUR_RUNNER_TOKEN> > supervisord.conf
 ```
+
+::: warning No token necessary for Server
+If you are using Prefect Server then no `--token` is necessary for this step.
+:::
 
 In that same directory as the `supervisord.conf` file you may start Supervisor.
 

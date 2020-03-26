@@ -1,4 +1,4 @@
-# Cloud Flow with Docker
+# Flow with Docker
 
 Previously we used the Local Agent to execute Flow Runs directly on the current host. Now we will use a Docker Agent to execute Flow Runs within Docker containers on the current host.
 
@@ -39,13 +39,13 @@ flow.storage = Docker(registry_url="docker.io/<dockerhub_user>/<dockerhub_repo>"
 
 ## Running a Docker Agent
 
-Start the Docker Agent to executing Flow Runs scheduled by Cloud:
+Start the Docker Agent to executing Flow Runs scheduled by the Prefect API:
 
 ```bash
 prefect agent start docker
 ```
 
-:::tip Runner Token
+:::tip Runner Token <Badge text="Cloud"/>
 This Docker Agent will use the _RUNNER_ token stored in your environment but if you want to manually pass it a token you may do so with `--token <COPIED_RUNNER_TOKEN>`.
 :::
 

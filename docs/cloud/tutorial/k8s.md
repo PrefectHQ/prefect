@@ -1,4 +1,8 @@
-# Scaling Out with Kubernetes
+# Scaling Out with Kubernetes <Badge text="Cloud"/>
+
+::: warning Server not supported, yet
+Currently there is no default way of exposing the Prefect Server endpoint. Deployments using Prefect Server and Kubernetes will be added in a future release.
+:::
 
 In previous tutorials we used the Local Agent and Docker Agent to execute Flow Runs on the current host. Now we will deploy our Flow out to an existing Kubernetes Cluster.
 
