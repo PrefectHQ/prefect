@@ -12,7 +12,9 @@ port = "4200"
 endpoint = "${server.host}:${server.port}"
 
     [server.ui]
+    host = "http://localhost"
     port = "8080"
+    endpoint = "${server.ui.host}:${server.ui.port}"
 
 [cloud]
 api = "${${backend}.endpoint}"
