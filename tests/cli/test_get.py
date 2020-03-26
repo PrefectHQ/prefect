@@ -15,18 +15,14 @@ def test_get_init():
     runner = CliRunner()
     result = runner.invoke(get)
     assert result.exit_code == 0
-    assert (
-        "Get commands that refer to querying Prefect Cloud metadata." in result.output
-    )
+    assert "Get commands that refer to querying Prefect API metadata." in result.output
 
 
 def test_get_help():
     runner = CliRunner()
     result = runner.invoke(get, ["--help"])
     assert result.exit_code == 0
-    assert (
-        "Get commands that refer to querying Prefect Cloud metadata." in result.output
-    )
+    assert "Get commands that refer to querying Prefect API metadata." in result.output
 
 
 def test_get_flows(monkeypatch):

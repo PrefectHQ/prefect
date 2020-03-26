@@ -256,9 +256,7 @@ def start(
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
-@click.option(
-    "--api", "-a", required=False, help="A Prefect API URL.", hidden=True
-)
+@click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
 @click.option(
     "--namespace",
     "-n",

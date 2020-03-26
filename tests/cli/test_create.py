@@ -11,7 +11,7 @@ def test_create_init():
     result = runner.invoke(create)
     assert result.exit_code == 0
     assert (
-        "Create commands that refer to mutations of Prefect Cloud metadata."
+        "Create commands that refer to mutations of Prefect API metadata."
         in result.output
     )
 
@@ -21,7 +21,7 @@ def test_create_help():
     result = runner.invoke(create, ["--help"])
     assert result.exit_code == 0
     assert (
-        "Create commands that refer to mutations of Prefect Cloud metadata."
+        "Create commands that refer to mutations of Prefect API metadata."
         in result.output
     )
 

@@ -11,14 +11,14 @@ def test_heartbeat_init():
     runner = CliRunner()
     result = runner.invoke(heartbeat)
     assert result.exit_code == 0
-    assert "Send heartbeats back to Prefect Cloud." in result.output
+    assert "Send heartbeats back to the Prefect API." in result.output
 
 
 def test_heartbeat_help():
     runner = CliRunner()
     result = runner.invoke(heartbeat, ["--help"])
     assert result.exit_code == 0
-    assert "Send heartbeats back to Prefect Cloud." in result.output
+    assert "Send heartbeats back to the Prefect API." in result.output
 
 
 def test_heartbeat_task_run(patch_post):
