@@ -5,7 +5,7 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 [[toc]]
 
 ::: warning Server not supported, yet
-Currently this agent is not directly supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
+This agent is not currently supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
 :::
 
 ### Requirements
@@ -19,15 +19,14 @@ metadata:
   namespace: default
   name: prefect-agent-rbac
 rules:
-- apiGroups: ["batch", "extensions"]
-  resources: ["jobs"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["*"]
+  - apiGroups: ['batch', 'extensions']
+    resources: ['jobs']
+    verbs: ['*']
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['*']
 
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:

@@ -1,6 +1,6 @@
 # Docker Agent
 
-The Docker Agent is designed to work in all environments with access to a Docker daemon. Docker agents are most commonly used on personal machines for testing flow run deployments, but the docker agent is by no means only useful for testing. In fact, it creates flow runs that interact with the Prefect API in the same way that it would on any other platform. This allows the Docker Agent to be a fully functioning method of executing flows in conjunction with the Prefect API.
+The Docker agent is designed to work in all environments with access to a Docker daemon. Docker agents are most commonly used on personal machines for testing flow run deployments, but still serves as a fully functioning method of executing flows in conjunction with the Prefect API.
 
 [[toc]]
 

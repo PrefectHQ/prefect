@@ -143,7 +143,7 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      // condider changing this path and adding a redirect
+      // consider changing this path and adding a redirect
       '/cloud/': [
         '/cloud/',
         {
