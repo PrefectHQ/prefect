@@ -44,7 +44,7 @@ Prefect Core includes a Python client for interacting with the API. The Python c
 
 ### Getting Started
 
-Prefect Server does not use authentication, meaning the Python client can be used immediately without any extra configuration:
+If using Prefect Server, no authentication is required. This means the Python client can be used immediately without any extra configuration:
 
 ```python
 import prefect
@@ -63,7 +63,7 @@ client.graphql(
 
 ### Authenticating the Client with Cloud <Badge text="Cloud"/>
 
-For interactive use, the most common way to use the Cloud Client is to generate a `USER`-scoped token and provide it to the client. After doing so, users can save the token so it persists across all Python sessions:
+If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate a `USER`-scoped token and provide it to the client. After doing so, users can save the token so it persists across all Python sessions:
 
 ```python
 import prefect

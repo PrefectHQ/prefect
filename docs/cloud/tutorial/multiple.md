@@ -1,10 +1,10 @@
 # Multiple Flows
 
-Running an in-process Agent is simple when developing a single Flow. A more scalable approach is to use the CLI to run a standalone Local Agent that can execute multiple Flows at a time scheduled by the Prefect API.
+Running an in-process agent is simple when developing a single flow. A more scalable approach is to use the CLI to run a standalone local agent that can execute multiple flows at a time scheduled by the Prefect API.
 
 ## Run an Agent Manually
 
-Let's introduce another Flow for this tutorial:
+Let's introduce another flow for this tutorial:
 
 ```python
 import prefect
@@ -20,7 +20,7 @@ flow = Flow("second-flow", tasks=[another_task])
 flow.register(project_name="Hello, World!")
 ```
 
-In another terminal, start the Local Agent:
+In another terminal, start the local agent:
 
 ```bash
 prefect agent start
@@ -30,7 +30,7 @@ prefect agent start
 This Local Agent will use the _RUNNER_ token stored in your environment but if you want to manually pass it a token you may do so with `--token <COPIED_RUNNER_TOKEN>`.
 :::
 
-Now you have a Local Agent running which can execute multiple Flows that you register with the Prefect API:
+Now you have a local agent running which can execute multiple flows that you register with the Prefect API:
 
 ```bash
 prefect run cloud --name hello-flow --project 'Hello, World!'
@@ -39,7 +39,7 @@ prefect run cloud --name second-flow --project 'Hello, World!'
 
 ## Install a Supervised Agent
 
-The standalone Local Agent is ideal for executing Flows decoupled from the scripts defining these Flows. To install the CLI agent in an always-running capacity we recommend using [Supervisor](http://supervisord.org/introduction.html) to monitor the Local Agent:
+The standalone local agent is ideal for executing flows decoupled from the scripts defining these flows. To install the CLI agent in an always-running capacity we recommend using [Supervisor](http://supervisord.org/introduction.html) to monitor the local agent:
 
 ```bash
 pip install supervisor
@@ -47,7 +47,7 @@ pip install supervisor
 
 Note: For more information on Supervisor installation visit the [documentation](http://supervisord.org/installing.html).
 
-The Prefect CLI has an installation command for the Local Agent which will output a `supervisord.conf` file that you can save and run using Supervisor.
+The Prefect CLI has an installation command for the local agent which will output a `supervisord.conf` file that you can save and run using Supervisor.
 
 ```bash
 prefect agent install local --token <YOUR_RUNNER_TOKEN> > supervisord.conf
