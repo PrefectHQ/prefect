@@ -264,7 +264,7 @@ def revoke_token(id):
                 "delete_api_token(input: $input)": {"success"}
             }
         },
-        variables=dict(input=dict(tokenId=id)),
+        variables=dict(input=dict(token_id=id)),
     )
 
     if not output.get("data", None) or not output.data.delete_api_token.success:

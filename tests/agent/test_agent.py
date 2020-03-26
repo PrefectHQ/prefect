@@ -105,7 +105,9 @@ def test_agent_fails_no_runner_token(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
-                return_value=dict(data=dict(auth_info=MagicMock(apiTokenScope="USER")))
+                return_value=dict(
+                    data=dict(auth_info=MagicMock(api_token_scope="USER"))
+                )
             )
         )
     )

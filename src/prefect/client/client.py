@@ -424,19 +424,19 @@ class Client:
             {
                 "mutation($input: switch_tenant_input!)": {
                     "switch_tenant(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
+                        "access_token",
+                        "expires_at",
                         "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(tenantId=tenant_id)),
+            variables=dict(input=dict(tenant_id=tenant_id)),
             # Use the API token to switch tenants
             token=self._api_token,
         )  # type: ignore
-        self._access_token = payload.data.switch_tenant.accessToken  # type: ignore
+        self._access_token = payload.data.switch_tenant.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switch_tenant.expiresAt  # type: ignore
+            payload.data.switch_tenant.expires_at  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
         self._active_tenant_id = tenant_id
@@ -471,19 +471,19 @@ class Client:
             {
                 "mutation($input: refresh_token!)": {
                     "refresh_token(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
+                        "access_token",
+                        "expires_at",
                         "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(accessToken=self._access_token)),
+            variables=dict(input=dict(access_token=self._access_token)),
             # pass the refresh token as the auth header
             token=self._refresh_token,
         )  # type: ignore
-        self._access_token = payload.data.refresh_token.accessToken  # type: ignore
+        self._access_token = payload.data.refresh_token.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.refresh_token.expiresAt  # type: ignore
+            payload.data.refresh_token.expires_at  # type: ignore
         )  # type: ignore
         self._refresh_token = payload.data.refresh_token.refresh_token  # type: ignore
 

@@ -103,8 +103,8 @@ def test_list_tenants(patch_post):
             data=dict(
                 tenant=[{"id": "id", "slug": "slug", "name": "name"}],
                 switch_tenant={
-                    "accessToken": "accessToken",
-                    "expiresIn": "expiresIn",
+                    "access_token": "access_token",
+                    "expires_in": "expires_in",
                     "refresh_token": "refresh_token",
                 },
             )

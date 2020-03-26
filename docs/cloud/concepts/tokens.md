@@ -72,7 +72,7 @@ To revoke a token using GraphQL execute the `delete_api_token` mutation against 
 
 ```graphql
 mutation {
-  delete_api_token(input: { tokenId: "MY_TOKEN_ID" }) {
+  delete_api_token(input: { token_id: "MY_TOKEN_ID" }) {
     success
   }
 }

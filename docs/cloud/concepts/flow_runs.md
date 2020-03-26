@@ -46,15 +46,15 @@ mutation {
 }
 ```
 
-As with the Core Client, you can instead provide `versionGroupId` as an input to schedule a run for the unique unarchived flow within the provided version group. This provides a stable API for running flows which are regularly updated.
+As with the Core Client, you can instead provide `version_group_id` as an input to schedule a run for the unique unarchived flow within the provided version group. This provides a stable API for running flows which are regularly updated.
 
 ### Idempotent run creation <Badge text="GQL"/>
 
-If you provide an `idempotencyKey` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.
+If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.
 
 ```graphql
 mutation {
-  create_flow_run(input: { flowId: "<flow id>", idempotency_key: "any-key" }) {
+  create_flow_run(input: { flow_id: "<flow id>", idempotency_key: "any-key" }) {
     id
   }
 }
@@ -62,7 +62,7 @@ mutation {
 
 ## Scheduling a flow run <Badge text="GQL"/>
 
-By default, flow runs are scheduled to start immediately. To run the flow in the future, pass a `scheduledStartTime` argument:
+By default, flow runs are scheduled to start immediately. To run the flow in the future, pass a `scheduled_start_time` argument:
 
 ```graphql
 mutation {
