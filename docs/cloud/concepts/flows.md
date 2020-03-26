@@ -22,11 +22,11 @@ To register a flow via the GraphQL API, first serialize the `Flow` object to JSO
 flow.serialize()
 ```
 
-Next, use the `createFlow` GraphQL mutation to pass the serialized `Flow` to Prefect Cloud. You will also need to provide a project ID:
+Next, use the `create_flow` GraphQL mutation to pass the serialized `Flow` to Prefect Cloud. You will also need to provide a project ID:
 
 ```graphql
 mutation($flow: JSON!) {
-  createFlow(input: { serializedFlow: $flow, projectId: "<project id>" }) {
+  create_flow(input: { serialized_flow: $flow, project_id: "<project id>" }) {
     id
   }
 }
@@ -35,7 +35,7 @@ mutation($flow: JSON!) {
 ```json
 // graphql variables
 {
-    serializedFlow: <the serialized flow JSON>
+    serialized_flow: <the serialized flow JSON>
 }
 ```
 
@@ -57,7 +57,7 @@ You can control how Cloud versions your flows by providing a `versionGroupId` wh
 
 ```graphql
 mutation {
-  archiveFlow(input: { flowId: "your-flow-id-here" }) {
+  archive_flow(input: { flow_id: "your-flow-id-here" }) {
     id
   }
 }
@@ -83,7 +83,7 @@ When running flows registered with Cloud, Prefect Core sends heartbeats to Cloud
 
 ```graphql
 mutation {
-  disableFlowHeartbeat(input: { flowId: "your-flow-id-here" }) {
+  disable_flow_heartbeat(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }
@@ -93,7 +93,7 @@ To reenable heartbeats for a flow, run the following GraphQL mutation:
 
 ```graphql
 mutation {
-  enableFlowHeartbeat(input: { flowId: "your-flow-id-here" }) {
+  enable_flow_heartbeat(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }
@@ -105,7 +105,7 @@ The Lazarus process is responsible for rescheduling flow runs under the circumst
 
 ```graphql
 mutation {
-  disableFlowLazarusProcess(input: { flowId: "your-flow-id-here" }) {
+  disable_flow_lazarus_process(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }
@@ -115,7 +115,7 @@ To reenable Lazarus resurrections for a flow, run the following GraphQL mutation
 
 ```graphql
 mutation {
-  enableFlowLazarusProcess(input: { flowId: "your-flow-id-here" }) {
+  enable_flow_lazarus_process(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }
@@ -127,7 +127,7 @@ Prefect Cloud's _opt-in_ version locking mechanism enforces the assertion that y
 
 ```graphql
 mutation {
-  enableFlowVersionLock(input: { flowId: "your-flow-id-here" }) {
+  enable_flow_version_lock(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }
@@ -137,7 +137,7 @@ To disable this functionality again, run the following GraphQL mutation:
 
 ```graphql
 mutation {
-  disableFlowVersionLock(input: { flowId: "your-flow-id-here" }) {
+  disable_flow_version_lock(input: { flow_id: "your-flow-id-here" }) {
     success
   }
 }

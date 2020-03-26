@@ -646,7 +646,7 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
 
 
 def test_set_flow_run_state(patch_post):
-    response = {"data": {"setFlowRunState": {"id": 1}}}
+    response = {"data": {"set_flow_run_state": {"id": 1}}}
     post = patch_post(response)
 
     with set_temporary_config(
@@ -661,7 +661,7 @@ def test_set_flow_run_state(patch_post):
 
 def test_set_flow_run_state_with_error(patch_post):
     response = {
-        "data": {"setFlowRunState": None},
+        "data": {"set_flow_run_state": None},
         "errors": [{"message": "something went wrong"}],
     }
     post = patch_post(response)

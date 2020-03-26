@@ -21,7 +21,7 @@ client.create_flow_run(flow_id="<flow id>")
 The client method takes a number of optional arguments, including scheduled start time, parameters and an idempotency key. See the API reference for complete detail.
 
 ::: tip A Stable API for Flow Runs
-For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`.  If provided, the unique unarchived flow within the version group will be scheduled for execution.  
+For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`. If provided, the unique unarchived flow within the version group will be scheduled for execution.  
 :::
 
 ### Core CLI
@@ -40,13 +40,13 @@ To create a flow run for a specific flow, issue the following GraphQL:
 
 ```graphql
 mutation {
-  createFlowRun(input: { flowId: "<flow id>" }) {
+  create_flow_run(input: { flow_id: "<flow id>" }) {
     id
   }
 }
 ```
 
-As with the Core Client, you can instead provide `versionGroupId` as an input to schedule a run for the unique unarchived flow within the provided version group.  This provides a stable API for running flows which are regularly updated.
+As with the Core Client, you can instead provide `versionGroupId` as an input to schedule a run for the unique unarchived flow within the provided version group. This provides a stable API for running flows which are regularly updated.
 
 ### Idempotent run creation <Badge text="GQL"/>
 
@@ -54,7 +54,7 @@ If you provide an `idempotencyKey` when creating a flow run, you can safely atte
 
 ```graphql
 mutation {
-  createFlowRun(input: { flowId: "<flow id>", idempotencyKey: "any-key" }) {
+  create_flow_run(input: { flowId: "<flow id>", idempotency_key: "any-key" }) {
     id
   }
 }
@@ -66,8 +66,11 @@ By default, flow runs are scheduled to start immediately. To run the flow in the
 
 ```graphql
 mutation {
-  createFlowRun(
-    input: { flowId: "<flow id>", scheduledStartTime: "<YYYY-MM-DD HH:MM:SS>" }
+  create_flow_run(
+    input: {
+      flow_id: "<flow id>"
+      scheduled_start_time: "<YYYY-MM-DD HH:MM:SS>"
+    }
   ) {
     id
   }
@@ -75,14 +78,14 @@ mutation {
 ```
 
 ## Updating flow run state
+
 ### UI
 
 To manually set a flow run state from the UI, visit the [flow run page](/cloud/ui/flowrun).
 
-
 ![](/cloud/ui/flowrun-mark-as.png)
 
-### GraphQL  <Badge text="GQL"/>
+### GraphQL <Badge text="GQL"/>
 
 If you need to manually update the state of a flow run, you can do so by providing a new state at any time. You must also provide a "version" number. If the version number doesn't match the database, the update will fail.
 
@@ -104,7 +107,7 @@ Next, update the state:
 
 ```graphql
 mutation($state: JSON!) {
-  setFlowRunState(input: {flowRunId: "<flow run id>", version: <version>, state: $state}) {
+  set_flow_run_state(input: {flow_run_id: "<flow run id>", version: <version>, state: $state}) {
       id
   }
 }

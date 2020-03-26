@@ -102,10 +102,10 @@ def test_list_tenants(patch_post):
         dict(
             data=dict(
                 tenant=[{"id": "id", "slug": "slug", "name": "name"}],
-                switchTenant={
+                switch_tenant={
                     "accessToken": "accessToken",
                     "expiresIn": "expiresIn",
-                    "refreshToken": "refreshToken",
+                    "refresh_token": "refresh_token",
                 },
             )
         )
@@ -143,7 +143,7 @@ def test_switch_tenants(monkeypatch):
 
 
 def test_create_token(patch_post):
-    patch_post(dict(data=dict(createAPIToken={"token": "token"})))
+    patch_post(dict(data=dict(create_api_token={"token": "token"})))
 
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         runner = CliRunner()
@@ -184,7 +184,7 @@ def test_list_tokens_fails(patch_post):
 
 
 def test_revoke_token(patch_post):
-    patch_post(dict(data=dict(deleteAPIToken={"success": True})))
+    patch_post(dict(data=dict(delete_api_token={"success": True})))
 
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         runner = CliRunner()

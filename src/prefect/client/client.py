@@ -422,11 +422,11 @@ class Client:
 
         payload = self.graphql(
             {
-                "mutation($input: switchTenantInput!)": {
-                    "switchTenant(input: $input)": {
+                "mutation($input: switch_tenant_input!)": {
+                    "switch_tenant(input: $input)": {
                         "accessToken",
                         "expiresAt",
-                        "refreshToken",
+                        "refresh_token",
                     }
                 }
             },
@@ -434,11 +434,11 @@ class Client:
             # Use the API token to switch tenants
             token=self._api_token,
         )  # type: ignore
-        self._access_token = payload.data.switchTenant.accessToken  # type: ignore
+        self._access_token = payload.data.switch_tenant.accessToken  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switchTenant.expiresAt  # type: ignore
+            payload.data.switch_tenant.expiresAt  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
+        self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
@@ -469,11 +469,11 @@ class Client:
         """
         payload = self.graphql(
             {
-                "mutation($input: refreshTokenInput!)": {
-                    "refreshToken(input: $input)": {
+                "mutation($input: refresh_token!)": {
+                    "refresh_token(input: $input)": {
                         "accessToken",
                         "expiresAt",
-                        "refreshToken",
+                        "refresh_token",
                     }
                 }
             },
@@ -481,11 +481,11 @@ class Client:
             # pass the refresh token as the auth header
             token=self._refresh_token,
         )  # type: ignore
-        self._access_token = payload.data.refreshToken.accessToken  # type: ignore
+        self._access_token = payload.data.refresh_token.accessToken  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.refreshToken.expiresAt  # type: ignore
+            payload.data.refresh_token.expiresAt  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
+        self._refresh_token = payload.data.refresh_token.refresh_token  # type: ignore
 
         return True
 

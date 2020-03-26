@@ -65,11 +65,10 @@ Navigate to the UI and click _Run_ on your Flow's page
 
 ```graphql
 mutation {
-  createFlowRun(input: { flowId: "<flow id>" }) {
+  create_flow_run(input: { flow_dd: "<flow id>" }) {
     id
   }
 }
-
 ```
 
 See [Flow Runs](/cloud/concepts/flow_runs.html#flow-runs) for more details.
