@@ -19,12 +19,12 @@ metadata:
   namespace: default
   name: prefect-agent-rbac
 rules:
-  - apiGroups: ['batch', 'extensions']
-    resources: ['jobs']
-    verbs: ['*']
-  - apiGroups: ['']
-    resources: ['pods']
-    verbs: ['*']
+- apiGroups: ["batch", "extensions"]
+  resources: ["jobs"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
