@@ -182,13 +182,13 @@ Prefect's core Python API is a powerful tool to describe task dependencies and e
 
 Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
 
-Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [documentation on Server](cloud/the-basics.md).
+Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [documentation on Server](/cloud/the-basics.md).
 
-After [starting and configuring Prefect Server](icloud/server.md#prefect-server-quickstart), navigate to `http://localhost:8080` to see the Prefect Server UI:
+After [starting and configuring Prefect Server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect Server UI:
 
 ![](/cloud/server/new-server-dashboard.png)
 
-[Register](concepts/flows.md#register) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
+[Register](/cloud/concepts/flows.md#registration) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
 
 ```python
 >>> client.create_project("Tutorial flows") 
@@ -199,13 +199,13 @@ You can use the URL returned from the `register()` call to navigate directly to 
 
 ![](/cloud/server/first-flow-registered-server.png)
 
-Start a [local agent](agents/local.md) that can communicate between the Prefect Server backend and your flow code.
+Start a [local agent](/cloud/agents/local.md) that can communicate between the Prefect Server backend and your flow code.
 
 ```python
 >>> prefect agent start
 ```
 
-And then trigger your flow from the UI using the ["Run" button](ui/flow.md#run)! You will see the agent pick up your work:
+And then trigger your flow from the UI using the ["Run" button](/cloud/ui/flow.md#run)! You will see the agent pick up your work:
 
 ```
 [2020-03-27 15:47:47,791] DEBUG - agent | Found flow runs ['2bab9807-ef97-4902-b03f-afa68b3ad9bf']
