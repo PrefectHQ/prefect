@@ -2,24 +2,19 @@
 sidebarDepth: 0
 ---
 
-Prefect Server and Prefect Cloud are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine. Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.  Depending on your needs, you might want to try the open source Prefect Server, or our free Prefect Cloud tier, or scale up to a bigger license on Prefect Cloud. All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
+# Prefect Cloud: The Basics
 
-# Prefect Server
-Prefect Server is an open-source backend automatically extends the Prefect Core engine with: 
+Welcome to Prefect Cloud!
+
+Prefect Cloud automatically extends the Prefect Core engine with:
 
 - a full GraphQL API
 - a complete UI for flows and jobs
 - remote execution clusters
 - automatic and asynchronous scheduling
-- projects for flow organization
-
-# Prefect Cloud
-
-Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If you've used Prefect Server, Prefect Cloud is a drop in replacement that provides some enhanced features, including:
-
 - permissions and authorization
+- projects for flow organization
 - secure runtime secrets and parameters
-- cloud hooks
 - many more features...
 
 If you are new to Prefect, we recommend learning more about [Prefect](https://www.prefect.io) and our open source engine, [Prefect Core](https://docs.prefect.io/core/) in the Prefect Core section of the docs.

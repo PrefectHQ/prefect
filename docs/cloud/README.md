@@ -6,16 +6,41 @@ sidebarDepth: 0
 <div align="center" style="margin-top:50px; margin-bottom:40px;">
     <img src="/illustrations/cloud-illustration.svg"  width=300 >
 </div>
-<div  style="float:left; width:100%; margin-bottom:40px;">
-    <img src="/assets/prefect-cloud-logo.svg"  width=400 >
-</div>
 
-[Prefect Cloud](https://www.prefect.io/products/cloud) is a complete negative engineering solution. Start by building a workflow in the open-source [Prefect Core](https://www.prefect.io/products/core) engine and then instantly supercharge it by deploying it with our managed orchestration platform.
+When you want to run many flows, maintaining their state and inspecting their progress can be difficult without some extra tooling.
 
-Cloud is powered by Prefect's innovative [Hybrid Execution Engine](https://www.prefect.io/why-prefect/hybrid-model), which means that your code and data **always remain private** on your infrastructure. You can take full advantage of Prefect Cloud's UI, API, scheduler, secrets management, team management, and more without ever worrying about your most valuable information leaving your control.
+Prefect Core's server and Prefect Cloud are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine to make orchestration of your flows easy.
 
-We built Prefect Cloud to support all workflows, from globally-distributed multi-cloud coordination to blinking a light on a Raspberry Pi. What will you build?
+Prefect Core's server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud. 
+ 
+ Depending on your needs, you might want to try the open source server in Prefect Core, [sign up for our free Prefect Cloud "Scheduler" tier](https://www.prefect.io/cloud/), or scale up to a bigger Prefect Cloud license. All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
 
+
+##### Prefect Core server
+
+Prefect Core ships with an open-source backend and UI that automatically extends the Prefect Core engine with: 
+
+- a full GraphQL API
+- a complete UI for flows and jobs
+- remote execution clusters
+- automatic and asynchronous scheduling
+- projects for flow organization
+
+##### Prefect Cloud
+
+Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If you've used Prefect Core's server, Prefect Cloud is a drop in replacement that provides some enhanced features, including:
+
+- permissions and authorization
+- agent monitoring
+- secure runtime secrets and parameters
+- cloud hooks
+- monitoring processes for zombie flows and tasks
+- many more features...
+
+As you read through these docs, when you see the <Badge text="Cloud"/> badge, you'll know if a feature is supported only in Prefect Cloud or not.
+
+We know one of these solutions will minimize your [negative engineering](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) burden, and get you back to the code you really want to write.
+ 
 Happy engineering!
 
 _- The Prefect Team_
