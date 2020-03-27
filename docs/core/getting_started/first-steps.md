@@ -201,8 +201,8 @@ You can use the URL returned from the `register()` call to navigate directly to 
 
 Start a [local agent](/cloud/agents/local.md) that can communicate between the Prefect Server backend and your flow code.
 
-```python
->>> prefect agent start
+```bash
+prefect agent start
 ```
 
 And then trigger your flow from the UI using the ["Run" button](/cloud/ui/flow.md#run)! You will see the agent pick up your work:
