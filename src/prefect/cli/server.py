@@ -1,4 +1,3 @@
-
 import click
 
 
@@ -24,6 +23,7 @@ def server():
         $ prefect server services
         ...
     """
+
 
 @server.command(hidden=True)
 def up():
