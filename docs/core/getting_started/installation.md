@@ -58,25 +58,14 @@ Prefect Server is an open-source backend that can orchestrate any flows written 
 To run Prefect Server, install and run the dependent services with Docker and npm in one command:
 
 ```bash
-prefect-server dev up
-```
-
-Configure your Prefect installation to use Prefect Server as its backend with
-
-```bash
-prefect backend server
-```
-
-and by setting your local Prefect Server GraphQL endpoint in `config.toml`:
-
-```
-# config.toml
-
-[server]
-api = "http://localhost:4200"
+prefect server up
 ```
 
 Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI.
+
+::: tip Backend toggle
+The backend can be toggled between Server and Cloud by running the command `prefect backend` with either `server` or `cloud` for the desired option.
+:::
 
 ## Development
 
