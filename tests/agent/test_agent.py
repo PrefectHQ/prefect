@@ -96,12 +96,12 @@ def test_agent_log_level_debug(runner_token):
         assert agent.logger.level == 10
 
 
-def test_agent_fails_no_auth_token():
+def test_agent_fails_no_auth_token(cloud_api):
     with pytest.raises(AuthorizationError):
         agent = Agent()
 
 
-def test_agent_fails_no_runner_token(monkeypatch):
+def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(

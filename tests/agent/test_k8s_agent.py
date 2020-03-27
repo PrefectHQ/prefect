@@ -103,7 +103,9 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
     assert not agent.batch_client.create_namespaced_job.called
 
 
-def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, runner_token):
+def test_k8s_agent_replace_yaml_uses_user_env_vars(
+    monkeypatch, runner_token, cloud_api
+):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 
@@ -157,7 +159,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, runner_token):
         assert env[-2] in user_vars
 
 
-def test_k8s_agent_replace_yaml(monkeypatch, runner_token):
+def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
 

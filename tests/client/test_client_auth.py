@@ -59,7 +59,7 @@ class TestClientConfig:
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
-    def test_client_token_initializes_from_file(selfmonkeypatch):
+    def test_client_token_initializes_from_file(selfmonkeypatch, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
@@ -108,7 +108,7 @@ class TestClientConfig:
                     assert toml.load(f)["api_token"] == "b"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self,
+        self, cloud_api
     ):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):
@@ -119,7 +119,7 @@ class TestClientConfig:
                 assert client._api_token == "a"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self,
+        self, cloud_api
     ):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):
@@ -239,7 +239,7 @@ class TestTenantAuth:
         }
 
     def test_login_to_tenant_writes_tenant_and_reloads_it_when_token_is_reloaded(
-        self, patch_post
+        self, patch_post, cloud_api
     ):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
@@ -439,7 +439,7 @@ class TestTenantAuth:
         refresh_token.assert_not_called()
 
     def test_client_clears_active_tenant_if_login_fails_on_initialization(
-        self, patch_post
+        self, patch_post, cloud_api
     ):
         post = patch_post(
             {
