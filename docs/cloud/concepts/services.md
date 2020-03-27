@@ -1,6 +1,6 @@
 # Services
 
-The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. The Scheduler is present in both Prefect Server and Cloud, while the others are exclusive to Prefect Cloud.
+The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. The Scheduler is present in both Prefect Core's server and Cloud, while the others are exclusive to Prefect Cloud.
 
 ## Scheduler
 

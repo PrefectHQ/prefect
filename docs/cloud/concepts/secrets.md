@@ -4,7 +4,7 @@ Prefect secrets are a way to store any sensitive key-value pairs to which your f
 the [secret URL used to receive Slack notifications from Prefect](../../core/advanced_tutorials/slack-notifications.html#using-your-url-to-get-notifications).
 Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
 
-Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io), however when using Prefect Server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/cloud/concepts/secrets.html#local-testing) section below.
+Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io), however when using Prefect Core's server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/cloud/concepts/secrets.html#local-testing) section below.
 
 ## Setting a secret <Badge text="Cloud"/>
 

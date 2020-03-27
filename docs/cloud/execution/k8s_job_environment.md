@@ -2,8 +2,8 @@
 
 [[toc]]
 
-::: warning Server not supported, yet
-Currently this environment is not directly supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
+::: warning Core server not supported, yet
+Currently this environment is not directly supported with Prefect Core's server. Deployments using Prefect Core and Kubernetes will be added in a future release.
 :::
 
 ## Overview

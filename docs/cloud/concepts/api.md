@@ -4,7 +4,7 @@ sidebarDepth: 2
 
 # API
 
-Prefect exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io` when using Prefect Cloud or `http://localhost:4200` when using the default Prefect Server setup. There are a variety of ways you can access the API.
+Prefect exposes a powerful GraphQL API for interacting with the platform and is accessed through `https://api.prefect.io` when using Prefect Cloud or `http://localhost:4200` when using the default Prefect Core setup. There are a variety of ways you can access the API.
 
 ## Authentication <Badge text="Cloud"/>
 
@@ -44,7 +44,7 @@ Prefect Core includes a Python client for interacting with the API. The Python c
 
 ### Getting Started
 
-If using Prefect Server, no authentication is required. This means the Python client can be used immediately without any extra configuration:
+If using Prefect Core's server, no authentication is required. This means the Python client can be used immediately without any extra configuration:
 
 ```python
 import prefect

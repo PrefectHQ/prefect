@@ -4,8 +4,8 @@ The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargat
 
 [[toc]]
 
-::: warning Server not supported, yet
-This agent is not currently supported with Prefect Server. Deployments using Prefect Server and Fargate will be added in a future release.
+::: warning Core server not supported, yet
+This agent is not currently supported with Prefect Core's server. Deployments using Prefect Core and Fargate will be added in a future release.
 :::
 
 ### Requirements

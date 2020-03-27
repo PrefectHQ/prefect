@@ -176,19 +176,19 @@ It's possible to create state-dependencies with Prefect's functional API, as wel
 You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction. You can choose whichever style you prefer.
 :::
 
-## Orchestrating flows with Prefect Server or Prefect Cloud
+## Orchestrating flows
 
-Prefect's core Python API is a powerful tool to describe task dependencies and even to run flows right from your Python shell, notebook, or a long-running Python script. However, you can also leverage a ready-to-use state database and UI backend that already works perfectly with any of your Prefect flows. We have two offerings: Prefect Server, and Prefect Cloud.
+Prefect's Core Python API is a powerful tool to describe task dependencies and even to run flows right from your Python shell, notebook, or a long-running Python script. However, you can also leverage a ready-to-use state database and UI backend that already works perfectly to orchestrate any of your Prefect flows and make monitoring and orchestration easy.
 
-Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
+Prefect Core ships with an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
 
-Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [documentation on Server](/cloud/the-basics.md).
+Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/cloud/README.md).
 
-After [starting and configuring Prefect Server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect Server UI:
+After [starting and configuring Core's server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect UI:
 
 ![](/cloud/server/new-server-dashboard.png)
 
-[Register](/cloud/concepts/flows.md#registration) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
+[Register](/cloud/concepts/flows.md#registration) any of your flows; they will register with your local backend:
 
 ```python
 >>> client.create_project("Tutorial flows")
@@ -199,7 +199,7 @@ You can use the URL returned from the `register()` call to navigate directly to 
 
 ![](/cloud/server/first-flow-registered-server.png)
 
-Start a [local agent](/cloud/agents/local.md) that can communicate between the Prefect Server backend and your flow code.
+Start a [local agent](/cloud/agents/local.md) that can communicate between the server and your flow code.
 
 ```bash
 prefect agent start

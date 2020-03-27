@@ -53,8 +53,8 @@ The Prefect CLI has an installation command for the local agent which will outpu
 prefect agent install local --token <YOUR_RUNNER_TOKEN> > supervisord.conf
 ```
 
-::: warning No token necessary for Server
-If you are using Prefect Server then no `--token` is necessary for this step.
+::: warning No token necessary for Core server
+If you are using Prefect Core's server then no `--token` is necessary for this step.
 :::
 
 In that same directory as the `supervisord.conf` file you may start Supervisor.

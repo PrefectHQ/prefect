@@ -4,8 +4,8 @@ The Kubernetes Agent is an agent designed to interact directly with a Kubernetes
 
 [[toc]]
 
-::: warning Server not supported, yet
-This agent is not currently supported with Prefect Server. Deployments using Prefect Server and Kubernetes will be added in a future release.
+::: warning Core server not supported, yet
+This agent is not currently supported with Prefect Core's server. Deployments using Prefect Core and Kubernetes will be added in a future release.
 :::
 
 ### Requirements
