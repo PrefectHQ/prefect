@@ -180,29 +180,46 @@ You can switch between the functional API and the imperative API at any time. Fo
 
 Prefect's core Python API is a powerful tool to describe task dependencies and even to run flows right from your Python shell, notebook, or a long-running Python script. However, you can also leverage a ready-to-use state database and UI backend that already works perfectly with any of your Prefect flows. We have two offerings: Prefect Server, and Prefect Cloud.
 
-Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud. Depending on your needs, you might want to try Prefect Server, or our free Prefect Cloud tier, or scale up to a bigger license on Prefect Cloud. All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
+Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
 
-Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [in-depth Prefect Server guide](cloud/server.md).
+Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [documentation on Server](cloud/the-basics.md).
 
 After [starting and configuring Prefect Server](icloud/server.md#prefect-server-quickstart), navigate to `http://localhost:8080` to see the Prefect Server UI:
 
----- screenshot of brand new starting server dashboard goes here ------
+![](/cloud/server/new-server-dashboard.png)
 
 [Register](concepts/flows.md#register) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
 
 ```python
->>> flow.register("My first server flow!")
-
+>>> client.create_project("Tutorial flows") 
+>>> flow.register("Tutorial flows")
+Flow: http://localhost:8080/flow/796f7ad4-26c8-4e5d-bab1-dc687691da88
 ```
+You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect Server UI:
 
----- screenshot of the flow registered in server goes here ----
+![](/cloud/server/first-flow-registered-server.png)
 
 Start a [local agent](agents/local.md) that can communicate between the Prefect Server backend and your flow code.
 
 ```python
-prefect agent start
+>>> prefect agent start
 ```
 
-And then trigger your flow from the UI using the ["Run" button](ui/flow.md#run)!
+And then trigger your flow from the UI using the ["Run" button](ui/flow.md#run)! You will see the agent pick up your work:
 
------- screenshot of the run button ------
+```
+[2020-03-27 15:47:47,791] DEBUG - agent | Found flow runs ['2bab9807-ef97-4902-b03f-afa68b3ad9bf']
+[2020-03-27 15:47:47,792] DEBUG - agent | Querying flow run metadata
+[2020-03-27 15:47:47,840] INFO - agent | Found 1 flow run(s) to submit for execution.
+[2020-03-27 15:47:47,841] DEBUG - agent | Updating states for flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf
+[2020-03-27 15:47:47,844] DEBUG - agent | Flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf is in a Scheduled state, updating to Subm
+itted
+[2020-03-27 15:47:47,844] DEBUG - agent | Next query for flow runs in 0.25 seconds
+[2020-03-27 15:47:47,893] INFO - agent | Deploying flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf
+[2020-03-27 15:47:47,897] DEBUG - agent | Submitted flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf to process PID 17260
+[2020-03-27 15:47:47,927] DEBUG - agent | Completed flow run submission (id: 2bab9807-ef97-4902-b03f-afa68b3ad9bf)
+```
+
+And the UI will be updated with the state of the flow run:
+
+![](/cloud/server/completed-flow-run-server.png)

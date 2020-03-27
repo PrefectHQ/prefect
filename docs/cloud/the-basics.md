@@ -2,9 +2,7 @@
 sidebarDepth: 0
 ---
 
-Prefect Server and Prefect Cloud are two ready-to-use state database and UI backends. They already work perfectly with any of your Prefect flows to orchestrate and inspect your Prefect flow runs.
-
-Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud. 
+Prefect Server and Prefect Cloud are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine. Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.  Depending on your needs, you might want to try the open source Prefect Server, or our free Prefect Cloud tier, or scale up to a bigger license on Prefect Cloud. All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
 
 # Prefect Server
 Prefect Server is an open-source backend automatically extends the Prefect Core engine with: 

@@ -76,8 +76,7 @@ and by setting your local Prefect Server GraphQL endpoint in `config.toml`:
 api = "http://localhost:4200"
 ```
 
-Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI:
-
+Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI.
 
 ## Development
 
