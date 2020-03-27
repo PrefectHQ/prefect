@@ -35,7 +35,7 @@ To create a new project with GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
-  createProject(input: { name: "My Project" }) {
+  create_project(input: { name: "My Project" }) {
     project {
       id
       name
@@ -58,7 +58,7 @@ Deleting a project requires tenant admin permissions as well as the project's ID
 
 ```graphql
 mutation {
-  deleteProject(input: { projectId: "project-UUID" }) {
+  delete_project(input: { project_id: "project-UUID" }) {
     success
   }
 }

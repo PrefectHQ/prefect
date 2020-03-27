@@ -32,7 +32,7 @@ To set a secret using GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
-  setSecret(input: { name: "KEY", value: "VALUE" }) {
+  set_secret(input: { name: "KEY", value: "VALUE" }) {
     success
   }
 }
