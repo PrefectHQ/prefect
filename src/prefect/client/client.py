@@ -21,7 +21,6 @@ from prefect.utilities.graphql import (
     parse_graphql,
     with_args,
 )
-from pprint import pprint
 
 if TYPE_CHECKING:
     from prefect.core import Flow
