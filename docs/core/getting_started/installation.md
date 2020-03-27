@@ -51,6 +51,34 @@ The extra packages include:
 - `spacy`: tools for building NLP pipelines using Spacy
 - `redis`: tools for interacting with a Redis database
 
+## Configuring Prefect Server
+
+Prefect Server is an open-source backend that can orchestrate any flows written in the Prefect Core Python API. Prefect Server stores flow run metadata in a Postgres database, exposes it over a GraphQL API, and provides an interactive web UI in Vue.js.
+
+To run Prefect Server, install and run the dependent services with Docker and npm in one command:
+
+```bash
+prefect-server dev up
+```
+
+Configure your Prefect installation to use Prefect Server as its backend with
+
+```bash
+prefect backend server
+```
+
+and by setting your local Prefect Server GraphQL endpoint in `config.toml`:
+
+```
+# config.toml
+
+[server]
+api = "http://localhost:4200"
+```
+
+Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI:
+
+
 ## Development
 
 For developing Prefect, see the [development guide](../development/overview.md).

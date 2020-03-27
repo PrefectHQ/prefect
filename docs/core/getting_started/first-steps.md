@@ -175,3 +175,34 @@ It's possible to create state-dependencies with Prefect's functional API, as wel
 ::: tip Mix-and-match
 You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction. You can choose whichever style you prefer.
 :::
+
+# Orchestrating flows with Prefect Server or Prefect Cloud
+
+Prefect's core Python API is a powerful tool to describe task dependencies and even to run flows right from your Python shell, notebook, or a long-running Python script. However, you can also leverage a ready-to-use state database and UI backend that already works perfectly with any of your Prefect flows. We have two offerings: Prefect Server, and Prefect Cloud.
+
+Prefect Server is an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud. Depending on your needs, you might want to try Prefect Server, or our free Prefect Cloud tier, or scale up to a bigger license on Prefect Cloud. All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
+
+Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [in-depth Prefect Server guide](cloud/server.md).
+
+After [starting and configuring Prefect Server](icloud/server.md#prefect-server-quickstart), navigate to `http://localhost:8080` to see the Prefect Server UI:
+
+---- screenshot of brand new starting server dashboard goes here ------
+
+[Register](concepts/flows.md#register) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
+
+```python
+>>> flow.register("My first server flow!")
+
+```
+
+---- screenshot of the flow registered in server goes here ----
+
+Start a [local agent](agents/local.md) that can communicate between the Prefect Server backend and your flow code.
+
+```python
+prefect agent start
+```
+
+And then trigger your flow from the UI using the ["Run" button](ui/flow.md#run)!
+
+------ screenshot of the run button ------
