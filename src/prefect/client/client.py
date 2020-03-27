@@ -21,6 +21,7 @@ from prefect.utilities.graphql import (
     parse_graphql,
     with_args,
 )
+from pprint import pprint
 
 if TYPE_CHECKING:
     from prefect.core import Flow
@@ -558,22 +559,25 @@ class Client:
                 }
             }
 
-        query_project = {
-            "query": {
-                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                    "id": True
+        project = None
+
+        if prefect.config.backend == "cloud":
+            query_project = {
+                "query": {
+                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                        "id": True
+                    }
                 }
             }
-        }
 
-        project = self.graphql(query_project).data.project  # type: ignore
+            project = self.graphql(query_project).data.project  # type: ignore
 
-        if not project:
-            raise ValueError(
-                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
-                    project_name, project_name
+            if not project:
+                raise ValueError(
+                    'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                        project_name, project_name
+                    )
                 )
-            )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -593,7 +597,7 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    project_id=project[0].id,
+                    project_id=project[0].id if project else None,
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
