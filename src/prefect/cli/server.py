@@ -30,4 +30,3 @@ def up():
     """
     Server up
     """
-    pass
