@@ -184,11 +184,11 @@ Prefect Server is an open source, lightweight version of our highly-available, p
 
 Let's take a very quick look into what a flow orchestrated on the open source Prefect Server looks like; for more information, see the [documentation on Server](/cloud/the-basics.md).
 
-After [starting and configuring Prefect Server](/cloud/server.md#prefect-server-quickstart), navigate to `http://localhost:8080` to see the Prefect Server UI:
+After [starting and configuring Prefect Server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect Server UI:
 
 ![](/cloud/server/new-server-dashboard.png)
 
-[Register](/concepts/flows.md#register) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
+[Register](/cloud/concepts/flows.md#registration) any of your flows; since your Prefect backend has been set to server, they will register with your local Prefect Server backend:
 
 ```python
 >>> client.create_project("Tutorial flows")
