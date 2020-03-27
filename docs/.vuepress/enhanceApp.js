@@ -10,11 +10,17 @@ export default ({ router }) => {
       path: '/guide/*',
       redirect: '/core/*'
     },
-    // redirect from `cloud/cloud_concepts` to `cloud/concepts`
+
+    // redirect from `cloud/cloud_concepts` through to `orchestration/concepts`
     {
       path: '/cloud/cloud_concepts/*',
       redirect: '/cloud/concepts/*'
     },
+    {
+      path: '/cloud/concepts/*',
+      redirect: '/orchestration/concepts/*'
+    },
+
     // redirect from `api/unreleased` to `api/latest`
     {
       path: '/api/unreleased/*',
@@ -25,10 +31,19 @@ export default ({ router }) => {
       path: '/core/tutorials/*',
       redirect: '/core/advanced_tutorials/*'
     },
-    // redirect from `cloud/agent` to `cloud/agents`
+
+    // redirect from `cloud/agent` through to `cloud/agents`
     {
       path: '/cloud/agent/*',
       redirect: '/cloud/agents/*'
-    }
+    },
+    {
+      path: '/cloud/agents/*',
+      redirect: '/orchestration/agents/*'
+    },
+
+      // redirect from `cloud` to `orchestration
+    { path: '/cloud/*',
+    redirect: '/orchestration/*'}
   ])
 }
