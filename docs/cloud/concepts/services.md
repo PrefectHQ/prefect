@@ -1,8 +1,24 @@
 # Services
 
-Prefect Cloud runs a variety of automatic services to ensure workflow semantics are respected robustly.
+The Prefect platform runs a variety of automatic services to ensure workflow semantics are respected robustly. The Scheduler is present in both Prefect Server and Cloud, while the others are exclusive to Prefect Cloud.
 
-## Lazarus
+## Scheduler
+
+The `Scheduler` service is responsible for scheduling new flow runs.
+
+### How is it useful?
+
+In many distributed systems, the scheduler is a single point of failure. Cloud was designed to have a robust, asynchronous scheduling service whose only job is to correctly generate future flow runs. It can be trivially restarted or even run concurrently without issue.
+
+More importantly, the scheduler service is not responsible for actually running flows -- that's what [Agents](/cloud/agents/overview) are for. This means that scheduled runs can happily coexist with manually-started runs; Agents are indifferent to _how_ a run was created. You can tell if a run was created by the Scheduler service because it will have an `auto_scheduled` flag set to `TRUE`. Manually-created runs will record the user that created them.
+
+### How does it work?
+
+The scheduler periodically queries for flows with active schedules and creates flow runs corresponding to the next 10 scheduled start times of the flow. Therefore, to disable scheduling, simply toggle your flow's schedule to `PAUSED`, and reactivate it whenever you want scheduling to resume.
+
+If you pause a schedule, any future auto-scheduled runs that have not started will be deleted. Reactivating the schedule will cause them to be recreated, as long as they are scheduled to start in the future. The scheduler will never create runs that were scheduled to start in the past.
+
+## Lazarus <Badge text="Cloud"/>
 
 The `Lazarus` process is responsible for rescheduling any submitted or running flow runs without
 corresponding submitted or running task runs.
@@ -17,23 +33,7 @@ Once every 10 minutes, the Lazarus process searches for distressed flow runs. Ea
 
 Where necessary, flow runs without submitted or running task runs will be rescheduled by the Lazarus process up to 10 times. Should the Lazarus process attempt to reschedule a flow run for the eleventh time, it will be marked failed instead.
 
-## Scheduler
-
-The `Scheduler` service is responsible for scheduling new flow runs.
-
-### How is it useful?
-
-In many distributed systems, the scheduler is a single point of failure. Cloud was designed to have a robust, asynchronous scheduling service whose only job is to correctly generate future flow runs. It can be trivially restarted or even run concurrently without issue.
-
-More importantly, the scheduler service is not responsible for actually running flows -- that's what [Agents](/cloud/agents/overview) are for. This means that scheduled runs can happily coexist with manually-started runs; Agents are indifferent to _how_ a run was created. You can tell if a run was created by the Scheduler service because it will have an `auto_scheduled` flag set to `TRUE`. Manually-created runs will record the user that created them.
-
-### How does it work?
-
-Periodically, the scheduler queries for flows with active schedules and creates flow runs corresponding to the next 10 scheduled start times of the flow. Therefore, to disable scheduling, simply toggle your flow's schedule to `PAUSED`, and reactivate it whenever you want scheduling to resume.
-
-If you pause a schedule, any future auto-scheduled runs that have not started will be deleted. Reactivating the schedule will cause them to be recreated, as long as they are scheduled to start in the future. The scheduler will never create runs that were scheduled to start in the past.
-
-## Zombie Killer
+## Zombie Killer <Badge text="Cloud"/>
 
 The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes.
 
@@ -45,7 +45,7 @@ Zombies are tasks that started running but -- for some reason -- are no longer i
 
 Periodically, Prefect Cloud queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
 
-## Towel
+## Towel <Badge text="Cloud"/>
 
 The `Towel` service is an orchestration layer for maintenance routines that are critical to Cloud's operation, including some of the services on this page.
 

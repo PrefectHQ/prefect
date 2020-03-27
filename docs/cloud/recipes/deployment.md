@@ -2,15 +2,15 @@
 sidebarDepth: 0
 ---
 
-# From Core to Cloud: Deployment Considerations
+# Deployment Considerations
 
-There are many considerations that need to be made when moving from a local workflow to a distributed, dockerized workflow. This document attempts to highlight many of these considerations and potential "gotchas" that users might encounter as they promote their workflows to Prefect Cloud.
+There are many considerations that need to be made when moving from a local workflow to a distributed, dockerized workflow. This document attempts to highlight many of these considerations and potential "gotchas" that users might encounter as they back their workflows with a Prefect API.
 
 [[toc]]
 
 ## Docker
 
-Prefect Cloud requires the use of Docker containers. Docker provides an excellent industry-standard abstraction for shipping code along with all of its dependencies for runtime consistency in diverse environments. Ultimately, to register a Flow with Cloud it needs to be "packaged up" inside a Docker image that is then pushed to a registry of your choosing.
+Docker provides an excellent industry-standard abstraction for shipping code along with all of its dependencies for runtime consistency in diverse environments. 
 
 ### How are Prefect Flows stored inside Docker containers?
 
@@ -30,13 +30,13 @@ Oftentimes users want to separate their flow's build logic from its registration
 
 ### How are Prefect Flows run inside Docker containers?
 
-Whenever a Prefect Cloud flow run is created and submitted for execution, Prefect performs the following actions inside your Flow's Docker image:
+Whenever a flow run is created and submitted for execution, Prefect performs the following actions inside your flow's Docker image:
 
 - calls `cloudpickle.load(...)` on the file described above containing the byte-representation of your Flow
 - calls `flow.environment.setup` for your flow's specified [execution environment](../../api/latest/environments/execution.html)
 - calls `flow.environment.execute`
 
-Ultimately, regardless of the execution environment you use, a single `CloudFlowRunner` is created to run your Flow and configure it to communicate back to Prefect Cloud.
+Ultimately, regardless of the execution environment you use, a single `CloudFlowRunner` is created to run your Flow and configure it to communicate back to the Prefect API.
 
 ### Dependencies
 
@@ -69,18 +69,6 @@ AssertionError: Result has no ResultHandler
 it means that _something_ triggered Cloud to persist data, but neither your Task nor your Flow had a result handler to use.
 :::
 
-### Secrets
+### Secrets <Badge text="Cloud"/>
 
 If your Flow relies on the use of Prefect Secrets, you will need to communicate those Secrets to Prefect Cloud via one of Prefect's [APIs](../concepts/secrets.html#cloud-execution). We are currently working on a more pluggable version of Secrets that will allow you to more easily swap out Prefect's Secret storage with your favorite secret provider.
-
-## Infrastructure
-
-Prefect Cloud workflows are executed inside Docker containers running in the execution environment of your choosing. The only requirement for Prefect Cloud and its Agents are the ability to pull Docker images and "submit" them for execution in some fashion. This means that you may need to reconsider references to local filepaths, ensure certain environment variables are set, and make sure you understand any networking configurations that you rely on.
-
-Prefect makes it easy to control:
-
-- all aspects of the Docker image your Flow is stored within
-- what types of [Prefect Agents](../agents/overview.html) can submit your Flows for execution
-- what [execution environment](../../api/latest/environments/execution.html) your Flow runs
-
-Note that different workflows will have different resource requirements during execution. For example, if you run a CPU intensive Flow using a Kubernetes Agent you should make sure your Kubernetes cluster has a sufficiently large node pool to run on.

@@ -1,4 +1,4 @@
-# Docker Sidecar on Kubernetes
+# Docker Sidecar on Kubernetes <Badge text="Cloud"/>
 
 This recipe is for a Flow deployed to Kubernetes, making use of a Docker sidecar container to pull an image and run a container. This is an adaptation of the [Docker Pipeline](../../core/examples/imperative_docker.html) example where the `prefecthq/prefect:latest` image is pulled and a container is started using that image to run another Flow inside that container.
 

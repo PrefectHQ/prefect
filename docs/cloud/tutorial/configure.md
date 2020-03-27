@@ -1,4 +1,4 @@
-# Configure Your Environment
+# Configure Your Environment  <Badge text="Cloud"/>
 
 ## Log in to Prefect Cloud
 

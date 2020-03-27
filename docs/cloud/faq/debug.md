@@ -1,18 +1,18 @@
 ---
 sidebarDepth: 2
 ---
-# Debugging Flows in Cloud
+# Debugging Flows running with a Prefect API
 
  [[toc]]
 
 ## My flow is stuck in a `Scheduled` state!
 
-The most likely culprit when a flow is stuck in a Scheduled state is agent misconfiguration. A Scheduled state whose start time is past means that no Agent was able to retrieve the flow run and submit it for execution (which, in normal operation, is indicated by the Flow Run entering a `Submitted` state).
+The most likely culprit when a flow is stuck in a Scheduled state is agent misconfiguration. A Scheduled state whose start time is past means that no agent was able to retrieve the flow run and submit it for execution (which, in normal operation, is indicated by the Flow Run entering a `Submitted` state).
 
 Here are some tips for debugging your agent:
 
 1. Verify that your agent is running on your desired platform
-2. Check that the API token given to the agent is scoped to the same tenant as your flow
+2. If using Prefect Cloud as your API, confirm that the API token given to the agent is scoped to the same tenant as your flow
 
 ```
 
@@ -33,7 +33,3 @@ Here are are some steps for debugging issues in execution:
 1. Check the agent logs to see if anything obvious stands out
 2. Verify that your platform has the proper services running (e.g. Docker daemon for Local Agent) or permissions configured (e.g. RBAC for Kubernetes Agent)
 3. Open an issue on [GitHub](https://github.com/PrefectHQ/prefect/issues/new/choose)!
-
-## "Update failed: bad version"
-
-Occasionally a task run will fail with the message "update failed: bad version." Anytime a state update occurs in Cloud, the state's "version" is checked against the database to ensure a match.  If a match is not found, this error is raised.  This can be caused by having multiple jobs all attempting to run the same flow run simultaneously, for example, and is a sign that the system is working as intended and preventing duplicate runs from occuring.

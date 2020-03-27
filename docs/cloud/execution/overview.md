@@ -1,16 +1,12 @@
 # Execution Overview
 
-Executing Flows using Prefect Cloud is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, Flows can be saved, shared, and executed across various platforms.
+Executing flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows can be saved, shared, and executed across various platforms.
 
 [[toc]]
 
 ## Storage
 
 [Storage](https://docs.prefect.io/api/latest/environments/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
-
-::: tip Cloud Acceptable Storage
-Currently the only supported Storage class in Prefect Cloud is [Docker storage](https://docs.prefect.io/api/latest/environments/storage.html#docker). This is due to the fact that Prefect Cloud does not retrieve the storage object itself and only cares about metadata describing the location of the image.
-:::
 
 ### How Storage is Used
 
@@ -31,7 +27,7 @@ f = Flow("example-storage")
 f.storage = Docker(registry_url="prefecthq/storage-example")
 ```
 
-When you register your flow with Prefect Cloud the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Local` by default). The following code will actually pass the `registry_url` to the `Docker` Storage object for you at registration-time and push that image to your specified registry:
+When you register your flow with the Prefect API the storage object attached to the flow will be built. At this step the flow is serialized to byte code and placed inside of the storage. For added convenience, `flow.register` will accept arbitrary keyword arguments which will then be passed to the initialization method of your configured default storage class (which is `Local` by default). The following code will actually pass the `registry_url` to the `Docker` Storage object for you at registration-time and push that image to your specified registry:
 
 ```python
 from prefect import Flow

@@ -1,8 +1,12 @@
-# Fargate Agent
+# Fargate Agent <Badge text="Cloud"/>
 
 The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargate. This agent can be run anywhere so long as the proper AWS configuration credentials are provided.
 
 [[toc]]
+
+::: warning Server not supported, yet
+This agent is not currently supported with Prefect Server. Deployments using Prefect Server and Fargate will be added in a future release.
+:::
 
 ### Requirements
 
@@ -97,18 +101,18 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
 
 - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
-    When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
-    task definition revision. Each revision will be registered with a tag called `PrefectFlowId`
-    and `PrefectFlowVersion` to enable proper lookup for existing revisions.  Flow name is reformatted
-    to support task definition naming rules by converting all non-alphanumeric characters to '_'.
-    Defaults to False.
+  When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
+  task definition revision. Each revision will be registered with a tag called `PrefectFlowId`
+  and `PrefectFlowVersion` to enable proper lookup for existing revisions. Flow name is reformatted
+  to support task definition naming rules by converting all non-alphanumeric characters to '*'.
+  Defaults to False.
 - use_external_kwargs (bool, optional): When enabled, the agent will check for the existence of an
-    external json file containing kwargs to pass into the run_flow process.
-    Defaults to False.
+  external json file containing kwargs to pass into the run_flow process.
+  Defaults to False.
 - external_kwargs_s3_bucket (str, optional): S3 bucket containing external kwargs.
 - external_kwargs_s3_key (str, optional): S3 key prefix for the location of `<slugified_flow_name>/<flow_id[:8]>.json`.
 - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
-    `register_task_definition` and `run_task`
+  `register_task_definition` and `run_task`
 
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
@@ -235,7 +239,7 @@ By default, a new task definition is created each time there is a new flow versi
   For example, `flow #1` becomes `flow-1`.
 - Add a tag called `PrefectFlowId` and `PrefectFlowVersion` to enable proper lookup for existing revisions.
 
-This means that for each flow, the proper task definition, based on flow ID and version, will be used. If a new flow version is run, a new revision is added to the flow's task definition family.  Your task definitions will now have this hierarchy:
+This means that for each flow, the proper task definition, based on flow ID and version, will be used. If a new flow version is run, a new revision is added to the flow's task definition family. Your task definitions will now have this hierarchy:
 
 ```
 <flow name>
@@ -244,7 +248,7 @@ This means that for each flow, the proper task definition, based on flow ID and 
   - <flow name>:<revision number>
 ```
 
-This functionality requires the agent have a proper IAM policy for creating task definition revisions and using the resource tagging API.  Here is an example IAM policy:
+This functionality requires the agent have a proper IAM policy for creating task definition revisions and using the resource tagging API. Here is an example IAM policy:
 
 ```
 {

@@ -2,7 +2,7 @@
 
 Prefect includes a variety of `Storage` options for saving flows.
 
-As of Prefect version `0.9.0` every storage option except for `Docker` will automatically have a result handler attached that will write results to the corresponding platform. For example, this means that if you register a flow to Prefect Cloud with the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result Handler](/api/latest/engine/result_handlers.html#s3resulthandler).
+As of Prefect version `0.9.0` every storage option except for `Docker` will automatically have a result handler attached that will write results to the corresponding platform. For example, this means that if you register a flow with the Prefect API using the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result Handler](/api/latest/engine/result_handlers.html#s3resulthandler).
 
 ## Local
 

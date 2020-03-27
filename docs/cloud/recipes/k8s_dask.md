@@ -1,4 +1,4 @@
-# Dask Cluster on Kubernetes
+# Dask Cluster on Kubernetes <Badge text="Cloud"/>
 
 This recipe is for a flow deployed to Kubernetes using a static Dask cluster. This Dask cluster lives on the same Kubernetes cluster that the flow runs on.
 

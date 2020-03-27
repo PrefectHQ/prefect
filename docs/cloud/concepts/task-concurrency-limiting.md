@@ -1,4 +1,4 @@
-# Task Concurrency Limiting
+# Task Concurrency Limiting <Badge text="Cloud"/>
 
 ::: tip Platform Feature
 Setting global concurrency limits is a feature of Prefect Cloud's Platform Tier.
@@ -76,7 +76,7 @@ To update your tag concurrency limits with GraphQL, issue the following mutation
 
 ```graphql
 mutation {
-  updateTaskTagLimit(input: { tag: "database", limit: 10 }) {
+  update_task_tag_limit(input: { tag: "database", limit: 10 }) {
     id
   }
 }
@@ -90,7 +90,7 @@ To remove all concurrency limits on a tag, issue:
 
 ```graphql
 mutation {
-  deleteTaskTagLimit(input: { limitId: "uuid-returned-from-above" }) {
+  delete_task_tag_limit(input: { limit_id: "uuid-returned-from-above" }) {
     success
   }
 }

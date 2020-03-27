@@ -1,4 +1,4 @@
-# Tokens
+# Tokens <Badge text="Cloud"/>
 
 ## Token Types
 
@@ -40,11 +40,11 @@ $ prefect auth create-token -n my-runner-token -r RUNNER
 
 ### GraphQL
 
-To create a token using GraphQL execute the `createAPIToken` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](api.html).
+To create a token using GraphQL execute the `create_api_token` mutation against `https://api.prefect.io`. For more information on how to use the GraphQL API go [here](api.html).
 
 ```graphql
 mutation {
-  createAPIToken(input: {name: "my-runner-token", role: RUNNER}) {
+  create_api_token(input: { name: "my-runner-token", role: RUNNER }) {
     token
   }
 }
@@ -68,11 +68,11 @@ $ prefect auth revoke-token -i $MY_TOKEN_ID
 
 ### GraphQL
 
-To revoke a token using GraphQL execute the `deleteAPIToken` mutation against `https://api.prefect.io`. For information on how to find a token's ID look under [Querying for Token Information](tokens.html#querying-for-token-information).
+To revoke a token using GraphQL execute the `delete_api_token` mutation against `https://api.prefect.io`. For information on how to find a token's ID look under [Querying for Token Information](tokens.html#querying-for-token-information).
 
 ```graphql
 mutation {
-  deleteAPIToken(input: {tokenId: "MY_TOKEN_ID"}) {
+  delete_api_token(input: { token_id: "MY_TOKEN_ID" }) {
     success
   }
 }

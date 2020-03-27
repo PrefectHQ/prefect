@@ -1,6 +1,6 @@
 # Docker Agent
 
-The Docker Agent is designed to work in all environments with access to a Docker daemon. Docker agents are most commonly used on personal machines for testing flow run deployments, but the docker agent is by no means only useful for testing. In fact, it creates flow runs that interact with Prefect Cloud in the same way that it would on any other platform. This allows the Docker Agent to be a fully functioning method of executing flows in conjunction with Prefect Cloud.
+The Docker agent is designed to work in all environments with access to a Docker daemon. Docker agents are most commonly used on personal machines for testing flow run deployments, but still serves as a fully functioning method of executing flows in conjunction with the Prefect API.
 
 [[toc]]
 
@@ -30,7 +30,7 @@ $ prefect agent start docker
 
 The Docker Agent can be started either through the Prefect CLI or by importing the `DockerAgent` class from the core library.
 
-::: tip Tokens
+::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start docker -t MY_TOKEN`
@@ -43,7 +43,7 @@ There are a few ways in which you can specify a `RUNNER` API token:
 
 On start, the Docker Agent verifies that it can connect to a Docker daemon. The default daemon location is determined by your system. `npipe:////./pipe/docker_engine` for Windows and `unix://var/run/docker.sock` for Unix. A separate Docker daemon location can be provided either through `base_url` when instantiating a `DockerAgent` object or through `--base-url` on the CLI.
 
-The Docker Agent periodically polls for new flow runs to execute. When a flow run is retrieved from Prefect Cloud, the agent confirms that the flow was registered with a Docker storage option and uses the connected Docker daemon to create a container and run the flow.
+The Docker Agent periodically polls for new flow runs to execute. When a flow run is retrieved from the Prefect API, the agent confirms that the flow was registered with a Docker storage option and uses the connected Docker daemon to create a container and run the flow.
 
 The agent will block on the process in between finding the flow run and submitting it for execution if it has to pull the flow's Docker image.
 

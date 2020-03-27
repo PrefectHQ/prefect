@@ -200,8 +200,8 @@ def create_token(name, role):
 
     output = client.graphql(
         query={
-            "mutation($input: createAPITokenInput!)": {
-                "createAPIToken(input: $input)": {"token"}
+            "mutation($input: create_api_token_input!)": {
+                "create_api_token(input: $input)": {"token"}
             }
         },
         variables=dict(input=dict(name=name, role=role)),
@@ -211,7 +211,7 @@ def create_token(name, role):
         click.secho("Issue creating API token", fg="red")
         return
 
-    click.echo(output.data.createAPIToken.token)
+    click.echo(output.data.create_api_token.token)
 
 
 @auth.command(hidden=True)
@@ -260,14 +260,14 @@ def revoke_token(id):
 
     output = client.graphql(
         query={
-            "mutation($input: deleteAPITokenInput!)": {
-                "deleteAPIToken(input: $input)": {"success"}
+            "mutation($input: delete_api_token_input!)": {
+                "delete_api_token(input: $input)": {"success"}
             }
         },
-        variables=dict(input=dict(tokenId=id)),
+        variables=dict(input=dict(token_id=id)),
     )
 
-    if not output.get("data", None) or not output.data.deleteAPIToken.success:
+    if not output.get("data", None) or not output.data.delete_api_token.success:
         click.secho("Unable to revoke token with ID {}".format(id), fg="red")
         return
 

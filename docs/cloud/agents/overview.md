@@ -1,28 +1,28 @@
 # Overview
 
-The Prefect Agent is a small process spun up to orchestrate Flow runs. The agent queries Prefect Cloud for new or incomplete Flow runs and allocates resources for them on the deployment's platform of choice.
+The Prefect agent is a small process spun up to orchestrate flow runs. The agent queries the Prefect API for new or incomplete flow runs and allocates resources for them on the deployment's platform of choice.
 
-Prefect Cloud follows a hybrid approach to workflow execution. This means that Prefect processes run inside the tenant's infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect Agent and all Prefect Flows which run using Cloud follow this communication pattern.
+If using the Prefect Cloud API, it's important to note that Prefect Cloud uses a hybrid approach to workflow execution. This means that Prefect processes run inside the tenant's infrastructure and only send requests _out_ to Prefect Cloud. Both the Prefect agent and all Prefect flows which run using Cloud follow this communication pattern.
 
 [[toc]]
 
 ### Agent Process
 
-Agents start by first querying Prefect Cloud for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries Prefect Cloud for Flow runs to be started on that agent's platform.
+Agents start by first querying the Prefect API for their respective tenant ID (inferred from the API token that the agent is given). The agent then continually queries the Prefect API for flow runs to be started on that agent's platform.
 
-Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant to which this flow run belongs will then see that there is work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker Agent or a job in the case of a Kubernetes Agent.
+Flow runs can be created either through the [GraphQL API](../concepts/graphql.html), [CLI](../concepts/cli.html), [programatically](../concepts/flow_runs.html#creating-a-flow-run), or [UI](../concepts/ui.html). The agent scoped to the tenant to which this flow run belongs will then see that there is work which needs to be done. Metadata surrounding the flow run will be retrieved and used to create a unit of execution on the agent's platform. Examples of this could include a Docker container in the case of a Docker agent or a job in the case of a Kubernetes agent.
 
 Once the agent submits the flow run for execution, the agent returns to waiting for more flow runs to execute. That flow run that was submitted for execution is now set to a `Submitted` state. The `Submitted` state will contain information regarding identification of the deployment.
 
-If for any reason the Agent encounters an issue deploying the flow run for execution then it will mark that flow run as `Failed` with the message set to the error it encountered.
+If for any reason the agent encounters an issue deploying the flow run for execution then it will mark that flow run as `Failed` with the message set to the error it encountered.
 
 ### Installation
 
-If Prefect is already [installed](../../core/getting_started/installation.html) no additional work is required to begin using Prefect Agents!
+If Prefect is already [installed](../../core/getting_started/installation.html) no additional work is required to begin using Prefect agents!
 
 ### Usage
 
-Prefect Agents can easily be configured through the CLI.
+Prefect agents can easily be configured through the CLI.
 
 ```
 $ prefect agent
@@ -59,15 +59,15 @@ from prefect.agent import DockerAgent
 DockerAgent().start()
 ```
 
-### Tokens
+### Tokens <Badge text="Cloud"/>
 
-Prefect Agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
+Prefect agents rely on the use of a `RUNNER` token from Prefect Cloud. For information on tokens and how they are used visit the [Tokens](../concepts/tokens.html) page.
 
 ### Flow Affinity: Labels
 
-Agents have an optional `labels` argument which allows for separation of execution when using multiple Agents. This is especially useful for teams wanting to run specific Flows on different clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
+Agents have an optional `labels` argument which allows for separation of execution when using multiple agents. This is especially useful for teams wanting to run specific flows on different clusters. For more information on labels and how to use them visit [Environments](../execution/overview.html#labels).
 
-By default, Agents have no set labels and will only pick up runs from Flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
+By default, agents have no set labels and will only pick up runs from flows with no specified Environment Labels. Labels can be provided to an agent through a few methods:
 
 - Initialization of the Agent class:
 

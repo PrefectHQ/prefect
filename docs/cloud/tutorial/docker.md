@@ -1,6 +1,6 @@
-# Cloud Flow with Docker
+# Flow with Docker
 
-Previously we used the Local Agent to execute Flow Runs directly on the current host. Now we will use a Docker Agent to execute Flow Runs within Docker containers on the current host.
+Previously we used the local agent to execute flow runs directly on the current host. Now we will use a Docker agent to execute flow runs within Docker containers on the current host.
 
 :::warning Docker Daemon
 In order to use the Docker features make sure you have Docker currently running on your machine.
@@ -8,7 +8,7 @@ In order to use the Docker features make sure you have Docker currently running 
 
 ## Persisting Your Flow with Docker Storage
 
-The default Storage object for Flows is [Local Storage](/api/latest/environments/storage.html#local) but it is easy to switch to other options such as [Docker Storage](/api/latest/environments/storage.html#docker).
+The default Storage object for flows is [Local Storage](/api/latest/environments/storage.html#local) but it is easy to switch to other options such as [Docker Storage](/api/latest/environments/storage.html#docker).
 
 ```python
 import prefect
@@ -31,7 +31,7 @@ flow.register(project_name="Hello, World!")
 
 Docker Storage accepts an optional keyword argument `registry_url` if this is not specified then the Docker image that is built will only exist on the machine it was built on.
 
-If you do specify a registry URL then the image will be pushed to a container registry upon Flow registration.
+If you do specify a registry URL then the image will be pushed to a container registry upon flow registration.
 
 ```python
 flow.storage = Docker(registry_url="docker.io/<dockerhub_user>/<dockerhub_repo>")
@@ -39,13 +39,13 @@ flow.storage = Docker(registry_url="docker.io/<dockerhub_user>/<dockerhub_repo>"
 
 ## Running a Docker Agent
 
-Start the Docker Agent to executing Flow Runs scheduled by Cloud:
+Start the Docker Agent to executing Flow Runs scheduled by the Prefect API:
 
 ```bash
 prefect agent start docker
 ```
 
-:::tip Runner Token
+:::tip Runner Token <Badge text="Cloud"/>
 This Docker Agent will use the _RUNNER_ token stored in your environment but if you want to manually pass it a token you may do so with `--token <COPIED_RUNNER_TOKEN>`.
 :::
 
