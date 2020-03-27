@@ -11,7 +11,7 @@ export default ({ router }) => {
       redirect: '/core/*'
     },
 
-    // redirect from `cloud/cloud_concepts` through to `orchestration/concepts`
+    // redirect from `cloud/cloud_concepts` through `/cloud/concepts` to `orchestration/concepts`
     {
       path: '/cloud/cloud_concepts/*',
       redirect: '/cloud/concepts/*'
@@ -32,7 +32,7 @@ export default ({ router }) => {
       redirect: '/core/advanced_tutorials/*'
     },
 
-    // redirect from `cloud/agent` through to `cloud/agents`
+    // redirect from `cloud/agent` through `cloud/agents` to `orchestration/agents`
     {
       path: '/cloud/agent/*',
       redirect: '/cloud/agents/*'
