@@ -25,7 +25,7 @@ Prefect has a few flags for modifying pytest's behavior. Passing `--skip-formatt
 
 ## CI
 
-In CI, Prefect's unit tests are run against Python 3.5, 3.6, and 3.7. Much as we love `f-strings`, Prefect code must support all versions. A common pitfall is writing tests that implicitly depend on Python 3.6's implicitly-ordered dictionaries and sets; these tests can fail non-deterministically in Python 3.5.
+In CI, Prefect's unit tests are run against Python 3.6, 3.7, and 3.8. As much as we love `f-strings`, Prefect code must support all versions. A common pitfall is writing tests that implicitly depend on Python 3.6's implicitly-ordered dictionaries and sets.
 
 Though Prefect's unit tests include tests for black and mypy (see the [style guide](style.md)), a separate "formatting" CI job is also run. Since formatting errors are common in PRs, we have found this to be a useful early-warning during development.
 

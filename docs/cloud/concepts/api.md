@@ -14,7 +14,7 @@ To generate an API token, use the Cloud UI or the following GraphQL call (from a
 
 ```graphql
 mutation {
-  createAPIToken(input: { name: "My API token", role: USER }) {
+  create_api_token(input: { name: "My API token", role: USER }) {
     token
   }
 }
@@ -218,7 +218,7 @@ GraphQL has a difficult time parsing JSON inline, so we recommend providing any 
 
 ```graphql
 mutation($state: JSON!) {
-  setFlowRunState(
+  set_flow_run_state(
     input: {
       id: "61cab648-f09d-467d-b205-3892c8d55250"
       version: 1

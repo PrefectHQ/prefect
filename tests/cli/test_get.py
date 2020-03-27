@@ -29,9 +29,6 @@ def test_get_help():
     )
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_flows(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
@@ -70,9 +67,6 @@ def test_get_flows(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_flows_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
@@ -119,9 +113,6 @@ def test_get_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_projects(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
@@ -162,9 +153,6 @@ def test_get_projects(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_projects_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
@@ -199,9 +187,6 @@ def test_get_projects_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_flow_runs(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -246,9 +231,6 @@ def test_get_flow_runs(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_flow_runs_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -297,9 +279,6 @@ def test_get_flow_runs_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
@@ -342,9 +321,6 @@ def test_get_tasks(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_tasks_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
@@ -394,9 +370,6 @@ def test_get_tasks_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_logs(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -453,9 +426,6 @@ def test_get_logs(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_get_logs_info(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(

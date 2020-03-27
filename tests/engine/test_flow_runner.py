@@ -1543,8 +1543,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     assert len(calls) >= 1
     assert len([log for call in calls for log in call[0]]) == 6  # actual number of logs
 
-    logs = calls[0][0]
-    loggers = [c["name"] for c in logs]
+    loggers = [log["name"] for call in calls for log in call[0]]
     assert set(loggers) == {
         "prefect.TaskRunner",
         "prefect.CustomFlowRunner",

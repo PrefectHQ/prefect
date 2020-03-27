@@ -155,7 +155,7 @@ class LocalAgent(Agent):
         Returns:
             - dict: a dictionary representing the populated environment variables
         """
-        return {
+        all_vars = {
             "PREFECT__CLOUD__API": config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
@@ -167,6 +167,7 @@ class LocalAgent(Agent):
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             **self.env_vars,
         }
+        return {k: v for k, v in all_vars.items() if v is not None}
 
     @staticmethod
     def generate_supervisor_conf(
