@@ -496,7 +496,7 @@ class Client:
     def register(
         self,
         flow: "Flow",
-        project_name: str,
+        project_name: str = None,
         build: bool = True,
         set_schedule_active: bool = True,
         version_group_id: str = None,
@@ -508,7 +508,7 @@ class Client:
 
         Args:
             - flow (Flow): a flow to register
-            - project_name (str): the project that should contain this flow.
+            - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `False`, will set the
@@ -561,6 +561,11 @@ class Client:
         project = None
 
         if prefect.config.backend == "cloud":
+            if project_name is None:
+                raise TypeError(
+                    "project_name is a required field registering a flow with Cloud"
+                )
+
             query_project = {
                 "query": {
                     with_args("project", {"where": {"name": {"_eq": project_name}}}): {
