@@ -113,4 +113,4 @@ pip install ./prefect
 
 ## License
 
-Prefect is licensed under the Apache Software License version 2.0.
+Prefect is variously licensed under the Apache Software License version 2.0 or the Prefect License.
