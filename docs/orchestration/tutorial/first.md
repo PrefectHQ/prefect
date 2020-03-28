@@ -25,10 +25,17 @@ In order to take advantage of the Prefect API for your flow, that flow must firs
 Add the following line to the bottom of the example flow to register the flow with the Prefect API:
 
 ```python
+flow.register()
+```
+
+:::warning Projects <Badge text="Cloud"/>
+Prefect Cloud allows users to organize flows into projects. In this case we are using the default `Hello, World!` Project.
+
+```python
 flow.register(project_name="Hello, World!")
 ```
 
-A flow must be registered to a specific Project; in this case we are using the default `Hello, World!` Project.
+:::
 
 ::: tip Flow Code
 Registration only sends data about the existence and format of your flow; **no actual code from the flow is sent to the Prefect API**. Your code remains safe, secure, and private in your own infrastructure!
@@ -54,6 +61,12 @@ Lastly, we need to indicate to the API to schedule a flow run; there are a few o
 ::: tab CLI
 
 ```bash
+# Using Prefect Core's server
+prefect run server --name hello-flow
+```
+
+```bash
+# Using Prefect Cloud
 prefect run cloud --name hello-flow --project 'Hello, World!'
 ```
 
@@ -65,7 +78,7 @@ Navigate to the UI and click _Run_ on your flow's page
 
 ```graphql
 mutation {
-  create_flow_run(input: { flow_dd: "<flow id>" }) {
+  create_flow_run(input: { flow_id: "<flow id>" }) {
     id
   }
 }

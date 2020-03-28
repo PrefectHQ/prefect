@@ -8,7 +8,7 @@ The UI's dashboard provides an overview of all of your flows. It was designed ar
 
 To answer this question, the dashboard surfaces many insights, including summaries of recent runs, links to error logs, descriptions of upcoming runs (including warnings for late runs), an activity timeline, and (when using Prefect Cloud) agent monitoring.
 
-The dashboard may be filtered by [project](/cloud/concepts/projects) and also period, starting with the last 24 hours.
+The dashboard may be filtered by period, starting with the last 24 hours and when using Prefect Cloud it may also be filtered by [project](/cloud/concepts/projects).
 
 ![](/cloud/ui/dashboard-overview.png)
 

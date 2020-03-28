@@ -388,7 +388,7 @@ def test_client_register_optionally_avoids_building_flow(
     assert serialized_flow["storage"] is None
 
 
-def test_client_register_with_bad_proj_name(patch_post, monkeypatch):
+def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     patch_post({"data": {"project": []}})
 
     monkeypatch.setattr(
@@ -396,7 +396,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.auth_token": "secret_token"}
     ):
         client = Client()
     flow = prefect.Flow(name="test")

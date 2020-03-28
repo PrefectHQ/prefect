@@ -90,14 +90,14 @@ def test_run_server(monkeypatch):
     ):
         runner = CliRunner()
         result = runner.invoke(
-            run, ["server", "--name", "flow", "--project", "project", "--version", "2"]
+            run, ["server", "--name", "flow", "--version", "2"]
         )
         assert result.exit_code == 0
         assert "Flow Run" in result.output
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 id
             }
         }

@@ -24,8 +24,17 @@ flow = Flow("hello-docker", tasks=[hello_task])
 
 flow.storage = Docker()
 
+flow.register()
+```
+
+:::warning Projects <Badge text="Cloud"/>
+Prefect Cloud allows users to organize flows into projects. In this case we are using the default `Hello, World!` Project.
+
+```python
 flow.register(project_name="Hello, World!")
 ```
+
+:::
 
 ### Pushing to a Registry
 

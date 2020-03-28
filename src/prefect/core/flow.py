@@ -1317,7 +1317,7 @@ class Flow:
 
     def register(
         self,
-        project_name: str,
+        project_name: str = None,
         build: bool = True,
         labels: List[str] = None,
         set_schedule_active: bool = True,
@@ -1330,7 +1330,7 @@ class Flow:
         will be used and initialized with `**kwargs`.
 
         Args:
-            - project_name (str): the project that should contain this flow.
+            - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
