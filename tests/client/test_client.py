@@ -395,9 +395,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config(
-        {"cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     flow = prefect.Flow(name="test")
     flow.result_handler = prefect.engine.result_handlers.ResultHandler()

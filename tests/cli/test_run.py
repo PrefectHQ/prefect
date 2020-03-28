@@ -89,9 +89,7 @@ def test_run_server(monkeypatch):
         {"cloud.api": "http://localhost:4200", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(
-            run, ["server", "--name", "flow", "--version", "2"]
-        )
+        result = runner.invoke(run, ["server", "--name", "flow", "--version", "2"])
         assert result.exit_code == 0
         assert "Flow Run" in result.output
 
