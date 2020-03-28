@@ -14,7 +14,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
         </button>
         <button class="action-button">
             <router-link to="orchestration/">
-                Prefect Cloud
+                Orchestration
             </router-link>
         </button>
     </div>

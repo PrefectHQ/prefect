@@ -7,6 +7,8 @@ sidebarDepth: 0
     <img src="/illustrations/cloud-illustration.svg"  width=300 >
 </div>
 
+# Orchestration 
+
 When you want to run many flows, maintaining their state and inspecting their progress can be difficult without some extra tooling.
 
 Prefect Core's server and Prefect Cloud are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine to make orchestration of your flows easy.
@@ -24,12 +26,12 @@ Prefect Core ships with an open-source backend and UI that automatically extends
 - a complete UI for flows and jobs
 - remote execution clusters
 - automatic and asynchronous scheduling
-- projects for flow organization
 
 ##### Prefect Cloud
 
 Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If you've used Prefect Core's server, Prefect Cloud is a drop in replacement that provides some enhanced features, including:
 
+- projects for flow organization
 - permissions and authorization
 - agent monitoring
 - secure runtime secrets and parameters
