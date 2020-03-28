@@ -191,11 +191,10 @@ After [starting and configuring Core's server](installation.md#configuring-prefe
 [Register](/cloud/concepts/flows.md#registration) any of your flows; they will register with your local backend:
 
 ```python
->>> client.create_project("Tutorial flows")
->>> flow.register("Tutorial flows")
+>>> flow.register()
 Flow: http://localhost:8080/flow/796f7ad4-26c8-4e5d-bab1-dc687691da88
 ```
-You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect Server UI:
+You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect server's UI:
 
 ![](/cloud/server/first-flow-registered-server.png)
 
@@ -208,16 +207,8 @@ prefect agent start
 And then trigger your flow from the UI using the ["Run" button](/cloud/ui/flow.md#run)! You will see the agent pick up your work:
 
 ```
-[2020-03-27 15:47:47,791] DEBUG - agent | Found flow runs ['2bab9807-ef97-4902-b03f-afa68b3ad9bf']
-[2020-03-27 15:47:47,792] DEBUG - agent | Querying flow run metadata
-[2020-03-27 15:47:47,840] INFO - agent | Found 1 flow run(s) to submit for execution.
-[2020-03-27 15:47:47,841] DEBUG - agent | Updating states for flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf
-[2020-03-27 15:47:47,844] DEBUG - agent | Flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf is in a Scheduled state, updating to Subm
-itted
-[2020-03-27 15:47:47,844] DEBUG - agent | Next query for flow runs in 0.25 seconds
-[2020-03-27 15:47:47,893] INFO - agent | Deploying flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf
-[2020-03-27 15:47:47,897] DEBUG - agent | Submitted flow run 2bab9807-ef97-4902-b03f-afa68b3ad9bf to process PID 17260
-[2020-03-27 15:47:47,927] DEBUG - agent | Completed flow run submission (id: 2bab9807-ef97-4902-b03f-afa68b3ad9bf)
+[2020-03-28 19:40:49,985] INFO - agent | Found 1 flow run(s) to submit for execution.
+[2020-03-28 19:40:50,021] INFO - agent | Deploying flow run 86f3c550-34d4-4f1a-945b-803eb20ca36f
 ```
 
 And the UI will be updated with the state of the flow run:
