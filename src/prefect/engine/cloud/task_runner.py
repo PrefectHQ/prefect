@@ -61,6 +61,7 @@ class CloudTaskRunner(TaskRunner):
         try:
             task_run_id = self.task_run_id  # type: str
             self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
+            self.client.update_task_run_heartbeat(task_run_id)
 
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
