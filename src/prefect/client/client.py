@@ -496,7 +496,7 @@ class Client:
     def register(
         self,
         flow: "Flow",
-        project_name: str,
+        project_name: str = None,
         build: bool = True,
         set_schedule_active: bool = True,
         version_group_id: str = None,
@@ -508,7 +508,7 @@ class Client:
 
         Args:
             - flow (Flow): a flow to register
-            - project_name (str): the project that should contain this flow.
+            - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `False`, will set the
@@ -558,22 +558,30 @@ class Client:
                 }
             }
 
-        query_project = {
-            "query": {
-                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                    "id": True
+        project = None
+
+        if prefect.config.backend == "cloud":
+            if project_name is None:
+                raise TypeError(
+                    "project_name is a required field registering a flow with Cloud"
+                )
+
+            query_project = {
+                "query": {
+                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                        "id": True
+                    }
                 }
             }
-        }
 
-        project = self.graphql(query_project).data.project  # type: ignore
+            project = self.graphql(query_project).data.project  # type: ignore
 
-        if not project:
-            raise ValueError(
-                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
-                    project_name, project_name
+            if not project:
+                raise ValueError(
+                    'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                        project_name, project_name
+                    )
                 )
-            )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -593,7 +601,7 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    project_id=project[0].id,
+                    project_id=project[0].id if project else None,
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
