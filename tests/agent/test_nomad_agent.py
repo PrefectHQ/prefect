@@ -73,7 +73,7 @@ def test_nomad_agent_deploy_flow_raises(monkeypatch, runner_token):
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_nomad_agent_replace_yaml(runner_token, flag):
+def test_nomad_agent_replace_yaml(runner_token, flag, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "token"}):
         flow_run = GraphQLResult(
             {

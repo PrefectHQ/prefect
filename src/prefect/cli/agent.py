@@ -106,7 +106,7 @@ def agent():
 @click.option(
     "--no-cloud-logs",
     is_flag=True,
-    help="Turn off Cloud logging for all flows run through this agent.",
+    help="Turn off logging for all flows run through this agent.",
     hidden=True,
 )
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
@@ -153,9 +153,9 @@ def start(
         --env, -e       TEXT    Environment variables to set on each submitted flow run.
                                 Note that equal signs in environment variable values are not currently supported from the CLI.
                                 Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
-        --max-polls     INT     Maximum number of times the agent should poll Prefect Cloud for flow runs. Will run forever
+        --max-polls     INT     Maximum number of times the agent should poll the Prefect API for flow runs. Will run forever
                                 if not specified.
-        --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
+        --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
 
     \b
@@ -256,9 +256,7 @@ def start(
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
-@click.option(
-    "--api", "-a", required=False, help="A Prefect Cloud API URL.", hidden=True
-)
+@click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
 @click.option(
     "--namespace",
     "-n",
@@ -355,7 +353,7 @@ def install(
 
     \b
     Kubernetes Agent Options:
-        --api, -a                   TEXT    A Prefect Cloud API URL
+        --api, -a                   TEXT    A Prefect API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install

@@ -13,7 +13,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add ValidationFailed state and signal in anticipation of validating task outputs - [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
 - Add max polling option to all agents - [#2037](https://github.com/PrefectHQ/prefect/issues/2037)
 - Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
-- Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185)
+- Add Result.validate method that runs validator functions initialized on Result [#2144](https://github.com/PrefectHQ/prefect/issues/2144)
+- Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185) [#2198](https://github.com/PrefectHQ/prefect/pull/2198)
 
 ### Task Library
 
@@ -23,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with heartbeat failing if any Cloud config var is not present - [#2190](https://github.com/PrefectHQ/prefect/issues/2190)
 - Fix issue where `run cloud` CLI command would pull final state before last batch of logs - [#2192](https://github.com/PrefectHQ/prefect/pull/2192)
+- Fix issue where the `S3ResultHandler` would attempt to access uninitialized attribute - [#2204](https://github.com/PrefectHQ/prefect/issues/2204)
 
 ### Deprecations
 

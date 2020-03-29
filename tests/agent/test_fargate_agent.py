@@ -625,7 +625,9 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     assert container_defs[0]["environment"][-2] in user_vars
 
 
-def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token):
+def test_deploy_flow_register_task_definition_all_args(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -728,7 +730,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_deploy_flows_includes_agent_labels_in_environment(
-    monkeypatch, runner_token, flag
+    monkeypatch, runner_token, flag, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -835,7 +837,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
 
 
 def test_deploy_flow_register_task_definition_no_repo_credentials(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -925,7 +927,9 @@ def test_deploy_flows_require_docker_storage(monkeypatch, runner_token):
 # test to support task revisions and external kwargs
 
 
-def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
+def test_deploy_flows_enable_task_revisions_no_tags(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {"tags": []}
@@ -1225,7 +1229,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_t
 
 
 def test_deploy_flows_enable_task_revisions_with_external_kwargs(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
     boto3_resource = MagicMock()

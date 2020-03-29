@@ -4,7 +4,7 @@
 
 ### Does Prefect have a UI, and if so, how can I use it?
 
-The Prefect Cloud platform includes a UI for monitoring and managing any workflows you build with Prefect Core. You can kick off new runs, get live-updating states, browse workflow structures, stream logs, and more. 
+The Prefect Cloud platform includes a UI for monitoring and managing any workflows you build with Prefect Core. You can kick off new runs, get live-updating states, browse workflow structures, stream logs, and more.
 
 You can sign up for a free Cloud account [right here](https://www.prefect.io/pricing) or check out the [UI docs](/cloud/ui/dashboard.html) if you're only curious.
 
@@ -49,7 +49,7 @@ There are two distinct "implementations" of the scheduler:
 
 - the Prefect Core standalone version: this "scheduler" is more of a convenience method than a real scheduler. It can be triggered by calling `flow.run()` on a Prefect `Flow` object. If the flow has no schedule, a run will begin immediately. Otherwise, the process will block until the next scheduled time has been reached.
 - the Prefect Cloud scheduler service: this horizontally-scalable service is responsible for one thing: creating "Scheduled" states for flows which are then picked up by your Prefect agent and submitted for execution (at the appropriate time). These Scheduled states are created in two distinct ways:
-  - anytime a user creates a flow run manually, e.g., when calling the [`createFlowRun` GraphQL mutation](concepts/flow_runs.html#creating-a-flow-run)
+  - anytime a user creates a flow run manually, e.g., when calling the [`create_flow_run` GraphQL mutation](concepts/flow_runs.html#creating-a-flow-run)
   - the scheduler is constantly scanning the database looking for flows with active schedules; anytime one is found that hasn't been processed recently, the next 10 runs are scheduled via the creation of `Scheduled` states
 
 Note that regardless of which scheduler is being used, dependencies between Prefect tasks typically _do not involve a scheduler_; rather, the executor being used for the flow run handles when each dependency is finished and the next can begin.

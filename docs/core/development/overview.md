@@ -14,6 +14,8 @@ cd prefect
 pip install -e ".[dev]"
 ```
 
+Creating a development environment for Prefect's open source server and UI is more involved.  For up-to-date instructions, please see the [corresponding README](https://github.com/PrefectHQ/prefect/tree/master/server).
+
 In order to submit code changes to Prefect, please:
 - [Fork the Prefect repository](https://help.github.com/en/articles/fork-a-repo)
 - [Create a new branch on your Fork](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work)

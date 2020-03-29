@@ -422,23 +422,23 @@ class Client:
 
         payload = self.graphql(
             {
-                "mutation($input: switchTenantInput!)": {
-                    "switchTenant(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
-                        "refreshToken",
+                "mutation($input: switch_tenant_input!)": {
+                    "switch_tenant(input: $input)": {
+                        "access_token",
+                        "expires_at",
+                        "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(tenantId=tenant_id)),
+            variables=dict(input=dict(tenant_id=tenant_id)),
             # Use the API token to switch tenants
             token=self._api_token,
         )  # type: ignore
-        self._access_token = payload.data.switchTenant.accessToken  # type: ignore
+        self._access_token = payload.data.switch_tenant.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.switchTenant.expiresAt  # type: ignore
+            payload.data.switch_tenant.expires_at  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.switchTenant.refreshToken  # type: ignore
+        self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
         self._active_tenant_id = tenant_id
 
         # save the tenant setting
@@ -469,23 +469,23 @@ class Client:
         """
         payload = self.graphql(
             {
-                "mutation($input: refreshTokenInput!)": {
-                    "refreshToken(input: $input)": {
-                        "accessToken",
-                        "expiresAt",
-                        "refreshToken",
+                "mutation($input: refresh_token!)": {
+                    "refresh_token(input: $input)": {
+                        "access_token",
+                        "expires_at",
+                        "refresh_token",
                     }
                 }
             },
-            variables=dict(input=dict(accessToken=self._access_token)),
+            variables=dict(input=dict(access_token=self._access_token)),
             # pass the refresh token as the auth header
             token=self._refresh_token,
         )  # type: ignore
-        self._access_token = payload.data.refreshToken.accessToken  # type: ignore
+        self._access_token = payload.data.refresh_token.access_token  # type: ignore
         self._access_token_expires_at = pendulum.parse(  # type: ignore
-            payload.data.refreshToken.expiresAt  # type: ignore
+            payload.data.refresh_token.expires_at  # type: ignore
         )  # type: ignore
-        self._refresh_token = payload.data.refreshToken.refreshToken  # type: ignore
+        self._refresh_token = payload.data.refresh_token.refresh_token  # type: ignore
 
         return True
 
@@ -496,7 +496,7 @@ class Client:
     def register(
         self,
         flow: "Flow",
-        project_name: str,
+        project_name: str = None,
         build: bool = True,
         set_schedule_active: bool = True,
         version_group_id: str = None,
@@ -508,7 +508,7 @@ class Client:
 
         Args:
             - flow (Flow): a flow to register
-            - project_name (str): the project that should contain this flow.
+            - project_name (str, optional): the project that should contain this flow.
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - set_schedule_active (bool, optional): if `False`, will set the
@@ -558,22 +558,31 @@ class Client:
                 }
             }
 
-        query_project = {
-            "query": {
-                with_args("project", {"where": {"name": {"_eq": project_name}}}): {
-                    "id": True
+        project = None
+
+        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+            if project_name is None:
+                raise TypeError(
+                    "'project_name' is a required field when registering a flow with Cloud. "
+                    "If you are attempting to register a Flow with a local Prefect server you may need to run `prefect backend server` first."
+                )
+
+            query_project = {
+                "query": {
+                    with_args("project", {"where": {"name": {"_eq": project_name}}}): {
+                        "id": True
+                    }
                 }
             }
-        }
 
-        project = self.graphql(query_project).data.project  # type: ignore
+            project = self.graphql(query_project).data.project  # type: ignore
 
-        if not project:
-            raise ValueError(
-                'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
-                    project_name, project_name
+            if not project:
+                raise ValueError(
+                    'Project {} not found. Run `client.create_project("{}")` to create it.'.format(
+                        project_name, project_name
+                    )
                 )
-            )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
@@ -593,7 +602,7 @@ class Client:
             create_mutation,
             variables=dict(
                 input=dict(
-                    project_id=project[0].id,
+                    project_id=project[0].id if project else None,
                     serialized_flow=serialized_flow,
                     set_schedule_active=set_schedule_active,
                     version_group_id=version_group_id,
@@ -650,10 +659,12 @@ class Client:
             else re.sub("api", "cloud", prefect.config.cloud.api)
         )
 
+        full_url = prefect.config.cloud.api
         if tenant_slug:
             full_url = "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
-        else:
-            full_url = "/".join([base_url.rstrip("/"), subdirectory, id])
+        elif prefect.config.backend == "server":
+            full_url = "/".join([prefect.config.server.ui.endpoint, subdirectory, id,])
+
         return full_url
 
     def get_default_tenant_slug(self, as_user: bool = True) -> str:

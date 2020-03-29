@@ -47,7 +47,7 @@ def test_run_cloud(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -59,6 +59,43 @@ def test_run_cloud(monkeypatch):
         query = """
         query {
             flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+                id
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_run_server(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}],)))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.create_flow_run", MagicMock(return_value="id")
+    )
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+
+    with set_temporary_config(
+        {"cloud.api": "http://localhost:4200", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(run, ["server", "--name", "flow", "--version", "2"])
+        assert result.exit_code == 0
+        assert "Flow Run" in result.output
+
+        query = """
+        query {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 id
             }
         }
@@ -98,7 +135,7 @@ def test_run_cloud_watch(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -156,7 +193,7 @@ def test_run_cloud_logs(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -188,7 +225,7 @@ def test_run_cloud_fails(monkeypatch):
     monkeypatch.setattr("requests.Session", session)
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -200,7 +237,7 @@ def test_run_cloud_fails(monkeypatch):
 
 def test_run_cloud_no_param_file(monkeypatch):
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -250,7 +287,7 @@ def test_run_cloud_param_file(monkeypatch):
             json.dump({"test": 42}, tmp)
 
         with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -290,7 +327,7 @@ def test_run_cloud_param_string(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -330,7 +367,7 @@ def test_run_cloud_run_name(monkeypatch):
     )
 
     with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+        {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
         result = runner.invoke(
@@ -375,7 +412,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
             json.dump({"test": 42}, tmp)
 
         with set_temporary_config(
-            {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+            {"cloud.api": "http://api.prefect.io", "cloud.auth_token": "secret_token"}
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -403,7 +440,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
 @pytest.mark.parametrize(
     "api,expected",
     [
-        ("https://api.foo", "https://cloud.foo/flow-run/id"),
+        ("https://api.prefect.io", "https://cloud.prefect.io/tslug/flow-run/id"),
         ("https://api-foo.prefect.io", "https://foo.prefect.io/tslug/flow-run/id"),
     ],
 )

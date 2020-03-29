@@ -25,6 +25,7 @@ import cloudpickle
 
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
+from prefect.utilities import logging
 
 
 class ResultInterface:
@@ -110,6 +111,7 @@ class Result(ResultInterface):
         self.cache_validator = cache_validator
         self.filepath_template = filepath_template
         self._rendered_filepath = None  # type: Optional[str]
+        self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
         """
@@ -126,6 +128,33 @@ class Result(ResultInterface):
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
+
+    def validate(self) -> bool:
+        """
+        Run any validator functions associated with this result and return whether the result is valid or not.
+        All individual validator functions must return True for this method to return True.
+        Emits a warning log if run_validators isn't true, and proceeds to run validation functions anyway.
+
+
+        Returns:
+            - bool: whether or not the Result passed all validation functions
+        """
+        if not self.run_validators:
+            self.logger.warning(
+                "A Result's validate method has been called, but its run_validators attribute is False. "
+                "Prefect will not honor the validators without run_validators=True, so please change it "
+                "if you expect validation to occur automatically for this Result in your pipeline."
+            )
+
+        if self.validators:
+            for validation_fn in self.validators:
+                is_valid = validation_fn(self)
+                if not is_valid:
+                    # once a validator is found to be false, this result is invalid
+                    return False
+
+        # if all validators passed or we had none, this result is valid
+        return True
 
     def copy(self) -> "Result":
         """

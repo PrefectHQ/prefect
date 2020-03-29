@@ -120,10 +120,10 @@ class Agent:
             raise AuthorizationError("No agent API token provided.")
 
         # Check if RUNNER role
-        result = self.client.graphql(query="query { authInfo { apiTokenScope } }")
+        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
         if (
             not result.data  # type: ignore
-            or result.data.authInfo.apiTokenScope != "RUNNER"  # type: ignore
+            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
         ):
             raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
@@ -196,7 +196,7 @@ class Agent:
         )
 
         if "prefect.io" in urlparse(config.cloud.api).netloc:
-            self.logger.info("Agent successfully connected to Prefect Cloud")
+            self.logger.info("Agent successfully connected to the Prefect API")
         self.logger.info("Waiting for flow runs...")
 
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:

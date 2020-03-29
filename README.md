@@ -38,20 +38,30 @@ Prefect is a new workflow management system, designed for modern infrastructure 
 Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE)!
 
 ```python
-from prefect import task, Flow
+from prefect import task, Flow, Parameter
 
 
-@task
-def say_hello():
-    print("Hello, world!")
+@task(log_stdout=True)
+def say_hello(name):
+    print("Hello, {}!".format(name))
 
 
 with Flow("My First Flow") as flow:
-    say_hello()
+    name = Parameter('name')
+    say_hello(name)
 
 
-flow.run() # "Hello, world!"
+flow.run(name='world') # "Hello, world!" 
+flow.run(name='Marvin') # "Hello, Marvin!" 
 ```
+
+Spin up Prefect Core's local UI to orchestrate and manage your workflows:
+
+```
+prefect server up
+```
+
+and navigate to `http://localhost:8080`.
 
 ## Docs
 
@@ -113,4 +123,4 @@ pip install ./prefect
 
 ## License
 
-Prefect is licensed under the Apache Software License version 2.0.
+Prefect is variously licensed under the Apache Software License version 2.0 or the Prefect License.

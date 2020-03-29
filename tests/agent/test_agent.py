@@ -96,16 +96,18 @@ def test_agent_log_level_debug(runner_token):
         assert agent.logger.level == 10
 
 
-def test_agent_fails_no_auth_token():
+def test_agent_fails_no_auth_token(cloud_api):
     with pytest.raises(AuthorizationError):
         agent = Agent()
 
 
-def test_agent_fails_no_runner_token(monkeypatch):
+def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
-                return_value=dict(data=dict(authInfo=MagicMock(apiTokenScope="USER")))
+                return_value=dict(
+                    data=dict(auth_info=MagicMock(api_token_scope="USER"))
+                )
             )
         )
     )
@@ -362,7 +364,7 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
 
 def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog):
     gql_return = MagicMock(
-        return_value=MagicMock(data=MagicMock(writeRunLogs=MagicMock(success=True)))
+        return_value=MagicMock(data=MagicMock(write_run_logs=MagicMock(success=True)))
     )
     client = MagicMock()
     client.return_value.write_run_logs = gql_return
