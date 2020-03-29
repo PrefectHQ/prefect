@@ -126,4 +126,4 @@ pip install ./prefect
 
 Prefect is variously licensed under the [Apache Software License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) or the [Prefect Community License](https://www.prefect.io/licenses/prefect-community-license.pdf).
 
-All code except the `/src/prefect/server` directory is Apache 2.0-licensed unless otherwise noted. The `/src/prefect/server` directory is licensed under the Prefect Community License.
+All code except the `/server` directory is Apache 2.0-licensed unless otherwise noted. The `/server` directory is licensed under the Prefect Community License.
