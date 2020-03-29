@@ -3,7 +3,7 @@
 Spinning up Prefect Core's backend, API and UI locally can be achieved with a single command:
 
 ```
-prefect server up
+prefect server start
 ```
 
 To ensure that your local Flow runs are pointing to your local backend (instead of Prefect Cloud), run:
@@ -63,7 +63,7 @@ You can then run the various services in subprocesses using the `prefect-server 
 
 For working on the UI:
 
-- `prefect server up --no-ui` will spin up the standard backend with no UI
+- `prefect server start --no-ui` will spin up the standard backend with no UI
 - `cd server/services/ui && npm run serve` will then run the UI in your local process, with hot reloading
 
 ## License

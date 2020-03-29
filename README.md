@@ -58,7 +58,7 @@ flow.run(name='Marvin') # "Hello, Marvin!"
 Spin up Prefect Core's local UI to orchestrate and manage your workflows:
 
 ```
-prefect server up
+prefect server start
 ```
 
 and navigate to `http://localhost:8080`.
