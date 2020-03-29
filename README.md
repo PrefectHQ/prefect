@@ -55,6 +55,14 @@ flow.run(name='world') # "Hello, world!"
 flow.run(name='Marvin') # "Hello, Marvin!" 
 ```
 
+Spin up Prefect Core's local UI to orchestrate and manage your workflows:
+
+```
+prefect server up
+```
+
+and navigate to `http://localhost:8080`.
+
 ## Docs
 
 Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
