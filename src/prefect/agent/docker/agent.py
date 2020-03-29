@@ -381,8 +381,13 @@ class DockerAgent(Agent):
         Returns:
             - dict: a dictionary representing the populated environment variables
         """
+        if "localhost" in config.cloud.api:
+            api = "http://host.docker.internal:{}".format(config.server.port)
+        else:
+            api = config.cloud.api
+
         return {
-            "PREFECT__CLOUD__API": config.cloud.api,
+            "PREFECT__CLOUD__API": api,
             "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore

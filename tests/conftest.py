@@ -145,3 +145,11 @@ def patch_posts(monkeypatch):
 @pytest.fixture()
 def runner_token(monkeypatch):
     monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
+
+
+@pytest.fixture()
+def cloud_api():
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": "https://api.prefect.io"}
+    ):
+        yield

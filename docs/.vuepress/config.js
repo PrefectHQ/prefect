@@ -67,8 +67,8 @@ module.exports = {
         link: '/core/'
       },
       {
-        text: 'Cloud',
-        link: '/cloud/'
+        text: 'Orchestration',
+        link: '/orchestration/'
       },
       {
         text: 'API Reference',
@@ -143,8 +143,8 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      '/cloud/': [
-        '/cloud/',
+      '/orchestration/': [
+        '/orchestration/',
         {
           title: 'UI',
           collapsable: true,
@@ -158,7 +158,7 @@ module.exports = {
           ]
         },
         {
-          title: 'Cloud Concepts',
+          title: 'Concepts',
           collapsable: true,
           children: [
             'concepts/api',
@@ -222,7 +222,7 @@ module.exports = {
         {
           title: 'FAQ',
           collapsable: true,
-          children: getChildren('docs/cloud', 'faq')
+          children: getChildren('docs/orchestration', 'faq')
         }
       ],
       '/core/': [

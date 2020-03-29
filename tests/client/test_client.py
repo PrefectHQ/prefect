@@ -388,16 +388,14 @@ def test_client_register_optionally_avoids_building_flow(
     assert serialized_flow["storage"] is None
 
 
-def test_client_register_with_bad_proj_name(patch_post, monkeypatch):
+def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     patch_post({"data": {"project": []}})
 
     monkeypatch.setattr(
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config(
-        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         client = Client()
     flow = prefect.Flow(name="test")
     flow.result_handler = prefect.engine.result_handlers.ResultHandler()
@@ -437,7 +435,9 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_flow_id_output(patch_post, compressed, monkeypatch, capsys):
+def test_client_register_flow_id_output(
+    patch_post, compressed, monkeypatch, capsys, cloud_api
+):
     if compressed:
         response = {
             "data": {
