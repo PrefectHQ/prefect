@@ -6,6 +6,12 @@ Spinning up Prefect Core's backend, API and UI locally can be achieved with a si
 prefect server up
 ```
 
+To ensure that your local Flow runs are pointing to your local backend (instead of Prefect Cloud), run:
+
+```
+prefect backend server
+```
+
 ### Development
 
 #### Installation
