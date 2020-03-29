@@ -24,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix issue with heartbeat failing if any Cloud config var is not present - [#2190](https://github.com/PrefectHQ/prefect/issues/2190)
 - Fix issue where `run cloud` CLI command would pull final state before last batch of logs - [#2192](https://github.com/PrefectHQ/prefect/pull/2192)
+- Fix issue where the `S3ResultHandler` would attempt to access uninitialized attribute - [#2204](https://github.com/PrefectHQ/prefect/issues/2204)
 
 ### Deprecations
 
