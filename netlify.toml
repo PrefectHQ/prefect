@@ -19,42 +19,42 @@
 #
 # redirect from `cloud/cloud_concepts` to to `orchestration/concepts`
 [[redirects]]
-from = "/cloud/cloud_concepts/*",
+from = "/cloud/cloud_concepts/*"
 to = "/orchestration/concepts/*"
 
 # redirect from  `/cloud/concepts` to `orchestration/concepts`
 [[redirects]]
-from = "/cloud/concepts/*",
+from = "/cloud/concepts/*"
 to = "/orchestration/concepts/*"
 
 # redirect from `api/unreleased` to `api/latest`
 [[redirects]]
-from = "/api/unreleased/*",
+from = "/api/unreleased/*"
 to = "/api/latest/*"
 
 # redirect from `core/tutorials` to `core/advanced_tutorials`
 [[redirects]]
-from = "/core/tutorials/*",
+from = "/core/tutorials/*"
 to = "/core/advanced_tutorials/*"
 
 # redirect from `cloud/agent` to `orchestration/agents`
 [[redirects]]
-from = "/cloud/agent/*",
+from = "/cloud/agent/*"
 to = "/orchestration/agents/*"
 
 # redirect from  `cloud/agents` to `orchestration/agents`
 [[redirects]]
-from = "/cloud/agents/*",
+from = "/cloud/agents/*"
 to = "/orchestration/agents/*"
 
 # redirect from straight `cloud/` to `orchestration/`
 [[redirects]]
-from = "/cloud/",
+from = "/cloud/"
 to = "/orchestration/"
 
 # redirect from subpages in `cloud` to subpages in `orchestration`
 [[redirects]]
-from = "/cloud/*",
+from = "/cloud/*"
 to = "/orchestration/*"
 
 
