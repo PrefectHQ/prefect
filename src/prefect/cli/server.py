@@ -24,11 +24,10 @@ def make_env(fname=None):
             config.server.hasura.port
         ),
         PREFECT_API_URL="http://graphql:{port}{path}".format(
-            port=config.server.services.graphql.port,
-            path=config.server.services.graphql.path,
+            port=config.server.graphql.port, path=config.server.graphql.path,
         ),
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
-            port=config.server.services.graphql.port
+            port=config.server.graphql.port
         ),
     )
 
