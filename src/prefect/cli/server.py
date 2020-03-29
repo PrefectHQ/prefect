@@ -66,15 +66,11 @@ def server():
 
     \b
     Arguments:
-        up   ...
+        start   ...
 
     \b
     Examples:
-        $ prefect server up
-        ...
-
-    \b
-        $ prefect server services
+        $ prefect server start
         ...
     """
 
