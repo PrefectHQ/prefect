@@ -1,15 +1,14 @@
+LICENSE NOTICE
+
 Source code in this repository is variously licensed under the Apache License
-Version 2.0, an Apache compatible license, or the Prefect License.
+Version 2.0, an Apache compatible license, or the Prefect Community License.
 
-* Outside of the "src/prefect/server" directory, source code in a given file is licensed
-  under the Apache License Version 2.0, unless otherwise noted at the beginning
-  of the file. The contents of that license may be found in the LICENSE-APACHE
-  file.
+* Outside of the "/src/prefect/server" directory, source code in a given file is licensed
+  under the Apache License Version 2.0, unless otherwise noted in the file
+  header. The terms of the Apache License Version 2.0 may be found in the
+  LICENSE-APACHE file or at https://www.apache.org/licenses/LICENSE-2.0
 
-* Within the "src/prefect/server" directory, source code in a given file is licensed under the
-  Prefect License, unless otherwise noted at the beginning of the file. The
-  contents of that license may be found in the LICENSE-PREFECT file.
-
-Any works or distributions that include source code licensed under the Prefect
-License, including Docker images that run code licensed under the Prefect
-License, are also licensed under the Prefect License.
+* Within the "/src/prefect/server" directory, source code in a given file is licensed under the
+  Prefect Community License, unless otherwise noted in the file header. The
+  terms of the Prefect Community License may be found in the LICENSE-PREFECT
+  file or at https://www.prefect.io/licenses/prefect-community-license.pdf
