@@ -17,6 +17,16 @@ export default ({ router }) => {
     },
     // redirect any other `/cloud` route to a `/orchestration` route
     {
+     path: '/cloud/cloud_concepts/*',
+     redirect: '/orchestration/concepts/*'
+    },
+      // redirect any other `/cloud` route to a `/orchestration` route
+      {
+      path: '/cloud/agent/*',
+      redirect: '/orchestration/agents/*'
+    },
+    // redirect any other `/cloud` route to a `/orchestration` route
+    {
       path: '/cloud/*',
       redirect: '/orchestration/*'
     },
