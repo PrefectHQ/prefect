@@ -10,35 +10,45 @@ export default ({ router }) => {
       path: '/guide/*',
       redirect: '/core/*'
     },
-    // redirect any other `/cloud` route to a `/orchestration` route
+    // redirect from `cloud/cloud_concepts` to to `orchestration/concepts
     {
-     path: '/cloud/cloud_concepts/*',
-     redirect: '/orchestration/concepts/*'
-    },
-      // redirect any other `/cloud` route to a `/orchestration` route
-      {
-      path: '/cloud/agent/*',
-      redirect: '/orchestration/agents/*'
-    },
-    // redirect any other `/cloud` route to a `/orchestration` route
+      path: '/cloud/cloud_concepts/*',
+      redirect: '/orchestration/concepts/*'
+    }
+    // redirect from  `/cloud/concepts` to `orchestration/concepts`
     {
-      path: '/cloud',
-      redirect: '/orchestration'
+      path: '/cloud/concepts/*',
+      redirect: '/orchestration/concepts/*'
     },
-    // redirect any other `/cloud` route to a `/orchestration` route
-    {
-      path: '/cloud/*',
-      redirect: '/orchestration/*'
-    },
-    // redirect any other `/api/unreleased` route to a `/api/latest` route
-    {
-      path: '/api/unreleased',
-      redirect: '/api/latest'
-    },
-    // redirect any other `/api/unreleased` route to a `/api/latest` route
+    // redirect from `api/unreleased` to `api/latest`
     {
       path: '/api/unreleased/*',
       redirect: '/api/latest/*'
+    },
+    // redirect from `core/tutorials` to `core/advanced_tutorials`
+    {
+      path: '/core/tutorials/*',
+      redirect: '/core/advanced_tutorials/*'
+    },
+    // redirect from `cloud/agent` to `orchestration/agents`
+    {
+      path: '/cloud/agent/*',
+      redirect: '/orchestration/agents/*'
+    },
+    // redirect from  `cloud/agents` to `orchestration/agents`
+    {
+      path: '/cloud/agents/*',
+      redirect: '/orchestration/agents/*'
+    },
+    // redirect from straight `cloud/` to `orchestration/`
+    {
+      path: '/cloud/',
+      redirect: '/orchestration/'
+    },
+    // redirect from subpages in `cloud` to subpages in `orchestration`
+    {
+      path: '/cloud/*',
+      redirect: '/orchestration/*'
     },
   ])
 }
