@@ -10,11 +10,11 @@ export default ({ router }) => {
       path: '/guide/*',
       redirect: '/core/*'
     },
-        // redirect any other `/cloud` route to a `/orchestration` route
-        {
-          path: '/cloud',
-          redirect: '/orchestration'
-        },
+    // redirect any other `/cloud` route to a `/orchestration` route
+    {
+      path: '/cloud',
+      redirect: '/orchestration'
+    },
     // redirect any other `/cloud` route to a `/orchestration` route
     {
       path: '/cloud/*',
