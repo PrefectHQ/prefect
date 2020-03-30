@@ -14,7 +14,7 @@ prefect backend server
 
 Next, we can spin up all the necessary infrastructure, including a PostgreSQL database and the Prefect UI with:
 ```
-prefect server up
+prefect server start
 ```
 
 To confirm everything is working, navigate to `http://localhost:8080` and you should see the UI!

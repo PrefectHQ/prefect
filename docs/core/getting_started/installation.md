@@ -58,7 +58,7 @@ Prefect Core's server is an open-source backend that can orchestrate any flows w
 To run the server through Docker, run the command:
 
 ```bash
-prefect server up
+prefect server start
 ```
 
 Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI.
