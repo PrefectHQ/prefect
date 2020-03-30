@@ -455,7 +455,7 @@ workflows:
           tag: $CIRCLE_SHA1,latest,master
           filters:
             branches:
-              only: ci-server-images
+              only: master
 
       - docker/publish:
           docker-password: DOCKER_HUB_PW
@@ -465,15 +465,14 @@ workflows:
           tag: $CIRCLE_SHA1,latest,master
           filters:
             branches:
-              only: ci-server-images
+              only: master
 
       - docker/publish:
           docker-password: DOCKER_HUB_PW
           docker-username: DOCKER_HUB_USER
-          registry: gcr.io
           image: 'prefecthq/ui'
           path: 'server/services/ui'
           tag: $CIRCLE_SHA1,latest,master
           filters:
             branches:
-              only: ci-server-images
+              only: master
