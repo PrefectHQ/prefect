@@ -127,7 +127,7 @@ def start(version, skip_pull, no_upgrade, no_ui):
             time.sleep(0.5)
     except:
         click.secho(
-            "Exception caught - please make sure you have Docker Compose running; killing services (press ctrl-C to force)",
+            "Exception caught; killing services (press ctrl-C to force)",
             fg="white",
             bg="red",
         )
