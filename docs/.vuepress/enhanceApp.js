@@ -10,5 +10,25 @@ export default ({ router }) => {
       path: '/guide/*',
       redirect: '/core/*'
     },
+        // redirect any other `/cloud` route to a `/orchestration` route
+        {
+          path: '/cloud',
+          redirect: '/orchestration'
+        },
+    // redirect any other `/cloud` route to a `/orchestration` route
+    {
+      path: '/cloud/*',
+      redirect: '/orchestration/*'
+    },
+    // redirect any other `/api/unreleased` route to a `/api/latest` route
+    {
+      path: '/api/unreleased',
+      redirect: '/api/latest'
+    },
+    // redirect any other `/api/unreleased` route to a `/api/latest` route
+    {
+      path: '/api/unreleased/*',
+      redirect: '/api/latest/*'
+    },
   ])
 }
