@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.10.0 <Badge text="beta" type="success"/>
+
+Released on Mar 29, 2020.
+
+### Features
+
 - Open source database backend, GraphQL API and UI - [#2218](https://github.com/PrefectHQ/prefect/pull/2218)
 - Add `prefect server start` CLI command for spinning up database and UI - [#2214](https://github.com/PrefectHQ/prefect/pull/2214)
 
