@@ -14,7 +14,7 @@ export default ({ router }) => {
     {
       path: '/cloud/cloud_concepts/*',
       redirect: '/orchestration/concepts/*'
-    }
+    },
     // redirect from  `/cloud/concepts` to `orchestration/concepts`
     {
       path: '/cloud/concepts/*',
