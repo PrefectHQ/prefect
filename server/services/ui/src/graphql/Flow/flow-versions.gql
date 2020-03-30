@@ -1,0 +1,22 @@
+query FlowVersions($flowId: uuid!, $search: Int) {
+  flow_by_pk(id: $flowId) {
+    versions(
+      order_by: { version: desc }
+      where: { version: { _eq: $search } }
+    ) {
+      created
+      id
+      name
+      archived
+      version
+      flow_runs(
+        where: { state: { _neq: "Scheduled" } }
+        order_by: { scheduled_start_time: desc }
+        limit: 1
+      ) {
+        id
+        state
+      }
+    }
+  }
+}

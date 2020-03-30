@@ -1,0 +1,21 @@
+query Activity(
+  $limit: Int
+  $taskRunId: uuid!
+  $states: [String!]
+  $timestamp: timestamptz
+) {
+  task_run_state(
+    where: {
+      task_run: { id: { _eq: $taskRunId } }
+      timestamp: { _gte: $timestamp }
+      state: { _in: $states }
+    }
+    limit: $limit
+    order_by: { timestamp: desc }
+  ) {
+    state
+    message
+    result
+    timestamp
+  }
+}
