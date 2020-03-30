@@ -27,6 +27,14 @@ from prefect_server.database import models
 def dev():
     """
     Commands for developing Server
+
+    \b
+    Usage:
+        $ prefect-server ...
+    
+    \b
+    Arguments:
+        build   builds prefect server, ui, apollo from source
     """
 
 
@@ -66,10 +74,33 @@ def make_env(fname=None):
     return ENV.copy()
 
 
-@dev.command()
+@dev.command(hidden=True)
 @click.option(
-    "--tag", "-t", help="The server image/tag to use", default="latest",
+    "--version",
+    "-v",
+    help="The server image versions to build (for example, '0.10.0' or 'master')",
+    # TODO: update this default to use prefect.__version__ logic
+    default="latest",
 )
+def build(version):
+    """
+    foobar
+    """
+    docker_dir = Path(prefect_server.__file__).parents[2] / "docker"
+    print(docker_dir)
+
+    env = make_env()
+
+    if "PREFECT_SERVER_TAG" not in env:
+        env.update(PREFECT_SERVER_TAG=version)
+
+    proc = None
+    cmd = ["docker-compose", "build"]
+    proc = subprocess.Popen(cmd, cwd=docker_dir, env=env)
+
+
+@dev.command()
+@click.option("--tag", "-t", help="The server image/tag to use", default="latest")
 @click.option(
     "--skip-pull",
     help="Pass this flag to skip pulling new images (if available)",
