@@ -20,24 +20,6 @@
   from = "/guide/core_concepts/*"
   to = "/core/concepts/:splat"
 
-[[redirects]]
-  from = "/cloud/first-steps.html"
-  to = "/cloud/"
-#
-# redirect from /cloud/cloud_concepts to /cloud/concepts
-[[redirects]]
-  from = "/cloud/cloud_concepts/*"
-  to = "/cloud/concepts/:splat"
-
-# redirect from /guide to /core
-[[redirects]]
-  from = "/guide/*"
-  to = "/core/:splat"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
 
 ## redirects for new Cloud / Server splits
 #
@@ -66,11 +48,6 @@
   from = "/cloud/agent/*"
   to = "/orchestration/agents/:splat"
 
-# redirect from  `cloud/agents` to `orchestration/agents`
-[[redirects]]
-  from = "/cloud/agents/*"
-  to = "/orchestration/agents/:splat"
-
 # redirect from straight `cloud/` to `orchestration/`
 [[redirects]]
   from = "/cloud/"
@@ -80,3 +57,13 @@
 [[redirects]]
   from = "/cloud/*"
   to = "/orchestration/:splat"
+
+# redirect from /guide to /core
+[[redirects]]
+  from = "/guide/*"
+  to = "/core/:splat"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
