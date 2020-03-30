@@ -68,10 +68,7 @@ def make_env(fname=None):
 
 @dev.command()
 @click.option(
-    "--tag",
-    "-t",
-    help="The server image/tag to use",
-    default="latest",
+    "--tag", "-t", help="The server image/tag to use", default="latest",
 )
 @click.option(
     "--skip-pull",
