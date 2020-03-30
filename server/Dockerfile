@@ -1,5 +1,5 @@
 # Licensed under the Prefect Community License, available at
-# https://www.prefect.io/licenses/prefect-community-license.pdf
+# https://www.prefect.io/legal/prefect-community-license
 
 # syntax=docker/dockerfile:1.0.0-experimental
 
