@@ -1,0 +1,26 @@
+query Task($id: uuid!) {
+  task_by_pk(id: $id) {
+    id
+    name
+    created
+    description
+    mapped
+    slug
+    max_retries
+    retry_delay
+    trigger
+    type
+    flow {
+      id
+      name
+    }
+    task_runs(
+      where: { flow_run: { state: { _neq: "Scheduled" } } }
+      order_by: { flow_run: { scheduled_start_time: desc } }
+      limit: 1
+    ) {
+      id
+      state
+    }
+  }
+}

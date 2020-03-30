@@ -1,0 +1,223 @@
+query TaskRuns($taskId: uuid!, $heartbeat: timestamptz) {
+  Success: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Success" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Running: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Running" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Pending: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Pending" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Paused: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Paused" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  ClientFailed: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "ClientFailed" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Submitted: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Submitted" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Queued: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Queued" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Resume: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Resume" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Retrying: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Retrying" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Looped: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Looped" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Cached: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Cached" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Mapped: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Mapped" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Failed: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Failed" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  TimedOut: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "TimedOut" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  TriggerFailed: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "TriggerFailed" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Skipped: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Skipped" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Finished: task_run_aggregate(
+    where: {
+      task_id: { _eq: $taskId }
+      heartbeat: { _gte: $heartbeat }
+      flow_run: { state: { _neq: "Scheduled" } }
+      state: { _eq: "Finished" }
+    }
+    order_by: { id: desc }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}
