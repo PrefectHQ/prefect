@@ -45,24 +45,26 @@ def test_describe_flows(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(describe, ["flows", "--name", "flow"])
+        result = runner.invoke(
+            describe, ["flows", "--name", "flow", "--project", "proj"]
+        )
         assert result.exit_code == 0
         assert "name" in result.output
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: "proj" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 name
                 version
-                project {
-                    name
-                }
                 created
                 description
                 parameters
                 archived
                 storage
                 environment
+                project {
+                    name
+                }
             }
         }
         """
@@ -113,15 +115,15 @@ def test_describe_flows_populated(monkeypatch):
             flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 name
                 version
-                project {
-                    name
-                }
                 created
                 description
                 parameters
                 archived
                 storage
                 environment
+                project {
+                    name
+                }
             }
         }
         """
@@ -146,13 +148,15 @@ def test_describe_tasks(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(describe, ["tasks", "--name", "flow"])
+        result = runner.invoke(
+            describe, ["tasks", "--name", "flow", "--project", "proj"]
+        )
         assert result.exit_code == 0
         assert "name" in result.output
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: "proj" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 tasks {
                     name
                     created
