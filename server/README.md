@@ -68,4 +68,4 @@ For working on the UI:
 
 ## License
 
-The contents of this directory are licensed under the Prefect Community License, which may be viewed in the LICENSE file in this directory or [https://www.prefect.io/licenses/prefect-community-license.pdf](https://www.prefect.io/licenses/prefect-community-license.pdf).
+The contents of this directory are licensed under the Prefect Community License, which may be viewed in the LICENSE file in this directory or [https://www.prefect.io/legal/prefect-community-license](https://www.prefect.io/legal/prefect-community-license).

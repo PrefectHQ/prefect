@@ -11,4 +11,4 @@ Version 2.0, an Apache compatible license, or the Prefect Community License.
 * Within the "/server" directory, source code in a given file is licensed under the
   Prefect Community License, unless otherwise noted in the file header. The
   terms of the Prefect Community License may be found in the LICENSE-PREFECT
-  file or at https://www.prefect.io/licenses/prefect-community-license.pdf
+  file or at https://www.prefect.io/legal/prefect-community-license
