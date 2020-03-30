@@ -5,6 +5,7 @@ import time
 
 from pathlib import Path
 from prefect import config
+from prefect.utilities.configuration import set_temporary_config
 
 
 def make_env(fname=None):
@@ -13,7 +14,9 @@ def make_env(fname=None):
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=config.server.database.connection_url.replace(
             "localhost", "postgres"
-        )
+        ),
+        GRAPHQL_HOST_PORT=config.server.graphql.host_port,
+        UI_HOST_PORT=config.server.ui.port,
     )
 
     APOLLO_ENV = dict(
@@ -29,15 +32,17 @@ def make_env(fname=None):
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
             port=config.server.graphql.port
         ),
+        APOLLO_HOST_PORT=config.server.port,
     )
 
     POSTGRES_ENV = dict(
+        POSTGRES_HOST_PORT=config.server.database.host_port,
         POSTGRES_USER=config.server.database.username,
         POSTGRES_PASSWORD=config.server.database.password,
         POSTGRES_DB=config.server.database.name,
     )
 
-    HASURA_ENV = dict()
+    HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
     ENV = os.environ.copy()
     ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **HASURA_ENV)
@@ -96,13 +101,63 @@ def server():
 @click.option(
     "--no-ui", "-u", help="Pass this flag to avoid starting the UI", is_flag=True,
 )
-def start(version, skip_pull, no_upgrade, no_ui):
+@click.option(
+    "--postgres-port",
+    help="The port used to serve Postgres",
+    default=config.server.database.host_port,
+    type=str,
+)
+@click.option(
+    "--hasura-port",
+    help="The port used to serve Hasura",
+    default=config.server.hasura.host_port,
+    type=str,
+)
+@click.option(
+    "--graphql-port",
+    help="The port used to serve the GraphQL API",
+    default=config.server.graphql.host_port,
+    type=str,
+)
+@click.option(
+    "--ui-port",
+    help="The port used to serve the UI",
+    default=config.server.ui.port,
+    type=str,
+)
+@click.option(
+    "--server-port",
+    help="The port used to serve the Core server",
+    default=config.server.port,
+    type=str,
+)
+def start(
+    version,
+    skip_pull,
+    no_upgrade,
+    no_ui,
+    postgres_port,
+    hasura_port,
+    graphql_port,
+    ui_port,
+    server_port,
+):
     """
     This command spins up all infrastructure and services for Prefect Server
     """
     docker_dir = Path(__file__).parents[0]
 
-    env = make_env()
+    # Temporary config set for port allocation
+    with set_temporary_config(
+        {
+            "server.database.host_port": postgres_port,
+            "server.hasura.host_port": hasura_port,
+            "server.graphql.host_port": graphql_port,
+            "server.ui.port": ui_port,
+            "server.port": server_port,
+        }
+    ):
+        env = make_env()
 
     if "PREFECT_SERVER_TAG" not in env:
         env.update(PREFECT_SERVER_TAG=version)
