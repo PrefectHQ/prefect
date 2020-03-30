@@ -1,0 +1,5 @@
+mutation CreateFlow($serializedFlow: JSON!) {
+  create_flow(input: { serialized_flow: $serializedFlow }) {
+    id
+  }
+}

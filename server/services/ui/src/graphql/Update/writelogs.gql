@@ -1,0 +1,16 @@
+mutation($flowRunId: UUID!, $taskRunId: UUID, $message: String, $name: String) {
+  write_run_logs(
+    input: {
+      logs: [
+        {
+          flow_run_id: $flowRunId
+          task_run_id: $taskRunId
+          name: $name
+          message: $message
+        }
+      ]
+    }
+  ) {
+    success
+  }
+}

@@ -1,0 +1,201 @@
+.CodeMirror {
+  font-size: 1.1rem !important;
+  height: 100%;
+  padding: 5px;
+}
+
+.cm-s-playground {
+  &.CodeMirror {
+    background: #1d252b;
+    color: #d6d5d4;
+  }
+
+  &.CodeMirror.light {
+    background: #edf0f3;
+    color: #1d252b;
+  }
+
+  div.CodeMirror-selected {
+    background: #3a3432;
+  }
+
+  &.CodeMirror-empty {
+    color: #777;
+  }
+
+  .CodeMirror-gutters {
+    background: #1d252b;
+    border-right: 0;
+  }
+
+  .CodeMirror-guttermarker {
+    color: #db2d20;
+  }
+
+  .CodeMirror-guttermarker-subtle,
+  .CodeMirror-linenumber {
+    color: #465968;
+  }
+
+  .CodeMirror-cursor {
+    border-left: 1px solid #807d7c;
+  }
+
+  span {
+    &.cm-comment {
+      color: #666;
+    }
+
+    &.cm-atom,
+    &.cm-number {
+      color: #a16a94;
+    }
+
+    &.cm-property,
+    &.cm-attribute {
+      color: #f77062;
+    }
+
+    &.cm-keyword {
+      color: #0073df;
+    }
+
+    &.cm-string {
+      color: #fded02;
+    }
+
+    &.cm-variable {
+      color: #01a252;
+    }
+
+    &.cm-variable-2 {
+      color: #01a0e4;
+    }
+
+    &.cm-def {
+      color: #da2072;
+    }
+
+    &.cm-bracket {
+      color: #d6d5d4;
+    }
+
+    &.cm-tag {
+      color: #db2d20;
+    }
+
+    &.cm-link {
+      color: #a16a94;
+    }
+
+    &.cm-error {
+      background: #db2d20;
+      color: #807d7c;
+    }
+  }
+
+  .CodeMirror-activeline-background {
+    background: #2f2f2f;
+  }
+
+  .CodeMirror-matchingbracket {
+    color: #fff !important;
+    background-color: rgba(0, 115, 223, 0.5);
+  }
+}
+
+.cm-s-playground-light {
+  &.CodeMirror {
+    background: #edf0f3;
+    color: #1d252b;
+    font-size: 0.85rem;
+  }
+
+  div.CodeMirror-selected {
+    background: #3a3432;
+  }
+
+  &.CodeMirror-empty {
+    color: #999;
+  }
+
+  .CodeMirror-gutters {
+    background: #1d252b;
+    border-right: 0;
+  }
+
+  .CodeMirror-guttermarker {
+    color: #db2d20;
+  }
+
+  .CodeMirror-guttermarker-subtle,
+  .CodeMirror-linenumber {
+    color: #465968;
+  }
+
+  .CodeMirror-cursor {
+    border-left: 1px solid #807d7c;
+  }
+
+  span {
+    &.cm-comment {
+      color: #666;
+    }
+
+    &.cm-atom,
+    &.cm-number {
+      color: #da2072;
+    }
+
+    &.cm-property,
+    &.cm-attribute {
+      color: #f77062 !important;
+    }
+
+    &.cm-keyword {
+      color: #0073df;
+    }
+
+    &.cm-string {
+      color: #0075b8;
+    }
+
+    &.cm-variable {
+      color: #01a252;
+    }
+
+    &.cm-variable-2 {
+      color: #01a0e4;
+    }
+
+    &.cm-def {
+      color: #da2072;
+    }
+
+    &.cm-bracket {
+      color: #d6d5d4;
+    }
+
+    &.cm-tag {
+      color: #db2d20;
+    }
+
+    &.cm-link {
+      color: #a16a94;
+    }
+
+    &.cm-error {
+      background: #db2d20;
+      color: #807d7c;
+    }
+  }
+
+  .CodeMirror-activeline-background {
+    background: #2f2f2f;
+  }
+
+  .CodeMirror-matchingbracket {
+    color: #fff !important;
+    text-decoration: underline;
+  }
+}
