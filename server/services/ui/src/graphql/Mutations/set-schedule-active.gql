@@ -1,0 +1,5 @@
+mutation SetScheduleActive($id: UUID!) {
+  set_schedule_active(input: { schedule_id: $id }) {
+    success
+  }
+}

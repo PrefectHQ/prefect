@@ -1,0 +1,121 @@
+query FlowRuns($updated: timestamptz) {
+  Success: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Success" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Running: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Running" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Pending: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Pending" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Failed: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Failed" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  ClientFailed: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "ClientFailed" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Submitted: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Submitted" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Queued: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Queued" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Resume: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Resume" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Retrying: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Retrying" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Looped: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Looped" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Cached: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Cached" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Mapped: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Mapped" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  TimedOut: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "TimedOut" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  TriggerFailed: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "TriggerFailed" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Skipped: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Skipped" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Finished: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Finished" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Cancelled: flow_run_aggregate(
+    where: { updated: { _gte: $updated }, state: { _eq: "Cancelled" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}
