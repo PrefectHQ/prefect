@@ -1,0 +1,6 @@
+query FlowsByVersionGroup ($vgi: String) {
+  flow(where: { version_group_id: { _eq:$vgi }}) {
+    name
+    id
+  }
+}

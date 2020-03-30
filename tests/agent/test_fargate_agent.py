@@ -625,7 +625,9 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     assert container_defs[0]["environment"][-2] in user_vars
 
 
-def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token):
+def test_deploy_flow_register_task_definition_all_args(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -728,7 +730,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_deploy_flows_includes_agent_labels_in_environment(
-    monkeypatch, runner_token, flag
+    monkeypatch, runner_token, flag, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -835,7 +837,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
 
 
 def test_deploy_flow_register_task_definition_no_repo_credentials(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -925,7 +927,9 @@ def test_deploy_flows_require_docker_storage(monkeypatch, runner_token):
 # test to support task revisions and external kwargs
 
 
-def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
+def test_deploy_flows_enable_task_revisions_no_tags(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {"tags": []}
@@ -1225,7 +1229,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_t
 
 
 def test_deploy_flows_enable_task_revisions_with_external_kwargs(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
     boto3_resource = MagicMock()
@@ -1409,3 +1413,80 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
         tags=[{"key": "test", "value": "test"}],
     )
     assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
+
+
+def test_fargate_agent_start_max_polls(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=1)
+    agent.start()
+
+    assert agent_process.called
+    assert heartbeat.called
+
+
+def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=2)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 2
+    assert heartbeat.call_count == 2
+
+
+def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=0)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 0
+    assert heartbeat.call_count == 0

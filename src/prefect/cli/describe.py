@@ -64,35 +64,36 @@ def flows(name, version, project):
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
     """
+
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    query_results = {
+        "name": True,
+        "version": True,
+        "created": True,
+        "description": True,
+        "parameters": True,
+        "archived": True,
+        "storage": True,
+        "environment": True,
+    }
+
+    if project:
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+        query_results["project"] = {"name": True}
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),
                     },
                     "distinct_on": EnumValue("name"),
                 },
-            ): {
-                "name": True,
-                "version": True,
-                "project": {"name": True},
-                "created": True,
-                "description": True,
-                "parameters": True,
-                "archived": True,
-                "storage": True,
-                "environment": True,
-            }
+            ): query_results
         }
     }
 
@@ -121,18 +122,18 @@ def tasks(name, version, project):
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
     """
+
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+
+    if project:
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),

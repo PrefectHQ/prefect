@@ -116,5 +116,40 @@ def patch_post(monkeypatch):
 
 
 @pytest.fixture()
+def patch_posts(monkeypatch):
+    """
+    Patches `prefect.client.Client.post()` (and `graphql()`) to return the specified sequence of responses.
+
+    The return value of the fixture is a function that is called on the response to patch it.
+
+    Typically, the response will contain up to two keys, `data` and `errors`.
+    """
+
+    def patch(responses):
+        if not isinstance(responses, list):
+            responses = [responses]
+
+        resps = []
+        for response in responses:
+            resps.append(MagicMock(json=MagicMock(return_value=response)))
+
+        post = MagicMock(side_effect=resps)
+        session = MagicMock()
+        session.return_value.post = post
+        monkeypatch.setattr("requests.Session", session)
+        return post
+
+    return patch
+
+
+@pytest.fixture()
 def runner_token(monkeypatch):
     monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
+
+
+@pytest.fixture()
+def cloud_api():
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": "https://api.prefect.io"}
+    ):
+        yield

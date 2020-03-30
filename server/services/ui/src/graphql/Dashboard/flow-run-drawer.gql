@@ -1,0 +1,20 @@
+query FlowRun($id: uuid!) {
+  flow_run_by_pk(id: $id) {
+    id
+    name
+    state
+    context
+    auto_scheduled
+    state_message
+    duration
+    start_time
+    end_time
+    flow {
+      id
+      name
+      version
+    }
+    parameters
+    scheduled_start_time
+  }
+}

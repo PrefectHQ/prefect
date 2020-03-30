@@ -277,6 +277,19 @@ class TestS3ResultHandler:
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, S3ResultHandler)
 
+    def test_s3_uninitialized_client(self, session):
+        handler = S3ResultHandler(
+            bucket="bob", aws_credentials_secret="AWS_CREDENTIALS"
+        )
+        assert handler.bucket == "bob"
+
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
+            boto3client="test",
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                assert handler.client is not None
+
 
 @pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")
 class TestAzureResultHandler:

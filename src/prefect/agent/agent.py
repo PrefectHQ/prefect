@@ -1,6 +1,7 @@
 import ast
 import functools
 import logging
+import math
 import os
 import signal
 import sys
@@ -8,7 +9,8 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set, Union
+from typing import Any, Generator, Iterable, Set
+from urllib.parse import urlparse
 
 import pendulum
 
@@ -69,22 +71,30 @@ class Agent:
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
     """
 
     def __init__(
-        self, name: str = None, labels: Iterable[str] = None, env_vars: dict = None
+        self,
+        name: str = None,
+        labels: Iterable[str] = None,
+        env_vars: dict = None,
+        max_polls: int = None,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
         self.env_vars = env_vars or dict()
+        self.max_polls = max_polls
         self.log_to_cloud = config.logging.log_to_cloud
 
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
-        self._verify_token(token)
+        if "prefect.io" in urlparse(config.cloud.api).netloc:
+            self._verify_token(token)
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -110,10 +120,10 @@ class Agent:
             raise AuthorizationError("No agent API token provided.")
 
         # Check if RUNNER role
-        result = self.client.graphql(query="query { authInfo { apiTokenScope } }")
+        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
         if (
             not result.data  # type: ignore
-            or result.data.authInfo.apiTokenScope != "RUNNER"  # type: ignore
+            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
         ):
             raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
@@ -124,7 +134,7 @@ class Agent:
         """
         try:
             with exit_handler(self) as exit_event:
-                tenant_id = self.agent_connect()
+                self.agent_connect()
 
                 # Loop intervals for query sleep backoff
                 loop_intervals = {
@@ -138,20 +148,26 @@ class Agent:
                 }
 
                 index = 0
+                remaining_polls = math.inf if self.max_polls is None else self.max_polls
 
-                # the max workers default has changed in 3.5 and 3.8. For stable results the
+                # the max workers default has changed in 3.8. For stable results the
                 # default 3.8 behavior is elected here.
                 max_workers = min(32, (os.cpu_count() or 1) + 4)
 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     self.logger.debug("Max Workers: {}".format(max_workers))
-                    while not exit_event.wait(timeout=loop_intervals[index]):
+                    while (
+                        not exit_event.wait(timeout=loop_intervals[index])
+                        and remaining_polls
+                    ):
                         self.heartbeat()
 
-                        if self.agent_process(executor, tenant_id):
+                        if self.agent_process(executor):
                             index = 0
                         elif index < max(loop_intervals.keys()):
                             index += 1
+
+                        remaining_polls -= 1
 
                         self.logger.debug(
                             "Next query for flow runs in {} seconds".format(
@@ -167,12 +183,9 @@ class Agent:
         as a hook for child classes to optionally implement.
         """
 
-    def agent_connect(self) -> str:
+    def agent_connect(self) -> None:
         """
         Verify agent connection to Prefect Cloud by finding and returning a tenant id
-
-        Returns:
-            - str: The current tenant id
         """
         print(ascii_name)
         self.logger.info(
@@ -182,19 +195,9 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
 
-        self.logger.debug("Querying for tenant ID")
-        tenant_id = self.query_tenant_id()
-
-        if not tenant_id:
-            raise ConnectionError(
-                "Tenant ID not found. Verify that you are using the proper API token."
-            )
-
-        self.logger.debug("Tenant ID: {} found".format(tenant_id))
-        self.logger.info("Agent successfully connected to Prefect Cloud")
+        if "prefect.io" in urlparse(config.cloud.api).netloc:
+            self.logger.info("Agent successfully connected to the Prefect API")
         self.logger.info("Waiting for flow runs...")
-
-        return tenant_id
 
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
         """
@@ -212,7 +215,7 @@ class Agent:
                 self.client.write_run_logs(
                     [
                         dict(
-                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
                             name=self.name,
                             message="Submitted for execution: {}".format(
                                 deployment_info
@@ -235,7 +238,7 @@ class Agent:
                 self.client.write_run_logs(
                     [
                         dict(
-                            flowRunId=getattr(flow_run, "id"),  # type: ignore
+                            flow_run_id=getattr(flow_run, "id"),  # type: ignore
                             name=self.name,
                             message=str(exc),
                             level="ERROR",
@@ -259,20 +262,19 @@ class Agent:
         self.submitting_flow_runs.remove(flow_run_id)
         self.logger.debug("Completed flow run submission (id: {})".format(flow_run_id))
 
-    def agent_process(self, executor: "ThreadPoolExecutor", tenant_id: str) -> bool:
+    def agent_process(self, executor: "ThreadPoolExecutor") -> bool:
         """
         Full process for finding flow runs, updating states, and deploying.
 
         Args:
             - executor (ThreadPoolExecutor): the interface to submit flow deployments in background threads
-            - tenant_id (str): The tenant id to use in the query
 
         Returns:
             - bool: whether or not flow runs were found
         """
         flow_runs = None
         try:
-            flow_runs = self.query_flow_runs(tenant_id=tenant_id)
+            flow_runs = self.query_flow_runs()
 
             if flow_runs:
                 self.logger.info(
@@ -295,27 +297,9 @@ class Agent:
 
         return bool(flow_runs)
 
-    def query_tenant_id(self) -> Union[str, None]:
-        """
-        Query Prefect Cloud for the tenant id that corresponds to the agent's auth token
-
-        Returns:
-            - Union[str, None]: The current tenant id if found, None otherwise
-        """
-        query = {"query": {"tenant": {"id"}}}
-        result = self.client.graphql(query)
-
-        if result.data.tenant:  # type: ignore
-            return result.data.tenant[0].id  # type: ignore
-
-        return None
-
-    def query_flow_runs(self, tenant_id: str) -> list:
+    def query_flow_runs(self) -> list:
         """
         Query Prefect Cloud for flow runs which need to be deployed and executed
-
-        Args:
-            - tenant_id (str): The tenant id to use in the query
 
         Returns:
             - list: A list of GraphQLResult flow run objects
@@ -326,8 +310,8 @@ class Agent:
 
         # Get scheduled flow runs from queue
         mutation = {
-            "mutation($input: getRunsInQueueInput!)": {
-                "getRunsInQueue(input: $input)": {"flow_run_ids"}
+            "mutation($input: get_runs_in_queue_input!)": {
+                "get_runs_in_queue(input: $input)": {"flow_run_ids"}
             }
         }
 
@@ -335,11 +319,7 @@ class Agent:
         result = self.client.graphql(
             mutation,
             variables={
-                "input": {
-                    "tenantId": tenant_id,
-                    "before": now.isoformat(),
-                    "labels": list(self.labels),
-                }
+                "input": {"before": now.isoformat(), "labels": list(self.labels),}
             },
         )
 
@@ -347,10 +327,12 @@ class Agent:
         # by this agent and are in the process of being submitted in the background. We do not
         # want to act on these "duplicate" flow runs until we've been assured that the background
         # thread has attempted to submit the work (successful or otherwise).
-        flow_run_ids = set(result.data.getRunsInQueue.flow_run_ids)  # type: ignore
+        flow_run_ids = set(result.data.get_runs_in_queue.flow_run_ids)  # type: ignore
 
         if flow_run_ids:
-            msg = "Found flow runs {}".format(result.data.getRunsInQueue.flow_run_ids)
+            msg = "Found flow runs {}".format(
+                result.data.get_runs_in_queue.flow_run_ids
+            )
         else:
             msg = "No flow runs found"
 
@@ -391,7 +373,6 @@ class Agent:
                 ): {
                     "id": True,
                     "version": True,
-                    "tenant_id": True,
                     "state": True,
                     "serialized_state": True,
                     "parameters": True,

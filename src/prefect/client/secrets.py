@@ -13,7 +13,7 @@ To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or se
 
 ```graphql
 mutation {
-  setSecret(input: { name: "KEY", value: "VALUE" }) {
+  set_secret(input: { name: "KEY", value: "VALUE" }) {
     success
   }
 }
@@ -90,7 +90,7 @@ class Secret:
         if self.name in secrets:
             return True
         elif prefect.context.config.cloud.use_local_secrets is False:
-            cloud_secrets = self.client.graphql("query{secretNames}").data.secretNames
+            cloud_secrets = self.client.graphql("query{secret_names}").data.secret_names
             if self.name in cloud_secrets:
                 return True
         return False
@@ -124,7 +124,7 @@ class Secret:
                 result = self.client.graphql(
                     """
                     query($name: String!) {
-                        secretValue(name: $name)
+                        secret_value(name: $name)
                     }
                     """,
                     variables=dict(name=self.name),
@@ -132,7 +132,7 @@ class Secret:
                 # the result object is a Box, so we recursively restore builtin
                 # dict/list classes
                 result_dict = result.to_dict()
-                value = result_dict["data"]["secretValue"]
+                value = result_dict["data"]["secret_value"]
             else:
                 raise ValueError(
                     'Local Secret "{}" was not found.'.format(self.name)

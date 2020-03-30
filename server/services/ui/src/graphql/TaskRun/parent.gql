@@ -1,0 +1,11 @@
+query ($flowRunId: uuid, $taskId: uuid) {
+    task_run(
+      where: {
+        _and: [ 
+          {flow_run: {id: {_eq: $flowRunId}}}, 
+          {task_id: {_eq: $taskId}}
+          ]})
+      {
+        id
+      }
+    }

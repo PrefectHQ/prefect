@@ -614,7 +614,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
         def get_flow_run_info(self, *args, **kwargs):
             return MagicMock(
-                id="flowRunID",
+                id="flow_run_id",
                 task_runs=[MagicMock(task_slug=log_stuff.slug, id="TESTME")],
             )
 
@@ -650,5 +650,5 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
         "prefect.Task: log_stuff",
     }
 
-    task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
+    task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]
     assert set(task_run_ids) == {"TESTME"}

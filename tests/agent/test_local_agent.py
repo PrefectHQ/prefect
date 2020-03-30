@@ -88,6 +88,21 @@ def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     assert env_vars["AUTH_THING"] == "foo"
 
 
+def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(runner_token):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
+        agent = LocalAgent(env_vars=dict(MISSING_VAR=None))
+
+        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+
+    assert "MISSING_VAR" not in env_vars
+
+
 def test_populate_env_vars(runner_token):
     with set_temporary_config(
         {
@@ -422,3 +437,65 @@ def test_local_agent_heartbeat(
     # the heartbeat should stop tracking upon exit
     compare(process.returncode, returncode)
     assert len(agent.processes) == 0
+
+
+def test_local_agent_start_max_polls(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=1)
+    agent.start()
+
+    assert agent_process.called
+    assert heartbeat.called
+
+
+def test_local_gent_start_max_polls_count(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=2)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 2
+    assert heartbeat.call_count == 2
+
+
+def test_local_agent_start_max_polls_zero(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=0)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 0
+    assert heartbeat.call_count == 0

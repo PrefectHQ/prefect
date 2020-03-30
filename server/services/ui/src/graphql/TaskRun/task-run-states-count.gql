@@ -1,0 +1,7 @@
+query TaskRunStatesCount($where: task_run_state_bool_exp) {
+  task_run_state_aggregate(where: $where) {
+    aggregate {
+      count
+    }
+  }
+}

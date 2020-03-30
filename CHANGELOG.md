@@ -6,11 +6,20 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Open source database backend, GraphQL API and UI - [#2218](https://github.com/PrefectHQ/prefect/pull/2218)
+- Add `prefect server start` CLI command for spinning up database and UI - [#2214](https://github.com/PrefectHQ/prefect/pull/2214)
 
 ### Enhancements
 
-- Add ValidationFailed state and signal in anticipation of validating task outputs [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
+- Add ValidationFailed state and signal in anticipation of validating task outputs - [#2143](https://github.com/PrefectHQ/prefect/issues/2143)
+- Add max polling option to all agents - [#2037](https://github.com/PrefectHQ/prefect/issues/2037)
+- Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
+- Add Result.validate method that runs validator functions initialized on Result [#2144](https://github.com/PrefectHQ/prefect/issues/2144)
+- Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185) [#2198](https://github.com/PrefectHQ/prefect/pull/2198)
+- Add `prefect backend` CLI command for switching between Prefect Core server and Prefect Cloud - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Add `prefect run server` CLI command for starting flow runs without use of project name - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Make `project_name` optional during flow registration to support Prefect Core's server - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Send flow run and task run heartbeat at beginning of run time - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
 
 ### Task Library
 
@@ -18,7 +27,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix issue with heartbeat failing if any Cloud config var is not present - [#2190](https://github.com/PrefectHQ/prefect/issues/2190)
+- Fix issue where `run cloud` CLI command would pull final state before last batch of logs - [#2192](https://github.com/PrefectHQ/prefect/pull/2192)
+- Fix issue where the `S3ResultHandler` would attempt to access uninitialized attribute - [#2204](https://github.com/PrefectHQ/prefect/issues/2204)
 
 ### Deprecations
 
@@ -26,7 +37,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Drop support for Python 3.5 - [#2191](https://github.com/PrefectHQ/prefect/pull/2191)
+- Remove `Client.write_run_log` - [#2184](https://github.com/PrefectHQ/prefect/issues/2184)
+- Remove `Client.deploy` and `flow.deploy` - [#2183](https://github.com/PrefectHQ/prefect/issues/2183)
 
 ### Contributors
 

@@ -36,6 +36,7 @@ class S3ResultHandler(ResultHandler):
     def __init__(self, bucket: str, aws_credentials_secret: str = None) -> None:
         self.bucket = bucket
         self.aws_credentials_secret = aws_credentials_secret
+        self._client = None
         super().__init__()
 
     def initialize_client(self) -> None:
@@ -71,9 +72,10 @@ class S3ResultHandler(ResultHandler):
         Initializes a client if we believe we are in a new thread.
         We consider ourselves in a new thread if we haven't stored a client yet in the current context.
         """
-        if not prefect.context.get("boto3client"):
+        if not prefect.context.get("boto3client") or not self._client:
             self.initialize_client()
             prefect.context["boto3client"] = self._client
+
         return self._client
 
     @client.setter
