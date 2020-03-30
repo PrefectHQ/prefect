@@ -1,4 +1,3 @@
-const sidebar73 = require('../api/0.7.3/sidebar')
 const sidebar81 = require('../api/0.8.1/sidebar')
 const sidebar98 = require('../api/0.9.8/sidebar')
 const glob = require('glob')
@@ -77,7 +76,6 @@ module.exports = {
           { text: 'Latest (0.9.8)', link: '/api/latest/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
-          { text: '0.7.3', link: '/api/0.7.3/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -87,7 +85,6 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
       '/api/0.9.8/': sidebar98.sidebar,
       '/api/latest/': [
