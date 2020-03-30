@@ -88,6 +88,7 @@ class TaskRunner(Runner):
     ):
         self.context = prefect.context.to_dict()
         self.task = task
+        # todo: this is an old thing
         self.result_handler = task.result_handler or result_handler
         super().__init__(state_handlers=state_handlers)
 
@@ -910,6 +911,7 @@ class TaskRunner(Runner):
             )
             return new_state
 
+        # todo: use the Result instance configured on the task to hold on to the return value (aka Result.value)
         result = Result(value=result, result_handler=self.result_handler)
         state = Success(
             result=result, message="Task run succeeded.", cached_inputs=inputs
@@ -922,6 +924,8 @@ class TaskRunner(Runner):
             and self.task.checkpoint is not False
             and self.result_handler is not None
         ):
+            # todo: single call to format the filename template and write it to the location
+            # todo: what to do if it has already been written
             state._result.store_safe_value()
 
         return state

@@ -48,6 +48,8 @@ class ResultInterface:
         val = self.value  # type: ignore
         return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
 
+    # todo: this is really `hydrate` now
+    # todo: take in a result object (the assumption is that this could be being called on a skeleton class)
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
         If no result handler provided, returns self.  If a ResultHandler is provided, however,
@@ -125,6 +127,8 @@ class Result(ResultInterface):
                 self.result_handler, ResultHandler
             ), "Result has no ResultHandler"  # mypy assert
             value = self.result_handler.write(self.value)
+            # todo: self.write if I have a configured Result
+            # todo: see the SafeValue.to_result for more considerations
             self.safe_value = SafeResult(
                 value=value, result_handler=self.result_handler
             )
@@ -236,6 +240,10 @@ class Result(ResultInterface):
 
 
 class SafeResult(ResultInterface):
+    # todo: can we get Result.serialize to drop the user data ("do the right thing") every time before sending to Cloud
+    # todo: part of this would be to send the filename_template as 'value' anyways so that cloud UI doesn't have to change
+    # todo: because we already have a separate attribute that knows the "safe" value aka filename_template
+    # todo: whereas here the word 'value' is used for both of them
     """
     A _safe_ representation of the result of a Prefect task; this class contains information about
     the serialized value of a task's result, and a result handler specifying how to deserialize this value
@@ -267,7 +275,12 @@ class SafeResult(ResultInterface):
         """
         if result_handler is not None:
             self.result_handler = result_handler
+        # todo: if this was a cloud `CustomResult`, then I need to use the result handler that was sent in the pipeline
+        # todo: if this is a internal Result class like `GCSResult`, then I need to call self.read()
+        # todo: risk of performing duplicate reads and writes (see result handler's read methods)
         value = self.result_handler.read(self.value)
+
+        # todo: instead use whatever Result class was passed in to instantiate below
         res = Result(value=value, result_handler=self.result_handler)
         res.safe_value = self
         return res

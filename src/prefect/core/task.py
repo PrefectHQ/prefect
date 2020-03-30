@@ -251,6 +251,11 @@ class Task(metaclass=SignatureValidator):
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
         self.result_handler = result_handler
+        # todo: convert result handler to a Result class that matches its type
+        # todo: instantiate a `CustomResult` object
+        # todo: later in the marshmallow serializer for the `CustomResult`, the result handler must not be serialized to Cloud
+        # self.result =  result or convert(self.result_handler)
+        # todo: ^ the thing that we make for them IF they sent us a result handler instead
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
