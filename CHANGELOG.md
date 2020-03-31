@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix `S3ResultHandler` check to use `hasattr` of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+- Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
 
 ### Deprecations
 
