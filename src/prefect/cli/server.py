@@ -66,7 +66,7 @@ def make_env(fname=None):
 @click.group(hidden=True)
 def server():
     """
-    Commands for interacting with the Prefect Server
+    Commands for interacting with the Prefect Core server
 
     \b
     Usage:
