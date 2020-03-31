@@ -445,7 +445,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
 
-  'Build Earth Images':
+  'Build Server Images':
     jobs:
       - docker/publish:
           docker-password: DOCKER_HUB_PW
