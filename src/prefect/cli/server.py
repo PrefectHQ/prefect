@@ -1,9 +1,13 @@
 import click
 import os
+from pathlib import Path
+import shutil
 import subprocess
+import tempfile
 import time
 
-from pathlib import Path
+import yaml
+
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 
@@ -131,6 +135,23 @@ def server():
     default=config.server.host_port,
     type=str,
 )
+@click.option(
+    "--no-postgres-port", help="Disable port map of Postgres to host", is_flag=True,
+)
+@click.option(
+    "--no-hasura-port", help="Disable port map of Hasura to host", is_flag=True,
+)
+@click.option(
+    "--no-graphql-port", help="Disable port map of GraphqlAPI to host", is_flag=True,
+)
+@click.option(
+    "--no-ui-port", help="Disable port map of UI to host", is_flag=True,
+)
+@click.option(
+    "--no-server-port",
+    help="Disable port map of the Core server to host",
+    is_flag=True,
+)
 def start(
     version,
     skip_pull,
@@ -141,11 +162,52 @@ def start(
     graphql_port,
     ui_port,
     server_port,
+    no_postgres_port,
+    no_hasura_port,
+    no_graphql_port,
+    no_ui_port,
+    no_server_port,
 ):
     """
     This command spins up all infrastructure and services for Prefect Server
     """
     docker_dir = Path(__file__).parents[0]
+    compose_dir_path = docker_dir
+
+    # Remove port mappings if specified
+    if (
+        no_postgres_port
+        or no_hasura_port
+        or no_graphql_port
+        or no_ui_port
+        or no_server_port
+    ):
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, "docker-compose.yml")
+        shutil.copy2(os.path.join(docker_dir, "docker-compose.yml"), temp_path)
+
+        with open(temp_path, "r") as file:
+            y = yaml.load(file)
+
+            if no_postgres_port:
+                del y["services"]["postgres"]["ports"]
+
+            if no_hasura_port:
+                del y["services"]["hasura"]["ports"]
+
+            if no_graphql_port:
+                del y["services"]["graphql"]["ports"]
+
+            if no_ui_port:
+                del y["services"]["ui"]["ports"]
+
+            if no_server_port:
+                del y["services"]["apollo"]["ports"]
+
+        with open(temp_path, "w") as f:
+            y = yaml.dump(y, f)
+
+        compose_dir_path = temp_dir
 
     # Temporary config set for port allocation
     with set_temporary_config(
@@ -172,12 +234,14 @@ def start(
     proc = None
     try:
         if not skip_pull:
-            subprocess.check_call(["docker-compose", "pull"], cwd=docker_dir, env=env)
+            subprocess.check_call(
+                ["docker-compose", "pull"], cwd=compose_dir_path, env=env
+            )
 
         cmd = ["docker-compose", "up"]
         if no_ui:
             cmd += ["--scale", "ui=0"]
-        proc = subprocess.Popen(cmd, cwd=docker_dir, env=env)
+        proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         while True:
             time.sleep(0.5)
     except:
@@ -186,7 +250,9 @@ def start(
             fg="white",
             bg="red",
         )
-        subprocess.check_output(["docker-compose", "down"], cwd=docker_dir, env=env)
+        subprocess.check_output(
+            ["docker-compose", "down"], cwd=compose_dir_path, env=env
+        )
         if proc:
             proc.kill()
         raise
