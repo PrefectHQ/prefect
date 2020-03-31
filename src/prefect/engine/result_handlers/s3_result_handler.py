@@ -72,7 +72,7 @@ class S3ResultHandler(ResultHandler):
         Initializes a client if we believe we are in a new thread.
         We consider ourselves in a new thread if we haven't stored a client yet in the current context.
         """
-        if not prefect.context.get("boto3client") or not self._client:
+        if not prefect.context.get("boto3client") or not hasattr(self, "_client"):
             self.initialize_client()
             prefect.context["boto3client"] = self._client
 
