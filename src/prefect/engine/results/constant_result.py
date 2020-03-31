@@ -9,12 +9,12 @@ class ConstantResult(Result):
     internally.
 
     Args:
-        - value (Any): the underlying value that we wish to "handle"
+        - value (Any): the underlying value this Result should represent
     """
 
-    def __init__(self, value: Any) -> None:
+    def __init__(self, value: Any = None, **kwargs: Any) -> None:
         self.value = value
-        super().__init__(value=value)
+        super().__init__(value=value, **kwargs)
 
     def read(self, arg: Optional[str] = None) -> Any:
         """
@@ -36,7 +36,7 @@ class ConstantResult(Result):
 
     def exists(self) -> bool:
         """
-        Confirms the existance of the Constant value stored in the Result.
+        Confirms the existence of the Constant value stored in the Result.
 
         The value stored within a Constant is logically always present,
         so `True` is returned.
