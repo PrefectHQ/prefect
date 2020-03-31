@@ -252,18 +252,6 @@ class Task(metaclass=SignatureValidator):
         self.checkpoint = checkpoint
         self.result_handler = result_handler
 
-        if cache_for or cache_key or cache_validator:
-            warnings.warn(
-                "DEPRECATED: all cache_* options on a Task will be deprecated in 0.11.0, and removed in 0.12.0; the options will be moved to a Task's prefect.engine.Result object.",
-                UserWarning,
-            )
-
-        if result_handler:
-            warnings.warn(
-                "DEPRECATED: the result_handler Task option will be deprecated in 0.11.0, and removed in 0.12.0, in favor of the `result` option instead.",
-                UserWarning,
-            )
-
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
