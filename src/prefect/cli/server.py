@@ -90,67 +90,89 @@ def server():
     help="The server image versions to use (for example, '0.10.0' or 'master')",
     # TODO: update this default to use prefect.__version__ logic
     default="latest",
+    hidden=True,
 )
 @click.option(
     "--skip-pull",
     help="Pass this flag to skip pulling new images (if available)",
     is_flag=True,
+    hidden=True,
 )
 @click.option(
     "--no-upgrade",
     "-n",
     help="Pass this flag to avoid running a database upgrade when the database spins up",
     is_flag=True,
+    hidden=True,
 )
 @click.option(
-    "--no-ui", "-u", help="Pass this flag to avoid starting the UI", is_flag=True,
+    "--no-ui",
+    "-u",
+    help="Pass this flag to avoid starting the UI",
+    is_flag=True,
+    hidden=True,
 )
 @click.option(
     "--postgres-port",
     help="The port used to serve Postgres",
     default=config.server.database.host_port,
     type=str,
+    hidden=True,
 )
 @click.option(
     "--hasura-port",
     help="The port used to serve Hasura",
     default=config.server.hasura.host_port,
     type=str,
+    hidden=True,
 )
 @click.option(
     "--graphql-port",
     help="The port used to serve the GraphQL API",
     default=config.server.graphql.host_port,
     type=str,
+    hidden=True,
 )
 @click.option(
     "--ui-port",
     help="The port used to serve the UI",
     default=config.server.ui.host_port,
     type=str,
+    hidden=True,
 )
 @click.option(
     "--server-port",
     help="The port used to serve the Core server",
     default=config.server.host_port,
     type=str,
+    hidden=True,
 )
 @click.option(
-    "--no-postgres-port", help="Disable port map of Postgres to host", is_flag=True,
+    "--no-postgres-port",
+    help="Disable port map of Postgres to host",
+    is_flag=True,
+    hidden=True,
 )
 @click.option(
-    "--no-hasura-port", help="Disable port map of Hasura to host", is_flag=True,
+    "--no-hasura-port",
+    help="Disable port map of Hasura to host",
+    is_flag=True,
+    hidden=True,
 )
 @click.option(
-    "--no-graphql-port", help="Disable port map of GraphqlAPI to host", is_flag=True,
+    "--no-graphql-port",
+    help="Disable port map of the GraphqlAPI to host",
+    is_flag=True,
+    hidden=True,
 )
 @click.option(
-    "--no-ui-port", help="Disable port map of UI to host", is_flag=True,
+    "--no-ui-port", help="Disable port map of the UI to host", is_flag=True, hidden=True
 )
 @click.option(
     "--no-server-port",
     help="Disable port map of the Core server to host",
     is_flag=True,
+    hidden=True,
 )
 def start(
     version,
@@ -169,8 +191,31 @@ def start(
     no_server_port,
 ):
     """
-    This command spins up all infrastructure and services for Prefect Server
+    This command spins up all infrastructure and services for the Prefect Core server
+
+    \b
+    Options:
+        --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
+                                Defaults to 'latest'
+        --skip-pull             Flag to skip pulling new images (if available)
+        --no-upgrade, -n        Flag to avoid running a database upgrade when the database spins up
+        --no-ui, -u             Flag to avoid starting the UI
+
+    \b
+        --postgres-port TEXT    Port used to serve Postgres, defaults to '5432'
+        --hasura-port   TEXT    Port used to serve Hasura, defaults to '3001'
+        --graphql-port  TEXT    Port used to serve the GraphQL API, defaults to '4001'
+        --ui-port       TEXT    Port used to serve the UI, defaults to '8080'
+        --server-port   TEXT    Port used to serve the Core server, defaults to '4200'
+
+    \b
+        --no-postgres-port      Disable port map of Postgres to host
+        --no-hasura-port        Disable port map of Hasura to host
+        --no-graphql-port       Disable port map of the GraphQL API to host
+        --no-ui-port            Disable port map of the UI to host
+        --no-server-port        Disable port map of the Core server to host
     """
+
     docker_dir = Path(__file__).parents[0]
     compose_dir_path = docker_dir
 
