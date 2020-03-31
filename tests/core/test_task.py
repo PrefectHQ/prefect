@@ -596,6 +596,7 @@ class TestTaskArgs:
                 res = t.map({1, 2, 3, 4})
 
 
+@pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
     with pytest.warns(
         UserWarning, match="all cache_\* options on a Task will be deprecated*"
@@ -613,6 +614,7 @@ def test_cache_options_show_deprecation():
         Task(cache_key=object())
 
 
+@pytest.mark.skip("Result handlers not yet deprecated")
 def test_result_handler_option_shows_deprecation():
     with pytest.warns(
         UserWarning, match="the result_handler Task option will be deprecated*"
