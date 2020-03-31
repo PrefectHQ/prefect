@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
 
 ### Enhancements
 
