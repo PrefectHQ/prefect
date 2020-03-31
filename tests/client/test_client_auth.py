@@ -339,8 +339,8 @@ class TestTenantAuth:
         # add buffer because Windows doesn't compare milliseconds
         assert client._access_token_expires_at < pendulum.now().add(seconds=1)
         client._refresh_access_token()
-        assert client._access_token is "ACCESS_TOKEN"
-        assert client._refresh_token is "REFRESH_TOKEN"
+        assert client._access_token == "ACCESS_TOKEN"
+        assert client._refresh_token == "REFRESH_TOKEN"
         assert client._access_token_expires_at > pendulum.now().add(seconds=599)
 
     def test_refresh_token_passes_access_token_as_arg(self, patch_post):
