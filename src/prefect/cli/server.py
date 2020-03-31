@@ -16,7 +16,7 @@ def make_env(fname=None):
             "localhost", "postgres"
         ),
         GRAPHQL_HOST_PORT=config.server.graphql.host_port,
-        UI_HOST_PORT=config.server.ui.port,
+        UI_HOST_PORT=config.server.ui.host_port,
     )
 
     APOLLO_ENV = dict(
@@ -32,7 +32,7 @@ def make_env(fname=None):
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
             port=config.server.graphql.port
         ),
-        APOLLO_HOST_PORT=config.server.port,
+        APOLLO_HOST_PORT=config.server.host_port,
     )
 
     POSTGRES_ENV = dict(
@@ -122,13 +122,13 @@ def server():
 @click.option(
     "--ui-port",
     help="The port used to serve the UI",
-    default=config.server.ui.port,
+    default=config.server.ui.host_port,
     type=str,
 )
 @click.option(
     "--server-port",
     help="The port used to serve the Core server",
-    default=config.server.port,
+    default=config.server.host_port,
     type=str,
 )
 def start(
@@ -153,8 +153,8 @@ def start(
             "server.database.host_port": postgres_port,
             "server.hasura.host_port": hasura_port,
             "server.graphql.host_port": graphql_port,
-            "server.ui.port": ui_port,
-            "server.port": server_port,
+            "server.ui.host_port": ui_port,
+            "server.host_port": server_port,
         }
     ):
         env = make_env()

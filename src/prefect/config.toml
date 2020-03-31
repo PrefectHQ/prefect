@@ -9,6 +9,7 @@ backend = "cloud"
 [server]
 host = "http://localhost"
 port = "4200"
+host_port = "4200"
 endpoint = "${server.host}:${server.port}"
 
     [server.database]
@@ -41,6 +42,7 @@ endpoint = "${server.host}:${server.port}"
     [server.ui]
     host = "http://localhost"
     port = "8080"
+    host_port = "8080"
     endpoint = "${server.ui.host}:${server.ui.port}"
 
 [cloud]
