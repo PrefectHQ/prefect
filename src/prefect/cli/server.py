@@ -261,7 +261,7 @@ def start(
             "server.hasura.host_port": hasura_port,
             "server.graphql.host_port": graphql_port,
             "server.ui.host_port": ui_port,
-            "server.port": server_port,
+            "server.host_port": server_port,
         }
     ):
         env = make_env()
