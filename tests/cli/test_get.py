@@ -42,18 +42,14 @@ def test_get_flows(monkeypatch):
         assert (
             "NAME" in result.output
             and "VERSION" in result.output
-            and "PROJECT NAME" in result.output
             and "AGE" in result.output
         )
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: null }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name, limit: 10) {
+            flow(where: { _and: { name: { _eq: null }, version: { _eq: null } } }, order_by: { name: asc, version: desc }, distinct_on: name, limit: 10) {
                 name
                 version
-                project {
-                    name
-                }
                 created
             }
         }
@@ -97,10 +93,10 @@ def test_get_flows_populated(monkeypatch):
             flow(where: { _and: { name: { _eq: "name" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: null, limit: 100) {
                 name
                 version
+                created
                 project {
                     name
                 }
-                created
             }
         }
         """
@@ -210,7 +206,7 @@ def test_get_flow_runs(monkeypatch):
 
         query = """
         query {
-            flow_run(where: { flow: { _and: { name: { _eq: null }, project: { name: { _eq: null } } } } }, limit: 10, order_by: { created: desc }) {
+            flow_run(where: { flow: { _and: { name: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
                 flow {
                     name
                 }
@@ -300,7 +296,7 @@ def test_get_tasks(monkeypatch):
 
         query = """
         query {
-            task(where: { _and: { name: { _eq: null }, flow: { name: { _eq: null }, project: { name: { _eq: null } }, version: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
+            task(where: { _and: { name: { _eq: null }, flow: { name: { _eq: null }, version: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
                 name
                 created
                 flow {
@@ -349,7 +345,7 @@ def test_get_tasks_populated(monkeypatch):
 
         query = """
         query {
-            task(where: { _and: { name: { _eq: "task" }, flow: { name: { _eq: "flow" }, project: { name: { _eq: "project" } }, version: { _eq: 2 } } } }, limit: 100, order_by: { created: desc }) {
+            task(where: { _and: { name: { _eq: "task" }, flow: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } } }, limit: 100, order_by: { created: desc }) {
                 name
                 created
                 flow {

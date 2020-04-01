@@ -51,14 +51,14 @@ with Flow("My First Flow") as flow:
     say_hello(name)
 
 
-flow.run(name='world') # "Hello, world!" 
-flow.run(name='Marvin') # "Hello, Marvin!" 
+flow.run(name='world') # "Hello, world!"
+flow.run(name='Marvin') # "Hello, Marvin!"
 ```
 
 Spin up Prefect Core's local UI to orchestrate and manage your workflows:
 
 ```
-prefect server up
+prefect server start
 ```
 
 and navigate to `http://localhost:8080`.
@@ -108,6 +108,7 @@ conda install -c conda-forge prefect
 ```
 
 or `pipenv`:
+
 ```
 pipenv install --pre prefect
 ```
@@ -123,4 +124,6 @@ pip install ./prefect
 
 ## License
 
-Prefect is variously licensed under the Apache Software License version 2.0 or the Prefect License.
+Prefect is variously licensed under the [Apache Software License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) or the [Prefect Community License](https://www.prefect.io/legal/prefect-community-license).
+
+All code except the `/server` directory is Apache 2.0-licensed unless otherwise noted. The `/server` directory is licensed under the Prefect Community License.

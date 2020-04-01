@@ -1,0 +1,27 @@
+query FlowRunLogsScoping(
+  $id: uuid!,
+  $limit: Int = 50,
+  $timestamp: timestamptz,
+) {
+  flow_run_by_pk(id: $id) {
+    id
+    logs_after: logs(
+      where: {
+        timestamp: { _gte: $timestamp }
+      }
+      order_by: { timestamp: asc }
+      limit: $limit
+    ) {
+      timestamp
+    }
+    logs_before: logs(
+      where: {
+        timestamp: { _lte: $timestamp }
+      }
+      order_by: { timestamp: desc }
+      limit: $limit
+    ) {
+      timestamp
+    }
+  }
+}

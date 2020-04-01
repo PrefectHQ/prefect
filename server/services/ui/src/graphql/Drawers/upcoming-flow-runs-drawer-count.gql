@@ -1,0 +1,9 @@
+query UpcomingFlowRunsDrawerCount($flowId: uuid) {
+  flow_run_aggregate(
+    where: { flow_id: { _eq: $flowId }, state: { _eq: "Scheduled" } }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}

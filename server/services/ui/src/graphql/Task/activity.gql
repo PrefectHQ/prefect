@@ -1,0 +1,36 @@
+query Activity(
+  $limit: Int
+  $taskId: uuid!
+  $states: [String!]
+  $timestamp: timestamptz
+) {
+  task_run_state(
+    where: {
+      task_run: { task: { id: { _eq: $taskId } } }
+      timestamp: { _gte: $timestamp }
+      state: { _in: $states }
+    }
+    limit: $limit
+    order_by: { timestamp: desc }
+  ) {
+    state
+    message
+    result
+    timestamp
+    task_run {
+      id
+      state
+      start_time
+      run_count
+      duration
+      task {
+        id
+        name
+        max_retries
+      }
+      flow_run {
+        id
+      }
+    }
+  }
+}

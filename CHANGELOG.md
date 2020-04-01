@@ -6,7 +6,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
+
+### Enhancements
+
 - None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.10.0 <Badge text="beta" type="success"/>
+
+Released on Mar 29, 2020.
+
+### Features
+
+- Open source database backend, GraphQL API and UI - [#2218](https://github.com/PrefectHQ/prefect/pull/2218)
+- Add `prefect server start` CLI command for spinning up database and UI - [#2214](https://github.com/PrefectHQ/prefect/pull/2214)
 
 ### Enhancements
 
@@ -15,6 +48,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add GCSResult type [#2141](https://github.com/PrefectHQ/prefect/issues/2141)
 - Add Result.validate method that runs validator functions initialized on Result [#2144](https://github.com/PrefectHQ/prefect/issues/2144)
 - Convert all GraphQL calls to have consistent casing - [#2185](https://github.com/PrefectHQ/prefect/pull/2185) [#2198](https://github.com/PrefectHQ/prefect/pull/2198)
+- Add `prefect backend` CLI command for switching between Prefect Core server and Prefect Cloud - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Add `prefect run server` CLI command for starting flow runs without use of project name - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Make `project_name` optional during flow registration to support Prefect Core's server - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
+- Send flow run and task run heartbeat at beginning of run time - [#2203](https://github.com/PrefectHQ/prefect/pull/2203)
 
 ### Task Library
 

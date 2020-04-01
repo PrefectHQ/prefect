@@ -1,9 +1,9 @@
-## Prefect Core's Server and UI
+# Prefect Core's Server and UI
 
 Spinning up Prefect Core's backend, API and UI locally can be achieved with a single command:
 
 ```
-prefect server up
+prefect server start
 ```
 
 To ensure that your local Flow runs are pointing to your local backend (instead of Prefect Cloud), run:
@@ -12,9 +12,9 @@ To ensure that your local Flow runs are pointing to your local backend (instead 
 prefect backend server
 ```
 
-### Development
+## Development
 
-#### Installation
+### Installation
 
 To create a development environment for Prefect's server you will need:
 
@@ -46,7 +46,7 @@ npm install
 
 There is also a convenience `prefect-server dev install-dependencies` command which will perform both installs above for you.
 
-#### Spinning up pieces of the stack
+### Spinning up pieces of the stack
 
 At this point, there are various CLI commands which help you isolate the portion of the stack that you are working on:
 
@@ -63,6 +63,9 @@ You can then run the various services in subprocesses using the `prefect-server 
 
 For working on the UI:
 
-- `prefect server up --no-ui` will spin up the standard backend with no UI
+- `prefect server start --no-ui` will spin up the standard backend with no UI
 - `cd server/services/ui && npm run serve` will then run the UI in your local process, with hot reloading
 
+## License
+
+The contents of this directory are licensed under the Prefect Community License, which may be viewed in the LICENSE file in this directory or [https://www.prefect.io/legal/prefect-community-license](https://www.prefect.io/legal/prefect-community-license).

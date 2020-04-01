@@ -27,7 +27,7 @@ Prefect Core ships with an open-source backend and UI that automatically extends
 - remote execution clusters
 - automatic and asynchronous scheduling
 
-Get started by running `prefect server up` and navigate to `http://localhost:8080`.
+Get started by running `prefect server start` and navigate to `http://localhost:8080`.
 
 ##### Prefect Cloud
 
