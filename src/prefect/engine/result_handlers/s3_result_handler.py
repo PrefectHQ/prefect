@@ -54,7 +54,7 @@ class S3ResultHandler(ResultHandler):
 
         if self.aws_credentials_secret:
             if aws_access_key is not None or aws_secret_access_key is not None:
-                self.logger.warning('"aws_access_key" or "aws_secret_access_key" were set as kwargs, ignoring those for what is populated in "aws_credentials_secret"')
+                self.logger.warning('"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"')
 
             aws_credentials = Secret(self.aws_credentials_secret).get()
             if isinstance(aws_credentials, str):
