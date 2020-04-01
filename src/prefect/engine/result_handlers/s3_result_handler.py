@@ -35,11 +35,18 @@ class S3ResultHandler(ResultHandler):
             is initialized (changing the "service_name" is not permitted).
     """
 
-    def __init__(self, bucket: str, aws_credentials_secret: str = None, boto3_kwargs: Dict[str, Any] = None) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        aws_credentials_secret: str = None,
+        boto3_kwargs: Dict[str, Any] = None,
+    ) -> None:
         self.bucket = bucket
         self.aws_credentials_secret = aws_credentials_secret
         self.boto3_kwargs = boto3_kwargs or dict()
-        assert 'service_name' not in self.boto3_kwargs.keys(), 'Changing the boto3 "service_name" is not permitted!'
+        assert (
+            "service_name" not in self.boto3_kwargs.keys()
+        ), 'Changing the boto3 "service_name" is not permitted!'
         self._client = None
         super().__init__()
 
@@ -49,12 +56,14 @@ class S3ResultHandler(ResultHandler):
         """
         import boto3
 
-        aws_access_key = self.boto3_kwargs.pop('aws_access_key_id', None)
-        aws_secret_access_key = self.boto3_kwargs.pop('aws_secret_access_key', None)
+        aws_access_key = self.boto3_kwargs.pop("aws_access_key_id", None)
+        aws_secret_access_key = self.boto3_kwargs.pop("aws_secret_access_key", None)
 
         if self.aws_credentials_secret:
             if aws_access_key is not None or aws_secret_access_key is not None:
-                self.logger.warning('"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"')
+                self.logger.warning(
+                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"'
+                )
 
             aws_credentials = Secret(self.aws_credentials_secret).get()
             if isinstance(aws_credentials, str):
