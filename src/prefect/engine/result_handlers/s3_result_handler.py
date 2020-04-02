@@ -31,7 +31,7 @@ class S3ResultHandler(ResultHandler):
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
             passed directly to `boto3`.  If not provided, `boto3`
             will fall back on standard AWS rules for authentication.
-        - boto3_kwargs (dict): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
+        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized (changing the "service_name" is not permitted).
     """
 
