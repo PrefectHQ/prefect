@@ -15,6 +15,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    Optional,
 )
 
 import prefect
@@ -27,7 +28,8 @@ from prefect.utilities.tasks import unmapped
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
-    from prefect.engine.result_handlers import ResultHandler
+    from prefect.engine.result import Result  # pylint: disable=W0611
+    from prefect.engine.result_handlers import ResultHandler  # pylint: disable=W0611
     from prefect.engine.state import State  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
@@ -129,21 +131,22 @@ class Task(metaclass=SignatureValidator):
                 regardless of trigger. By default, this prevents tasks from attempting to use either state or data
                 from tasks that didn't run. If `False`, the task's trigger will be called as normal,
                 with skips considered successes. Defaults to `True`.
-        - cache_for (timedelta, optional): The amount of time to maintain a cache
+        - cache_for (timedelta, optional, DEPRECATED): The amount of time to maintain a cache
             of the outputs of this task.  Useful for situations where the containing Flow
             will be rerun multiple times, but this task doesn't need to be.
-        - cache_validator (Callable, optional): Validator that will determine
+        - cache_validator (Callable, optional, DEPRECATED): Validator that will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - cache_key (str, optional): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
+        - cache_key (str, optional, DEPRECATED): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
             be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
             Task's database ID if running in Cloud
         - checkpoint (bool, optional): if this Task is successful, whether to
             store its result using the `result_handler` available during the run; Also note that
             checkpointing will only occur locally if `prefect.config.flows.checkpointing` is set to `True`
-        - result_handler (ResultHandler, optional): the handler to use for
+        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
+        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -154,6 +157,8 @@ class Task(metaclass=SignatureValidator):
             result of the previous handler.
         - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
             with will be called anytime this Task enters a failure state
+        - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
+            the Prefect logger. Defaults to `False`.
 
     Raises:
         - TypeError: if `tags` is of type `str`
@@ -177,11 +182,12 @@ class Task(metaclass=SignatureValidator):
         cache_validator: Callable = None,
         cache_key: str = None,
         checkpoint: bool = None,
-        result_handler: "ResultHandler" = None,
+        result_handler: Optional["ResultHandler"] = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
+        log_stdout: bool = False,
+        result: Optional["Result"] = None,
     ):
-
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
 
@@ -254,6 +260,8 @@ class Task(metaclass=SignatureValidator):
                 callback_factory(on_failure, check=lambda s: s.is_failed())
             )
         self.auto_generated = False
+
+        self.log_stdout = log_stdout
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)

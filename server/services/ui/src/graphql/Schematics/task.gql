@@ -1,0 +1,24 @@
+query Task($id: uuid!) {
+  task(where: { id: { _eq: $id } }) {
+    id
+    name
+    downstream_edges {
+      id
+      downstream_task_id
+    }
+    upstream_edges {
+      id
+      upstream_task_id
+    }
+    mapped
+    slug
+    tags
+    type
+    trigger
+    description
+    auto_generated
+    is_root_task
+    is_reference_task
+    is_terminal_task
+  }
+}

@@ -1634,7 +1634,7 @@ class TestTaskStateHandlers:
         assert state.is_failed()
 
         error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
-        assert len(error_logs) == 1
+        assert len(error_logs) >= 1
         assert "SyntaxError" in error_logs[0]
         assert "oops" in error_logs[0]
         assert "state handler" in error_logs[0]
@@ -2005,7 +2005,7 @@ class TestLooping:
             for log in caplog.records
             if "TaskRunner" in log.name and "Starting" in log.message
         ]
-        assert len(logs) == 1
+        assert len(logs) >= 1
 
     def test_looping_doesnt_aggressively_log_task_finished(self, caplog):
         @prefect.task
@@ -2173,3 +2173,27 @@ def test_task_runner_uses_upstream_result_handlers():
     state = TaskRunner(task=t).run(upstream_states=upstream_states)
     assert state.is_successful()
     assert state.result == "cool"
+
+
+def test_task_runner_logs_stdout(caplog):
+    class MyTask(Task):
+        def run(self):
+            print("TEST_HERE")
+
+    task = MyTask(log_stdout=True)
+    TaskRunner(task=task).run()
+
+    logs = [r.message for r in caplog.records]
+    assert logs[1] == "TEST_HERE"
+
+
+def test_task_runner_logs_stdout_disabled(caplog):
+    class MyTask(Task):
+        def run(self):
+            print("TEST_HERE")
+
+    task = MyTask()
+    TaskRunner(task=task).run()
+
+    logs = [r.message for r in caplog.records]
+    assert "TEST_HERE" not in logs

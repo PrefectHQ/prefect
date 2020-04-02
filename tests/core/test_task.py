@@ -262,6 +262,13 @@ class TestCreateTask:
         s = Task(checkpoint=True)
         assert s.checkpoint is True
 
+    def test_create_task_with_and_without_log_stdout(self):
+        t = Task()
+        assert t.log_stdout is False
+
+        s = Task(log_stdout=True)
+        assert s.log_stdout is True
+
 
 def test_task_has_logger():
     t = Task()
@@ -587,3 +594,29 @@ class TestTaskArgs:
         with pytest.raises(TypeError):
             with Flow(name="test") as f:
                 res = t.map({1, 2, 3, 4})
+
+
+@pytest.mark.skip("Result handlers not yet deprecated")
+def test_cache_options_show_deprecation():
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
+        Task(cache_for=object())
+
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
+        Task(cache_validator=object())
+
+    with pytest.warns(
+        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+    ):
+        Task(cache_key=object())
+
+
+@pytest.mark.skip("Result handlers not yet deprecated")
+def test_result_handler_option_shows_deprecation():
+    with pytest.warns(
+        UserWarning, match="the result_handler Task option will be deprecated*"
+    ):
+        Task(result_handler=object())

@@ -70,7 +70,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
 
 
 def test_secrets_use_client(monkeypatch):
-    response = {"data": {"secretValue": '"1234"'}}
+    response = {"data": {"secret_value": '"1234"'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
     session.return_value.post = post
@@ -84,7 +84,7 @@ def test_secrets_use_client(monkeypatch):
 
 
 def test_cloud_secrets_use_context_first(monkeypatch):
-    response = {"data": {"secretValue": '"1234"'}}
+    response = {"data": {"secret_value": '"1234"'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
     session.return_value.post = post
@@ -99,7 +99,7 @@ def test_cloud_secrets_use_context_first(monkeypatch):
 
 
 def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
-    response = {"data": {"secretValue": '"1234"'}}
+    response = {"data": {"secret_value": '"1234"'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
     session.return_value.post = post
@@ -114,7 +114,7 @@ def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch):
 
 
 def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
-    response = {"data": {"secretValue": {"a": "1234", "b": [1, 2, {"c": 3}]}}}
+    response = {"data": {"secret_value": {"a": "1234", "b": [1, 2, {"c": 3}]}}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
     session.return_value.post = post
@@ -133,7 +133,7 @@ def test_cloud_secrets_remain_plain_dictionaries(monkeypatch):
 
 
 def test_cloud_secrets_auto_load_json_strings(monkeypatch):
-    response = {"data": {"secretValue": '{"x": 42}'}}
+    response = {"data": {"secret_value": '{"x": 42}'}}
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value=response)))
     session = MagicMock()
     session.return_value.post = post

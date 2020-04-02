@@ -83,5 +83,5 @@ f.visualize(flow_state=flow_state)
 We can see that both branches of the `switch` were skipped in this case.
 
 ::: tip Live Updating Visualizations
-All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../cloud/ui/flow-run.html#schematic).
+All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../orchestration/ui/flow-run.html#schematic).
 :::

@@ -38,20 +38,30 @@ Prefect is a new workflow management system, designed for modern infrastructure 
 Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE)!
 
 ```python
-from prefect import task, Flow
+from prefect import task, Flow, Parameter
 
 
-@task
-def say_hello():
-    print("Hello, world!")
+@task(log_stdout=True)
+def say_hello(name):
+    print("Hello, {}!".format(name))
 
 
 with Flow("My First Flow") as flow:
-    say_hello()
+    name = Parameter('name')
+    say_hello(name)
 
 
-flow.run() # "Hello, world!"
+flow.run(name='world') # "Hello, world!"
+flow.run(name='Marvin') # "Hello, Marvin!"
 ```
+
+Spin up Prefect Core's local UI to orchestrate and manage your workflows:
+
+```
+prefect server start
+```
+
+and navigate to `http://localhost:8080`.
 
 ## Docs
 
@@ -65,11 +75,11 @@ Instructions for contributing to documentation can be found in the [development 
 
 ## Contributing
 
-Read about Prefect's [community](https://docs.prefect.io/core/welcome/community.html) or dive in to the [development guides](https://docs.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.
+Read about Prefect's [community](https://docs.prefect.io/core/community.html) or dive in to the [development guides](https://docs.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.
 
 Join our [Slack](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE) to chat about Prefect, ask questions, and share tips.
 
-Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/core/welcome/code_of_conduct.html).
+Prefect is committed to ensuring a positive environment. All interactions are governed by our [Code of Conduct](https://docs.prefect.io/core/code_of_conduct.html).
 
 ## "...Prefect?"
 
@@ -81,7 +91,7 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 ### Requirements
 
-Prefect requires Python 3.5.2+.
+Prefect requires Python 3.6+.
 
 ### Install latest release
 
@@ -98,6 +108,7 @@ conda install -c conda-forge prefect
 ```
 
 or `pipenv`:
+
 ```
 pipenv install --pre prefect
 ```
@@ -113,4 +124,6 @@ pip install ./prefect
 
 ## License
 
-Prefect is licensed under the Apache Software License version 2.0.
+Prefect is variously licensed under the [Apache Software License Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) or the [Prefect Community License](https://www.prefect.io/legal/prefect-community-license).
+
+All code except the `/server` directory is Apache 2.0-licensed unless otherwise noted. The `/server` directory is licensed under the Prefect Community License.

@@ -1,5 +1,5 @@
-const sidebar73 = require('../api/0.7.3/sidebar')
 const sidebar81 = require('../api/0.8.1/sidebar')
+const sidebar98 = require('../api/0.9.8/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -67,15 +67,15 @@ module.exports = {
         link: '/core/'
       },
       {
-        text: 'Cloud',
-        link: '/cloud/'
+        text: 'Orchestration',
+        link: '/orchestration/'
       },
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.9.5)', link: '/api/latest/' },
+          { text: 'Latest (0.10.0)', link: '/api/latest/' },
+          { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
-          { text: '0.7.3', link: '/api/0.7.3/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -85,8 +85,8 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.7.3/': sidebar73.sidebar,
       '/api/0.8.1/': sidebar81.sidebar,
+      '/api/0.9.8/': sidebar98.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
@@ -143,10 +143,10 @@ module.exports = {
           children: getChildren('docs/api/latest', 'utilities')
         }
       ],
-      '/cloud/': [
-        '/cloud/',
+      '/orchestration/': [
+        '/orchestration/',
         {
-          title: 'Cloud UI',
+          title: 'UI',
           collapsable: true,
           children: [
             'ui/dashboard',
@@ -155,6 +155,21 @@ module.exports = {
             'ui/task-run',
             'ui/interactive-api',
             'ui/team-settings'
+          ]
+        },
+        {
+          title: 'Concepts',
+          collapsable: true,
+          children: [
+            'concepts/api',
+            'concepts/cli',
+            'concepts/projects',
+            'concepts/flows',
+            'concepts/flow_runs',
+            'concepts/secrets',
+            'concepts/services',
+            'concepts/tokens',
+            'concepts/task-concurrency-limiting'
           ]
         },
         {
@@ -167,22 +182,6 @@ module.exports = {
             'tutorial/docker',
             'tutorial/k8s',
             'tutorial/next-steps'
-          ]
-        },
-
-        {
-          title: 'Cloud Concepts',
-          collapsable: true,
-          children: [
-            'concepts/api',
-            'concepts/cli',
-            'concepts/projects',
-            'concepts/flows',
-            'concepts/flow_runs',
-            'concepts/secrets',
-            'concepts/services',
-            'concepts/tokens',
-            'concepts/task-concurrency-limiting'
           ]
         },
         {
@@ -223,28 +222,20 @@ module.exports = {
         {
           title: 'FAQ',
           collapsable: true,
-          children: getChildren('docs/cloud', 'faq')
+          children: getChildren('docs/orchestration', 'faq')
         }
       ],
       '/core/': [
         '/core/',
-        {
-          title: 'Introduction',
-          collapsable: true,
-          children: [
-            'introduction/why_prefect',
-            'introduction/why_not_airflow',
-            'introduction/community',
-            'introduction/code_of_conduct'
-          ]
-        },
         {
           title: 'Getting Started',
           collapsable: true,
           children: [
             'getting_started/installation',
             'getting_started/first-steps',
-            'getting_started/next-steps'
+            'getting_started/next-steps',
+            'getting_started/why-prefect',
+            'getting_started/why-not-airflow'
           ]
         },
         {
@@ -303,14 +294,13 @@ module.exports = {
             'development/documentation',
             'development/tests',
             'development/contributing',
-            'development/release-checklist'
+            'development/release-checklist',
+            'development/sprints'
           ]
         },
-        {
-          title: 'FAQ',
-          collapsable: true,
-          children: getChildren('docs/core', 'faq')
-        }
+        '/core/faq',
+        '/core/community',
+        '/core/code_of_conduct'
       ]
     }
   },

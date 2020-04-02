@@ -8,6 +8,7 @@ Note that Prefect Tasks come equipped with their own loggers.  These can be acce
 
 When running locally, log levels and message formatting are set via your Prefect configuration file.
 """
+from ast import literal_eval
 import atexit
 import json
 import logging
@@ -128,8 +129,8 @@ class CloudHandler(logging.StreamHandler):
 
             record_dict = record.__dict__.copy()
             log = dict()
-            log["flowRunId"] = prefect.context.get("flow_run_id", None)
-            log["taskRunId"] = prefect.context.get("task_run_id", None)
+            log["flow_run_id"] = prefect.context.get("flow_run_id", None)
+            log["task_run_id"] = prefect.context.get("task_run_id", None)
             log["timestamp"] = pendulum.from_timestamp(
                 record_dict.pop("created", time.time())
             ).isoformat()
@@ -151,7 +152,7 @@ class CloudHandler(logging.StreamHandler):
 
     def _make_error_log(self, message: str) -> dict:
         log = dict()
-        log["flowRunId"] = prefect.context.get("flow_run_id", None)
+        log["flow_run_id"] = prefect.context.get("flow_run_id", None)
         log["timestamp"] = pendulum.from_timestamp(time.time()).isoformat()
         log["name"] = self.logger.name
         log["message"] = message
@@ -234,7 +235,8 @@ def configure_extra_loggers() -> None:
     Creates a "Prefect" configured logger for all strings in extra_loggers config list.
     The logging.extra_loggers config defaults to an empty list.
     """
-    for l in context.config.logging.extra_loggers:
+    loggers = literal_eval(context.config.logging.get("extra_loggers", "[]"))
+    for l in loggers:
         _create_logger(l)
 
 
@@ -258,3 +260,34 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+class RedirectToLog:
+    """
+    Custom redirect of stdout messages to logs
+
+    Args:
+        - logger (logging.Logger, optional): an optional logger to redirect stdout. If
+            not provided a logger names `stdout` will be created.
+    """
+
+    def __init__(self, logger: logging.Logger = None) -> None:
+        self.stdout_logger = logger or get_logger("stdout")
+
+    def write(self, s: str) -> None:
+        """
+        Write message from stdout to a prefect logger.
+        Note: blank newlines will not be logged.
+
+        Args:
+            s (str): the message from stdout to be logged
+        """
+        if s.strip():
+            self.stdout_logger.info(s)
+
+    def flush(self) -> None:
+        """
+        Implemented flush operation for logger handler
+        """
+        for handler in self.stdout_logger.handlers:
+            handler.flush()

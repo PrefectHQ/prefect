@@ -1,6 +1,8 @@
 import datetime
 import logging
+import json
 import os
+import platform
 import random
 import sys
 import tempfile
@@ -11,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import cloudpickle
 import pendulum
 import pytest
+import toml
 
 import prefect
 from prefect.core.edge import Edge
@@ -1602,7 +1605,7 @@ class TestFlowRunMethod:
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
         )
         b = prefect.schedules.clocks.DatesClock(
-            [pendulum.now("UTC").add(seconds=0.25)], parameter_defaults=dict(x=2)
+            [pendulum.now("UTC").add(seconds=0.5)], parameter_defaults=dict(x=2)
         )
 
         x = prefect.Parameter("x", default=None, required=False)
@@ -1623,7 +1626,7 @@ class TestFlowRunMethod:
         a = prefect.schedules.clocks.DatesClock(
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
         )
-        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.25)])
+        b = prefect.schedules.clocks.DatesClock([pendulum.now("UTC").add(seconds=0.35)])
 
         x = prefect.Parameter("x", default=3, required=False)
         outputs = []
@@ -2011,7 +2014,7 @@ class TestFlowRunMethod:
 
         @task(cache_for=datetime.timedelta(minutes=10), cache_validator=all_inputs)
         def return_x(x, y):
-            return 1 / (y - 1) + round(random.random(), 4)
+            return 1 / (y - 1) + round(random.random(), 8)
 
         storage = {"y": []}
 
@@ -2124,7 +2127,7 @@ class TestFlowRunMethod:
 
     def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
 
-        start_times = [pendulum.now().add(seconds=i * 0.1) for i in range(1, 4)]
+        start_times = [pendulum.now().add(seconds=i * 0.2) for i in range(1, 4)]
         REPORTED_START_TIMES = []
 
         @task
@@ -2154,6 +2157,70 @@ class TestFlowRunMethod:
         state = f.run(executor=BadExecutor())
         assert isinstance(state, Cancelled)
         assert "interrupt" in state.message.lower()
+
+
+class TestFlowDiagnostics:
+    def test_flow_diagnostics(self, monkeypatch):
+        with tempfile.TemporaryDirectory() as tempdir:
+            file = open("{}/config.toml".format(tempdir), "w+")
+            toml.dump({"secrets": {"key": "value"}}, file)
+            file.close()
+
+            monkeypatch.setattr(
+                "prefect.configuration.USER_CONFIG", "{}/config.toml".format(tempdir)
+            )
+
+            @prefect.task
+            def t1():
+                pass
+
+            @prefect.task
+            def t2():
+                pass
+
+            flow = prefect.Flow(
+                "test",
+                tasks=[t1, t2],
+                storage=prefect.environments.storage.Local(),
+                schedule=prefect.schedules.Schedule(clocks=[]),
+                result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+            )
+
+            monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
+
+            diagnostic_info = flow.diagnostics()
+            diagnostic_info = json.loads(diagnostic_info)
+
+            config_overrides = diagnostic_info["config_overrides"]
+            env_vars = diagnostic_info["env_vars"]
+            flow_information = diagnostic_info["flow_information"]
+            system_info = diagnostic_info["system_information"]
+
+            assert config_overrides == {"secrets": False}
+
+            assert "PREFECT__TEST" in env_vars
+            assert "NOT__PREFECT" not in env_vars
+
+            assert flow_information
+
+            # Type information
+            assert flow_information["environment"]["type"] == "RemoteEnvironment"
+            assert flow_information["storage"]["type"] == "Local"
+            assert flow_information["result_handler"]["type"] == "JSONResultHandler"
+            assert flow_information["schedule"]["type"] == "Schedule"
+            assert flow_information["task_count"] == 2
+
+            # Kwargs presence check
+            assert flow_information["environment"]["executor"] is True
+            assert flow_information["environment"]["executor_kwargs"] is False
+            assert flow_information["environment"]["labels"] is False
+            assert flow_information["environment"]["on_start"] is False
+            assert flow_information["environment"]["on_exit"] is False
+            assert flow_information["environment"]["logger"] is True
+
+            assert system_info["prefect_version"] == prefect.__version__
+            assert system_info["platform"] == platform.platform()
+            assert system_info["python_version"] == platform.python_version()
 
 
 class TestFlowRegister:
@@ -2187,7 +2254,11 @@ class TestFlowRegister:
             }
         ):
             f.register(
-                "My-project", registry_url="FOO", image_name="BAR", image_tag="BIG"
+                "My-project",
+                registry_url="FOO",
+                image_name="BAR",
+                image_tag="BIG",
+                no_url=True,
             )
 
         assert isinstance(f.storage, prefect.environments.storage.Docker)
@@ -2566,3 +2637,11 @@ def test_timeout_actually_stops_execution(executor):
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
     assert isinstance(state.result[slow_fn].result, TimeoutError)
+
+
+@pytest.mark.skip("Result handlers not yet deprecated")
+def test_result_handler_option_shows_deprecation():
+    with pytest.warns(
+        UserWarning, match="the result_handler Flow option will be deprecated*"
+    ):
+        Flow("dummy", result_handler=object())

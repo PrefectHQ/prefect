@@ -1,4 +1,5 @@
 import copy
+from contextlib import redirect_stdout
 import itertools
 from typing import (
     TYPE_CHECKING,
@@ -75,8 +76,7 @@ class TaskRunner(Runner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one);
-            if not provided here or by the Task, will default to the one specified in your config
+            retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
     def __init__(
@@ -824,9 +824,16 @@ class TaskRunner(Runner):
                 timeout_handler or prefect.utilities.executors.timeout_handler
             )
             raw_inputs = {k: r.value for k, r in inputs.items()}
-            result = timeout_handler(
-                self.task.run, timeout=self.task.timeout, **raw_inputs
-            )
+
+            if getattr(self.task, "log_stdout", False):
+                with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
+                    result = timeout_handler(
+                        self.task.run, timeout=self.task.timeout, **raw_inputs
+                    )
+            else:
+                result = timeout_handler(
+                    self.task.run, timeout=self.task.timeout, **raw_inputs
+                )
 
         except KeyboardInterrupt:
             self.logger.debug("Interrupt signal raised, cancelling task run.")

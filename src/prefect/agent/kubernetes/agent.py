@@ -21,7 +21,7 @@ def check_heartbeat() -> None:
     """
     Check the agent's heartbeat by verifying heartbeat file has been recently modified
     """
-    current_timestamp = pendulum.now().timestamp()
+    current_timestamp = pendulum.now().timestamp()  # type: ignore
     last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
 
     # If file has not been modified in the last 40 seconds then raise an exit code of 1
@@ -55,6 +55,8 @@ class KubernetesAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
     """
 
     def __init__(
@@ -63,8 +65,11 @@ class KubernetesAgent(Agent):
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
+        max_polls: int = None,
     ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(
+            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+        )
 
         self.namespace = namespace
 

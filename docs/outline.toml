@@ -53,6 +53,7 @@ classes = [
 title = "Filters"
 module = "prefect.schedules.filters"
 functions = [
+    "at_time",
     "between_datetimes",
     "between_dates",
     "between_times",
@@ -112,6 +113,7 @@ classes = [
             "Failed",
             "Cancelled",
             "TriggerFailed",
+            "ValidationFailed",
             "TimedOut",
         ]
 
@@ -123,6 +125,7 @@ classes = [
             "FAIL",
             "LOOP",
             "TRIGGERFAIL",
+            "VALIDATIONFAIL",
             "SUCCESS",
             "RETRY",
             "SKIP",
@@ -423,6 +426,11 @@ title = "Debugging Tools"
 module = "prefect.utilities.debug"
 functions = ["is_serializable", "raise_on_exception"]
 
+[pages.utilities.diagnostics]
+title = "Diagnostics"
+module = "prefect.utilities.diagnostics"
+functions = ["diagnostic_info", "flow_information", "system_information", "config_overrides", "environment_variables"]
+
 [pages.utilities.executors]
 title = "Executors"
 module = "prefect.utilities.executors"
@@ -447,7 +455,7 @@ functions = ["configure_logging", "get_logger"]
 [pages.utilities.notifications]
 title = "Notifications and Callback Tools"
 module = "prefect.utilities.notifications"
-functions = ["callback_factory", "slack_notifier", "gmail_notifier"]
+functions = ["callback_factory", "slack_notifier", "gmail_notifier", "jira_notification.jira_notifier"]
 
 [pages.utilities.serialization]
 title = "Serialization"

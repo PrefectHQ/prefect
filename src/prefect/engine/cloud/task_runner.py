@@ -43,8 +43,7 @@ class CloudTaskRunner(TaskRunner):
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
         - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one);
-            if not provided here or by the Task, will default to the one specified in your config
+            retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
     def __init__(
@@ -62,6 +61,7 @@ class CloudTaskRunner(TaskRunner):
         try:
             task_run_id = self.task_run_id  # type: str
             self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
+            self.client.update_task_run_heartbeat(task_run_id)
 
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
@@ -73,7 +73,7 @@ class CloudTaskRunner(TaskRunner):
                 }
             }
             flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.flow.settings.get("disable_heartbeat"):
+            if not flow_run.flow.settings.get("heartbeat_enabled", True):
                 return False
             return True
         except Exception as exc:

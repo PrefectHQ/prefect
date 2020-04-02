@@ -1,4 +1,7 @@
-# Parallel Execution
+---
+sidebarDepth: 0
+---
+# Scaling Out
 
 ::: tip Follow along in the Terminal
 

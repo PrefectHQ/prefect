@@ -25,6 +25,7 @@ def test_agent_config_options(runner_token):
         agent = Agent()
         assert agent.labels == []
         assert agent.env_vars == dict()
+        assert agent.max_polls is None
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.name == "agent"
         assert agent.logger
@@ -69,6 +70,12 @@ def test_agent_env_vars(runner_token):
         assert agent.env_vars == dict(AUTH_THING="foo")
 
 
+def test_agent_max_polls(runner_token):
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = Agent(max_polls=10)
+        assert agent.max_polls == 10
+
+
 def test_agent_labels(runner_token):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(labels=["test", "2"])
@@ -89,17 +96,18 @@ def test_agent_log_level_debug(runner_token):
         assert agent.logger.level == 10
 
 
-def test_agent_fails_no_auth_token():
+def test_agent_fails_no_auth_token(cloud_api):
     with pytest.raises(AuthorizationError):
         agent = Agent()
-        agent.query_tenant_id()
 
 
-def test_agent_fails_no_runner_token(monkeypatch):
+def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
-                return_value=dict(data=dict(authInfo=MagicMock(apiTokenScope="USER")))
+                return_value=dict(
+                    data=dict(auth_info=MagicMock(api_token_scope="USER"))
+                )
             )
         )
     )
@@ -109,42 +117,14 @@ def test_agent_fails_no_runner_token(monkeypatch):
 
     with pytest.raises(AuthorizationError):
         agent = Agent()
-        agent.query_tenant_id()
-
-
-def test_query_tenant_id(monkeypatch, runner_token):
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-
-    agent = Agent()
-    tenant_id = agent.query_tenant_id()
-    assert tenant_id == "id"
-
-
-def test_query_tenant_id_not_found(monkeypatch, runner_token):
-    post = MagicMock(
-        return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(tenant=[]))))
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-
-    agent = Agent()
-    tenant_id = agent.query_tenant_id()
-    assert not tenant_id
 
 
 def test_query_flow_runs(monkeypatch, runner_token):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]), flow_run=[{"id": "id"}]
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
+                flow_run=[{"id": "id"}],
             )
         )
     )
@@ -153,7 +133,7 @@ def test_query_flow_runs(monkeypatch, runner_token):
     monkeypatch.setattr("prefect.agent.agent.Client", client)
 
     agent = Agent()
-    flow_runs = agent.query_flow_runs(tenant_id="id")
+    flow_runs = agent.query_flow_runs()
     assert flow_runs == [{"id": "id"}]
 
 
@@ -161,7 +141,7 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_t
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["id1", "id2"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id1", "id2"]),
                 flow_run=[{"id1": "id1"}],
             )
         )
@@ -172,7 +152,7 @@ def test_query_flow_runs_ignores_currently_submitting_runs(monkeypatch, runner_t
 
     agent = Agent()
     agent.submitting_flow_runs.add("id2")
-    agent.query_flow_runs(tenant_id="id")
+    agent.query_flow_runs()
 
     assert len(gql_return.call_args_list) == 2
     assert (
@@ -187,7 +167,7 @@ def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
-                getRunsInQueue=MagicMock(flow_run_ids=["already-submitted-id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["already-submitted-id"]),
                 flow_run=[{"id": "id"}],
             )
         )
@@ -201,7 +181,7 @@ def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
     copy_mock = MagicMock(return_value=set(["already-submitted-id"]))
     agent.submitting_flow_runs = MagicMock(copy=copy_mock)
 
-    flow_runs = agent.query_flow_runs(tenant_id="id")
+    flow_runs = agent.query_flow_runs()
 
     assert flow_runs == []
     assert "1 already submitting: ['already-submitted-id']" in caplog.text
@@ -308,22 +288,7 @@ def test_agent_connect(monkeypatch, runner_token):
     monkeypatch.setattr("requests.Session", session)
 
     agent = Agent()
-    assert agent.agent_connect() == "id"
-
-
-def test_agent_connect_no_tenant_id(monkeypatch, runner_token):
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(tenant=[dict(id=None)])))
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-
-    agent = Agent()
-    with pytest.raises(ConnectionError):
-        assert agent.agent_connect()
+    assert agent.agent_connect() is None
 
 
 def test_on_flow_run_deploy_attempt_removes_id(monkeypatch, runner_token):
@@ -339,7 +304,7 @@ def test_agent_process(monkeypatch, runner_token):
             data=MagicMock(
                 set_flow_run_state=None,
                 set_task_run_state=None,
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
                 flow_run=[
                     GraphQLResult(
                         {
@@ -370,7 +335,7 @@ def test_agent_process(monkeypatch, runner_token):
     executor.submit = MagicMock(return_value=future_mock)
 
     agent = Agent()
-    assert agent.agent_process(executor, "id")
+    assert agent.agent_process(executor)
     assert executor.submit.called
     assert future_mock.add_done_callback.called
 
@@ -381,7 +346,7 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
             data=MagicMock(
                 set_flow_run_state=None,
                 set_task_run_state=None,
-                getRunsInQueue=MagicMock(flow_run_ids=["id"]),
+                get_runs_in_queue=MagicMock(flow_run_ids=["id"]),
                 flow_run=[],
             )
         )
@@ -393,13 +358,13 @@ def test_agent_process_no_runs_found(monkeypatch, runner_token):
     executor = MagicMock()
 
     agent = Agent()
-    assert not agent.agent_process(executor, "id")
+    assert not agent.agent_process(executor)
     assert not executor.submit.called
 
 
 def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog):
     gql_return = MagicMock(
-        return_value=MagicMock(data=MagicMock(writeRunLogs=MagicMock(success=True)))
+        return_value=MagicMock(data=MagicMock(write_run_logs=MagicMock(success=True)))
     )
     client = MagicMock()
     client.return_value.write_run_logs = gql_return
@@ -428,7 +393,7 @@ def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog):
 
     assert client.write_run_logs.called
     client.write_run_logs.assert_called_with(
-        [dict(flowRunId="id", level="ERROR", message="Error Here", name="agent")]
+        [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
     assert "Logging platform error for flow run" in caplog.text
 
@@ -444,3 +409,66 @@ def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token):
     with pytest.raises(Exception):
         agent.agent_process(executor, "id")
         assert client.write_run_log.called
+
+
+def test_agent_start_max_polls(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
+
+    agent = Agent(max_polls=1)
+    agent.start()
+
+    assert on_shutdown.called
+    assert agent_process.called
+    assert heartbeat.called
+
+
+def test_agent_start_max_polls_count(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
+
+    agent = Agent(max_polls=2)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 2
+    assert heartbeat.call_count == 2
+
+
+def test_agent_start_max_polls_zero(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
+
+    agent = Agent(max_polls=0)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 0
+    assert heartbeat.call_count == 0

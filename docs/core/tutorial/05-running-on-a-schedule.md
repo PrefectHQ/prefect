@@ -1,4 +1,7 @@
-# Running on a Schedule
+---
+sidebarDepth: 0
+---
+# Running on Schedule
 
 ::: tip Follow along in the Terminal
 

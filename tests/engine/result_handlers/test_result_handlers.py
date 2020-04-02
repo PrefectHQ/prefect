@@ -166,32 +166,31 @@ class TestGCSResultHandler:
 @pytest.mark.xfail(raises=ImportError, reason="aws extras not installed.")
 class TestS3ResultHandler:
     @pytest.fixture
-    def s3_client(self, monkeypatch):
+    def session(self, monkeypatch):
         import boto3
 
-        client = MagicMock()
-        with patch.dict("sys.modules", {"boto3": MagicMock(client=client)}):
-            yield client
+        session = MagicMock()
+        with patch.dict("sys.modules", {"boto3": MagicMock(session=session)}):
+            yield session
 
-    def test_s3_client_init_uses_secrets(self, s3_client):
+    def test_s3_client_init_uses_secrets(self, session):
         handler = S3ResultHandler(
             bucket="bob", aws_credentials_secret="AWS_CREDENTIALS"
         )
         assert handler.bucket == "bob"
-        assert s3_client.called is False
+        assert session.Session().client.called is False
 
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 handler.initialize_client()
-
-        assert s3_client.call_args[1] == {
+        assert session.Session().client.call_args[1] == {
             "aws_access_key_id": 1,
             "aws_secret_access_key": 42,
         }
 
-    def test_s3_client_init_uses_custom_secrets(self, s3_client):
+    def test_s3_client_init_uses_custom_secrets(self, session):
         handler = S3ResultHandler(bucket="bob", aws_credentials_secret="MY_FOO")
 
         with prefect.context(
@@ -201,12 +200,12 @@ class TestS3ResultHandler:
                 handler.initialize_client()
 
         assert handler.bucket == "bob"
-        assert s3_client.call_args[1] == {
+        assert session.Session().client.call_args[1] == {
             "aws_access_key_id": 1,
             "aws_secret_access_key": 999,
         }
 
-    def test_s3_writes_to_blob_prefixed_by_date_suffixed_by_prefect(self, s3_client):
+    def test_s3_writes_to_blob_prefixed_by_date_suffixed_by_prefect(self, session):
         handler = S3ResultHandler(bucket="foo")
 
         with prefect.context(
@@ -215,7 +214,9 @@ class TestS3ResultHandler:
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 uri = handler.write("so-much-data")
 
-        used_uri = s3_client.return_value.upload_fileobj.call_args[1]["Key"]
+        used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
+            "Key"
+        ]
 
         assert used_uri == uri
         assert used_uri.startswith(pendulum.now("utc").format("Y/M/D"))
@@ -229,7 +230,11 @@ class TestS3ResultHandler:
             def __getstate__(self):
                 raise ValueError("I cannot be pickled.")
 
-        with patch.dict("sys.modules", {"boto3": MagicMock(client=client)}):
+        import boto3
+
+        with patch.dict("sys.modules", {"boto3": MagicMock()}):
+            boto3.session.Session().client = client
+
             with prefect.context(
                 secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42))
             ):
@@ -237,6 +242,106 @@ class TestS3ResultHandler:
                     handler = S3ResultHandler(bucket="foo")
             res = cloudpickle.loads(cloudpickle.dumps(handler))
             assert isinstance(res, S3ResultHandler)
+
+    def test_s3_uninitialized_client(self, session):
+        handler = S3ResultHandler(
+            bucket="bob", aws_credentials_secret="AWS_CREDENTIALS"
+        )
+        assert handler.bucket == "bob"
+
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
+            boto3client="test",
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                assert handler.client is not None
+
+    def test_s3_with_kwargs_invalid_service_name(self, session):
+        with pytest.raises(AssertionError) as ex:
+            handler = S3ResultHandler(
+                bucket="bob",
+                aws_credentials_secret="AWS_CREDENTIALS",
+                boto3_kwargs=dict(service_name="s3"),
+            )
+        assert str(ex.value) == 'Changing the boto3 "service_name" is not permitted!'
+
+    def test_s3_with_kwarg_overwrite_aws_keys(self, session):
+        handler = S3ResultHandler(
+            bucket="bob",
+            aws_credentials_secret="AWS_CREDENTIALS",
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
+        )
+        assert (
+            "aws_access_key_id" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_access_key_id" in boto_kwargs'
+        assert (
+            "aws_secret_access_key" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_secret_access_key" in boto_kwargs'
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        assert session.Session().client.call_args[1] == {
+            "aws_access_key_id": 1,
+            "aws_secret_access_key": 999,
+        }
+
+    def test_s3_with_kwargs_aws_keys(self, session):
+        handler = S3ResultHandler(
+            bucket="bob",
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
+        )
+        assert (
+            "aws_access_key_id" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_access_key_id" in boto_kwargs'
+        assert (
+            "aws_secret_access_key" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_secret_access_key" in boto_kwargs'
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        assert session.Session().client.call_args[1] == {
+            "aws_access_key_id": 123,
+            "aws_secret_access_key": 456,
+        }
+
+    def test_s3_with_kwargs(self, session):
+        from botocore.client import Config
+
+        kw = dict(
+            region_name="us-east-1",
+            api_version="0.0.1",
+            endpoint_url="https://minio.local/",
+            config=Config(
+                signature_version="s3v4",
+                s3=dict(
+                    region_name="us-east-1",
+                    addressing_style="path",
+                    inject_host_prefix=False,
+                ),
+            ),
+        )
+        handler = S3ResultHandler(
+            bucket="bob", aws_credentials_secret="AWS_CREDENTIALS", boto3_kwargs=kw
+        )
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        kw.update(
+            {"aws_access_key_id": 1, "aws_secret_access_key": 999,}
+        )
+        assert session.Session().client.call_args[1] == kw
 
 
 @pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")

@@ -13,8 +13,8 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
             </router-link>
         </button>
         <button class="action-button">
-            <router-link to="cloud/">
-                Prefect Cloud
+            <router-link to="orchestration/">
+                Orchestration
             </router-link>
         </button>
     </div>
@@ -57,14 +57,19 @@ Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); a
 ### Hello, world! 👋
 
 ```python
-from prefect import task, Flow
+from prefect import task, Flow, Parameter
 
-@task
-def say_hello():
-    print("Hello, world!")
+
+@task(log_stdout=True)
+def say_hello(name):
+    print("Hello, {}!".format(name))
+
 
 with Flow("My First Flow") as flow:
-    say_hello()
+    name = Parameter('name')
+    say_hello(name)
 
-flow.run() # "Hello, world!"
+
+flow.run(name='world') # "Hello, world!" 
+flow.run(name='Marvin') # "Hello, Marvin!" 
 ```

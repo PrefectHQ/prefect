@@ -812,7 +812,12 @@ def test_flow_runner_captures_and_exposes_dask_errors(executor):
 
     assert state.is_failed()
     assert isinstance(state.result, TypeError)
-    assert str(state.result) == "can't pickle _thread.lock objects"
+
+    # assert two possible result outputs for different Python versions
+    assert str(state.result) in [
+        "can't pickle _thread.lock objects",
+        "cannot pickle '_thread.lock' object",
+    ]
 
 
 @pytest.mark.xfail(
@@ -1535,11 +1540,10 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     assert flow_state.result[log_stuff].result == (42, "original")
 
     time.sleep(0.75)
-    assert len(calls) == 1
-    assert len(calls[0][0]) == 6  # actual number of logs
+    assert len(calls) >= 1
+    assert len([log for call in calls for log in call[0]]) == 6  # actual number of logs
 
-    logs = calls[0][0]
-    loggers = [c["name"] for c in logs]
+    loggers = [log["name"] for call in calls for log in call[0]]
     assert set(loggers) == {
         "prefect.TaskRunner",
         "prefect.CustomFlowRunner",
