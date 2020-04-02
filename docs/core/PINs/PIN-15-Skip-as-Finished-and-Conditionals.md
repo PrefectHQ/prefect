@@ -11,7 +11,7 @@ Author: Alex Goodman
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
