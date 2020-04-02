@@ -108,8 +108,12 @@ def cloud(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
+    
+    Returns:
+        - flow_run_id (str): the flow run ID if the flow run completes
+        - None: if flow or flow run canot be found
     """
-    _run_flow(
+    return _run_flow(
         name=name,
         project=project,
         version=version,
@@ -180,8 +184,12 @@ def server(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
+    
+    Returns:
+        - flow_run_id (str): the flow run ID if the flow run completes
+        - None: if flow or flow run canot be found
     """
-    _run_flow(
+    return _run_flow(
         name=name,
         version=version,
         parameters_file=parameters_file,
@@ -287,7 +295,7 @@ def _run_flow(
                         click.echo("{} -> ".format(state), nl=False)
                     else:
                         click.echo(state)
-                        return
+                        return flow_run_id
 
                     current_states.append(state)
 
@@ -353,6 +361,8 @@ def _run_flow(
                 )
 
             if new_run.state == "Success" or new_run.state == "Failed":
-                return
+                return flow_run_id
 
             time.sleep(3)
+    
+    return flow_run_id
