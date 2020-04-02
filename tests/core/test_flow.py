@@ -1005,6 +1005,44 @@ def test_skip_validation_in_init_with_kwarg():
     assert Flow(name="test", edges=[e1, e2], validate=False)
 
 
+def test_skipped_task_still_succeed():
+    @prefect.task()
+    def a():
+        pass
+
+    @prefect.task(trigger=prefect.triggers.any_failed)
+    def b():
+        pass
+
+    @prefect.task()
+    def c():
+        pass
+
+    with prefect.Flow("My Flow") as flow:
+        flow.chain(a, b, c)
+
+    assert flow.run().is_successful()
+
+
+def test_skipped_tasks_still_succeed():
+    @prefect.task()
+    def a():
+        pass
+
+    @prefect.task(trigger=prefect.triggers.any_failed)
+    def b():
+        pass
+
+    @prefect.task(trigger=prefect.triggers.any_failed)
+    def c():
+        pass
+
+    with prefect.Flow("My Flow") as flow:
+        flow.chain(a, b, c)
+
+    assert flow.run().is_successful()
+
+
 @pytest.mark.xfail(raises=ImportError, reason="viz extras not installed.")
 class TestFlowVisualize:
     def test_visualize_raises_informative_importerror_without_python_graphviz(
