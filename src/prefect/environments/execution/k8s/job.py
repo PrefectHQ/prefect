@@ -19,8 +19,8 @@ class KubernetesJobEnvironment(Environment):
     When providing a custom YAML job spec the first container in the spec must be the
     container that the flow runner will be executed on.
 
-    These environment variables are required for cloud do not need to be included because
-    they are instead automatically added and populated during execution:
+    The following environment variables are automatically added and populated 
+    during execution (and therefore do not need to be specified):
 
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`

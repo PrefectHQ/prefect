@@ -11,6 +11,7 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
+from prefect.engine.signals import LOOP
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import (
     ConstantResultHandler,

@@ -6,6 +6,42 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
+- Allow kwargs to boto3 in S3ResultHandler - [#2240](https://github.com/PrefectHQ/prefect/issues/2240)
+
+### Enhancements
+
+- Add flags to `prefect server start` for disabling service port mapping - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
+- Add options to `prefect server start` for mapping to host ports - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
+- Return `flow_run_id` from CLI `run` methods for programmatic use - [#2242](https://github.com/PrefectHQ/prefect/pull/2242)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [szelenka](https://github.com/szelenka)
+- [Aditya Bhumbla](https://github.com/abhumbla)
+
+## 0.10.0 <Badge text="beta" type="success"/>
+
+Released on Mar 29, 2020.
+
+### Features
+
 - Open source database backend, GraphQL API and UI - [#2218](https://github.com/PrefectHQ/prefect/pull/2218)
 - Add `prefect server start` CLI command for spinning up database and UI - [#2214](https://github.com/PrefectHQ/prefect/pull/2214)
 
