@@ -354,7 +354,7 @@ class RemoveContainer(Task):
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
-        - container_id (str, optional): The id of a container to start
+        - container_id (str, optional): The id of a container to remove
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
