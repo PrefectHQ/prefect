@@ -175,3 +175,27 @@ class S3Result(Result):
             self.value = None
 
         return self.value
+
+    def exists(self) -> bool:
+        """
+        Checks whether the target result exists in the S3 bucket.
+        Does not validate whether the result is `valid`, only that it is present.
+        Returns:
+            - bool: whether or not the target result exists in the bucket
+        """
+        import botocore
+
+        uri = self.render_destination()
+
+        try:
+            self.client.get_object(Bucket=self.bucket, Key=uri).load()
+        except botocore.exceptions.ClientError as exc:
+            if exc.response["Error"]["Code"] == "404":
+                return False
+            raise
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error while reading from S3: {}".format(repr(exc))
+            )
+            raise
+        return True
