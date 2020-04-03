@@ -1,5 +1,5 @@
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from prefect import config, Task
 from prefect.client import Client
