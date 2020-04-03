@@ -76,7 +76,7 @@ class TestFlowRunTaskCloud:
 
 
 class TestFlowRunTaskCoreServer:
-    def test_initialization(self):
+    def test_initialization(self, server_api):
         # verify that the task is initialized as expected
         task = FlowRunTask(
             name="My Flow Run Task",
@@ -89,7 +89,7 @@ class TestFlowRunTaskCoreServer:
         assert task.flow_name == "Test Flow"
         assert task.parameters == {"test": "ing"}
 
-    def test_flow_run_task(self, client):
+    def test_flow_run_task(self, client, server_api):
         # verify that create_flow_run was called
         task = FlowRunTask(flow_name="Test Flow", parameters={"test": "ing"},)
         # verify that run returns the new flow run ID
@@ -103,13 +103,13 @@ class TestFlowRunTaskCoreServer:
             flow_id="abc123", parameters={"test": "ing"}
         )
 
-    def test_flow_run_task_without_flow_name(self):
+    def test_flow_run_task_without_flow_name(self, server_api):
         # verify that a ValueError is raised without a flow name
         task = FlowRunTask()
         with pytest.raises(ValueError, match="Must provide a flow name."):
             task.run()
 
-    def test_flow_run_task_with_no_matching_flow(self, client):
+    def test_flow_run_task_with_no_matching_flow(self, client, server_api):
         # verify a ValueError is raised if the client returns no flows
         task = FlowRunTask(flow_name="Test Flow")
         client.graphql = MagicMock(return_value=MagicMock(data=MagicMock(flow=[])))
