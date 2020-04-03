@@ -7,6 +7,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Features
 
 - CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
+- Allow kwargs to boto3 in S3ResultHandler - [#2240](https://github.com/PrefectHQ/prefect/issues/2240)
 
 ### Enhancements
 
@@ -32,6 +33,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [szelenka](https://github.com/szelenka)
 - [Aditya Bhumbla](https://github.com/abhumbla)
 
 ## 0.10.0 <Badge text="beta" type="success"/>
@@ -92,6 +94,7 @@ Released on Mar 18, 2020.
 - Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
 - Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
+- Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
 - Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
 - Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
 

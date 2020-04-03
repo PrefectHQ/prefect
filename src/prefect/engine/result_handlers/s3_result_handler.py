@@ -2,7 +2,7 @@ import base64
 import io
 import json
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 import cloudpickle
 import pendulum
@@ -31,11 +31,22 @@ class S3ResultHandler(ResultHandler):
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
             passed directly to `boto3`.  If not provided, `boto3`
             will fall back on standard AWS rules for authentication.
+        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
+            is initialized (changing the "service_name" is not permitted).
     """
 
-    def __init__(self, bucket: str, aws_credentials_secret: str = None) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        aws_credentials_secret: str = None,
+        boto3_kwargs: Dict[str, Any] = None,
+    ) -> None:
         self.bucket = bucket
         self.aws_credentials_secret = aws_credentials_secret
+        self.boto3_kwargs = boto3_kwargs or dict()
+        assert (
+            "service_name" not in self.boto3_kwargs.keys()
+        ), 'Changing the boto3 "service_name" is not permitted!'
         self._client = None
         super().__init__()
 
@@ -45,10 +56,15 @@ class S3ResultHandler(ResultHandler):
         """
         import boto3
 
-        aws_access_key = None
-        aws_secret_access_key = None
+        aws_access_key = self.boto3_kwargs.pop("aws_access_key_id", None)
+        aws_secret_access_key = self.boto3_kwargs.pop("aws_secret_access_key", None)
 
         if self.aws_credentials_secret:
+            if aws_access_key is not None or aws_secret_access_key is not None:
+                self.logger.warning(
+                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"'
+                )
+
             aws_credentials = Secret(self.aws_credentials_secret).get()
             if isinstance(aws_credentials, str):
                 aws_credentials = json.loads(aws_credentials)
@@ -63,6 +79,7 @@ class S3ResultHandler(ResultHandler):
             "s3",
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
+            **self.boto3_kwargs
         )
         self.client = s3_client
 
