@@ -347,6 +347,7 @@ class StopContainer(Task):
             "Completed stopping container with id {}".format(container_id)
         )
 
+
 class RemoveContainer(Task):
     """
     Task for removing a Docker container.
@@ -397,13 +398,16 @@ class RemoveContainer(Task):
         # the 'import prefect' time low
         import docker
 
-        self.logger.debug("Starting to remove container with id {}".format(container_id))
+        self.logger.debug(
+            "Starting to remove container with id {}".format(container_id)
+        )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
         client.remove_container(container=container_id)
         self.logger.debug(
             "Completed removing container with id {}".format(container_id)
         )
+
 
 class WaitOnContainer(Task):
     """

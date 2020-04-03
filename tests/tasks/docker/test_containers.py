@@ -437,6 +437,7 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
 
         self.assert_doesnt_log_on_param_failure(task, caplog)
 
+
 class TestRemoveContainerTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = RemoveContainer()
