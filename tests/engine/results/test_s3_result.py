@@ -50,14 +50,15 @@ class TestS3Result:
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):
         result = S3Result(
-            value="so-much-data", bucket="foo", filename_template="{thing}/here.txt"
+            value="so-much-data", bucket="foo", filepath_template="{thing}/here.txt"
         )
 
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
             thing="yes!",
-        ):
+        ) as ctx:
             with set_temporary_config({"cloud.use_local_secrets": True}):
+                result = result.format(**ctx)
                 uri = result.write()
 
         used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
@@ -103,8 +104,8 @@ class TestS3Result:
                 raise exc
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filename_template="stuff")
-
+        result = S3Result(bucket="bob", filepath_template="stuff")
+        result = result.format()
         assert result.exists() == False
 
     def test_s3_result_exists(self, session):
@@ -122,6 +123,6 @@ class TestS3Result:
                 return MagicMock()
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filename_template="stuff")
-
+        result = S3Result(bucket="bob", filepath_template="stuff")
+        result = result.format()
         assert result.exists() == True

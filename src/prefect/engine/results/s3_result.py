@@ -26,7 +26,7 @@ class S3Result(Result):
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
-        - aws_credentials_secret (str, optional): the name of the Prefect Secret
+        - credentials_secret (str, optional): the name of the Prefect Secret
             that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
             passed directly to `boto3`.  If not provided, `boto3`
@@ -39,12 +39,12 @@ class S3Result(Result):
     def __init__(
         self,
         bucket: str,
-        aws_credentials_secret: str = None,
+        credentials_secret: str = None,
         boto3_kwargs: Dict[str, Any] = None,
         **kwargs: Any
     ) -> None:
         self.bucket = bucket
-        self.aws_credentials_secret = aws_credentials_secret
+        self.credentials_secret = credentials_secret
         self.boto3_kwargs = boto3_kwargs or dict()
         assert (
             "service_name" not in self.boto3_kwargs.keys()
@@ -61,13 +61,13 @@ class S3Result(Result):
         aws_access_key = self.boto3_kwargs.pop("aws_access_key_id", None)
         aws_secret_access_key = self.boto3_kwargs.pop("aws_secret_access_key", None)
 
-        if self.aws_credentials_secret:
+        if self.credentials_secret:
             if aws_access_key is not None or aws_secret_access_key is not None:
                 self.logger.warning(
-                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"'
+                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "credentials_secret"'
                 )
 
-            aws_credentials = Secret(self.aws_credentials_secret).get()
+            aws_credentials = Secret(self.credentials_secret).get()
             if isinstance(aws_credentials, str):
                 aws_credentials = json.loads(aws_credentials)
 
@@ -180,12 +180,16 @@ class S3Result(Result):
         """
         Checks whether the target result exists in the S3 bucket.
         Does not validate whether the result is `valid`, only that it is present.
+
         Returns:
             - bool: whether or not the target result exists in the bucket
         """
         import botocore
 
-        uri = self.render_destination()
+        if not self._rendered_filepath:
+            raise ValueError("Must call `Result.format()` first")
+
+        uri = self._rendered_filepath
 
         try:
             self.client.get_object(Bucket=self.bucket, Key=uri).load()
