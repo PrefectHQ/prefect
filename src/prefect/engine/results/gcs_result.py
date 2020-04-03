@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
 from prefect.client import Secret
