@@ -18,6 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 
 - Make `project_name` optional for `FlowRunTask` to allow for use with Prefect Core's server - [#2266](https://github.com/PrefectHQ/prefect/pull/2266)
+- Adds `prefect.tasks.docker.container.RemoveContainer`
 
 ### Fixes
 
@@ -33,6 +34,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Manuel Aristarán](https://github.com/jazzido)
 - [szelenka](https://github.com/szelenka)
 - [Aditya Bhumbla](https://github.com/abhumbla)
 
