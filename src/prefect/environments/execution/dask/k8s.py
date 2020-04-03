@@ -29,8 +29,8 @@ class DaskKubernetesEnvironment(Environment):
     It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
     `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
     should be modeled after the job.yaml and worker_pod.yaml found [here](https://github.com/PrefectHQ/prefect/tree/master/src/prefect/environments/execution/dask).
-    The main aspects to be aware of are the `command` and `args` on the container. These environment variables are
-    required for cloud do not need to be included because they are instead automatically added and populated during execution:
+    The main aspects to be aware of are the `command` and `args` on the container. The following environment variables, required for cloud,
+    do not need to be included––they are automatically added and populated during execution:
 
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
