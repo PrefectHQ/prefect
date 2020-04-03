@@ -25,7 +25,7 @@ class GCSResult(Result):
         - bucket (str): the name of the bucket to write to / read from
         - credentials_secret (str, optional): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
-        - **kwargs (Any, optional): any prefect.engine.result.Result options
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
     def __init__(
@@ -80,7 +80,7 @@ class GCSResult(Result):
         self.logger.debug(
             "Starting to upload result to {}...".format(self._rendered_filepath)
         )
-        binary_data = self.serialize()
+        binary_data = self.serialize().decode()
 
         self.gcs_bucket.blob(self._rendered_filepath).upload_from_string(binary_data)
         self.logger.debug(
@@ -89,7 +89,7 @@ class GCSResult(Result):
 
         return self._rendered_filepath
 
-    def read(self, loc: Optional[str] = None) -> Any:
+    def read(self, loc: str = None) -> Any:
         """
         Reads a result from a GCS bucket
 
