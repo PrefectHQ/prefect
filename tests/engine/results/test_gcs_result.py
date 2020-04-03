@@ -10,7 +10,7 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.utilities.configuration import set_temporary_config
-from prefect.engine.result import GCSResult
+from prefect.engine.results import GCSResult
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
