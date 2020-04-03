@@ -6,4 +6,3 @@ from prefect.engine.result.base import (
     NoResultType,
     SafeResult,
 )
-from prefect.engine.result.gcs_result import GCSResult

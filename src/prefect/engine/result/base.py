@@ -19,7 +19,7 @@ whose value is `None`.
 import base64
 import copy
 import datetime
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Union
 
 import cloudpickle
 
@@ -96,9 +96,9 @@ class Result(ResultInterface):
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
-        cache_for: Optional[datetime.timedelta] = None,
-        cache_validator: Optional[Callable] = None,
-        filepath_template: Optional[str] = None,
+        cache_for: datetime.timedelta = None,
+        cache_validator: Callable = None,
+        filepath_template: str = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -162,17 +162,17 @@ class Result(ResultInterface):
         """
         return copy.copy(self)
 
-    def serialize(self) -> str:
+    def serialize(self) -> bytes:
         """
-        Serializes the result value into a string.
+        Serializes the result value into bytes.
 
         Returns:
-            - str: the serialized result value
+            - bytes: the serialized result value
         """
-        return base64.b64encode(cloudpickle.dumps(self.value)).decode()
+        return base64.b64encode(cloudpickle.dumps(self.value))
 
     @classmethod
-    def deserialize(cls, serialized_value: str) -> Any:
+    def deserialize(cls, serialized_value: Union[str, bytes]) -> Any:
         """
         Takes a given serialized result value and returns a deserialized value.
 
@@ -213,7 +213,7 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def read(self, loc: Optional[str] = None) -> Any:
+    def read(self, loc: str = None) -> Any:
         """
         Reads from the target result.
 
