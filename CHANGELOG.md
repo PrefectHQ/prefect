@@ -17,7 +17,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Adds `prefect.tasks.docker.container.RemoveContainer`
 
 ### Fixes
 
@@ -33,6 +33,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Manuel Aristarán](https://github.com/jazzido)
 - [szelenka](https://github.com/szelenka)
 - [Aditya Bhumbla](https://github.com/abhumbla)
 
