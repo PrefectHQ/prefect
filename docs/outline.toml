@@ -267,6 +267,7 @@ classes = [
         "ListContainers",
         "StartContainer",
         "StopContainer",
+        "RemoveContainer",
         "WaitOnContainer"
         ]
 

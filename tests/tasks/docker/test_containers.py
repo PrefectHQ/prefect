@@ -11,6 +11,7 @@ from prefect.tasks.docker import (
     ListContainers,
     StartContainer,
     StopContainer,
+    RemoveContainer,
     WaitOnContainer,
 )
 
@@ -431,6 +432,85 @@ class TestStopContainerTask(DockerLoggingTestingUtilityMixin):
     def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
 
         task = StopContainer()
+        api = MagicMock()
+        monkeypatch.setattr("docker.APIClient", api)
+
+        self.assert_doesnt_log_on_param_failure(task, caplog)
+
+
+class TestRemoveContainerTask(DockerLoggingTestingUtilityMixin):
+    def test_empty_initialization(self):
+        task = RemoveContainer()
+        assert not task.container_id
+        assert task.docker_server_url == "unix:///var/run/docker.sock"
+
+    def test_filled_initialization(self):
+        task = RemoveContainer(container_id="test", docker_server_url="test")
+        assert task.container_id == "test"
+        assert task.docker_server_url == "test"
+
+    def test_empty_container_id_raises_error(self):
+        task = RemoveContainer()
+        with pytest.raises(ValueError):
+            task.run()
+
+    def test_invalid_container_id_raises_error(self):
+        task = RemoveContainer()
+        with pytest.raises(ValueError):
+            task.run(container_id=None)
+
+    def test_container_id_init_value_is_used(self, monkeypatch):
+        task = RemoveContainer(container_id="test")
+
+        api = MagicMock()
+        monkeypatch.setattr("docker.APIClient", api)
+
+        task.run()
+        assert api.return_value.remove_container.call_args[1]["container"] == "test"
+
+    def test_container_id_run_value_is_used(self, monkeypatch):
+        task = RemoveContainer()
+
+        api = MagicMock()
+        monkeypatch.setattr("docker.APIClient", api)
+
+        task.run(container_id="test")
+        assert api.return_value.remove_container.call_args[1]["container"] == "test"
+
+    def test_container_id_is_replaced(self, monkeypatch):
+        task = RemoveContainer(container_id="original")
+
+        api = MagicMock()
+        monkeypatch.setattr("docker.APIClient", api)
+
+        task.run(container_id="test")
+        assert api.return_value.remove_container.call_args[1]["container"] == "test"
+
+    def test_logs_twice_on_success(self, monkeypatch, caplog):
+
+        task = RemoveContainer(container_id="test")
+        api = MagicMock()
+
+        monkeypatch.setattr("docker.APIClient", api)
+
+        self.assert_logs_twice_on_success(task, caplog)
+
+    def test_logs_once_on_docker_api_failure(self, monkeypatch, caplog):
+
+        task = RemoveContainer(container_id="original")
+
+        api = MagicMock()
+        remove_container_mock = MagicMock(
+            side_effect=docker.errors.DockerException("A docker specific exception")
+        )
+        api.return_value.remove_container = remove_container_mock
+        monkeypatch.setattr("docker.APIClient", api)
+
+        self.assert_logs_once_on_docker_api_failure(task, caplog)
+
+    def test_doesnt_log_on_param_failure(self, monkeypatch, caplog):
+
+        task = RemoveContainer()
         api = MagicMock()
         monkeypatch.setattr("docker.APIClient", api)
 

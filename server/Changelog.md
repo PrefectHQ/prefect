@@ -16,7 +16,7 @@
 
 ### Fixes
 
-- None
+- Change default log `timestamp` value in database to be identical to other tables instead of a hard coded value - [#2230](https://github.com/PrefectHQ/prefect/pull/2230)
 
 ### Breaking Changes
 
@@ -25,3 +25,6 @@
 ### Deprecations
 
 - None
+
+### Contributors
+- [Alex Cano](https://github.com/alexisprince1994)
