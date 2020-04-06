@@ -25,6 +25,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import unmapped
+from prefect.engine.result import Result
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -252,6 +253,8 @@ class Task(metaclass=SignatureValidator):
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
         self.result_handler = result_handler
+
+        self.result = result or Result()
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")

@@ -566,11 +566,9 @@ class FlowRunner(Runner):
 
         """
         with prefect.context(self.context):
-            default_handler = task.result_handler or self.flow.result_handler
             task_runner = self.task_runner_cls(
                 task=task,
                 state_handlers=task_runner_state_handlers,
-                result_handler=default_handler,
             )
 
             # if this task reduces over a mapped state, make sure its children have finished

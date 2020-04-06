@@ -48,7 +48,7 @@ class ResultInterface:
         val = self.value  # type: ignore
         return "<{type}: {val}>".format(type=type(self).__name__, val=repr(val))
 
-    def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
+    def populate_result(self, result: "Result") -> "ResultInterface":
         """
         If no result handler provided, returns self.  If a ResultHandler is provided, however,
         it will become the new result handler for this result.
@@ -59,8 +59,6 @@ class ResultInterface:
         Returns:
             - ResultInterface: a potentially new Result object
         """
-        if result_handler is not None:
-            self.result_handler = result_handler
         return self
 
     def store_safe_value(self) -> None:
