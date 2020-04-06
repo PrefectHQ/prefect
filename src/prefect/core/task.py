@@ -25,6 +25,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.tasks import unmapped
+from prefect.engine.result import Result, CustomResult
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -251,11 +252,21 @@ class Task(metaclass=SignatureValidator):
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
         self.result_handler = result_handler
-        # todo: convert result handler to a Result class that matches its type
-        # todo: instantiate a `CustomResult` object
+        # todo: cleanup/put somewhere real
         # todo: later in the marshmallow serializer for the `CustomResult`, the result handler must not be serialized to Cloud
-        # self.result =  result or convert(self.result_handler)
-        # todo: ^ the thing that we make for them IF they sent us a result handler instead
+        def _convert(result_handler: "ResultHandler") -> "Result":
+            if not result_handler:
+                return Result()
+            for class_repr, result_cls in inspect.getmembers(
+                prefect.engine.results, inspect.isclass
+            ):
+                if isinstance(result_handler, result_cls.RESULT_HANDLER):
+                    return result_cls(**result_handler.__dict__)
+            # must be custom if it's not in the engine
+            # todo: should be a real CustomResult
+            return CustomResult(**result_handler.__dict__)
+
+        self.result = result or _convert(self.result_handler)
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")

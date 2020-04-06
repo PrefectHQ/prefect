@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
 from prefect.engine.result import Result
+from prefect.engine.result_handlers import ConstantResultHandler
 
 
 class ConstantResult(Result):
@@ -11,6 +12,8 @@ class ConstantResult(Result):
     Args:
         - value (Any): the underlying value this Result should represent
     """
+
+    RESULT_HANDLER = ConstantResultHandler
 
     def __init__(self, value: Any = None, **kwargs: Any) -> None:
         self.value = value

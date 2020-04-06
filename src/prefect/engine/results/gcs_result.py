@@ -1,6 +1,7 @@
 from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
+from prefect.engine.result_handlers import GCSResultHandler
 from prefect.client import Secret
 from prefect.utilities import logging
 
@@ -27,6 +28,8 @@ class GCSResult(Result):
             which stores a JSON representation of your Google Cloud credentials.
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
+
+    RESULT_HANDLER = GCSResultHandler
 
     def __init__(
         self,

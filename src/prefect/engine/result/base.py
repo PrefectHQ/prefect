@@ -239,6 +239,35 @@ class Result(ResultInterface):
         raise NotImplementedError()
 
 
+class CustomResult(Result):
+    """
+    Super fake custom result for testing purposes right now.
+    Throws out all excess args and kwargs.
+    """
+
+    def __init__(
+        self,
+        value: Any = None,
+        result_handler: ResultHandler = None,
+        validators: Iterable[Callable] = None,
+        run_validators: bool = True,
+        cache_for: datetime.timedelta = None,
+        cache_validator: Callable = None,
+        filepath_template: str = None,
+        *args,
+        **kwargs
+    ):
+        super().__init__(
+            value,
+            result_handler,
+            validators,
+            run_validators,
+            cache_for,
+            cache_validator,
+            filepath_template,
+        )
+
+
 class SafeResult(ResultInterface):
     # todo: can we get Result.serialize to drop the user data ("do the right thing") every time before sending to Cloud
     # todo: part of this would be to send the filename_template as 'value' anyways so that cloud UI doesn't have to change
@@ -291,6 +320,8 @@ class NoResultType(SafeResult):
     A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object
     returns itself for its `value` and its `safe_value`.
     """
+
+    RESULT_HANDLER = ResultHandler
 
     def __init__(self) -> None:
         super().__init__(value=None, result_handler=ResultHandler())

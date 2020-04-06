@@ -5,6 +5,7 @@ from typing import Any, TYPE_CHECKING, Dict
 import prefect
 from prefect.client import Secret
 from prefect.engine.result import Result
+from prefect.engine.result_handlers import S3ResultHandler
 
 if TYPE_CHECKING:
     import boto3
@@ -30,6 +31,8 @@ class S3Result(Result):
             is initialized (changing the "service_name" is not permitted).
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
+
+    RESULT_HANDLER = S3ResultHandler
 
     def __init__(
         self,
