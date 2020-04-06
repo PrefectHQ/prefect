@@ -445,14 +445,14 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
 
-  'Build Server Images':
+  'Build and publish development server artifacts':
     jobs:
       - docker/publish:
           docker-password: DOCKER_HUB_PW
           docker-username: DOCKER_HUB_USER
           image: 'prefecthq/apollo'
           path: 'server/services/apollo'
-          tag: $CIRCLE_SHA1,latest,master
+          tag: master
           filters:
             branches:
               only: master
@@ -462,7 +462,7 @@ workflows:
           docker-username: DOCKER_HUB_USER
           image: 'prefecthq/server'
           path: 'server'
-          tag: $CIRCLE_SHA1,latest,master
+          tag: master
           filters:
             branches:
               only: master
@@ -472,7 +472,45 @@ workflows:
           docker-username: DOCKER_HUB_USER
           image: 'prefecthq/ui'
           path: 'server/services/ui'
-          tag: $CIRCLE_SHA1,latest,master
+          tag: master
           filters:
             branches:
               only: master
+
+  'Build and publish versioned server artifacts':
+    jobs:
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/apollo'
+          path: 'server/services/apollo'
+          tag: $CIRCLE_TAG,latest
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/server'
+          path: 'server'
+          tag: $CIRCLE_TAG,latest
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/ui'
+          path: 'server/services/ui'
+          tag: $CIRCLE_SHA1,latest
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
