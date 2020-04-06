@@ -24,6 +24,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+- Change default log `timestamp` value in database to be identical to other tables instead of a hard coded value - [#2230](https://github.com/PrefectHQ/prefect/pull/2230)
 
 ### Deprecations
 
@@ -38,6 +39,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Manuel Aristarán](https://github.com/jazzido)
 - [szelenka](https://github.com/szelenka)
 - [Aditya Bhumbla](https://github.com/abhumbla)
+- [Alex Cano](https://github.com/alexisprince1994)
 
 ## 0.10.0 <Badge text="beta" type="success"/>
 
