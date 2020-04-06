@@ -582,19 +582,13 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                handlers[edge.key] = handler = getattr(
-                    edge.upstream_task, "result_handler", None
-                )
-                task_inputs[  # type: ignore
-                    edge.key
-                ] = upstream_state._result.to_result(  # type: ignore
-                    handler
-                )  # type: ignore
+                # todo: 'if came from cloud'; do I have a handle on the upstream state's result instances?
+                task_inputs[edge.key] = upstream_state._result.to_result()
 
         if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
-                    k: r.to_result(handlers.get(k))  # type: ignore
+                    k: r.to_result()
                     for k, r in state.cached_inputs.items()
                     if task_inputs.get(k, NoResult) == NoResult
                 }
@@ -623,7 +617,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.to_result(self.task.result_handler)
+                state._result = state._result.to_result(self.task.result)
                 return state
             else:
                 state = Pending("Cache was invalid; ready to run.")
@@ -637,9 +631,7 @@ class TaskRunner(Runner):
                 if self.task.cache_validator(
                     candidate, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate._result = candidate._result.to_result(
-                        self.task.result_handler
-                    )
+                    candidate._result = candidate._result.to_result(self.task.result)
                     return candidate
 
         if self.task.cache_for is not None:
@@ -722,6 +714,7 @@ class TaskRunner(Runner):
                                         preview=repr(upstream_state.result)[:10],
                                     )
                                 )
+                            # todo: should be tasks's result? how do result instances work with mapping?
                             upstream_result = Result(
                                 upstream_state.result[i],
                                 result_handler=upstream_state._result.result_handler,  # type: ignore
@@ -902,23 +895,21 @@ class TaskRunner(Runner):
         except signals.LOOP as exc:
             new_state = exc.state
             assert isinstance(new_state, Looped)
-            new_state.result = Result(
-                value=new_state.result, result_handler=self.result_handler
-            )
+            new_state.result = self.task.result(value=new_state.result)
             new_state.cached_inputs = inputs
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
             return new_state
 
-        # todo: use the Result instance configured on the task to hold on to the return value (aka Result.value)
-        result = Result(value=result, result_handler=self.result_handler)
+        self.task.result.value = result
         state = Success(
-            result=result, message="Task run succeeded.", cached_inputs=inputs
+            result=self.task.result, message="Task run succeeded.", cached_inputs=inputs
         )
 
         ## checkpoint tasks if a result_handler is present, except for when the user has opted out by disabling checkpointing
         if (
+            # todo: change checkpointing logic to not be dependent on result_handler
             state.is_successful()
             and prefect.context.get("checkpointing") is True
             and self.task.checkpoint is not False
@@ -986,6 +977,7 @@ class TaskRunner(Runner):
             run_count = prefect.context.get("task_run_count", 1)
             if prefect.context.get("task_loop_count") is not None:
                 loop_context = {
+                    # todo: use task's converted result object?
                     "_loop_count": Result(
                         value=prefect.context["task_loop_count"],
                         result_handler=JSONResultHandler(),
