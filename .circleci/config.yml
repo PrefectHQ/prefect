@@ -508,7 +508,7 @@ workflows:
           docker-username: DOCKER_HUB_USER
           image: 'prefecthq/ui'
           path: 'server/services/ui'
-          tag: $CIRCLE_SHA1,latest
+          tag: $CIRCLE_TAG,latest
           filters:
             branches:
               ignore: /.*/
