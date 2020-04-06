@@ -105,8 +105,8 @@ class LOOP(PrefectStateSignal):
 class TRIGGERFAIL(FAIL):
     """
     Indicates that a task trigger failed.
+
     Args:
-        - message (Any, optional): Defaults to `None`. A message about the signal.
         - *args (Any, optional): additional arguments to pass to this Signal's
             associated state constructor
         - **kwargs (Any, optional): additional keyword arguments to pass to this Signal's

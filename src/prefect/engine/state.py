@@ -797,13 +797,12 @@ class TimedOut(Failed):
 class TriggerFailed(Failed):
     """
     Finished state indicating failure due to trigger.
+
     Args:
-        - message (str or Exception, optional): Defaults to `None`. A message about the
-            state, which could be an `Exception` (or [`Signal`](signals.html)) that caused it.
-        - result (Any, optional): Defaults to `None`. A data payload for the state.
-        - cached_inputs (dict): Defaults to `None`. A dictionary of input
-            keys to fully hydrated `Result`s.  Used / set if the Task requires Retries.
-        - context (dict, optional): A dictionary of execution context information; values should be JSON compatible
+        - *args (Any, optional): additional arguments to pass to this Failed state's
+            constructor
+        - **kwargs (Any, optional): additional keyword arguments to pass to this Failed
+            state's constructor
     """
 
     color = "#ff5131"
