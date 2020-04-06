@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add options to `prefect server start` for mapping to host ports - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
 - Return `flow_run_id` from CLI `run` methods for programmatic use - [#2242](https://github.com/PrefectHQ/prefect/pull/2242)
 - Add JSON output option to `describe` CLI commands - [#1813](https://github.com/PrefectHQ/prefect/issues/1813)
+- Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
 
 ### Task Library
 
@@ -99,7 +100,6 @@ Released on Mar 18, 2020.
 - Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
 - Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
-- Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
 - Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
 - Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
 
