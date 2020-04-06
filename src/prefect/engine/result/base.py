@@ -321,8 +321,6 @@ class NoResultType(SafeResult):
     returns itself for its `value` and its `safe_value`.
     """
 
-    RESULT_HANDLER = ResultHandler
-
     def __init__(self) -> None:
         super().__init__(value=None, result_handler=ResultHandler())
 
