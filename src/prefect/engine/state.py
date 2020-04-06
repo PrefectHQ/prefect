@@ -808,7 +808,7 @@ class TriggerFailed(Failed):
 
     color = "#ff5131"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):  # type: ignore
         super().__init__(*args, **kwargs)
         warnings.warn(
             "The `TriggerFailed` state is depricated and will be removed in the next major release.",
