@@ -1,7 +1,6 @@
 import base64
 import datetime
 import json
-from collections import defaultdict
 
 import cloudpickle
 import marshmallow
