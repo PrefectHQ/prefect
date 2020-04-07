@@ -16,14 +16,14 @@ class TestConstantResult:
 
     def test_read_returns_value(self):
         constant_result = ConstantResult("hello world")
-        assert constant_result.read("this param isn't used") == "hello world"
+        assert constant_result.read("this param isn't used") is constant_result
 
     def test_write_doesnt_overwrite_value(self):
         constant_result = ConstantResult("untouchable!")
 
         constant_result.write()
         assert constant_result.value == "untouchable!"
-        assert constant_result.read("still unused") == "untouchable!"
+        assert constant_result.read("still unused") is constant_result
 
     def test_write_returns_value(self):
         constant_result = ConstantResult("constant value")
@@ -34,7 +34,7 @@ class TestConstantResult:
     def test_handles_none_as_constant(self):
 
         constant_result = ConstantResult(None)
-        assert constant_result.read("still not used") is None
+        assert constant_result.read("still not used") is constant_result
         output = constant_result.write()
         assert output is output
 
