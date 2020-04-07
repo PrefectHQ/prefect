@@ -1,7 +1,7 @@
 import os
 import socket
 import sys
-from subprocess import PIPE, STDOUT, Popen
+from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 
 from prefect import config
@@ -124,7 +124,7 @@ class LocalAgent(Agent):
 
         current_env["PYTHONPATH"] = ":".join(python_path)
 
-        stdout = sys.stdout if self.show_flow_logs else PIPE
+        stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
         # note: we will allow these processes to be orphaned if the agent were to exit
         # before the flow runs have completed. The lifecycle of the agent should not
