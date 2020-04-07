@@ -29,14 +29,14 @@ class TestConstantResult:
         constant_result = ConstantResult("constant value")
 
         output = constant_result.write()
-        assert output == "'constant value'"
+        assert output is output
 
     def test_handles_none_as_constant(self):
 
         constant_result = ConstantResult(None)
         assert constant_result.read("still not used") is None
         output = constant_result.write()
-        assert output == "None"
+        assert output is output
 
     @pytest.mark.parametrize(
         "constant_value", [3, "text", 5.0, Constant(3), Constant("text"), Constant(5.0)]

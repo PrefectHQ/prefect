@@ -166,6 +166,9 @@ class Result(ResultInterface):
         """
         Serializes the provided value into bytes.
 
+        Args:
+            - value (Any): the value to serialize to bytes
+
         Returns:
             - bytes: the serialized result value
         """

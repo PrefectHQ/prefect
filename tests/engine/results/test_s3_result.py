@@ -50,7 +50,7 @@ class TestS3Result:
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):
         result = S3Result(
-            value="so-much-data", bucket="foo", filepath_template="{thing}/here.txt"
+            value="so-much-data", bucket="foo", filepath="{thing}/here.txt"
         )
 
         with prefect.context(
@@ -58,15 +58,14 @@ class TestS3Result:
             thing="yes!",
         ) as ctx:
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                result = result.format(**ctx)
-                uri = result.write()
+                uri = result.write(**ctx)
 
         used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
             "Key"
         ]
 
-        assert used_uri == uri
-        assert used_uri.startswith("yes!/here.txt")
+        assert used_uri == uri.filepath
+        assert uri.filepath.startswith("yes!/here.txt")
 
     def test_s3_result_is_pickleable(self, monkeypatch):
         class client:
@@ -104,7 +103,7 @@ class TestS3Result:
                 raise exc
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath_template="stuff")
+        result = S3Result(bucket="bob", filepath="stuff")
         result = result.format()
         assert result.exists() == False
 
@@ -123,6 +122,6 @@ class TestS3Result:
                 return MagicMock()
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath_template="stuff")
+        result = S3Result(bucket="bob", filepath="stuff")
         result = result.format()
         assert result.exists() == True
