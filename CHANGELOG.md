@@ -18,7 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix possible `LocalAgent` subprocess deadlocks when logging to `subprocess.PIPE` - [#2293](https://github.com/PrefectHQ/prefect/pull/2293)
 
 ### Deprecations
 
