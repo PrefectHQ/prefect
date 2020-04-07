@@ -6,7 +6,7 @@ import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import pendulum
 import toml
@@ -92,10 +92,7 @@ class Client:
         )
 
         # if no api token was passed, attempt to load state from local storage
-        if (
-            not self._api_token
-            and "prefect.io" in urlparse(prefect.config.cloud.api).netloc
-        ):
+        if not self._api_token and prefect.config.backend == "cloud":
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
@@ -581,7 +578,7 @@ class Client:
 
         project = None
 
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if prefect.config.backend == "cloud":
             if project_name is None:
                 raise TypeError(
                     "'project_name' is a required field when registering a flow with Cloud. "
@@ -669,7 +666,7 @@ class Client:
         ```
         """
         # Generate direct link to UI
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if prefect.config.backend == "cloud":
             tenant_slug = self.get_default_tenant_slug(as_user=as_user)
         else:
             tenant_slug = ""
