@@ -105,32 +105,29 @@ class S3Result(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self) -> str:
+    def write(self, **kwargs: Any) -> Result:
         """
         Writes the result to a location in S3 and returns the resulting URI.
 
-        Returns:
-            - str: the S3 URI
-        """
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
+        Args:
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
 
-        self.logger.debug(
-            "Starting to upload result to {}...".format(self._rendered_filepath)
-        )
-        binary_data = self.serialize()
+        Returns:
+            - Result: a new Result instance with the appropriately formatted S3 URI
+        """
+
+        new = self.format(**kwargs)
+        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        binary_data = new.serialize_to_bytes(new.value)
 
         stream = io.BytesIO(binary_data)
 
         ## upload
-        self.client.upload_fileobj(
-            stream, Bucket=self.bucket, Key=self._rendered_filepath
-        )
-        self.logger.debug(
-            "Finished uploading result to {}.".format(self._rendered_filepath)
-        )
+        self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
+        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
 
-        return self._rendered_filepath
+        return new
 
     def read(self, loc: str = None) -> Any:
         """
@@ -142,10 +139,7 @@ class S3Result(Result):
         Returns:
             - Any: the read result
         """
-        uri = loc or self._rendered_filepath
-
-        if not uri:
-            raise ValueError("Must call `Result.format()` first")
+        uri = loc or self.filepath
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
@@ -156,7 +150,7 @@ class S3Result(Result):
             stream.seek(0)
 
             try:
-                self.value = self.deserialize(stream.read())
+                self.value = self.deserialize_from_bytes(stream.read())
             except EOFError:
                 self.value = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
@@ -171,20 +165,23 @@ class S3Result(Result):
 
         return self.value
 
-    def exists(self) -> bool:
+    def exists(self, loc: str = None) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
+
         Does not validate whether the result is `valid`, only that it is present.
 
+        Args:
+            - loc (str, optional): Location of the result in the specific result target.
+                If provided, will check whether the provided location exists;
+                otherwise, will use `self.filepath`
+
         Returns:
-            - bool: whether or not the target result exists in the bucket
+            - bool: whether or not the target result exists.
         """
         import botocore
 
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
-
-        uri = self._rendered_filepath
+        uri = loc or self.filepath
 
         try:
             self.client.get_object(Bucket=self.bucket, Key=uri).load()

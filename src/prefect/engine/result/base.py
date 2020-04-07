@@ -86,7 +86,7 @@ class Result(ResultInterface):
         - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this result is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - filepath_template (str, optional): Template file path to be used for saving the
+        - filepath (str, optional): Possibly templated file path to be used for saving the
             result to the destination.
     """
 
@@ -98,7 +98,7 @@ class Result(ResultInterface):
         run_validators: bool = True,
         cache_for: datetime.timedelta = None,
         cache_validator: Callable = None,
-        filepath_template: str = None,
+        filepath: str = "",
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -109,8 +109,7 @@ class Result(ResultInterface):
             cache_validator = duration_only
         self.cache_for = cache_for
         self.cache_validator = cache_validator
-        self.filepath_template = filepath_template
-        self._rendered_filepath = None  # type: Optional[str]
+        self.filepath = filepath
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -162,17 +161,18 @@ class Result(ResultInterface):
         """
         return copy.copy(self)
 
-    def serialize(self) -> bytes:
+    @classmethod
+    def serialize_to_bytes(cls, value: Any) -> bytes:
         """
-        Serializes the result value into bytes.
+        Serializes the provided value into bytes.
 
         Returns:
             - bytes: the serialized result value
         """
-        return base64.b64encode(cloudpickle.dumps(self.value))
+        return base64.b64encode(cloudpickle.dumps(value))
 
     @classmethod
-    def deserialize(cls, serialized_value: Union[str, bytes]) -> Any:
+    def deserialize_from_bytes(cls, serialized_value: Union[str, bytes]) -> Any:
         """
         Takes a given serialized result value and returns a deserialized value.
 
@@ -192,21 +192,22 @@ class Result(ResultInterface):
             - **kwargs (Any): string format arguments for result.filepath_template
 
         Returns:
-            - Any: the current result instance
+            - Result: a new result instance with the appropriately formatted filepath
         """
         new = self.copy()
-
-        if not new.filepath_template:
-            raise ValueError("No filepath_template provided")
-
-        new._rendered_filepath = new.filepath_template.format(**kwargs)
+        new.filepath = new.filepath.format(**kwargs)
         return new
 
-    def exists(self) -> bool:
+    def exists(self, loc: str = None) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
+
+        Args:
+            - loc (str, optional): Location of the result in the specific result target.
+                If provided, will check whether the provided location exists;
+                otherwise, will use `self.filepath`
 
         Returns:
             - bool: whether or not the target result exists.
@@ -225,12 +226,16 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def write(self) -> Any:
+    def write(self, **kwargs: Any) -> "Result":
         """
         Serialize and write the result to the target location.
 
+        Args:
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
+
         Returns:
-            - Any: Result specific metadata about the written data.
+            - Result: a new result object with the appropriately formatted filepath destination
         """
         raise NotImplementedError()
 
