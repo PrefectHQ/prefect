@@ -5,7 +5,7 @@ from typing import Any
 from prefect.engine.result import Result
 
 
-class JSONResult(Result):
+class PrefectResult(Result):
     """
     Hook for storing and retrieving JSON serializable Python objects that can
     safely be stored directly in a Prefect database.
