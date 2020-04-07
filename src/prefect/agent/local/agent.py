@@ -79,9 +79,6 @@ class LocalAgent(Agent):
                     self.logger.info(
                         "Process PID {} returned non-zero exit code".format(process.pid)
                     )
-                    if not self.show_flow_logs:
-                        for raw_line in iter(process.stdout.readline, b""):
-                            self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
