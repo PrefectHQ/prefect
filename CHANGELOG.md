@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
+- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229), [#2275](https://github.com/PrefectHQ/prefect/issues/2275)
 - Allow kwargs to boto3 in S3ResultHandler - [#2240](https://github.com/PrefectHQ/prefect/issues/2240)
 
 ### Enhancements
