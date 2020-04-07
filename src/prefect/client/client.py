@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urlparse
 
 import pendulum
 import toml
+import time
 from slugify import slugify
 
 import prefect
@@ -21,6 +22,7 @@ from prefect.utilities.graphql import (
     parse_graphql,
     with_args,
 )
+from prefect.utilities.logging import create_diagnostic_logger
 
 if TYPE_CHECKING:
     from prefect.core import Flow
@@ -79,6 +81,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
+        self.logger = create_diagnostic_logger("Diagnostics")
 
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
@@ -283,6 +286,17 @@ class Client:
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            self.logger.debug(f"Preparing request to {url}")
+            clean_headers = {
+                head: re.sub("Bearer .*", "Bearer XXXX", val)
+                for head, val in headers.items()
+            }
+            self.logger.debug(f"Headers: {clean_headers}")
+            self.logger.debug(f"Request: {params}")
+            start_time = time.time()
+
         if method == "GET":
             response = session.get(url, headers=headers, params=params, timeout=30)
         elif method == "POST":
@@ -291,6 +305,13 @@ class Client:
             response = session.delete(url, headers=headers, timeout=30)
         else:
             raise ValueError("Invalid method: {}".format(method))
+
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            end_time = time.time()
+            self.logger.debug(f"Response: {response.json()}")
+            self.logger.debug(
+                f"Request duration: {round(end_time - start_time, 4)} seconds"
+            )
 
         # Check if request returned a successful status
         response.raise_for_status()
