@@ -61,7 +61,7 @@ Spin up Prefect Core's local UI to orchestrate and manage your workflows:
 prefect server start
 ```
 
-and navigate to `http://localhost:8080`.
+and navigate to `http://localhost:8080`.  (**Note:** Prefect Server requires both Docker and Docker Compose).
 
 ## Docs
 
