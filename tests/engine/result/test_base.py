@@ -302,6 +302,7 @@ def test_result_format_template_from_context():
         new = res.format(**prefect.context)
         assert new.filepath == "indeed/functional/yes?"
         assert res.filepath == "{this}/{works}/yes?"
+        assert new != res
 
 
 class TestResultValidate:
