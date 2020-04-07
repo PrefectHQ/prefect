@@ -19,7 +19,7 @@ whose value is `None`.
 import base64
 import copy
 import datetime
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Union
 
 import cloudpickle
 
