@@ -1,4 +1,3 @@
-import collections
 import os
 import pendulum
 import pytest
