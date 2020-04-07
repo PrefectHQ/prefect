@@ -52,8 +52,8 @@ def run_with_heartbeat(
                     p = subprocess.Popen(
                         self.heartbeat_cmd,
                         env=clean_env,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                     )
             except Exception as exc:
                 self.logger.exception(
@@ -66,8 +66,6 @@ def run_with_heartbeat(
                 if exit_code is not None:
                     out, err = p.communicate()
                     msg = "Heartbeat process died with exit code {}".format(exit_code)
-                    msg += "\nSTDOUT: {}".format(out.decode() if out else None)
-                    msg += "\nSTDERR: {}".format(err.decode() if err else None)
                     self.logger.error(msg)
                 p.kill()
 
