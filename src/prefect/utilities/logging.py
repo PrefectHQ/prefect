@@ -243,7 +243,7 @@ def configure_extra_loggers() -> None:
 configure_extra_loggers()
 
 
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: str = None, remove_cloud_handler: bool = False) -> logging.Logger:
     """
     Returns a "prefect" logger.
 
@@ -251,6 +251,9 @@ def get_logger(name: str = None) -> logging.Logger:
         - name (str): if `None`, the root Prefect logger is returned. If provided, a child
             logger of the name `"prefect.{name}"` is returned. The child logger inherits
             the root logger's settings.
+        - remove_cloud_handler (bool, optional): a boolean specifying whether to remove the
+            `CloudHandler` from the returned logger; intended mainly for internal use.  Defaults
+            to `False`.
 
     Returns:
         - logging.Logger: a configured logging object with the appropriate name
@@ -259,7 +262,11 @@ def get_logger(name: str = None) -> logging.Logger:
     if name is None:
         return prefect_logger
     else:
-        return prefect_logger.getChild(name)
+        logger = prefect_logger.getChild(name)
+        logger.handlers = [
+            h for h in logger.handlers if not isinstance(h, CloudHandler)
+        ]
+        return logger
 
 
 class RedirectToLog:
