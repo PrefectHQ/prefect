@@ -83,8 +83,17 @@ async def create_flow(
         f = prefect.serialization.flow.FlowSchema().load(copy.deepcopy(serialized_flow))
     except Exception as exc:
         raise ValueError(f"Invalid flow: {exc}")
-    if f.schedule and any([p.required for p in f.parameters()]):
-        raise ValueError("Can not schedule a flow that has required parameters.")
+    required_parameters = [p for p in f.parameters() if p.required]
+    if f.schedule is not None and required_parameters:
+        required_names = {p.name for p in required_parameters}
+        if not all(
+            [
+                required_names == set(c.parameter_defaults.keys())
+                for c in f.schedule.clocks
+            ]
+        ):
+            raise ValueError("Can not schedule a flow that has required parameters.")
+
     # set up task detail info
     reference_tasks = f.reference_tasks()
     root_tasks = f.root_tasks()

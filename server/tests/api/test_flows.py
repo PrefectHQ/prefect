@@ -222,6 +222,18 @@ class TestCreateFlow:
         flow = await m.Flow.where(id=flow_id).first("description")
         assert flow.description == description
 
+    async def test_create_flow_intelligently_handles_scheduled_param_defaults(self):
+        a, b = prefect.Parameter("a"), prefect.Parameter("b", default=1)
+        clock = prefect.schedules.clocks.CronClock(
+            cron=f"* * * * *", parameter_defaults={"a": 1,}
+        )
+        schedule = prefect.schedules.Schedule(clocks=[clock])
+
+        flow = prefect.Flow("test-params", tasks=[a, b], schedule=schedule)
+
+        flow_id = await flows.create_flow(serialized_flow=flow.serialize())
+        assert flow_id
+
     async def test_create_flow_persists_serialized_flow(self, flow):
         flow_id = await flows.create_flow(serialized_flow=flow.serialize())
 
