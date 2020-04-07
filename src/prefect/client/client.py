@@ -581,7 +581,7 @@ class Client:
 
         project = None
 
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if prefect.config.backend == "cloud":
             if project_name is None:
                 raise TypeError(
                     "'project_name' is a required field when registering a flow with Cloud. "
