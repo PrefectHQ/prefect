@@ -10,7 +10,6 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Set
-from urllib.parse import urlparse
 
 import pendulum
 
