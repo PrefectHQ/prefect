@@ -93,7 +93,7 @@ class Agent:
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
-        if prefect.config.backend == "cloud":
+        if config.backend == "cloud":
             self._verify_token(token)
 
         logger = logging.getLogger(self.name)
@@ -195,7 +195,7 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
 
-        if prefect.config.backend == "cloud":
+        if config.backend == "cloud":
             self.logger.info("Agent successfully connected to the Prefect API")
         self.logger.info("Waiting for flow runs...")
 
