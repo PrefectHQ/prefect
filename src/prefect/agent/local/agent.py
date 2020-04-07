@@ -1,7 +1,7 @@
 import os
 import socket
 import sys
-from subprocess import PIPE, STDOUT, Popen
+from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 
 from prefect import config
@@ -79,9 +79,6 @@ class LocalAgent(Agent):
                     self.logger.info(
                         "Process PID {} returned non-zero exit code".format(process.pid)
                     )
-                    if not self.show_flow_logs:
-                        for raw_line in iter(process.stdout.readline, b""):
-                            self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
@@ -124,7 +121,7 @@ class LocalAgent(Agent):
 
         current_env["PYTHONPATH"] = ":".join(python_path)
 
-        stdout = sys.stdout if self.show_flow_logs else PIPE
+        stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
         # note: we will allow these processes to be orphaned if the agent were to exit
         # before the flow runs have completed. The lifecycle of the agent should not

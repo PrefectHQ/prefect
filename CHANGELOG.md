@@ -18,6 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Fix possible `LocalAgent` subprocess deadlocks when logging to `subprocess.PIPE` - [#2293](https://github.com/PrefectHQ/prefect/pull/2293)
 - Fix issue with Flow registration to non-standard Cloud backends - [#2292](https://github.com/PrefectHQ/prefect/pull/2292)
 
 ### Deprecations
