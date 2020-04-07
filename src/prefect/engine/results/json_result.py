@@ -1,12 +1,14 @@
+import json
+
 from typing import Any
 
 from prefect.engine.result import Result
 
 
-class ConstantResult(Result):
+class JSONResult(Result):
     """
-    Hook for storing and retrieving constant Python objects. Only intended to be used
-    internally.
+    Hook for storing and retrieving JSON serializable Python objects that can
+    safely be stored directly in a Prefect database.
 
     Args:
         - value (Any): the underlying value this Result should represent
@@ -23,7 +25,9 @@ class ConstantResult(Result):
         Args:
             - loc (str): an unused argument
         """
-        return self
+        new = self.copy()
+        new.value = json.loads(loc or new.filepath)
+        return new
 
     def write(self, **kwargs: Any) -> Result:
         """
@@ -35,7 +39,7 @@ class ConstantResult(Result):
         Returns:
             - Result: returns self
         """
-        self.filepath = repr(self.value)
+        self.filepath = json.dumps(self.value)
         return self
 
     def exists(self, loc: str = None) -> bool:
