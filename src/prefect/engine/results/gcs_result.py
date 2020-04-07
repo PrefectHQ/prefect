@@ -66,49 +66,43 @@ class GCSResult(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self) -> str:
+    def write(self, **kwargs: Any) -> Result:
         """
         Writes the result value to a location in GCS and returns the resulting URI.
+        Args:
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
 
         Returns:
-            - str: the GCS URI
+            - Result: a new Result instance with the appropriately formatted filepath
         """
 
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
+        new = self.format(**kwargs)
+        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        binary_data = new.serialize_to_bytes(new.value).decode()
 
-        self.logger.debug(
-            "Starting to upload result to {}...".format(self._rendered_filepath)
-        )
-        binary_data = self.serialize().decode()
+        self.gcs_bucket.blob(new.filepath).upload_from_string(binary_data)
+        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
 
-        self.gcs_bucket.blob(self._rendered_filepath).upload_from_string(binary_data)
-        self.logger.debug(
-            "Finished uploading result to {}.".format(self._rendered_filepath)
-        )
-
-        return self._rendered_filepath
+        return new
 
     def read(self, loc: str = None) -> Any:
         """
         Reads a result from a GCS bucket
 
         Args:
-            - loc (str, optional): the GCS URI
+            - loc (str, optional): the GCS URI; if not provided, `self.filepath` will be used
 
         Returns:
             - Any: the read result
         """
-        uri = loc or self._rendered_filepath
-
-        if not uri:
-            raise ValueError("Must call `Result.format()` first")
+        uri = loc or self.filepath
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
             serialized_value = self.gcs_bucket.blob(uri).download_as_string()
             try:
-                self.value = self.deserialize(serialized_value)
+                self.value = self.deserialize_from_bytes(serialized_value)
             except EOFError:
                 self.value = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
@@ -121,15 +115,20 @@ class GCSResult(Result):
             self.value = None
         return self.value
 
-    def exists(self) -> bool:
+    def exists(self, loc: str = None) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
+        Args:
+            - loc (str, optional): Location of the result in the specific result target.
+                If provided, will check whether the provided location exists;
+                otherwise, will use `self.filepath`
+
         Returns:
             - bool: whether or not the target result exists.
         """
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
-        return self.gcs_bucket.blob(self._rendered_filepath).exists()
+        uri = loc or self.filepath
+
+        return self.gcs_bucket.blob(uri).exists()

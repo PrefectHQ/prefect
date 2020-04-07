@@ -16,31 +16,36 @@ class ConstantResult(Result):
         self.value = value
         super().__init__(value=value, **kwargs)
 
-    def read(self, arg: Optional[str] = None) -> Any:
+    def read(self, loc: str = None) -> Any:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - arg (str): an unused argument
+            - loc (str): an unused argument
         """
         return self.value
 
-    def write(self) -> str:
+    def write(self, **kwargs: Any) -> Result:
         """
         Returns the repr of the underlying value, purely for convenience.
 
-        Returns:
-            - str: the repr of the result
-        """
-        return repr(self.value)
+        Args:
+            - **kwargs (optional): unused, for compatibility with the interface
 
-    def exists(self) -> bool:
+        Returns:
+            - Result: returns self
+        """
+        return self
+
+    def exists(self, loc: str = None) -> bool:
         """
         Confirms the existence of the Constant value stored in the Result.
 
         The value stored within a Constant is logically always present,
         so `True` is returned.
 
+        Args:
+             - loc (optional): for interface compatibility
         Returns:
             - bool: True, confirming the constant exists.
         """

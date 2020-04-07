@@ -134,7 +134,7 @@ class S3Result(Result):
         Reads a result from S3, reads it and returns it
 
         Args:
-            - loc (str, optional): the S3 URI
+            - loc (str, optional): the S3 URI; if not provided, `self.filepath` will be used
 
         Returns:
             - Any: the read result
