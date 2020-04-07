@@ -54,4 +54,4 @@ class JSONResult(Result):
         Returns:
             - bool: True, confirming the constant exists.
         """
-        return True
+        return self.filepath is not ""
