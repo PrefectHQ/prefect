@@ -129,9 +129,9 @@ class S3Result(Result):
 
         return new
 
-    def read(self, loc: str = None) -> Any:
+    def read(self, loc: str = None) -> Result:
         """
-        Reads a result from S3, reads it and returns it
+        Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
 
         Args:
             - loc (str, optional): the S3 URI; if not provided, `self.filepath` will be used
@@ -140,19 +140,21 @@ class S3Result(Result):
             - Any: the read result
         """
         uri = loc or self.filepath
+        new = self.copy()
+        new.filepath = uri
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
             stream = io.BytesIO()
 
-            ## download
+            ## download - uses `self` in case the client is already instantiated
             self.client.download_fileobj(Bucket=self.bucket, Key=uri, Fileobj=stream)
             stream.seek(0)
 
             try:
-                self.value = self.deserialize_from_bytes(stream.read())
+                new.value = new.deserialize_from_bytes(stream.read())
             except EOFError:
-                self.value = None
+                new.value = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
 
         except Exception as exc:
@@ -161,9 +163,9 @@ class S3Result(Result):
                     repr(exc)
                 )
             )
-            self.value = None
+            new.value = None
 
-        return self.value
+        return new
 
     def exists(self, loc: str = None) -> bool:
         """

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from prefect.engine.result import Result
 
@@ -35,6 +35,7 @@ class ConstantResult(Result):
         Returns:
             - Result: returns self
         """
+        self.filepath = repr(self.value)
         return self
 
     def exists(self, loc: str = None) -> bool:
@@ -49,5 +50,4 @@ class ConstantResult(Result):
         Returns:
             - bool: True, confirming the constant exists.
         """
-
         return True

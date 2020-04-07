@@ -86,9 +86,9 @@ class GCSResult(Result):
 
         return new
 
-    def read(self, loc: str = None) -> Any:
+    def read(self, loc: str = None) -> Result:
         """
-        Reads a result from a GCS bucket
+        Reads a result from a GCS bucket and returns a corresponding `Result` instance.
 
         Args:
             - loc (str, optional): the GCS URI; if not provided, `self.filepath` will be used
@@ -97,14 +97,15 @@ class GCSResult(Result):
             - Any: the read result
         """
         uri = loc or self.filepath
+        new = self.copy()
 
         try:
             self.logger.debug("Starting to download result from {}...".format(uri))
             serialized_value = self.gcs_bucket.blob(uri).download_as_string()
             try:
-                self.value = self.deserialize_from_bytes(serialized_value)
+                new.value = new.deserialize_from_bytes(serialized_value)
             except EOFError:
-                self.value = None
+                new.value = None
             self.logger.debug("Finished downloading result from {}.".format(uri))
         except Exception as exc:
             self.logger.exception(
@@ -112,8 +113,8 @@ class GCSResult(Result):
                     repr(exc)
                 )
             )
-            self.value = None
-        return self.value
+            new.value = None
+        return new
 
     def exists(self, loc: str = None) -> bool:
         """

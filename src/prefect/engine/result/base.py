@@ -128,6 +128,20 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
+    def populate_result(self, result: "Result") -> "Result":
+        """
+        Given another Result instance, uses `self.filepath` to create a fully hydrated `Result`
+        using the logic of the provided result.  This method is mainly intended to be used
+        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+
+        Args:
+            - result (Result): the result instance to hydrate with `self.filepath`
+
+        Returns:
+            - Result: a new result instance
+        """
+        return result.read(self.filepath)
+
     def validate(self) -> bool:
         """
         Run any validator functions associated with this result and return whether the result is valid or not.
@@ -217,9 +231,9 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def read(self, loc: str = None) -> Any:
+    def read(self, loc: str = None) -> "Result":
         """
-        Reads from the target result.
+        Reads from the target result and returns a corresponding `Result` instance.
 
         Args:
             - loc (str): Location of the result in the specific result target.
