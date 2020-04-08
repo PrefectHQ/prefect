@@ -430,15 +430,15 @@ class TaskRunner(Runner):
             - ENDRUN: if the trigger raises an error
         """
 
-        # all_states = set()  # type: Set[State]
-        # for upstream_state in upstream_states.values():
-        #     if isinstance(upstream_state, Mapped):
-        #         all_states.update(upstream_state.map_states)
-        #     else:
-        #         all_states.add(upstream_state)
+        # Deep copy upstream states and expand mapped states
+        all_states = copy.deepcopy(upstream_states)
+        for edge, upstream_state in upstream_states.items():
+            if isinstance(upstream_state, Mapped):
+                for mapped_state in upstream_state.map_states:
+                    all_states[copy.deepcopy(edge)] = mapped_state
 
         try:
-            if not self.task.trigger(upstream_states):
+            if not self.task.trigger(all_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PrefectStateSignal as exc:
