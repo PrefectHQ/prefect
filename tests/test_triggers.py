@@ -28,7 +28,6 @@ def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0) -> di
     for state, count in state_counts.items():
         for _ in range(count):
             states[Edge(Task(), Task())] = state()
-            # states.add(state())
     return states
 
 
