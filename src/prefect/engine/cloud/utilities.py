@@ -13,11 +13,11 @@ def prepare_state_for_cloud(state: State) -> State:
         - State: a sanitized copy of the original state
     """
     if state.is_cached():
-        state._result.store_safe_value()
+        state._result.store_safe_value() # todo: here
 
     if state.cached_inputs:
         for res in state.cached_inputs.values():
-            if res.result_handler:
-                res.store_safe_value()
+            if res.result_handler: # todo: here
+                res.store_safe_value() # todo: here
 
     return state

@@ -50,11 +50,11 @@ class CloudTaskRunner(TaskRunner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_handler: ResultHandler = None,
+        result_handler: ResultHandler = None, # todo: here
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task, state_handlers=state_handlers, result_handler=result_handler
+            task=task, state_handlers=state_handlers, result_handler=result_handler # todo: here
         )
 
     def _heartbeat(self) -> bool:
@@ -222,7 +222,7 @@ class CloudTaskRunner(TaskRunner):
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
                 candidate_state.cached_inputs = {
-                    key: res.to_result(inputs[key].result_handler)  # type: ignore
+                    key: res.to_result(inputs[key].result_handler)  # type: ignore # todo: here
                     for key, res in (candidate_state.cached_inputs or {}).items()
                 }
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
@@ -230,7 +230,7 @@ class CloudTaskRunner(TaskRunner):
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
                     candidate_state._result = candidate_state._result.to_result(
-                        self.task.result_handler
+                        self.task.result_handler # todo: here
                     )
                     return candidate_state
 
