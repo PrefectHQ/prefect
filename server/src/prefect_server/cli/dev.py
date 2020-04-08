@@ -30,7 +30,7 @@ def dev():
     """
 
 
-def make_env(fname=None):
+def make_dev_env(fname=None):
 
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
@@ -83,7 +83,7 @@ def infrastructure(tag, skip_pull):
     """
     docker_dir = Path(prefect_server.__file__).parents[2] / "docker"
 
-    env = make_env()
+    env = make_dev_env()
 
     proc = None
     try:
@@ -229,7 +229,7 @@ def services(include, exclude):
         procs.append(
             subprocess.Popen(
                 ["prefect-server", "services", service],
-                env=make_env(),
+                env=make_dev_env(),
                 preexec_fn=os.setsid,
             )
         )
