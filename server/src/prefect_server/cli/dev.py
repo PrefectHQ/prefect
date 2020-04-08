@@ -30,7 +30,7 @@ def dev():
     """
 
 
-def make_env(fname=None):
+def make_dev_env(fname=None):
 
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
@@ -40,10 +40,10 @@ def make_env(fname=None):
     )
 
     APOLLO_ENV = dict(
-        HASURA_API_URL=f"http://hasura:{config.hasura.port}/v1alpha1/graphql",
-        HASURA_WS_URL=f"ws://hasura:{config.hasura.port}/v1alpha1/graphql",
-        PREFECT_API_URL=f"http://graphql:{config.services.graphql.port}{config.services.graphql.path}",
-        PREFECT_API_HEALTH_URL=f"http://graphql:{config.services.graphql.port}/health",
+        HASURA_API_URL=f"http://{config.hasura.host}:{config.hasura.port}/v1alpha1/graphql",
+        HASURA_WS_URL=f"ws://{config.hasura.host}:{config.hasura.port}/v1alpha1/graphql",
+        PREFECT_API_URL=f"http://{config.services.graphql.host}:{config.services.graphql.port}{config.services.graphql.path}",
+        PREFECT_API_HEALTH_URL=f"http://{config.services.graphql.host}:{config.services.graphql.port}/health",
     )
 
     POSTGRES_ENV = dict(
@@ -83,7 +83,7 @@ def infrastructure(tag, skip_pull):
     """
     docker_dir = Path(prefect_server.__file__).parents[2] / "docker"
 
-    env = make_env()
+    env = make_dev_env()
 
     proc = None
     try:
@@ -229,7 +229,7 @@ def services(include, exclude):
         procs.append(
             subprocess.Popen(
                 ["prefect-server", "services", service],
-                env=make_env(),
+                env=make_dev_env(),
                 preexec_fn=os.setsid,
             )
         )
