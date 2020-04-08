@@ -11,7 +11,7 @@ Author: Alex Goodman
 
 ## Status
 
-Proposed
+Declined (_see bottom of page for reason_)
 
 ## Context
 
@@ -100,3 +100,11 @@ Release the changes in two batches:
 2. Second release (breaking changes):
 
    a. Remove functionality for `TRIGGERFAIL` signal, `TriggerFailed` state, `skip_on_upstream_skip`
+
+### Reason for declining
+
+The motivations for this PIN are sound however they require the designing of a new API in order to support. This proposal focuses on using triggers as the place for conditional logic however that fails to keep in tune with the original purpose of triggers. Changing the main state function of triggers to skip instead of failure when not satisfied will cause even simple flows to not behave properly as originally defined by the paradigm of the Prefect engine.
+
+Say there existed a flow containing the edge `Task_1 -> Task_2`. Under this proposal if `Task_1` were to enter a `Failed` state then the default `all_successful` trigger of `Task_2` would raise a `SKIP` signal instead of a `TriggerFailed`. Since `Task_2` is a reference task for this flow the final state will be `Success` even though the intendened state is for the flow to enter `Failed`.
+
+There is no doubt room for a better API which encapsulates the ideas outlined here, perhaps something that lives next to triggers on tasks called _conditions_. However, this PIN is not the official proposal for that functionality and is being declined.
