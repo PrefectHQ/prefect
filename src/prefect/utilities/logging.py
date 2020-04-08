@@ -243,6 +243,16 @@ def configure_extra_loggers() -> None:
 configure_extra_loggers()
 
 
+def create_diagnostic_logger(name: str) -> logging.Logger:
+    """
+    Create a logger that does not use the `CloudHandler` but preserves all other
+    Prefect logging configuration.  For diagnostic / debugging / internal use only.
+    """
+    logger = _create_logger(name)
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, CloudHandler)]
+    return logger
+
+
 def get_logger(name: str = None) -> logging.Logger:
     """
     Returns a "prefect" logger.

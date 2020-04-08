@@ -29,6 +29,8 @@ Prefect Core ships with an open-source backend and UI that automatically extends
 
 Get started by running `prefect server start` and navigate to `http://localhost:8080`.
 
+**Note:** Prefect Server requires both Docker and Docker Compose.
+
 ##### Prefect Cloud
 
 Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If you've used Prefect Core's server, Prefect Cloud is a drop in replacement that provides some enhanced features, including:

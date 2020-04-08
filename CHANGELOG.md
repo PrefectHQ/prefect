@@ -6,14 +6,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229)
-- Allow kwargs to boto3 in S3ResultHandler - [#2240](https://github.com/PrefectHQ/prefect/issues/2240)
+- None
 
 ### Enhancements
 
-- Add flags to `prefect server start` for disabling service port mapping - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
-- Add options to `prefect server start` for mapping to host ports - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
-- Return `flow_run_id` from CLI `run` methods for programmatic use - [#2242](https://github.com/PrefectHQ/prefect/pull/2242)
+- None
 
 ### Task Library
 
@@ -21,7 +18,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+- Fix possible subprocess deadlocks when sending stdout to `subprocess.PIPE` - [#2293](https://github.com/PrefectHQ/prefect/pull/2293), [#2295](https://github.com/PrefectHQ/prefect/pull/2295)
+- Fix issue with Flow registration to non-standard Cloud backends - [#2292](https://github.com/PrefectHQ/prefect/pull/2292)
+- Fix issue with registering Flows with Server that have required scheduled Parameters - [#2296](https://github.com/PrefectHQ/prefect/issues/2296)
+- Fix interpolation of config for dev services CLI for Apollo - [#2299](https://github.com/PrefectHQ/prefect/pull/2299)
 
 ### Deprecations
 
@@ -33,8 +33,50 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- None
+
+## 0.10.1 <Badge text="beta" type="success"/>
+
+Released on Apr 7, 2020.
+
+### Features
+
+- CI build for prefect server images - [#2229](https://github.com/PrefectHQ/prefect/pull/2229), [#2275](https://github.com/PrefectHQ/prefect/issues/2275)
+- Allow kwargs to boto3 in S3ResultHandler - [#2240](https://github.com/PrefectHQ/prefect/issues/2240)
+
+### Enhancements
+
+- Add flags to `prefect server start` for disabling service port mapping - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
+- Add options to `prefect server start` for mapping to host ports - [#2228](https://github.com/PrefectHQ/prefect/pull/2228)
+- Return `flow_run_id` from CLI `run` methods for programmatic use - [#2242](https://github.com/PrefectHQ/prefect/pull/2242)
+- Add JSON output option to `describe` CLI commands - [#1813](https://github.com/PrefectHQ/prefect/issues/1813)
+- Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
+- Add new `diagnostics` mode for timing requests made to Cloud - [#2283](https://github.com/PrefectHQ/prefect/pull/2283)
+
+### Task Library
+
+- Make `project_name` optional for `FlowRunTask` to allow for use with Prefect Core's server - [#2266](https://github.com/PrefectHQ/prefect/pull/2266)
+- Adds `prefect.tasks.docker.container.RemoveContainer`
+
+### Fixes
+
+- Fix `S3ResultHandler` safe retrieval of `_client` attribute - [#2232](https://github.com/PrefectHQ/prefect/issues/2232)
+- Change default log `timestamp` value in database to be identical to other tables instead of a hard coded value - [#2230](https://github.com/PrefectHQ/prefect/pull/2230)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Manuel Aristarán](https://github.com/jazzido)
 - [szelenka](https://github.com/szelenka)
 - [Aditya Bhumbla](https://github.com/abhumbla)
+- [Alex Cano](https://github.com/alexisprince1994)
 
 ## 0.10.0 <Badge text="beta" type="success"/>
 
@@ -94,7 +136,6 @@ Released on Mar 18, 2020.
 - Update Cloud config name for heartbeat settings - [#2081](https://github.com/PrefectHQ/prefect/pull/2081)
 - Add examples to Interactive API Docs - [#2122](https://github.com/PrefectHQ/prefect/pull/2122)
 - Allow users to skip Docker healthchecks - [#2150](https://github.com/PrefectHQ/prefect/pull/2150)
-- Add ConstantResult for eventually replacing ConstantResultHandler - [#2145](https://github.com/PrefectHQ/prefect/issues/2145)
 - Add exists, read, and write interfaces to Result [#2139](https://github.com/PrefectHQ/prefect/issues/2139)
 - Add Cloud UI links to Slack Notifications - [#2112](https://github.com/PrefectHQ/prefect/issues/2112)
 

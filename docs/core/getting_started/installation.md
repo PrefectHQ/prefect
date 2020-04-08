@@ -55,6 +55,8 @@ The extra packages include:
 
 Prefect Core's server is an open-source backend that can orchestrate any flows written in the Prefect Core Python API. It stores flow run metadata in a Postgres database, exposes it over a GraphQL API, and provides an interactive web UI in Vue.js.
 
+**Note:** Prefect Server requires both Docker and Docker Compose.
+
 To run the server through Docker, run the command:
 
 ```bash

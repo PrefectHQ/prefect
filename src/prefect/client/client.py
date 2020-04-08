@@ -6,10 +6,11 @@ import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import pendulum
 import toml
+import time
 from slugify import slugify
 
 import prefect
@@ -21,6 +22,7 @@ from prefect.utilities.graphql import (
     parse_graphql,
     with_args,
 )
+from prefect.utilities.logging import create_diagnostic_logger
 
 if TYPE_CHECKING:
     from prefect.core import Flow
@@ -79,6 +81,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
+        self.logger = create_diagnostic_logger("Diagnostics")
 
         # store api server
         self.api_server = api_server or prefect.context.config.cloud.get("graphql")
@@ -89,10 +92,7 @@ class Client:
         )
 
         # if no api token was passed, attempt to load state from local storage
-        if (
-            not self._api_token
-            and "prefect.io" in urlparse(prefect.config.cloud.api).netloc
-        ):
+        if not self._api_token and prefect.config.backend == "cloud":
             settings = self._load_local_settings()
             self._api_token = settings.get("api_token")
 
@@ -283,6 +283,17 @@ class Client:
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            self.logger.debug(f"Preparing request to {url}")
+            clean_headers = {
+                head: re.sub("Bearer .*", "Bearer XXXX", val)
+                for head, val in headers.items()
+            }
+            self.logger.debug(f"Headers: {clean_headers}")
+            self.logger.debug(f"Request: {params}")
+            start_time = time.time()
+
         if method == "GET":
             response = session.get(url, headers=headers, params=params, timeout=30)
         elif method == "POST":
@@ -291,6 +302,13 @@ class Client:
             response = session.delete(url, headers=headers, timeout=30)
         else:
             raise ValueError("Invalid method: {}".format(method))
+
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            end_time = time.time()
+            self.logger.debug(f"Response: {response.json()}")
+            self.logger.debug(
+                f"Request duration: {round(end_time - start_time, 4)} seconds"
+            )
 
         # Check if request returned a successful status
         response.raise_for_status()
@@ -533,7 +551,7 @@ class Client:
             required_names = {p.name for p in required_parameters}
             if not all(
                 [
-                    required_names == set(c.parameter_defaults.keys())
+                    required_names <= set(c.parameter_defaults.keys())
                     for c in flow.schedule.clocks
                 ]
             ):
@@ -560,7 +578,7 @@ class Client:
 
         project = None
 
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if prefect.config.backend == "cloud":
             if project_name is None:
                 raise TypeError(
                     "'project_name' is a required field when registering a flow with Cloud. "
@@ -648,7 +666,7 @@ class Client:
         ```
         """
         # Generate direct link to UI
-        if "prefect.io" in urlparse(prefect.config.cloud.api).netloc:
+        if prefect.config.backend == "cloud":
             tenant_slug = self.get_default_tenant_slug(as_user=as_user)
         else:
             tenant_slug = ""

@@ -1,7 +1,6 @@
 import datetime
 import tempfile
 import uuid
-from collections import defaultdict
 
 import cloudpickle
 import pendulum

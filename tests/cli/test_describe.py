@@ -1,12 +1,8 @@
-import sys
+import json
 from unittest.mock import MagicMock
 
-import click
-import pytest
-import requests
 from click.testing import CliRunner
 
-import prefect
 from prefect.cli.describe import describe
 from prefect.utilities.configuration import set_temporary_config
 
@@ -132,6 +128,29 @@ def test_describe_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
+def test_describe_flows_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"name": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe,
+            ["flows", "--name", "flow", "--project", "proj", "--output", "json"],
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "flow"}
+
+
 def test_describe_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -209,6 +228,31 @@ def test_describe_tasks_not_found(monkeypatch):
         result = runner.invoke(describe, ["tasks", "--name", "flow"])
         assert result.exit_code == 0
         assert "No tasks found for flow flow" in result.output
+
+
+def test_describe_tasks_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(data=dict(flow=[{"tasks": [{"name": "task"}]}]))
+            )
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe,
+            ["tasks", "--name", "flow", "--project", "proj", "--output", "json"],
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "task"}
 
 
 def test_describe_flow_runs(monkeypatch):
@@ -317,3 +361,27 @@ def test_describe_flow_runs_populated(monkeypatch):
 
         assert post.called
         assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_describe_flow_runs_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(data=dict(flow_run=[{"name": "flow-run"}]))
+            )
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe, ["flow-runs", "--name", "flow-run", "--output", "json"]
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "flow-run"}
