@@ -88,7 +88,7 @@ async def create_flow(
         required_names = {p.name for p in required_parameters}
         if not all(
             [
-                required_names == set(c.parameter_defaults.keys())
+                required_names <= set(c.parameter_defaults.keys())
                 for c in f.schedule.clocks
             ]
         ):

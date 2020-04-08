@@ -225,7 +225,7 @@ class TestCreateFlow:
     async def test_create_flow_intelligently_handles_scheduled_param_defaults(self):
         a, b = prefect.Parameter("a"), prefect.Parameter("b", default=1)
         clock = prefect.schedules.clocks.CronClock(
-            cron=f"* * * * *", parameter_defaults={"a": 1,}
+            cron=f"* * * * *", parameter_defaults={"a": 1, "b": 2}
         )
         schedule = prefect.schedules.Schedule(clocks=[clock])
 
