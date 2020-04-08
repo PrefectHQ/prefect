@@ -40,10 +40,10 @@ def make_env(fname=None):
     )
 
     APOLLO_ENV = dict(
-        HASURA_API_URL=f"http://hasura:{config.hasura.port}/v1alpha1/graphql",
-        HASURA_WS_URL=f"ws://hasura:{config.hasura.port}/v1alpha1/graphql",
-        PREFECT_API_URL=f"http://graphql:{config.services.graphql.port}{config.services.graphql.path}",
-        PREFECT_API_HEALTH_URL=f"http://graphql:{config.services.graphql.port}/health",
+        HASURA_API_URL=f"http://{config.hasura.host}:{config.hasura.port}/v1alpha1/graphql",
+        HASURA_WS_URL=f"ws://{config.hasura.host}:{config.hasura.port}/v1alpha1/graphql",
+        PREFECT_API_URL=f"http://{config.services.graphql.host}:{config.services.graphql.port}{config.services.graphql.path}",
+        PREFECT_API_HEALTH_URL=f"http://{config.services.graphql.host}:{config.services.graphql.port}/health",
     )
 
     POSTGRES_ENV = dict(
