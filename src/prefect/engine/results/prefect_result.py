@@ -44,7 +44,7 @@ class PrefectResult(Result):
 
     def exists(self, loc: str = None) -> bool:
         """
-        Confirms the existence of the Constant value stored in the Result.
+        Confirms the existence of the `filepath` stored on the Result.
 
         The value stored within a Constant is logically always present,
         so `True` is returned.
