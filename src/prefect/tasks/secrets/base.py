@@ -60,8 +60,8 @@ class PrefectSecret(Task):
         is `True` or `False`.
 
         Args:
-            - name (str, optional): the name of the underlying secret to retrieve; a convenience argument for retrieving
-                other dynamic secrets within a Flow
+            - name (str, optional): the name of the underlying Secret to retrieve. Defaults
+                to the name provided at initialization.
 
         Returns:
             - Any: the underlying value of the Prefect Secret
