@@ -18,7 +18,9 @@ def test_secret_base_has_no_logic():
 def test_prefect_secret_raises_deprecation_warning():
     assert issubclass(Secret, PrefectSecret)
     with pytest.warns(UserWarning, match="deprecated"):
-        Secret(name="foo")
+        secret = Secret(name="foo")
+    assert isinstance(secret, PrefectSecret)
+    assert secret.name == "foo"
 
 
 class TestPrefectSecret:
