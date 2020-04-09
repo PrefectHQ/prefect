@@ -127,9 +127,15 @@ class S3Result(Result):
         stream = io.BytesIO(binary_data)
 
         ## upload
-        self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
-        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
+        from botocore.exceptions import ClientError
 
+        try:
+            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
+        except ClientError as err:
+            self.logger.error("Error uploading to S3: {}".format(err))
+            raise err
+
+        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
         return new
 
     def read(self, filepath: str) -> Result:
@@ -167,7 +173,7 @@ class S3Result(Result):
                     repr(exc)
                 )
             )
-            new.value = None
+            raise exc
 
         return new
 
