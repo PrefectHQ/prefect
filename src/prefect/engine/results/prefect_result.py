@@ -55,7 +55,7 @@ class PrefectResult(Result):
         Confirms that the provided value is JSON deserializable.
 
         Args:
-             - filepath (str): the value to test
+            - filepath (str): the value to test
 
         Returns:
             - bool: whether the provided string can be deserialized
