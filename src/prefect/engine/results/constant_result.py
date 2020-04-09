@@ -16,12 +16,12 @@ class ConstantResult(Result):
         self.value = value
         super().__init__(value=value, **kwargs)
 
-    def read(self, loc: str) -> Result:
+    def read(self, filepath: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - loc (str): an unused argument
+            - filepath (str): an unused argument
         """
         return self
 
@@ -40,12 +40,12 @@ class ConstantResult(Result):
         self.filepath = repr(self.value)
         return self
 
-    def exists(self, loc: str) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
-             - loc (str): for interface compatibility
+             - filepath (str): for interface compatibility
 
         Returns:
             - bool: True, confirming the constant exists.

@@ -215,14 +215,14 @@ class Result(ResultInterface):
         new.filepath = new.filepath.format(**kwargs)
         return new
 
-    def exists(self, loc: str) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - loc (str, optional): Location of the result in the specific result target.
+            - filepath (str, optional): Location of the result in the specific result target.
                 If provided, will check whether the provided location exists;
                 otherwise, will use `self.filepath`
 
@@ -231,12 +231,12 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def read(self, loc: str) -> "Result":
+    def read(self, filepath: str) -> "Result":
         """
         Reads from the target result and returns a corresponding `Result` instance.
 
         Args:
-            - loc (str): Location of the result in the specific result target.
+            - filepath (str): Location of the result in the specific result target.
 
         Returns:
             - Any: The value saved to the result.

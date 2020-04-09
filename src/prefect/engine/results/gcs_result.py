@@ -90,12 +90,12 @@ class GCSResult(Result):
 
         return new
 
-    def read(self, loc: str) -> Result:
+    def read(self, filepath: str) -> Result:
         """
         Reads a result from a GCS bucket and returns a corresponding `Result` instance.
 
         Args:
-            - loc (str): the GCS URI to read from
+            - filepath (str): the GCS URI to read from
 
         Returns:
             - Any: the read result
@@ -103,13 +103,13 @@ class GCSResult(Result):
         new = self.copy()
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(loc))
-            serialized_value = self.gcs_bucket.blob(loc).download_as_string()
+            self.logger.debug("Starting to download result from {}...".format(filepath))
+            serialized_value = self.gcs_bucket.blob(filepath).download_as_string()
             try:
                 new.value = new.deserialize_from_bytes(serialized_value)
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(loc))
+            self.logger.debug("Finished downloading result from {}.".format(filepath))
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error while reading from result handler: {}".format(
@@ -119,17 +119,17 @@ class GCSResult(Result):
             new.value = None
         return new
 
-    def exists(self, loc: str) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - loc (str): Location of the result in the specific result target.
-                Will check whether the provided location exists
+            - filepath (str): Location of the result in the specific result target.
+                Will check whether the provided filepath exists
 
         Returns:
             - bool: whether or not the target result exists.
         """
-        return self.gcs_bucket.blob(loc).exists()
+        return self.gcs_bucket.blob(filepath).exists()

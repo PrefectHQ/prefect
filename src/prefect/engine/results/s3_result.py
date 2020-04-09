@@ -132,32 +132,34 @@ class S3Result(Result):
 
         return new
 
-    def read(self, loc: str) -> Result:
+    def read(self, filepath: str) -> Result:
         """
         Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
 
         Args:
-            - loc (str): the S3 URI to read from
+            - filepath (str): the S3 URI to read from
 
         Returns:
             - Any: the read result
         """
         new = self.copy()
-        new.filepath = loc
+        new.filepath = filepath
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(loc))
+            self.logger.debug("Starting to download result from {}...".format(filepath))
             stream = io.BytesIO()
 
             ## download - uses `self` in case the client is already instantiated
-            self.client.download_fileobj(Bucket=self.bucket, Key=loc, Fileobj=stream)
+            self.client.download_fileobj(
+                Bucket=self.bucket, Key=filepath, Fileobj=stream
+            )
             stream.seek(0)
 
             try:
                 new.value = new.deserialize_from_bytes(stream.read())
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(loc))
+            self.logger.debug("Finished downloading result from {}.".format(filepath))
 
         except Exception as exc:
             self.logger.exception(
@@ -169,14 +171,14 @@ class S3Result(Result):
 
         return new
 
-    def exists(self, loc: str) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - loc (str): Location of the result in the specific result target.
+            - filepath (str): Location of the result in the specific result target.
 
         Returns:
             - bool: whether or not the target result exists.
@@ -184,7 +186,7 @@ class S3Result(Result):
         import botocore
 
         try:
-            self.client.get_object(Bucket=self.bucket, Key=loc).load()
+            self.client.get_object(Bucket=self.bucket, Key=filepath).load()
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "404":
                 return False

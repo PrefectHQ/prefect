@@ -18,16 +18,19 @@ class PrefectResult(Result):
         self.value = value
         super().__init__(value=value, **kwargs)
 
-    def read(self, loc: str) -> Result:
+    def read(self, filepath: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - loc (str): an unused argument
+            - filepath (str): an unused argument
+
+        Returns:
+            - Result: a new result instance with the data represented by the filepath
         """
         new = self.copy()
-        new.value = json.loads(loc)
-        new.filepath = loc
+        new.value = json.loads(filepath)
+        new.filepath = filepath
         return new
 
     def write(self, value: Any, **kwargs: Any) -> Result:
@@ -47,18 +50,18 @@ class PrefectResult(Result):
         new.filepath = json.dumps(new.value)
         return new
 
-    def exists(self, loc: str) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         Confirms that the provided value is JSON deserializable.
 
         Args:
-             - loc (str): the value to test
+             - filepath (str): the value to test
 
         Returns:
             - bool: whether the provided string can be deserialized
         """
         try:
-            json.loads(loc)
+            json.loads(filepath)
             return True
         except:
             return False
