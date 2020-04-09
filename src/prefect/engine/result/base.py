@@ -118,13 +118,7 @@ class Result(ResultInterface):
         if self.value is None:
             return
         if self.safe_value == NoResult:
-            assert isinstance(
-                self.result_handler, ResultHandler
-            ), "Result has no ResultHandler"  # mypy assert
-            value = self.result_handler.write(self.value)
-            self.safe_value = SafeResult(
-                value=value, result_handler=self.result_handler
-            )
+            self.safe_value = SafeResult(value=self.filepath)
 
     def populate_result(self, result: "Result") -> "Result":
         """
@@ -267,7 +261,7 @@ class SafeResult(ResultInterface):
         - result_handler (ResultHandler): the result handler to use when reading this result's value
     """
 
-    def __init__(self, value: Any, result_handler: ResultHandler):
+    def __init__(self, value: Any, result_handler: ResultHandler = None):
         self.value = value
         self.result_handler = result_handler
 

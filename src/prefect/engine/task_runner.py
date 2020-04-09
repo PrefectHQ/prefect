@@ -81,9 +81,7 @@ class TaskRunner(Runner):
     """
 
     def __init__(
-        self,
-        task: Task,
-        state_handlers: Iterable[Callable] = None,
+        self, task: Task, state_handlers: Iterable[Callable] = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
@@ -150,12 +148,12 @@ class TaskRunner(Runner):
                 "task_loop_count": state.cached_inputs.pop(  # type: ignore
                     "_loop_count"
                 )  # type: ignore
-                .populate_result(self.task.result) # todo: here
+                .populate_result(self.task.result)  # todo: here
                 .value,
                 "task_loop_result": state.cached_inputs.pop(  # type: ignore
                     "_loop_result"
                 )  # type: ignore
-                .populate_result(self.task.result) # todo: here
+                .populate_result(self.task.result)  # todo: here
                 .value,
             }
             context.update(loop_context)
@@ -572,7 +570,7 @@ class TaskRunner(Runner):
             # construct task inputs
             if edge.key is not None:
                 handlers[edge.key] = result_skeleton = getattr(
-                    edge.upstream_task, "result", None # todo: here
+                    edge.upstream_task, "result", None  # todo: here
                 )
                 task_inputs[  # type: ignore
                     edge.key
@@ -583,9 +581,9 @@ class TaskRunner(Runner):
         if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
-                    k: r.to_result(handlers.get(k))  # type: ignore # todo: here
+                    k: r.populate_result(handlers.get(k))  # type: ignore # todo: here
                     for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NoResult) == NoResult # todo: here
+                    if task_inputs.get(k, NoResult) == NoResult  # todo: here
                 }
             )
         return task_inputs
@@ -711,7 +709,7 @@ class TaskRunner(Runner):
                                         preview=repr(upstream_state.result)[:10],
                                     )
                                 )
-                            upstream_result = Result( # todo: here
+                            upstream_result = Result(  # todo: here
                                 upstream_state.result[i],
                                 result_handler=upstream_state._result.result_handler,  # type: ignore # todo: here
                             )
@@ -905,14 +903,13 @@ class TaskRunner(Runner):
             result=result, message="Task run succeeded.", cached_inputs=inputs
         )
 
-        ## checkpoint tasks if a result_handler is present, except for when the user has opted out by disabling checkpointing
-        # if (
-        #     state.is_successful()
-        #     and prefect.context.get("checkpointing") is True
-        #     and self.task.checkpoint is not False
-        #     and self.result_handler is not None # todo: here
-        # ):
-        #     state._result.store_safe_value() # todo: here
+        # checkpoint tasks if a result_handler is present, except for when the user has opted out by disabling checkpointing
+        if (
+            state.is_successful()
+            and prefect.context.get("checkpointing") is True
+            and self.task.checkpoint is not False
+        ):
+            state._result.store_safe_value()  # todo: here
 
         return state
 
@@ -972,10 +969,10 @@ class TaskRunner(Runner):
             run_count = prefect.context.get("task_run_count", 1)
             if prefect.context.get("task_loop_count") is not None:
                 loop_context = {
-                    "_loop_count": Result( # todo: here
+                    "_loop_count": Result(  # todo: here
                         value=prefect.context["task_loop_count"],
                     ),
-                    "_loop_result": Result( # todo: here
+                    "_loop_result": Result(  # todo: here
                         value=prefect.context.get("task_loop_result"),
                     ),
                 }

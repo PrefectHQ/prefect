@@ -36,10 +36,10 @@ class BaseStateSchema(ObjectSchema):
 
     context = fields.Dict(key=fields.Str(), values=JSONCompatible(), allow_none=True)
     message = fields.String(allow_none=True)
-    _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
+    _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=None)
     cached_inputs = fields.Dict(
         key=fields.Str(),
-        values=Nested(StateResultSchema, value_selection_fn=get_safe),
+        values=Nested(StateResultSchema, value_selection_fn=None),
         allow_none=True,
     )
 
