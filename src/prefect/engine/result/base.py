@@ -215,7 +215,7 @@ class Result(ResultInterface):
         new.filepath = new.filepath.format(**kwargs)
         return new
 
-    def exists(self, loc: str = None) -> bool:
+    def exists(self, loc: str) -> bool:
         """
         Checks whether the target result exists.
 
@@ -231,7 +231,7 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def read(self, loc: str = None) -> "Result":
+    def read(self, loc: str) -> "Result":
         """
         Reads from the target result and returns a corresponding `Result` instance.
 
@@ -243,11 +243,13 @@ class Result(ResultInterface):
         """
         raise NotImplementedError()
 
-    def write(self, **kwargs: Any) -> "Result":
+    def write(self, value: Any, **kwargs: Any) -> "Result":
         """
         Serialize and write the result to the target location.
 
         Args:
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
             - **kwargs (optional): if provided, will be used to format the filepath template
                 to determine the location to write to
 

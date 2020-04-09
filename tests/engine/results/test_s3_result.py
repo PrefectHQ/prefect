@@ -49,23 +49,21 @@ class TestS3Result:
         }
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):
-        result = S3Result(
-            value="so-much-data", bucket="foo", filepath="{thing}/here.txt"
-        )
+        result = S3Result(bucket="foo", filepath="{thing}/here.txt")
 
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
             thing="yes!",
         ) as ctx:
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                uri = result.write(**ctx)
+                new_result = result.write("so-much-data", **ctx)
 
         used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
             "Key"
         ]
 
-        assert used_uri == uri.filepath
-        assert uri.filepath.startswith("yes!/here.txt")
+        assert used_uri == new_result.filepath
+        assert new_result.filepath.startswith("yes!/here.txt")
 
     def test_s3_result_is_pickleable(self, monkeypatch):
         class client:
@@ -105,7 +103,7 @@ class TestS3Result:
         session.Session().client = _client
         result = S3Result(bucket="bob", filepath="stuff")
         result = result.format()
-        assert result.exists() == False
+        assert result.exists("stuff") == False
 
     def test_s3_result_exists(self, session):
         import botocore
@@ -124,4 +122,4 @@ class TestS3Result:
         session.Session().client = _client
         result = S3Result(bucket="bob", filepath="stuff")
         result = result.format()
-        assert result.exists() == True
+        assert result.exists("stuff") == True

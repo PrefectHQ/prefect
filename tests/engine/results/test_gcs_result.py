@@ -40,9 +40,7 @@ class TestGCSResult:
         bucket = MagicMock()
         google_client.return_value.bucket = MagicMock(return_value=bucket)
         result = GCSResult(bucket="foo", filepath="{thing}/here.txt")
-        result.value = "so-much-data"
-        new_result = result.format(thing=42)
-        new_result.write()
+        new_result = result.write("so-much-data", thing=42)
         assert bucket.blob.called
         assert bucket.blob.call_args[0][0] == "42/here.txt"
 
@@ -61,9 +59,7 @@ class TestGCSResult:
             return_value=MagicMock(blob=MagicMock(return_value=blob))
         )
         result = GCSResult(bucket="foo", filepath="nothing/here.txt")
-        result.value = None
-        new_result = result.format()
-        new_result.write()
+        new_result = result.write(None)
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
 

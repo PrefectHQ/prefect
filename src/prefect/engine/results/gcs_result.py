@@ -66,10 +66,13 @@ class GCSResult(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self, **kwargs: Any) -> Result:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
         Writes the result value to a location in GCS and returns the resulting URI.
+
         Args:
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
             - **kwargs (optional): if provided, will be used to format the filepath template
                 to determine the location to write to
 
@@ -78,6 +81,7 @@ class GCSResult(Result):
         """
 
         new = self.format(**kwargs)
+        new.value = value
         self.logger.debug("Starting to upload result to {}...".format(new.filepath))
         binary_data = new.serialize_to_bytes(new.value).decode()
 
@@ -86,27 +90,26 @@ class GCSResult(Result):
 
         return new
 
-    def read(self, loc: str = None) -> Result:
+    def read(self, loc: str) -> Result:
         """
         Reads a result from a GCS bucket and returns a corresponding `Result` instance.
 
         Args:
-            - loc (str, optional): the GCS URI; if not provided, `self.filepath` will be used
+            - loc (str): the GCS URI to read from
 
         Returns:
             - Any: the read result
         """
-        uri = loc or self.filepath
         new = self.copy()
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(uri))
-            serialized_value = self.gcs_bucket.blob(uri).download_as_string()
+            self.logger.debug("Starting to download result from {}...".format(loc))
+            serialized_value = self.gcs_bucket.blob(loc).download_as_string()
             try:
                 new.value = new.deserialize_from_bytes(serialized_value)
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(uri))
+            self.logger.debug("Finished downloading result from {}.".format(loc))
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error while reading from result handler: {}".format(
@@ -116,20 +119,17 @@ class GCSResult(Result):
             new.value = None
         return new
 
-    def exists(self, loc: str = None) -> bool:
+    def exists(self, loc: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - loc (str, optional): Location of the result in the specific result target.
-                If provided, will check whether the provided location exists;
-                otherwise, will use `self.filepath`
+            - loc (str): Location of the result in the specific result target.
+                Will check whether the provided location exists
 
         Returns:
             - bool: whether or not the target result exists.
         """
-        uri = loc or self.filepath
-
-        return self.gcs_bucket.blob(uri).exists()
+        return self.gcs_bucket.blob(loc).exists()

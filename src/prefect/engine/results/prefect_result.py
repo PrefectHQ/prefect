@@ -18,7 +18,7 @@ class PrefectResult(Result):
         self.value = value
         super().__init__(value=value, **kwargs)
 
-    def read(self, loc: str = None) -> Result:
+    def read(self, loc: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
@@ -26,32 +26,39 @@ class PrefectResult(Result):
             - loc (str): an unused argument
         """
         new = self.copy()
-        new.value = json.loads(loc or new.filepath)
+        new.value = json.loads(loc)
+        new.filepath = loc
         return new
 
-    def write(self, **kwargs: Any) -> Result:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Returns the repr of the underlying value, purely for convenience.
+        JSON serializes `self.value` and returns `self`.
 
         Args:
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
             - **kwargs (optional): unused, for compatibility with the interface
 
         Returns:
-            - Result: returns self
+            - Result: returns a new `Result` with both `value` and `filepath` attributes
         """
-        self.filepath = json.dumps(self.value)
-        return self
+        new = self.copy()
+        new.value = value
+        new.filepath = json.dumps(new.value)
+        return new
 
-    def exists(self, loc: str = None) -> bool:
+    def exists(self, loc: str) -> bool:
         """
-        Confirms the existence of the `filepath` stored on the Result.
-
-        The value stored within a Constant is logically always present,
-        so `True` is returned.
+        Confirms that the provided value is JSON deserializable.
 
         Args:
-             - loc (optional): for interface compatibility
+             - loc (str): the value to test
+
         Returns:
-            - bool: True, confirming the constant exists.
+            - bool: whether the provided string can be deserialized
         """
-        return self.filepath is not ""
+        try:
+            json.loads(loc)
+            return True
+        except:
+            return False
