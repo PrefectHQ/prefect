@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from prefect.engine.result import Result  # pylint: disable=W0611
     from prefect.engine.result_handlers import ResultHandler  # pylint: disable=W0611
     from prefect.engine.state import State  # pylint: disable=W0611
+    from prefect.core import Edge  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
 
@@ -176,7 +177,7 @@ class Task(metaclass=SignatureValidator):
         max_retries: int = None,
         retry_delay: timedelta = None,
         timeout: int = None,
-        trigger: Callable[[Set["State"]], bool] = None,
+        trigger: Callable[[Dict["Edge", "State"]], bool] = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
         cache_validator: Callable = None,
