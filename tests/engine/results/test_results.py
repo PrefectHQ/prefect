@@ -19,17 +19,16 @@ class TestConstantResult:
         constant_result = ConstantResult("hello world")
         assert constant_result.read("this param isn't used") is constant_result
 
-    def test_write_overwrites_value(self):
+    def test_write_doesnt_write_new_value(self):
         constant_result = ConstantResult("untouchable!")
 
-        constant_result.write("nvm")
-        assert constant_result.value == "nvm"
-        assert constant_result.read("still unused") is constant_result
+        with pytest.raises(ValueError):
+            constant_result.write("nvm")
 
     def test_write_returns_value(self):
         constant_result = ConstantResult("constant value")
 
-        output = constant_result.write(None)
+        output = constant_result.write("constant value")
         assert output is output
 
     def test_handles_none_as_constant(self):

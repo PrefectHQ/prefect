@@ -1,5 +1,4 @@
 from typing import Any
-
 from prefect.engine.result import Result
 
 
@@ -30,13 +29,18 @@ class ConstantResult(Result):
         Returns the repr of the underlying value, purely for convenience.
 
         Args:
-            - value (Any): the new value to store on the class
+            - value (Any): the value to store on the class; must be the same as `self.value`
+                and is exposed purely for interface compatibility
             - **kwargs (optional): unused, for compatibility with the interface
 
         Returns:
             - Result: returns self
+
+        Raises:
+            ValueError: if the provided result is distinct from `self.value`
         """
-        self.value = value
+        if self.value != value:
+            raise ValueError("Cannot write new values to `ConstantResult` types.")
         self.filepath = repr(self.value)
         return self
 
