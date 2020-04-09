@@ -15,8 +15,10 @@ def test_secret_base_has_no_logic():
     assert secret.run() is None
 
 
-def test_prefect_secret_is_backwards_compatible():
-    assert Secret is PrefectSecret
+def test_prefect_secret_raises_deprecation_warning():
+    assert issubclass(Secret, PrefectSecret)
+    with pytest.warns(UserWarning, match="deprecated"):
+        Secret(name="foo")
 
 
 class TestPrefectSecret:

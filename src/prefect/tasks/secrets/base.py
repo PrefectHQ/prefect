@@ -1,4 +1,5 @@
 import datetime
+import warnings
 
 from prefect.client.secrets import Secret as _Secret
 from prefect.core.task import Task
@@ -69,4 +70,9 @@ class PrefectSecret(Task):
         return _Secret(name).get()
 
 
-Secret = PrefectSecret  # for backwards compatibility
+class Secret(PrefectSecret):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The `Secret` task is deprecated and has been renamed `PrefectSecret`.",
+            UserWarning,
+        )
