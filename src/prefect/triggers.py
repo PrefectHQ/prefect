@@ -46,10 +46,30 @@ from typing import TYPE_CHECKING, Callable, Dict, Union
 
 from prefect import context
 from prefect.engine import signals
+from prefect.engine.state import Mapped
 
 if TYPE_CHECKING:
     from prefect.engine import state  # pylint: disable=W0611
     from prefect import core  # pylint: disable=W0611
+
+
+def _get_all_states_as_set(upstream_states: Dict["core.Edge", "state.State"]) -> set:
+    """
+    Convert all upstream states to a set and expand map states.
+
+    Args:
+        - upstream_states (dict[Edge, State]): the set of all upstream states
+
+    Returns:
+        - set: a set of all upstream State objects
+    """
+    all_states = set()
+    for upstream_state in upstream_states.values():
+        if isinstance(upstream_state, Mapped):
+            all_states.update(upstream_state.map_states)
+        else:
+            all_states.add(upstream_state)
+    return all_states
 
 
 def all_finished(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
@@ -59,7 +79,7 @@ def all_finished(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     Args:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
-    if not all(s.is_finished() for s in upstream_states.values()):
+    if not all(s.is_finished() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_finished" but some of the upstream tasks were not finished.'
         )
@@ -92,7 +112,7 @@ def all_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if not all(s.is_successful() for s in upstream_states.values()):
+    if not all(s.is_successful() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_successful" but some of the upstream tasks failed.'
         )
@@ -108,7 +128,7 @@ def all_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if not all(s.is_failed() for s in upstream_states.values()):
+    if not all(s.is_failed() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_failed" but some of the upstream tasks succeeded.'
         )
@@ -124,7 +144,9 @@ def any_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if upstream_states and not any(s.is_successful() for s in upstream_states.values()):
+    if upstream_states and not any(
+        s.is_successful() for s in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_successful" but none of the upstream tasks succeeded.'
         )
@@ -140,7 +162,9 @@ def any_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if upstream_states and not any(s.is_failed() for s in upstream_states.values()):
+    if upstream_states and not any(
+        s.is_failed() for s in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_failed" but none of the upstream tasks failed.'
         )
@@ -179,8 +203,10 @@ def some_failed(
             return True
 
         # scale conversions
-        num_failed = len([s for s in upstream_states.values() if s.is_failed()])
-        num_states = len(upstream_states.values())
+        num_failed = len(
+            [s for s in _get_all_states_as_set(upstream_states) if s.is_failed()]
+        )
+        num_states = len(_get_all_states_as_set(upstream_states))
         if at_least is not None:
             min_num = (num_states * at_least) if at_least < 1 else at_least
         else:
@@ -231,8 +257,10 @@ def some_successful(
             return True
 
         # scale conversions
-        num_success = len([s for s in upstream_states.values() if s.is_successful()])
-        num_states = len(upstream_states.values())
+        num_success = len(
+            [s for s in _get_all_states_as_set(upstream_states) if s.is_successful()]
+        )
+        num_states = len(_get_all_states_as_set(upstream_states))
         if at_least is not None:
             min_num = (num_states * at_least) if at_least < 1 else at_least
         else:
@@ -259,9 +287,11 @@ def not_all_skipped(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if all(state.is_skipped() for state in upstream_states.values()):
+    if all(state.is_skipped() for state in _get_all_states_as_set(upstream_states)):
         raise signals.SKIP("All upstreams were skipped", result=None)
-    elif not all(state.is_successful() for state in upstream_states.values()):
+    elif not all(
+        state.is_successful() for state in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "not_all_skipped" but some of the upstream tasks failed.'
         )
