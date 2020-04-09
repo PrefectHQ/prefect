@@ -3,7 +3,7 @@ import multiprocessing
 import ntpath
 import posixpath
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Optional
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -47,6 +47,7 @@ class DockerAgent(Agent):
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
+        - use_network (Optional[str]): Add containers to an existing docker network
     """
 
     def __init__(
@@ -59,6 +60,7 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
+        use_network: Optional[str] = None,
     ) -> None:
         super().__init__(
             name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
@@ -85,6 +87,9 @@ class DockerAgent(Agent):
             self.container_mount_paths,
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
+
+        # Docker network to add containers to
+        self.use_network = use_network
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -332,12 +337,19 @@ class DockerAgent(Agent):
         else:
             host_config = self.docker_client.create_host_config(binds=self.host_spec)
 
+        networking_config = None
+        if self.use_network:
+            networking_config = self.docker_client.create_networking_config({
+                self.use_network: self.docker_client.create_endpoint_config()
+            })
+
         container = self.docker_client.create_container(
             storage.name,
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,
             host_config=host_config,
+            networking_config=networking_config
         )
 
         # Start the container
