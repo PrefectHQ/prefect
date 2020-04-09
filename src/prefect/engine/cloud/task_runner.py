@@ -46,16 +46,9 @@ class CloudTaskRunner(TaskRunner):
             retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
-    def __init__(
-        self,
-        task: Task,
-        state_handlers: Iterable[Callable] = None,
-        result_handler: ResultHandler = None,
-    ) -> None:
+    def __init__(self, task: Task, state_handlers: Iterable[Callable] = None) -> None:
         self.client = Client()
-        super().__init__(
-            task=task, state_handlers=state_handlers, result_handler=result_handler
-        )
+        super().__init__(task=task, state_handlers=state_handlers)
 
     def _heartbeat(self) -> bool:
         try:
