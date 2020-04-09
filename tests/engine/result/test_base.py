@@ -111,7 +111,7 @@ def test_has_abstract_interfaces(abstract_interface: str):
 
     func = getattr(r, abstract_interface)
     with pytest.raises(NotImplementedError):
-        func()
+        func(None)
 
 
 def test_noresult_is_safe():
