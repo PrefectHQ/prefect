@@ -483,6 +483,8 @@ workflows:
       - test_38
       - test_lower_prefect
       - test_vanilla_prefect
+      - test_server
+      - test_ui
       - upload_coverage:
           requires:
             - test_36
@@ -494,6 +496,7 @@ workflows:
     jobs:
       - check_static_analysis
       - check_documentation
+      - check_ui_formatting
 
   'Build and publish development artifacts':
     jobs:
