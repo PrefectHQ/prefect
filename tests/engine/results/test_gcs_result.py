@@ -33,7 +33,7 @@ class TestGCSResult:
         assert google_client.return_value.bucket.call_args[0][0] == "bob"
 
     def test_gcs_init_with_value(self):
-        result = GCSResult(3, bucket="bob")
+        result = GCSResult(value=3, bucket="bob")
         assert result.value == 3
 
     def test_gcs_writes_to_blob_using_rendered_template_name(self, google_client):

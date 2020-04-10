@@ -9,30 +9,30 @@ from prefect.tasks.core.constants import Constant
 
 class TestConstantResult:
     def test_instantiates_with_value(self):
-        constant_result = ConstantResult(5)
+        constant_result = ConstantResult(value=5)
         assert constant_result.value == 5
 
         constant_result = ConstantResult(value=10)
         assert constant_result.value == 10
 
     def test_read_returns_self(self):
-        constant_result = ConstantResult("hello world")
+        constant_result = ConstantResult(value="hello world")
         assert constant_result.read("this param isn't used") is constant_result
 
     def test_write_doesnt_write_new_value(self):
-        constant_result = ConstantResult("untouchable!")
+        constant_result = ConstantResult(value="untouchable!")
 
         with pytest.raises(ValueError):
             constant_result.write("nvm")
 
     def test_write_returns_value(self):
-        constant_result = ConstantResult("constant value")
+        constant_result = ConstantResult(value="constant value")
 
         output = constant_result.write("constant value")
         assert output is output
 
     def test_handles_none_as_constant(self):
-        constant_result = ConstantResult(None)
+        constant_result = ConstantResult(value=None)
         assert constant_result.read("still not used") is constant_result
         output = constant_result.write(None)
         assert output is output
@@ -42,7 +42,7 @@ class TestConstantResult:
     )
     def test_exists(self, constant_value: Union[str, Constant]):
 
-        result = ConstantResult(constant_value)
+        result = ConstantResult(value=constant_value)
         result_exists = result.exists("")
 
         assert result_exists is True
@@ -50,7 +50,7 @@ class TestConstantResult:
 
 class TestPrefectResult:
     def test_instantiates_with_value(self):
-        result = PrefectResult(5)
+        result = PrefectResult(value=5)
         assert result.value == 5
         assert result.filepath == ""
 
@@ -59,7 +59,7 @@ class TestPrefectResult:
         assert result.filepath == ""
 
     def test_read_returns_new_result(self):
-        result = PrefectResult("hello world")
+        result = PrefectResult(value="hello world")
         res = result.read('"bl00p"')
 
         assert res.filepath == '"bl00p"'
@@ -67,7 +67,7 @@ class TestPrefectResult:
         assert result.value == "hello world"
 
     def test_write_doesnt_overwrite_value(self):
-        result = PrefectResult(42)
+        result = PrefectResult(value=42)
 
         new_result = result.write(99)
 
