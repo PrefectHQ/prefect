@@ -66,70 +66,70 @@ class GCSResult(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self) -> str:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
         Writes the result value to a location in GCS and returns the resulting URI.
 
+        Args:
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
+
         Returns:
-            - str: the GCS URI
+            - Result: a new Result instance with the appropriately formatted filepath
         """
 
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
+        new = self.format(**kwargs)
+        new.value = value
+        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        binary_data = new.serialize_to_bytes(new.value).decode()
 
-        self.logger.debug(
-            "Starting to upload result to {}...".format(self._rendered_filepath)
-        )
-        binary_data = self.serialize().decode()
+        self.gcs_bucket.blob(new.filepath).upload_from_string(binary_data)
+        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
 
-        self.gcs_bucket.blob(self._rendered_filepath).upload_from_string(binary_data)
-        self.logger.debug(
-            "Finished uploading result to {}.".format(self._rendered_filepath)
-        )
+        return new
 
-        return self._rendered_filepath
-
-    def read(self, loc: str = None) -> Any:
+    def read(self, filepath: str) -> Result:
         """
-        Reads a result from a GCS bucket
+        Reads a result from a GCS bucket and returns a corresponding `Result` instance.
 
         Args:
-            - loc (str, optional): the GCS URI
+            - filepath (str): the GCS URI to read from
 
         Returns:
             - Any: the read result
         """
-        uri = loc or self._rendered_filepath
-
-        if not uri:
-            raise ValueError("Must call `Result.format()` first")
+        new = self.copy()
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(uri))
-            serialized_value = self.gcs_bucket.blob(uri).download_as_string()
+            self.logger.debug("Starting to download result from {}...".format(filepath))
+            serialized_value = self.gcs_bucket.blob(filepath).download_as_string()
             try:
-                self.value = self.deserialize(serialized_value)
+                new.value = new.deserialize_from_bytes(serialized_value)
             except EOFError:
-                self.value = None
-            self.logger.debug("Finished downloading result from {}.".format(uri))
+                new.value = None
+            self.logger.debug("Finished downloading result from {}.".format(filepath))
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error while reading from result handler: {}".format(
                     repr(exc)
                 )
             )
-            self.value = None
-        return self.value
+            new.value = None
+        return new
 
-    def exists(self) -> bool:
+    def exists(self, filepath: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
+        Args:
+            - filepath (str): Location of the result in the specific result target.
+                Will check whether the provided filepath exists
+
         Returns:
             - bool: whether or not the target result exists.
         """
-        if not self._rendered_filepath:
-            raise ValueError("Must call `Result.format()` first")
-        return self.gcs_bucket.blob(self._rendered_filepath).exists()
+        return self.gcs_bucket.blob(filepath).exists()
