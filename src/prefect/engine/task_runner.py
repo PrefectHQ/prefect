@@ -23,7 +23,7 @@ from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult, Result
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -969,11 +969,12 @@ class TaskRunner(Runner):
             run_count = prefect.context.get("task_run_count", 1)
             if prefect.context.get("task_loop_count") is not None:
                 loop_context = {
-                    "_loop_count": Result(  # todo: here
+                    "_loop_count": PrefectResult(
                         value=prefect.context["task_loop_count"],
                     ),
-                    "_loop_result": Result(  # todo: here
+                    "_loop_result": self.task.result.write(
                         value=prefect.context.get("task_loop_result"),
+                        **prefect.context
                     ),
                 }
                 inputs.update(loop_context)
