@@ -121,7 +121,7 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install -e ".[dev,test]"
 
       - run:
@@ -233,7 +233,7 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
@@ -264,7 +264,7 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
@@ -290,7 +290,7 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
@@ -303,8 +303,12 @@ jobs:
       - checkout
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
+
+      - run:
+          name: Install Prefect Server
+          command: pip install ./server
 
       - prep_server_database
       - prep_ui
