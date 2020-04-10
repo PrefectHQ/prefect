@@ -60,7 +60,7 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
-        use_network: Optional[str] = None,
+        network: Optional[str] = None,
     ) -> None:
         super().__init__(
             name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
@@ -88,8 +88,8 @@ class DockerAgent(Agent):
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
 
-        # Docker network to add containers to
-        self.use_network = use_network
+        # Add containers to a docker network
+        self.network = network
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -338,9 +338,9 @@ class DockerAgent(Agent):
             host_config = self.docker_client.create_host_config(binds=self.host_spec)
 
         networking_config = None
-        if self.use_network:
+        if self.network:
             networking_config = self.docker_client.create_networking_config({
-                self.use_network: self.docker_client.create_endpoint_config()
+                self.network: self.docker_client.create_endpoint_config()
             })
 
         container = self.docker_client.create_container(
