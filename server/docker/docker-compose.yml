@@ -34,6 +34,8 @@ services:
       - postgres
   graphql:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
+    build:
+      context: '..'
     ports:
       - "4201:4201"
     command: bash -c "${PREFECT_SERVER_DB_CMD} && python src/prefect_server/services/graphql/server.py"
@@ -49,6 +51,8 @@ services:
       - hasura
   scheduler:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
+    build:
+      context: '..'
     command: "python src/prefect_server/services/scheduler/scheduler.py"
     environment:
       PREFECT_SERVER__HASURA__ADMIN_SECRET: ${PREFECT_SERVER__HASURA__ADMIN_SECRET:-hasura-secret-admin-secret}
@@ -60,6 +64,8 @@ services:
       - graphql
   apollo:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
+    build:
+      context: '../services/apollo'
     ports:
       - "4200:4200"
     command: "npm run serve"
@@ -74,6 +80,8 @@ services:
       - graphql
   ui:
     image: "prefecthq/ui:${PREFECT_SERVER_TAG:-latest}"
+    build:
+      context: '../services/ui'
     ports:
       - "8080:8080"
     command: "/intercept.sh"
