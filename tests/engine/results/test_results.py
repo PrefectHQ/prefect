@@ -14,17 +14,17 @@ class TestSecretResult:
         task = PrefectSecret("foo")
         result = SecretResult(task)
         assert result.secret_task is task
-        assert result.filepath == "foo"
+        assert result.location == "foo"
 
     def test_reads_by_rerunning_task(self):
         task = PrefectSecret("foo")
         task.run = lambda *args, **kwargs: 42
         result = SecretResult(task)
-        result.filepath == "foo"
+        result.location == "foo"
 
         new_result = result.read("foo")
         assert new_result.value == 42
-        new_result.filepath == "foo"
+        new_result.location == "foo"
 
     def test_reads_with_new_name(self):
         task = PrefectSecret("foo")
@@ -35,10 +35,10 @@ class TestSecretResult:
             res2 = result.read("foo")
 
         assert res1.value == 99
-        assert res1.filepath == "x"
+        assert res1.location == "x"
 
         assert res2.value == "bar"
-        assert res2.filepath == "foo"
+        assert res2.location == "foo"
 
     def test_cant_write_to_secret_task(self):
         task = PrefectSecret("foo")
@@ -61,7 +61,7 @@ class TestConstantResult:
         assert constant_result.read("this param isn't used") is constant_result
 
     def test_write_raises(self):
-        constant_result = ConstantResult("untouchable!")
+        constant_result = ConstantResult(value="untouchable!")
 
         with pytest.raises(ValueError):
             constant_result.write("nvm")
