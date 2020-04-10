@@ -41,7 +41,7 @@ class TestLocalResult:
         assert isinstance(fpath, str)
         assert fpath == "test.txt"
 
-        with open(fpath, "rb") as f:
+        with open(os.path.join(tmp_dir, fpath), "rb") as f:
             val = f.read()
         assert isinstance(val, bytes)
 
