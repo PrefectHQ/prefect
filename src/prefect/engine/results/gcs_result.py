@@ -21,7 +21,6 @@ class GCSResult(Result):
     To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
-        - value (Any, optional): the value of the result
         - bucket (str): the name of the bucket to write to / read from
         - credentials_secret (str, optional): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
@@ -29,16 +28,12 @@ class GCSResult(Result):
     """
 
     def __init__(
-        self,
-        value: Any = None,
-        bucket: str = None,
-        credentials_secret: str = None,
-        **kwargs: Any
+        self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
         self.logger = logging.get_logger(type(self).__name__)
-        super().__init__(value, **kwargs)
+        super().__init__(**kwargs)
 
     @property
     def gcs_bucket(self) -> "google.cloud.storage.bucket.Bucket":

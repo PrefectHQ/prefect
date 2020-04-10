@@ -8,12 +8,11 @@ class ConstantResult(Result):
     internally.  The "backend" in this instance is the class instance itself.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, value: Any = None, **kwargs: Any) -> None:
-        self.value = value
-        super().__init__(value=value, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
     def read(self, filepath: str) -> Result:
         """

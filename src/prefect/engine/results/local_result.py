@@ -12,7 +12,6 @@ class LocalResult(Result):
     Result that is written to and retrieved from the local file system.
 
     Args:
-        - value (Any): the underlying value this Result should represent
         - dir (str, optional): the _absolute_ path to a directory for storing
             all results; defaults to `${prefect.config.home_dir}/results`
         - validate_dir (bool, optional): a boolean specifying whether to validate the
@@ -22,14 +21,8 @@ class LocalResult(Result):
     """
 
     def __init__(
-        self,
-        value: Any = None,
-        dir: str = None,
-        validate_dir: bool = True,
-        **kwargs: Any
+        self, dir: str = None, validate_dir: bool = True, **kwargs: Any
     ) -> None:
-        self.value = value
-
         full_prefect_path = os.path.abspath(config.home_dir)
         if (
             dir is None
@@ -48,7 +41,7 @@ class LocalResult(Result):
             abs_directory = directory
         self.dir = abs_directory
 
-        super().__init__(value=value, **kwargs)
+        super().__init__(**kwargs)
 
     def read(self, filepath: str) -> Result:
         """
