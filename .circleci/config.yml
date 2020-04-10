@@ -6,6 +6,61 @@ references:
     attach_workspace:
       at: *workspace_root
 
+commands:
+  prep_server_database:
+    description: 'Run Prefect Server database migrations'
+    steps:
+      - run:
+          name: Run Prefect Server database migrations
+          command: prefect-server database upgrade --yes
+  prep_ui:
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - npm-dependencies-{{ arch }}-{{ checksum "package.json" }}
+            - npm-dependencies-{{ arch }}-
+            - npm-dependencies-
+      - run:
+          name: Install utilities
+          command: |
+            apt-get update
+            # official binaries for nodejs
+            curl -sL https://deb.nodesource.com/setup_11.x | bash -
+            apt-get install -y sudo nodejs netcat
+      - run:
+          name: NPM Install
+          command: cd server/services/ui && npm install
+      - save_cache:
+          paths:
+            - ./server/services/ui/node_modules
+          key: npm-dependencies-{{ arch }}-{{ checksum "package.json" }}
+
+executors:
+  docker-prefect-server:
+    docker:
+      - image: python:3.7
+        environment:
+          PREFECT_SERVER__DATABASE__NAME: prefect_server
+          PREFECT_SERVER__DATABASE__USERNAME: prefect
+          PREFECT_SERVER__DATABASE__PASSWORD: test-password
+          PREFECT_SERVER__HASURA__ADMIN_SECRET: 'hasura-secret-admin-secret'
+
+      - image: 'postgres:11'
+        environment:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: prefect_server
+        command: postgres -c max_connections=150
+
+      - image: 'hasura/graphql-engine:v1.1.0'
+        command: /bin/sh -c "sleep 5 && graphql-engine serve"
+        environment:
+          HASURA_GRAPHQL_DATABASE_URL: postgres://prefect:prefect@localhost:5432/prefect_server
+          HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+          HASURA_GRAPHQL_ADMIN_SECRET: 'hasura-secret-admin-secret'
+          HASURA_GRAPHQL_SERVER_PORT: '3000'
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -72,6 +127,15 @@ jobs:
       - run:
           name: Run documentation tests
           command: pytest -vvrfEsx -k "generate_docs"
+
+  check_ui_formatting:
+    docker:
+      - image: node:10.16.3
+    steps:
+      - prep_ui
+      - run:
+          name: Lint
+          command: cd server/services/ui && npm run lint:ci
 
   # test a standard install of prefect
   # with all requriements pinned to their lowest allowed versions
@@ -232,6 +296,31 @@ jobs:
       - run:
           name: Run tests
           command: pytest -vvrfEsx .
+
+  test_server:
+    executor: docker-prefect-server
+    steps:
+      - checkout
+
+      - run:
+          name: Install prefect
+          command: pip install ".[all_extras]"
+
+      - prep_server_database
+      - prep_ui
+
+      - run:
+          name: Run server tests
+          command: pytest -vvrfEsx server
+
+  test_ui:
+    docker:
+      - image: node:10.16.3
+    steps:
+      - prep_ui
+      - run:
+          name: UI Unit Test
+          command: cd server/services/ui && npm run test:unit
 
   upload_coverage:
     docker:
