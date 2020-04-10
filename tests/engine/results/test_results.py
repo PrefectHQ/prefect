@@ -3,8 +3,49 @@ from typing import Union
 
 import pytest
 
-from prefect.engine.results import ConstantResult, PrefectResult
+import prefect
+from prefect.engine.results import ConstantResult, PrefectResult, SecretResult
 from prefect.tasks.core.constants import Constant
+from prefect.tasks.secrets import PrefectSecret
+
+
+class TestSecretResult:
+    def test_instantiates_with_task(self):
+        task = PrefectSecret("foo")
+        result = SecretResult(task)
+        assert result.secret_task is task
+        assert result.filepath == "foo"
+
+    def test_reads_by_rerunning_task(self):
+        task = PrefectSecret("foo")
+        task.run = lambda *args, **kwargs: 42
+        result = SecretResult(task)
+        result.filepath == "foo"
+
+        new_result = result.read("foo")
+        assert new_result.value == 42
+        new_result.filepath == "foo"
+
+    def test_reads_with_new_name(self):
+        task = PrefectSecret("foo")
+        result = SecretResult(task)
+
+        with prefect.context(secrets=dict(x=99, foo="bar")):
+            res1 = result.read("x")
+            res2 = result.read("foo")
+
+        assert res1.value == 99
+        assert res1.filepath == "x"
+
+        assert res2.value == "bar"
+        assert res2.filepath == "foo"
+
+    def test_cant_write_to_secret_task(self):
+        task = PrefectSecret("foo")
+        result = SecretResult(task)
+
+        with pytest.raises(ValueError):
+            result.write("new")
 
 
 class TestConstantResult:

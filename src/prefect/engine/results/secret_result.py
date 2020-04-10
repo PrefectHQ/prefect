@@ -20,6 +20,7 @@ class SecretResult(Result):
         self, secret_task: "prefect.tasks.secrets.Secret", **kwargs: Any
     ) -> None:
         self.secret_task = secret_task
+        kwargs.setdefault("filepath", secret_task.name)
         super().__init__(**kwargs)
 
     def read(self, filepath: str) -> Result:
