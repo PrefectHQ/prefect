@@ -6,7 +6,7 @@ from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 class TestMySQLExecute:
     def test_construction(self):
         task = MySQLExecute(db_name="test", user="test", password="test", host="test")
-        assert (task.commit is False) and (task.charset is "utf8mb4")
+        assert (task.commit is False) and (task.charset == "utf8mb4")
 
     def test_query_string_must_be_provided(self):
         task = MySQLExecute(db_name="test", user="test", password="test", host="test")
