@@ -11,10 +11,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Task logical operators (e.g. `And`, `Or`, ...) no longer implicitly cast to `bool` - [#2303](https://github.com/PrefectHQ/prefect/pull/2303)
+- Allow for dynamically changing secret names at runtime - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
 
 ### Task Library
 
-- None
+- Rename the base secret tasks for clarity - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
 
 ### Fixes
 
@@ -29,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- None
+- Remove `env_var` initialization from `EnvVarSecret` in favor of `name` - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
 
 ### Contributors
 
