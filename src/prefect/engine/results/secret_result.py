@@ -38,7 +38,7 @@ class SecretResult(Result):
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        .value` and returns `self`.
+        Secret results cannot be written to; provided for interface compatibility.
 
         Args:
             - value (Any): unused, for interface compatibility
@@ -48,15 +48,3 @@ class SecretResult(Result):
             - ValueError: SecretResults cannot be written to
         """
         raise ValueError("SecretResults cannot be written to.")
-
-    def exists(self, filepath: str) -> bool:
-        """
-        Confirms that the provided value is JSON deserializable.
-
-        Args:
-            - filepath (str): the value to test
-
-        Returns:
-            - bool: whether the provided string can be deserialized
-        """
-        return True
