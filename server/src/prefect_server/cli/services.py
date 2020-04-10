@@ -58,6 +58,8 @@ def ui():
         or root_dir.parent / "server-web-ui"
     )
 
+    ui_path = Path(ui_path)
+
     if not ui_path.exists():
         raise RuntimeError(
             "Cannot find server-web-ui repository path. Please set PREFECT_SERVER_WEB_UI_PATH environment variable."

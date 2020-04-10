@@ -51,6 +51,7 @@ endpoint = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
+diagnostics = false
 
 # rate at which to batch upload logs
 logging_heartbeat = 5

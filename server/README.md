@@ -12,6 +12,8 @@ To ensure that your local Flow runs are pointing to your local backend (instead 
 prefect backend server
 ```
 
+**Note:** Prefect Server requires both Docker and Docker Compose.
+
 ## Development
 
 ### Installation

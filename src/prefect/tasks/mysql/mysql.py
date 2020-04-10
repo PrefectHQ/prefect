@@ -12,7 +12,7 @@ class MySQLExecute(Task):
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
         - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 5432 if not provided
+        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
@@ -82,7 +82,7 @@ class MySQLExecute(Task):
                 with conn.cursor() as cursor:
                     executed = cursor.execute(query)
                     if commit:
-                        conm.commit()
+                        conn.commit()
 
             conn.close()
             print("Execute Results: ", executed)
@@ -103,7 +103,7 @@ class MySQLFetch(Task):
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
         - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 5432 if not provided
+        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
         - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
         - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
         - query (str, optional): query to execute against database

@@ -10,7 +10,7 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.utilities.configuration import set_temporary_config
-from prefect.engine.result import GCSResult
+from prefect.engine.results import GCSResult
 
 
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
@@ -39,10 +39,8 @@ class TestGCSResult:
     def test_gcs_writes_to_blob_using_rendered_template_name(self, google_client):
         bucket = MagicMock()
         google_client.return_value.bucket = MagicMock(return_value=bucket)
-        result = GCSResult(bucket="foo", filepath_template="{thing}/here.txt")
-        result.value = "so-much-data"
-        new_result = result.format(thing=42)
-        new_result.write()
+        result = GCSResult(bucket="foo", filepath="{thing}/here.txt")
+        new_result = result.write("so-much-data", thing=42)
         assert bucket.blob.called
         assert bucket.blob.call_args[0][0] == "42/here.txt"
 
@@ -60,10 +58,8 @@ class TestGCSResult:
         google_client.return_value.bucket = MagicMock(
             return_value=MagicMock(blob=MagicMock(return_value=blob))
         )
-        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
-        result.value = None
-        new_result = result.format()
-        new_result.write()
+        result = GCSResult(bucket="foo", filepath="nothing/here.txt")
+        new_result = result.write(None)
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
 
@@ -78,18 +74,3 @@ class TestGCSResult:
         result = GCSResult("foo")
         res = cloudpickle.loads(cloudpickle.dumps(result))
         assert isinstance(res, GCSResult)
-
-    def test_gcs_write_fails_if_format_not_called_first(self, google_client):
-        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
-        with pytest.raises(ValueError):
-            result.write()
-
-    def test_gcs_read_fails_if_format_not_called_first(self, google_client):
-        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
-        with pytest.raises(ValueError):
-            result.read()
-
-    def test_gcs_exists_fails_if_format_not_called_first(self, google_client):
-        result = GCSResult(bucket="foo", filepath_template="nothing/here.txt")
-        with pytest.raises(ValueError):
-            result.exists()

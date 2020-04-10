@@ -161,13 +161,14 @@ def test_client_register_doesnt_raise_for_scheduled_params(
         [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
     )
     b = prefect.schedules.clocks.DatesClock(
-        [pendulum.now("UTC").add(seconds=0.25)], parameter_defaults=dict(x=2)
+        [pendulum.now("UTC").add(seconds=0.25)], parameter_defaults=dict(x=2, y=5)
     )
 
     x = prefect.Parameter("x", required=True)
+    y = prefect.Parameter("y", default=1)
 
     flow = prefect.Flow(
-        "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x]
+        "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x, y]
     )
     flow.storage = prefect.environments.storage.Memory()
     flow.result_handler = flow.storage.result_handler

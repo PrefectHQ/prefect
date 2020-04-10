@@ -267,6 +267,7 @@ classes = [
         "ListContainers",
         "StartContainer",
         "StopContainer",
+        "RemoveContainer",
         "WaitOnContainer"
         ]
 
@@ -311,7 +312,7 @@ classes = ["ParseRSSFeed"]
 [pages.tasks.secrets]
 title = "Secret Tasks"
 module = "prefect.tasks.secrets"
-classes = ["Secret", "EnvVarSecret"]
+classes = ["SecretBase", "PrefectSecret", "EnvVarSecret"]
 
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"

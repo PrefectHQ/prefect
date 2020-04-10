@@ -182,13 +182,13 @@ Prefect's Core Python API is a powerful tool to describe task dependencies and e
 
 Prefect Core ships with an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
 
-Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/cloud/README.md).
+Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/orchestration/README.md).
 
 After [starting and configuring Core's server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect UI:
 
-![](/cloud/server/new-server-dashboard.png)
+![](/orchestration/server/new-server-dashboard.png)
 
-[Register](/cloud/concepts/flows.md#registration) any of your flows; they will register with your local backend:
+[Register](/orchestration/concepts/flows.md#registration) any of your flows; they will register with your local backend:
 
 ```python
 >>> flow.register()
@@ -196,15 +196,15 @@ Flow: http://localhost:8080/flow/796f7ad4-26c8-4e5d-bab1-dc687691da88
 ```
 You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect server's UI:
 
-![](/cloud/server/first-flow-registered-server.png)
+![](/orchestration/server/first-flow-registered-server.png)
 
-Start a [local agent](/cloud/agents/local.md) that can communicate between the server and your flow code.
+Start a [local agent](/orchestration/agents/local.md) that can communicate between the server and your flow code.
 
 ```bash
 prefect agent start
 ```
 
-And then trigger your flow from the UI using the ["Run" button](/cloud/ui/flow.md#run)! You will see the agent pick up your work:
+And then trigger your flow from the UI using the ["Run" button](/orchestration/ui/flow.md#run)! You will see the agent pick up your work:
 
 ```
 [2020-03-28 19:40:49,985] INFO - agent | Found 1 flow run(s) to submit for execution.
@@ -213,4 +213,4 @@ And then trigger your flow from the UI using the ["Run" button](/cloud/ui/flow.m
 
 And the UI will be updated with the state of the flow run:
 
-![](/cloud/server/completed-flow-run-server.png)
+![](/orchestration/server/completed-flow-run-server.png)

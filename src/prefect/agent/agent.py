@@ -10,7 +10,6 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Set
-from urllib.parse import urlparse
 
 import pendulum
 
@@ -93,7 +92,7 @@ class Agent:
         token = config.cloud.agent.get("auth_token")
 
         self.client = Client(api_token=token)
-        if "prefect.io" in urlparse(config.cloud.api).netloc:
+        if config.backend == "cloud":
             self._verify_token(token)
 
         logger = logging.getLogger(self.name)
@@ -195,7 +194,7 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/cloud/"
         )
 
-        if "prefect.io" in urlparse(config.cloud.api).netloc:
+        if config.backend == "cloud":
             self.logger.info("Agent successfully connected to the Prefect API")
         self.logger.info("Waiting for flow runs...")
 
