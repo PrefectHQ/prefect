@@ -98,9 +98,10 @@ class GCSResult(Result):
             - filepath (str): the GCS URI to read from
 
         Returns:
-            - Any: the read result
+            - Result: the read result
         """
         new = self.copy()
+        new.filepath = filepath
 
         try:
             self.logger.debug("Starting to download result from {}...".format(filepath))
@@ -116,7 +117,7 @@ class GCSResult(Result):
                     repr(exc)
                 )
             )
-            new.value = None
+            raise exc
         return new
 
     def exists(self, filepath: str) -> bool:
