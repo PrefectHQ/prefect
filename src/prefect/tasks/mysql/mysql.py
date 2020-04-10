@@ -12,7 +12,7 @@ class MySQLExecute(Task):
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
         - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 5432 if not provided
+        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
