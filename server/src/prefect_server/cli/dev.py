@@ -87,7 +87,6 @@ def build(version):
     foobar
     """
     docker_dir = Path(prefect_server.__file__).parents[2] / "docker"
-    print(docker_dir)
 
     env = make_env()
 
