@@ -28,20 +28,13 @@ class ConstantResult(Result):
         Returns the repr of the underlying value, purely for convenience.
 
         Args:
-            - value (Any): the value to store on the class; must be the same as `self.value`
-                and is exposed purely for interface compatibility
-            - **kwargs (optional): unused, for compatibility with the interface
-
-        Returns:
-            - Result: returns self
+            - value (Any): unused, for interface compatibility
+            - **kwargs (optional): unused, for interface compatibility
 
         Raises:
-            ValueError: if the provided result is distinct from `self.value`
+            ValueError: ConstantResults cannot be written to
         """
-        if self.value != value:
-            raise ValueError("Cannot write new values to `ConstantResult` types.")
-        self.location = repr(self.value)
-        return self
+        raise ValueError("Cannot write values to `ConstantResult` types.")
 
     def exists(self, location: str) -> bool:
         """
