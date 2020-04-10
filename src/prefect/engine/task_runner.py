@@ -890,7 +890,7 @@ class TaskRunner(Runner):
             new_state = exc.state
             assert isinstance(new_state, Looped)
             new_state.result = self.task.result.write(
-                value=new_state.result, **prefect.context
+                new_state.result, **prefect.context
             )
             new_state.cached_inputs = inputs
             new_state.message = exc.state.message or "Task is looping ({})".format(
