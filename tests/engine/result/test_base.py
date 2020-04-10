@@ -34,7 +34,7 @@ class TestInitialization:
         assert r.validators is None
         assert r.cache_for is None
         assert r.cache_validator is None
-        assert r.filepath == ""
+        assert r.location == ""
         assert r.run_validators is True
 
         s = Result(value=5)
@@ -44,7 +44,7 @@ class TestInitialization:
         assert s.validators is None
         assert s.cache_for is None
         assert s.cache_validator is None
-        assert s.filepath == ""
+        assert s.location == ""
         assert r.run_validators is True
 
     def test_result_inits_with_handled_and_result_handler(self):
@@ -297,11 +297,11 @@ def test_results_are_pickleable_with_their_safe_values():
 
 
 def test_result_format_template_from_context():
-    res = Result(filepath="{this}/{works}/yes?")
+    res = Result(location="{this}/{works}/yes?")
     with prefect.context(this="indeed", works="functional"):
         new = res.format(**prefect.context)
-        assert new.filepath == "indeed/functional/yes?"
-        assert res.filepath == "{this}/{works}/yes?"
+        assert new.location == "indeed/functional/yes?"
+        assert res.location == "{this}/{works}/yes?"
         assert new != res
 
 
