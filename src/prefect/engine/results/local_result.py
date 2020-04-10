@@ -2,8 +2,6 @@ import os
 from typing import Any
 
 import cloudpickle
-import pendulum
-from slugify import slugify
 
 from prefect import config
 from prefect.engine.result import Result
@@ -57,7 +55,7 @@ class LocalResult(Result):
         Reads a result from the local file system and returns the corresponding `Result` instance.
 
         Args:
-            - filepath (str): an unused argument
+            - filepath (str): the filepath to read from
 
         Returns:
             - Result: a new result instance with the data represented by the filepath
@@ -67,7 +65,7 @@ class LocalResult(Result):
 
         self.logger.debug("Starting to read result from {}...".format(filepath))
 
-        with open(filepath, "rb") as f:
+        with open(os.path.join(self.dir, filepath), "rb") as f:
             new.value = cloudpickle.loads(f.read())
 
         self.logger.debug("Finished reading result from {}...".format(filepath))
@@ -82,7 +80,8 @@ class LocalResult(Result):
         Args:
             - value (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
-            - **kwargs (optional): unused, for compatibility with the interface
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
 
         Returns:
             - Result: returns a new `Result` with both `value` and `filepath` attributes
@@ -90,18 +89,12 @@ class LocalResult(Result):
         new = self.format(**kwargs)
         new.value = value
 
-        # Construct result file path and name
-        filename = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
-        loc = os.path.join(self.dir, filename)
+        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
 
-        new.filepath = loc
-
-        self.logger.debug("Starting to upload result to {}...".format(loc))
-
-        with open(loc, "wb") as f:
+        with open(os.path.join(self.dir, new.filepath), "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
-        self.logger.debug("Finished uploading result to {}...".format(loc))
+        self.logger.debug("Finished uploading result to {}...".format(new.filepath))
 
         return new
 
@@ -118,4 +111,4 @@ class LocalResult(Result):
         Returns:
             - bool: whether or not the target result exists
         """
-        return os.path.exists(filepath)
+        return os.path.exists(os.path.join(self.dir, filepath))
