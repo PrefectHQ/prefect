@@ -315,7 +315,7 @@ jobs:
 
       - run:
           name: Run server tests
-          command: pytest -vvrfEsx server
+          command: cd server && pytest -vvrfEsx .
 
   test_ui:
     docker:
