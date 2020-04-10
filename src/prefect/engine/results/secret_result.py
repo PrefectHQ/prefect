@@ -11,7 +11,8 @@ class SecretResult(Result):
     the underlying secret task and re-retrieve the secret value.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - secret_task (Task): the Secret Task this result wraps
+        - **kwargs (Any, optional): additional kwargs to pass to the `Result` initialization
     """
 
     def __init__(
