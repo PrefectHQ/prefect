@@ -5,6 +5,7 @@ from prefect import Flow, Task, task
 from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch
+from prefect.utilities.tasks import as_task
 
 
 class Condition(Task):
@@ -183,8 +184,9 @@ def test_list_of_tasks():
     with Flow(name="test") as flow:
         condition = Condition()
         true_branch = [SuccessTask(), SuccessTask()]
+        list_task = as_task(true_branch)
         false_branch = SuccessTask()
-        ifelse(condition, true_branch, false_branch)
+        ifelse(condition, list_task, false_branch)
 
     with prefect.context(CONDITION=True):
         state = flow.run()
@@ -199,9 +201,6 @@ def test_list_of_tasks():
         for t in true_branch:
             # the tasks in the list ran becuase they have no upstream dependencies.
             assert isinstance(state.result[t], Success)
-        list_task = next(
-            t for t in flow.tasks if isinstance(t, prefect.tasks.core.collections.List)
-        )
         # but the list itself skipped
         assert isinstance(state.result[list_task], Skipped)
         assert isinstance(state.result[false_branch], Success)
