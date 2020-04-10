@@ -1,23 +1,18 @@
-import base64
 import io
 import json
-import uuid
-from typing import TYPE_CHECKING, Any, Dict
-
-import cloudpickle
-import pendulum
+from typing import Any, TYPE_CHECKING, Dict
 
 import prefect
 from prefect.client import Secret
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import Result
 
 if TYPE_CHECKING:
     import boto3
 
 
-class S3ResultHandler(ResultHandler):
+class S3Result(Result):
     """
-    Result Handler for writing to and reading from an AWS S3 Bucket.
+    Result that is written to and retrieved from an AWS S3 Bucket.
 
     For authentication, there are two options: you can set a Prefect Secret containing
     your AWS access keys which will be passed directly to the `boto3` client, or you can
@@ -26,29 +21,31 @@ class S3ResultHandler(ResultHandler):
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
-        - aws_credentials_secret (str, optional): the name of the Prefect Secret
+        - credentials_secret (str, optional): the name of the Prefect Secret
             that stores your AWS credentials; this Secret must be a JSON string
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
             passed directly to `boto3`.  If not provided, `boto3`
             will fall back on standard AWS rules for authentication.
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized (changing the "service_name" is not permitted).
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
     def __init__(
         self,
         bucket: str,
-        aws_credentials_secret: str = None,
+        credentials_secret: str = None,
         boto3_kwargs: Dict[str, Any] = None,
+        **kwargs: Any
     ) -> None:
         self.bucket = bucket
-        self.aws_credentials_secret = aws_credentials_secret
+        self.credentials_secret = credentials_secret
         self.boto3_kwargs = boto3_kwargs or dict()
         assert (
             "service_name" not in self.boto3_kwargs.keys()
         ), 'Changing the boto3 "service_name" is not permitted!'
         self._client = None
-        super().__init__()
+        super().__init__(**kwargs)
 
     def initialize_client(self) -> None:
         """
@@ -59,13 +56,13 @@ class S3ResultHandler(ResultHandler):
         aws_access_key = self.boto3_kwargs.pop("aws_access_key_id", None)
         aws_secret_access_key = self.boto3_kwargs.pop("aws_secret_access_key", None)
 
-        if self.aws_credentials_secret:
+        if self.credentials_secret:
             if aws_access_key is not None or aws_secret_access_key is not None:
                 self.logger.warning(
-                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"'
+                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "credentials_secret"'
                 )
 
-            aws_credentials = Secret(self.aws_credentials_secret).get()
+            aws_credentials = Secret(self.credentials_secret).get()
             if isinstance(aws_credentials, str):
                 aws_credentials = json.loads(aws_credentials)
 
@@ -108,53 +105,67 @@ class S3ResultHandler(ResultHandler):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self, result: Any) -> str:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Given a result, writes the result to a location in S3
-        and returns the resulting URI.
+        Writes the result to a location in S3 and returns the resulting URI.
 
         Args:
-            - result (Any): the written result
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
+            - **kwargs (optional): if provided, will be used to format the filepath template
+                to determine the location to write to
 
         Returns:
-            - str: the S3 URI
+            - Result: a new Result instance with the appropriately formatted S3 URI
         """
-        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
-        uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
-        self.logger.debug("Starting to upload result to {}...".format(uri))
 
-        ## prepare data
-        binary_data = base64.b64encode(cloudpickle.dumps(result))
+        new = self.format(**kwargs)
+        new.value = value
+        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        binary_data = new.serialize_to_bytes(new.value)
+
         stream = io.BytesIO(binary_data)
 
         ## upload
-        self.client.upload_fileobj(stream, Bucket=self.bucket, Key=uri)
-        self.logger.debug("Finished uploading result to {}.".format(uri))
-        return uri
+        from botocore.exceptions import ClientError
 
-    def read(self, uri: str) -> Any:
+        try:
+            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
+        except ClientError as err:
+            self.logger.error("Error uploading to S3: {}".format(err))
+            raise err
+
+        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
+        return new
+
+    def read(self, filepath: str) -> Result:
         """
-        Given a uri, reads a result from S3, reads it and returns it
+        Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
 
         Args:
-            - uri (str): the S3 URI
+            - filepath (str): the S3 URI to read from
 
         Returns:
             - Any: the read result
         """
+        new = self.copy()
+        new.filepath = filepath
+
         try:
-            self.logger.debug("Starting to download result from {}...".format(uri))
+            self.logger.debug("Starting to download result from {}...".format(filepath))
             stream = io.BytesIO()
 
-            ## download
-            self.client.download_fileobj(Bucket=self.bucket, Key=uri, Fileobj=stream)
+            ## download - uses `self` in case the client is already instantiated
+            self.client.download_fileobj(
+                Bucket=self.bucket, Key=filepath, Fileobj=stream
+            )
             stream.seek(0)
 
             try:
-                return_val = cloudpickle.loads(base64.b64decode(stream.read()))
+                new.value = new.deserialize_from_bytes(stream.read())
             except EOFError:
-                return_val = None
-            self.logger.debug("Finished downloading result from {}.".format(uri))
+                new.value = None
+            self.logger.debug("Finished downloading result from {}.".format(filepath))
 
         except Exception as exc:
             self.logger.exception(
@@ -162,6 +173,33 @@ class S3ResultHandler(ResultHandler):
                     repr(exc)
                 )
             )
-            return_val = None
+            raise exc
 
-        return return_val
+        return new
+
+    def exists(self, filepath: str) -> bool:
+        """
+        Checks whether the target result exists in the S3 bucket.
+
+        Does not validate whether the result is `valid`, only that it is present.
+
+        Args:
+            - filepath (str): Location of the result in the specific result target.
+
+        Returns:
+            - bool: whether or not the target result exists.
+        """
+        import botocore
+
+        try:
+            self.client.get_object(Bucket=self.bucket, Key=filepath).load()
+        except botocore.exceptions.ClientError as exc:
+            if exc.response["Error"]["Code"] == "404":
+                return False
+            raise
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error while reading from S3: {}".format(repr(exc))
+            )
+            raise
+        return True

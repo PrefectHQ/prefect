@@ -377,10 +377,7 @@ def test_generate_supervisor_conf(runner_token):
         (
             1,
             False,
-            (
-                ("agent", "INFO", "Process PID 1234 returned non-zero exit code"),
-                ("agent", "INFO", "awesome output!blerg, eRroR!"),
-            ),
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
         ),
         (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
     ),

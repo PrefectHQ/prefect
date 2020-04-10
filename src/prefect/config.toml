@@ -9,12 +9,13 @@ backend = "cloud"
 [server]
 host = "http://localhost"
 port = "4200"
+host_port = "4200"
 endpoint = "${server.host}:${server.port}"
 
     [server.database]
-
     host = "localhost"
-    port = 5432
+    port = "5432"
+    host_port = "5432"
     name = "prefect_server"
     username = "prefect"
     # set to "" to generate a random password each time the database starts
@@ -23,14 +24,15 @@ endpoint = "${server.host}:${server.port}"
 
     [server.graphql]
     host = "0.0.0.0"
-    port = 4201
+    port = "4201"
+    host_port = "4201"
     debug = false
     path = "/graphql/"
 
     [server.hasura]
-
     host = "localhost"
-    port = 3000
+    port = "3000"
+    host_port = "3000"
     admin_secret = "" # a string. One will be automatically generated if not provided.
     claims_namespace = "hasura-claims"
     graphql_url = "http://${server.hasura.host}:${server.hasura.port}/v1alpha1/graphql"
@@ -40,6 +42,7 @@ endpoint = "${server.host}:${server.port}"
     [server.ui]
     host = "http://localhost"
     port = "8080"
+    host_port = "8080"
     endpoint = "${server.ui.host}:${server.ui.port}"
 
 [cloud]
@@ -48,6 +51,7 @@ endpoint = "https://api.prefect.io"
 graphql = "${cloud.api}/graphql/alpha"
 use_local_secrets = true
 heartbeat_interval = 30.0
+diagnostics = false
 
 # rate at which to batch upload logs
 logging_heartbeat = 5

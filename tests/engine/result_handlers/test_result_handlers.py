@@ -17,8 +17,42 @@ from prefect.engine.result_handlers import (
     ResultHandler,
     S3ResultHandler,
     SecretResultHandler,
+    ConstantResultHandler,
 )
 from prefect.utilities.configuration import set_temporary_config
+
+
+class TestConstantResultHandler:
+    def test_instantiates_with_value(self):
+        handler = ConstantResultHandler(5)
+        assert handler.value == 5
+
+        handler = ConstantResultHandler(value=10)
+        assert handler.value == 10
+
+    def test_read_returns_value(self):
+        handler = ConstantResultHandler("hello world")
+        assert handler.read("this param isn't used") == "hello world"
+
+    def test_write_doesnt_overwrite_value(self):
+        handler = ConstantResultHandler("untouchable!")
+
+        handler.write("a different value")
+        assert handler.value == "untouchable!"
+        assert handler.read("still unused") == "untouchable!"
+
+    def test_write_returns_value(self):
+        handler = ConstantResultHandler("constant value")
+
+        output = handler.write("a different value")
+        assert output == "'constant value'"
+
+    def test_handles_none_as_constant(self):
+
+        handler = ConstantResultHandler(None)
+        assert handler.read("still not used") is None
+        output = handler.write("also not used")
+        assert output == "None"
 
 
 class TestJSONHandler:
@@ -255,6 +289,93 @@ class TestS3ResultHandler:
         ):
             with set_temporary_config({"cloud.use_local_secrets": True}):
                 assert handler.client is not None
+
+    def test_s3_with_kwargs_invalid_service_name(self, session):
+        with pytest.raises(AssertionError) as ex:
+            handler = S3ResultHandler(
+                bucket="bob",
+                aws_credentials_secret="AWS_CREDENTIALS",
+                boto3_kwargs=dict(service_name="s3"),
+            )
+        assert str(ex.value) == 'Changing the boto3 "service_name" is not permitted!'
+
+    def test_s3_with_kwarg_overwrite_aws_keys(self, session):
+        handler = S3ResultHandler(
+            bucket="bob",
+            aws_credentials_secret="AWS_CREDENTIALS",
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
+        )
+        assert (
+            "aws_access_key_id" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_access_key_id" in boto_kwargs'
+        assert (
+            "aws_secret_access_key" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_secret_access_key" in boto_kwargs'
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        assert session.Session().client.call_args[1] == {
+            "aws_access_key_id": 1,
+            "aws_secret_access_key": 999,
+        }
+
+    def test_s3_with_kwargs_aws_keys(self, session):
+        handler = S3ResultHandler(
+            bucket="bob",
+            boto3_kwargs=dict(aws_access_key_id=123, aws_secret_access_key=456,),
+        )
+        assert (
+            "aws_access_key_id" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_access_key_id" in boto_kwargs'
+        assert (
+            "aws_secret_access_key" in handler.boto3_kwargs.keys()
+        ), 'Missing "aws_secret_access_key" in boto_kwargs'
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        assert session.Session().client.call_args[1] == {
+            "aws_access_key_id": 123,
+            "aws_secret_access_key": 456,
+        }
+
+    def test_s3_with_kwargs(self, session):
+        from botocore.client import Config
+
+        kw = dict(
+            region_name="us-east-1",
+            api_version="0.0.1",
+            endpoint_url="https://minio.local/",
+            config=Config(
+                signature_version="s3v4",
+                s3=dict(
+                    region_name="us-east-1",
+                    addressing_style="path",
+                    inject_host_prefix=False,
+                ),
+            ),
+        )
+        handler = S3ResultHandler(
+            bucket="bob", aws_credentials_secret="AWS_CREDENTIALS", boto3_kwargs=kw
+        )
+        with prefect.context(
+            secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_client()
+
+        assert handler.bucket == "bob"
+        kw.update(
+            {"aws_access_key_id": 1, "aws_secret_access_key": 999,}
+        )
+        assert session.Session().client.call_args[1] == kw
 
 
 @pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")

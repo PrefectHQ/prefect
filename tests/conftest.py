@@ -153,3 +153,11 @@ def cloud_api():
         {"cloud.api": "https://api.prefect.io"}
     ):
         yield
+
+
+@pytest.fixture()
+def server_api():
+    with prefect.utilities.configuration.set_temporary_config(
+        {"cloud.api": "https:/localhost:4200"}
+    ):
+        yield
