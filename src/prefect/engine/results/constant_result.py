@@ -14,12 +14,12 @@ class ConstantResult(Result):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - filepath (str): an unused argument
+            - location (str): an unused argument
         """
         return self
 
@@ -40,15 +40,15 @@ class ConstantResult(Result):
         """
         if self.value != value:
             raise ValueError("Cannot write new values to `ConstantResult` types.")
-        self.filepath = repr(self.value)
+        self.location = repr(self.value)
         return self
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
-             - filepath (str): for interface compatibility
+             - location (str): for interface compatibility
 
         Returns:
             - bool: True, confirming the constant exists.

@@ -52,17 +52,17 @@ class TestPrefectResult:
     def test_instantiates_with_value(self):
         result = PrefectResult(value=5)
         assert result.value == 5
-        assert result.filepath == ""
+        assert result.location == ""
 
         result = PrefectResult(value=10)
         assert result.value == 10
-        assert result.filepath == ""
+        assert result.location == ""
 
     def test_read_returns_new_result(self):
         result = PrefectResult(value="hello world")
         res = result.read('"bl00p"')
 
-        assert res.filepath == '"bl00p"'
+        assert res.location == '"bl00p"'
         assert res.value == "bl00p"
         assert result.value == "hello world"
 
@@ -72,10 +72,10 @@ class TestPrefectResult:
         new_result = result.write(99)
 
         assert result.value == 42
-        assert result.filepath == ""
+        assert result.location == ""
 
         assert new_result.value == 99
-        assert new_result.filepath == "99"
+        assert new_result.location == "99"
 
     @pytest.mark.parametrize(
         "value", [42, [0, 1], "x,y", (9, 10), dict(x=[55], y=None)]

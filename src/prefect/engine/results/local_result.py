@@ -43,65 +43,65 @@ class LocalResult(Result):
 
         super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Reads a result from the local file system and returns the corresponding `Result` instance.
 
         Args:
-            - filepath (str): the filepath to read from
+            - location (str): the location to read from
 
         Returns:
-            - Result: a new result instance with the data represented by the filepath
+            - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.filepath = filepath
+        new.location = location
 
-        self.logger.debug("Starting to read result from {}...".format(filepath))
+        self.logger.debug("Starting to read result from {}...".format(location))
 
-        with open(os.path.join(self.dir, filepath), "rb") as f:
+        with open(os.path.join(self.dir, location), "rb") as f:
             new.value = cloudpickle.loads(f.read())
 
-        self.logger.debug("Finished reading result from {}...".format(filepath))
+        self.logger.debug("Finished reading result from {}...".format(location))
 
         return new
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
         Writes the result to a location in the local file system and returns a new `Result`
-        object with the result's filepath.
+        object with the result's location.
 
         Args:
             - value (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
-            - **kwargs (optional): if provided, will be used to format the filepath template
+            - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
-            - Result: returns a new `Result` with both `value` and `filepath` attributes
+            - Result: returns a new `Result` with both `value` and `location` attributes
         """
         new = self.format(**kwargs)
         new.value = value
 
-        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        self.logger.debug("Starting to upload result to {}...".format(new.location))
 
-        with open(os.path.join(self.dir, new.filepath), "wb") as f:
+        with open(os.path.join(self.dir, new.location), "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
-        self.logger.debug("Finished uploading result to {}...".format(new.filepath))
+        self.logger.debug("Finished uploading result to {}...".format(new.location))
 
         return new
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Checks whether the target result exists in the file system.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - filepath (str): Location of the result in the specific result target.
-                Will check whether the provided filepath exists
+            - location (str): Location of the result in the specific result target.
+                Will check whether the provided location exists
 
         Returns:
             - bool: whether or not the target result exists
         """
-        return os.path.exists(os.path.join(self.dir, filepath))
+        return os.path.exists(os.path.join(self.dir, location))

@@ -39,7 +39,7 @@ class TestGCSResult:
     def test_gcs_writes_to_blob_using_rendered_template_name(self, google_client):
         bucket = MagicMock()
         google_client.return_value.bucket = MagicMock(return_value=bucket)
-        result = GCSResult(bucket="foo", filepath="{thing}/here.txt")
+        result = GCSResult(bucket="foo", location="{thing}/here.txt")
         new_result = result.write("so-much-data", thing=42)
         assert bucket.blob.called
         assert bucket.blob.call_args[0][0] == "42/here.txt"
@@ -58,7 +58,7 @@ class TestGCSResult:
         google_client.return_value.bucket = MagicMock(
             return_value=MagicMock(blob=MagicMock(return_value=blob))
         )
-        result = GCSResult(bucket="foo", filepath="nothing/here.txt")
+        result = GCSResult(bucket="foo", location="nothing/here.txt")
         new_result = result.write(None)
         assert blob.upload_from_string.called
         assert isinstance(blob.upload_from_string.call_args[0][0], str)
