@@ -82,7 +82,7 @@ class MySQLExecute(Task):
                 with conn.cursor() as cursor:
                     executed = cursor.execute(query)
                     if commit:
-                        conm.commit()
+                        conn.commit()
 
             conn.close()
             print("Execute Results: ", executed)
