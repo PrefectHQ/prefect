@@ -37,7 +37,7 @@ class ConstantResultSchema(ObjectSchema):
 
 class ResultSchema(ObjectSchema):
     class Meta:
-        object_class = results.ConstantResult
+        object_class = result.Result
 
 
 class SafeResultSchema(ObjectSchema):
