@@ -564,26 +564,26 @@ class TaskRunner(Runner):
 
         """
         task_inputs = {}  # type: Dict[str, Result]
-        handlers = {}  # type: Dict[str, ResultHandler]
+        result_skeletons = {}  # type: Dict[str, Result]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                handlers[edge.key] = result_skeleton = getattr(
-                    edge.upstream_task, "result", None  # todo: here
+                result_skeletons[edge.key] = result_skeleton = getattr(
+                    edge.upstream_task, "result", None
                 )
                 task_inputs[  # type: ignore
                     edge.key
-                ] = upstream_state._result.populate_result(  # type: ignore # todo: here
+                ] = upstream_state._result.populate_result(  # type: ignore
                     result_skeleton
                 )  # type: ignore
 
         if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
-                    k: r.populate_result(handlers.get(k))  # type: ignore # todo: here
+                    k: r.populate_result(result_skeletons.get(k))  # type: ignore
                     for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NoResult) == NoResult  # todo: here
+                    if task_inputs.get(k, NoResult) == NoResult
                 }
             )
         return task_inputs
