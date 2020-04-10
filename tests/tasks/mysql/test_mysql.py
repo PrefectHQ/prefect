@@ -17,7 +17,7 @@ class TestMySQLExecute:
 class TestMySQLFetch:
     def test_construction(self):
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
-        assert task.fetch is "one"
+        assert task.fetch == "one"
 
     def test_query_string_must_be_provided(self):
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
