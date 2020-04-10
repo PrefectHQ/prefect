@@ -1,12 +1,11 @@
-from typing import Any, Optional
-
+from typing import Any
 from prefect.engine.result import Result
 
 
 class ConstantResult(Result):
     """
     Hook for storing and retrieving constant Python objects. Only intended to be used
-    internally.
+    internally.  The "backend" in this instance is the class instance itself.
 
     Args:
         - value (Any): the underlying value this Result should represent
@@ -16,33 +15,36 @@ class ConstantResult(Result):
         self.value = value
         super().__init__(value=value, **kwargs)
 
-    def read(self, arg: Optional[str] = None) -> Any:
+    def read(self, filepath: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - arg (str): an unused argument
+            - filepath (str): an unused argument
         """
-        return self.value
+        return self
 
-    def write(self) -> str:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
         Returns the repr of the underlying value, purely for convenience.
 
-        Returns:
-            - str: the repr of the result
-        """
-        return repr(self.value)
+        Args:
+            - value (Any): unused, for interface compatibility
+            - **kwargs (optional): unused, for interface compatibility
 
-    def exists(self) -> bool:
+        Raises:
+            ValueError: ConstantResults cannot be written to
         """
-        Confirms the existence of the Constant value stored in the Result.
+        raise ValueError("Cannot write values to `ConstantResult` types.")
 
-        The value stored within a Constant is logically always present,
-        so `True` is returned.
+    def exists(self, filepath: str) -> bool:
+        """
+        As all Python objects are valid constants, always returns `True`.
+
+        Args:
+             - filepath (str): for interface compatibility
 
         Returns:
             - bool: True, confirming the constant exists.
         """
-
         return True
