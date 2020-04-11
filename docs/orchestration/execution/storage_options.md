@@ -14,7 +14,7 @@ from prefect.environments.storage import Local
 
 flow = Flow("local-flow", storage=Local())
 
-storage.build()
+flow.storage.build()
 ```
 
 The flow is now available under `~/.prefect/flows/local-flow.prefect`.
@@ -35,7 +35,7 @@ from prefect.environments.storage import Azure
 
 flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string="<my-connection-string>"))
 
-storage.build()
+flow.storage.build()
 ```
 
 The flow is now available in the container under `azure-flow/slugified-current-timestamp`.
@@ -60,7 +60,7 @@ from prefect.environments.storage import S3
 
 flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 
-storage.build()
+flow.storage.build()
 ```
 
 The flow is now available in the bucket under `s3-flow/slugified-current-timestamp`.
@@ -85,7 +85,7 @@ from prefect.environments.storage import GCS
 
 flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 
-storage.build()
+flow.storage.build()
 ```
 
 The flow is now available in the bucket under `gcs-flow/slugified-current-timestamp`.
@@ -110,7 +110,7 @@ from prefect.environments.storage import Docker
 
 flow = Flow("gcs-flow", storage=Docker(registry_url="<my-registry.io>", image_name="my_flow"))
 
-storage.build()
+flow.storage.build()
 ```
 
 The flow is now available in the container registry under `my-registry.io/my_flow:slugified-current-timestamp`. Note that each type of container registry uses a different format for image naming (e.g. DockerHub vs GCR).
