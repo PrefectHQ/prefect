@@ -47,7 +47,7 @@ class DockerAgent(Agent):
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
-        - use_network (Optional[str]): Add containers to an existing docker network
+        - network (Optional[str]): Add containers to an existing docker network
     """
 
     def __init__(
@@ -356,6 +356,9 @@ class DockerAgent(Agent):
         self.logger.debug(
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
+        if self.network:
+            self.logger.debug(f'Adding container to docker network: {self.network}')
+
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:
