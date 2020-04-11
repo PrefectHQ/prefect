@@ -5,6 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
+import prefect
 from prefect.engine.result_handlers import S3ResultHandler
 from prefect.environments.storage import Storage
 
@@ -38,6 +39,9 @@ class S3(Storage):
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
+            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
+            credentials.
     """
 
     def __init__(
@@ -48,6 +52,7 @@ class S3(Storage):
         aws_session_token: str = None,
         client_options: dict = None,
         key: str = None,
+        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -60,7 +65,7 @@ class S3(Storage):
         self.client_options = client_options
 
         result_handler = S3ResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler)
+        super().__init__(result_handler=result_handler, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:
