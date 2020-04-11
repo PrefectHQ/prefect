@@ -90,6 +90,7 @@ class DockerAgent(Agent):
 
         # Add containers to a docker network
         self.network = network
+        self.logger.debug("network set to {}".format(self.network))
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -357,7 +358,7 @@ class DockerAgent(Agent):
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
         if self.network:
-            self.logger.debug(f'Adding container to docker network: {self.network}')
+            self.logger.debug('Adding container to docker network: {}'.format(self.network))
 
         self.docker_client.start(container=container.get("Id"))
 
