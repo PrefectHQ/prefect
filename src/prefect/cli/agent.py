@@ -118,7 +118,6 @@ def agent():
 )
 @click.option(
     "--network",
-    multiple=True,
     help="Add containers to an existing docker network",
     hidden=True,
 )

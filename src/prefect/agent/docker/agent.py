@@ -350,7 +350,7 @@ class DockerAgent(Agent):
             environment=env_vars,
             volumes=container_mount_paths,
             host_config=host_config,
-            networking_config=networking_config
+            networking_config=networking_config,
         )
 
         # Start the container
