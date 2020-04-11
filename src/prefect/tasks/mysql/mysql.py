@@ -2,7 +2,7 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
-import logging 
+import logging
 
 
 class MySQLExecute(Task):
@@ -45,10 +45,7 @@ class MySQLExecute(Task):
 
     @defaults_from_attrs("query", "commit", "charset")
     def run(
-        self,
-        query: str = None,
-        commit: bool = False,
-        charset: str = "utf8mb4",
+        self, query: str = None, commit: bool = False, charset: str = "utf8mb4",
     ) -> None:
         """
         Task run method. Executes a query against MySQL database.

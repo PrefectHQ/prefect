@@ -1,5 +1,5 @@
 import pytest
-import mock 
+import mock
 
 from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
