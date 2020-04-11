@@ -2,6 +2,7 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
+import logging 
 
 
 class MySQLExecute(Task):
@@ -14,7 +15,6 @@ class MySQLExecute(Task):
         - host (str): database host address
         - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
         - query (str, optional): query to execute against database
-        - data (tuple, optional): values to use in query, must be specified using placeholder in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -29,7 +29,6 @@ class MySQLExecute(Task):
         host: str,
         port: int = 3307,
         query: str = None,
-        data: tuple = None,
         commit: bool = False,
         charset: str = "utf8mb4",
         **kwargs
@@ -40,16 +39,14 @@ class MySQLExecute(Task):
         self.host = host
         self.port = port
         self.query = query
-        self.data = data
         self.commit = commit
         self.charset = charset
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "data", "commit", "charset")
+    @defaults_from_attrs("query", "commit", "charset")
     def run(
         self,
         query: str = None,
-        data: tuple = None,
         commit: bool = False,
         charset: str = "utf8mb4",
     ) -> None:
@@ -58,13 +55,12 @@ class MySQLExecute(Task):
 
         Args:
             - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using
-                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to False
+            - charset (str, optional): charset of the query, defaults to "utf8mb4"
         Returns:
             - None
         Raises:
-            - Error (see below TODO)
+            - pymysql.MySQLError
         """
         if not query:
             raise ValueError("A query string must be provided")
@@ -85,12 +81,12 @@ class MySQLExecute(Task):
                         conn.commit()
 
             conn.close()
-            print("Execute Results: ", executed)
+            logging.debug("Execute Results: ", executed)
             return executed
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            print("EXECUTE ERROR: ", e)
+            logging.debug("Execute Error: ", e)
             return e
 
 
@@ -107,7 +103,6 @@ class MySQLFetch(Task):
         - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
         - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
         - query (str, optional): query to execute against database
-        - data (tuple, optional): values to use in query, must be specified using placeholder is query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -123,7 +118,6 @@ class MySQLFetch(Task):
         fetch: str = "one",
         fetch_count: int = 10,
         query: str = None,
-        data: tuple = None,
         commit: bool = False,
         charset: str = "utf8mb4",
         **kwargs
@@ -136,18 +130,16 @@ class MySQLFetch(Task):
         self.fetch = fetch
         self.fetch_count = fetch_count
         self.query = query
-        self.data = data
         self.commit = commit
         self.charset = charset
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "data", "commit", "charset")
+    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset")
     def run(
         self,
         fetch: str = "one",
         fetch_count: int = 10,
         query: str = None,
-        data: tuple = None,
         commit: bool = False,
         charset: str = "utf8mb4",
     ):
@@ -157,12 +149,12 @@ class MySQLFetch(Task):
             - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
             - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using placeholder is query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
+            - charset (str, optional): charset of the query, defaults to "utf8mb4"
         Returns:
             - records (tuple or list of tuples): records from provided query
         Raises:
-            - see below TODO
+            - pymysql.MySQLError
         """
         if not query:
             raise ValueError("A query string must be provided")
@@ -192,13 +184,13 @@ class MySQLFetch(Task):
                         results = cursor.fetchone()
 
                     if commit:
-                        conm.commit()
+                        conn.commit()
 
             conn.close()
-            print("Fetch Results: ", results)
+            logging.debug("Fetch Results: ", results)
             return results
 
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
-            print("FETCH ERROR: ", e)
+            logging.debug("Fetch Error: ", e)
             return e
