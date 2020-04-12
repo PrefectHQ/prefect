@@ -36,7 +36,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.task_runner import TaskRunner
-from prefect.tasks.secrets import Secret
+from prefect.tasks.secrets import PrefectSecret
 from prefect.triggers import any_failed, manual_only
 from prefect.utilities.debug import raise_on_exception
 
@@ -269,7 +269,7 @@ def test_flow_runner_remains_running_if_tasks_are_retrying():
 
 def test_secrets_retry_by_default_and_pull_from_context():
     flow = Flow(name="test")
-    task1 = Secret("foo")
+    task1 = PrefectSecret("foo")
 
     flow.add_task(task1)
 
