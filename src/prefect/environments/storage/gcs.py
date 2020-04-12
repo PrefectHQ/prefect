@@ -53,7 +53,7 @@ class GCS(Storage):
         self.project = project
 
         result_handler = GCSResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler)
+        super().__init__(result_handler=result_handler, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

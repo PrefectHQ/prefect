@@ -8,6 +8,7 @@ from prefect.utilities.serialization import (
     FunctionReference,
     JSONCompatible,
     ObjectSchema,
+    OneOfSchema,
     StatefulFunctionReference,
     from_qualified_name,
     to_qualified_name,
@@ -145,3 +146,15 @@ class EnvVarSecretSchema(TaskMethodsMixin, ObjectSchema):
 
     name = fields.String(required=True)
     raise_if_missing = fields.Boolean()
+
+
+class SecretSchema(OneOfSchema):
+    """
+    Field that chooses between several nested schemas
+    """
+
+    # map class name to schema
+    type_schemas = {
+        "PrefectSecret": PrefectSecretSchema,
+        "EnvVarSecret": EnvVarSecretSchema,
+    }

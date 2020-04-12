@@ -12,6 +12,7 @@ from prefect.environments.storage import (
     Local,
     Storage,
 )
+from prefect.serialization.task import SecretSchema
 from prefect.utilities.serialization import Bytes as BytesField
 from prefect.utilities.serialization import (
     JSONCompatible,
@@ -20,22 +21,14 @@ from prefect.utilities.serialization import (
 )
 
 
-class SecretsMixin:
-    @pre_dump
-    def process_secrets(self, data: Azure, **kwargs):
-        obj = copy.copy(data)
-        obj.secrets = [s.name for s in obj.secrets]
-        return obj
-
-
-class AzureSchema(ObjectSchema, SecretsMixin):
+class AzureSchema(ObjectSchema):
     class Meta:
         object_class = Azure
 
     container = fields.String(allow_none=False)
     blob_name = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.String())
+    secrets = fields.Nested(SecretSchema, allow_none=True, many=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Azure:
@@ -45,12 +38,12 @@ class AzureSchema(ObjectSchema, SecretsMixin):
         return base_obj
 
 
-class BaseStorageSchema(ObjectSchema, SecretsMixin):
+class BaseStorageSchema(ObjectSchema):
     class Meta:
         object_class = Storage
 
 
-class DockerSchema(ObjectSchema, SecretsMixin):
+class DockerSchema(ObjectSchema):
     class Meta:
         object_class = Docker
 
@@ -59,7 +52,7 @@ class DockerSchema(ObjectSchema, SecretsMixin):
     image_tag = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
-    secrets = fields.List(fields.String())
+    secrets = fields.Nested(SecretSchema, allow_none=True, many=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -69,7 +62,7 @@ class DockerSchema(ObjectSchema, SecretsMixin):
         return base_obj
 
 
-class GCSSchema(ObjectSchema, SecretsMixin):
+class GCSSchema(ObjectSchema):
     class Meta:
         object_class = GCS
 
@@ -77,7 +70,7 @@ class GCSSchema(ObjectSchema, SecretsMixin):
     key = fields.Str(allow_none=True)
     project = fields.Str(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.String())
+    secrets = fields.Nested(SecretSchema, allow_none=True, many=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> GCS:
@@ -87,13 +80,13 @@ class GCSSchema(ObjectSchema, SecretsMixin):
         return base_obj
 
 
-class LocalSchema(ObjectSchema, SecretsMixin):
+class LocalSchema(ObjectSchema):
     class Meta:
         object_class = Local
 
     directory = fields.Str(allow_none=False)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
-    secrets = fields.List(fields.String())
+    secrets = fields.Nested(SecretSchema, allow_none=True, many=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -104,7 +97,7 @@ class LocalSchema(ObjectSchema, SecretsMixin):
         return base_obj
 
 
-class S3Schema(ObjectSchema, SecretsMixin):
+class S3Schema(ObjectSchema):
     class Meta:
         object_class = S3
 
@@ -114,7 +107,7 @@ class S3Schema(ObjectSchema, SecretsMixin):
     client_options = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
-    secrets = fields.List(fields.String())
+    secrets = fields.Nested(SecretSchema, allow_none=True, many=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> S3:
