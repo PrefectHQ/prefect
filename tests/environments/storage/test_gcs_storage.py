@@ -7,6 +7,7 @@ import pytest
 
 from prefect import Flow
 from prefect.environments.storage import GCS
+from prefect.tasks.secrets import EnvVarSecret
 from prefect.utilities.exceptions import StorageError
 
 
@@ -26,13 +27,19 @@ class TestGCSStorage:
             yield client
 
     def test_create_gcs_storage(self):
-        storage = GCS(bucket="awesome-bucket", key="the-best-key", project="mayhem")
+        storage = GCS(
+            bucket="awesome-bucket",
+            key="the-best-key",
+            project="mayhem",
+            secrets=[EnvVarSecret("boo")],
+        )
 
         assert storage
         assert len(storage._flows) == 0
         assert storage.bucket == "awesome-bucket"
         assert storage.key == "the-best-key"
         assert storage.project == "mayhem"
+        assert len(storage.secrets) == 1
 
     def test_create_gcs_client_go_case(self, google_client):
         storage = GCS(bucket="bucket", project="a_project")

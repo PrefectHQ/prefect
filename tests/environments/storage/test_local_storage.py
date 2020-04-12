@@ -8,11 +8,12 @@ import prefect
 from prefect import Flow
 from prefect.engine.result_handlers import LocalResultHandler
 from prefect.environments.storage import Local
+from prefect.tasks.secrets import EnvVarSecret
 from prefect.utilities.configuration import set_temporary_config
 
 
 def test_create_local_storage():
-    storage = Local()
+    storage = Local(secrets=[EnvVarSecret("AUTH")])
     assert storage
     end_path = os.path.join(".prefect", "flows")
     assert storage.directory.endswith(end_path)
@@ -20,6 +21,7 @@ def test_create_local_storage():
 
     end_path = os.path.join(".prefect", "results")
     assert storage.result_handler.dir.endswith(end_path)
+    assert len(storage.secrets) == 1
 
 
 def test_create_local_storage_with_custom_dir():
