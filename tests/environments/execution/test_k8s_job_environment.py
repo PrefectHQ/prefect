@@ -10,7 +10,7 @@ import yaml
 
 import prefect
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -116,7 +116,7 @@ def test_execute_improper_storage():
             job_spec_file=os.path.join(directory, "job.yaml")
         )
         with pytest.raises(TypeError):
-            environment.execute(storage=Memory(), flow_location="")
+            environment.execute(storage=Local(), flow_location="")
 
 
 def test_execute_storage_missing_fields():

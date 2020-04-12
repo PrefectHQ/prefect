@@ -149,8 +149,8 @@ def test_serialize_container_environment():
     assert deserialized.storage.registry_url == storage.registry_url
 
 
-def test_deserialize_serialized_flow_after_build():
-    flow = Flow(name="test", storage=prefect.environments.storage.Memory())
+def test_deserialize_serialized_flow_after_build(tmpdir):
+    flow = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)

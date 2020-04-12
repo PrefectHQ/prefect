@@ -88,7 +88,7 @@ def test_graphql_errors_get_raised(patch_post):
 
 
 def test_client_register_raises_if_required_param_isnt_scheduled(
-    patch_post, monkeypatch
+    patch_post, monkeypatch, tmpdir
 ):
     response = {
         "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
@@ -116,7 +116,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
     flow = prefect.Flow(
         "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x]
     )
-    flow.storage = prefect.environments.storage.Memory()
+    flow.storage = prefect.environments.storage.Local(tmpdir)
     flow.result_handler = flow.storage.result_handler
 
     with pytest.raises(
@@ -133,7 +133,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
 
 @pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_doesnt_raise_for_scheduled_params(
-    patch_post, compressed, monkeypatch
+    patch_post, compressed, monkeypatch, tmpdir
 ):
     if compressed:
         response = {
@@ -170,7 +170,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
     flow = prefect.Flow(
         "test", schedule=prefect.schedules.Schedule(clocks=[a, b]), tasks=[x, y]
     )
-    flow.storage = prefect.environments.storage.Memory()
+    flow.storage = prefect.environments.storage.Local(tmpdir)
     flow.result_handler = flow.storage.result_handler
 
     flow_id = client.register(
@@ -183,7 +183,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register(patch_post, compressed, monkeypatch):
+def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
     if compressed:
         response = {
             "data": {
@@ -205,7 +205,7 @@ def test_client_register(patch_post, compressed, monkeypatch):
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result_handler = flow.storage.result_handler
 
     flow_id = client.register(
@@ -219,7 +219,7 @@ def test_client_register(patch_post, compressed, monkeypatch):
 
 @pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_raises_for_keyed_flows_with_no_result_handler(
-    patch_post, compressed, monkeypatch
+    patch_post, compressed, monkeypatch, tmpdir
 ):
     if compressed:
         response = {
@@ -247,7 +247,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result_handler(
     ):
         client = Client()
     with prefect.Flow(
-        name="test", storage=prefect.environments.storage.Memory()
+        name="test", storage=prefect.environments.storage.Local(tmpdir)
     ) as flow:
         a(prefect.Task())
 
@@ -264,7 +264,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result_handler(
 
 @pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_doesnt_raise_if_no_keyed_edges(
-    patch_post, compressed, monkeypatch
+    patch_post, compressed, monkeypatch, tmpdir
 ):
     if compressed:
         response = {
@@ -287,7 +287,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result_handler = None
 
     flow_id = client.register(
@@ -300,7 +300,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_builds_flow(patch_post, compressed, monkeypatch):
+def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir):
     if compressed:
         response = {
             "data": {
@@ -322,7 +322,7 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch):
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result_handler = flow.storage.result_handler
 
     flow_id = client.register(
@@ -437,7 +437,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
 
 @pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_flow_id_output(
-    patch_post, compressed, monkeypatch, capsys, cloud_api
+    patch_post, compressed, monkeypatch, capsys, cloud_api, tmpdir
 ):
     if compressed:
         response = {
@@ -460,7 +460,7 @@ def test_client_register_flow_id_output(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result_handler = flow.storage.result_handler
 
     flow_id = client.register(
@@ -472,11 +472,13 @@ def test_client_register_flow_id_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert captured.out == "Flow: https://cloud.prefect.io/tslug/flow/long-id\n"
+    assert "Flow: https://cloud.prefect.io/tslug/flow/long-id\n" in captured.out
 
 
 @pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_flow_id_no_output(patch_post, compressed, monkeypatch, capsys):
+def test_client_register_flow_id_no_output(
+    patch_post, compressed, monkeypatch, capsys, tmpdir
+):
     if compressed:
         response = {
             "data": {
@@ -498,7 +500,7 @@ def test_client_register_flow_id_no_output(patch_post, compressed, monkeypatch, 
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Memory())
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     flow.result_handler = flow.storage.result_handler
 
     flow_id = client.register(
@@ -511,7 +513,7 @@ def test_client_register_flow_id_no_output(patch_post, compressed, monkeypatch, 
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert captured.out == ""
+    assert captured.out == "Result Handler check: OK\n"
 
 
 def test_get_flow_run_info(patch_post):

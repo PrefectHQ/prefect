@@ -10,7 +10,7 @@ import yaml
 
 import prefect
 from prefect.environments import DaskKubernetesEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -137,7 +137,7 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 def test_execute_improper_storage():
     environment = DaskKubernetesEnvironment()
     with pytest.raises(TypeError):
-        environment.execute(storage=Memory(), flow_location="")
+        environment.execute(storage=Local(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
