@@ -1,10 +1,8 @@
-import warnings
 from typing import List
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from prefect.client import Secret
 from prefect.core import Task
 from prefect.engine.signals import SUCCESS
 from prefect.utilities.gcp import get_bigquery_client

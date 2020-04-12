@@ -1,8 +1,6 @@
-import copy
-
 from typing import Any
 
-from marshmallow import fields, post_load, pre_dump
+from marshmallow import fields, post_load
 
 from prefect.environments.storage import (
     GCS,
@@ -13,7 +11,6 @@ from prefect.environments.storage import (
     Storage,
 )
 from prefect.serialization.task import SecretSchema
-from prefect.utilities.serialization import Bytes as BytesField
 from prefect.utilities.serialization import (
     JSONCompatible,
     ObjectSchema,
