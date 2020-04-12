@@ -205,7 +205,8 @@ def test_run_flow(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -236,7 +237,8 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
