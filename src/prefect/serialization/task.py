@@ -128,3 +128,20 @@ class ParameterSchema(TaskMethodsMixin, ObjectSchema):
     description = fields.String(allow_none=True)
     tags = fields.List(fields.String())
     outputs = fields.Method("load_outputs", allow_none=True)
+
+
+class PrefectSecretSchema(TaskMethodsMixin, ObjectSchema):
+    class Meta:
+        object_class = lambda: prefect.tasks.secrets.PrefectSecret  # type: ignore
+        exclude_fields = ["outputs", "slug"]
+
+    name = fields.String(required=True)
+
+
+class EnvVarSecretSchema(TaskMethodsMixin, ObjectSchema):
+    class Meta:
+        object_class = lambda: prefect.tasks.secrets.EnvVarSecret  # type: ignore
+        exclude_fields = ["outputs", "slug"]
+
+    name = fields.String(required=True)
+    raise_if_missing = fields.Boolean()
