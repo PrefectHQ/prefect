@@ -259,6 +259,7 @@ class FargateAgent(Agent):
             "ipcMode",
             "proxyConfiguration",
             "inferenceAccelerators",
+            "containerDefinitions"
         ]
 
         definition_kwarg_list_no_eval = ["cpu", "memory"]
@@ -510,12 +511,31 @@ class FargateAgent(Agent):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                 ],
+                "secrets": [],
+                "mountPoints": [],
                 "essential": True,
             }
         ]
 
         for key, value in self.env_vars.items():
             container_definitions[0]["environment"].append(dict(name=key, value=value))
+
+        # check kwargs for supported container definition items
+        # we will support environment, secrets, and mountPoints
+        # del containerDefinitions from flow_task_definition_kwargs before registering task
+
+        if flow_task_definition_kwargs.get("containerDefinitions"):
+
+            for i in flow_task_definition_kwargs[0].get("environment", []):
+                container_definitions[0]["environment"].append(i)
+
+            for i in flow_task_definition_kwargs[0].get("secrets", []):
+                container_definitions[0]["secrets"].append(i)
+
+            for i in flow_task_definition_kwargs[0].get("mountPoints", []):
+                container_definitions[0]["mountPoints"].append(i)
+
+            del flow_task_definition_kwargs["containerDefinitions"]
 
         # Register task definition
         self.logger.debug(
