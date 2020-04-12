@@ -526,13 +526,13 @@ class FargateAgent(Agent):
 
         if flow_task_definition_kwargs.get("containerDefinitions"):
 
-            for i in flow_task_definition_kwargs[0].get("environment", []):
+            for i in flow_task_definition_kwargs["containerDefinitions"][0].get("environment", []):
                 container_definitions[0]["environment"].append(i)
 
-            for i in flow_task_definition_kwargs[0].get("secrets", []):
+            for i in flow_task_definition_kwargs["containerDefinitions"][0].get("secrets", []):
                 container_definitions[0]["secrets"].append(i)
 
-            for i in flow_task_definition_kwargs[0].get("mountPoints", []):
+            for i in flow_task_definition_kwargs["containerDefinitions"][0].get("mountPoints", []):
                 container_definitions[0]["mountPoints"].append(i)
 
             del flow_task_definition_kwargs["containerDefinitions"]
