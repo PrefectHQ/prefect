@@ -47,49 +47,6 @@ class TestInitialization:
         assert getattr(task, attr) == "my-value"
 
 
-# Deprecated tests
-class TestCredentialsandProjects_DEPRECATED:
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch, klass):
-        task = klass(bucket="test", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
-        run_arg = "data" if isinstance(task, GCSUpload) else "blob"
-
-        creds_loader = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.storage.get_storage_client", creds_loader
-        )
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-            task.run(**{run_arg: "empty"})
-
-        assert creds_loader.call_args[1]["credentials"] == 42
-
-    def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
-        self, monkeypatch, klass
-    ):
-        task = klass(bucket="test", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
-        task_proj = klass(bucket="test", project="test-init")
-        run_arg = "data" if isinstance(task, GCSUpload) else "blob"
-
-        client = MagicMock()
-        service_account_info = MagicMock(return_value=MagicMock(project_id="default"))
-        monkeypatch.setattr(
-            "prefect.utilities.gcp.Credentials",
-            MagicMock(from_service_account_info=service_account_info),
-        )
-        monkeypatch.setattr("prefect.utilities.gcp.storage", MagicMock(Client=client))
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-            task.run(**{run_arg: "empty"})
-            task_proj.run(**{run_arg: "empty"})
-            task_proj.run(**{run_arg: "empty", "project": "run-time"})
-
-        x, y, z = client.call_args_list
-
-        assert x[1]["project"] == "default"  ## pulled from credentials
-        assert y[1]["project"] == "test-init"  ## pulled from init
-        assert z[1]["project"] == "run-time"  ## pulled from run kwarg
-
-
 class TestBuckets:
     def test_bucket_name_can_be_overwritten_at_runtime(self, monkeypatch, klass):
         task = klass(bucket="test")
