@@ -218,16 +218,16 @@ class And(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x and y)
+        return x and y
 
 
 class Or(Task):
@@ -242,16 +242,16 @@ class Or(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x or y)
+        return x or y
 
 
 class Not(Task):
@@ -274,7 +274,7 @@ class Not(Task):
         Returns:
             - bool
         """
-        return bool(not (x))
+        return not x
 
 
 class Equal(Task):
@@ -289,16 +289,16 @@ class Equal(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x == y)
+        return x == y
 
 
 class NotEqual(Task):
@@ -313,16 +313,16 @@ class NotEqual(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x != y)
+        return x != y
 
 
 class GreaterThanOrEqual(Task):
@@ -337,16 +337,16 @@ class GreaterThanOrEqual(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x >= y)
+        return x >= y
 
 
 class GreaterThan(Task):
@@ -361,16 +361,16 @@ class GreaterThan(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x > y)
+        return x > y
 
 
 class LessThanOrEqual(Task):
@@ -385,16 +385,16 @@ class LessThanOrEqual(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x <= y)
+        return x <= y
 
 
 class LessThan(Task):
@@ -409,13 +409,13 @@ class LessThan(Task):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, x: Any, y: Any) -> bool:  # type: ignore
+    def run(self, x: Any, y: Any) -> Any:  # type: ignore
         """
         Args:
             - x (Any): a value
             - y (Any): a value
 
         Returns:
-            - bool
+            - Any
         """
-        return bool(x < y)
+        return x < y

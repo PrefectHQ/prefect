@@ -8,19 +8,18 @@ class ConstantResult(Result):
     internally.  The "backend" in this instance is the class instance itself.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, value: Any = None, **kwargs: Any) -> None:
-        self.value = value
-        super().__init__(value=value, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - filepath (str): an unused argument
+            - location (str): an unused argument
         """
         return self
 
@@ -29,27 +28,20 @@ class ConstantResult(Result):
         Returns the repr of the underlying value, purely for convenience.
 
         Args:
-            - value (Any): the value to store on the class; must be the same as `self.value`
-                and is exposed purely for interface compatibility
-            - **kwargs (optional): unused, for compatibility with the interface
-
-        Returns:
-            - Result: returns self
+            - value (Any): unused, for interface compatibility
+            - **kwargs (optional): unused, for interface compatibility
 
         Raises:
-            ValueError: if the provided result is distinct from `self.value`
+            ValueError: ConstantResults cannot be written to
         """
-        if self.value != value:
-            raise ValueError("Cannot write new values to `ConstantResult` types.")
-        self.filepath = repr(self.value)
-        return self
+        raise ValueError("Cannot write values to `ConstantResult` types.")
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
-             - filepath (str): for interface compatibility
+             - location (str): for interface compatibility
 
         Returns:
             - bool: True, confirming the constant exists.
