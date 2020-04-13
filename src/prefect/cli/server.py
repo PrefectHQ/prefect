@@ -14,13 +14,14 @@ from prefect.utilities.configuration import set_temporary_config
 
 
 def platform_is_linux():
-    return sys.platform.startswith('linux')
+    return sys.platform.startswith("linux")
 
 
 def get_docker_ip():
     """Get local docker internal IP without using shell=True in subprocess"""
     from subprocess import Popen, PIPE
-    ip_route_proc = Popen(['ip', 'route'], stdout=PIPE)
+
+    ip_route_proc = Popen(["ip", "route"], stdout=PIPE)
     grep_proc = Popen(["grep", "docker0"], stdin=ip_route_proc.stdout, stdout=PIPE)
     awk_proc = Popen(["awk", "{print $9}"], stdin=grep_proc.stdout, stdout=PIPE)
     return awk_proc.communicate()[0].strip().decode()
@@ -188,20 +189,20 @@ def server():
     hidden=True,
 )
 def start(
-        version,
-        skip_pull,
-        no_upgrade,
-        no_ui,
-        postgres_port,
-        hasura_port,
-        graphql_port,
-        ui_port,
-        server_port,
-        no_postgres_port,
-        no_hasura_port,
-        no_graphql_port,
-        no_ui_port,
-        no_server_port,
+    version,
+    skip_pull,
+    no_upgrade,
+    no_ui,
+    postgres_port,
+    hasura_port,
+    graphql_port,
+    ui_port,
+    server_port,
+    no_postgres_port,
+    no_hasura_port,
+    no_graphql_port,
+    no_ui_port,
+    no_server_port,
 ):
     """
     This command spins up all infrastructure and services for the Prefect Core server
@@ -234,12 +235,12 @@ def start(
 
     # Remove port mappings if specified
     if (
-            no_postgres_port
-            or no_hasura_port
-            or no_graphql_port
-            or no_ui_port
-            or no_server_port
-            or platform_is_linux()
+        no_postgres_port
+        or no_hasura_port
+        or no_graphql_port
+        or no_ui_port
+        or no_server_port
+        or platform_is_linux()
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
@@ -266,7 +267,9 @@ def start(
             if platform_is_linux():
                 docker_internal_ip = get_docker_ip()
                 for service in list(y["services"]):
-                    y["services"][service]['extra_hosts'] = ["host.docker.internal:{}".format(docker_internal_ip)]
+                    y["services"][service]["extra_hosts"] = [
+                        "host.docker.internal:{}".format(docker_internal_ip)
+                    ]
 
         with open(temp_path, "w") as f:
             y = yaml.dump(y, f)
@@ -275,13 +278,13 @@ def start(
 
     # Temporary config set for port allocation
     with set_temporary_config(
-            {
-                "server.database.host_port": postgres_port,
-                "server.hasura.host_port": hasura_port,
-                "server.graphql.host_port": graphql_port,
-                "server.ui.host_port": ui_port,
-                "server.host_port": server_port,
-            }
+        {
+            "server.database.host_port": postgres_port,
+            "server.hasura.host_port": hasura_port,
+            "server.graphql.host_port": graphql_port,
+            "server.ui.host_port": ui_port,
+            "server.host_port": server_port,
+        }
     ):
         env = make_env()
 
