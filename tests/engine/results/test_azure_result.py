@@ -15,7 +15,6 @@ from prefect.engine.results import AzureResult
 pytest.importorskip("azure.storage.blob")
 
 
-# @pytest.mark.xfail(raises=ImportError, reason="azure extras not installed.")
 class TestAzureResult:
     @pytest.fixture
     def azure_client(self, monkeypatch):
