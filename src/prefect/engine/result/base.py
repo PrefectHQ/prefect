@@ -203,7 +203,7 @@ class Result(ResultInterface):
 
     def format(self, **kwargs: Any) -> "Result":
         """
-        Takes a set of string format key-value pairs and renders the result.location_template to a final location string
+        Takes a set of string format key-value pairs and renders the result.location to a final location string
 
         Args:
             - **kwargs (Any): string format arguments for result.location_template
