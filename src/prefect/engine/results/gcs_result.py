@@ -2,7 +2,6 @@ from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
 from prefect.client import Secret
-from prefect.utilities import logging
 
 if TYPE_CHECKING:
     import google.cloud
@@ -32,7 +31,6 @@ class GCSResult(Result):
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
-        self.logger = logging.get_logger(type(self).__name__)
         super().__init__(**kwargs)
 
     @property
@@ -93,9 +91,10 @@ class GCSResult(Result):
             - location (str): the GCS URI to read from
 
         Returns:
-            - Any: the read result
+            - Result: the read result
         """
         new = self.copy()
+        new.location = location
 
         try:
             self.logger.debug("Starting to download result from {}...".format(location))
@@ -111,7 +110,7 @@ class GCSResult(Result):
                     repr(exc)
                 )
             )
-            new.value = None
+            raise exc
         return new
 
     def exists(self, location: str) -> bool:
