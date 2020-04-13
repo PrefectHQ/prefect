@@ -16,8 +16,8 @@ class AzureResult(Result):
     Note that your flow's runtime environment must be able to authenticate with
     Azure; there are currently two supported options: provide a connection string
     either at initialization or at runtime through an environment variable, or
-    set your Azure credentials as a Prefect Secret.  Using an environment variable is the recommended
-    approach.
+    set your Azure connection tring as a Prefect Secret.  Using an environment
+    variable is the recommended approach.
 
     Args:
         - container (str): the name of the container to write to / read from
@@ -78,16 +78,16 @@ class AzureResult(Result):
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Given a value, writes to a location in Azure Blob storage
-        and returns the resulting URI.
+        Writes the result value to a blob storage in Azure.
 
         Args:
-            - result (Any): the written result
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
             - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
-            - Result: a new Result instance with the appropriately formatted Blob URI
+            - Result: a new Result instance with the appropriately formatted location
         """
         new = self.format(**kwargs)
         new.value = value
@@ -97,20 +97,22 @@ class AzureResult(Result):
         ## prepare data
         binary_data = new.serialize_to_bytes(new.value).decode()
 
-        ## upload
-        self.service.create_blob_from_text(
-            container_name=self.container, blob_name=new.location, text=binary_data
+        # initialize client and upload
+        client = self.service.get_blob_client(
+            container=self.container, blob=new.location
         )
+        client.upload_blob(binary_data)
 
         self.logger.debug("Finished uploading result to {}.".format(new.location))
+
         return new
 
     def read(self, location: str) -> Result:
         """
-        Given a uri, reads a result from Azure Blob storage, reads it and returns it
+        Reads a result from an Azure Blob container and returns a corresponding `Result` instance.
 
         Args:
-            - uri (str): the Azure Blob URI
+            - location (str): the Azure blob location to read from
 
         Returns:
             - Result: the read result
@@ -120,10 +122,13 @@ class AzureResult(Result):
 
         try:
             self.logger.debug("Starting to download result from {}...".format(location))
-            blob_result = self.service.get_blob_to_text(
-                container_name=self.container, blob_name=new.location
+
+            # initialize client and download
+            client = self.service.get_blob_client(
+                container=self.container, blob=location
             )
-            content_string = blob_result.content
+            content_string = client.download_blob()
+
             try:
                 new.value = new.deserialize_from_bytes(content_string)
             except EOFError:
@@ -151,4 +156,15 @@ class AzureResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError()
+        from azure.core.exceptions import HttpResponseError
+
+        # initialize client and download
+        client = self.service.get_blob_client(container=self.container, blob=location)
+
+        # Catch exception because Azure python bindings do not yet have an exists method
+        # https://github.com/Azure/azure-sdk-for-python/issues/9507
+        try:
+            client.get_blob_properties()
+            return True
+        except HttpResponseError:
+            return False

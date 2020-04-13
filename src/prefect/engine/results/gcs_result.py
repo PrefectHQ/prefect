@@ -95,7 +95,7 @@ class GCSResult(Result):
             - Result: the read result
         """
         new = self.copy()
-        new.filepath = filepath
+        new.location = location
 
         try:
             self.logger.debug("Starting to download result from {}...".format(location))
