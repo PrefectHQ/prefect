@@ -91,9 +91,12 @@ class Agent:
 
         token = config.cloud.agent.get("auth_token")
 
+        self.registration_id = None
+
         self.client = Client(api_token=token)
         if config.backend == "cloud":
             self._verify_token(token)
+            self.client.attach_headers({"AGENT_ID": self._register_agent()})
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -125,6 +128,14 @@ class Agent:
             or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
         ):
             raise AuthorizationError("Provided token does not have a RUNNER scope.")
+
+    def _register_agent(self) -> str:
+        """
+        Register this agent with Prefect Cloud and store registration ID on agent
+        """
+        # registration_id = self.client.register_agent(type=type(self), name=self.name, labels=self.labels)
+        registration_id = "ID"
+        return registration_id
 
     def start(self) -> None:
         """

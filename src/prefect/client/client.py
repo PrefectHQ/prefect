@@ -81,6 +81,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
+        self._attached_headers = None
         self.logger = create_diagnostic_logger("Diagnostics")
 
         # store api server
@@ -275,6 +276,9 @@ class Client:
             headers["Authorization"] = "Bearer {}".format(token)
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
+        if self._attached_headers:
+            headers.update(self._attached_headers)
+
         session = requests.Session()
         retries = requests.packages.urllib3.util.retry.Retry(
             total=6,
@@ -314,6 +318,12 @@ class Client:
         response.raise_for_status()
 
         return response
+
+    def attach_headers(self, headers: dict) -> None:
+        """
+        Set headers to be attached to this Client
+        """
+        self._attached_headers = headers  # type: ignore
 
     # -------------------------------------------------------------------------
     # Auth
