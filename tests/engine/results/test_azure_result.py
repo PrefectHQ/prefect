@@ -103,9 +103,11 @@ class TestAzureResult:
         assert result.exists("44.txt") is True
 
     def test_azure_does_not_exists(self, monkeypatch):
-        from azure.core.exceptions import HttpResponseError
+        from azure.core.exceptions import ResourceNotFoundError
 
-        client = MagicMock(get_blob_properties=MagicMock(side_effect=HttpResponseError))
+        client = MagicMock(
+            get_blob_properties=MagicMock(side_effect=ResourceNotFoundError)
+        )
         service = MagicMock(get_blob_client=MagicMock(return_value=client))
         monkeypatch.setattr(
             "prefect.engine.results.azure_result.AzureResult.service", service

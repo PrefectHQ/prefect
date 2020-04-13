@@ -154,7 +154,7 @@ class AzureResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        from azure.core.exceptions import HttpResponseError
+        from azure.core.exceptions import ResourceNotFoundError
 
         # initialize client and download
         client = self.service.get_blob_client(container=self.container, blob=location)
@@ -164,5 +164,5 @@ class AzureResult(Result):
         try:
             client.get_blob_properties()
             return True
-        except HttpResponseError:
+        except ResourceNotFoundError:
             return False
