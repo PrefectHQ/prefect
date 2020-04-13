@@ -2,7 +2,6 @@ from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
 from prefect.client import Secret
-from prefect.utilities import logging
 
 if TYPE_CHECKING:
     import google.cloud
