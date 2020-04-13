@@ -6,7 +6,6 @@ import pytest
 
 from prefect import Flow
 from prefect.environments.storage import S3
-from prefect.tasks.secrets import EnvVarSecret
 
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
@@ -28,7 +27,7 @@ def test_create_s3_storage_init_args():
         bucket="bucket",
         key="key",
         client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
-        secrets=[EnvVarSecret("auth")],
+        secrets=["auth"],
     )
     assert storage
     assert storage.flows == dict()
@@ -41,8 +40,7 @@ def test_create_s3_storage_init_args():
         "endpoint_url": "http://some-endpoint",
         "use_ssl": False,
     }
-    assert len(storage.secrets) == 1
-    assert storage.secrets[0].name == "auth"
+    assert storage.secrets == ["auth"]
 
 
 def test_serialize_s3_storage():

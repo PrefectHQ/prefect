@@ -13,7 +13,6 @@ from prefect.serialization.storage import (
     LocalSchema,
     S3Schema,
 )
-from prefect.tasks.secrets import EnvVarSecret, PrefectSecret
 
 
 def test_all_storage_subclasses_have_schemas():
@@ -44,12 +43,9 @@ def test_docker_full_serialize():
         image_name="name",
         image_tag="tag",
         prefect_version="0.5.2",
-        secrets=[PrefectSecret("bar"), PrefectSecret("creds")],
+        secrets=["bar", "creds"],
     )
     serialized = DockerSchema().dump(docker)
-    assert all(
-        [isinstance(s, PrefectSecret) for s in docker.secrets]
-    )  # ensures no side effects
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
@@ -58,15 +54,12 @@ def test_docker_full_serialize():
     assert serialized["registry_url"] == "url"
     assert serialized["flows"] == dict()
     assert serialized["prefect_version"] == "0.5.2"
-    assert [s["name"] for s in serialized["secrets"]] == ["bar", "creds"]
+    assert serialized["secrets"] == ["bar", "creds"]
 
 
 def test_docker_serialize_with_flows():
     docker = storage.Docker(
-        registry_url="url",
-        image_name="name",
-        image_tag="tag",
-        secrets=[EnvVarSecret("FOO", raise_if_missing=True)],
+        registry_url="url", image_name="name", image_tag="tag", secrets=["FOO"],
     )
     f = prefect.Flow("test")
     docker.add_flow(f)
@@ -78,13 +71,11 @@ def test_docker_serialize_with_flows():
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
     assert serialized["flows"] == {"test": "/root/.prefect/flows/test.prefect"}
-    assert serialized["secrets"][0]["name"] == "FOO"
+    assert serialized["secrets"] == ["FOO"]
 
     deserialized = DockerSchema().load(serialized)
     assert f.name in deserialized
-    assert len(deserialized.secrets) == 1
-    assert deserialized.secrets[0].name == "FOO"
-    assert deserialized.secrets[0].raise_if_missing is True
+    assert deserialized.secrets == ["FOO"]
 
 
 def test_s3_empty_serialize():
@@ -105,7 +96,7 @@ def test_s3_full_serialize():
         aws_session_token="session",
         bucket="bucket",
         key="key",
-        secrets=[PrefectSecret(name="hidden"), EnvVarSecret(name="auth")],
+        secrets=["hidden", "auth"],
     )
     serialized = S3Schema().dump(s3)
 
@@ -113,7 +104,7 @@ def test_s3_full_serialize():
     assert serialized["__version__"] == prefect.__version__
     assert serialized["bucket"] == "bucket"
     assert serialized["key"] == "key"
-    assert [s["name"] for s in serialized["secrets"]] == ["hidden", "auth"]
+    assert serialized["secrets"] == ["hidden", "auth"]
 
 
 def test_s3_aws_creds_not_serialized():
@@ -142,7 +133,7 @@ def test_s3_serialize_with_flows():
         aws_session_token="session",
         bucket="bucket",
         key="key",
-        secrets=[PrefectSecret(name="hidden"), EnvVarSecret(name="auth")],
+        secrets=["hidden", "auth"],
     )
     f = prefect.Flow("test")
     s3.flows["test"] = "key"
@@ -156,11 +147,7 @@ def test_s3_serialize_with_flows():
 
     deserialized = S3Schema().load(serialized)
     assert f.name in deserialized
-    assert len(deserialized.secrets) == 2
-    assert [type(s).__name__ for s in deserialized.secrets] == [
-        "PrefectSecret",
-        "EnvVarSecret",
-    ]
+    assert deserialized.secrets == ["hidden", "auth"]
 
 
 def test_azure_empty_serialize():
@@ -179,16 +166,15 @@ def test_azure_full_serialize():
         container="container",
         connection_string="conn",
         blob_name="name",
-        secrets=[PrefectSecret("foo")],
+        secrets=["foo"],
     )
     serialized = AzureSchema().dump(azure)
-    assert isinstance(azure.secrets[0], PrefectSecret)  # ensures no side effects
 
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
-    assert serialized["secrets"][0]["name"] == "foo"
+    assert serialized["secrets"] == ["foo"]
 
 
 def test_azure_creds_not_serialized():
@@ -209,7 +195,7 @@ def test_azure_serialize_with_flows():
         container="container",
         connection_string="conn",
         blob_name="name",
-        secrets=[PrefectSecret("foo")],
+        secrets=["foo"],
     )
     f = prefect.Flow("test")
     azure.flows["test"] = "key"
@@ -224,8 +210,7 @@ def test_azure_serialize_with_flows():
 
     deserialized = AzureSchema().load(serialized)
     assert f.name in deserialized
-    assert len(deserialized.secrets) == 1
-    assert isinstance(deserialized.secrets[0], PrefectSecret)
+    assert deserialized.secrets == ["foo"]
 
 
 def test_local_empty_serialize():
@@ -241,7 +226,7 @@ def test_local_empty_serialize():
 
 def test_local_roundtrip():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = storage.Local(directory=tmpdir, secrets=[EnvVarSecret("AUTH")])
+        s = storage.Local(directory=tmpdir, secrets=["AUTH"])
         flow_loc = s.add_flow(prefect.Flow("test"))
         serialized = LocalSchema().dump(s)
         deserialized = LocalSchema().load(serialized)
@@ -250,8 +235,7 @@ def test_local_roundtrip():
         runner = deserialized.get_flow(flow_loc)
 
     assert runner.run().is_successful()
-    assert len(deserialized.secrets) == 1
-    assert deserialized.secrets[0].name == "AUTH"
+    assert deserialized.secrets == ["AUTH"]
 
 
 def test_local_storage_doesnt_validate_on_deserialization():
@@ -277,9 +261,7 @@ def test_gcs_empty_serialize():
 
 
 def test_gcs_full_serialize():
-    gcs = storage.GCS(
-        bucket="bucket", key="key", project="project", secrets=[EnvVarSecret("CREDS")]
-    )
+    gcs = storage.GCS(bucket="bucket", key="key", project="project", secrets=["CREDS"])
     serialized = GCSSchema().dump(gcs)
 
     assert serialized
@@ -287,13 +269,11 @@ def test_gcs_full_serialize():
     assert serialized["bucket"] == "bucket"
     assert serialized["key"] == "key"
     assert serialized["project"] == "project"
-    assert len(serialized["secrets"]) == 1
+    assert serialized["secrets"] == ["CREDS"]
 
 
 def test_gcs_serialize_with_flows():
-    gcs = storage.GCS(
-        project="project", bucket="bucket", key="key", secrets=[EnvVarSecret("CREDS")]
-    )
+    gcs = storage.GCS(project="project", bucket="bucket", key="key", secrets=["CREDS"])
     f = prefect.Flow("test")
     gcs.flows["test"] = "key"
     serialized = GCSSchema().dump(gcs)
@@ -307,5 +287,4 @@ def test_gcs_serialize_with_flows():
 
     deserialized = GCSSchema().load(serialized)
     assert f.name in deserialized
-    assert len(deserialized.secrets) == 1
-    assert isinstance(deserialized.secrets[0], EnvVarSecret)
+    assert deserialized.secrets == ["CREDS"]

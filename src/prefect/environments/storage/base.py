@@ -18,15 +18,12 @@ class Storage(metaclass=ABCMeta):
     Args:
         - result_handler (ResultHandler, optional): a default result handler to use for
             all flows which utilize this storage class
-        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
-            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
-            credentials.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
-        self,
-        result_handler: ResultHandler = None,
-        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
+        self, result_handler: ResultHandler = None, secrets: List[str] = None,
     ) -> None:
         self.result_handler = result_handler
         self.secrets = secrets or []

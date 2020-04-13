@@ -67,9 +67,8 @@ class Docker(Storage):
         - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
             are not added to the Dockerfile. If False (default), healthchecks
             are included.
-        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
-            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
-            credentials.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -90,7 +89,7 @@ class Docker(Storage):
         prefect_version: str = None,
         local_image: bool = False,
         ignore_healthchecks: bool = False,
-        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
+        secrets: List[str] = None,
     ) -> None:
         self.registry_url = registry_url
 

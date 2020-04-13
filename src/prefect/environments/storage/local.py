@@ -29,16 +29,12 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
-        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
-            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
-            credentials.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
-        self,
-        directory: str = None,
-        validate: bool = True,
-        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
+        self, directory: str = None, validate: bool = True, secrets: List[str] = None,
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]

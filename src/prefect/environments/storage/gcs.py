@@ -4,7 +4,6 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.result_handlers import GCSResultHandler
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
@@ -33,9 +32,8 @@ class GCS(Storage):
             is only useful when storing a single Flow using this storage object.
         - project (str, optional): the google project where any GCS API requests are billed to;
             if not provided, the project will be inferred from your Google Cloud credentials.
-        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
-            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
-            credentials.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
@@ -43,7 +41,7 @@ class GCS(Storage):
         bucket: str,
         key: str = None,
         project: str = None,
-        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
+        secrets: List[str] = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]

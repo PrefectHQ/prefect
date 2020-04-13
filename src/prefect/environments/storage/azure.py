@@ -5,7 +5,6 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-import prefect
 from prefect.engine.result_handlers import AzureResultHandler
 from prefect.environments.storage import Storage
 
@@ -32,9 +31,8 @@ class Azure(Storage):
             will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
-        - secrets (List[SecretBase], optional): a list of Prefect Secrets (subclasses of `prefect.tasks.secrets.SecretBase`)
-            which will be used to populate `prefect.context` for each flow run.  Used primarily for providing authentication
-            credentials.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
@@ -42,7 +40,7 @@ class Azure(Storage):
         container: str,
         connection_string: str = None,
         blob_name: str = None,
-        secrets: List["prefect.tasks.secrets.SecretBase"] = None,
+        secrets: List[str] = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]

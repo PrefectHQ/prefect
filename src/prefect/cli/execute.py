@@ -2,6 +2,7 @@ import click
 
 import prefect
 from prefect.client import Client
+from prefect.tasks.secrets import PrefectSecret
 from prefect.utilities.graphql import with_args
 
 
@@ -65,7 +66,7 @@ def cloud_flow():
         ## populate global secrets
         secrets = prefect.context.get("secrets", {})
         for secret in storage.secrets:
-            secrets[secret.name] = secret.run()
+            secrets[secret] = PrefectSecret(name=secret).run()
 
         with prefect.context(secrets=secrets):
             flow = storage.get_flow(storage.flows[flow_data.name])

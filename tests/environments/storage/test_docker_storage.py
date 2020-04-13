@@ -11,15 +11,14 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments.storage import Docker
-from prefect.tasks.secrets import PrefectSecret
 
 
 def test_create_docker_storage():
-    storage = Docker(secrets=[PrefectSecret("cloud_creds")])
+    storage = Docker(secrets=["cloud_creds"])
     assert storage
     assert storage.logger
     assert len(storage.secrets) == 1
-    assert storage.secrets[0].name == "cloud_creds"
+    assert storage.secrets == ["cloud_creds"]
 
 
 def test_cant_create_docker_with_both_base_image_and_dockerfile():
