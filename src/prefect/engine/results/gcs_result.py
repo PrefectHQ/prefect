@@ -37,7 +37,6 @@ class GCSResult(Result):
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
-        self.logger = logging.get_logger(type(self).__name__)
         super().__init__(value, **kwargs)
 
     @property
