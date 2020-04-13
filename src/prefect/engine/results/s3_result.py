@@ -112,7 +112,7 @@ class S3Result(Result):
         Args:
             - value (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
-            - **kwargs (optional): if provided, will be used to format the filepath template
+            - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
@@ -121,7 +121,7 @@ class S3Result(Result):
 
         new = self.format(**kwargs)
         new.value = value
-        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        self.logger.debug("Starting to upload result to {}...".format(new.location))
         binary_data = new.serialize_to_bytes(new.value)
 
         stream = io.BytesIO(binary_data)
@@ -130,34 +130,34 @@ class S3Result(Result):
         from botocore.exceptions import ClientError
 
         try:
-            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
+            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.location)
         except ClientError as err:
             self.logger.error("Error uploading to S3: {}".format(err))
             raise err
 
-        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
+        self.logger.debug("Finished uploading result to {}.".format(new.location))
         return new
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
 
         Args:
-            - filepath (str): the S3 URI to read from
+            - location (str): the S3 URI to read from
 
         Returns:
             - Any: the read result
         """
         new = self.copy()
-        new.filepath = filepath
+        new.location = location
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(filepath))
+            self.logger.debug("Starting to download result from {}...".format(location))
             stream = io.BytesIO()
 
             ## download - uses `self` in case the client is already instantiated
             self.client.download_fileobj(
-                Bucket=self.bucket, Key=filepath, Fileobj=stream
+                Bucket=self.bucket, Key=location, Fileobj=stream
             )
             stream.seek(0)
 
@@ -165,7 +165,7 @@ class S3Result(Result):
                 new.value = new.deserialize_from_bytes(stream.read())
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(filepath))
+            self.logger.debug("Finished downloading result from {}.".format(location))
 
         except Exception as exc:
             self.logger.exception(
@@ -177,14 +177,14 @@ class S3Result(Result):
 
         return new
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - filepath (str): Location of the result in the specific result target.
+            - location (str): Location of the result in the specific result target.
 
         Returns:
             - bool: whether or not the target result exists.
@@ -192,7 +192,7 @@ class S3Result(Result):
         import botocore
 
         try:
-            self.client.get_object(Bucket=self.bucket, Key=filepath).load()
+            self.client.get_object(Bucket=self.bucket, Key=location).load()
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "404":
                 return False
