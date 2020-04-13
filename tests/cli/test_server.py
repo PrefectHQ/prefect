@@ -1,4 +1,3 @@
-import subprocess
 from unittest.mock import MagicMock
 
 from click.testing import CliRunner
@@ -28,20 +27,20 @@ def test_make_env():
 
 def test_make_env_config_vars():
     with set_temporary_config(
-        {
-            "server.database.connection_url": "localhost",
-            "server.graphql.host_port": "1",
-            "server.ui.host_port": "2",
-            "server.hasura.port": "3",
-            "server.graphql.port": "4",
-            "server.graphql.path": "/path",
-            "server.host_port": "5",
-            "server.database.host_port": "6",
-            "server.database.username": "username",
-            "server.database.password": "password",
-            "server.database.name": "db",
-            "server.hasura.host_port": "7",
-        }
+            {
+                "server.database.connection_url": "localhost",
+                "server.graphql.host_port": "1",
+                "server.ui.host_port": "2",
+                "server.hasura.port": "3",
+                "server.graphql.port": "4",
+                "server.graphql.path": "/path",
+                "server.host_port": "5",
+                "server.database.host_port": "6",
+                "server.database.username": "username",
+                "server.database.password": "password",
+                "server.database.name": "db",
+                "server.hasura.host_port": "7",
+            }
     ):
         env = make_env()
 
@@ -113,8 +112,8 @@ def test_server_start_options_and_flags(monkeypatch):
     assert popen.call_args[1].get("env")
     assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == "version"
     assert (
-        popen.call_args[1]["env"].get("PREFECT_SERVER_DB_CMD")
-        == "echo 'DATABASE MIGRATIONS SKIPPED'"
+            popen.call_args[1]["env"].get("PREFECT_SERVER_DB_CMD")
+            == "echo 'DATABASE MIGRATIONS SKIPPED'"
     )
 
     assert check_output.call_args[0][0] == ["docker-compose", "down"]
@@ -200,3 +199,38 @@ def test_server_start_disable_port_mapping(monkeypatch):
     assert check_output.call_args[0][0] == ["docker-compose", "down"]
     assert check_output.call_args[1].get("cwd")
     assert check_output.call_args[1].get("env")
+
+
+def test_server_start_linux_host(monkeypatch):
+    popen = MagicMock(side_effect=KeyboardInterrupt())
+    check_output = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+    monkeypatch.setattr("subprocess.check_output", check_output)
+
+    sys_platform = MagicMock()
+    sys_platform.return_value = 'linux'
+    monkeypatch.setattr("sys.platform", sys_platform)
+
+    get_docker_ip = MagicMock()
+    get_docker_ip.return_value = '172.17.0.1'
+    monkeypatch.setattr("prefect.cli.server.get_docker_ip", get_docker_ip)
+
+    yaml_dump = MagicMock()
+    monkeypatch.setattr("yaml.dump", yaml_dump)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        server,
+        [
+            "start",
+            '--skip-pull',
+        ],
+    )
+    assert result.exit_code == 1
+
+    assert popen.called
+    assert check_output.called
+
+    call_arg = yaml_dump.call_args[0][0]
+    for svc in ('postgres', 'hasura', 'graphql', 'apollo', 'scheduler', 'ui'):
+        assert call_arg['services'][svc]['extra_hosts'] == ['host.docker.internal:172.17.0.1']
