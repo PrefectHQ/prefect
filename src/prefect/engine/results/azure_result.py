@@ -15,7 +15,7 @@ class AzureResult(Result):
     Note that your flow's runtime environment must be able to authenticate with
     Azure; there are currently two supported options: provide a connection string
     either at initialization or at runtime through an environment variable, or
-    set your Azure connection tring as a Prefect Secret.  Using an environment
+    set your Azure connection string as a Prefect Secret.  Using an environment
     variable is the recommended approach.
 
     Args:
