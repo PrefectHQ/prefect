@@ -206,7 +206,7 @@ class Result(ResultInterface):
         Takes a set of string format key-value pairs and renders the result.location to a final location string
 
         Args:
-            - **kwargs (Any): string format arguments for result.location_template
+            - **kwargs (Any): string format arguments for result.location
 
         Returns:
             - Result: a new result instance with the appropriately formatted location
