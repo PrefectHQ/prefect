@@ -2,7 +2,6 @@ from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
 from prefect.client import Secret
-from prefect.utilities import logging
 
 if TYPE_CHECKING:
     import google.cloud
@@ -21,7 +20,6 @@ class GCSResult(Result):
     To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
-        - value (Any, optional): the value of the result
         - bucket (str): the name of the bucket to write to / read from
         - credentials_secret (str, optional): the name of the Prefect Secret
             which stores a JSON representation of your Google Cloud credentials.
@@ -29,16 +27,11 @@ class GCSResult(Result):
     """
 
     def __init__(
-        self,
-        value: Any = None,
-        bucket: str = None,
-        credentials_secret: str = None,
-        **kwargs: Any
+        self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
     ) -> None:
         self.bucket = bucket
         self.credentials_secret = credentials_secret
-        self.logger = logging.get_logger(type(self).__name__)
-        super().__init__(value, **kwargs)
+        super().__init__(**kwargs)
 
     @property
     def gcs_bucket(self) -> "google.cloud.storage.bucket.Bucket":
@@ -73,63 +66,64 @@ class GCSResult(Result):
         Args:
             - value (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
-            - **kwargs (optional): if provided, will be used to format the filepath template
+            - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
-            - Result: a new Result instance with the appropriately formatted filepath
+            - Result: a new Result instance with the appropriately formatted location
         """
 
         new = self.format(**kwargs)
         new.value = value
-        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        self.logger.debug("Starting to upload result to {}...".format(new.location))
         binary_data = new.serialize_to_bytes(new.value).decode()
 
-        self.gcs_bucket.blob(new.filepath).upload_from_string(binary_data)
-        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
+        self.gcs_bucket.blob(new.location).upload_from_string(binary_data)
+        self.logger.debug("Finished uploading result to {}.".format(new.location))
 
         return new
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Reads a result from a GCS bucket and returns a corresponding `Result` instance.
 
         Args:
-            - filepath (str): the GCS URI to read from
+            - location (str): the GCS URI to read from
 
         Returns:
-            - Any: the read result
+            - Result: the read result
         """
         new = self.copy()
+        new.location = location
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(filepath))
-            serialized_value = self.gcs_bucket.blob(filepath).download_as_string()
+            self.logger.debug("Starting to download result from {}...".format(location))
+            serialized_value = self.gcs_bucket.blob(location).download_as_string()
             try:
                 new.value = new.deserialize_from_bytes(serialized_value)
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(filepath))
+            self.logger.debug("Finished downloading result from {}.".format(location))
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error while reading from result handler: {}".format(
                     repr(exc)
                 )
             )
-            new.value = None
+            raise exc
         return new
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - filepath (str): Location of the result in the specific result target.
-                Will check whether the provided filepath exists
+            - location (str): Location of the result in the specific result target.
+                Will check whether the provided location exists
 
         Returns:
             - bool: whether or not the target result exists.
         """
-        return self.gcs_bucket.blob(filepath).exists()
+        return self.gcs_bucket.blob(location).exists()

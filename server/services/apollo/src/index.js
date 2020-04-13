@@ -105,7 +105,6 @@ async function runServer() {
     debug: false,
     introspection: true,
     playground: false,
-    tracing: true,
     onHealthCheck: () => {
       return new Promise(async (resolve, reject) => {
         try {
