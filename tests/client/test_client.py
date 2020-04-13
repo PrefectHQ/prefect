@@ -878,7 +878,7 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         assert slug == "tslug"
 
 
-def test_get_cloud_url_as_user(patch_post):
+def test_get_cloud_url_as_user(patch_post, cloud_api):
     response = {
         "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
     }
@@ -897,7 +897,7 @@ def test_get_cloud_url_as_user(patch_post):
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
-def test_get_cloud_url_not_as_user(patch_post):
+def test_get_cloud_url_not_as_user(patch_post, cloud_api):
     response = {"data": {"tenant": [{"slug": "tslug"}]}}
 
     patch_post(response)
@@ -914,7 +914,7 @@ def test_get_cloud_url_not_as_user(patch_post):
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
-def test_get_cloud_url_different_regex(patch_post):
+def test_get_cloud_url_different_regex(patch_post, cloud_api):
     response = {
         "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
     }

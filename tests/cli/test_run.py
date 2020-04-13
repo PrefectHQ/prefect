@@ -444,7 +444,7 @@ def test_run_cloud_param_string_overwrites(monkeypatch):
         ("https://api-foo.prefect.io", "https://foo.prefect.io/tslug/flow-run/id"),
     ],
 )
-def test_run_cloud_flow_run_id_link(monkeypatch, api, expected):
+def test_run_cloud_flow_run_id_link(monkeypatch, api, expected, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow=[{"id": "flow"}])))
