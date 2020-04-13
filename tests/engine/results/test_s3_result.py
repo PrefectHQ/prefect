@@ -49,7 +49,7 @@ class TestS3Result:
         }
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):
-        result = S3Result(bucket="foo", filepath="{thing}/here.txt")
+        result = S3Result(bucket="foo", location="{thing}/here.txt")
 
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
@@ -62,8 +62,8 @@ class TestS3Result:
             "Key"
         ]
 
-        assert used_uri == new_result.filepath
-        assert new_result.filepath.startswith("yes!/here.txt")
+        assert used_uri == new_result.location
+        assert new_result.location.startswith("yes!/here.txt")
 
     def test_s3_result_is_pickleable(self, monkeypatch):
         class client:
@@ -101,7 +101,7 @@ class TestS3Result:
                 raise exc
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath="stuff")
+        result = S3Result(bucket="bob", location="stuff")
         result = result.format()
         assert result.exists("stuff") == False
 
@@ -120,6 +120,6 @@ class TestS3Result:
                 return MagicMock()
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath="stuff")
+        result = S3Result(bucket="bob", location="stuff")
         result = result.format()
         assert result.exists("stuff") == True
