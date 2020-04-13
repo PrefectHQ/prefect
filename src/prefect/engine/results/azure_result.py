@@ -40,7 +40,6 @@ class AzureResult(Result):
             "AZURE_STORAGE_CONNECTION_STRING"
         )
         self.connection_string_secret = connection_string_secret
-        self._service = None
         super().__init__(**kwargs)
 
     def initialize_service(self) -> None:
@@ -50,7 +49,7 @@ class AzureResult(Result):
         import azure.storage.blob
 
         connection_string = self.connection_string
-        if not connection_string:
+        if not connection_string and self.connection_string_secret:
             connection_string = Secret(self.connection_string_secret).get()
 
         self._service = azure.storage.blob.BlobServiceClient.from_connection_string(
