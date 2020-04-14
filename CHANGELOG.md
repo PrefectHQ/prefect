@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased release/0.11.0 <Badge text="beta" type="success"/>
+
+These changes are available in the [release/0.11.0 branch](https://github.com/PrefectHQ/prefect).
+
+### Features
+
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
+
+### Contributors
+
+- None
+
+# Changelog
+
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
@@ -66,7 +100,6 @@ Released on Apr 14, 2020.
 
 ### Breaking Changes
 
-- (0.11.0) Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
 - Remove `env_var` initialization from `EnvVarSecret` in favor of `name` - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
 
 ### Contributors
