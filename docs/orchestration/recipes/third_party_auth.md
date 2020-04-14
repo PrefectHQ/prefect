@@ -49,12 +49,12 @@ from prefect.environments.storage import GCS
 
 
 storage = GCS(bucket="my-bucket", 
-              secrets=["GOOGLE_APPLICATION_CREDENTIALS"])
+              secrets=["GCP_CREDENTIALS"])
 
 f = Flow("empty-flow", storage=storage)
 ```
 
-Once this flow is registered and run through an Agent, the first thing it will do is pull the value of the `"GOOGLE_APPLICATION_CREDENTIALS"` secret from Prefect Cloud and place it into `prefect.context.secrets` under the appropriate key.  These credentials are now available for any task or Prefect API call to Google, _including for pulling the Flow itself from GCS_.
+Once this flow is registered and run through an Agent, the first thing it will do is pull the value of the `"GCP_CREDENTIALS"` secret from Prefect Cloud and place it into `prefect.context.secrets` under the appropriate key.  These credentials are now available for any task or Prefect API call to Google, _including for pulling the Flow itself from GCS_.
 
 Any number of secrets can be declared on your `Storage` option.
 
@@ -68,16 +68,14 @@ Recall that users can autopopulate Prefect context with values through the use o
 
 ```
 prefect agent start docker \\
-    -e PREFECT__CONTEXT__SECRETS__TWITTER_API_CREDENTIALS=${TWITTER_API_CREDENTIALS}
+    -e PREFECT__CONTEXT__SECRETS__AWS_CREDENTIALS=${AWS_CREDENTIALS}
 ```
 
-This will then ensure that the `TWITTER_API_CREDENTIALS` secret is globally present in `prefect.context` for all flow runs submitted through this agent; in this case, it's value will be whatever value the `TWITTER_API_CREDENTIALS` environment variable has in the agent's own environment (which itself might have been set through some secure mechanism such as a Kubernetes Secret).
+This will then ensure that the `AWS_CREDENTIALS` secret is globally present in `prefect.context` for all flow runs submitted through this agent; in this case, it's value will be whatever value the `AWS_CREDENTIALS` environment variable has in the agent's own environment (which itself might have been set through some secure mechanism such as a Kubernetes Secret).
 
 ### Providing Secrets on a per-task basis
 
 In some instances you may need to override the global options presented above on a per-task basis, or you may choose to explicitly provide credentials to every task that needs them.  Either way, all Prefect tasks from the Task library which require credentials to authenticate offer optional runtime arguments for providing this information.
-
-
 
 
 ### List of default Secret names
@@ -86,4 +84,3 @@ The following is a list of the default names and contents of Prefect Secrets tha
 
 - `GCP_CREDENTIALS`: a dictionary containing a valid [Service Account Key](https://cloud.google.com/docs/authentication/getting-started)
 - `AWS_CREDENTIALS`: a dictionary containing two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which are passed directly to the `boto3` client
-- another one
