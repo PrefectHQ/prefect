@@ -13,11 +13,11 @@ from pathlib import Path
 
 import click
 import pendulum
+import prefect
 import toml
 import yaml
 from click.testing import CliRunner
 
-import prefect
 import prefect_server
 from prefect_server import api, cli, config, utilities
 from prefect_server.database import models
@@ -240,7 +240,7 @@ def services(include, exclude):
     This command starts services
     """
 
-    all_services = ["graphql", "scheduler", "apollo", "ui"]
+    all_services = ["graphql", "scheduler", "zombie-killer", "apollo", "ui"]
     if not include:
         include = all_services
     else:

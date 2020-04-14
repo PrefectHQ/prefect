@@ -89,6 +89,18 @@ def scheduler():
 
 
 @services.command()
+def zombie_killer():
+    """
+    Start the Zombie Killer service
+    """
+    run_proc_forever(
+        subprocess.Popen(
+            ["python", services_dir / "zombie_killer" / "zombie_killer.py"]
+        )
+    )
+
+
+@services.command()
 def apollo():
     """
     Start the Apollo GraphQL server

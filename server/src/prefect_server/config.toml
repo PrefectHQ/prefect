@@ -59,6 +59,10 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
     # run scheduler every 5 minutes
     scheduler_loop_seconds = 300
 
+    [services.zombie_killer]
+    # Run the zombie killer every 120 seconds
+    zombie_killer_loop_seconds = 120
+
     [services.trigger]
     host = "${services.host}"
     port = 4203

@@ -62,6 +62,19 @@ services:
     restart: "always"
     depends_on:
       - graphql
+  zombie-killer:
+    image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
+    build:
+      context: '..'
+    command: "python src/prefect_server/services/zombie_killer/zombie_killer.py"
+    environment:
+      PREFECT_SERVER__HASURA__ADMIN_SECRET: ${PREFECT_SERVER__HASURA__ADMIN_SECRET:-hasura-secret-admin-secret}
+      PREFECT_SERVER__HASURA__HOST: hasura
+    networks:
+      - prefect-server
+    restart: "always"
+    depends_on:
+      - graphql
   apollo:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     build:
