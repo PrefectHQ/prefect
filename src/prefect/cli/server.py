@@ -1,19 +1,19 @@
-import click
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import time
+from pathlib import Path
 
+import click
 import yaml
 
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
-
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=config.server.database.connection_url.replace(
@@ -226,6 +226,7 @@ def start(
         or no_graphql_port
         or no_ui_port
         or no_server_port
+        or platform_is_linux()
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
@@ -248,6 +249,13 @@ def start(
 
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
+
+            if platform_is_linux():
+                docker_internal_ip = get_docker_ip()
+                for service in list(y["services"]):
+                    y["services"][service]["extra_hosts"] = [
+                        "host.docker.internal:{}".format(docker_internal_ip)
+                    ]
 
         with open(temp_path, "w") as f:
             y = yaml.dump(y, f)

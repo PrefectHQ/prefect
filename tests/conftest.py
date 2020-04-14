@@ -150,7 +150,7 @@ def runner_token(monkeypatch):
 @pytest.fixture()
 def cloud_api():
     with prefect.utilities.configuration.set_temporary_config(
-        {"cloud.api": "https://api.prefect.io"}
+        {"cloud.api": "https://api.prefect.io", "backend": "cloud"}
     ):
         yield
 
@@ -158,6 +158,27 @@ def cloud_api():
 @pytest.fixture()
 def server_api():
     with prefect.utilities.configuration.set_temporary_config(
-        {"cloud.api": "https:/localhost:4200"}
+        {"cloud.api": "https:/localhost:4200", "backend": "server"}
     ):
         yield
+
+
+# ----------------
+# set up platform fixtures
+# for every test that performs OS dependent logic
+# ----------------
+
+
+@pytest.fixture()
+def linux_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "linux")
+
+
+@pytest.fixture()
+def windows_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "windows")
+
+
+@pytest.fixture()
+def macos_platform(monkeypatch):
+    monkeypatch.setattr("sys.platform", "darwin")

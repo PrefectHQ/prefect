@@ -86,7 +86,7 @@ class Result(ResultInterface):
         - cache_validator (Callable, optional): Validator that will determine
             whether the cache for this result is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - filepath (str, optional): Possibly templated file path to be used for saving the
+        - location (str, optional): Possibly templated location to be used for saving the
             result to the destination.
     """
 
@@ -98,7 +98,7 @@ class Result(ResultInterface):
         run_validators: bool = True,
         cache_for: datetime.timedelta = None,
         cache_validator: Callable = None,
-        filepath: str = "",
+        location: str = "",
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -109,7 +109,7 @@ class Result(ResultInterface):
             cache_validator = duration_only
         self.cache_for = cache_for
         self.cache_validator = cache_validator
-        self.filepath = filepath
+        self.location = location
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -130,17 +130,17 @@ class Result(ResultInterface):
 
     def populate_result(self, result: "Result") -> "Result":
         """
-        Given another Result instance, uses `self.filepath` to create a fully hydrated `Result`
+        Given another Result instance, uses `self.location` to create a fully hydrated `Result`
         using the logic of the provided result.  This method is mainly intended to be used
         by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
 
         Args:
-            - result (Result): the result instance to hydrate with `self.filepath`
+            - result (Result): the result instance to hydrate with `self.location`
 
         Returns:
             - Result: a new result instance
         """
-        return result.read(self.filepath)
+        return result.read(self.location)
 
     def validate(self) -> bool:
         """
@@ -203,40 +203,40 @@ class Result(ResultInterface):
 
     def format(self, **kwargs: Any) -> "Result":
         """
-        Takes a set of string format key-value pairs and renders the result.filepath_template to a final filepath string
+        Takes a set of string format key-value pairs and renders the result.location to a final location string
 
         Args:
-            - **kwargs (Any): string format arguments for result.filepath_template
+            - **kwargs (Any): string format arguments for result.location
 
         Returns:
-            - Result: a new result instance with the appropriately formatted filepath
+            - Result: a new result instance with the appropriately formatted location
         """
         new = self.copy()
-        new.filepath = new.filepath.format(**kwargs)
+        new.location = new.location.format(**kwargs)
         return new
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Checks whether the target result exists.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - filepath (str, optional): Location of the result in the specific result target.
+            - location (str, optional): Location of the result in the specific result target.
                 If provided, will check whether the provided location exists;
-                otherwise, will use `self.filepath`
+                otherwise, will use `self.location`
 
         Returns:
             - bool: whether or not the target result exists.
         """
         raise NotImplementedError()
 
-    def read(self, filepath: str) -> "Result":
+    def read(self, location: str) -> "Result":
         """
         Reads from the target result and returns a corresponding `Result` instance.
 
         Args:
-            - filepath (str): Location of the result in the specific result target.
+            - location (str): Location of the result in the specific result target.
 
         Returns:
             - Any: The value saved to the result.
@@ -250,11 +250,11 @@ class Result(ResultInterface):
         Args:
             - value (Any): the value to write; will then be stored as the `value` attribute
                 of the returned `Result` instance
-            - **kwargs (optional): if provided, will be used to format the filepath template
+            - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
-            - Result: a new result object with the appropriately formatted filepath destination
+            - Result: a new result object with the appropriately formatted location destination
         """
         raise NotImplementedError()
 
