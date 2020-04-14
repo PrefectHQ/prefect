@@ -159,6 +159,7 @@ class Flow:
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
         self.result_handler = result_handler
+        self.result = result # todo: convert from result handler here too?
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

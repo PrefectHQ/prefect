@@ -254,7 +254,7 @@ class Task(metaclass=SignatureValidator):
         self.checkpoint = checkpoint
         self.result_handler = result_handler
 
-        self.result = result or PrefectResult()  # todo: actually use CustomResult
+        self.result = result # todo: actually use CustomResult
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")

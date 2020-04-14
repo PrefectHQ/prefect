@@ -50,10 +50,11 @@ class CloudTaskRunner(TaskRunner):
         task: Task,
         state_handlers: Iterable[Callable] = None,
         result_handler: ResultHandler = None,
+        result: Result = None,
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task, state_handlers=state_handlers, result_handler=result_handler,
+            task=task, state_handlers=state_handlers, result_handler=result_handler, result=result
         )
 
     def _heartbeat(self) -> bool:
@@ -228,7 +229,7 @@ class CloudTaskRunner(TaskRunner):
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
                     candidate_state._result = candidate_state._result.populate_result(
-                        self.task.result
+                        self.result
                     )
                     return candidate_state
 

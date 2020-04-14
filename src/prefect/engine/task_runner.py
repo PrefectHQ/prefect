@@ -85,10 +85,12 @@ class TaskRunner(Runner):
         task: Task,
         state_handlers: Iterable[Callable] = None,
         result_handler: "ResultHandler" = None,
+        result: Result = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
         self.result_handler = task.result_handler or result_handler
+        self.result = task.result or result
         super().__init__(state_handlers=state_handlers)
 
     def __repr__(self) -> str:
@@ -152,12 +154,12 @@ class TaskRunner(Runner):
                 "task_loop_count": state.cached_inputs.pop(  # type: ignore
                     "_loop_count"
                 )  # type: ignore
-                .populate_result(self.task.result)  # todo: here
+                .populate_result(self.result)  # todo: here
                 .value,
                 "task_loop_result": state.cached_inputs.pop(  # type: ignore
                     "_loop_result"
                 )  # type: ignore
-                .populate_result(self.task.result)  # todo: here
+                .populate_result(self.result)  # todo: here
                 .value,
             }
             context.update(loop_context)
@@ -614,7 +616,7 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.populate_result(self.task.result)
+                state._result = state._result.populate_result(self.result)
                 return state
             else:
                 state = Pending("Cache was invalid; ready to run.")
@@ -629,7 +631,7 @@ class TaskRunner(Runner):
                     candidate, sanitized_inputs, prefect.context.get("parameters")
                 ):
                     candidate._result = candidate._result.populate_result(
-                        self.task.result
+                        self.result
                     )
                     return candidate
 
@@ -893,7 +895,7 @@ class TaskRunner(Runner):
         except signals.LOOP as exc:
             new_state = exc.state
             assert isinstance(new_state, Looped)
-            new_state.result = self.task.result.write(
+            new_state.result = self.result.write(
                 new_state.result, **prefect.context
             )
             new_state.cached_inputs = inputs
@@ -902,7 +904,7 @@ class TaskRunner(Runner):
             )
             return new_state
 
-        result = self.task.result.write(return_value, **prefect.context)
+        result = self.result.write(return_value, **prefect.context)
         state = Success(
             result=result, message="Task run succeeded.", cached_inputs=inputs
         )
@@ -976,7 +978,7 @@ class TaskRunner(Runner):
                     "_loop_count": PrefectResult(
                         value=prefect.context["task_loop_count"],
                     ),
-                    "_loop_result": self.task.result.write(
+                    "_loop_result": self.result.write(
                         value=prefect.context.get("task_loop_result"),
                         **prefect.context
                     ),
