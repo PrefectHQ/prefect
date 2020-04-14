@@ -1,7 +1,6 @@
 import io
 import uuid
 
-import prefect
 from prefect import Task
 from prefect.utilities.aws import get_boto_client
 from prefect.utilities.tasks import defaults_from_attrs

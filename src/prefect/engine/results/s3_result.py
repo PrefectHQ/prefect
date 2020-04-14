@@ -1,5 +1,4 @@
 import io
-import json
 from typing import Any, TYPE_CHECKING, Dict
 
 import prefect
