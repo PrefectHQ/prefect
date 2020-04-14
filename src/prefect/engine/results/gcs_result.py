@@ -16,27 +16,20 @@ class GCSResult(Result):
     runtime environment has the proper credentials available
     (see https://cloud.google.com/docs/authentication/production for all the authentication options).
 
-    You can also optionally provide the name of a Prefect Secret containing your
-    service account key. To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
+    You can also optionally provide your service account key to `prefect.context.secrets.GCP_CREDENTIALS` for
+    automatic authentication - see [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
+
+    To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
     To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
         - value (Any, optional): the value of the result
         - bucket (str): the name of the bucket to write to / read from
-        - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a JSON representation of your Google Cloud credentials.
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(
-        self,
-        value: Any = None,
-        bucket: str = None,
-        credentials_secret: str = None,
-        **kwargs: Any
-    ) -> None:
+    def __init__(self, value: Any = None, bucket: str = None, **kwargs: Any) -> None:
         self.bucket = bucket
-        self.credentials_secret = credentials_secret
         self.logger = logging.get_logger(type(self).__name__)
         super().__init__(value, **kwargs)
 
@@ -45,11 +38,7 @@ class GCSResult(Result):
         if not hasattr(self, "_gcs_bucket"):
             from prefect.utilities.gcp import get_storage_client
 
-            if self.credentials_secret:
-                credentials = Secret(self.credentials_secret).get()
-            else:
-                credentials = None
-            client = get_storage_client(credentials=credentials)
+            client = get_storage_client()
             self.gcs_bucket = client.bucket(self.bucket)
         return self._gcs_bucket
 

@@ -125,7 +125,8 @@ class GCSDownload(GCSBaseTask):
             - project (str, optional): Google Cloud project to work within.
                 If not provided here or at initialization, will be inferred from your Google Cloud credentials
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - encryption_key (str, optional): an encryption key
             - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
                 storing an optional `encryption_key` to be used when uploading the Blob
@@ -228,7 +229,8 @@ class GCSUpload(GCSBaseTask):
             - project (str, optional): Google Cloud project to work within. Can be inferred
                 from credentials if not provided.
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - encryption_key (str, optional): an encryption key
             - create_bucket (bool, optional): boolean specifying whether to create the bucket
                 if it does not exist, otherwise an Exception is raised. Defaults to `False`.
@@ -326,7 +328,8 @@ class GCSCopy(GCSBaseTask):
             - project (str, optional): default Google Cloud project to work within.
                 If not provided, will be inferred from your Google Cloud credentials
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
 
         Returns:
             - str: the name of the destination blob

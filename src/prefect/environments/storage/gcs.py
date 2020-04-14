@@ -154,6 +154,7 @@ class GCS(Storage):
 
     @property
     def _gcs_client(self):  # type: ignore
-        from google.cloud import storage
+        from prefect.utilities.gcp import get_storage_client
 
-        return storage.Client(project=self.project)
+        client = get_storage_client(project=self.project)
+        return client

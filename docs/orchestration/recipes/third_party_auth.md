@@ -46,18 +46,17 @@ All Prefect interfaces for third party services have default secrets they attemp
 ```python
 from prefect import Flow
 from prefect.environments.storage import GCS
-from prefect.tasks.secrets import PrefectSecret
 
 
 storage = GCS(bucket="my-bucket", 
-              secrets=[PrefectSecret("GOOGLE_APPLICATION_CREDENTIALS")])
+              secrets=["GOOGLE_APPLICATION_CREDENTIALS"])
 
 f = Flow("empty-flow", storage=storage)
 ```
 
 Once this flow is registered and run through an Agent, the first thing it will do is pull the value of the `"GOOGLE_APPLICATION_CREDENTIALS"` secret from Prefect Cloud and place it into `prefect.context.secrets` under the appropriate key.  These credentials are now available for any task or Prefect API call to Google, _including for pulling the Flow itself from GCS_.
 
-Any number of secrets can be declared on your `Storage` option - the only constraint is that they be chosen from the select list of pre-defined [Prefect Secret Tasks](../../api/latest/tasks/secrets.html); fully custom tasks are not supported for this particular interface.
+Any number of secrets can be declared on your `Storage` option.
 
 ::: warning This only applies to Prefect built-ins
 This off-the-shelf experience generally only applies to interfaces that are natively included as a part of the Prefect package. Note that if you write a completely custom task for interacting with a third party service, you will also need to consider how this task will authenticate.  Whether you choose to use Prefect Secrets or another option is up to you.
@@ -76,6 +75,8 @@ This will then ensure that the `TWITTER_API_CREDENTIALS` secret is globally pres
 
 ### Providing Secrets on a per-task basis
 
+In some instances you may need to override the global options presented above on a per-task basis, or you may choose to explicitly provide credentials to every task that needs them.  Either way, all Prefect tasks from the Task library which require credentials to authenticate offer optional runtime arguments for providing this information.
+
 
 
 
@@ -83,6 +84,6 @@ This will then ensure that the `TWITTER_API_CREDENTIALS` secret is globally pres
 
 The following is a list of the default names and contents of Prefect Secrets that, if set and declared, can be used to automatically authenticate your flow with the listed service:
 
-- `GOOGLE_APPLICATION_CREDENTIALS`: blah
+- `GCP_CREDENTIALS`: a dictionary containing a valid [Service Account Key](https://cloud.google.com/docs/authentication/getting-started)
 - another one
 - another one
