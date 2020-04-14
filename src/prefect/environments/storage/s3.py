@@ -192,12 +192,15 @@ class S3(Storage):
 
     @property
     def _boto3_client(self):  # type: ignore
-        from boto3 import client as boto3_client
+        from prefect.utilities.aws import get_boto_client
 
-        return boto3_client(
-            "s3",
-            **(self.client_options or {}),
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        creds = dict(
+            ACCESS_KEY=self.aws_access_key_id,
+            SECRET_ACCESS_KEY=self.aws_secret_access_key,
+        )
+        kwargs = dict(
+            aws_session_token=self.aws_session_token, **(self.client_options or {})
+        )
+        return get_boto_client(
+            resource="s3", credentials=creds, use_session=False, **kwargs
         )
