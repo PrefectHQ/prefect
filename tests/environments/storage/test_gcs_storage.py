@@ -16,7 +16,7 @@ class TestGCSStorage:
         with patch.dict(
             "sys.modules",
             {
-                "google.cloud": MagicMock(storage=storage),
+                "google.cloud": MagicMock(),
                 "google.oauth2.service_account": MagicMock(),
             },
         ):

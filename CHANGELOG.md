@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Task logical operators (e.g. `And`, `Or`, ...) no longer implicitly cast to `bool` - [#2303](https://github.com/PrefectHQ/prefect/pull/2303)
 - Allow for dynamically changing secret names at runtime - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
+- Update `ifelse` and `switch` to return tasks representing the output of the run branch - [#2310](https://github.com/PrefectHQ/prefect/pull/2310)
 
 ### Task Library
 
@@ -23,6 +24,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix issue with Flow registration to non-standard Cloud backends - [#2292](https://github.com/PrefectHQ/prefect/pull/2292)
 - Fix issue with registering Flows with Server that have required scheduled Parameters - [#2296](https://github.com/PrefectHQ/prefect/issues/2296)
 - Fix interpolation of config for dev services CLI for Apollo - [#2299](https://github.com/PrefectHQ/prefect/pull/2299)
+- Fix pytest Cloud and Core server backend fixtures - [#2319](https://github.com/PrefectHQ/prefect/issues/2319)
+- Fix `AzureResultHandler` choosing an empty Secret over provided connection string - [#2316](https://github.com/PrefectHQ/prefect/issues/2316)
 
 ### Deprecations
 
