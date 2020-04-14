@@ -1,11 +1,11 @@
 import sys
 
 
-def platform_is_linux():
+def platform_is_linux() -> bool:
     return sys.platform.startswith("linux")
 
 
-def get_docker_ip():
+def get_docker_ip() -> str:
     """Get local docker internal IP without using shell=True in subprocess"""
     from subprocess import Popen, PIPE
 

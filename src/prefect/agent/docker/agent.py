@@ -1,7 +1,7 @@
-import re
 import multiprocessing
 import ntpath
 import posixpath
+import re
 import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
@@ -328,7 +328,7 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
 
-        host_config = {}
+        host_config = dict()  # type: dict
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
