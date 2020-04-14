@@ -85,5 +85,5 @@ In some instances you may need to override the global options presented above on
 The following is a list of the default names and contents of Prefect Secrets that, if set and declared, can be used to automatically authenticate your flow with the listed service:
 
 - `GCP_CREDENTIALS`: a dictionary containing a valid [Service Account Key](https://cloud.google.com/docs/authentication/getting-started)
-- another one
+- `AWS_CREDENTIALS`: a dictionary containing two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which are passed directly to the `boto3` client
 - another one
