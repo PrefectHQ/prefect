@@ -340,9 +340,9 @@ class DockerAgent(Agent):
 
         networking_config = None
         if self.network:
-            networking_config = self.docker_client.create_networking_config({
-                self.network: self.docker_client.create_endpoint_config()
-            })
+            networking_config = self.docker_client.create_networking_config(
+                {self.network: self.docker_client.create_endpoint_config()}
+            )
 
         container = self.docker_client.create_container(
             storage.name,
@@ -358,7 +358,9 @@ class DockerAgent(Agent):
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
         if self.network:
-            self.logger.debug('Adding container to docker network: {}'.format(self.network))
+            self.logger.debug(
+                "Adding container to docker network: {}".format(self.network)
+            )
 
         self.docker_client.start(container=container.get("Id"))
 

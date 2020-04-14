@@ -117,9 +117,7 @@ def agent():
     hidden=True,
 )
 @click.option(
-    "--network",
-    help="Add containers to an existing docker network",
-    hidden=True,
+    "--network", help="Add containers to an existing docker network", hidden=True,
 )
 @click.pass_context
 def start(

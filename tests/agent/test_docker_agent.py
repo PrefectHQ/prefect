@@ -821,15 +821,13 @@ def test_docker_agent_network(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
-    api.create_networking_config.return_value = {
-        'test-network': 'config'
-    }
+    api.create_networking_config.return_value = {"test-network": "config"}
     monkeypatch.setattr(
         "prefect.agent.docker.agent.DockerAgent._get_docker_client",
         MagicMock(return_value=api),
     )
 
-    agent = DockerAgent(network='test-network')
+    agent = DockerAgent(network="test-network")
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -846,8 +844,6 @@ def test_docker_agent_network(monkeypatch, runner_token):
         )
     )
 
-    assert agent.network == 'test-network'
-    assert api.create_container.called_with(
-        networking_config={'test-network': 'coddnfig'}
-    )
-    assert api.start.called
+    assert agent.network == "test-network"
+    args, kwargs = api.create_container.call_args
+    assert kwargs["networking_config"] == {"test-network": "config"}
