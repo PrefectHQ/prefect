@@ -7,7 +7,6 @@ import pendulum
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
@@ -104,11 +103,10 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            cloud_state = prepare_state_for_cloud(new_state)
             state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
-                state=cloud_state,
+                state=new_state,
                 cache_for=self.task.cache_for,
             )
         except Exception as exc:

@@ -61,8 +61,6 @@ class ResultInterface:
         """
         return self
 
-    def store_safe_value(self) -> None:
-        """Performs no computation."""
 
 
 class Result(ResultInterface):
@@ -109,16 +107,6 @@ class Result(ResultInterface):
         self.cache_validator = cache_validator
         self.location = location
         self.logger = logging.get_logger(type(self).__name__)
-
-    def store_safe_value(self) -> None:
-        """
-        Populate the `safe_value` attribute with a `SafeResult` using the result handler
-        """
-        # don't bother with `None` values
-        if self.value is None:
-            return
-        if self.safe_value == NoResult:
-            self.safe_value = SafeResult(value=self.filepath)
 
     def populate_result(self, result: "Result") -> "Result":
         """
