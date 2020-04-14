@@ -9,9 +9,23 @@ class GCSResultSchema(ObjectSchema):
     class Meta:
         object_class = results.GCSResult
 
-    filepath = fields.String(allow_none=False)
+    location = fields.String(allow_none=False)
     bucket = fields.String(allow_none=False)
     credentials_secret = fields.String(allow_none=True)
+
+class SecretResultSchema(ObjectSchema):
+    class Meta:
+        object_class = results.SecretResult
+
+    # todo: how to serialize secret_task?
+
+class AzureResultSchema(ObjectSchema):
+    class Meta:
+        object_class = results.AzureResult
+
+    container = fields.String(allow_none=False)
+    connection_string = fields.String(allow_none=True)
+    connection_string_secret = fields.String(allow_none=True)
 
 
 class PrefectResultSchema(ObjectSchema):
@@ -25,7 +39,7 @@ class S3ResultSchema(ObjectSchema):
     class Meta:
         object_class = results.S3Result
 
-    filepath = fields.String(allow_none=False)
+    location = fields.String(allow_none=False)
     bucket = fields.String(allow_none=False)
     credentials_secret = fields.String(allow_none=True)
 
@@ -66,4 +80,6 @@ class StateResultSchema(OneOfSchema):
         "S3Result": S3ResultSchema,
         "ConstantResult": ConstantResultSchema,
         "Result": ResultSchema,
+        "AzureResult": AzureResultSchema,
+        "SecretResult": SecretResultSchema
     }
