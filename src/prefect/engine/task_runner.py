@@ -81,10 +81,14 @@ class TaskRunner(Runner):
     """
 
     def __init__(
-        self, task: Task, state_handlers: Iterable[Callable] = None,
+        self,
+        task: Task,
+        state_handlers: Iterable[Callable] = None,
+        result_handler: "ResultHandler" = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
+        self.result_handler = task.result_handler or result_handler
         super().__init__(state_handlers=state_handlers)
 
     def __repr__(self) -> str:
