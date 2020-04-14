@@ -1,7 +1,8 @@
-import re
 import multiprocessing
 import ntpath
 import posixpath
+import re
+import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
@@ -9,6 +10,7 @@ from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
+from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
 if TYPE_CHECKING:
@@ -326,18 +328,23 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
 
+        host_config = dict()  # type: dict
         container_mount_paths = self.container_mount_paths
-        if not container_mount_paths:
-            host_config = None
-        else:
-            host_config = self.docker_client.create_host_config(binds=self.host_spec)
+        if container_mount_paths:
+            host_config.update(binds=self.host_spec)
+
+        if sys.platform.startswith("linux"):
+            docker_internal_ip = get_docker_ip()
+            host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
 
         container = self.docker_client.create_container(
             storage.name,
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,
-            host_config=host_config,
+            host_config=self.docker_client.create_host_config(**host_config)
+            if host_config
+            else None,
         )
 
         # Start the container
