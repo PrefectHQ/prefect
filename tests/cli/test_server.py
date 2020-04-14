@@ -59,7 +59,7 @@ def test_make_env_config_vars():
         assert env["HASURA_HOST_PORT"] == "7"
 
 
-def test_server_start(monkeypatch):
+def test_server_start(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -88,7 +88,7 @@ def test_server_start(monkeypatch):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_options_and_flags(monkeypatch):
+def test_server_start_options_and_flags(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -121,7 +121,7 @@ def test_server_start_options_and_flags(monkeypatch):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_port_options(monkeypatch):
+def test_server_start_port_options(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -162,7 +162,7 @@ def test_server_start_port_options(monkeypatch):
     assert popen.call_args[1]["env"].get("APOLLO_HOST_PORT") == "5"
 
 
-def test_server_start_disable_port_mapping(monkeypatch):
+def test_server_start_disable_port_mapping(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -201,7 +201,7 @@ def test_server_start_disable_port_mapping(monkeypatch):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_linux_host(monkeypatch):
+def test_server_start_linux_host(monkeypatch, linux_platform):
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
     monkeypatch.setattr("subprocess.Popen", popen)
