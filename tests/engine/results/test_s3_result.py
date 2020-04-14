@@ -7,8 +7,10 @@ import prefect
 from prefect.engine.results import S3Result
 from prefect.utilities.configuration import set_temporary_config
 
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
 
-@pytest.mark.xfail(raises=ImportError, reason="aws extras not installed.")
+
 class TestS3Result:
     @pytest.fixture
     def session(self, monkeypatch):
