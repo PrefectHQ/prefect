@@ -11,26 +11,25 @@ class PrefectResult(Result):
     safely be stored directly in a Prefect database.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, value: Any = None, **kwargs: Any) -> None:
-        self.value = value
-        super().__init__(value=value, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - filepath (str): an unused argument
+            - location (str): an unused argument
 
         Returns:
-            - Result: a new result instance with the data represented by the filepath
+            - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.value = json.loads(filepath)
-        new.filepath = filepath
+        new.value = json.loads(location)
+        new.location = location
         return new
 
     def write(self, value: Any, **kwargs: Any) -> Result:
@@ -43,25 +42,25 @@ class PrefectResult(Result):
             - **kwargs (optional): unused, for compatibility with the interface
 
         Returns:
-            - Result: returns a new `Result` with both `value` and `filepath` attributes
+            - Result: returns a new `Result` with both `value` and `location` attributes
         """
         new = self.copy()
         new.value = value
-        new.filepath = json.dumps(new.value)
+        new.location = json.dumps(new.value)
         return new
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Confirms that the provided value is JSON deserializable.
 
         Args:
-            - filepath (str): the value to test
+            - location (str): the value to test
 
         Returns:
             - bool: whether the provided string can be deserialized
         """
         try:
-            json.loads(filepath)
+            json.loads(location)
             return True
         except:
             return False
