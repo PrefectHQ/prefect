@@ -85,6 +85,8 @@ services:
     ports:
       - "8080:8080"
     command: "/intercept.sh"
+    environment:
+      PREFECT_SERVER__GRAPHQL_URL: ${GRAPHQL_URL:-http://some-default:4200/cooolllll}
     networks:
       - prefect-server
     restart: "always"

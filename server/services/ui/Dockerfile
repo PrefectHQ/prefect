@@ -14,15 +14,15 @@ COPY ./ /app
 WORKDIR /app
 
 # Install dependencies
-RUN npm install
+# RUN npm install
 
 # Build static files
-RUN npm run build
+# RUN npm run build
 
 FROM nginx:stable
 
 # Copy the previously built static files to the nginx container
-COPY --from=ui /app/dist/ /var/www
+COPY --from=ui /app /var/www
 
 # Replace the default nginx config
 # with the one we've defined here
