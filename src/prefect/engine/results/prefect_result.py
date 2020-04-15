@@ -11,47 +11,56 @@ class PrefectResult(Result):
     safely be stored directly in a Prefect database.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, value: Any = None, **kwargs: Any) -> None:
-        self.value = value
-        super().__init__(value=value, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
-    def read(self, loc: str = None) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - loc (str): an unused argument
+            - location (str): an unused argument
+
+        Returns:
+            - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.value = json.loads(loc or new.filepath)
+        new.value = json.loads(location)
+        new.location = location
         return new
 
-    def write(self, **kwargs: Any) -> Result:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Returns the repr of the underlying value, purely for convenience.
+        JSON serializes `self.value` and returns `self`.
 
         Args:
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
             - **kwargs (optional): unused, for compatibility with the interface
 
         Returns:
-            - Result: returns self
+            - Result: returns a new `Result` with both `value` and `location` attributes
         """
-        self.filepath = json.dumps(self.value)
-        return self
+        new = self.copy()
+        new.value = value
+        new.location = json.dumps(new.value)
+        return new
 
-    def exists(self, loc: str = None) -> bool:
+    def exists(self, location: str) -> bool:
         """
-        Confirms the existence of the `filepath` stored on the Result.
-
-        The value stored within a Constant is logically always present,
-        so `True` is returned.
+        Confirms that the provided value is JSON deserializable.
 
         Args:
-             - loc (optional): for interface compatibility
+            - location (str): the value to test
+
         Returns:
-            - bool: True, confirming the constant exists.
+            - bool: whether the provided string can be deserialized
         """
-        return self.filepath is not ""
+        try:
+            json.loads(location)
+            return True
+        except:
+            return False

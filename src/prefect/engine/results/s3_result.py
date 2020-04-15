@@ -105,12 +105,14 @@ class S3Result(Result):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def write(self, **kwargs: Any) -> Result:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
         Writes the result to a location in S3 and returns the resulting URI.
 
         Args:
-            - **kwargs (optional): if provided, will be used to format the filepath template
+            - value (Any): the value to write; will then be stored as the `value` attribute
+                of the returned `Result` instance
+            - **kwargs (optional): if provided, will be used to format the location template
                 to determine the location to write to
 
         Returns:
@@ -118,44 +120,52 @@ class S3Result(Result):
         """
 
         new = self.format(**kwargs)
-        self.logger.debug("Starting to upload result to {}...".format(new.filepath))
+        new.value = value
+        self.logger.debug("Starting to upload result to {}...".format(new.location))
         binary_data = new.serialize_to_bytes(new.value)
 
         stream = io.BytesIO(binary_data)
 
         ## upload
-        self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.filepath)
-        self.logger.debug("Finished uploading result to {}.".format(new.filepath))
+        from botocore.exceptions import ClientError
 
+        try:
+            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.location)
+        except ClientError as err:
+            self.logger.error("Error uploading to S3: {}".format(err))
+            raise err
+
+        self.logger.debug("Finished uploading result to {}.".format(new.location))
         return new
 
-    def read(self, loc: str = None) -> Result:
+    def read(self, location: str) -> Result:
         """
         Reads a result from S3, reads it and returns a new `Result` object with the corresponding value.
 
         Args:
-            - loc (str, optional): the S3 URI; if not provided, `self.filepath` will be used
+            - location (str): the S3 URI to read from
 
         Returns:
             - Any: the read result
         """
-        uri = loc or self.filepath
         new = self.copy()
-        new.filepath = uri
+        new.location = location
 
         try:
-            self.logger.debug("Starting to download result from {}...".format(uri))
+            self.logger.debug("Starting to download result from {}...".format(location))
             stream = io.BytesIO()
 
             ## download - uses `self` in case the client is already instantiated
-            self.client.download_fileobj(Bucket=self.bucket, Key=uri, Fileobj=stream)
+            self.client.download_fileobj(
+                Bucket=self.bucket, Key=location, Fileobj=stream
+            )
             stream.seek(0)
 
             try:
                 new.value = new.deserialize_from_bytes(stream.read())
             except EOFError:
                 new.value = None
-            self.logger.debug("Finished downloading result from {}.".format(uri))
+            self.logger.debug("Finished downloading result from {}.".format(location))
 
         except Exception as exc:
             self.logger.exception(
@@ -163,30 +173,26 @@ class S3Result(Result):
                     repr(exc)
                 )
             )
-            new.value = None
+            raise exc
 
         return new
 
-    def exists(self, loc: str = None) -> bool:
+    def exists(self, location: str) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
 
         Does not validate whether the result is `valid`, only that it is present.
 
         Args:
-            - loc (str, optional): Location of the result in the specific result target.
-                If provided, will check whether the provided location exists;
-                otherwise, will use `self.filepath`
+            - location (str): Location of the result in the specific result target.
 
         Returns:
             - bool: whether or not the target result exists.
         """
         import botocore
 
-        uri = loc or self.filepath
-
         try:
-            self.client.get_object(Bucket=self.bucket, Key=uri).load()
+            self.client.get_object(Bucket=self.bucket, Key=location).load()
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "404":
                 return False

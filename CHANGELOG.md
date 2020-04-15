@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add option to connect containers created by Docker agent to an existing Docker network - [#2334](https://github.com/PrefectHQ/prefect/pull/2334)
 
 ### Task Library
 
@@ -18,9 +18,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix possible subprocess deadlocks when sending stdout to `subprocess.PIPE` - [#2293](https://github.com/PrefectHQ/prefect/pull/2293), [#2295](https://github.com/PrefectHQ/prefect/pull/2295)
-- Fix issue with Flow registration to non-standard Cloud backends - [#2292](https://github.com/PrefectHQ/prefect/pull/2292)
-- Fix issue with registering Flows with Server that have required scheduled Parameters - [#2296](https://github.com/PrefectHQ/prefect/issues/2296)
+- Fix `auth create-token` CLI command specifying deprecated `role` instead of `scope` - [#2336](https://github.com/PrefectHQ/prefect/issues/2336)
 
 ### Deprecations
 
@@ -32,7 +30,47 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Brad McElroy](https://github.com/limx0)
+
+## 0.10.2 <Badge text="beta" type="success"/>
+
+Released on Apr 14, 2020.
+
+### Features
+
 - None
+
+### Enhancements
+
+- Task logical operators (e.g. `And`, `Or`, ...) no longer implicitly cast to `bool` - [#2303](https://github.com/PrefectHQ/prefect/pull/2303)
+- Allow for dynamically changing secret names at runtime - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
+- Update `ifelse` and `switch` to return tasks representing the output of the run branch - [#2310](https://github.com/PrefectHQ/prefect/pull/2310)
+
+### Task Library
+
+- Rename the base secret tasks for clarity - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
+
+### Fixes
+
+- Fix possible subprocess deadlocks when sending stdout to `subprocess.PIPE` - [#2293](https://github.com/PrefectHQ/prefect/pull/2293), [#2295](https://github.com/PrefectHQ/prefect/pull/2295)
+- Fix issue with Flow registration to non-standard Cloud backends - [#2292](https://github.com/PrefectHQ/prefect/pull/2292)
+- Fix issue with registering Flows with Server that have required scheduled Parameters - [#2296](https://github.com/PrefectHQ/prefect/issues/2296)
+- Fix interpolation of config for dev services CLI for Apollo - [#2299](https://github.com/PrefectHQ/prefect/pull/2299)
+- Fix pytest Cloud and Core server backend fixtures - [#2319](https://github.com/PrefectHQ/prefect/issues/2319)
+- Fix `AzureResultHandler` choosing an empty Secret over provided connection string - [#2316](https://github.com/PrefectHQ/prefect/issues/2316)
+- Fix containers created by Docker agent not being able to reach out to host API - [#2324](https://github.com/PrefectHQ/prefect/issues/2324)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Remove `env_var` initialization from `EnvVarSecret` in favor of `name` - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
+
+### Contributors
+
+- [Brad McElroy](https://github.com/limx0)
 
 ## 0.10.1 <Badge text="beta" type="success"/>
 

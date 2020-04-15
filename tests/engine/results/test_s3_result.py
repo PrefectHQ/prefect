@@ -7,8 +7,10 @@ import prefect
 from prefect.engine.results import S3Result
 from prefect.utilities.configuration import set_temporary_config
 
+pytest.importorskip("boto3")
+pytest.importorskip("botocore")
 
-@pytest.mark.xfail(raises=ImportError, reason="aws extras not installed.")
+
 class TestS3Result:
     @pytest.fixture
     def session(self, monkeypatch):
@@ -49,23 +51,21 @@ class TestS3Result:
         }
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):
-        result = S3Result(
-            value="so-much-data", bucket="foo", filepath="{thing}/here.txt"
-        )
+        result = S3Result(bucket="foo", location="{thing}/here.txt")
 
         with prefect.context(
             secrets=dict(AWS_CREDENTIALS=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=42)),
             thing="yes!",
         ) as ctx:
             with set_temporary_config({"cloud.use_local_secrets": True}):
-                uri = result.write(**ctx)
+                new_result = result.write("so-much-data", **ctx)
 
         used_uri = session.Session().client.return_value.upload_fileobj.call_args[1][
             "Key"
         ]
 
-        assert used_uri == uri.filepath
-        assert uri.filepath.startswith("yes!/here.txt")
+        assert used_uri == new_result.location
+        assert new_result.location.startswith("yes!/here.txt")
 
     def test_s3_result_is_pickleable(self, monkeypatch):
         class client:
@@ -103,9 +103,9 @@ class TestS3Result:
                 raise exc
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath="stuff")
+        result = S3Result(bucket="bob", location="stuff")
         result = result.format()
-        assert result.exists() == False
+        assert result.exists("stuff") == False
 
     def test_s3_result_exists(self, session):
         import botocore
@@ -122,6 +122,6 @@ class TestS3Result:
                 return MagicMock()
 
         session.Session().client = _client
-        result = S3Result(bucket="bob", filepath="stuff")
+        result = S3Result(bucket="bob", location="stuff")
         result = result.format()
-        assert result.exists() == True
+        assert result.exists("stuff") == True
