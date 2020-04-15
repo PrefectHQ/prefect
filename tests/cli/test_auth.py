@@ -147,7 +147,7 @@ def test_create_token(patch_post):
 
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         runner = CliRunner()
-        result = runner.invoke(auth, ["create-token", "-n", "name", "-r", "role"])
+        result = runner.invoke(auth, ["create-token", "-n", "name", "-s", "scope"])
         assert result.exit_code == 0
         assert "token" in result.output
 
@@ -157,7 +157,7 @@ def test_create_token_fails(patch_post):
 
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         runner = CliRunner()
-        result = runner.invoke(auth, ["create-token", "-n", "name", "-r", "role"])
+        result = runner.invoke(auth, ["create-token", "-n", "name", "-s", "scope"])
         assert result.exit_code == 0
         assert "Issue creating API token" in result.output
 
