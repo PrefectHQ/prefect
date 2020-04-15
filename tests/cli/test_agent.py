@@ -202,6 +202,7 @@ def test_agent_start_with_env_vars(monkeypatch, runner_token):
         no_pull=False,
         show_flow_logs=False,
         volumes=[],
+        network=None,
     )
 
 
@@ -222,6 +223,7 @@ def test_agent_start_with_max_polls(monkeypatch, runner_token):
         no_pull=False,
         show_flow_logs=False,
         volumes=[],
+        network=None,
     )
 
 

@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add option to connect containers created by Docker agent to an existing Docker network - [#2334](https://github.com/PrefectHQ/prefect/pull/2334)
 
 ### Task Library
 
@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Brad McElroy](https://github.com/limx0)
 
 ## 0.10.2 <Badge text="beta" type="success"/>
 
