@@ -187,7 +187,7 @@ def create_token(name, scope):
     """
     Create a Prefect Cloud API token.
 
-    For more info on API tokens visit https://docs.prefect.io/cloud/concepts/api.html
+    For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
 
     \b
     Options:
