@@ -27,6 +27,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 ### Breaking Changes
 
 - Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
 
 ### Contributors
 
@@ -279,7 +280,7 @@ Released on Mar 4, 2020.
 
 ### Breaking Changes
 
-- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
+- None
 
 ### Contributors
 
