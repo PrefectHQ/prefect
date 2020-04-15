@@ -62,7 +62,7 @@ def make_dev_env(fname=None):
 
     HASURA_ENV = dict()
 
-    UI_ENV = dict(GRAPHQL_URL=config.ui.graphql_url)
+    UI_ENV = dict(GRAPHQL_URL=config.services.ui.graphql_url)
 
     ENV = os.environ.copy()
     ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
