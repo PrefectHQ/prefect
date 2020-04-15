@@ -4,7 +4,7 @@ import posixpath
 import re
 import sys
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Optional
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -49,7 +49,7 @@ class DockerAgent(Agent):
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
-        - network (Optional[str]): Add containers to an existing docker network
+        - network (str, optional): Add containers to an existing docker network
     """
 
     def __init__(
@@ -62,7 +62,7 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
-        network: Optional[str] = None,
+        network: str = None,
     ) -> None:
         super().__init__(
             name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
@@ -92,7 +92,7 @@ class DockerAgent(Agent):
 
         # Add containers to a docker network
         self.network = network
-        self.logger.debug("network set to {}".format(self.network))
+        self.logger.debug("Docker network set to {}".format(self.network))
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
