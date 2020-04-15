@@ -279,7 +279,7 @@ Released on Mar 4, 2020.
 
 ### Breaking Changes
 
-- None
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
 
 ### Contributors
 
