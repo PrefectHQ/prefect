@@ -77,6 +77,8 @@ services:
     ports:
       - "${UI_HOST_PORT:-8080}:8080"
     command: "/intercept.sh"
+    environment:
+      PREFECT_SERVER__GRAPHQL_URL: ${GRAPHQL_URL:-http://localhost:4200/graphql}
     networks:
       - prefect-server
     restart: "always"

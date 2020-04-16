@@ -814,3 +814,36 @@ def test_docker_agent_start_max_polls_zero(monkeypatch, runner_token):
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
     assert heartbeat.call_count == 0
+
+
+def test_docker_agent_network(monkeypatch, runner_token):
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    api.create_networking_config.return_value = {"test-network": "config"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent(network="test-network")
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert agent.network == "test-network"
+    args, kwargs = api.create_container.call_args
+    assert kwargs["networking_config"] == {"test-network": "config"}

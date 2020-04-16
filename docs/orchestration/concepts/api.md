@@ -14,7 +14,7 @@ To generate an API token, use the Cloud UI or the following GraphQL call (from a
 
 ```graphql
 mutation {
-  create_api_token(input: { name: "My API token", role: USER }) {
+  create_api_token(input: { name: "My API token", scope: USER }) {
     token
   }
 }

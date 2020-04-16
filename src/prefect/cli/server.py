@@ -31,7 +31,7 @@ def make_env(fname=None):
             config.server.hasura.port
         ),
         PREFECT_API_URL="http://graphql:{port}{path}".format(
-            port=config.server.graphql.port, path=config.server.graphql.path,
+            port=config.server.graphql.port, path=config.server.graphql.path
         ),
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
             port=config.server.graphql.port
@@ -46,10 +46,12 @@ def make_env(fname=None):
         POSTGRES_DB=config.server.database.name,
     )
 
+    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
     ENV = os.environ.copy()
-    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **HASURA_ENV)
+    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
 
     if fname is not None:
         list_of_pairs = [

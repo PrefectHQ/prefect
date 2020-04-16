@@ -10,6 +10,40 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Allow GraphQL endpoint configuration via `config.toml` for remote deployments of the UI - [#2338](https://github.com/PrefectHQ/prefect/pull/2338)
+- Add option to connect containers created by Docker agent to an existing Docker network - [#2334](https://github.com/PrefectHQ/prefect/pull/2334)
+- Expose `datefmt` as a configurable logging option in Prefect configuration - [#2340](https://github.com/PrefectHQ/prefect/pull/2340)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix `auth create-token` CLI command specifying deprecated `role` instead of `scope` - [#2336](https://github.com/PrefectHQ/prefect/issues/2336)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Brad McElroy](https://github.com/limx0)
+
+## 0.10.2 <Badge text="beta" type="success"/>
+
+Released on Apr 14, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Task logical operators (e.g. `And`, `Or`, ...) no longer implicitly cast to `bool` - [#2303](https://github.com/PrefectHQ/prefect/pull/2303)
 - Allow for dynamically changing secret names at runtime - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
 - Update `ifelse` and `switch` to return tasks representing the output of the run branch - [#2310](https://github.com/PrefectHQ/prefect/pull/2310)
