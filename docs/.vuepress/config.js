@@ -294,7 +294,6 @@ module.exports = {
             'development/documentation',
             'development/tests',
             'development/contributing',
-            'development/docker',
             'development/release-checklist',
             'development/sprints'
           ]
