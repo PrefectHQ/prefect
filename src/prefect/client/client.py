@@ -961,7 +961,7 @@ class Client:
             "where": {
                 "state": {"_eq": "Cached"},
                 "_or": [
-                    {"cache_key": {"_eq": cache_key}},
+                    {"_and": [{"cache_key": {"_eq": cache_key}}, {"cache_key": {"_is_null": False}}]},
                     {"task_id": {"_eq": task_id}},
                 ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
@@ -969,6 +969,8 @@ class Client:
             "order_by": {"state_timestamp": EnumValue("desc")},
         }
         query = {"query": {with_args("task_run", where_clause): "serialized_state"}}
+        # breakpoint()
+        print(query)
         result = self.graphql(query)  # type: Any
         deserializer = prefect.engine.state.State.deserialize
         valid_states = [
