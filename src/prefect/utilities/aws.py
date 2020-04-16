@@ -1,5 +1,5 @@
 """
-Utility functions for interacting with Google Cloud.
+Utility functions for interacting with AWS.
 """
 import prefect
 
