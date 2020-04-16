@@ -25,11 +25,8 @@ class GCSResult(Result):
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(
-        self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, bucket: str = None, **kwargs: Any) -> None:
         self.bucket = bucket
-        self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
     @property
