@@ -13,26 +13,33 @@ from prefect.utilities.exceptions import StorageError
 class TestGCSStorage:
     @pytest.fixture
     def google_client(self, monkeypatch):
-        client = MagicMock()
-        storage = MagicMock(Client=client)
-
         with patch.dict(
             "sys.modules",
             {
-                "google.cloud": MagicMock(storage=storage),
+                "google.cloud": MagicMock(),
                 "google.oauth2.service_account": MagicMock(),
             },
         ):
-            yield client
+            from prefect.utilities.gcp import get_storage_client
+
+            client_util = MagicMock()
+            monkeypatch.setattr("prefect.utilities.gcp.get_storage_client", client_util)
+            yield client_util
 
     def test_create_gcs_storage(self):
-        storage = GCS(bucket="awesome-bucket", key="the-best-key", project="mayhem")
+        storage = GCS(
+            bucket="awesome-bucket",
+            key="the-best-key",
+            project="mayhem",
+            secrets=["boo"],
+        )
 
         assert storage
         assert len(storage._flows) == 0
         assert storage.bucket == "awesome-bucket"
         assert storage.key == "the-best-key"
         assert storage.project == "mayhem"
+        assert storage.secrets == ["boo"]
 
     def test_create_gcs_client_go_case(self, google_client):
         storage = GCS(bucket="bucket", project="a_project")

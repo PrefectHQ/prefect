@@ -16,12 +16,15 @@ def test_create_azure_storage():
 
 
 def test_create_azure_storage_init_args():
-    storage = Azure(container="test", connection_string="conn", blob_name="name")
+    storage = Azure(
+        container="test", connection_string="conn", blob_name="name", secrets=["foo"],
+    )
     assert storage
     assert storage.flows == dict()
     assert storage.container == "test"
     assert storage.connection_string == "conn"
     assert storage.blob_name == "name"
+    assert storage.secrets == ["foo"]
 
 
 def test_serialize_azure_storage():

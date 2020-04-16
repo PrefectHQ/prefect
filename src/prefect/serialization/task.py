@@ -8,6 +8,7 @@ from prefect.utilities.serialization import (
     FunctionReference,
     JSONCompatible,
     ObjectSchema,
+    OneOfSchema,
     StatefulFunctionReference,
     from_qualified_name,
     to_qualified_name,

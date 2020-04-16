@@ -10,7 +10,6 @@ from prefect.utilities.configuration import set_temporary_config
 class TestStepActivate:
     def test_initialization(self):
         task = StepActivate(state_machine_arn="arn", execution_name="name")
-        assert task.aws_credentials_secret == "AWS_CREDENTIALS"
 
     def test_initialization_passes_to_task_constructor(self):
         task = StepActivate(
@@ -23,7 +22,7 @@ class TestStepActivate:
         task = StepActivate(state_machine_arn="arn", execution_name="name")
         client = MagicMock()
         boto3 = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.aws.step_function.boto3", boto3)
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(

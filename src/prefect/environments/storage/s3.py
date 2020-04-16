@@ -38,6 +38,8 @@ class S3(Storage):
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
@@ -48,6 +50,7 @@ class S3(Storage):
         aws_session_token: str = None,
         client_options: dict = None,
         key: str = None,
+        secrets: List[str] = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -60,7 +63,7 @@ class S3(Storage):
         self.client_options = client_options
 
         result_handler = S3ResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler)
+        super().__init__(result_handler=result_handler, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:
@@ -189,12 +192,15 @@ class S3(Storage):
 
     @property
     def _boto3_client(self):  # type: ignore
-        from boto3 import client as boto3_client
+        from prefect.utilities.aws import get_boto_client
 
-        return boto3_client(
-            "s3",
-            **(self.client_options or {}),
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        creds = dict(
+            ACCESS_KEY=self.aws_access_key_id,
+            SECRET_ACCESS_KEY=self.aws_secret_access_key,
+        )
+        kwargs = dict(
+            aws_session_token=self.aws_session_token, **(self.client_options or {})
+        )
+        return get_boto_client(
+            resource="s3", credentials=creds, use_session=False, **kwargs
         )

@@ -2,6 +2,7 @@ import click
 
 import prefect
 from prefect.client import Client
+from prefect.tasks.secrets import PrefectSecret
 from prefect.utilities.graphql import with_args
 
 
@@ -62,13 +63,19 @@ def cloud_flow():
         storage_schema = prefect.serialization.storage.StorageSchema()
         storage = storage_schema.load(flow_data.storage)
 
-        flow = storage.get_flow(storage.flows[flow_data.name])
-        environment = flow.environment
+        ## populate global secrets
+        secrets = prefect.context.get("secrets", {})
+        for secret in storage.secrets:
+            secrets[secret] = PrefectSecret(name=secret).run()
 
-        environment.setup(storage=storage)
-        environment.execute(
-            storage=storage, flow_location=storage.flows[flow_data.name]
-        )
+        with prefect.context(secrets=secrets):
+            flow = storage.get_flow(storage.flows[flow_data.name])
+            environment = flow.environment
+
+            environment.setup(storage=storage)
+            environment.execute(
+                storage=storage, flow_location=storage.flows[flow_data.name]
+            )
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)
