@@ -169,6 +169,7 @@ module.exports = {
             'concepts/secrets',
             'concepts/services',
             'concepts/tokens',
+            'concepts/roles'
             'concepts/task-concurrency-limiting'
           ]
         },
