@@ -10,7 +10,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Allow GraphQL endpoint configuration via `config.toml` for remote deployments of the UI - [#2338](https://github.com/PrefectHQ/prefect/pull/2338)
 - Add option to connect containers created by Docker agent to an existing Docker network - [#2334](https://github.com/PrefectHQ/prefect/pull/2334)
+- Expose `datefmt` as a configurable logging option in Prefect configuration - [#2340](https://github.com/PrefectHQ/prefect/pull/2340)
 
 ### Task Library
 
