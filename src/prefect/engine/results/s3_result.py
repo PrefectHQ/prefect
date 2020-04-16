@@ -12,10 +12,12 @@ class S3Result(Result):
     """
     Result that is written to and retrieved from an AWS S3 Bucket.
 
-    For authentication, there are two options: you can set a Prefect Secret containing
-    your AWS access keys which will be passed directly to the `boto3` client, or you can
-    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can provide your AWS credentials
+    to `prefect.context.secrets.AWS_CREDENTIALS` for automatic authentication
+    or you can [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
+
+    See [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from

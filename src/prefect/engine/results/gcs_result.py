@@ -1,7 +1,6 @@
 from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
-from prefect.utilities import logging
 
 if TYPE_CHECKING:
     import google.cloud
@@ -30,7 +29,6 @@ class GCSResult(Result):
         self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
     ) -> None:
         self.bucket = bucket
-        self.logger = logging.get_logger(type(self).__name__)
         self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
