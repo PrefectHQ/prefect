@@ -15,7 +15,7 @@ def get_boto_client(
 
     Args:
         - resource (str): the name of the resource to retrieve a client for
-        - credentials (dict, optional): a dictionary of Google credentials used to initialize the Client; if
+        - credentials (dict, optional): a dictionary of AWS credentials used to initialize the Client; if
             not provided, will attempt to load the Client using ambient environment settings
         - use_session (bool, optional): a boolean specifying whether to load this client using a session or not;
             defaults to `False`
