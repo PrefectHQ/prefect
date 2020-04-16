@@ -3,10 +3,10 @@ const sidebar98 = require('../api/0.9.8/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
-    .map(path => {
+    .map((path) => {
       // remove "parent_path" and ".md"
       path = path.slice(parent_path.length + 1, -3)
       // remove README
@@ -169,7 +169,7 @@ module.exports = {
             'concepts/secrets',
             'concepts/services',
             'concepts/tokens',
-            'concepts/roles'
+            'concepts/roles',
             'concepts/task-concurrency-limiting'
           ]
         },
