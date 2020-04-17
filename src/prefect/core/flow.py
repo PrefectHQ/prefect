@@ -870,6 +870,8 @@ class Flow:
                     )
                 time.sleep(naptime)
 
+            no_error = True
+
             ## begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
@@ -882,7 +884,8 @@ class Flow:
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
-                    return flow_state  # something went wrong
+                    no_error = False
+                    break
 
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
@@ -904,38 +907,41 @@ class Flow:
                 time.sleep(naptime)
 
             ## create next scheduled run
-            try:
-                # update context cache
-                for t, s in flow_state.result.items():
-                    if s.is_cached():
-                        cached_sub_states = [s]
-                    elif s.is_mapped() and any(
-                        sub_state.is_cached() for sub_state in s.map_states
-                    ):
-                        cached_sub_states = [
-                            sub_state
-                            for sub_state in s.map_states
-                            if sub_state.is_cached()
-                        ]
-                    else:
-                        cached_sub_states = []
+            if no_error:
+                try:
+                    # update context cache
+                    for t, s in flow_state.result.items():
+                        if s.is_cached():
+                            cached_sub_states = [s]
+                        elif s.is_mapped() and any(
+                            sub_state.is_cached() for sub_state in s.map_states
+                        ):
+                            cached_sub_states = [
+                                sub_state
+                                for sub_state in s.map_states
+                                if sub_state.is_cached()
+                            ]
+                        else:
+                            cached_sub_states = []
 
-                    fresh_states = [
-                        s
-                        for s in prefect.context.caches.get(t.cache_key or t.name, [])
-                        + cached_sub_states
-                        if s.cached_result_expiration > now
-                    ]
-                    prefect.context.caches[t.cache_key or t.name] = fresh_states
-                if self.schedule is not None:
-                    next_run_event = self.schedule.next(1, return_events=True)[0]
-                    next_run_time = next_run_event.start_time  # type: ignore
-                    parameters = base_parameters.copy()
-                    parameters.update(next_run_event.parameter_defaults)  # type: ignore
-                else:
+                        fresh_states = [
+                            s
+                            for s in prefect.context.caches.get(t.cache_key or t.name, [])
+                            + cached_sub_states
+                            if s.cached_result_expiration > now
+                        ]
+                        prefect.context.caches[t.cache_key or t.name] = fresh_states
+                except IndexError:
                     break
-            except IndexError:
+
+            if self.schedule is not None:
+                next_run_event = self.schedule.next(1, return_events=True)[0]
+                next_run_time = next_run_event.start_time  # type: ignore
+                parameters = base_parameters.copy()
+                parameters.update(next_run_event.parameter_defaults)  # type: ignore
+            else:
                 break
+
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
             )
