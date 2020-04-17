@@ -870,7 +870,7 @@ class Flow:
                     )
                 time.sleep(naptime)
 
-            no_error = True
+            error = True
 
             ## begin a single flow run
             while not flow_state.is_finished():
@@ -884,7 +884,7 @@ class Flow:
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
-                    no_error = False
+                    error = True
                     break
 
                 task_states = list(flow_state.result.values())
@@ -907,7 +907,7 @@ class Flow:
                 time.sleep(naptime)
 
             ## create next scheduled run
-            if no_error:
+            if not error:
                 try:
                     # update context cache
                     for t, s in flow_state.result.items():
