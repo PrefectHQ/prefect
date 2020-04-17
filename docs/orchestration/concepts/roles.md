@@ -8,7 +8,7 @@ Users have permission to perform all actions required for daily use of Prefect C
 
 ### Restricted Users
 
-Restricted users are able to view all pages as a normal user would, but are unable to take any actions in Prefect Cloud. For example, they cannot cannot create projects, kick off flow runs, etc. In essence, restricted users are read-only members of a team.
+Restricted users are able to view all pages as a normal user would, but are unable to take any actions in Prefect Cloud. For example, they cannot create projects, kick off flow runs, etc. In essence, restricted users are read-only members of a team.
 
 ### Administrators
 
