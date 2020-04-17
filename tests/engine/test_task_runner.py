@@ -825,7 +825,9 @@ class TestGetTaskInputs:
         assert inputs == {"x": res}
 
     def test_get_inputs_from_upstream_reads_secret_results(self):
-        secret_handler = SecretResultHandler(prefect.tasks.secrets.Secret(name="foo"))
+        secret_handler = SecretResultHandler(
+            prefect.tasks.secrets.PrefectSecret(name="foo")
+        )
 
         result = SafeResult("1", result_handler=JSONResultHandler())
         state = Success(result=result)

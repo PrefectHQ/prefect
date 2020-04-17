@@ -1,9 +1,7 @@
 import json
-import warnings
 from typing import Any
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -20,7 +18,6 @@ class CreateGitHubPR(Task):
             be provided to the `run` method
         - base (str, optional): the name of the branch you want the changes pulled into; can also
             be provided to the `run` method
-        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -31,7 +28,6 @@ class CreateGitHubPR(Task):
         body: str = None,
         head: str = None,
         base: str = None,
-        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
@@ -39,13 +35,6 @@ class CreateGitHubPR(Task):
         self.body = body
         self.head = head
         self.base = base
-        if token_secret is not None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-        self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "title", "body", "head", "base")
@@ -82,15 +71,6 @@ class CreateGitHubPR(Task):
         """
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
-
-        ## prepare the request
-        if token is None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-            token = Secret(self.token_secret).get()
 
         # 'import requests' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low

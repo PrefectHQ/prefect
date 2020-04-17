@@ -14,9 +14,11 @@ from prefect.environments.storage import Docker
 
 
 def test_create_docker_storage():
-    storage = Docker()
+    storage = Docker(secrets=["cloud_creds"])
     assert storage
     assert storage.logger
+    assert len(storage.secrets) == 1
+    assert storage.secrets == ["cloud_creds"]
 
 
 def test_cant_create_docker_with_both_base_image_and_dockerfile():

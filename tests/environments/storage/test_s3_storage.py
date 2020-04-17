@@ -27,6 +27,7 @@ def test_create_s3_storage_init_args():
         bucket="bucket",
         key="key",
         client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
+        secrets=["auth"],
     )
     assert storage
     assert storage.flows == dict()
@@ -39,6 +40,7 @@ def test_create_s3_storage_init_args():
         "endpoint_url": "http://some-endpoint",
         "use_ssl": False,
     }
+    assert storage.secrets == ["auth"]
 
 
 def test_serialize_s3_storage():
