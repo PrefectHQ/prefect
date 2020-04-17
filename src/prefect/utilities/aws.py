@@ -26,14 +26,17 @@ def get_boto_client(
     """
     aws_access_key = None
     aws_secret_access_key = None
+    aws_session_token = None
 
     if credentials:
         aws_access_key = credentials["ACCESS_KEY"]
         aws_secret_access_key = credentials["SECRET_ACCESS_KEY"]
+        aws_session_token = credentials.get("SESSION_TOKEN")
     else:
         ctx_credentials = prefect.context.get("secrets", {}).get("AWS_CREDENTIALS", {})
         aws_access_key = ctx_credentials.get("ACCESS_KEY")
         aws_secret_access_key = ctx_credentials.get("SECRET_ACCESS_KEY")
+        aws_session_token = ctx_credentials.get("SESSION_TOKEN")
 
     if use_session:
         # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
@@ -42,6 +45,7 @@ def get_boto_client(
             resource,
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
             **kwargs
         )
     else:
@@ -49,5 +53,6 @@ def get_boto_client(
             resource,
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
             **kwargs
         )
