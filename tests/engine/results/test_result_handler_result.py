@@ -11,16 +11,20 @@ import prefect
 from prefect import config
 from prefect.engine.results import (
     ConstantResult,
+    GCSResult,
     LocalResult,
     PrefectResult,
+    S3Result,
     SecretResult,
     ResultHandlerResult,
 )
 from prefect.engine.result_handlers import (
     ConstantResultHandler,
+    GCSResultHandler,
     LocalResultHandler,
     JSONResultHandler,
     ResultHandler,
+    S3ResultHandler,
     SecretResultHandler,
 )
 from prefect.tasks.core.constants import Constant
@@ -54,6 +58,21 @@ def test_basic_conversion_local_result(tmpdir):
     result = ResultHandlerResult.from_result_handler(result_handler)
     assert isinstance(result, LocalResult)
     assert result.dir == str(tmpdir)
+
+
+def test_basic_conversion_gcs_result():
+    result_handler = GCSResultHandler(bucket="foo")
+    result = ResultHandlerResult.from_result_handler(result_handler)
+    assert isinstance(result, GCSResult)
+    assert result.bucket == "foo"
+
+
+def test_basic_conversion_s3_result():
+    result_handler = S3ResultHandler(bucket="foo", boto3_kwargs=dict(x=42, y=[1, 2, 3]))
+    result = ResultHandlerResult.from_result_handler(result_handler)
+    assert isinstance(result, S3Result)
+    assert result.bucket == "foo"
+    assert result.boto3_kwargs == dict(x=42, y=[1, 2, 3])
 
 
 class TestCustomResultHandler:
