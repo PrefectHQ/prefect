@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import time
@@ -20,6 +21,20 @@ def test_root_logger_level_responds_to_config():
                 utilities.logging.configure_logging(testing=True).level
                 == logging.WARNING
             )
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
+@pytest.mark.parametrize("datefmt", ["%Y", "%Y -- %D"])
+def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
+    try:
+        with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
+            logger = utilities.logging.configure_logging(testing=True)
+            logger.error("badness")
+            logs = [r for r in caplog.records if r.levelname == "ERROR"]
+            assert logs[0].asctime == datetime.datetime.utcnow().strftime(datefmt)
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)

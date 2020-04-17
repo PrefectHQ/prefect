@@ -1,19 +1,19 @@
-import click
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import time
+from pathlib import Path
 
+import click
 import yaml
 
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
-
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=config.server.database.connection_url.replace(
@@ -31,7 +31,7 @@ def make_env(fname=None):
             config.server.hasura.port
         ),
         PREFECT_API_URL="http://graphql:{port}{path}".format(
-            port=config.server.graphql.port, path=config.server.graphql.path,
+            port=config.server.graphql.port, path=config.server.graphql.path
         ),
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
             port=config.server.graphql.port
@@ -46,10 +46,12 @@ def make_env(fname=None):
         POSTGRES_DB=config.server.database.name,
     )
 
+    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
     ENV = os.environ.copy()
-    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **HASURA_ENV)
+    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
 
     if fname is not None:
         list_of_pairs = [
@@ -226,13 +228,14 @@ def start(
         or no_graphql_port
         or no_ui_port
         or no_server_port
+        or platform_is_linux()
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
         shutil.copy2(os.path.join(docker_dir, "docker-compose.yml"), temp_path)
 
         with open(temp_path, "r") as file:
-            y = yaml.load(file)
+            y = yaml.safe_load(file)
 
             if no_postgres_port:
                 del y["services"]["postgres"]["ports"]
@@ -249,8 +252,15 @@ def start(
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
 
+            if platform_is_linux():
+                docker_internal_ip = get_docker_ip()
+                for service in list(y["services"]):
+                    y["services"][service]["extra_hosts"] = [
+                        "host.docker.internal:{}".format(docker_internal_ip)
+                    ]
+
         with open(temp_path, "w") as f:
-            y = yaml.dump(y, f)
+            y = yaml.safe_dump(y, f)
 
         compose_dir_path = temp_dir
 
