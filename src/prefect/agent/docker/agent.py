@@ -334,7 +334,7 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
 
-        host_config = dict()  # type: dict
+        host_config = {"auto_remove": True}  # type: dict
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
@@ -354,9 +354,7 @@ class DockerAgent(Agent):
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,
-            host_config=self.docker_client.create_host_config(**host_config)
-            if host_config
-            else None,
+            host_config=self.docker_client.create_host_config(**host_config),
             networking_config=networking_config,
         )
 

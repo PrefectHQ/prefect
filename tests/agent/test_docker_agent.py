@@ -1,4 +1,3 @@
-import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -239,6 +238,7 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     api = MagicMock()
     api.ping.return_value = True
     api.create_container.return_value = {"Id": "container_id"}
+    api.create_host_config.return_value = {"AutoRemove": True}
     monkeypatch.setattr(
         "prefect.agent.docker.agent.DockerAgent._get_docker_client",
         MagicMock(return_value=api),
@@ -265,7 +265,9 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
     assert api.create_container.called
     assert api.start.called
 
+    assert api.create_host_config.call_args[1]["auto_remove"] is True
     assert api.create_container.call_args[1]["command"] == "prefect execute cloud-flow"
+    assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
 
 
