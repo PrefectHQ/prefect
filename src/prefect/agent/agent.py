@@ -96,7 +96,7 @@ class Agent:
         self.client = Client(api_token=token)
         if config.backend == "cloud":
             self._verify_token(token)
-            self.client.attach_headers({"AGENT_ID": self._register_agent()})
+            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
