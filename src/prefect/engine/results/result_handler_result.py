@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List, Tuple, Type, Dict
 
 from prefect.engine.result import Result
 from prefect.engine.results import (
@@ -31,12 +31,12 @@ CONVERSIONS = [
     (LocalResultHandler, dict(dir="dir"), LocalResult),
     (S3ResultHandler, dict(bucket="bucket", boto3_kwargs="boto3_kwargs"), S3Result),
     (SecretResultHandler, dict(secret_task="secret_task"), SecretResult),
-]
+]  # type: List[Tuple[Type[ResultHandler], Dict[Any, Any], Type[Result]]]
 
 
 class ResultHandlerResult(Result):
     def __init__(self, result_handler: ResultHandler, **kwargs: Any):
-        self.result_handler = result_handler
+        kwargs.update(result_handler=result_handler)
         super().__init__(**kwargs)
 
     @classmethod
@@ -47,37 +47,36 @@ class ResultHandlerResult(Result):
                     kwarg: getattr(result_handler, attr, None)
                     for attr, kwarg in attr_map.items()
                 }
-                return handler_type(**kwargs)
+                return result_type(**kwargs)
         return cls(result_handler)
 
-    def read(self, loc: str = None) -> Result:
+    def read(self, location: str) -> Result:
         """
         Exposes the read method of the underlying custom result handler fitting the Result interface.
         Returns a new Result with the value read from the custom result handler.
+
         Args:
-            - loc:
+            - location (str): the location to read from
 
         Returns:
             - Result: returns a copy of this Result with the value set
-
         """
         new = self.copy()
-        value = self.result_handler.read(loc)
-        new.value = value
+        new.value = self.result_handler.read(location)
         return new
 
-    def write(self, value: Any, **kwargs) -> Result:
+    def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Exposes the write method of the underlying custom result handler fitting the Result interfacec.
+        Exposes the write method of the underlying custom result handler fitting the Result interface.
+
         Args:
-            - result: the value to write and attach to the result
+            - value (Any): the value to write and attach to the result
+            - **kwargs (Any, optional): unused, for interface compatibility
 
         Returns:
-            - Result: returns a copy of this Result with the filepath and value set
-
+            - Result: returns a copy of this Result with the location and value set
         """
         new = self.copy()
-        loc = self.result_handler.write(value)
-        new.filepath = loc
+        new.location = self.result_handler.write(value)
         new.value = value
         return new
