@@ -5,3 +5,4 @@ from prefect.engine.results.prefect_result import PrefectResult
 from prefect.engine.results.azure_result import AzureResult
 from prefect.engine.results.s3_result import S3Result
 from prefect.engine.results.secret_result import SecretResult
+from prefect.engine.results.result_handler_result import ResultHandlerResult
