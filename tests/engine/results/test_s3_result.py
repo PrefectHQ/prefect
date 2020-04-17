@@ -33,6 +33,7 @@ class TestS3Result:
                 result.initialize_client()
         assert session.Session().client.call_args[1] == {
             "aws_access_key_id": 1,
+            "aws_session_token": None,
             "aws_secret_access_key": 42,
         }
 
