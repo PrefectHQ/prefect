@@ -26,15 +26,6 @@ class S3(Storage):
 
     Args:
         - bucket (str): the name of the S3 Bucket to store Flows
-        - aws_access_key_id (str, optional): AWS access key id for connecting to S3.
-            Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID` or `None`
-        - aws_secret_access_key (str, optional): AWS secret access key for connecting to S3.
-            Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY` or `None`
-        - aws_session_token (str, optional): AWS session key for connecting to S3
-            Defaults to the value set in the environment variable
-            `AWS_SESSION_TOKEN` or `None`
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
         - client_options (dict, optional): Additional options for the `boto3` client.
@@ -45,9 +36,6 @@ class S3(Storage):
     def __init__(
         self,
         bucket: str,
-        aws_access_key_id: str = None,
-        aws_secret_access_key: str = None,
-        aws_session_token: str = None,
         client_options: dict = None,
         key: str = None,
         secrets: List[str] = None,
@@ -57,9 +45,6 @@ class S3(Storage):
         self.bucket = bucket
         self.key = key
 
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
-        self.aws_session_token = aws_session_token
         self.client_options = client_options
 
         result_handler = S3ResultHandler(bucket=bucket)
@@ -194,13 +179,7 @@ class S3(Storage):
     def _boto3_client(self):  # type: ignore
         from prefect.utilities.aws import get_boto_client
 
-        creds = dict(
-            ACCESS_KEY=self.aws_access_key_id,
-            SECRET_ACCESS_KEY=self.aws_secret_access_key,
-        )
-        kwargs = dict(
-            aws_session_token=self.aws_session_token, **(self.client_options or {})
-        )
+        kwargs = self.client_options or {}
         return get_boto_client(
-            resource="s3", credentials=creds, use_session=False, **kwargs
+            resource="s3", credentials=None, use_session=False, **kwargs
         )

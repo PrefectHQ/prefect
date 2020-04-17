@@ -26,9 +26,17 @@ class TestStepActivate:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
-                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
+                    AWS_CREDENTIALS={
+                        "ACCESS_KEY": "42",
+                        "SECRET_ACCESS_KEY": "99",
+                        "SESSION_TOKEN": "1",
+                    }
                 )
             ):
                 task.run()
         kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
+        assert kwargs == {
+            "aws_access_key_id": "42",
+            "aws_secret_access_key": "99",
+            "aws_session_token": "1",
+        }

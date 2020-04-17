@@ -90,14 +90,7 @@ def test_s3_empty_serialize():
 
 
 def test_s3_full_serialize():
-    s3 = storage.S3(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="session",
-        bucket="bucket",
-        key="key",
-        secrets=["hidden", "auth"],
-    )
+    s3 = storage.S3(bucket="bucket", key="key", secrets=["hidden", "auth"],)
     serialized = S3Schema().dump(s3)
 
     assert serialized
@@ -107,34 +100,8 @@ def test_s3_full_serialize():
     assert serialized["secrets"] == ["hidden", "auth"]
 
 
-def test_s3_aws_creds_not_serialized():
-    s3 = storage.S3(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="session",
-        bucket="bucket",
-        key="key",
-    )
-    serialized = S3Schema().dump(s3)
-
-    assert serialized
-    assert serialized["__version__"] == prefect.__version__
-    assert serialized["bucket"] == "bucket"
-    assert serialized["key"] == "key"
-    assert serialized.get("aws_access_key_id") is None
-    assert serialized.get("aws_secret_access_key") is None
-    assert serialized.get("aws_session_token") is None
-
-
 def test_s3_serialize_with_flows():
-    s3 = storage.S3(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="session",
-        bucket="bucket",
-        key="key",
-        secrets=["hidden", "auth"],
-    )
+    s3 = storage.S3(bucket="bucket", key="key", secrets=["hidden", "auth"],)
     f = prefect.Flow("test")
     s3.flows["test"] = "key"
     serialized = S3Schema().dump(s3)

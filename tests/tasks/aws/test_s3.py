@@ -34,7 +34,11 @@ class TestS3Download:
             ):
                 task.run(key="")
         kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
+        assert kwargs == {
+            "aws_access_key_id": "42",
+            "aws_secret_access_key": "99",
+            "aws_session_token": None,
+        }
 
     def test_creds_default_to_environment(self, monkeypatch):
         task = S3Download(bucket="bob")
@@ -43,7 +47,11 @@ class TestS3Download:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run(key="")
         kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": None, "aws_secret_access_key": None}
+        assert kwargs == {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+        }
 
 
 class TestS3Upload:
@@ -87,7 +95,11 @@ class TestS3Upload:
             ):
                 task.run(data="")
         kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
+        assert kwargs == {
+            "aws_access_key_id": "42",
+            "aws_secret_access_key": "99",
+            "aws_session_token": None,
+        }
 
     def test_creds_default_to_environment(self, monkeypatch):
         task = S3Upload(bucket="bob")
@@ -96,4 +108,8 @@ class TestS3Upload:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run(data="")
         kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": None, "aws_secret_access_key": None}
+        assert kwargs == {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+        }
