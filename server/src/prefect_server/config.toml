@@ -55,6 +55,9 @@ format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
     debug = false
     path = "/graphql/"
 
+    [services.ui]
+    graphql_url = "http://localhost:4200/graphql"
+
     [services.scheduler]
     # run scheduler every 5 minutes
     scheduler_loop_seconds = 300
