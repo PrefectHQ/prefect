@@ -429,16 +429,8 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: if the trigger raises an error
         """
-
-        all_states = set()  # type: Set[State]
-        for upstream_state in upstream_states.values():
-            if isinstance(upstream_state, Mapped):
-                all_states.update(upstream_state.map_states)
-            else:
-                all_states.add(upstream_state)
-
         try:
-            if not self.task.trigger(all_states):
+            if not self.task.trigger(upstream_states):
                 raise signals.TRIGGERFAIL(message="Trigger failed")
 
         except signals.PrefectStateSignal as exc:
