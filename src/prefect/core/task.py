@@ -20,6 +20,7 @@ from typing import (
 
 import prefect
 import prefect.engine.cache_validators
+from prefect.engine.results import PrefectResult, ResultHandlerResult
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
@@ -183,11 +184,11 @@ class Task(metaclass=SignatureValidator):
         cache_validator: Callable = None,
         cache_key: str = None,
         checkpoint: bool = None,
-        result_handler: Optional["ResultHandler"] = None,
+        result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         log_stdout: bool = False,
-        result: Optional["Result"] = None,
+        result: "Result" = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
@@ -251,7 +252,13 @@ class Task(metaclass=SignatureValidator):
         )
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
-        self.result_handler = result_handler
+        if result_handler:
+            warnings.warn(
+                "Result Handlers are deprecated; please use the new style Result classes instead."
+            )
+            self.result = ResultHandlerResult.from_result_handler(result_handler)
+        else:
+            self.result = result
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -1042,14 +1049,8 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        from prefect.engine.result_handlers import JSONResultHandler
-
         super().__init__(
-            name=name,
-            slug=name,
-            tags=tags,
-            result_handler=JSONResultHandler(),
-            checkpoint=True,
+            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True,
         )
 
     def __repr__(self) -> str:

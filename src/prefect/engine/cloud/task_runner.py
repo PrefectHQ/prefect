@@ -1,6 +1,6 @@
 import datetime
 import time
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pendulum
 
@@ -242,6 +242,30 @@ class CloudTaskRunner(TaskRunner):
                 )
 
         return state
+
+    def populate_results(
+        self, state: State, upstream_states: Dict[Edge, State]
+    ) -> Tuple[State, Dict[Edge, State]]:
+        """
+        Given the task's current state and upstream states, populates all relevant result objects for this task run.
+
+        Args:
+            - state (State): the task's current state.
+            - upstream_states (Dict[Edge, State]): the upstream state_handlers
+
+        Returns:
+            - Tuple[State, dict]: a tuple of (state, upstream_states)
+
+        """
+        for key, res in state.cached_inputs.items():
+            state.cached_inputs[key] = res.populate_result(self.result)
+
+        for edge, upstream_state in upstream_states.items():
+            upstream_states[edge].result = upstream_state._result.populate_result(
+                edge.upstream_task.result
+            )
+
+        return state, upstream_states
 
     @tail_recursive
     def run(

@@ -19,6 +19,8 @@ whose value is `None`.
 import base64
 import copy
 import datetime
+import pendulum
+import uuid
 from typing import Any, Callable, Iterable, Union
 
 import cloudpickle
@@ -67,6 +69,10 @@ class ResultInterface:
         """Performs no computation."""
 
 
+_NORESULT = type("_NORESULT", (object,), {})
+NORESULT = _NORESULT()
+
+
 class Result(ResultInterface):
     """
     A representation of the result of a Prefect task; this class contains information about
@@ -92,24 +98,18 @@ class Result(ResultInterface):
 
     def __init__(
         self,
-        value: Any = None,
+        value: Any = NORESULT,
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
-        cache_for: datetime.timedelta = None,
-        cache_validator: Callable = None,
-        location: str = "",
+        location: str = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        if cache_for is not None and cache_validator is None:
-            cache_validator = duration_only
-        self.cache_for = cache_for
-        self.cache_validator = cache_validator
-        self.location = location
+        self.location = self._template = location
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -128,6 +128,21 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
+    def from_value(self, value: Any) -> "Result":
+        """
+        Create a new copy of the result object with the provided value.
+
+        Args:
+            - value (Any): the value to use
+
+        Returns:
+            - Result: a new Result instance with the given value
+        """
+        new = self.copy()
+        new.location = None
+        new.value = value
+        return new
+
     def populate_result(self, result: "Result") -> "Result":
         """
         Given another Result instance, uses `self.location` to create a fully hydrated `Result`
@@ -140,7 +155,10 @@ class Result(ResultInterface):
         Returns:
             - Result: a new result instance
         """
-        return result.read(self.location)
+        if isinstance(self.value, _NORESULT):
+            return result.read(self.location)
+        else:
+            return self
 
     def validate(self) -> bool:
         """
@@ -201,6 +219,12 @@ class Result(ResultInterface):
         """
         return cloudpickle.loads(base64.b64decode(serialized_value))
 
+    @property
+    def default_location(self) -> str:
+        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
+        location = f"{date}/{uuid.uuid4()}.prefect_result"
+        return location
+
     def format(self, **kwargs: Any) -> "Result":
         """
         Takes a set of string format key-value pairs and renders the result.location to a final location string
@@ -212,7 +236,11 @@ class Result(ResultInterface):
             - Result: a new result instance with the appropriately formatted location
         """
         new = self.copy()
-        new.location = new.location.format(**kwargs)
+        if new.location is not None:
+            assert new._template is not None
+            new.location = new._template.format(**kwargs)
+        else:
+            new.location = new.default_location
         return new
 
     def exists(self, location: str) -> bool:

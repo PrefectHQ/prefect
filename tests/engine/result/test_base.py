@@ -7,12 +7,17 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
+from prefect.engine.result import NoResult, NoResultType, Result, SafeResult, NORESULT
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     LocalResultHandler,
     ResultHandler,
 )
+
+
+## TODO: write test that multiple writes / formats works
+## what if we allowed indexing into a result which makes a copy...
+## TODO: create from_value(value)
 
 
 class TestInitialization:
@@ -23,8 +28,7 @@ class TestInitialization:
             n()
 
     def test_result_does_not_require_a_value(self):
-        # this may seem like a silly test, however, it is a regression to assert new result behavior
-        assert Result().value == None
+        assert Result().value is NORESULT
 
     def test_result_inits_with_value(self):
         r = Result(3)
@@ -34,7 +38,7 @@ class TestInitialization:
         assert r.validators is None
         assert r.cache_for is None
         assert r.cache_validator is None
-        assert r.location == ""
+        assert r.location is None
         assert r.run_validators is True
 
         s = Result(value=5)
@@ -44,7 +48,7 @@ class TestInitialization:
         assert s.validators is None
         assert s.cache_for is None
         assert s.cache_validator is None
-        assert s.location == ""
+        assert s.location is None
         assert r.run_validators is True
 
     def test_result_inits_with_handled_and_result_handler(self):

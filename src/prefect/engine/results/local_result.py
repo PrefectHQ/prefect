@@ -43,6 +43,12 @@ class LocalResult(Result):
 
         super().__init__(**kwargs)
 
+    @property
+    def default_location(self) -> str:
+        fname = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
+        location = os.path.join(self.dir, fname)
+        return location
+
     def read(self, location: str) -> Result:
         """
         Reads a result from the local file system and returns the corresponding `Result` instance.
