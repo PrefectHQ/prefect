@@ -216,7 +216,7 @@ def test_server_start_linux_host(monkeypatch, linux_platform):
     monkeypatch.setattr("prefect.cli.server.get_docker_ip", get_docker_ip)
 
     yaml_dump = MagicMock()
-    monkeypatch.setattr("yaml.dump", yaml_dump)
+    monkeypatch.setattr("yaml.safe_dump", yaml_dump)
 
     runner = CliRunner()
     result = runner.invoke(server, ["start", "--skip-pull",],)
