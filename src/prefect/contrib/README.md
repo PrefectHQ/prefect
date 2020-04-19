@@ -1,0 +1,5 @@
+## Contrib
+
+The `/src/prefect/contrib` package is a dedicated place for community contributed code related to the core Prefect library or Prefect task library. Code here might not be owned or supported fully by the core Prefect developers, though as contributed software expands it is possible that features in `contrib` may move into the core codebase. Feel free to PR into `contrib` at any stage in development, even if it doesn't meet exact the exact style, testing, or documentation conventions of the core codebase.
+
+The `contrib` package structure is not specifically mandated at this time, but the intention is that the subpackages in here will mirror those in `/src/prefect/` incrementally as code is added. Any tests for contributed code should be placed in the analogous `/tests/contrib` subdirectory.
