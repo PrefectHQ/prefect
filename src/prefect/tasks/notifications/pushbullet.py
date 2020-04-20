@@ -7,7 +7,7 @@ from typing import Any
 class PushBulletTask(Task):
     """
     Task for sending a notification to a mobile phone (or other device) using pushbullet. For this task to function properly,
-    you must have the `"PUSHBULLET_TOKEN"` Prefect Secret set. You can set up a pushbullet account token here: https://www.pushbullet.com/#settings/account
+    you must have the `"PUSHBULLET_TOKEN"` Prefect Secret set. You can set up a pushbullet account and/or get a token here: https://www.pushbullet.com/#settings/account
 
     Args:
         - msg(str, optional):  The message you want to send to your phone; can also be provided at runtime.
