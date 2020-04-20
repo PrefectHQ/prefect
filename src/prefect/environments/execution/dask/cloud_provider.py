@@ -34,17 +34,6 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
             are using.
         - adaptive_max_workers (int, optional): Maximum number of workers for adaptive
             mode.
-        - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
-            client. Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID` or `None`
-        - aws_secret_access_key (str, optional): AWS secret access key for connecting
-            the boto3 client. Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY` or `None`
-        - aws_session_token (str, optional): AWS session key for connecting the boto3
-            client. Defaults to the value set in the environment variable
-            `AWS_SESSION_TOKEN` or `None`
-        - region_name (str, optional): AWS region name for connecting the boto3 client.
-            Defaults to the value set in the environment variable `REGION_NAME` or `None`
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -58,10 +47,6 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
         provider_class: Type[Cluster],
         adaptive_min_workers: int = None,
         adaptive_max_workers: int = None,
-        aws_access_key_id: str = None,
-        aws_secret_access_key: str = None,
-        aws_session_token: str = None,
-        region_name: str = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
@@ -70,14 +55,6 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
         self._provider_class = provider_class
         self._adaptive_min_workers = adaptive_min_workers
         self._adaptive_max_workers = adaptive_max_workers
-
-        # Not serialized, only stored on the object
-        self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
-        self.aws_secret_access_key = aws_secret_access_key or os.getenv(
-            "AWS_SECRET_ACCESS_KEY"
-        )
-        self.aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
-        self.region_name = region_name or os.getenv("REGION_NAME")
 
         self.cluster = None
 
