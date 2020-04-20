@@ -110,14 +110,14 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
                     self._adaptive_min_workers, self._adaptive_max_workers
                 )
             )
-            self.cluster.adapt(
+            self.cluster.adapt(  # type: ignore
                 minimum=self._adaptive_min_workers, maximum=self._adaptive_max_workers
             )
 
     def execute(  # type: ignore
-        self, storage: "Storage", flow_location: str, **kwargs: Any
+        self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
     ) -> None:
-        self.executor_kwargs["address"] = self.cluster.scheduler.address
+        self.executor_kwargs["address"] = self.cluster.scheduler.address  # type: ignore
         self.logger.info(
             "Executing on Dask Cluster with scheduler address: {}".format(
                 self.executor_kwargs["address"]
