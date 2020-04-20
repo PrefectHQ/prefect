@@ -1,4 +1,3 @@
-import os
 from typing import Any, Callable, List, Type
 
 from distributed.deploy.cluster import Cluster
