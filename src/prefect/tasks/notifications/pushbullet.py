@@ -18,6 +18,7 @@ class SendPushBulletNotification(Task):
         msg: str = None
     ):
         self.msg = msg
+        super().__init__(*args, **kwargs)
 
     @defaults_from_attrs("msg")
     def run(
