@@ -22,6 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix `auth create-token` CLI command specifying deprecated `role` instead of `scope` - [#2336](https://github.com/PrefectHQ/prefect/issues/2336)
+- Fix local schedules not continuing to schedule on errors outside of runner's control - [#2133](https://github.com/PrefectHQ/prefect/issues/2133)
 
 ### Deprecations
 
