@@ -10,7 +10,7 @@ In order to use this agent with Prefect Core's server the server's GraphQL API e
 
 ### Requirements
 
-The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace. During [installation](/cloud/agents/kubernetes.html#installation) the Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
+The Kubernetes Agent requires [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) to work with jobs in its namespace. During [installation](/orchestration/agents/kubernetes.html#installation) the Prefect CLI provides a convenient `--rbac` flag for automatically attaching this Role and RoleBinding to the Agent deployment YAML.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -54,7 +54,7 @@ $ prefect agent start kubernetes
                                            |___/
 
 2019-08-27 14:33:39,772 - agent - INFO - Starting KubernetesAgent
-2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-08-27 14:33:40,932 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-08-27 14:33:40,932 - agent - INFO - Waiting for flow runs...
 ```
@@ -176,7 +176,7 @@ When the job is found and submitted the logs of the agent should reflect that:
 ```
 $ kubectl logs prefect-agent-845798bb59-s7wxg
 2019-09-01 19:00:30,532 - agent - INFO - Starting KubernetesAgent
-2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-09-01 19:00:30,655 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 19:00:30,733 - agent - INFO - Waiting for flow runs...
 2019-09-01 19:01:08,835 - agent - INFO - Found 1 flow run(s) to submit for execution.

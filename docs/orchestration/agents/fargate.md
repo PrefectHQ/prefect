@@ -25,7 +25,7 @@ $ prefect agent start fargate
                                            |___/
 
 2019-08-27 14:33:39,772 - agent - INFO - Starting FargateAgent
-2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-08-27 14:33:40,932 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-08-27 14:33:40,932 - agent - INFO - Waiting for flow runs...
 ```
@@ -82,7 +82,7 @@ When the flow run is found and the Task is run the logs of the agent should refl
 
 ```
 2019-09-01 19:00:30,532 - agent - INFO - Starting FargateAgent
-2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-09-01 19:00:30,655 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 19:00:30,733 - agent - INFO - Waiting for flow runs...
 2019-09-01 19:01:08,835 - agent - INFO - Found 1 flow run(s) to submit for execution.
