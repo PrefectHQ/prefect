@@ -4,7 +4,7 @@ from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
-class SendPushBulletNotification(Task):
+class PushBulletTask(Task):
     """
     Task for sending a notification to a mobile phone (or other device) using pushbullet. For this task to function properly,
     you must have the `"PUSHBULLET_TOKEN"` Prefect Secret set. You can set up a pushbullet account token here: https://www.pushbullet.com/#settings/account
