@@ -1,11 +1,11 @@
-# Kubernetes Agent <Badge text="Cloud"/>
+# Kubernetes Agent
 
 The Kubernetes Agent is an agent designed to interact directly with a Kubernetes API server to run workflows as jobs on a Kubernetes cluster. This agent is intended to be deployed to a cluster where it uses in-cluster communication to create jobs; however it can also run by accessing whichever cluster is currently active in a kubeconfig.
 
 [[toc]]
 
-::: warning Core server not supported, yet
-This agent is not currently supported with Prefect Core's server. Deployments using Prefect Core and Kubernetes will be added in a future release.
+::: warning Core server
+In order to use this agent with Prefect Core's server the server's GraphQL API endpoint must be accessible.
 :::
 
 ### Requirements
@@ -67,7 +67,7 @@ If running out-of-cluster (i.e. not on a pod) you may see the warning:
 
 The Kubernetes Agent can be started either through the Prefect CLI or by importing the `KubernetesAgent` class from the core library.
 
-::: tip Tokens
+::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start kubernetes -t MY_TOKEN`

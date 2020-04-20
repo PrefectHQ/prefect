@@ -1,11 +1,11 @@
-# Fargate Agent <Badge text="Cloud"/>
+# Fargate Agent
 
 The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargate. This agent can be run anywhere so long as the proper AWS configuration credentials are provided.
 
 [[toc]]
 
-::: warning Core server not supported, yet
-This agent is not currently supported with Prefect Core's server. Deployments using Prefect Core and Fargate will be added in a future release.
+::: warning Core server
+In order to use this agent with Prefect Core's server the server's GraphQL API endpoint must be accessible.
 :::
 
 ### Requirements
@@ -32,7 +32,7 @@ $ prefect agent start fargate
 
 The Fargate Agent can be started either through the Prefect CLI or by importing the `FargateAgent` class from the core library. Starting the agent from the CLI will require that the required AWS configuration arguments are set at the environment level while importing the agent class in a Python process will allow you to specify them at initialization.
 
-::: tip Tokens
+::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start fargate -t MY_TOKEN`
