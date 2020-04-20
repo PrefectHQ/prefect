@@ -39,10 +39,8 @@ class PushBulletTask(Task):
         from pushbullet import Pushbullet
 
         pbtoken = Secret("PUSHBULLET_TOKEN").get()
-        
+
         pb = Pushbullet(pbtoken)
 
         ## send the request
-       pb.push_note("Flow Notification", msg)
-        
-        
+        pb.push_note("Flow Notification", msg)
