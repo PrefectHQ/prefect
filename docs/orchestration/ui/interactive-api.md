@@ -3,7 +3,7 @@
 
 The Interactive API is an embedded GraphQL client that allows you to access all of your data with complete flexibility. Thanks to features like schema introspection and automatic authentication, the interactive API makes it simple to access all metadata. You can also see the GraphQL API documentation directly inline.
 
-![](/cloud/ui/interactive-api.png)
+![](/orchestration/ui/interactive-api.png)
 
 
 ### Basic Query
@@ -22,7 +22,7 @@ Notice that when we want to get the `flow` object, we must wrap it in a `query` 
 
 We've told the server to return a list of `flow` objects, each containing their respective `name` and `id` fields. As you interact with the schema in the editor window, you'll see an autocomplete window that will show hints of other available fields, which you can select to insert into your query. 
 
-![](/cloud/ui/dropdown-on-interactive-api.png)
+![](/orchestration/ui/dropdown-on-interactive-api.png)
 
 You can see more information about GraphQL mutations and queries in the [GraphQL Docs](https://graphql.org/learn/)
 
@@ -99,7 +99,7 @@ You can see more about query filters in the [Hasura Docs](https://hasura.io/docs
 
 In the docs for the Interactive API (included on the Interactive API page itself) you can find the schema - information about the queries and mutations you can run and more information about what fields you can request (for queries) or change (for mutations).  The schema also tells what type (String, Object, uuid) each field (and argument) should be.
 
-![](/cloud/ui/interactive-api-inline-docs.png)
+![](/orchestration/ui/interactive-api-inline-docs.png)
 
 ### More Examples
 
