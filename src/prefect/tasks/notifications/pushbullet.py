@@ -42,6 +42,6 @@ class PushBulletTask(Task):
         pb = Pushbullet(pbtoken)
 
         ## send the request
-        resp = pb.push_note("Flow Notification", msg)
-        print("resp", resp)
-        resp.raise_for_status()
+       pb.push_note("Flow Notification", msg)
+        
+        
