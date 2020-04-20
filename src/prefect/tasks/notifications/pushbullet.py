@@ -39,7 +39,7 @@ class SendPushBulletNotification(Task):
             - None
         """
 
-        # 'import pushbullet is expensive time-wise, we should do this just-in-time to keep
+        # 'import  is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
         from pushbullet import Pushbullet
 
@@ -49,4 +49,5 @@ class SendPushBulletNotification(Task):
 
         ## send the request
         resp = pb.push_note('Flow Notification', msg)
-        
+        print('resp', resp)
+        resp.raise_for_status()
