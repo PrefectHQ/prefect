@@ -14,7 +14,7 @@ class PushBulletTask(Task):
 
     def __init__(self, msg: str = None):
         self.msg = msg
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
     @defaults_from_attrs("msg")
     def run(self, msg: str = None) -> None:
