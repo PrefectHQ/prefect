@@ -43,10 +43,10 @@ class SendPushBulletNotification(Task):
         # the 'import prefect' time low
         from pushbullet import Pushbullet
 
-        pbtoken = Secret("PUSHBULLET_TOKEN")
+        pbtoken = cast(str, Secret("PUSHBULLET_TOKEN").get())
         pb = Pushbullet(pbtoken)
 
-
+        
         ## send the request
         resp = pb.push_note('Flow Notification', msg)
         print('resp', resp)
