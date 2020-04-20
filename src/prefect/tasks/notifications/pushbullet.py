@@ -49,4 +49,4 @@ class SendPushBulletNotification(Task):
 
         ## send the request
         resp = pb.push_note('Flow Notification', msg)
-        resp.raise_for_status()
+        
