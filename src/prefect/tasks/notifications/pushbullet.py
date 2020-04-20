@@ -37,7 +37,7 @@ class PushBulletTask(Task):
         # the 'import prefect' time low
         from pushbullet import Pushbullet
 
-        PBtoken = Secret("PUSHBULLET_TOKEN").get()
+        pbtoken = Secret("PUSHBULLET_TOKEN").get()
         
         pb = Pushbullet(pbtoken)
 
