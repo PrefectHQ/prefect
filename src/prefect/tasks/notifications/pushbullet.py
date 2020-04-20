@@ -10,11 +10,12 @@ class PushBulletTask(Task):
 
     Args:
         - msg(str, optional):  The message you want to send to your phone; can also be provided at runtime.
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
-    def __init__(self, msg: str = None):
+    def __init__(self, msg: str = None, **kwargs: Any):
         self.msg = msg
-        super().__init__()
+        super().__init__(**kwargs)
 
     @defaults_from_attrs("msg")
     def run(self, msg: str = None) -> None:
@@ -27,7 +28,7 @@ class PushBulletTask(Task):
                 at initialization
 
         Raises:
-            - HTTPError: if the POST request returns a non-200 status code
+            - None
 
         Returns:
             - None
