@@ -961,7 +961,12 @@ class Client:
             "where": {
                 "state": {"_eq": "Cached"},
                 "_or": [
-                    {"cache_key": {"_eq": cache_key}},
+                    {
+                        "_and": [
+                            {"cache_key": {"_eq": cache_key}},
+                            {"cache_key": {"_is_null": False}},
+                        ]
+                    },
                     {"task_id": {"_eq": task_id}},
                 ],
                 "state_timestamp": {"_gte": created_after.isoformat()},
