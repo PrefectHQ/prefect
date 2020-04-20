@@ -3,13 +3,14 @@
 
 
 import datetime
-import pendulum
+from typing import Any, Dict, List
 
-import prefect
+import pendulum
+import pydantic
 from prefect_server import config
 from prefect_server.database.orm import HasuraModel, UUIDString
-import pydantic
-from typing import List, Any, Dict
+
+import prefect
 
 
 class Flow(HasuraModel):
@@ -246,6 +247,17 @@ class Log(HasuraModel):
     level: str = None
     message: str = None
     info: Dict[str, Any] = None
+
+
+class ResourcePool(HasuraModel):
+    __hasura_type__ = "resource_pool"
+
+    id: UUIDString = None
+    created: datetime.datetime = None
+    updated: datetime.datetime = None
+    name: str = None
+    description: str = None
+    slots: int = None
 
 
 # process forward references for all Pydantic models (meaning string class names)
