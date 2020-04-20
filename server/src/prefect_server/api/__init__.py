@@ -3,7 +3,8 @@
 
 
 import prefect_server.api.flows
-import prefect_server.api.states
+import prefect_server.api.logs
+import prefect_server.api.resource_pools
 import prefect_server.api.runs
 import prefect_server.api.schedules
-import prefect_server.api.logs
+import prefect_server.api.states

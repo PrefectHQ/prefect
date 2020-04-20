@@ -181,4 +181,7 @@ tables:
 - table:
     name: log
     schema: public
+- table:
+    name: resource_pool
+    schema: public
 version: 2
