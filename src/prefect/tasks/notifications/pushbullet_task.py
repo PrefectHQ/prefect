@@ -5,7 +5,6 @@ from typing import Any
 from pushbullet import Pushbullet
 
 
-
 class PushbulletTask(Task):
     """
     Task for sending a notification to a mobile phone (or other device) using pushbullet. For this task to function properly,
@@ -37,7 +36,6 @@ class PushbulletTask(Task):
             - None
         """
 
-        
         pbtoken = Secret("PUSHBULLET_TOKEN").get()
 
         pb = Pushbullet(pbtoken)

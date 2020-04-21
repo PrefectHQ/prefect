@@ -9,32 +9,29 @@ from prefect.utilities.configuration import set_temporary_config
 
 pytest.importorskip("pushbullet")
 
+
 class TestInitialization:
     def test_inits_with_no_args(self):
         t = PushbulletTask()
         assert t
 
     def test_kwargs_get_passed_to_task_init(self):
-        t = PushbulletTask(msg="Test", tags=['foo'])
+        t = PushbulletTask(msg="Test", tags=["foo"])
         assert t.msg == "Test"
-        assert t.tags == {'foo'}
+        assert t.tags == {"foo"}
 
     def test_token_pulled_from_secrets(self, monkeypatch):
         task = PushbulletTask(msg="test")
         client = MagicMock()
         pushbullet = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.notifications.pushbullet_task.Pushbullet", pushbullet)
+        monkeypatch.setattr(
+            "prefect.tasks.notifications.pushbullet_task.Pushbullet", pushbullet
+        )
         with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(
-                    
-                    PUSHBULLET_TOKEN = 42
-                )
-            ):
+            with prefect.context(secrets=dict(PUSHBULLET_TOKEN=42)):
                 task.run()
         kwargs = pushbullet.call_args[0]
         assert kwargs == (42,)
-
 
     # def test_kwarg_for_notification_from_get_passed_to_task_init(self, monkeypatch):
     #     smtp = MagicMock()
