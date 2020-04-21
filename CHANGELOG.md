@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- Agent connection step shows which endpoint it is connected to and checks API connectivity - [#2372](https://github.com/PrefectHQ/prefect/pull/2372)
+- None
 
 ### Task Library
 
@@ -26,12 +26,24 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Breaking Changes
 
-- Revert changes to `ifelse` & `switch` (added in [#2310](https://github.com/PrefectHQ/prefect/pull/2310)), removing implicit
-  creation of `merge` tasks - [#2379](https://github.com/PrefectHQ/prefect/pull/2379)
+- None
 
 ### Contributors
 
 - None
+
+## 0.10.4 <Badge text="beta" type="success"/>
+
+Released on Apr 21, 2020.
+
+### Enhancements
+
+- Agent connection step shows which endpoint it is connected to and checks API connectivity - [#2372](https://github.com/PrefectHQ/prefect/pull/2372)
+
+### Breaking Changes
+
+- Revert changes to `ifelse` & `switch` (added in [#2310](https://github.com/PrefectHQ/prefect/pull/2310)), removing implicit
+  creation of `merge` tasks - [#2379](https://github.com/PrefectHQ/prefect/pull/2379)
 
 ## 0.10.3 <Badge text="beta" type="success"/>
 
