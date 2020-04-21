@@ -20,7 +20,7 @@ The `RemoteDaskEnvironment` has no setup step because it has no infrastructure r
 
 #### Execute
 
-You can run your Flow on a Dask cluster simply by passing the address of the Dask scheduler in as  `address` argument to this environment.
+You can run your Flow on a Dask cluster simply by passing the address of the Dask scheduler in as the `address` argument to this environment.
 
 ## Examples
 
