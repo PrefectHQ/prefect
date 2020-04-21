@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Expose `datefmt` as a configurable logging option in Prefect configuration - [#2340](https://github.com/PrefectHQ/prefect/pull/2340)
 - The Docker agent configures containers to auto-remove on completion - [#2347](https://github.com/PrefectHQ/prefect/pull/2347)
 - Use YAML's safe load and dump commands for the `server start` CLI command - [#2352](https://github.com/PrefectHQ/prefect/pull/2352)
+- New `RemoteDaskEnvironment` specifically for running Flows on an existing Dask cluster
 
 ### Task Library
 
