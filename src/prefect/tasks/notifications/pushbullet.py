@@ -2,6 +2,8 @@ from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
+from pushbullet import Pushbullet
+
 
 
 class PushBulletTask(Task):
@@ -35,10 +37,7 @@ class PushBulletTask(Task):
             - None
         """
 
-        # 'import  is expensive time-wise, we should do this just-in-time to keep
-        # the 'import prefect' time low
-        from pushbullet import Pushbullet
-
+        
         pbtoken = Secret("PUSHBULLET_TOKEN").get()
 
         pb = Pushbullet(pbtoken)
