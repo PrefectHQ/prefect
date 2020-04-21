@@ -184,7 +184,7 @@ class Agent:
 
     def agent_connect(self) -> None:
         """
-        Verify agent connection to Prefect Cloud by finding and returning a tenant id
+        Verify agent connection to Prefect API by querying
         """
         print(ascii_name)
         self.logger.info(
@@ -194,8 +194,17 @@ class Agent:
             "Agent documentation can be found at https://docs.prefect.io/orchestration/"
         )
 
-        if config.backend == "cloud":
-            self.logger.info("Agent successfully connected to the Prefect API")
+        self.logger.info(
+            "Agent connecting to the Prefect API at {}".format(config.cloud.api)
+        )
+        try:
+            self.client.graphql(query="query { hello }")
+        except Exception as exc:
+            self.logger.error(
+                "There was an error connecting to {}".format(config.cloud.api)
+            )
+            self.logger.error(exc)
+
         self.logger.info("Waiting for flow runs...")
 
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:
