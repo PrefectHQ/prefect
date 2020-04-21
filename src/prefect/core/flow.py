@@ -870,6 +870,8 @@ class Flow:
                     )
                 time.sleep(naptime)
 
+            error = False
+
             ## begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
@@ -882,7 +884,8 @@ class Flow:
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
-                    return flow_state  # something went wrong
+                    error = True
+                    break
 
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
@@ -904,7 +907,7 @@ class Flow:
                 time.sleep(naptime)
 
             ## create next scheduled run
-            try:
+            if not error:
                 # update context cache
                 for t, s in flow_state.result.items():
                     if s.is_cached():
@@ -927,6 +930,8 @@ class Flow:
                         if s.cached_result_expiration > now
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
+
+            try:
                 if self.schedule is not None:
                     next_run_event = self.schedule.next(1, return_events=True)[0]
                     next_run_time = next_run_event.start_time  # type: ignore
@@ -935,7 +940,9 @@ class Flow:
                 else:
                     break
             except IndexError:
+                # Handle when there are no more events on schedule
                 break
+
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
             )
