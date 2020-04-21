@@ -121,9 +121,7 @@ def output_value(value):
 
 flow = Flow(
     "Static Dask Cluster Example",
-    environment=RemoteDaskEnvironment(
-        address="tcp://dask-scheduler:8786"
-    ),
+    environment=RemoteDaskEnvironment(address="tcp://dask-scheduler:8786"),
     storage=Docker(
         registry_url="gcr.io/dev/", image_name="dask-k8s-flow", image_tag="0.1.0"
     ),
