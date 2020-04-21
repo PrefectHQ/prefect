@@ -24,7 +24,7 @@ class TestInitialization:
         client = MagicMock()
         pushbullet = MagicMock(client=client)
         # Pushbullet = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.notifications.pushbullet.Any", pushbullet)
+        monkeypatch.setattr("prefect.tasks.notifications.pushbullet.Pushbullet", pushbullet)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
