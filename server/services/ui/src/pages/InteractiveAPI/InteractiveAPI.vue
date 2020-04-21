@@ -891,7 +891,7 @@ export default {
                   >
                     For GraphQL examples, please see our
                     <a
-                      href="https://docs.prefect.io/cloud/ui/interactive-api.html"
+                      href="https://docs.prefect.io/orchestration/ui/interactive-api.html"
                       target="_blank"
                       >Interactive API docs.
                     </a>

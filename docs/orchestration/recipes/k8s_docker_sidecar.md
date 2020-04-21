@@ -6,7 +6,7 @@ This recipe is for a Flow deployed to Kubernetes, making use of a Docker sidecar
 
 ### Job Spec YAML
 
-`job_spec.yaml` is going to be the custom [Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) YAML that will be passed into the Flow's [Kubernetes Job Environment](/cloud/execution/k8s_job_environment.html). We have two containers for this Job: The Kubernetes Job Environment will use the first container to run the Flow; the second container will have an accessible Docker daemon over `tcp://localhost:2375`.
+`job_spec.yaml` is going to be the custom [Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) YAML that will be passed into the Flow's [Kubernetes Job Environment](/orchestration/execution/k8s_job_environment.html). We have two containers for this Job: The Kubernetes Job Environment will use the first container to run the Flow; the second container will have an accessible Docker daemon over `tcp://localhost:2375`.
 
 ```yaml
 apiVersion: batch/v1
