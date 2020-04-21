@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Agent connection step shows which endpoint it is connected to and checks API connectivity - [#2372](https://github.com/PrefectHQ/prefect/pull/2372)
 
 ### Task Library
 
