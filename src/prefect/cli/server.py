@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
+import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
@@ -90,8 +91,7 @@ def server():
     "--version",
     "-v",
     help="The server image versions to use (for example, '0.10.0' or 'master')",
-    # TODO: update this default to use prefect.__version__ logic
-    default="latest",
+    default="master" if len(prefect.__version__.split("+")) > 1 else "latest",
     hidden=True,
 )
 @click.option(
