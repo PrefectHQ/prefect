@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add support for Docker volumes and filtering in `prefect.tasks.docker`.
 
 ### Task Library
 
