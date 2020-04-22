@@ -14,34 +14,6 @@ from prefect_server import api
 from prefect_server.database import models, orm
 
 
-@pytest.fixture(autouse=True)
-async def delete_resource_pools():
-    """
-    Database fixture that deletes all data related
-    to a `Flow`, so we need to handle our resource
-    pool. We _could_ add this into that fixture,
-    but if we're only creating the pool for this
-    set of tests, this is more straightforward.
-    """
-
-    await models.ResourcePool.where().delete()
-
-
-@pytest.fixture
-async def resource_pool() -> models.ResourcePool:
-
-    pool_id = await api.resource_pools.create_resource_pool(
-        "test pool",
-        description="A resource pool created from Prefect Server's test suite.",
-        slots=1,
-    )
-
-    populated_pool = await models.ResourcePool.where(id=pool_id).first(
-        {"id", "name", "description", "slots"}
-    )
-    return populated_pool
-
-
 class TestCreateResourcePool:
     async def test_creates_resource_pool(self):
 

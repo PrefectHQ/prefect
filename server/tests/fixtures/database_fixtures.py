@@ -6,19 +6,19 @@ import datetime
 import inspect
 import uuid
 import warnings
-from box import Box
 
 import pendulum
-import pytest
-from asynctest import CoroutineMock
-from click.testing import CliRunner
-
 import prefect
-import prefect_server
+import pytest
+import sqlalchemy as sa
+from asynctest import CoroutineMock
+from box import Box
+from click.testing import CliRunner
 from prefect.engine.state import Running, Submitted, Success
+
+import prefect_server
 from prefect_server import api, config
 from prefect_server.database import hasura, models
-import sqlalchemy as sa
 
 
 @pytest.fixture(scope="session")
@@ -32,6 +32,7 @@ async def delete_data_after_each_test():
         yield
     finally:
         await models.Flow.where().delete()
+        await models.ResourcePool.where().delete()
 
 
 @pytest.fixture
@@ -213,3 +214,32 @@ async def excess_submitted_task_runs():
             flow_run_id=flow_run, task_id=task.id, map_index=None
         )
         await api.states.set_task_run_state(task_run_id=task_run, state=Submitted())
+
+
+@pytest.fixture
+async def resource_pool() -> models.ResourcePool:
+
+    pool_id = await api.resource_pools.create_resource_pool(
+        "test pool",
+        description="A resource pool created from Prefect Server's test suite.",
+        slots=1,
+    )
+
+    populated_pool = await models.ResourcePool.where(id=pool_id).first(
+        {"id", "name", "description", "slots"}
+    )
+    return populated_pool
+
+
+@pytest.fixture
+async def resource_pool_2() -> models.ResourcePool:
+    pool_id = await api.resource_pools.create_resource_pool(
+        "spark",
+        description="A second resource pool created from Prefect Server's test suite",
+        slots=1,
+    )
+
+    populated_pool = await models.ResourcePool.where(id=pool_id).first(
+        {"id", "name", "description", "slots"}
+    )
+    return populated_pool
