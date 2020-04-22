@@ -7,7 +7,7 @@ from prefect.tasks.notifications import PushbulletTask
 
 from prefect.utilities.configuration import set_temporary_config
 
-pytest.importorskip("pushbullet")
+pytest.importorskip("pushbullet.py")
 
 
 class TestInitialization:
