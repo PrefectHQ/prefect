@@ -22,7 +22,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NoResult, Result, NORESULT
 from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
@@ -577,7 +577,15 @@ class TaskRunner(Runner):
                 task_inputs[edge.key] = upstream_state._result
 
         if state.is_pending() and state.cached_inputs:
-            task_inputs.update({k: r for k, r in state.cached_inputs.items()})
+            task_inputs.update(
+                {
+                    k: r
+                    for k, r in state.cached_inputs.items()
+                    if task_inputs.get(k, NORESULT) is NORESULT
+                }
+            )
+
+        ## TODO: raise informative error if any inputs are still NORESULT
         return task_inputs
 
     def populate_results(

@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Type
 import pendulum
 
 import prefect
-from prefect.engine.result import NoResult, Result, ResultInterface
+from prefect.engine.result import NORESULT, Result, ResultInterface
 
 
 class State:
@@ -47,7 +47,7 @@ class State:
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):
@@ -84,7 +84,7 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, ResultInterface):
+        if isinstance(value, (ResultInterface, type(NORESULT))):
             self._result = value
         else:
             self._result = Result(value=value)
@@ -290,7 +290,7 @@ class Pending(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -323,7 +323,7 @@ class Scheduled(Pending):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -359,7 +359,7 @@ class Paused(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -389,7 +389,7 @@ class _MetaState(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         state: State = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -475,7 +475,7 @@ class Queued(_MetaState):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
@@ -532,7 +532,7 @@ class Retrying(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -618,7 +618,7 @@ class Looped(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         loop_count: int = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -672,7 +672,7 @@ class Cached(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
@@ -716,7 +716,7 @@ class Mapped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -767,7 +767,7 @@ class Failed(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -847,7 +847,7 @@ class Skipped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = NORESULT,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):
