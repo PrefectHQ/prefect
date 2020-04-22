@@ -67,6 +67,7 @@ class RemoteDaskEnvironmentSchema(ObjectSchema):
         object_class = RemoteDaskEnvironment
 
     address = fields.String()
+    labels = fields.List(fields.String())
 
 
 class CustomEnvironmentSchema(ObjectSchema):

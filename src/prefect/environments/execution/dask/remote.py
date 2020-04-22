@@ -52,15 +52,15 @@ class RemoteDaskEnvironment(RemoteEnvironment):
         on_exit: Callable = None,
     ) -> None:
         self.address = address
-        self.dask_executor_kwargs = executor_kwargs or dict()
-        self.dask_executor_kwargs["address"] = address
+        dask_executor_kwargs = executor_kwargs or dict()
+        dask_executor_kwargs["address"] = address
 
         if security:
-            self.dask_executor_kwargs["security"] = security
+            dask_executor_kwargs["security"] = security
 
         super().__init__(
             executor="prefect.engine.executors.DaskExecutor",
-            executor_kwargs=self.dask_executor_kwargs,
+            executor_kwargs=dask_executor_kwargs,
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
