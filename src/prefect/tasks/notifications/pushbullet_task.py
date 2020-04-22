@@ -40,5 +40,8 @@ class PushbulletTask(Task):
 
         pb = Pushbullet(pbtoken)
 
+        if msg is None:
+    raise ValueError("A message must be provided")
+
         ## send the request
         pb.push_note("Flow Notification", msg)
