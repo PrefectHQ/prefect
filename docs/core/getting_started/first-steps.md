@@ -184,9 +184,13 @@ Prefect Core ships with an open source, lightweight version of our highly-availa
 
 Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/orchestration/README.md).
 
-After [starting and configuring Core's server](installation.md#configuring-prefect-server), navigate to `http://localhost:8080` to see the Prefect UI:
+After [starting and configuring Core's server](installation.html#running-the-local-server-and-ui), navigate to `http://localhost:8080` to see the Prefect UI:
 
 ![](/orchestration/server/new-server-dashboard.png)
+
+::: warning Backend configuration
+Before registering your flow with your local backend make sure you have called `prefect backend server` from the CLI to configure Prefect for local orchestration.
+:::
 
 [Register](/orchestration/concepts/flows.md#registration) any of your flows; they will register with your local backend:
 
