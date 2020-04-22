@@ -56,9 +56,9 @@ Each version group can only have one active flow at a time. When a new flow is a
 
 ### UI
 
-All versions of a flow can be viewed [directly in the UI](/cloud/ui/flow.md#versions). If you are using Prefect Cloud then version groups can be managed from the [team settings page](/cloud/ui/team-settings).
+All versions of a flow can be viewed [directly in the UI](/orchestration/ui/flow.md#versions). If you are using Prefect Cloud then version groups can be managed from the [team settings page](/orchestration/ui/team-settings).
 
-![](/cloud/ui/flow-versions.png)
+![](/orchestration/ui/flow-versions.png)
 
 ### GraphQL <Badge text="GQL"/>
 

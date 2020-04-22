@@ -77,4 +77,4 @@ In that same directory as the `supervisord.conf` file you may start Supervisor.
 supervisord
 ```
 
-Your Local Agent is now up and running in the background with Supervisor! For more information on the Local Agent and using it with Supervisor visit the [documentation](/cloud/agents/local.html).
+Your Local Agent is now up and running in the background with Supervisor! For more information on the Local Agent and using it with Supervisor visit the [documentation](/orchestration/agents/local.html).
