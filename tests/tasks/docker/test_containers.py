@@ -67,7 +67,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
             detach=True,
             entrypoint=["test"],
             environment=["test"],
-            volumes=["/tmp/test:/tmp/test:ro"]
+            volumes=["/tmp/test:/tmp/test:ro"],
             name="test",
             docker_server_url="test",
         )
