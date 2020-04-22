@@ -78,7 +78,7 @@ security = Security(tls_ca_file='cluster_ca.pem',
 flow = Flow(
     "Remote Dask Environment Example",
     environment=RemoteDaskEnvironment(
-        address="tcp://127.0.0.1:8786",  # Address of a Dask scheduler
+        address="tls://127.0.0.1:8786",  # Address of a Dask scheduler
         security=security,
     ),
     storage=Docker(
