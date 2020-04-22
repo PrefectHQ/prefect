@@ -125,7 +125,7 @@ Task-level result handlers will _always_ be used over flow-level handlers. Neith
 :::
 
 ::: warning Result handlers are always attached to task outputs
-For example, suppose task A has result handler A, and task B has result handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use result handlers to persist the input cache](https://docs.prefect.io/cloud/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use result handler A.
+For example, suppose task A has result handler A, and task B has result handler B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use result handlers to persist the input cache](https://docs.prefect.io/orchestration/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use result handler A.
 :::
 
 ::: warning Parameters are different
