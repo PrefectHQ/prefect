@@ -321,7 +321,7 @@ One of the most popular aspects of Airflow is its web interface. From the UI, yo
 
 From day one, we designed Prefect to support a beautiful, real-time UI. We didn't want to follow Airflow's model of simply exposing database views, but rather take advantage of best practices to immediately surface the answers to our users' most pressing questions: What is the health of my system; and, if something is wrong, how quickly can I identify it? 
 
-![](/cloud/ui/cloud-ui.gif)
+![](/orchestration/ui/cloud-ui.gif)
 
 The Prefect UI supports:
 
