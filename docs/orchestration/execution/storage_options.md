@@ -6,7 +6,7 @@ As of Prefect version `0.9.0` every storage option except for `Docker` will auto
 
 ## Local
 
-[Local Storage](/api/latest/environments/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/cloud/agents/local.html) running on the same machine.
+[Local Storage](/api/latest/environments/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.
 
 ```python
 from prefect import Flow
@@ -27,7 +27,7 @@ Additionally, in more recent releases of Core your flow will default to using a 
 
 ## Azure Blob Storage
 
-[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container. Currently flows stored using this option can only be run by [local agents](/cloud/agents/local.html) as long as the machine running the local agent is configured to download from that Azure Blob container using a connection string.
+[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container. Currently flows stored using this option can only be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from that Azure Blob container using a connection string.
 
 ```python
 from prefect import Flow
@@ -52,7 +52,7 @@ Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us
 
 ## AWS S3
 
-[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket. Currently flows stored using this option can only be run by [local agents](/cloud/agents/local.html) as long as the machine running the local agent is configured to download from an S3 bucket.
+[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket. Currently flows stored using this option can only be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from an S3 bucket.
 
 ```python
 from prefect import Flow
@@ -77,7 +77,7 @@ S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.
 
 ## Google Cloud Storage
 
-[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket. Currently flows stored using this option can only be run by [local agents](/cloud/agents/local.html) as long as the machine running the local agent is configured to download from a GCS bucket.
+[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket. Currently flows stored using this option can only be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from a GCS bucket.
 
 ```python
 from prefect import Flow
@@ -102,7 +102,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 ## Docker
 
-[Docker Storage](/api/latest/environments/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has the largest deployment compatability with the [Docker Agent](/cloud/agents/docker.html), [Kubernetes Agent](/cloud/agents/kubernetes.html), and [Fargate Agent](/cloud/agents/fargate.html).
+[Docker Storage](/api/latest/environments/storage.html#docker) is a storage option that puts flows inside of a Docker image and pushes them to a container registry. This method of Storage has the largest deployment compatability with the [Docker Agent](/orchestration/agents/docker.html), [Kubernetes Agent](/orchestration/agents/kubernetes.html), and [Fargate Agent](/orchestration/agents/fargate.html).
 
 ```python
 from prefect import Flow

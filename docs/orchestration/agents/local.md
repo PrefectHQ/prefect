@@ -67,7 +67,7 @@ $ prefect agent start -t TOKEN -l welcome-flow
                                            |___/
 
 2019-11-11 13:26:41,443 - agent - INFO - Starting LocalAgent with labels ['hostname.local', 'azure-flow-storage', 's3-flow-storage', 'gcs-flow-storage']
-2019-11-11 13:26:41,443 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-11-11 13:26:41,443 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-11-11 13:26:41,638 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-11-11 13:26:41,638 - agent - INFO - Waiting for flow runs...
 ```
@@ -165,6 +165,6 @@ For more information on configuring supervisor, please see [http://supervisord.o
 
 ### Process
 
-When started, the local agent will use [environment labels](/cloud/execution/overview.html#environments) to watch for scheduled Flow runs that partain to a particular flow. This means that starting a local agent by calling `flow.run_agent()` will only pick up runs of that specific flow.
+When started, the local agent will use [environment labels](/orchestration/execution/overview.html#environments) to watch for scheduled Flow runs that partain to a particular flow. This means that starting a local agent by calling `flow.run_agent()` will only pick up runs of that specific flow.
 
 The local agent periodically polls for new flow runs to execute. When a flow run is retrieved from the Prefect API, the agent confirms that the flow was registered with a local storage option and runs that flow in a subprocess.

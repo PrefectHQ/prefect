@@ -17,7 +17,7 @@ class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
     long as the proper access configuration variables are set.  Information on using the
-    Fargate Agent can be found at https://docs.prefect.io/cloud/agents/fargate.html
+    Fargate Agent can be found at https://docs.prefect.io/orchestration/agents/fargate.html
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:

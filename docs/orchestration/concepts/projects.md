@@ -6,9 +6,9 @@ Projects are used to organize flows that have been registered with the Prefect A
 
 ### UI
 
-Projects can be created from the project filter on the [dashboard](/cloud/ui/dashboard) or the [project settings page](/cloud/ui/team-settings.md#projects).
+Projects can be created from the project filter on the [dashboard](/orchestration/ui/dashboard) or the [project settings page](/orchestration/ui/team-settings.md#projects).
 
-![](/cloud/ui/team-projects.png)
+![](/orchestration/ui/team-projects.png)
 
 ### Prefect CLI
 
@@ -48,9 +48,9 @@ mutation {
 
 ### UI
 
-Projects can be deleted from the [project settings page](/cloud/ui/team-settings.md#projects).
+Projects can be deleted from the [project settings page](/orchestration/ui/team-settings.md#projects).
 
-![](/cloud/ui/team-projects.png)
+![](/orchestration/ui/team-projects.png)
 
 ### GraphQL <Badge text="GQL"/>
 
