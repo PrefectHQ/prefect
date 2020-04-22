@@ -42,20 +42,16 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one)
     """
 
     def __init__(
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_handler: ResultHandler = None,
+        result: Result = Result(),
     ) -> None:
         self.client = Client()
-        super().__init__(
-            task=task, state_handlers=state_handlers, result_handler=result_handler
-        )
+        super().__init__(task=task, state_handlers=state_handlers, result=result)
 
     def _heartbeat(self) -> bool:
         try:
@@ -257,13 +253,17 @@ class CloudTaskRunner(TaskRunner):
             - Tuple[State, dict]: a tuple of (state, upstream_states)
 
         """
-        for key, res in state.cached_inputs.items():
-            state.cached_inputs[key] = res.populate_result(self.result)
+        upstream_results = {}
 
         for edge, upstream_state in upstream_states.items():
             upstream_states[edge].result = upstream_state._result.populate_result(
                 edge.upstream_task.result
             )
+            if edge.key is not None:
+                upstream_results[edge.key] = edge.upstream_task.result
+
+        for key, res in state.cached_inputs.items():
+            state.cached_inputs[key] = res.populate_result(upstream_results[key])
 
         return state, upstream_states
 

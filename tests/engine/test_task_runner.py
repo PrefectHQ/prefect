@@ -21,7 +21,8 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
+from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     ResultHandler,
@@ -799,76 +800,6 @@ class TestGetTaskInputs:
             state=Pending(), upstream_states={Edge(1, 2, key="x"): Success(result=1)}
         )
         assert inputs == {"x": Result(1)}
-
-    def test_get_inputs_from_upstream_reads_results(self):
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
-        )
-        assert inputs == {"x": result.to_result()}
-
-    def test_get_inputs_from_upstream_reads_results_using_upstream_handlers(self):
-        class CustomHandler(ResultHandler):
-            def read(self, loc):
-                return "foo-bar-baz".split("-")
-
-        new_handler = CustomHandler()
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(),
-            upstream_states={Edge(Task(result_handler=new_handler), 2, key="x"): state},
-        )
-        res = Result(value=["foo", "bar", "baz"], result_handler=new_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
-
-    def test_get_inputs_from_upstream_reads_secret_results(self):
-        secret_handler = SecretResultHandler(
-            prefect.tasks.secrets.PrefectSecret(name="foo")
-        )
-
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-
-        with prefect.context(secrets=dict(foo=42)):
-            inputs = TaskRunner(task=Task()).get_task_inputs(
-                state=Pending(),
-                upstream_states={
-                    Edge(Task(result_handler=secret_handler), 2, key="x"): state
-                },
-            )
-
-        res = Result(value=42, result_handler=secret_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
-
-    def test_get_inputs_from_upstream_reads_cached_inputs(self):
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Pending(cached_inputs=dict(x=result))
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=state, upstream_states={}
-        )
-        assert inputs == {"x": result.to_result()}
-
-    def test_get_inputs_from_upstream_reads_cached_inputs_using_upstream_handlers(self):
-        class CustomHandler(ResultHandler):
-            def read(self, loc):
-                return 99
-
-        new_handler = CustomHandler()
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Pending(cached_inputs=dict(x=result))
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=state,
-            upstream_states={
-                Edge(Task(result_handler=new_handler), 2, key="x"): Success()
-            },
-        )
-        res = Result(value=99, result_handler=new_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
 
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(

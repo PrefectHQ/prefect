@@ -17,7 +17,9 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
+from prefect.engine.results import PrefectResult, SecretResult
+
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
@@ -895,3 +897,69 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
 
     # ensures result handler was called and persisted
     assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
+
+
+class TestPopulateResults:
+    def test_populate_results_from_upstream_reads_results(self):
+        result = PrefectResult(location="1")
+        state = Success(result=result)
+
+        assert result.value is NORESULT
+
+        t = Task(result=PrefectResult())
+        edge = Edge(t, 2, key="x")
+        new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+            state=Pending(), upstream_states={edge: state}
+        )
+        assert upstreams[edge].result == 1
+
+    def test_populate_results_from_upstream_reads_results_using_upstream_handlers(self):
+        class CustomResult(Result):
+            def read(self, *args, **kwargs):
+                return "foo-bar-baz".split("-")
+
+        state = Success(result=PrefectResult(location="1"))
+        edge = Edge(Task(result=CustomResult()), 2, key="x")
+        new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+            state=Pending(), upstream_states={edge: state},
+        )
+        assert upstreams[edge].result == ["foo", "bar", "baz"]
+
+    def test_populate_results_from_upstream_reads_secret_results(self):
+        secret_result = SecretResult(prefect.tasks.secrets.PrefectSecret(name="foo"))
+
+        state = Success(result=PrefectResult(location="foo"))
+
+        with prefect.context(secrets=dict(foo=42)):
+            edge = Edge(Task(result=secret_result), 2, key="x")
+            new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+                state=Pending(), upstream_states={edge: state},
+            )
+
+        assert upstreams[edge].result == 42
+
+    def test_populate_results_from_upstream_reads_cached_inputs(self):
+        result = PrefectResult(location="1")
+        state = Pending(cached_inputs=dict(x=result))
+        new_state, upstreams = CloudTaskRunner(
+            task=Task(result=PrefectResult())
+        ).populate_results(state=state, upstream_states={})
+
+        assert new_state.cached_inputs["x"].value == 1
+
+    def test_populate_results_from_upstream_reads_cached_inputs_using_upstream_results(
+        self,
+    ):
+        class CustomResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = 99
+                return self
+
+        result = PrefectResult(location="1")
+        state = Pending(cached_inputs=dict(x=result))
+        edge = Edge(Task(result=CustomResult()), 2, key="x")
+        new_state, upstreams = CloudTaskRunner(
+            task=Task(result=PrefectResult())
+        ).populate_results(state=state, upstream_states={edge: Success(result=result)})
+
+        assert new_state.cached_inputs["x"].value == 99
