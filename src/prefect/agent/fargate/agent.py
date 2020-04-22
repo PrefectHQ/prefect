@@ -39,6 +39,11 @@ class FargateAgent(Agent):
     prefect agent start fargate networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
     ```
 
+    botocore configuration options can be provided to the Fargate Agent:
+    ```
+    FargateAgent(botocore_config={"retries": {"max_attempts": 10}})
+    ```
+
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
@@ -59,6 +64,8 @@ class FargateAgent(Agent):
             `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
+        - botocore_config (dict, optional): botocore configuration options to be passed to the
+            boto3 client. https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
         - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
             When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
             task definition revision. Each revision will be registered with a tag called 'PrefectFlowId'
@@ -119,7 +126,6 @@ class FargateAgent(Agent):
             kwargs, True
         )
 
-
         # Client initialization
         self.boto3_client = boto3_client(
             "ecs",
@@ -127,7 +133,7 @@ class FargateAgent(Agent):
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             region_name=region_name,
-            config=Config(**botocore_config)
+            config=Config(**botocore_config),
         )
         # fetch external kwargs from s3 if needed
         if self.use_external_kwargs:
@@ -149,7 +155,7 @@ class FargateAgent(Agent):
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 region_name=region_name,
-                config=Config(**botocore_config)
+                config=Config(**botocore_config),
             )
 
     def _override_kwargs(
