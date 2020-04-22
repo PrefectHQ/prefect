@@ -25,6 +25,26 @@ def test_create_k8s_job_environment():
         )
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.executor_kwargs == {}
+        assert environment.labels == set()
+        assert environment.on_start is None
+        assert environment.on_exit is None
+        assert environment.logger.name == "prefect.KubernetesJobEnvironment"
+
+
+def test_create_k8s_job_environment_with_executor_kwargs():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"),
+            executor_kwargs={"test": "here"},
+        )
+        assert environment
+        assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.executor_kwargs == {"test": "here"}
         assert environment.labels == set()
         assert environment.on_start is None
         assert environment.on_exit is None
