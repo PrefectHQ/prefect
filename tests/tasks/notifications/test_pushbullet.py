@@ -8,8 +8,6 @@ from prefect.tasks.notifications import PushbulletTask
 from prefect.utilities.configuration import set_temporary_config
 
 
-
-
 class TestInitialization:
     def test_inits_with_no_args(self):
         t = PushbulletTask()
