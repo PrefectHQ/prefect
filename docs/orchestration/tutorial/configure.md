@@ -30,7 +30,7 @@ Interacting with the Prefect Cloud API requires the use of JWT tokens for secure
 
 ### Log in to Prefect Cloud
 
-Before you are able to use the many features of Prefect Cloud, you'll need to authenticate your local machine. This is achievable by retrieving a [Personal Access Token](/cloud/concepts/tokens.html#user) from the UI and providing it to the [Prefect Command Line Interface](/cloud/concepts/cli.html#cli).
+Before you are able to use the many features of Prefect Cloud, you'll need to authenticate your local machine. This is achievable by retrieving a [Personal Access Token](/orchestration/concepts/tokens.html#user) from the UI and providing it to the [Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
 
 To obtain a Personal Access Token, navigate to [https://cloud.prefect.io](https://cloud.prefect.io) and through the hamburger menu in the top left corner go **User** -> **Personal Access Tokens** -> **Create A Token**.
 
