@@ -84,6 +84,7 @@ class FargateAgent(Agent):
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
+        botocore_config: dict = None,
         enable_task_revisions: bool = False,
         use_external_kwargs: bool = False,
         external_kwargs_s3_bucket: str = None,
@@ -96,6 +97,7 @@ class FargateAgent(Agent):
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource
+        from botocore.config import Config
 
         # Config used for boto3 client initialization
         aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
@@ -104,6 +106,7 @@ class FargateAgent(Agent):
         )
         aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         region_name = region_name or os.getenv("REGION_NAME")
+        botocore_config = botocore_config or {}
 
         # revisions and kwargs configurations
         self.enable_task_revisions = enable_task_revisions
@@ -116,6 +119,7 @@ class FargateAgent(Agent):
             kwargs, True
         )
 
+
         # Client initialization
         self.boto3_client = boto3_client(
             "ecs",
@@ -123,6 +127,7 @@ class FargateAgent(Agent):
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             region_name=region_name,
+            config=Config(**botocore_config)
         )
         # fetch external kwargs from s3 if needed
         if self.use_external_kwargs:
@@ -144,6 +149,7 @@ class FargateAgent(Agent):
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 region_name=region_name,
+                config=Config(**botocore_config)
             )
 
     def _override_kwargs(
