@@ -2,22 +2,20 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import ujson
 import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 import pendulum
-
 import prefect
-import prefect_server
-from prefect.engine.state import Pending, Scheduled, Queued
+import ujson
+from prefect.engine.state import Pending, Queued, Scheduled
 from prefect.serialization.task import ParameterSchema
 from prefect.utilities.graphql import EnumValue, parse_graphql_arguments, with_args
-from prefect_server import api, config
 
+import prefect_server
+from prefect_server import api, config
 from prefect_server.database import hasura, models
 from prefect_server.utilities import exceptions, names
-
 
 SCHEDULED_STATES = [
     s.__name__
@@ -225,11 +223,23 @@ async def get_runs_in_queue(
             ]
         }
     ).get(
-        {"id": True, "flow": {"environment": True}},
+        {"id": True, "flow": {"environment": True, "settings": True}},
         order_by=[{"current_state": {"start_time": EnumValue("asc")}}],
-        # get extra in case labeled runs don't show up at the top
-        limit=config.queued_runs_returned_limit * 3,
+        # get extra in case labeled or resource constrained runs don't show up at the top
+        limit=config.queued_runs_returned_limit * 4,
     )
+
+    # See if any flows are resource constrained and find current available resources
+    resources = set()
+    for flow_run in flow_runs:
+        flow_resources = flow_run.flow.settings.get("resources") or []
+        for flow_resource in flow_resources:
+            resources.add(flow_resource)
+
+    available_resource_utilization = {
+        resource: await api.resource_pools.get_available_resources(pool_name=resource)
+        for resource in resources
+    }
 
     counter = 0
     final_flow_runs = []
@@ -247,6 +257,26 @@ async def get_runs_in_queue(
         # if the run has no labels but labels were provided, skip
         if not run_labels and labels:
             continue
+
+        # if the flow run has available resources
+        flow_resources = flow_run.flow.settings.get("resources") or []
+        if flow_resources:
+
+            if not all(
+                [
+                    available_resource_utilization[resource] > 0
+                    for resource in flow_resources
+                ]
+            ):
+                # The run doesn't have the available resources, so we
+                # bail early and don't count towards the number
+                # in the queue.
+
+                continue
+            else:
+
+                for resource in flow_resources:
+                    available_resource_utilization[resource] -= 1
 
         final_flow_runs.append(flow_run.id)
         counter += 1

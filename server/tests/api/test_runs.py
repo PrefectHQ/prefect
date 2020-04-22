@@ -7,19 +7,19 @@ import json
 import uuid
 
 import pendulum
+import prefect
 import pytest
 from asynctest import CoroutineMock
+from prefect.engine.state import Finished, Running, Scheduled, Submitted, Success
+from prefect.utilities.graphql import EnumValue
 
-import prefect
 import prefect_server
-from prefect.engine.state import Finished, Scheduled, Submitted, Success, Running
-from prefect_server import config, api
+from prefect_server import api, config
 from prefect_server.api import flows, runs, states
 from prefect_server.database import models
 from prefect_server.utilities import context
-from prefect_server.utilities.exceptions import Unauthorized, NotFound
+from prefect_server.utilities.exceptions import NotFound, Unauthorized
 from prefect_server.utilities.tests import set_temporary_config
-from prefect.utilities.graphql import EnumValue
 
 
 @pytest.fixture
@@ -689,3 +689,104 @@ class TestGetRunsInQueue:
         )
 
         assert not await runs.get_runs_in_queue()
+
+    async def test_resource_constrained_flows_are_not_retrieved(
+        self, flow_id: str, resource_pool: models.ResourcePool
+    ):
+
+        # create more runs than concurrency / resource pool allows
+        for _ in range(2 * config.queued_runs_returned_limit):
+            await runs.create_flow_run(flow_id=flow_id)
+
+        await api.flows._update_flow_setting(flow_id, "resources", [resource_pool.name])
+        # There is already a running flow run, so this shouldn't bring back
+        # any queued runs.
+        assert len(
+            await runs.get_runs_in_queue()
+        ) == await api.resource_pools.get_available_resources(
+            pool_name=resource_pool.name
+        )
+
+        await models.ResourcePool.where(id=resource_pool.id).update(set={"slots": 5})
+
+        queued_runs = await runs.get_runs_in_queue()
+        # 5 available slots, and should be limited based on resources
+        assert len(queued_runs) == await api.resource_pools.get_available_resources(
+            pool_name=resource_pool.name
+        )
+
+    async def test_finds_resource_constrained_and_other_flows(
+        self, flow_id: str, labeled_flow_id: str, resource_pool: models.ResourcePool
+    ):
+        """
+        This test should be making sure that if both a resource constrained
+        flow and non resource constrained flows have eligible runs, that
+        we will at most find the resource's available amount of resource
+        constrained flow runs (but not necessarily that amount), and 
+        however many others are available (still not violating the total
+        number of returned flow runs as specified by the config)
+        """
+        # create more runs than concurrency / resource pool allows
+        for _ in range(5):
+            await runs.create_flow_run(flow_id=flow_id)
+
+        for _ in range(10):
+            await runs.create_flow_run(flow_id=labeled_flow_id)
+
+        await api.flows._update_flow_setting(flow_id, "resources", [resource_pool.name])
+        # There is already a running flow run, so this shouldn't bring back
+        # any queued runs.
+        assert len(
+            await runs.get_runs_in_queue()
+        ) == await api.resource_pools.get_available_resources(
+            pool_name=resource_pool.name
+        )
+
+        await models.ResourcePool.where(id=resource_pool.id).update(set={"slots": 5})
+
+        queued_runs = await runs.get_runs_in_queue()
+
+        flow_ids = await models.FlowRun.where({"id": {"_in": queued_runs}}).get(
+            {"id", "flow_id"}
+        )
+        labeled_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
+        constrained_flow_runs = [row for row in flow_ids if row.flow_id == flow_id]
+
+        assert len(queued_runs) == len(labeled_flow_runs) + len(constrained_flow_runs)
+        assert len(
+            constrained_flow_runs
+        ) <= await api.resource_pools.get_available_resources(
+            pool_name=resource_pool.name
+        )
+
+    async def test_requires_all_resources_for_eligibility(
+        self,
+        flow_id: str,
+        resource_pool: models.ResourcePool,
+        resource_pool_2: models.ResourcePool,
+    ):
+        """
+        This should test that if a flow has more than one resource
+        required for getting scheduled, the run only goes through
+        if all resources required are available.
+        """
+        await models.FlowRun.where().delete()
+        await api.flows._update_flow_setting(
+            flow_id, "resources", [resource_pool.name, resource_pool_2.name]
+        )
+
+        for _ in range(5):
+            await runs.create_flow_run(flow_id=flow_id)
+
+        assert await models.FlowRun.where().count() == 5
+
+        # Both fixtures hae a default limit of 1, so we need to set 1
+        # higher for this test to actually test it.
+        await models.ResourcePool.where(id=resource_pool.id).update({"slots": 4})
+        resource_pool = await models.ResourcePool.where(id=resource_pool.id).first(
+            {"id", "slots", "name"}
+        )
+
+        queued_runs = await runs.get_runs_in_queue()
+
+        assert len(queued_runs) == min([resource_pool.slots, resource_pool_2.slots])
