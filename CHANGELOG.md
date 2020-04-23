@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add support for Docker volumes and filtering in `prefect.tasks.docker`.
 
 ### Fixes
 
@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Nelson Cornet](https://github.com/sk4la)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 
