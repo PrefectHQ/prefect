@@ -24,7 +24,6 @@ from prefect.core import Edge, Task
 from prefect.engine import signals
 from prefect.engine.result import NoResult, Result, NORESULT
 from prefect.engine.results import PrefectResult
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -581,7 +580,7 @@ class TaskRunner(Runner):
                 {
                     k: r
                     for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NORESULT) is NORESULT
+                    if task_inputs.get(k, NORESULT) == NORESULT
                 }
             )
 
@@ -713,7 +712,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state._result != NoResult:
+                        if not state.is_mapped() or upstream_state._result != NORESULT:
                             if not hasattr(upstream_state.result, "__getitem__"):
                                 raise TypeError(
                                     "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
@@ -721,10 +720,7 @@ class TaskRunner(Runner):
                                         preview=repr(upstream_state.result)[:10],
                                     )
                                 )
-                            upstream_result = Result(
-                                upstream_state.result[i],
-                                result_handler=upstream_state._result.result_handler,  # type: ignore
-                            )
+                            upstream_result = upstream_state._result.from_value(upstream_state.result[i])
                             states[edge].result = upstream_result
                         elif state.is_mapped():
                             if i >= len(state.map_states):  # type: ignore
@@ -913,7 +909,10 @@ class TaskRunner(Runner):
             prefect.context.get("checkpointing") is True
             and self.task.checkpoint is not False
         ):
-            result = self.result.write(value, **prefect.context)
+            try:
+                result = self.result.write(value, **prefect.context)
+            except NotImplementedError:
+                result = self.result.from_value(value=value)
         else:
             result = self.result.from_value(value=value)
 

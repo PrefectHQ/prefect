@@ -31,6 +31,7 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult, Result
+from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
@@ -158,7 +159,13 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = result_handler
+        if result_handler:
+            warnings.warn(
+                "Result Handlers are deprecated; please use the new style Result classes instead."
+            )
+            self.result = ResultHandlerResult.from_result_handler(result_handler)
+        else:
+            self.result = result
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]

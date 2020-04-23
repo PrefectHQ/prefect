@@ -17,7 +17,7 @@ from prefect.engine import signals
 from prefect.engine.cache_validators import duration_only
 from prefect.engine.executors import Executor, LocalExecutor
 from prefect.engine.flow_runner import ENDRUN, FlowRunner, FlowRunnerInitializeResult
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NORESULT, Result
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -558,9 +558,7 @@ class TestInputCaching:
         assert first_state.is_running()
 
         a_state = first_state.result[a_res]
-        a_state.result = (
-            NoResult  # remove the result to see if the cached results are picked up
-        )
+        a_state.result = NORESULT  # remove the result to see if the cached results are picked up
         b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
@@ -588,7 +586,7 @@ class TestInputCaching:
 
         a_state = first_state.result[a_res]
         a_state.result = (
-            NoResult  # remove the result to see if the cached results are picked up
+            NORESULT  # remove the result to see if the cached results are picked up
         )
         b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state

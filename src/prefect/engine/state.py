@@ -67,7 +67,7 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            eq = self._result.value == other._result.value  # type: ignore
+            eq = self.result == other.result  # type: ignore
             for attr in self.__dict__:
                 if attr.startswith("_") or attr in ["context", "message", "result"]:
                     continue
@@ -80,7 +80,7 @@ class State:
 
     @property
     def result(self) -> Any:
-        return self._result.value  # type: ignore
+        return getattr(self._result, "value", self._result)
 
     @result.setter
     def result(self, value: Any) -> None:

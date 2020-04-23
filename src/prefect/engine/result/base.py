@@ -69,7 +69,12 @@ class ResultInterface:
         """Performs no computation."""
 
 
-_NORESULT = type("_NORESULT", (object,), {})
+class _NORESULT:
+    def __eq__(self, other):
+        if isinstance(other, _NORESULT):
+            return True
+        return False
+
 NORESULT = _NORESULT()
 
 
