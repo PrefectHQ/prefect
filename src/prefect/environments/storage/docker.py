@@ -307,8 +307,8 @@ class Docker(Storage):
             dir="." if self.dockerfile else None
         ) as tempdir:
 
-            if sys.platform == 'win32':
-                # bug with docker and relative paths only on windows
+            if sys.platform == "win32":
+                # problem with docker and relative paths only on windows
                 tempdir = os.path.abspath(tempdir)
 
             # Build the dockerfile
