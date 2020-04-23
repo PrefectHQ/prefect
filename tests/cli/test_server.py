@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 from click.testing import CliRunner
+import pytest
 
 import prefect
 from prefect.cli.server import server, make_env
@@ -89,14 +90,22 @@ def test_server_start(monkeypatch, macos_platform):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_image_versions(monkeypatch, macos_platform):
+@pytest.mark.parametrize(
+    "version",
+    [
+        ("0.10.3", "0.10.3"),
+        ("0.10.3+114.g35bc7ba4", "master"),
+        ("0.10.2+999.gr34343.dirty", "master"),
+    ],
+)
+def test_server_start_image_versions(monkeypatch, version, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
     monkeypatch.setattr("subprocess.Popen", popen)
     monkeypatch.setattr("subprocess.check_call", check_call)
     monkeypatch.setattr("subprocess.check_output", check_output)
-    version = "master" if len(prefect.__version__.split("+")) > 1 else "latest"
+    monkeypatch.setattr(prefect, "__version__", version[0])
 
     runner = CliRunner()
     result = runner.invoke(server, ["start"])
@@ -109,7 +118,7 @@ def test_server_start_image_versions(monkeypatch, macos_platform):
     assert popen.call_args[0][0] == ["docker-compose", "up"]
     assert popen.call_args[1].get("cwd")
     assert popen.call_args[1].get("env")
-    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == version
+    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == version[1]
 
 
 def test_server_start_options_and_flags(monkeypatch, macos_platform):

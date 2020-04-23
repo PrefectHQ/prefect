@@ -91,7 +91,6 @@ def server():
     "--version",
     "-v",
     help="The server image versions to use (for example, '0.10.0' or 'master')",
-    default="master" if len(prefect.__version__.split("+")) > 1 else "latest",
     hidden=True,
 )
 @click.option(
@@ -198,7 +197,7 @@ def start(
     \b
     Options:
         --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
-                                Defaults to 'latest'
+                                Defaults to the current installed Prefect version.
         --skip-pull             Flag to skip pulling new images (if available)
         --no-upgrade, -n        Flag to avoid running a database upgrade when the database spins up
         --no-ui, -u             Flag to avoid starting the UI
@@ -277,7 +276,11 @@ def start(
         env = make_env()
 
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version)
+        env.update(
+            PREFECT_SERVER_TAG=version or "master"
+            if len(prefect.__version__.split("+")) > 1
+            else prefect.__version__
+        )
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"
