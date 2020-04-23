@@ -99,7 +99,7 @@ class TestResultHandlerCheck:
 
         f = Flow("foo-test", tasks=[up])
 
-        with pytest.raises(ValueError, match="have a result handler."):
+        with pytest.raises(ValueError, match="have a result type."):
             healthchecks.result_check([f])
 
     @pytest.mark.parametrize(
@@ -137,7 +137,7 @@ class TestResultHandlerCheck:
             result = down(x=up)
 
         with pytest.raises(
-            ValueError, match="upstream dependencies do not have result handlers."
+            ValueError, match="upstream dependencies do not have result types."
         ):
             healthchecks.result_check([f])
 

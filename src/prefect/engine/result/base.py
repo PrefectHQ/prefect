@@ -70,17 +70,17 @@ class ResultInterface:
 
 
 class _NORESULT:
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, _NORESULT):
             return True
         return False
 
     @property
-    def location(self):
+    def location(self) -> None:
         return None
 
     @property
-    def value(self):
+    def value(self) -> "_NORESULT":
         return self
 
 

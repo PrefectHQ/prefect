@@ -256,7 +256,9 @@ class Task(metaclass=SignatureValidator):
             warnings.warn(
                 "Result Handlers are deprecated; please use the new style Result classes instead."
             )
-            self.result = ResultHandlerResult.from_result_handler(result_handler)
+            self.result = ResultHandlerResult.from_result_handler(
+                result_handler
+            )  # type: Optional[Result]
         else:
             self.result = result
 

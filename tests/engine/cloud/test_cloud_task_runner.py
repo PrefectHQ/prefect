@@ -496,13 +496,11 @@ def test_task_runner_respects_the_db_state(monkeypatch, state):
 
 
 def test_task_runner_uses_cached_inputs_from_db_state(monkeypatch):
-    @prefect.task(name="test", result_handler=JSONResultHandler())
+    @prefect.task(name="test", result=PrefectResult())
     def add_one(x):
         return x + 1
 
-    db_state = Retrying(
-        cached_inputs=dict(x=Result(41, result_handler=JSONResultHandler()))
-    )
+    db_state = Retrying(cached_inputs=dict(x=PrefectResult(value=41)))
     get_task_run_info = MagicMock(return_value=MagicMock(state=db_state))
     set_task_run_state = MagicMock(
         side_effect=lambda task_run_id, version, state, cache_for: state
@@ -608,14 +606,12 @@ class TestHeartBeats:
 
 class TestStateResultHandling:
     def test_task_runner_handles_outputs_prior_to_setting_state(self, client):
-        @prefect.task(
-            cache_for=datetime.timedelta(days=1), result_handler=JSONResultHandler()
-        )
+        @prefect.task(cache_for=datetime.timedelta(days=1), result=PrefectResult())
         def add(x, y):
             return x + y
 
-        result = Result(1, result_handler=JSONResultHandler())
-        assert result.safe_value is NoResult
+        result = PrefectResult(value=1)
+        assert result.location is None
 
         x_state, y_state = Success(result=result), Success(result=result)
 
@@ -625,7 +621,6 @@ class TestStateResultHandling:
         }
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
-        assert result.safe_value != NoResult  # proves was handled
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -655,7 +650,7 @@ class TestStateResultHandling:
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
         assert res.is_failed()
-        assert "unsupported operand" in res.message
+        assert "has no attribute" in res.message
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -664,7 +659,7 @@ class TestStateResultHandling:
         states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
         assert states[0].is_running()  # this isn't ideal, it's a little confusing
         assert states[1].is_failed()
-        assert "unsupported operand" in states[1].message
+        assert "has no attribute" in states[1].message
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_task_runner_sends_checkpointed_success_states_to_cloud(
@@ -1027,15 +1022,6 @@ class TestPopulateResults:
             )
 
         assert upstreams[edge].result == 42
-
-    def test_populate_results_from_upstream_reads_cached_inputs(self):
-        result = PrefectResult(location="1")
-        state = Pending(cached_inputs=dict(x=result))
-        new_state, upstreams = CloudTaskRunner(
-            task=Task(result=PrefectResult())
-        ).populate_results(state=state, upstream_states={})
-
-        assert new_state.cached_inputs["x"].value == 1
 
     def test_populate_results_from_upstream_reads_cached_inputs_using_upstream_results(
         self,

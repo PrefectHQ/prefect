@@ -271,7 +271,8 @@ class CloudTaskRunner(TaskRunner):
                 upstream_results[edge.key] = edge.upstream_task.result
 
         for key, res in state.cached_inputs.items():
-            state.cached_inputs[key] = res.populate_result(upstream_results[key])
+            if key in upstream_results:
+                state.cached_inputs[key] = res.populate_result(upstream_results[key])
 
         return state, upstream_states
 
