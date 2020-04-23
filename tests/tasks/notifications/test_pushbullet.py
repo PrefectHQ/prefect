@@ -44,7 +44,7 @@ class TestInitialization:
         )
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(PUSHBULLET_TOKEN=42)):
-                with pytest.raises(ValueError, match="Secret"):
+                with pytest.raises(ValueError, match="message"):
                     task.run()
 
     
