@@ -9,6 +9,7 @@ from prefect.environments import (
     KubernetesJobEnvironment,
     LocalEnvironment,
     RemoteEnvironment,
+    RemoteDaskEnvironment,
 )
 from prefect.utilities.serialization import ObjectSchema, OneOfSchema, to_qualified_name
 
@@ -61,6 +62,14 @@ class RemoteEnvironmentSchema(ObjectSchema):
     labels = fields.List(fields.String())
 
 
+class RemoteDaskEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = RemoteDaskEnvironment
+
+    address = fields.String()
+    labels = fields.List(fields.String())
+
+
 class CustomEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = lambda: Environment
@@ -94,6 +103,7 @@ class EnvironmentSchema(OneOfSchema):
         "LocalEnvironment": LocalEnvironmentSchema,
         "KubernetesJobEnvironment": KubernetesJobEnvironmentSchema,
         "RemoteEnvironment": RemoteEnvironmentSchema,
+        "RemoteDaskEnvironment": RemoteDaskEnvironmentSchema,
         "CustomEnvironment": CustomEnvironmentSchema,
     }
 
