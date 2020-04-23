@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Task logical operators (e.g. `And`, `Or`, ...) no longer implicitly cast to `bool` - [#2303](https://github.com/PrefectHQ/prefect/pull/2303)
 - Allow for dynamically changing secret names at runtime - [#2302](https://github.com/PrefectHQ/prefect/pull/2302)
+- Adding support for `environment`, `secrets`, and `mountPoints` via configurable `containerDefinitions` to the Fargate Agent
 
 ### Task Library
 
@@ -34,7 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Braun Reyes](https://github.com/braunreyes)
 
 ## 0.10.1 <Badge text="beta" type="success"/>
 

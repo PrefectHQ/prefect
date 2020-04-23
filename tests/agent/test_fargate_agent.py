@@ -88,7 +88,11 @@ def test_parse_task_definition_kwargs(monkeypatch, runner_token):
         "inferenceAccelerators": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == kwarg_dict
     assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
@@ -104,7 +108,11 @@ def test_parse_task_definition_kwargs_errors(monkeypatch, runner_token):
         "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev",
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == kwarg_dict
     assert task_run_kwargs == {
@@ -132,7 +140,11 @@ def test_parse_task_run_kwargs(monkeypatch, runner_token):
         "propagateTags": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_run_kwargs == kwarg_dict
     assert task_definition_kwargs == {"placementConstraints": "test", "tags": "test"}
@@ -146,20 +158,20 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
 
     kwarg_dict = {
         "containerDefinitions": [
-            {
-                "environment": "test",
-                "secrets": "test",
-                "mountPoints": "test"
-            }
+            {"environment": "test", "secrets": "test", "mountPoints": "test"}
         ]
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert container_definitions_kwargs == {
         "environment": "test",
         "secrets": "test",
-        "mountPoints": "test"
+        "mountPoints": "test",
     }
 
 
@@ -174,21 +186,25 @@ def test_parse_container_definition_kwargs_errors(monkeypatch, runner_token):
             {
                 "secrets": [
                     {
-                        'name': 'TEST_SECRET1',
-                        'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'
-                     }
+                        "name": "TEST_SECRET1",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    }
                 ],
             }
         ]
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert container_definitions_kwargs == {
         "secrets": [
             {
-                'name': 'TEST_SECRET1',
-                'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'
+                "name": "TEST_SECRET1",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
             }
         ]
     }
@@ -251,7 +267,11 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
         "propagateTags": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == def_kwarg_dict
     assert task_run_kwargs == run_kwarg_dict
@@ -263,16 +283,13 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, runner_token):
 
     agent = FargateAgent()
 
-    kwarg_dict = {
-        "test": "not_real",
-        "containerDefinitions": [
-            {
-                "test": "not_real",
-            }
-        ]
-    }
+    kwarg_dict = {"test": "not_real", "containerDefinitions": [{"test": "not_real",}]}
 
-    task_definition_kwargs, task_run_kwargs, container_definitions_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == {}
     assert task_run_kwargs == {}
@@ -314,7 +331,7 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     container_def_kwargs_dict = {
         "environment": "test",
         "secrets": "test",
-        "mountPoints": "test"
+        "mountPoints": "test",
     }
 
     kwarg_dict = {
@@ -339,12 +356,8 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         "enableECSManagedTags": "test",
         "propagateTags": "test",
         "containerDefinitions": [
-            {
-                "environment": "test",
-                "secrets": "test",
-                "mountPoints": "test"
-            }
-        ]
+            {"environment": "test", "secrets": "test", "mountPoints": "test"}
+        ],
     }
 
     agent = FargateAgent(
@@ -405,7 +418,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     container_def_kwargs_dict = {
         "environment": "test",
         "secrets": "test",
-        "mountPoints": "test"
+        "mountPoints": "test",
     }
 
     # Client args
@@ -439,7 +452,6 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("containerDefinitions_secrets", "test")
     monkeypatch.setenv("containerDefinitions_mountPoints", "test")
 
-
     agent = FargateAgent(subnets=["subnet"])
     assert agent
     assert agent.task_definition_kwargs == def_kwarg_dict
@@ -472,7 +484,9 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     container_def_kwargs_dict = {
         "environment": [{"name": "test", "value": "test"}],
         "secrets": [{"name": "test", "valueFrom": "test"}],
-        "mountPoints": [{"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}]
+        "mountPoints": [
+            {"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}
+        ],
     }
 
     # Client args
@@ -485,9 +499,16 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     monkeypatch.setenv("placementConstraints", "['test']")
     monkeypatch.setenv("proxyConfiguration", "{'test': 'test'}")
     monkeypatch.setenv("networkConfiguration", "{'test': 'test'}")
-    monkeypatch.setenv("containerDefinitions_environment", '[{"name": "test", "value": "test"}]')
-    monkeypatch.setenv("containerDefinitions_secrets", '[{"name": "test", "valueFrom": "test"}]')
-    monkeypatch.setenv("containerDefinitions_mountPoints", '[{"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}]')
+    monkeypatch.setenv(
+        "containerDefinitions_environment", '[{"name": "test", "value": "test"}]'
+    )
+    monkeypatch.setenv(
+        "containerDefinitions_secrets", '[{"name": "test", "valueFrom": "test"}]'
+    )
+    monkeypatch.setenv(
+        "containerDefinitions_mountPoints",
+        '[{"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}]',
+    )
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
@@ -592,7 +613,7 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
             }
         },
         "enableECSManagedTags": "test",
-        "propagateTags": "test"
+        "propagateTags": "test",
     }
 
     agent = FargateAgent(
@@ -762,26 +783,28 @@ def test_deploy_flow_register_task_definition_all_args(
         },
         "enableECSManagedTags": "test",
         "propagateTags": "test",
-        "containerDefinitions": [{
-            "environment": [{
-                "name": "TEST_ENV",
-                "value": "Success!"
-            }],
-            "secrets": [{
-                "name": "TEST_SECRET1",
-                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
-            },
-                {
-                    "name": "TEST_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
-                }
-            ],
-            "mountPoints": [{
-                "sourceVolume": "myEfsVolume",
-                "containerPath": "/data",
-                "readOnly": False
-            }]
-        }]
+        "containerDefinitions": [
+            {
+                "environment": [{"name": "TEST_ENV", "value": "Success!"}],
+                "secrets": [
+                    {
+                        "name": "TEST_SECRET1",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    },
+                    {
+                        "name": "TEST_SECRET",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    },
+                ],
+                "mountPoints": [
+                    {
+                        "sourceVolume": "myEfsVolume",
+                        "containerPath": "/data",
+                        "readOnly": False,
+                    }
+                ],
+            }
+        ],
     }
 
     with set_temporary_config({"logging.log_to_cloud": True}):
@@ -835,26 +858,26 @@ def test_deploy_flow_register_task_definition_all_args(
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
-                {
-                    "name": "TEST_ENV",
-                    "value": "Success!"
-                }
+                {"name": "TEST_ENV", "value": "Success!"},
             ],
             "essential": True,
-            "secrets": [{
-                "name": "TEST_SECRET1",
-                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
-            },
+            "secrets": [
+                {
+                    "name": "TEST_SECRET1",
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                },
                 {
                     "name": "TEST_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                },
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "myEfsVolume",
+                    "containerPath": "/data",
+                    "readOnly": False,
                 }
             ],
-            "mountPoints": [{
-                "sourceVolume": "myEfsVolume",
-                "containerPath": "/data",
-                "readOnly": False
-            }]
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -964,7 +987,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             ],
             "essential": True,
             "secrets": [],
-            "mountPoints": []
+            "mountPoints": [],
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -1031,7 +1054,7 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
             ],
             "essential": True,
             "secrets": [],
-            "mountPoints": []
+            "mountPoints": [],
         }
     ]
 
@@ -1123,7 +1146,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(
                 ],
                 "essential": True,
                 "secrets": [],
-                "mountPoints": []
+                "mountPoints": [],
             }
         ],
         family="name",
@@ -1227,8 +1250,7 @@ def test_override_kwargs(monkeypatch, runner_token):
 
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
-    streaming_body.read.return_value.decode.return_value = (
-        '''{
+    streaming_body.read.return_value.decode.return_value = """{
               "cpu": "256",
               "networkConfiguration": "test",
               "containerDefinitions": [{
@@ -1251,8 +1273,7 @@ def test_override_kwargs(monkeypatch, runner_token):
                   "readOnly": false
                 }]
               }]
-            }'''
-    )
+            }"""
     boto3_resource.return_value.Object.return_value.get.return_value = {
         "Body": streaming_body
     }
@@ -1290,14 +1311,29 @@ def test_override_kwargs(monkeypatch, runner_token):
         ),
         definition_kwargs,
         run_kwargs,
-        container_definitions_kwargs
+        container_definitions_kwargs,
     )
     print(container_definitions_kwargs)
     assert boto3_resource.called
     assert streaming_body.read().decode.called
     assert definition_kwargs == {"cpu": "256"}
     assert run_kwargs == {"networkConfiguration": "test"}
-    assert container_definitions_kwargs == {'environment': [{'name': 'TEST_ENV', 'value': 'Success!'}], 'secrets': [{'name': 'TEST_SECRET1', 'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'}, {'name': 'TEST_SECRET', 'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'}], 'mountPoints': [{'sourceVolume': 'myEfsVolume', 'containerPath': '/data', 'readOnly': False}]}
+    assert container_definitions_kwargs == {
+        "environment": [{"name": "TEST_ENV", "value": "Success!"}],
+        "secrets": [
+            {
+                "name": "TEST_SECRET1",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+            },
+            {
+                "name": "TEST_SECRET",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+            },
+        ],
+        "mountPoints": [
+            {"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}
+        ],
+    }
 
 
 def test_override_kwargs_exception(monkeypatch, runner_token):
@@ -1342,7 +1378,7 @@ def test_override_kwargs_exception(monkeypatch, runner_token):
         ),
         definition_kwargs,
         run_kwargs,
-        container_definitions_kwargs
+        container_definitions_kwargs,
     )
 
     assert boto3_resource.called
@@ -1482,7 +1518,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 ],
                 "essential": True,
                 "secrets": [],
-                "mountPoints": []
+                "mountPoints": [],
             }
         ],
         cpu="256",

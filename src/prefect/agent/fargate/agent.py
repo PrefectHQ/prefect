@@ -112,9 +112,11 @@ class FargateAgent(Agent):
         self.external_kwargs_s3_key = external_kwargs_s3_key
 
         # Parse accepted kwargs for task definition, run, and container definitions key of task definition
-        self.task_definition_kwargs, self.task_run_kwargs, self.container_definitions_kwargs = self._parse_kwargs(
-            kwargs, True
-        )
+        (
+            self.task_definition_kwargs,
+            self.task_run_kwargs,
+            self.container_definitions_kwargs,
+        ) = self._parse_kwargs(kwargs, True)
 
         # Client initialization
         self.boto3_client = boto3_client(
@@ -151,7 +153,7 @@ class FargateAgent(Agent):
         flow_run: GraphQLResult,
         flow_task_definition_kwargs: dict,
         flow_task_run_kwargs: dict,
-        flow_container_definitions_kwargs: dict
+        flow_container_definitions_kwargs: dict,
     ) -> None:
         """
         Return new kwargs updated from external kwargs file.
@@ -187,14 +189,20 @@ class FargateAgent(Agent):
         self.logger.info("Updating default kwargs with external")
         external_kwargs = json.loads(body)
         # parse external kwargs
-        ext_task_definition_kwargs, ext_task_run_kwargs, ext_container_definitions_kwargs = self._parse_kwargs(
-            external_kwargs
-        )
+        (
+            ext_task_definition_kwargs,
+            ext_task_run_kwargs,
+            ext_container_definitions_kwargs,
+        ) = self._parse_kwargs(external_kwargs)
         self.logger.debug(
             "External task definition kwargs:\n{}".format(ext_task_definition_kwargs)
         )
         self.logger.debug("External task run kwargs:\n{}".format(ext_task_run_kwargs))
-        self.logger.debug("External container definitions kwargs:\n{}".format(ext_container_definitions_kwargs))
+        self.logger.debug(
+            "External container definitions kwargs:\n{}".format(
+                ext_container_definitions_kwargs
+            )
+        )
         # update flow_task_* kwargs
         flow_task_definition_kwargs.update(ext_task_definition_kwargs)
         flow_task_run_kwargs.update(ext_task_run_kwargs)
@@ -261,7 +269,7 @@ class FargateAgent(Agent):
             "pidMode",
             "ipcMode",
             "proxyConfiguration",
-            "inferenceAccelerators"
+            "inferenceAccelerators",
         ]
 
         definition_kwarg_list_no_eval = ["cpu", "memory"]
@@ -280,11 +288,7 @@ class FargateAgent(Agent):
             "propagateTags",
         ]
 
-        container_definitions_kwarg_list = [
-            "mountPoints",
-            "secrets",
-            "environment"
-        ]
+        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment"]
 
         task_definition_kwargs = {}
         definition_kwarg_list_eval = {
@@ -349,8 +353,12 @@ class FargateAgent(Agent):
                     task_run_kwargs.update({key: run_env_value})
 
             for key in container_definitions_kwarg_list:
-                if not container_definitions_kwargs.get(key) and os.getenv("containerDefinitions_{}".format(key)):
-                    self.logger.debug("Container definition: {} from environment variable".format(key))
+                if not container_definitions_kwargs.get(key) and os.getenv(
+                    "containerDefinitions_{}".format(key)
+                ):
+                    self.logger.debug(
+                        "Container definition: {} from environment variable".format(key)
+                    )
                     cd_env_value = os.getenv("containerDefinitions_{}".format(key))
                     try:
                         # Parse env var if needed
@@ -381,7 +389,9 @@ class FargateAgent(Agent):
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
-        flow_container_definitions_kwargs = copy.deepcopy(self.container_definitions_kwargs)
+        flow_container_definitions_kwargs = copy.deepcopy(
+            self.container_definitions_kwargs
+        )
 
         # create task_definition_name dict for passing into verify method
         task_definition_dict = {}
@@ -389,7 +399,10 @@ class FargateAgent(Agent):
         if self.use_external_kwargs:
             # override from  external kwargs
             self._override_kwargs(
-                flow_run, flow_task_definition_kwargs, flow_task_run_kwargs, flow_container_definitions_kwargs
+                flow_run,
+                flow_task_definition_kwargs,
+                flow_task_run_kwargs,
+                flow_container_definitions_kwargs,
             )
 
         # set proper task_definition_name and tags based on enable_task_revisions flag
@@ -557,19 +570,25 @@ class FargateAgent(Agent):
         # apply container definitions to "containerDefinitions" key of task definition
         # do not allow override of static envars from Prefect base task definition, which may include self.env_vars
 
-        base_envar_keys = [
-            x["name"] for x in container_definitions[0]["environment"]
-        ]
+        base_envar_keys = [x["name"] for x in container_definitions[0]["environment"]]
         self.logger.debug(
             "Removing static Prefect envars from container_definitions_kwargs if exists"
         )
         container_definitions_environment = [
-            x for x in container_definitions_kwargs.get("environment", []) if x["name"] not in base_envar_keys
+            x
+            for x in container_definitions_kwargs.get("environment", [])
+            if x["name"] not in base_envar_keys
         ]
 
-        container_definitions[0]["environment"].extend(container_definitions_environment)
-        container_definitions[0]["secrets"] = container_definitions_kwargs.get("secrets", [])
-        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get("mountPoints", [])
+        container_definitions[0]["environment"].extend(
+            container_definitions_environment
+        )
+        container_definitions[0]["secrets"] = container_definitions_kwargs.get(
+            "secrets", []
+        )
+        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
+            "mountPoints", []
+        )
 
         # Register task definition
         self.logger.debug(
