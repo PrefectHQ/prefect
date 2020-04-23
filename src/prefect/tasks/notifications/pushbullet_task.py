@@ -2,7 +2,11 @@ from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
-from pushbullet import Pushbullet
+
+try:
+    from pushbullet import Pushbullet
+except ImportError:
+    pass
 
 
 class PushbulletTask(Task):
