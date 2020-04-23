@@ -2,8 +2,11 @@ from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
-from pushbullet import Pushbullet
 
+try:
+    from pushbullet import Pushbullet
+except ImportError:
+    pass
 
 
 class PushbulletTask(Task):
@@ -37,10 +40,12 @@ class PushbulletTask(Task):
             - None
         """
 
-        
         pbtoken = Secret("PUSHBULLET_TOKEN").get()
 
         pb = Pushbullet(pbtoken)
+
+        if msg is None:
+            raise ValueError("A message must be provided")
 
         ## send the request
         pb.push_note("Flow Notification", msg)
