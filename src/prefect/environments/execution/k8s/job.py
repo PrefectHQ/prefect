@@ -39,6 +39,8 @@ class KubernetesJobEnvironment(Environment):
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
+        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
+            the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -48,11 +50,13 @@ class KubernetesJobEnvironment(Environment):
     def __init__(
         self,
         job_spec_file: str = None,
+        executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
+        self.executor_kwargs = executor_kwargs or dict()
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
@@ -161,7 +165,7 @@ class KubernetesJobEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()()
+                executor_cls = get_default_executor_class()(**self.executor_kwargs)
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(
