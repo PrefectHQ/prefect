@@ -60,6 +60,8 @@ class FargateTaskEnvironment(Environment):
             `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
+        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
+            the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -74,6 +76,7 @@ class FargateTaskEnvironment(Environment):
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
+        executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
@@ -90,6 +93,7 @@ class FargateTaskEnvironment(Environment):
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
+        self.executor_kwargs = executor_kwargs or dict()
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def _parse_kwargs(self, user_kwargs: dict) -> tuple:
@@ -311,7 +315,7 @@ class FargateTaskEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()()
+                executor_cls = get_default_executor_class()(**self.executor_kwargs)
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(
