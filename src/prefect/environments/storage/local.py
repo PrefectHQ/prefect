@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 from slugify import slugify
 
 import prefect
-from prefect.engine.result_handlers import LocalResultHandler
+from prefect.engine.results import LocalResult
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -48,8 +48,8 @@ class Local(Storage):
             abs_directory = directory
 
         self.directory = abs_directory
-        result_handler = LocalResultHandler(self.directory, validate=validate)
-        super().__init__(result_handler=result_handler, secrets=secrets)
+        result = LocalResult(self.directory, validate_dir=validate)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

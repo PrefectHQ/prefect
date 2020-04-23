@@ -30,7 +30,7 @@ import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
-from prefect.engine.result import NoResult, Result
+from prefect.engine.result import NORESULT, Result
 from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
@@ -1037,9 +1037,9 @@ class Flow:
             **kwargs
         )
 
-        # state always should return a dict of tasks. If it's NoResult (meaning the run was
+        # state always should return a dict of tasks. If it's NORESULT (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
-        if state._result == NoResult:
+        if state._result == NORESULT:
             state.result = {}
         elif isinstance(state.result, Exception):
             self.logger.error(
@@ -1364,8 +1364,8 @@ class Flow:
             self.environment.labels.update(labels)
 
         # register the flow with a default result handler if one not provided
-        if not self.result_handler:
-            self.result_handler = self.storage.result_handler
+        if not self.result:
+            self.result = self.storage.result
 
         client = prefect.Client()
         registered_flow = client.register(

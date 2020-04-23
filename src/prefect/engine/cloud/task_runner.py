@@ -7,7 +7,6 @@ import pendulum
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import Result
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers

@@ -5,7 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-from prefect.engine.result_handlers import S3ResultHandler
+from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -47,8 +47,8 @@ class S3(Storage):
 
         self.client_options = client_options
 
-        result_handler = S3ResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler, secrets=secrets)
+        result = S3Result(bucket=bucket)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

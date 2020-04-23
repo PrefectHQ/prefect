@@ -4,7 +4,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-from prefect.engine.result_handlers import GCSResultHandler
+from prefect.engine.results import GCSResult
 from prefect.environments.storage import Storage
 from prefect.utilities.exceptions import StorageError
 
@@ -50,8 +50,8 @@ class GCS(Storage):
         self.key = key
         self.project = project
 
-        result_handler = GCSResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler, secrets=secrets)
+        result = GCSResult(bucket=bucket)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

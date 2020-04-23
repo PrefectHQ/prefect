@@ -104,9 +104,9 @@ def flow_information(flow: "prefect.Flow") -> dict:
         storage.update(_replace_values(flow.storage.__dict__))
 
     # Check presence of a result handler
-    result_handler = dict()  # type: ignore
-    if flow.result_handler:
-        result_handler = {"type": type(flow.result_handler).__name__}
+    result = dict()  # type: ignore
+    if flow.result:
+        result = {"type": type(flow.result).__name__}
 
     # Check presence of a schedule
     schedule = dict()  # type: ignore
@@ -118,7 +118,7 @@ def flow_information(flow: "prefect.Flow") -> dict:
         flow_information=dict(
             environment=environment,
             storage=storage,
-            result_handler=result_handler,
+            result=result,
             schedule=schedule,
             task_count=len(flow.tasks),
         )
