@@ -20,7 +20,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix Docker storage path issue when registering flows on Windows machines 0 [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
+- Fix Docker storage path issue when registering flows on Windows machines - [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
 
 ### Deprecations
 
