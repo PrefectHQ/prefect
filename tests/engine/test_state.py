@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
@@ -52,7 +52,7 @@ all_states = sorted(
 def test_create_state_with_no_args(cls):
     state = cls()
     assert state.message is None
-    assert state.result is None
+    assert state.result == NORESULT
     assert state.context == dict()
     assert state.cached_inputs == dict()
 
@@ -95,7 +95,7 @@ def test_create_state_with_fully_hydrated_result(cls):
 def test_create_state_with_positional_message_arg(cls):
     state = cls("i am a string")
     assert state.message == "i am a string"
-    assert state._result == NoResult
+    assert state._result == NORESULT
 
 
 @pytest.mark.parametrize("cls", all_states)
@@ -121,7 +121,7 @@ def test_create_state_with_tags_in_context(cls):
     with prefect.context(task_tags=set("abcdef")):
         state = cls()
     assert state.message is None
-    assert state.result is None
+    assert state.result == NORESULT
     assert state.context == dict(tags=list(set("abcdef")))
 
     with prefect.context(task_tags=set("abcdef")):

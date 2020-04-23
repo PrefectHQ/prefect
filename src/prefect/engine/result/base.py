@@ -75,6 +75,15 @@ class _NORESULT:
             return True
         return False
 
+    @property
+    def location(self):
+        return None
+
+    @property
+    def value(self):
+        return self
+
+
 NORESULT = _NORESULT()
 
 

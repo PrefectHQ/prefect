@@ -13,9 +13,21 @@ class SafeResultSchema(ObjectSchema):
     result_handler = fields.Nested(ResultHandlerSchema, allow_none=False)
 
 
+class ResultSchema(ObjectSchema):
+    class Meta:
+        object_class = result.Result
+
+    location = fields.Str(allow_none=True)
+
+
 class NoResultSchema(ObjectSchema):
     class Meta:
         object_class = result.NoResultType
+
+
+class NORESULTSchema(ObjectSchema):
+    class Meta:
+        object_class = result._NORESULT
 
 
 class StateResultSchema(OneOfSchema):
@@ -24,4 +36,9 @@ class StateResultSchema(OneOfSchema):
     """
 
     # map class name to schema
-    type_schemas = {"SafeResult": SafeResultSchema, "NoResultType": NoResultSchema}
+    type_schemas = {
+        "SafeResult": SafeResultSchema,
+        "NoResultType": NoResultSchema,
+        "Result": ResultSchema,
+        "_NORESULT": NORESULTSchema,
+    }

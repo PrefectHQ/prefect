@@ -720,7 +720,9 @@ class TaskRunner(Runner):
                                         preview=repr(upstream_state.result)[:10],
                                     )
                                 )
-                            upstream_result = upstream_state._result.from_value(upstream_state.result[i])
+                            upstream_result = upstream_state._result.from_value(
+                                upstream_state.result[i]
+                            )
                             states[edge].result = upstream_result
                         elif state.is_mapped():
                             if i >= len(state.map_states):  # type: ignore

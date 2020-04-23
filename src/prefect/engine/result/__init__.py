@@ -5,5 +5,6 @@ from prefect.engine.result.base import (
     NoResult,
     NoResultType,
     SafeResult,
+    _NORESULT,
     NORESULT,
 )

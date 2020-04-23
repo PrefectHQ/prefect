@@ -105,7 +105,7 @@ def test_serialize_state_with_no_result(cls):
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "NoResultType"
+    assert serialized["_result"]["type"] == "_NORESULT"
     assert serialized["__version__"] == prefect.__version__
 
 

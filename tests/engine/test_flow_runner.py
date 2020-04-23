@@ -558,7 +558,9 @@ class TestInputCaching:
         assert first_state.is_running()
 
         a_state = first_state.result[a_res]
-        a_state.result = NORESULT  # remove the result to see if the cached results are picked up
+        a_state.result = (
+            NORESULT  # remove the result to see if the cached results are picked up
+        )
         b_state = first_state.result[b_res]
         b_state.cached_inputs = dict(x=Result(2))  # artificially alter state
 
