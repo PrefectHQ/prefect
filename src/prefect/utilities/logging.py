@@ -40,7 +40,9 @@ class CloudHandler(logging.StreamHandler):
         self.client = None
         self.logger = logging.getLogger("CloudHandler")
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(context.config.logging.format)
+        formatter = logging.Formatter(
+            context.config.logging.format, context.config.logging.datefmt
+        )
         formatter.converter = time.gmtime  # type: ignore
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
@@ -198,7 +200,9 @@ def _create_logger(name: str) -> logging.Logger:
 
     logger = logging.getLogger(name)
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(context.config.logging.format)
+    formatter = logging.Formatter(
+        context.config.logging.format, context.config.logging.datefmt
+    )
     formatter.converter = time.gmtime  # type: ignore
     handler.setFormatter(formatter)
     logger.addHandler(handler)

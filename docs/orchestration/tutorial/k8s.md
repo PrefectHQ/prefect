@@ -79,4 +79,4 @@ For a high availability set up you should install the Kubernetes Agent into your
 prefect agent install kubernetes -t <YOUR_RUNNER_TOKEN> --rbac | kubectl apply -f -
 ```
 
-Once the Agent has been created on your cluster it create Jobs on that cluster for each flow run. For more information on the Kubernetes Agent visit the [documentation](/cloud/agents/kubernetes.html).
+Once the Agent has been created on your cluster it create Jobs on that cluster for each flow run. For more information on the Kubernetes Agent visit the [documentation](/orchestration/agents/kubernetes.html).

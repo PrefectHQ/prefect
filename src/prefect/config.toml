@@ -44,6 +44,7 @@ endpoint = "${server.host}:${server.port}"
     port = "8080"
     host_port = "8080"
     endpoint = "${server.ui.host}:${server.ui.port}"
+    graphql_url = "http://localhost:4200/graphql"
 
 [cloud]
 api = "${${backend}.endpoint}"
@@ -79,6 +80,9 @@ level = "INFO"
 
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
+
+# the timestamp format
+datefmt = "%Y-%m-%d %H:%M:%S"
 
 # Send logs to Prefect Cloud
 log_to_cloud = false

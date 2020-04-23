@@ -278,11 +278,17 @@ def test_heartbeat_passes_base_agent(runner_token):
 
 
 def test_agent_connect(monkeypatch, runner_token):
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(return_value=dict(data=dict(tenant=[dict(id="id")])))
-        )
-    )
+    post = MagicMock(return_value=MagicMock(json=MagicMock(return_value="hello")))
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    agent = Agent()
+    assert agent.agent_connect() is None
+
+
+def test_agent_connect_handled_error(monkeypatch, runner_token):
+    post = MagicMock(side_effect=Exception)
     session = MagicMock()
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)

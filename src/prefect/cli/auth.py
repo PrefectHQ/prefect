@@ -182,17 +182,17 @@ def switch_tenants(id, slug):
 
 @auth.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A token name.", hidden=True)
-@click.option("--role", "-r", required=True, help="A token role.", hidden=True)
-def create_token(name, role):
+@click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
+def create_token(name, scope):
     """
     Create a Prefect Cloud API token.
 
-    For more info on API tokens visit https://docs.prefect.io/cloud/concepts/api.html
+    For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
 
     \b
     Options:
         --name, -n      TEXT    A name to give the generated token
-        --role, -r      TEXT    A role for the token
+        --scope, -r     TEXT    A scope for the token
     """
     check_override_auth_token()
 
@@ -204,7 +204,7 @@ def create_token(name, role):
                 "create_api_token(input: $input)": {"token"}
             }
         },
-        variables=dict(input=dict(name=name, role=role)),
+        variables=dict(input=dict(name=name, scope=scope)),
     )
 
     if not output.get("data", None):

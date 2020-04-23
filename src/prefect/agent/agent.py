@@ -52,7 +52,7 @@ def exit_handler(agent: "Agent") -> Generator:
 class Agent:
     """
     Base class for Agents. Information on using the Prefect agents can be found at
-    https://docs.prefect.io/cloud/agents/overview.html
+    https://docs.prefect.io/orchestration/agents/overview.html
 
     This Agent class is a standard point for executing Flows in Prefect Cloud. It is meant
     to have subclasses which inherit functionality from this class. The only piece that
@@ -184,18 +184,27 @@ class Agent:
 
     def agent_connect(self) -> None:
         """
-        Verify agent connection to Prefect Cloud by finding and returning a tenant id
+        Verify agent connection to Prefect API by querying
         """
         print(ascii_name)
         self.logger.info(
             "Starting {} with labels {}".format(type(self).__name__, self.labels)
         )
         self.logger.info(
-            "Agent documentation can be found at https://docs.prefect.io/cloud/"
+            "Agent documentation can be found at https://docs.prefect.io/orchestration/"
         )
 
-        if config.backend == "cloud":
-            self.logger.info("Agent successfully connected to the Prefect API")
+        self.logger.info(
+            "Agent connecting to the Prefect API at {}".format(config.cloud.api)
+        )
+        try:
+            self.client.graphql(query="query { hello }")
+        except Exception as exc:
+            self.logger.error(
+                "There was an error connecting to {}".format(config.cloud.api)
+            )
+            self.logger.error(exc)
+
         self.logger.info("Waiting for flow runs...")
 
     def deploy_and_update_flow_run(self, flow_run: "GraphQLResult") -> None:

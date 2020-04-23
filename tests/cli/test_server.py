@@ -1,8 +1,9 @@
-import subprocess
 from unittest.mock import MagicMock
 
 from click.testing import CliRunner
+import pytest
 
+import prefect
 from prefect.cli.server import server, make_env
 from prefect.utilities.configuration import set_temporary_config
 
@@ -60,7 +61,7 @@ def test_make_env_config_vars():
         assert env["HASURA_HOST_PORT"] == "7"
 
 
-def test_server_start(monkeypatch):
+def test_server_start(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -89,7 +90,38 @@ def test_server_start(monkeypatch):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_options_and_flags(monkeypatch):
+@pytest.mark.parametrize(
+    "version",
+    [
+        ("0.10.3", "0.10.3"),
+        ("0.10.3+114.g35bc7ba4", "master"),
+        ("0.10.2+999.gr34343.dirty", "master"),
+    ],
+)
+def test_server_start_image_versions(monkeypatch, version, macos_platform):
+    check_call = MagicMock()
+    popen = MagicMock(side_effect=KeyboardInterrupt())
+    check_output = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+    monkeypatch.setattr("subprocess.check_call", check_call)
+    monkeypatch.setattr("subprocess.check_output", check_output)
+    monkeypatch.setattr(prefect, "__version__", version[0])
+
+    runner = CliRunner()
+    result = runner.invoke(server, ["start"])
+    assert result.exit_code == 1
+
+    assert check_call.called
+    assert popen.called
+    assert check_output.called
+
+    assert popen.call_args[0][0] == ["docker-compose", "up"]
+    assert popen.call_args[1].get("cwd")
+    assert popen.call_args[1].get("env")
+    assert popen.call_args[1]["env"].get("PREFECT_SERVER_TAG") == version[1]
+
+
+def test_server_start_options_and_flags(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -122,7 +154,7 @@ def test_server_start_options_and_flags(monkeypatch):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_port_options(monkeypatch):
+def test_server_start_port_options(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -163,7 +195,7 @@ def test_server_start_port_options(monkeypatch):
     assert popen.call_args[1]["env"].get("APOLLO_HOST_PORT") == "5"
 
 
-def test_server_start_disable_port_mapping(monkeypatch):
+def test_server_start_disable_port_mapping(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
     check_output = MagicMock()
@@ -200,3 +232,34 @@ def test_server_start_disable_port_mapping(monkeypatch):
     assert check_output.call_args[0][0] == ["docker-compose", "down"]
     assert check_output.call_args[1].get("cwd")
     assert check_output.call_args[1].get("env")
+
+
+def test_server_start_linux_host(monkeypatch, linux_platform):
+    popen = MagicMock(side_effect=KeyboardInterrupt())
+    check_output = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+    monkeypatch.setattr("subprocess.check_output", check_output)
+
+    sys_platform = MagicMock()
+    sys_platform.return_value = "linux"
+    monkeypatch.setattr("sys.platform", sys_platform)
+
+    get_docker_ip = MagicMock()
+    get_docker_ip.return_value = "172.17.0.1"
+    monkeypatch.setattr("prefect.cli.server.get_docker_ip", get_docker_ip)
+
+    yaml_dump = MagicMock()
+    monkeypatch.setattr("yaml.safe_dump", yaml_dump)
+
+    runner = CliRunner()
+    result = runner.invoke(server, ["start", "--skip-pull",],)
+    assert result.exit_code == 1
+
+    assert popen.called
+    assert check_output.called
+
+    call_arg = yaml_dump.call_args[0][0]
+    for svc in ("postgres", "hasura", "graphql", "apollo", "scheduler", "ui"):
+        assert call_arg["services"][svc]["extra_hosts"] == [
+            "host.docker.internal:172.17.0.1"
+        ]

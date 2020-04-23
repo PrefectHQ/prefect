@@ -1,11 +1,11 @@
-# Fargate Agent <Badge text="Cloud"/>
+# Fargate Agent
 
 The Fargate Agent is an agent designed to deploy flows as Tasks using AWS Fargate. This agent can be run anywhere so long as the proper AWS configuration credentials are provided.
 
 [[toc]]
 
-::: warning Core server not supported, yet
-This agent is not currently supported with Prefect Core's server. Deployments using Prefect Core and Fargate will be added in a future release.
+::: warning Core server
+In order to use this agent with Prefect Core's server the server's GraphQL API endpoint must be accessible.
 :::
 
 ### Requirements
@@ -25,14 +25,14 @@ $ prefect agent start fargate
                                            |___/
 
 2019-08-27 14:33:39,772 - agent - INFO - Starting FargateAgent
-2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-08-27 14:33:39,772 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-08-27 14:33:40,932 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-08-27 14:33:40,932 - agent - INFO - Waiting for flow runs...
 ```
 
 The Fargate Agent can be started either through the Prefect CLI or by importing the `FargateAgent` class from the core library. Starting the agent from the CLI will require that the required AWS configuration arguments are set at the environment level while importing the agent class in a Python process will allow you to specify them at initialization.
 
-::: tip Tokens
+::: tip Tokens <Badge text="Cloud"/>
 There are a few ways in which you can specify a `RUNNER` API token:
 
 - command argument `prefect agent start fargate -t MY_TOKEN`
@@ -82,7 +82,7 @@ When the flow run is found and the Task is run the logs of the agent should refl
 
 ```
 2019-09-01 19:00:30,532 - agent - INFO - Starting FargateAgent
-2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/cloud/
+2019-09-01 19:00:30,533 - agent - INFO - Agent documentation can be found at https://docs.prefect.io/orchestration/
 2019-09-01 19:00:30,655 - agent - INFO - Agent successfully connected to Prefect Cloud
 2019-09-01 19:00:30,733 - agent - INFO - Waiting for flow runs...
 2019-09-01 19:01:08,835 - agent - INFO - Found 1 flow run(s) to submit for execution.

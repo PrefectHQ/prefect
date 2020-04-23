@@ -340,7 +340,7 @@ export default {
               <router-link
                 to="docs"
                 target="_blank"
-                href="https://docs.prefect.io/cloud/concepts/flows.html#flow-versions-and-archiving"
+                href="https://docs.prefect.io/orchestration/concepts/flows.html#flow-versions-and-archiving"
               >
                 Flow Versions and Archiving
               </router-link>

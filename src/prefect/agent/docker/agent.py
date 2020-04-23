@@ -1,7 +1,8 @@
-import re
 import multiprocessing
 import ntpath
 import posixpath
+import re
+import sys
 from sys import platform
 from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
@@ -9,6 +10,7 @@ from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.storage import StorageSchema
+from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
 if TYPE_CHECKING:
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 class DockerAgent(Agent):
     """
     Agent which deploys flow runs locally as Docker containers. Information on using the
-    Docker Agent can be found at https://docs.prefect.io/cloud/agents/docker.html
+    Docker Agent can be found at https://docs.prefect.io/orchestration/agents/docker.html
 
     Environment variables may be set on the agent to be provided to each flow run's container:
     ```
@@ -47,6 +49,7 @@ class DockerAgent(Agent):
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
             to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
+        - network (str, optional): Add containers to an existing docker network
     """
 
     def __init__(
@@ -59,6 +62,7 @@ class DockerAgent(Agent):
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
+        network: str = None,
     ) -> None:
         super().__init__(
             name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
@@ -85,6 +89,10 @@ class DockerAgent(Agent):
             self.container_mount_paths,
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
+
+        # Add containers to a docker network
+        self.network = network
+        self.logger.debug("Docker network set to {}".format(self.network))
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -326,24 +334,39 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(storage.name))
 
+        host_config = {"auto_remove": True}  # type: dict
         container_mount_paths = self.container_mount_paths
-        if not container_mount_paths:
-            host_config = None
-        else:
-            host_config = self.docker_client.create_host_config(binds=self.host_spec)
+        if container_mount_paths:
+            host_config.update(binds=self.host_spec)
+
+        if sys.platform.startswith("linux"):
+            docker_internal_ip = get_docker_ip()
+            host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
+
+        networking_config = None
+        if self.network:
+            networking_config = self.docker_client.create_networking_config(
+                {self.network: self.docker_client.create_endpoint_config()}
+            )
 
         container = self.docker_client.create_container(
             storage.name,
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,
-            host_config=host_config,
+            host_config=self.docker_client.create_host_config(**host_config),
+            networking_config=networking_config,
         )
 
         # Start the container
         self.logger.debug(
             "Starting Docker container with ID {}".format(container.get("Id"))
         )
+        if self.network:
+            self.logger.debug(
+                "Adding container to docker network: {}".format(self.network)
+            )
+
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:

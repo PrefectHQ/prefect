@@ -309,7 +309,7 @@ This defaults to the most recent version of a flow and to describe tasks for pas
 
 ### agent
 
-For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/cloud/agents/overview.html).
+For more information regarding Prefect Agents refer to the [agent documentation](https://docs.prefect.io/orchestration/agents/overview.html).
 
 ### create
 
@@ -444,7 +444,7 @@ Unable to switch tenant
 
 #### auth create-token
 
-Running `prefect auth create-token --name MY_TOKEN --role RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens go [here](./api.html).
+Running `prefect auth create-token --name MY_TOKEN --scope RUNNER` will generate a Prefect Cloud API token and output it to stdout. For more information on API tokens go [here](./api.html).
 
 ```
 $ prefect auth create-token -n MyToken -r RUNNER

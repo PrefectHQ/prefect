@@ -441,6 +441,22 @@ class TestAzureResultHandler:
             "sas_token": None,
         }
 
+    def test_azure_service_init_uses_connection_string_over_secret(self, azure_service):
+        handler = AzureResultHandler(
+            container="bob", azure_credentials_secret="MY_FOO", connection_string="TEST"
+        )
+
+        with prefect.context(
+            secrets=dict(MY_FOO=dict(ACCOUNT_NAME=1, ACCOUNT_KEY=999))
+        ):
+            with set_temporary_config({"cloud.use_local_secrets": True}):
+                handler.initialize_service()
+
+        assert handler.container == "bob"
+        assert azure_service.call_args[1] == {
+            "connection_string": "TEST",
+        }
+
     def test_azure_service_writes_to_blob_prefixed_by_date_suffixed_by_prefect(
         self, azure_service
     ):

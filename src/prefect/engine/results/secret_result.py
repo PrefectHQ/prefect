@@ -19,22 +19,22 @@ class SecretResult(Result):
         self, secret_task: "prefect.tasks.secrets.Secret", **kwargs: Any
     ) -> None:
         self.secret_task = secret_task
-        kwargs.setdefault("filepath", secret_task.name)
+        kwargs.setdefault("location", secret_task.name)
         super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the Secret Value corresponding to the passed name.
 
         Args:
-            - filepath (str): the name of the Secret to retrieve
+            - location (str): the name of the Secret to retrieve
 
         Returns:
-            - Result: a new result instance with the data represented by the filepath
+            - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.value = self.secret_task.run(name=filepath)
-        new.filepath = filepath
+        new.value = self.secret_task.run(name=location)
+        new.location = location
         return new
 
     def write(self, value: Any, **kwargs: Any) -> Result:

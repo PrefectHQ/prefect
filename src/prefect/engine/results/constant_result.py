@@ -8,19 +8,18 @@ class ConstantResult(Result):
     internally.  The "backend" in this instance is the class instance itself.
 
     Args:
-        - value (Any): the underlying value this Result should represent
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, value: Any = None, **kwargs: Any) -> None:
-        self.value = value
-        super().__init__(value=value, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
-    def read(self, filepath: str) -> Result:
+    def read(self, location: str) -> Result:
         """
         Returns the underlying value regardless of the argument passed.
 
         Args:
-            - filepath (str): an unused argument
+            - location (str): an unused argument
         """
         return self
 
@@ -37,12 +36,12 @@ class ConstantResult(Result):
         """
         raise ValueError("Cannot write values to `ConstantResult` types.")
 
-    def exists(self, filepath: str) -> bool:
+    def exists(self, location: str) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
-             - filepath (str): for interface compatibility
+             - location (str): for interface compatibility
 
         Returns:
             - bool: True, confirming the constant exists.

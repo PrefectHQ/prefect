@@ -116,6 +116,9 @@ def agent():
     help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
     hidden=True,
 )
+@click.option(
+    "--network", help="Add containers to an existing docker network", hidden=True,
+)
 @click.pass_context
 def start(
     ctx,
@@ -132,6 +135,7 @@ def start(
     import_path,
     show_flow_logs,
     volume,
+    network,
     max_polls,
 ):
     """
@@ -172,6 +176,7 @@ def start(
                                 Defaults to pulling if not provided
         --volume        TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
                                 Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
+        --network       TEXT    Add containers to an existing docker network
 
     \b
     Kubernetes Agent Options:
@@ -181,7 +186,7 @@ def start(
     \b
     Fargate Agent Options:
         Any of the configuration options outlined in the docs can be provided here
-        https://docs.prefect.io/cloud/agents/fargate.html#configuration
+        https://docs.prefect.io/orchestration/agents/fargate.html#configuration
     """
 
     # Split context
@@ -228,6 +233,7 @@ def start(
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
                 volumes=list(volume),
+                network=network,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(

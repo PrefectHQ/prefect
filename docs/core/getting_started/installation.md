@@ -7,7 +7,7 @@ title: Installation
 
 ## Requirements
 
-Prefect requires Python 3.6+.
+Prefect requires Python 3.6+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
 
 ## Installation
 
@@ -29,7 +29,7 @@ or `pipenv`:
 pipenv install --pre prefect
 ```
 
-## Optional dependencies
+### Optional dependencies
 
 Prefect ships with a number of optional dependencies, which can be installed using "extras" syntax:
 
@@ -37,7 +37,7 @@ Prefect ships with a number of optional dependencies, which can be installed usi
 pip install "prefect[extra_1, extra_2]"
 ```
 
-The extra packages include:
+Examples of extra packages include:
 
 - `all_extras`: includes all of the optional dependencies
 - `dev`: tools for developing Prefect itself
@@ -51,27 +51,23 @@ The extra packages include:
 - `spacy`: tools for building NLP pipelines using Spacy
 - `redis`: tools for interacting with a Redis database
 
-## Running the orchestration server
+## Running the local server and UI
 
-Prefect Core's server is an open-source backend that can orchestrate any flows written in the Prefect Core Python API. It stores flow run metadata in a Postgres database, exposes it over a GraphQL API, and provides an interactive web UI in Vue.js.
+In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source server and UI for orchestrating and managing flows. The local server stores flow metadata in a Postgres database and exposes a GraphQL API.
 
-**Note:** Prefect Server requires both Docker and Docker Compose.
+Before running the server for the first time, run `prefect backend server` to configure Prefect for local orchestration. Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
 
-To run the server through Docker, run the command:
+To start the server, UI, and all required infrastructure, run:
 
-```bash
+```
 prefect server start
 ```
 
-Navigate in a browser to `http://localhost:8080`. You will see the Prefect Server UI.
+Once all components are running, you can view the UI by visiting [http://localhost:8080](http://localhost:8080).
 
-::: tip Backend toggle
-The backend can be toggled between Prefect Core's server and Prefect Cloud by running the command `prefect backend` with either `server` or `cloud` for the desired option.
-:::
+Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent start`.
 
-## Development
-
-For developing Prefect, see the [development guide](../development/overview.md).
+Finally, to register any flow with the server, call `flow.register()`. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
 
 ## Docker
 
@@ -85,13 +81,13 @@ docker run -it prefecthq/prefect:latest
 
 Image tag breakdown:
 
-| Tag              | Prefect Version          | Python Version |
-|------------------|:------------------------:|---------------:|
+| Tag              |     Prefect Version      | Python Version |
+| ---------------- | :----------------------: | -------------: |
 | latest           | most recent PyPi version |            3.7 |
-| master           | master build             |            3.7 |
+| master           |       master build       |            3.7 |
 | latest-python3.8 | most recent PyPi version |            3.8 |
 | latest-python3.7 | most recent PyPi version |            3.7 |
 | latest-python3.6 | most recent PyPi version |            3.6 |
-| X.Y.Z-python3.8  | X.Y.Z                    |            3.8 |
-| X.Y.Z-python3.7  | X.Y.Z                    |            3.7 |
-| X.Y.Z-python3.6  | X.Y.Z                    |            3.6 |
+| X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
+| X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
+| X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |

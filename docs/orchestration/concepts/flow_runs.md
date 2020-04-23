@@ -6,9 +6,9 @@ Flow runs track the execution of a flow. They represent a discrete instantiation
 
 ### UI
 
-To create a flow run from the UI, visit the [flow page](/cloud/ui/flow.html#run) and click "Run Flow".
+To create a flow run from the UI, visit the [flow page](/orchestration/ui/flow.html#run) and click "Run Flow".
 
-![](/cloud/ui/flow-run.png)
+![](/orchestration/ui/flow-run.png)
 
 ### Core Client
 
@@ -81,9 +81,9 @@ mutation {
 
 ### UI
 
-To manually set a flow run state from the UI, visit the [flow run page](/cloud/ui/flowrun).
+To manually set a flow run state from the UI, visit the [flow run page](/orchestration/ui/flowrun).
 
-![](/cloud/ui/flowrun-mark-as.png)
+![](/orchestration/ui/flowrun-mark-as.png)
 
 ### GraphQL <Badge text="GQL"/>
 

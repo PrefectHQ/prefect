@@ -32,7 +32,7 @@ After you click create you will be prompted with the token which you can copy an
 
 ### CLI
 
-To create a token with the CLI run the `create-token` command with the desired token name and role. For more information on how to use the CLI go [here](cli.html).
+To create a token with the CLI run the `create-token` command with the desired token name and scope. For more information on how to use the CLI go [here](cli.html).
 
 ```
 $ prefect auth create-token -n my-runner-token -r RUNNER
@@ -44,7 +44,7 @@ To create a token using GraphQL execute the `create_api_token` mutation against 
 
 ```graphql
 mutation {
-  create_api_token(input: { name: "my-runner-token", role: RUNNER }) {
+  create_api_token(input: { name: "my-runner-token", scope: RUNNER }) {
     token
   }
 }

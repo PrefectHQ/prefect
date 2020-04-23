@@ -6,3 +6,4 @@ include src/prefect_server/licenses/*.toml
 include versioneer.py
 include src/prefect_server/_version.py
 graft services
+include alembic.ini

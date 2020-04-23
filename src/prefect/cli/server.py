@@ -1,19 +1,20 @@
-import click
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import time
+from pathlib import Path
 
+import click
 import yaml
 
+import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
-
     # replace localhost with postgres to use docker-compose dns
     PREFECT_ENV = dict(
         DB_CONNECTION_URL=config.server.database.connection_url.replace(
@@ -31,7 +32,7 @@ def make_env(fname=None):
             config.server.hasura.port
         ),
         PREFECT_API_URL="http://graphql:{port}{path}".format(
-            port=config.server.graphql.port, path=config.server.graphql.path,
+            port=config.server.graphql.port, path=config.server.graphql.path
         ),
         PREFECT_API_HEALTH_URL="http://graphql:{port}/health".format(
             port=config.server.graphql.port
@@ -46,10 +47,12 @@ def make_env(fname=None):
         POSTGRES_DB=config.server.database.name,
     )
 
+    UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
+
     HASURA_ENV = dict(HASURA_HOST_PORT=config.server.hasura.host_port)
 
     ENV = os.environ.copy()
-    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **HASURA_ENV)
+    ENV.update(**PREFECT_ENV, **APOLLO_ENV, **POSTGRES_ENV, **UI_ENV, **HASURA_ENV)
 
     if fname is not None:
         list_of_pairs = [
@@ -88,8 +91,6 @@ def server():
     "--version",
     "-v",
     help="The server image versions to use (for example, '0.10.0' or 'master')",
-    # TODO: update this default to use prefect.__version__ logic
-    default="latest",
     hidden=True,
 )
 @click.option(
@@ -196,7 +197,7 @@ def start(
     \b
     Options:
         --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
-                                Defaults to 'latest'
+                                Defaults to the current installed Prefect version.
         --skip-pull             Flag to skip pulling new images (if available)
         --no-upgrade, -n        Flag to avoid running a database upgrade when the database spins up
         --no-ui, -u             Flag to avoid starting the UI
@@ -226,13 +227,14 @@ def start(
         or no_graphql_port
         or no_ui_port
         or no_server_port
+        or platform_is_linux()
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
         shutil.copy2(os.path.join(docker_dir, "docker-compose.yml"), temp_path)
 
         with open(temp_path, "r") as file:
-            y = yaml.load(file)
+            y = yaml.safe_load(file)
 
             if no_postgres_port:
                 del y["services"]["postgres"]["ports"]
@@ -249,8 +251,15 @@ def start(
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
 
+            if platform_is_linux():
+                docker_internal_ip = get_docker_ip()
+                for service in list(y["services"]):
+                    y["services"][service]["extra_hosts"] = [
+                        "host.docker.internal:{}".format(docker_internal_ip)
+                    ]
+
         with open(temp_path, "w") as f:
-            y = yaml.dump(y, f)
+            y = yaml.safe_dump(y, f)
 
         compose_dir_path = temp_dir
 
@@ -267,7 +276,11 @@ def start(
         env = make_env()
 
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version)
+        env.update(
+            PREFECT_SERVER_TAG=version or "master"
+            if len(prefect.__version__.split("+")) > 1
+            else prefect.__version__
+        )
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"
