@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import MagicMock
 
 import cloudpickle
+import pendulum
 import pytest
 import requests
 from box import Box
@@ -15,7 +16,7 @@ from box import Box
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cache_validators import all_inputs
+from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
 from prefect.engine.results import PrefectResult, SecretResult
@@ -242,107 +243,196 @@ def test_task_runner_validates_cached_states_if_task_has_caching(client):
     assert res.result == 42
 
 
-def test_task_runner_validates_cached_state_inputs_if_task_has_caching(client):
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1),
-        cache_validator=all_inputs,
-        result_handler=JSONResultHandler(),
-    )
-    def cached_task(x):
-        return 42
+class TestCheckTaskCached:
+    def test_reads_result_if_cached_valid(self, client):
+        result = PrefectResult(location="2")
 
-    dull_state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("-1", JSONResultHandler()),
-    )
-    state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("99", JSONResultHandler()),
-        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
-    )
-    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=duration_only, result=PrefectResult())
 
-    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
-    )
-    assert client.get_latest_cached_states.called
-    assert res.is_successful()
-    assert res.is_cached()
-    assert res.result == 99
+        state = Cached(
+            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1),
+        )
 
+        client.get_latest_cached_states = MagicMock(return_value=[])
 
-def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
-    client,
-):
-    class Handler(ResultHandler):
-        def read(self, val):
-            return 1337
+        new = CloudTaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": PrefectResult(value=1)}
+        )
+        assert new is state
+        assert new.result == 2
 
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1),
-        cache_validator=all_inputs,
-        result_handler=JSONResultHandler(),
-    )
-    def cached_task(x):
-        return 42
+    def test_reads_result_using_handler_attribute_if_cached_valid(self, client):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = 53
+                return self
 
-    dull_state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("-1", JSONResultHandler()),
-    )
-    state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("99", JSONResultHandler()),
-        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
-    )
-    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+        with pytest.warns(UserWarning):
+            task = Task(cache_validator=duration_only, result=MyResult())
+        result = PrefectResult(location="2")
+        state = Cached(
+            result=result, cached_result_expiration=pendulum.now("utc").add(minutes=1),
+        )
 
-    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-        Pending(), inputs={"x": Result(2, result_handler=Handler())}
-    )
-    assert client.get_latest_cached_states.called
-    assert res.is_pending()
+        client.get_latest_cached_states = MagicMock(return_value=[])
 
+        new = CloudTaskRunner(task).check_task_is_cached(
+            state=state, inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 53
 
-def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
-    client,
-):
-    class Handler(ResultHandler):
-        def read(self, val):
-            return 1337
+    def test_reads_result_if_cached_valid_using_task_result(task, client):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = 53
+                return self
 
-    @prefect.task(
-        cache_for=datetime.timedelta(minutes=1),
-        cache_validator=all_inputs,
-        result_handler=Handler(),
-    )
-    def cached_task(x):
-        return 42
+        task = Task(
+            result=MyResult(),
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=duration_only,
+        )
+        state = Cached(
+            result=PrefectResult(location="2"),
+            cached_result_expiration=pendulum.now("utc").add(minutes=1),
+        )
 
-    dull_state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("-1", JSONResultHandler()),
-    )
-    state = Cached(
-        cached_result_expiration=datetime.datetime.utcnow()
-        + datetime.timedelta(minutes=2),
-        result=SafeResult("99", JSONResultHandler()),
-        cached_inputs={"x": SafeResult("2", result_handler=JSONResultHandler())},
-    )
-    client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+        client.get_latest_cached_states = MagicMock(return_value=[state])
+        new = CloudTaskRunner(task).check_task_is_cached(
+            state=Pending(), inputs={"a": Result(1)}
+        )
+        assert new is state
+        assert new.result == 53
 
-    res = CloudTaskRunner(task=cached_task).check_task_is_cached(
-        Pending(), inputs={"x": Result(2, result_handler=JSONResultHandler())}
-    )
-    assert client.get_latest_cached_states.called
-    assert res.is_successful()
-    assert res.is_cached()
-    assert res.result == 1337
+    def test_state_kwarg_is_prioritized_over_db_caches(self, client):
+        task = Task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=duration_only,
+            result=PrefectResult(),
+        )
+        state_a = Cached(
+            result=PrefectResult(location="2"),
+            cached_result_expiration=pendulum.now("utc").add(minutes=1),
+        )
+        state_b = Cached(
+            result=PrefectResult(location="99"),
+            cached_result_expiration=pendulum.now("utc").add(minutes=1),
+        )
+
+        client.get_latest_cached_states = MagicMock(return_value=[state_a])
+        new = CloudTaskRunner(task).check_task_is_cached(
+            state=state_b, inputs={"a": Result(1)}
+        )
+        assert new is state_b
+        assert new.result == 99
+
+    def test_task_runner_validates_cached_state_inputs_if_task_has_caching(
+        self, client
+    ):
+        @prefect.task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=all_inputs,
+            result=PrefectResult(),
+        )
+        def cached_task(x):
+            return 42
+
+        dull_state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="-1"),
+        )
+        state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="99"),
+            cached_inputs={"x": PrefectResult(location="2")},
+        )
+        client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+        res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+            Pending(), inputs={"x": PrefectResult(value=2)}
+        )
+        assert client.get_latest_cached_states.called
+        assert res.is_successful()
+        assert res.is_cached()
+        assert res.result == 99
+
+    def test_task_runner_validates_cached_state_inputs_with_upstream_handlers_if_task_has_caching(
+        self, client
+    ):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                new = self.copy()
+                new.value = 1337
+                return new
+
+        @prefect.task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=all_inputs,
+            result=PrefectResult(),
+        )
+        def cached_task(x):
+            return 42
+
+        dull_state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="-1"),
+        )
+        state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="99"),
+            cached_inputs={"x": PrefectResult(location="2")},
+        )
+        client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+        res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+            Pending(), inputs={"x": MyResult(value=2)}
+        )
+        assert client.get_latest_cached_states.called
+        assert res.is_pending()
+
+    def test_task_runner_validates_cached_state_inputs_if_task_has_caching_and_uses_task_handler(
+        self, client
+    ):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                new = self.copy()
+                new.value = 1337
+                return new
+
+        @prefect.task(
+            cache_for=datetime.timedelta(minutes=1),
+            cache_validator=all_inputs,
+            result=MyResult(),
+        )
+        def cached_task(x):
+            return 42
+
+        dull_state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="-1"),
+        )
+        state = Cached(
+            cached_result_expiration=datetime.datetime.utcnow()
+            + datetime.timedelta(minutes=2),
+            result=PrefectResult(location="99"),
+            cached_inputs={"x": PrefectResult(location="2")},
+        )
+        client.get_latest_cached_states = MagicMock(return_value=[dull_state, state])
+
+        res = CloudTaskRunner(task=cached_task).check_task_is_cached(
+            Pending(), inputs={"x": PrefectResult(value=2)}
+        )
+        assert client.get_latest_cached_states.called
+        assert res.is_successful()
+        assert res.is_cached()
+        assert res.result == 1337
 
 
 def test_task_runner_raises_endrun_if_client_cant_receive_state_updates(monkeypatch):

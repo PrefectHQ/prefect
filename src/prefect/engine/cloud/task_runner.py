@@ -107,7 +107,7 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            cloud_state = prepare_state_for_cloud(new_state)
+            cloud_state = new_state
             state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
@@ -193,6 +193,15 @@ class CloudTaskRunner(TaskRunner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
+        if state.is_cached():
+            assert isinstance(state, Cached)  # mypy assert
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
+            if self.task.cache_validator(
+                state, sanitized_inputs, prefect.context.get("parameters")
+            ):
+                state._result = state._result.populate_result(self.result)
+                return state
+
         if self.task.cache_for is not None:
             oldest_valid_cache = datetime.datetime.utcnow() - self.task.cache_for
             cached_states = self.client.get_latest_cached_states(
@@ -218,15 +227,15 @@ class CloudTaskRunner(TaskRunner):
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
                 candidate_state.cached_inputs = {
-                    key: res.to_result(inputs[key].result_handler)  # type: ignore
-                    for key, res in (candidate_state.cached_inputs or {}).items()
+                    key: res.populate_result(inputs[key])  # type: ignore
+                    for key, res in candidate_state.cached_inputs.items()
                 }
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
                 if self.task.cache_validator(
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate_state._result = candidate_state._result.to_result(
-                        self.task.result_handler
+                    candidate_state._result = candidate_state._result.populate_result(
+                        self.result
                     )
                     return candidate_state
 

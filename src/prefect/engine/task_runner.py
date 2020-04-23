@@ -626,7 +626,6 @@ class TaskRunner(Runner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.populate_result(self.result)
                 return state
             else:
                 state = Pending("Cache was invalid; ready to run.")
@@ -640,9 +639,6 @@ class TaskRunner(Runner):
                 if self.task.cache_validator(
                     candidate, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate._result = candidate._result.populate_result(
-                        self.task.result
-                    )
                     return candidate
 
         if self.task.cache_for is not None:
