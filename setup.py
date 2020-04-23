@@ -50,7 +50,6 @@ extras = {
     "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2", "dask-kubernetes >= 0.8.0"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
     "pushbullet": ["pushbullet.py >= 0.10.0"],
-    "python-magic": ["python-magic >= 0.4.15"],
     "redis": ["redis >= 3.2.1"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
