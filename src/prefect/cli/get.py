@@ -2,6 +2,7 @@ import click
 import pendulum
 from tabulate import tabulate
 
+from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -80,7 +81,7 @@ def flows(name, version, project, limit, all_versions):
 
     headers = ["NAME", "VERSION", "AGE"]
 
-    if project:
+    if config.backend == "cloud":
         where_clause["_and"]["project"] = {"name": {"_eq": project}}
         query_results["project"] = {"name": True}
         headers.append("PROJECT NAME")
@@ -219,14 +220,14 @@ def flow_runs(limit, flow, project, started):
             }
         }
 
-        if project:
+        if config.backend == "cloud":
             where["_and"]["flow"]["_and"]["project"] = {"name": {"_eq": project}}
     else:
         order = {"created": EnumValue("desc")}
 
         where = {"flow": {"_and": {"name": {"_eq": flow},}}}
 
-        if project:
+        if config.backend == "cloud":
             where["flow"]["_and"]["project"] = {"name": {"_eq": project}}
 
     query = {
@@ -307,7 +308,7 @@ def tasks(name, flow_name, flow_version, project, limit):
         }
     }
 
-    if project:
+    if config.backend == "cloud":
         where_clause["_and"]["flow"]["project"] = {"name": {"_eq": project}}
 
     query = {
