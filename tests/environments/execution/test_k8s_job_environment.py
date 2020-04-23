@@ -25,10 +25,25 @@ def test_create_k8s_job_environment():
         )
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.executor_kwargs == {}
         assert environment.labels == set()
         assert environment.on_start is None
         assert environment.on_exit is None
         assert environment.logger.name == "prefect.KubernetesJobEnvironment"
+
+
+def test_create_k8s_job_environment_with_executor_kwargs():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"),
+            executor_kwargs={"test": "here"},
+        )
+        assert environment
+        assert environment.executor_kwargs == {"test": "here"}
 
 
 def test_create_k8s_job_environment_labels():
@@ -195,12 +210,19 @@ def test_create_flow_run_job_fails_outside_cluster():
 
 def test_run_flow(monkeypatch):
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
-    environment = KubernetesJobEnvironment(path.join(file_path, "job.yaml"))
+    environment = KubernetesJobEnvironment(
+        path.join(file_path, "job.yaml"), executor_kwargs={"test": "here"}
+    )
 
     flow_runner = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.get_default_flow_runner_class",
         MagicMock(return_value=flow_runner),
+    )
+
+    executor = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_executor_class", MagicMock(return_value=executor),
     )
 
     with tempfile.TemporaryDirectory() as directory:
@@ -218,6 +240,7 @@ def test_run_flow(monkeypatch):
                 environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "test"
+        assert executor.call_args[1] == {"test": "here"}
 
 
 def test_run_flow_calls_callbacks(monkeypatch):

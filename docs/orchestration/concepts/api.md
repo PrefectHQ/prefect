@@ -132,7 +132,7 @@ Throughout these docs, sections directly related to the GraphQL API are denoted 
 
 ### Interactive API in the UI
 
-For ease of interacting with the GraphQL API, the UI contains a full GraphQL client that automatically handles authentication. See the [Interactive API](/cloud/ui/interactive-api) docs for more.
+For ease of interacting with the GraphQL API, the UI contains a full GraphQL client that automatically handles authentication. See the [Interactive API](/orchestration/ui/interactive-api) docs for more.
 
 ### Authentication <Badge text="Cloud"/>
 

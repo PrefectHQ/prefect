@@ -10,7 +10,7 @@ The `Scheduler` service is responsible for scheduling new flow runs.
 
 In many distributed systems, the scheduler is a single point of failure. Cloud was designed to have a robust, asynchronous scheduling service whose only job is to correctly generate future flow runs. It can be trivially restarted or even run concurrently without issue.
 
-More importantly, the scheduler service is not responsible for actually running flows -- that's what [Agents](/cloud/agents/overview) are for. This means that scheduled runs can happily coexist with manually-started runs; Agents are indifferent to _how_ a run was created. You can tell if a run was created by the Scheduler service because it will have an `auto_scheduled` flag set to `TRUE`. Manually-created runs will record the user that created them.
+More importantly, the scheduler service is not responsible for actually running flows -- that's what [Agents](/orchestration/agents/overview) are for. This means that scheduled runs can happily coexist with manually-started runs; Agents are indifferent to _how_ a run was created. You can tell if a run was created by the Scheduler service because it will have an `auto_scheduled` flag set to `TRUE`. Manually-created runs will record the user that created them.
 
 ### How does it work?
 

@@ -883,6 +883,8 @@ class Flow:
                     )
                 time.sleep(naptime)
 
+            error = False
+
             ## begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
@@ -895,7 +897,8 @@ class Flow:
                     **kwargs
                 )
                 if not isinstance(flow_state.result, dict):
-                    return flow_state  # something went wrong
+                    error = True
+                    break
 
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
@@ -917,7 +920,7 @@ class Flow:
                 time.sleep(naptime)
 
             ## create next scheduled run
-            try:
+            if not error:
                 # update context cache
                 for t, s in flow_state.result.items():
                     if s.is_cached():
@@ -940,6 +943,8 @@ class Flow:
                         if s.cached_result_expiration > now
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
+
+            try:
                 if run_on_schedule and self.schedule is not None:
                     next_run_event = self.schedule.next(1, return_events=True)[0]
                     next_run_time = next_run_event.start_time  # type: ignore
@@ -948,7 +953,9 @@ class Flow:
                 else:
                     break
             except IndexError:
+                # Handle when there are no more events on schedule
                 break
+
             flow_state = prefect.engine.state.Scheduled(
                 start_time=next_run_time, result={}
             )
@@ -1341,7 +1348,7 @@ class Flow:
             - build (bool, optional): if `True`, the flow's environment is built
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow's environment; useful for
-                associating Flows with individual Agents; see http://docs.prefect.io/cloud/agents/overview.html#flow-affinity-labels
+                associating Flows with individual Agents; see http://docs.prefect.io/orchestration/agents/overview.html#flow-affinity-labels
             - set_schedule_active (bool, optional): if `False`, will set the
                 schedule to inactive in the database to prevent auto-scheduling runs (if the Flow has a schedule).
                 Defaults to `True`. This can be changed later.

@@ -4,7 +4,7 @@ Prefect secrets are a way to store any sensitive key-value pairs to which your f
 the [secret URL used to receive Slack notifications from Prefect](../../core/advanced_tutorials/slack-notifications.html#using-your-url-to-get-notifications).
 Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
 
-Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io), however when using Prefect Core's server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/cloud/concepts/secrets.html#local-testing) section below.
+Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io), however when using Prefect Core's server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/orchestration/concepts/secrets.html#local-testing) section below.
 
 ## Setting a secret <Badge text="Cloud"/>
 
@@ -14,9 +14,9 @@ There are two standard modes of operation: local execution, intended mainly for 
 
 #### UI
 
-To set a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
+To set a secret in the UI, visit the [Secrets page](/orchestration/ui/team-settings.md#secrets).
 
-![](/cloud/ui/team-secrets.png)
+![](/orchestration/ui/team-secrets.png)
 
 #### Core Client
 
@@ -81,8 +81,8 @@ Prefect will interpolate certain values from your OS environment, so you can spe
 
 ### UI
 
-To delete a secret in the UI, visit the [Secrets page](/cloud/ui/team-settings.md#secrets).
-![](/cloud/ui/team-secrets.png)
+To delete a secret in the UI, visit the [Secrets page](/orchestration/ui/team-settings.md#secrets).
+![](/orchestration/ui/team-secrets.png)
 
 ## Using a secret
 

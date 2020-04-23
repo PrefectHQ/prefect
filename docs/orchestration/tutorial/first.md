@@ -45,7 +45,7 @@ Registration only sends data about the existence and format of your flow; **no a
 
 Now that your flow is registered with the Prefect API, we will use an Agent to watch for flow runs that are scheduled by the Prefect API and execute them accordingly.
 
-The simplest way to start a [Local agent](/cloud/agents/local.html) is right from within your script. Add the following line to the bottom of your flow:
+The simplest way to start a [Local agent](/orchestration/agents/local.html) is right from within your script. Add the following line to the bottom of your flow:
 
 ```python
 flow.run_agent()
@@ -84,7 +84,7 @@ mutation {
 }
 ```
 
-See [flow runs](/cloud/concepts/flow_runs.html#flow-runs) for more details.
+See [flow runs](/orchestration/concepts/flow_runs.html#flow-runs) for more details.
 :::
 ::: tab Python
 

@@ -174,7 +174,7 @@ classes = ["Docker", "Local", "S3", "GCS", "Azure"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment"]
+classes = ["DaskKubernetesEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"

@@ -235,7 +235,7 @@ def start(
         shutil.copy2(os.path.join(docker_dir, "docker-compose.yml"), temp_path)
 
         with open(temp_path, "r") as file:
-            y = yaml.load(file)
+            y = yaml.safe_load(file)
 
             if no_postgres_port:
                 del y["services"]["postgres"]["ports"]
@@ -260,7 +260,7 @@ def start(
                     ]
 
         with open(temp_path, "w") as f:
-            y = yaml.dump(y, f)
+            y = yaml.safe_dump(y, f)
 
         compose_dir_path = temp_dir
 

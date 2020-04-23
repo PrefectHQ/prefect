@@ -45,10 +45,57 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Add option to set `executor_kwargs` on `KubernetesJobEnvironment` and `FargateTaskEnvironment` - [#2258](https://github.com/PrefectHQ/prefect/issues/2258)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.10.4 <Badge text="beta" type="success"/>
+
+Released on Apr 21, 2020.
+
+### Enhancements
+
+- Agent connection step shows which endpoint it is connected to and checks API connectivity - [#2372](https://github.com/PrefectHQ/prefect/pull/2372)
+
+### Breaking Changes
+
+- Revert changes to `ifelse` & `switch` (added in [#2310](https://github.com/PrefectHQ/prefect/pull/2310)), removing implicit
+  creation of `merge` tasks - [#2379](https://github.com/PrefectHQ/prefect/pull/2379)
+
+## 0.10.3 <Badge text="beta" type="success"/>
+
+Released on Apr 21, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Allow GraphQL endpoint configuration via `config.toml` for remote deployments of the UI - [#2338](https://github.com/PrefectHQ/prefect/pull/2338)
 - Add option to connect containers created by Docker agent to an existing Docker network - [#2334](https://github.com/PrefectHQ/prefect/pull/2334)
 - Expose `datefmt` as a configurable logging option in Prefect configuration - [#2340](https://github.com/PrefectHQ/prefect/pull/2340)
 - The Docker agent configures containers to auto-remove on completion - [#2347](https://github.com/PrefectHQ/prefect/pull/2347)
+- Use YAML's safe load and dump commands for the `server start` CLI command - [#2352](https://github.com/PrefectHQ/prefect/pull/2352)
+- New `RemoteDaskEnvironment` specifically for running Flows on an existing Dask cluster - [#2367](https://github.com/PrefectHQ/prefect/pull/2367)
 
 ### Task Library
 
@@ -57,6 +104,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Fixes
 
 - Fix `auth create-token` CLI command specifying deprecated `role` instead of `scope` - [#2336](https://github.com/PrefectHQ/prefect/issues/2336)
+- Fix local schedules not continuing to schedule on errors outside of runner's control - [#2133](https://github.com/PrefectHQ/prefect/issues/2133)
+- Fix `get_latest_cached_states` pulling incorrect upstream cached states when using Core server as the backend - [#2343](https://github.com/PrefectHQ/prefect/issues/2343)
 
 ### Deprecations
 
@@ -69,6 +118,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Brad McElroy](https://github.com/limx0)
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.2 <Badge text="beta" type="success"/>
 
