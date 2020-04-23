@@ -1053,3 +1053,43 @@ class TestPopulateResults:
         ).populate_results(state=state, upstream_states={edge: Success(result=result)})
 
         assert new_state.cached_inputs["x"].value == 99
+
+
+def test_task_runner_uses_upstream_result_handlers(client):
+    class MyResult(Result):
+        def read(self, *args, **kwargs):
+            self.value = "cool"
+            return self
+
+        def write(self, *args, **kwargs):
+            return self
+
+    @prefect.task(result=PrefectResult())
+    def t(x):
+        return x
+
+    success = Success(result=PrefectResult(location="1"))
+    upstream_states = {Edge(Task(result=MyResult()), t, key="x"): success}
+    state = CloudTaskRunner(task=t).run(upstream_states=upstream_states)
+    assert state.is_successful()
+    assert state.result == "cool"
+
+
+def test_task_runner_doesnt_use_upstream_result_handlers_if_value_present(client):
+    class MyResult(Result):
+        def read(self, *args, **kwargs):
+            self.value = "cool"
+            return self
+
+        def write(self, *args, **kwargs):
+            return self
+
+    @prefect.task(result=PrefectResult())
+    def t(x):
+        return x
+
+    success = Success(result=PrefectResult(value=1))
+    upstream_states = {Edge(Task(result=MyResult()), t, key="x"): success}
+    state = CloudTaskRunner(task=t).run(upstream_states=upstream_states)
+    assert state.is_successful()
+    assert state.result == 1

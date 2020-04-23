@@ -910,8 +910,7 @@ class TaskRunner(Runner):
 
         ## checkpoint tasks if a result interface is present, except for when the user has opted out by disabling checkpointing
         if (
-            state.is_successful()
-            and prefect.context.get("checkpointing") is True
+            prefect.context.get("checkpointing") is True
             and self.task.checkpoint is not False
         ):
             result = self.result.write(value, **prefect.context)

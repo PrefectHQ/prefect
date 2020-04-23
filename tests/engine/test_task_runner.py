@@ -1153,16 +1153,15 @@ class TestRunTaskStep:
         )
         assert state.is_successful()
         assert isinstance(state._result, Result)
-        assert state._result == Result(value=None, result_handler=runner.result_handler)
+        assert state._result == Result(value=None)
 
-    def test_returns_success_with_correct_result_handler(self):
-        runner = TaskRunner(task=Task(result_handler=JSONResultHandler()))
+    def test_returns_success_with_correct_result_type(self):
+        runner = TaskRunner(task=Task(result=PrefectResult()))
         state = runner.get_task_run_state(
             state=Running(), inputs={}, timeout_handler=None
         )
         assert state.is_successful()
-        assert isinstance(state._result, Result)
-        assert state._result.result_handler == JSONResultHandler()
+        assert isinstance(state._result, PrefectResult)
 
     def test_success_state_without_checkpoint(self):
         @prefect.task(checkpoint=False)
@@ -1170,17 +1169,15 @@ class TestRunTaskStep:
             return x + 1
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn).get_task_run_state(
+            new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result.location is None
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_config(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn(x):
             return x + 1
 
@@ -1190,13 +1187,11 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+        assert new_state._result.location == "3"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_context(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn(x):
             return x + 1
 
@@ -1205,76 +1200,48 @@ class TestRunTaskStep:
                 state=Running(), inputs={"x": Result(2)}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+        assert new_state._result.location == "3"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_is_checkpointed_if_result_handler_present(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn():
             return 1
 
         ## checkpointing allows users to toggle behavior for local testing
         with prefect.context(checkpointing=False):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
+        assert new_state._result.location is None
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("1", result_handler=handler)
-
-    def test_success_state_is_not_checkpointed_if_result_handler_present_and_opted_out(
-        self,
-    ):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=False, result_handler=handler)
-        def fn():
-            return 1
-
-        ## checkpointing allows users to toggle behavior for local testing
-        with prefect.context(checkpointing=False):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
-            )
-        assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
-
-        # We should expect that globally enabling checkpointing does not override the task checkout option (if set)
-        with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
-            )
-        assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
+        assert new_state._result.location == "1"
 
     def test_success_state_for_parameter(self):
-        handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
+        assert new_state._result.location == "2"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
-    def test_success_state_with_bad_handler_results_in_failed_state(self, checkpoint):
-        class BadHandler(ResultHandler):
-            def read(self, val):
+    def test_success_state_with_bad_result_results_in_failed_state(self, checkpoint):
+        class BadResult(Result):
+            def read(self, *args, **kwargs):
                 pass
 
-            def write(self, val):
+            def write(self, *args, **kwargs):
                 raise SyntaxError("Oh boy")
 
-        @prefect.task(checkpoint=checkpoint, result_handler=BadHandler())
+        @prefect.task(checkpoint=checkpoint, result=BadResult())
         def fn(x):
             return x + 1
 
@@ -1285,15 +1252,15 @@ class TestRunTaskStep:
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
 
-    def test_success_state_with_bad_handler_and_checkpointing_disabled(self):
-        class BadHandler(ResultHandler):
-            def read(self, val):
+    def test_success_state_with_bad_result_and_checkpointing_disabled(self):
+        class BadResult(Result):
+            def read(self, *args, **kwargs):
                 pass
 
-            def write(self, val):
+            def write(self, *args, **kwargs):
                 raise SyntaxError("Oh boy")
 
-        @prefect.task(checkpoint=False, result_handler=BadHandler())
+        @prefect.task(checkpoint=False, result=BadResult())
         def fn(x):
             return x + 1
 
@@ -1377,10 +1344,10 @@ class TestCacheResultStep:
             Running(result=1),
         ],
     )
-    def test_non_success_states(self, state):
+    def test_non_success_states_with_results(self, state):
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result.location is None
 
     @pytest.mark.parametrize(
         "state", [cls() for cls in Failed.__subclasses__() + [Failed]]
@@ -1390,7 +1357,7 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result is NORESULT
         assert new_state.cached_inputs == {"x": Result(1)}
 
     @pytest.mark.parametrize(
@@ -2104,22 +2071,6 @@ def test_task_tags_are_attached_to_all_states():
 
     states = [s[0][-1] for s in task_handler.call_args_list]
     assert all(set(state.context["tags"]) == set(["alice", "bob"]) for state in states)
-
-
-def test_task_runner_uses_upstream_result_handlers():
-    class Handler(ResultHandler):
-        def read(self, val):
-            return "cool"
-
-    @prefect.task
-    def t(x):
-        return x
-
-    success = Success(result=SafeResult(1, result_handler=JSONResultHandler()))
-    upstream_states = {Edge(Task(result_handler=Handler()), t, key="x"): success}
-    state = TaskRunner(task=t).run(upstream_states=upstream_states)
-    assert state.is_successful()
-    assert state.result == "cool"
 
 
 def test_task_runner_logs_stdout(caplog):
