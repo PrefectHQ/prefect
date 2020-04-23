@@ -283,7 +283,7 @@ class FargateAgent(Agent):
         container_definitions_kwarg_list = [
             "mountPoints",
             "secrets",
-            "environments"
+            "environment"
         ]
 
         task_definition_kwargs = {}
@@ -313,7 +313,7 @@ class FargateAgent(Agent):
                 self.logger.debug("{} = {}".format(key, item))
 
         container_definitions_kwargs = {}
-        for key, item in user_kwargs.get("containerDefinitions", {}).items():
+        for key, item in user_kwargs.get("containerDefinitions", [{}])[0].items():
             if key in container_definitions_kwarg_list:
                 try:
                     # Parse kwarg if needed
@@ -555,7 +555,7 @@ class FargateAgent(Agent):
             container_definitions[0]["environment"].append(dict(name=key, value=value))
 
         # apply container definitions to "containerDefinitions" key of task definition
-        # do not allow override of static envars from Prefect base task definition
+        # do not allow override of static envars from Prefect base task definition, which may include self.env_vars
 
         base_envar_keys = [
             x["name"] for x in container_definitions[0]["environment"]
@@ -567,9 +567,9 @@ class FargateAgent(Agent):
             x for x in container_definitions_kwargs.get("environment", []) if x["name"] not in base_envar_keys
         ]
 
-        container_definitions[0]["environment"].update(container_definitions_environment)
-        container_definitions[0]["secrets"].update(container_definitions_kwargs.get("secrets", []))
-        container_definitions[0]["mountPoints"].update(container_definitions_kwargs.get("mountPoints", []))
+        container_definitions[0]["environment"].extend(container_definitions_environment)
+        container_definitions[0]["secrets"] = container_definitions_kwargs.get("secrets", [])
+        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get("mountPoints", [])
 
         # Register task definition
         self.logger.debug(
