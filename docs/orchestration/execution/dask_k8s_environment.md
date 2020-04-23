@@ -2,10 +2,6 @@
 
 [[toc]]
 
-::: warning Core server not supported, yet
-This environment is not currently supported with Prefect Core's server. Deployments using Prefect Core and Kubernetes will be added in a future release.
-:::
-
 ## Overview
 
 The Dask Kubernetes environment uses the [dask-kubernetes](https://kubernetes.dask.org/en/latest/) library to dynamically spawn Dask clusters on Kubernetes. This environment is intended for use in cases where you do not want a static, long-standing Dask cluster, but would rather have a temporary Dask cluster created for each Flow run. The Dask Kubernetes environment has both low-configuration options to quickly get up and running and the ability to specify completely custom [Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) specifications for the Dask scheduler and workers.

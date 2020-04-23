@@ -16,7 +16,10 @@ class CreateContainer(Task):
         - detach (bool, optional): Run container in the background
         - entrypoint (Union[str, list]): The entrypoint for the container
         - environment (Union[dict, list]): Environment variables to set inside the container,
-            as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"].
+            as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"]
+        - volumes (Union[dict, list]): Volumes to mount inside the container, as a dictionary
+            or a list of strings in the format ["/path/host:/path/guest:ro"]. See
+            https://docker-py.readthedocs.io/en/stable/containers.html for more details
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
@@ -31,6 +34,7 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
+        volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
@@ -39,6 +43,7 @@ class CreateContainer(Task):
         self.detach = detach
         self.entrypoint = entrypoint
         self.environment = environment
+        self.volumes = volumes
         self.docker_server_url = docker_server_url
 
         super().__init__(**kwargs)
@@ -49,6 +54,7 @@ class CreateContainer(Task):
         "detach",
         "entrypoint",
         "environment",
+        "volumes",
         "docker_server_url",
     )
     def run(
@@ -58,6 +64,7 @@ class CreateContainer(Task):
         detach: bool = False,
         entrypoint: Union[list, str] = None,
         environment: Union[list, dict] = None,
+        volumes: Union[list, dict] = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> str:
         """
@@ -69,7 +76,10 @@ class CreateContainer(Task):
             - detach (bool, optional): Run container in the background
             - entrypoint (Union[str, list]): The entrypoint for the container
             - environment (Union[dict, list]): Environment variables to set inside the container,
-                as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"].
+                as a dictionary or a list of strings in the format ["SOMEVARIABLE=xxx"]
+            - volumes (Union[dict, list]): Volumes to mount inside the container, as a dictionary
+                or a list of strings in the format ["/path/host:/path/guest:ro"]. See
+                https://docker-py.readthedocs.io/en/stable/containers.html for more details
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
@@ -99,6 +109,7 @@ class CreateContainer(Task):
             detach=detach,
             entrypoint=entrypoint,
             environment=environment,
+            volumes=volumes,
         )
         self.logger.debug(
             "Completed created container {} with command {}".format(image_name, command)
@@ -183,6 +194,8 @@ class ListContainers(Task):
 
     Args:
         - all_containers (bool, optional): Show all containers. Only running containers are shown by default
+        - filters (dict, optional): Filter the results. See
+            https://docker-py.readthedocs.io/en/stable/containers.html for more details
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
@@ -193,18 +206,21 @@ class ListContainers(Task):
     def __init__(
         self,
         all_containers: bool = False,
+        filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
         self.all_containers = all_containers
+        self.filters = filters
         self.docker_server_url = docker_server_url
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("all_containers", "docker_server_url")
+    @defaults_from_attrs("all_containers", "filters", "docker_server_url")
     def run(
         self,
         all_containers: bool = False,
+        filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> list:
         """
@@ -212,6 +228,8 @@ class ListContainers(Task):
 
         Args:
             - all_containers (bool, optional): Show all containers. Only running containers are shown by default
+            - filters (dict, optional): Filter the results. See
+                https://docker-py.readthedocs.io/en/stable/containers.html for more details
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
@@ -225,7 +243,7 @@ class ListContainers(Task):
 
         self.logger.debug("Starting to list containers")
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.containers(all=all_containers)
+        api_result = client.containers(all=all_containers, filters=filters)
         self.logger.debug("Completed listing containers")
         return api_result
 

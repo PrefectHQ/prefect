@@ -14,6 +14,8 @@ class ListImages(Task):
         - repository_name (str, optional): Only show images belonging to this repository;
             if not provided then it will list all images from the local Docker server
         - all_layers (bool, optional): Show intermediate image layers
+        - filters (dict, optional): Filter the results. See
+            https://docker-py.readthedocs.io/en/stable/images.html for more details
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
@@ -25,20 +27,25 @@ class ListImages(Task):
         self,
         repository_name: str = None,
         all_layers: bool = False,
+        filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
         **kwargs: Any
     ):
         self.repository_name = repository_name
         self.all_layers = all_layers
+        self.filters = filters
         self.docker_server_url = docker_server_url
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("repository_name", "all_layers", "docker_server_url")
+    @defaults_from_attrs(
+        "repository_name", "all_layers", "filters", "docker_server_url"
+    )
     def run(
         self,
         repository_name: str = None,
         all_layers: bool = False,
+        filters: dict = None,
         docker_server_url: str = "unix:///var/run/docker.sock",
     ) -> list:
         """
@@ -48,6 +55,8 @@ class ListImages(Task):
             - repository_name (str, optional): Only show images belonging to this repository;
                 if not provided then it will list all images from the local Docker server
             - all_layers (bool, optional): Show intermediate image layers
+            - filters (dict, optional): Filter the results. See
+                https://docker-py.readthedocs.io/en/stable/images.html for more details
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
@@ -63,7 +72,9 @@ class ListImages(Task):
             "Starting docker pull for repository {}...".format(repository_name)
         )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.images(name=repository_name, all=all_layers)
+        api_result = client.images(
+            name=repository_name, all=all_layers, filters=filters
+        )
         self.logger.debug(
             "Completed docker pull for repository {}...".format(repository_name)
         )

@@ -1697,6 +1697,23 @@ class TestFlowRunMethod:
         f.run()
         assert t.call_count == 1
 
+    def test_flow_dot_run_schedule_continues_on_executor_failure(self, repeat_schedule):
+        schedule = repeat_schedule(3)
+
+        executor = MagicMock(side_effect=Exception)
+
+        class StatefulTask(Task):
+            call_count = 0
+
+            def run(self):
+                self.call_count += 1
+
+        t = StatefulTask()
+        f = Flow(name="test", tasks=[t], schedule=schedule)
+        f.run(executor=executor)
+        assert t.call_count == 0
+        assert schedule.call_count == 3
+
     def test_scheduled_runs_handle_retries(self, repeat_schedule):
         schedule = repeat_schedule(1)
 

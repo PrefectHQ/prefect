@@ -82,16 +82,11 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
             The value of the `condition` task will be compared to the keys of this dict, and
             the matching task will be executed.
 
-    Returns:
-        - Task: a task whose result is the output from the task executed by this switch
-
     Raises:
         - PrefectWarning: if any of the tasks in "cases" have upstream dependencies,
-            then this task will warn that those upstream tasks may run whether
-            or not the switch condition matches their branch. The most common
-            cause of this is passing a list of tasks as one of the cases, which
-            adds the `List` task to the switch condition but leaves the tasks
-            themselves upstream.
+            then this task will warn that those upstream tasks may run whether or not the switch condition matches their branch. The most common cause of this
+            is passing a list of tasks as one of the cases, which adds the `List` task
+            to the switch condition but leaves the tasks themselves upstream.
     """
 
     with prefect.tags("switch"):
@@ -99,7 +94,6 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
             task = prefect.utilities.tasks.as_task(task)
             match_condition = CompareValue(value=value).bind(value=condition)
             task.set_dependencies(upstream_tasks=[match_condition])
-        return merge(*cases.values())
 
 
 def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
@@ -107,26 +101,20 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
     Builds a conditional branch into a workflow.
 
     If the condition evaluates True(ish), the true_task will run. If it
-    evaluates False(ish), the false_task will run. The task that doesn't run is
-    Skipped, as are all downstream tasks that don't set
-    `skip_on_upstream_skip=False`.
+    evaluates False(ish), the false_task will run. The task doesn't run is Skipped, as are
+    all downstream tasks that don't set `skip_on_upstream_skip=False`.
 
     Args:
         - condition (Task): a task whose boolean result forms the condition for the ifelse
         - true_task (Task): a task that will be executed if the condition is True
         - false_task (Task): a task that will be executed if the condition is False
-
-    Returns:
-        - Task: a task whose result is the output from the task executed by this ifelse
     """
 
     @prefect.task
     def as_bool(x):
         return bool(x)
 
-    return switch(
-        condition=as_bool(condition), cases={True: true_task, False: false_task}
-    )
+    switch(condition=as_bool(condition), cases={True: true_task, False: false_task})
 
 
 def merge(*tasks: Task) -> Task:
