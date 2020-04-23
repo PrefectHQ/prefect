@@ -773,7 +773,7 @@ def test_deploy_flow_register_task_definition_all_args(
             },
                 {
                     "name": "TEST_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-east-1:302225490720:parameter/test/test"
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
                 }
             ],
             "mountPoints": [{
@@ -847,7 +847,7 @@ def test_deploy_flow_register_task_definition_all_args(
             },
                 {
                     "name": "TEST_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-east-1:302225490720:parameter/test/test"
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
                 }
             ],
             "mountPoints": [{
@@ -1242,7 +1242,7 @@ def test_override_kwargs(monkeypatch, runner_token):
                   },
                   {
                     "name": "TEST_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-east-1:302225490720:parameter/test/test"
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
                   }
                 ],
                 "mountPoints": [{
@@ -1297,7 +1297,7 @@ def test_override_kwargs(monkeypatch, runner_token):
     assert streaming_body.read().decode.called
     assert definition_kwargs == {"cpu": "256"}
     assert run_kwargs == {"networkConfiguration": "test"}
-    assert container_definitions_kwargs == {'environment': [{'name': 'TEST_ENV', 'value': 'Success!'}], 'secrets': [{'name': 'TEST_SECRET1', 'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'}, {'name': 'TEST_SECRET', 'valueFrom': 'arn:aws:ssm:us-east-1:302225490720:parameter/test/test'}], 'mountPoints': [{'sourceVolume': 'myEfsVolume', 'containerPath': '/data', 'readOnly': False}]}
+    assert container_definitions_kwargs == {'environment': [{'name': 'TEST_ENV', 'value': 'Success!'}], 'secrets': [{'name': 'TEST_SECRET1', 'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'}, {'name': 'TEST_SECRET', 'valueFrom': 'arn:aws:ssm:us-east-1:123456789101:parameter/test/test'}], 'mountPoints': [{'sourceVolume': 'myEfsVolume', 'containerPath': '/data', 'readOnly': False}]}
 
 
 def test_override_kwargs_exception(monkeypatch, runner_token):
