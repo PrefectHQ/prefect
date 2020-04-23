@@ -267,9 +267,9 @@ def test_flow_runner_remains_running_if_tasks_are_retrying():
     assert flow_state.result[task2].is_retrying()
 
 
-def test_secrets_retry_by_default_and_pull_from_context():
+def test_secrets_dynamically_pull_from_context():
     flow = Flow(name="test")
-    task1 = PrefectSecret("foo")
+    task1 = PrefectSecret("foo", max_retries=1, retry_delay=datetime.timedelta(0))
 
     flow.add_task(task1)
 

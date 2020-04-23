@@ -10,6 +10,7 @@ import pytest
 import prefect
 from prefect.client import Client
 from prefect.utilities.configuration import set_temporary_config
+from prefect.engine.result import NORESULT
 from prefect.engine.results import GCSResult
 
 
@@ -27,7 +28,7 @@ class TestGCSResult:
 
     def test_gcs_init(self, google_client):
         result = GCSResult(bucket="bob")
-        assert result.value == None
+        assert result.value == NORESULT
         assert result.bucket == "bob"
         assert google_client.called is False
         result.gcs_bucket()

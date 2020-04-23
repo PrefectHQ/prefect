@@ -36,8 +36,6 @@ class TestInitialization:
         assert r.safe_value is NoResult
         assert r.result_handler is None
         assert r.validators is None
-        assert r.cache_for is None
-        assert r.cache_validator is None
         assert r.location is None
         assert r.run_validators is True
 
@@ -46,8 +44,6 @@ class TestInitialization:
         assert s.safe_value is NoResult
         assert s.result_handler is None
         assert s.validators is None
-        assert s.cache_for is None
-        assert s.cache_validator is None
         assert s.location is None
         assert r.run_validators is True
 
@@ -57,27 +53,6 @@ class TestInitialization:
         assert r.value == 3
         assert r.safe_value is NoResult
         assert r.result_handler == handler
-
-    def test_cache_validator_provided_if_needed(self):
-        """
-        If `cache_for` is provided, and `cache_validator` is not,
-        a `cache_validator` should be provided.
-        """
-        r = Result(value=3, cache_for=datetime.timedelta(days=2))
-        assert r.cache_validator is not None
-        assert callable(r.cache_validator)
-
-    def test_uses_provided_cache_validator(self):
-        def custom_cache_validator(*args, **kwargs):
-            # Creating a custom function for identity comparison
-            return True
-
-        r = Result(
-            value=3,
-            cache_for=datetime.timedelta(days=2),
-            cache_validator=custom_cache_validator,
-        )
-        assert r.cache_validator is custom_cache_validator
 
     def test_result_ignores_none_values(self):
         handler = JSONResultHandler()
