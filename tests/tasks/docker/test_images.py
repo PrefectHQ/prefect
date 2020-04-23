@@ -58,7 +58,10 @@ class TestListImagesTask(DockerLoggingTestingUtilityMixin):
 
     def test_filled_initialization(self):
         task = ListImages(
-            repository_name="test", all_layers=True, filters={"name": "test"}, docker_server_url="test"
+            repository_name="test",
+            all_layers=True,
+            filters={"name": "test"},
+            docker_server_url="test",
         )
         assert task.repository_name == "test"
         assert task.all_layers == True

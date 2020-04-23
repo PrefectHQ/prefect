@@ -38,7 +38,9 @@ class ListImages(Task):
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("repository_name", "all_layers", "filters", "docker_server_url")
+    @defaults_from_attrs(
+        "repository_name", "all_layers", "filters", "docker_server_url"
+    )
     def run(
         self,
         repository_name: str = None,
@@ -70,7 +72,9 @@ class ListImages(Task):
             "Starting docker pull for repository {}...".format(repository_name)
         )
         client = docker.APIClient(base_url=docker_server_url, version="auto")
-        api_result = client.images(name=repository_name, all=all_layers, filters=filters)
+        api_result = client.images(
+            name=repository_name, all=all_layers, filters=filters
+        )
         self.logger.debug(
             "Completed docker pull for repository {}...".format(repository_name)
         )
