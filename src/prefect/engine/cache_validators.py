@@ -152,10 +152,13 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
 
     state1 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')))
 
-    ## the second run will use the cache contained within state1.result[db_state]
+    ## the second run will use the cache contained within prefect.context.caches
     ## even though `runtime` has changed
-    state2 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
-                   task_states={result: state1.result[db_state]})
+    state2 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')))
+    ## similarly, providing input state omits running `daily_db_refresh` even
+    ## without cache arguments in the task decorator
+    state3 = f.run(parameters=dict(nrows=1000, runtime=pendulum.now('utc')),
+                  task_states={db_state: state1.result[db_state]})
     ```
     """
 
@@ -229,9 +232,12 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         ans = add(1, 2, rand_bool())
 
     state1 = f.run()
-    ## the second run will use the cache contained within state1.result[ans]
+    ## the second run will use the cache contained within prefect.context.caches
     ## even though `rand_bool` might change
-    state2 = f.run(task_states={result: state1.result[ans]})
+    state2 = f.run()
+    ## similarly, providing input state omits running `add` even
+    ## without cache arguments in the task decorator:
+    state3 = f.run(task_states={ans: state1.result[ans]})
     ```
     """
 
