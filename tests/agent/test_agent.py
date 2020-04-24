@@ -10,19 +10,17 @@ from prefect.utilities.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult
 
 
-def test_agent_init(runner_token, registration, cloud_api):
+def test_agent_init(runner_token, cloud_api):
     agent = Agent()
     assert agent
 
 
-def test_multiple_agent_init_doesnt_duplicate_logs(
-    runner_token, registration, cloud_api
-):
+def test_multiple_agent_init_doesnt_duplicate_logs(runner_token, cloud_api):
     a, b, c = Agent(), Agent(), Agent()
     assert len(c.logger.handlers) == 1
 
 
-def test_agent_config_options(runner_token, registration, cloud_api):
+def test_agent_config_options(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.labels == []
@@ -34,7 +32,7 @@ def test_agent_config_options(runner_token, registration, cloud_api):
         assert agent.logger.name == "agent"
 
 
-def test_agent_name_set_options(monkeypatch, runner_token, registration, cloud_api):
+def test_agent_name_set_options(monkeypatch, runner_token, cloud_api):
     # Default
     agent = Agent()
     assert agent.name == "agent"
@@ -52,13 +50,13 @@ def test_agent_name_set_options(monkeypatch, runner_token, registration, cloud_a
         assert agent.logger.name == "test2"
 
 
-def test_agent_log_level(runner_token, registration, cloud_api):
+def test_agent_log_level(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent()
         assert agent.logger.level == 20
 
 
-def test_agent_log_level_responds_to_config(runner_token, registration, cloud_api):
+def test_agent_log_level_responds_to_config(runner_token, cloud_api):
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
     ):
@@ -66,31 +64,31 @@ def test_agent_log_level_responds_to_config(runner_token, registration, cloud_ap
         assert agent.logger.level == 10
 
 
-def test_agent_env_vars(runner_token, registration, cloud_api):
+def test_agent_env_vars(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(env_vars=dict(AUTH_THING="foo"))
         assert agent.env_vars == dict(AUTH_THING="foo")
 
 
-def test_agent_max_polls(runner_token, registration, cloud_api):
+def test_agent_max_polls(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(max_polls=10)
         assert agent.max_polls == 10
 
 
-def test_agent_labels(runner_token, registration, cloud_api):
+def test_agent_labels(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(labels=["test", "2"])
         assert agent.labels == ["test", "2"]
 
 
-def test_agent_labels_from_config_var(runner_token, registration):
+def test_agent_labels_from_config_var(runner_token):
     with set_temporary_config({"cloud.agent.labels": "['test', '2']"}):
         agent = Agent()
         assert agent.labels == ["test", "2"]
 
 
-def test_agent_log_level_debug(runner_token, registration):
+def test_agent_log_level_debug(runner_token):
     with set_temporary_config(
         {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
     ):
@@ -103,7 +101,7 @@ def test_agent_fails_no_auth_token(cloud_api):
         agent = Agent()
 
 
-def test_agent_fails_no_runner_token(monkeypatch, registration, cloud_api):
+def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -121,7 +119,7 @@ def test_agent_fails_no_runner_token(monkeypatch, registration, cloud_api):
         agent = Agent()
 
 
-def test_query_flow_runs(monkeypatch, runner_token, registration, cloud_api):
+def test_query_flow_runs(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -140,7 +138,7 @@ def test_query_flow_runs(monkeypatch, runner_token, registration, cloud_api):
 
 
 def test_query_flow_runs_ignores_currently_submitting_runs(
-    monkeypatch, runner_token, registration, cloud_api
+    monkeypatch, runner_token, cloud_api
 ):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -166,7 +164,7 @@ def test_query_flow_runs_ignores_currently_submitting_runs(
 
 
 def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
-    monkeypatch, runner_token, registration, caplog, cloud_api
+    monkeypatch, runner_token, caplog, cloud_api
 ):
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -192,9 +190,7 @@ def test_query_flow_runs_does_not_use_submitting_flow_runs_directly(
     copy_mock.assert_called_once_with()
 
 
-def test_update_states_passes_no_task_runs(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_update_states_passes_no_task_runs(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -217,9 +213,7 @@ def test_update_states_passes_no_task_runs(
     )
 
 
-def test_update_states_passes_task_runs(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_update_states_passes_task_runs(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -250,7 +244,7 @@ def test_update_states_passes_task_runs(
     )
 
 
-def test_mark_failed(monkeypatch, runner_token, registration, cloud_api):
+def test_mark_failed(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(set_flow_run_state=None, set_task_run_state=None)
@@ -274,18 +268,18 @@ def test_mark_failed(monkeypatch, runner_token, registration, cloud_api):
     )
 
 
-def test_deploy_flows_passes_base_agent(runner_token, registration, cloud_api):
+def test_deploy_flows_passes_base_agent(runner_token, cloud_api):
     agent = Agent()
     with pytest.raises(NotImplementedError):
         agent.deploy_flow(None)
 
 
-def test_heartbeat_passes_base_agent(runner_token, registration, cloud_api):
+def test_heartbeat_passes_base_agent(runner_token, cloud_api):
     agent = Agent()
     assert not agent.heartbeat()
 
 
-def test_agent_connect(monkeypatch, runner_token, registration, cloud_api):
+def test_agent_connect(monkeypatch, runner_token, cloud_api):
     post = MagicMock(return_value=MagicMock(json=MagicMock(return_value="hello")))
     session = MagicMock()
     session.return_value.post = post
@@ -295,9 +289,7 @@ def test_agent_connect(monkeypatch, runner_token, registration, cloud_api):
     assert agent.agent_connect() is None
 
 
-def test_agent_connect_handled_error(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_agent_connect_handled_error(monkeypatch, runner_token, cloud_api):
     post = MagicMock(side_effect=Exception)
     session = MagicMock()
     session.return_value.post = post
@@ -307,16 +299,14 @@ def test_agent_connect_handled_error(
     assert agent.agent_connect() is None
 
 
-def test_on_flow_run_deploy_attempt_removes_id(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_on_flow_run_deploy_attempt_removes_id(monkeypatch, runner_token, cloud_api):
     agent = Agent()
     agent.submitting_flow_runs.add("id")
     agent.on_flow_run_deploy_attempt(None, "id")
     assert len(agent.submitting_flow_runs) == 0
 
 
-def test_agent_process(monkeypatch, runner_token, registration, cloud_api):
+def test_agent_process(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -358,9 +348,7 @@ def test_agent_process(monkeypatch, runner_token, registration, cloud_api):
     assert future_mock.add_done_callback.called
 
 
-def test_agent_process_no_runs_found(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_agent_process_no_runs_found(monkeypatch, runner_token, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(
             data=MagicMock(
@@ -382,9 +370,7 @@ def test_agent_process_no_runs_found(
     assert not executor.submit.called
 
 
-def test_agent_logs_flow_run_exceptions(
-    monkeypatch, runner_token, registration, caplog, cloud_api
-):
+def test_agent_logs_flow_run_exceptions(monkeypatch, runner_token, caplog, cloud_api):
     gql_return = MagicMock(
         return_value=MagicMock(data=MagicMock(write_run_logs=MagicMock(success=True)))
     )
@@ -420,9 +406,7 @@ def test_agent_logs_flow_run_exceptions(
     assert "Logging platform error for flow run" in caplog.text
 
 
-def test_agent_process_raises_exception_and_logs(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_agent_process_raises_exception_and_logs(monkeypatch, runner_token, cloud_api):
     client = MagicMock()
     client.return_value.graphql.side_effect = ValueError("Error")
     monkeypatch.setattr("prefect.agent.agent.Client", client)
@@ -435,7 +419,7 @@ def test_agent_process_raises_exception_and_logs(
         assert client.write_run_log.called
 
 
-def test_agent_start_max_polls(monkeypatch, runner_token, registration, cloud_api):
+def test_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
 
@@ -456,9 +440,7 @@ def test_agent_start_max_polls(monkeypatch, runner_token, registration, cloud_ap
     assert heartbeat.called
 
 
-def test_agent_start_max_polls_count(
-    monkeypatch, runner_token, registration, cloud_api
-):
+def test_agent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
 
@@ -479,7 +461,7 @@ def test_agent_start_max_polls_count(
     assert heartbeat.call_count == 2
 
 
-def test_agent_start_max_polls_zero(monkeypatch, runner_token, registration, cloud_api):
+def test_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
     on_shutdown = MagicMock()
     monkeypatch.setattr("prefect.agent.agent.Agent.on_shutdown", on_shutdown)
 
@@ -500,7 +482,8 @@ def test_agent_start_max_polls_zero(monkeypatch, runner_token, registration, clo
     assert heartbeat.call_count == 0
 
 
-def test_agent_registration_and_id(monkeypatch, runner_token, cloud_api):
+def test_agent_registration_and_id(monkeypatch, cloud_api):
+    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
     monkeypatch.setattr(
         "prefect.agent.agent.Client.register_agent", MagicMock(return_value="ID")
     )
