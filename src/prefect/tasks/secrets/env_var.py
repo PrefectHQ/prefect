@@ -1,11 +1,11 @@
 import os
 from typing import Any, Callable
 
-from prefect.tasks.secrets import Secret
+from prefect.tasks.secrets import PrefectSecret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-class EnvVarSecret(Secret):
+class EnvVarSecret(PrefectSecret):
     """
     A `Secret` task that retrieves a value from an environment variable.
 

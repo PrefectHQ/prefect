@@ -81,6 +81,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
+        self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
         # store api server
@@ -275,6 +276,9 @@ class Client:
             headers["Authorization"] = "Bearer {}".format(token)
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
+        if self._attached_headers:
+            headers.update(self._attached_headers)
+
         session = requests.Session()
         retries = requests.packages.urllib3.util.retry.Retry(
             total=6,
@@ -314,6 +318,16 @@ class Client:
         response.raise_for_status()
 
         return response
+
+    def attach_headers(self, headers: dict) -> None:
+        """
+        Set headers to be attached to this Client
+
+        Args:
+            - headers (dict): A dictionary of headers to attach to this client. These headers
+                get added on to the existing dictionary of headers.
+        """
+        self._attached_headers.update(headers)
 
     # -------------------------------------------------------------------------
     # Auth
@@ -1229,3 +1243,34 @@ class Client:
 
         if not result.data.write_run_logs.success:
             raise ValueError("Writing logs failed.")
+
+    def register_agent(
+        self, agent_type: str, name: str = None, labels: List[str] = None
+    ) -> str:
+        """
+        Register an agent with Cloud
+
+        Args:
+            - agent_type (str): The type of agent being registered
+            - name: (str, optional): The name of the agent being registered
+            - labels (List[str], optional): A list of any present labels on the agent
+                being registered
+
+        Returns:
+            - The agent ID as a string
+        """
+        mutation = {
+            "mutation($input: register_agent_input!)": {
+                "register_agent(input: $input)": {"id"}
+            }
+        }
+
+        result = self.graphql(
+            mutation,
+            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
+        )
+
+        if not result.data.register_agent.id:
+            raise ValueError("Error registering agent")
+
+        return result.data.register_agent.id

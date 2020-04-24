@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased release/0.11.0 <Badge text="beta" type="success"/>
+
+These changes are available in the [release/0.11.0 branch](https://github.com/PrefectHQ/prefect).
+
+### Features
+
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
+
+### Contributors
+
+- None
+
+# Changelog
+
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
@@ -13,6 +48,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Added serializer for `RemoteDaskEnvironment` - [#2369](https://github.com/PrefectHQ/prefect/issues/2369)
 - `server start` CLI command now defaults to image build based on current Prefect installation version - [#2375](https://github.com/PrefectHQ/prefect/issues/2375)
 - Add option to set `executor_kwargs` on `KubernetesJobEnvironment` and `FargateTaskEnvironment` - [#2258](https://github.com/PrefectHQ/prefect/issues/2258)
+- Add map index to task logs for mapped task runs - [#2402](https://github.com/PrefectHQ/prefect/pull/2402)
+- Agents can now register themselves with Cloud for better management - [#2312](https://github.com/PrefectHQ/prefect/issues/2312)
+- Adding support for `environment`, `secrets`, and `mountPoints` via configurable `containerDefinitions` to the Fargate Agent - [#2397](https://github.com/PrefectHQ/prefect/pull/2397)
 
 ### Task Library
 
@@ -20,7 +58,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix Docker storage path issue when registering flows on Windows machines - [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
 
 ### Deprecations
 
@@ -33,6 +71,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Nelson Cornet](https://github.com/sk4la)
+- [Braun Reyes](https://github.com/braunreyes)
+- [Fraznist](https://github.com/Fraznist)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 

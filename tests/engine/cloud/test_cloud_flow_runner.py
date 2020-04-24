@@ -477,7 +477,7 @@ def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recomp
         return p
 
     with prefect.Flow("test", result_handler=JSONResultHandler()) as f:
-        p = prefect.tasks.secrets.Secret("p")
+        p = prefect.tasks.secrets.PrefectSecret("p")
         res = is_p_three(p)
 
     with prefect.context(secrets=dict(p=3)):

@@ -139,18 +139,18 @@ class TestCreateFlow:
         assert isinstance(f.result_handler, LocalResultHandler)
 
     def test_create_flow_with_storage(self):
-        f2 = Flow(name="test", storage=prefect.environments.storage.Memory())
-        assert isinstance(f2.storage, prefect.environments.storage.Memory)
+        f2 = Flow(name="test", storage=prefect.environments.storage.Local())
+        assert isinstance(f2.storage, prefect.environments.storage.Local)
         assert f2.result_handler is None
 
     def test_create_flow_with_storage_and_result_handler(self):
         handler = LocalResultHandler(dir="/")
         f2 = Flow(
             name="test",
-            storage=prefect.environments.storage.Memory(),
+            storage=prefect.environments.storage.Local(),
             result_handler=handler,
         )
-        assert isinstance(f2.storage, prefect.environments.storage.Memory)
+        assert isinstance(f2.storage, prefect.environments.storage.Local)
         assert isinstance(f2.result_handler, ResultHandler)
         assert f2.result_handler != f2.storage.result_handler
         assert f2.result_handler == handler
@@ -1534,23 +1534,23 @@ class TestSerialize:
         assert isinstance(f.environment, prefect.environments.RemoteEnvironment)
 
     def test_serialize_includes_storage(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+        f = Flow(name="test", storage=prefect.environments.storage.Local())
         s_no_build = f.serialize()
         s_build = f.serialize(build=True)
 
-        assert s_no_build["storage"]["type"] == "Memory"
-        assert s_build["storage"]["type"] == "Memory"
+        assert s_no_build["storage"]["type"] == "Local"
+        assert s_build["storage"]["type"] == "Local"
 
-    def test_serialize_adds_flow_to_storage_if_build(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+    def test_serialize_adds_flow_to_storage_if_build(self, tmpdir):
+        f = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
         s_no_build = f.serialize()
         assert f.name not in f.storage
 
         s_build = f.serialize(build=True)
         assert f.name in f.storage
 
-    def test_serialize_can_be_called_twice(self):
-        f = Flow(name="test", storage=prefect.environments.storage.Memory())
+    def test_serialize_can_be_called_twice(self, tmpdir):
+        f = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
         s_no_build = f.serialize()
         assert f.name not in f.storage
 
@@ -2243,11 +2243,7 @@ class TestFlowDiagnostics:
 class TestFlowRegister:
     @pytest.mark.parametrize(
         "storage",
-        [
-            "prefect.environments.storage.Docker",
-            "prefect.environments.storage.Memory",
-            "prefect.environments.storage.Local",
-        ],
+        ["prefect.environments.storage.Docker", "prefect.environments.storage.Local",],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())
