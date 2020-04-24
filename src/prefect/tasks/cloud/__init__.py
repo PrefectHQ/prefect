@@ -1,5 +1,5 @@
 """
-These tasks are classified as Cloud due to their reliance on Prefect Cloud.
+Tasks for interacting with the Prefect API
 """
 
-from prefect.tasks.cloud.flow_run import FlowRunTask
+from prefect.tasks.prefect.flow_run import FlowRunTask
