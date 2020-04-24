@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Type
 from distributed.deploy.cluster import Cluster
 from distributed.security import Security
 
-from prefect.environments.execution import RemoteDaskEnvironment
+from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
 
 
 class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
