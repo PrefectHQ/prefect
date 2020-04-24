@@ -99,38 +99,38 @@ Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect
 
 |                                                                                  |            |                                                                            |
 | -------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------- |
-| <img src="docs/.vuepress/public/logos/airtable.png" style="max-height: 60px;">   | Airtable   | [Documentation](https://docs.prefect.io/core/task_library/airtable.html)   |
-| <img src="docs/.vuepress/public/logos/aws.png" style="max-height: 60px;">        | AWS        | [Documentation](https://docs.prefect.io/core/task_library/aws.html)        |
-| <img src="docs/.vuepress/public/logos/azure.png" style="max-height: 60px;">      | Azure      | [Documentation](https://docs.prefect.io/core/task_library/azure.html)      |
-| <img src="docs/.vuepress/public/logos/azure_ml.jpg" style="max-height: 60px;">   | Azure ML   | [Documentation](https://docs.prefect.io/core/task_library/azureml.html)    |
-| <img src="docs/.vuepress/public/logos/gmail.png" style="max-height: 60px;">      | Email      | [Documentation](https://docs.prefect.io/core/task_library/email.html)      |
-| <img src="docs/.vuepress/public/logos/docker.png" style="max-height: 60px;">     | Docker     | [Documentation](https://docs.prefect.io/core/task_library/docker.html)     |
-| <img src="docs/.vuepress/public/logos/dropbox.png" style="max-height: 60px;">    | Dropbox    | [Documentation](https://docs.prefect.io/core/task_library/dropbox.html)    |
-| <img src="docs/.vuepress/public/logos/gcp.png" style="max-height: 60px;">        | GCP        | [Documentation](https://docs.prefect.io/core/task_library/gcp.html)        |
-| <img src="docs/.vuepress/public/logos/github.png" style="max-height: 60px;">     | GitHub     | [Documentation](https://docs.prefect.io/core/task_library/github.html)     |
-| <img src="docs/.vuepress/public/logos/kubernetes.png" style="max-height: 60px;"> | Kubernetes | [Documentation](https://docs.prefect.io/core/task_library/kubernetes.html) |
-| <img src="docs/.vuepress/public/logos/postgres.png" style="max-height: 60px;">   | Postgres   | [Documentation](https://docs.prefect.io/core/task_library/postgres.html)   |
-| <img src="docs/.vuepress/public/logos/python.png" style="max-height: 60px;">     | Python     | [Documentation](https://docs.prefect.io/core/task_library/function.html)   |
-| <img src="docs/.vuepress/public/logos/redis.png" style="max-height: 60px;">      | Redis      | [Documentation](https://docs.prefect.io/core/task_library/redis.html)      |
-| <img src="docs/.vuepress/public/logos/rss.png" style="max-height: 60px;">        | RSS        | [Documentation](https://docs.prefect.io/core/task_library/rss.html)        |
-| <img src="docs/.vuepress/public/logos/terminal.png" style="max-height: 60px;">   | Shell      | [Documentation](https://docs.prefect.io/core/task_library/shell.html)      |
-| <img src="docs/.vuepress/public/logos/slack.png" style="max-height: 60px;">      | Slack      | [Documentation](https://docs.prefect.io/core/task_library/slack.html)      |
-| <img src="docs/.vuepress/public/logos/snowflake.png" style="max-height: 60px;">  | Snowflake  | [Documentation](https://docs.prefect.io/core/task_library/snowflake.html)  |
-| <img src="docs/.vuepress/public/logos/spacy.png" style="max-height: 60px;">      | spaCy      | [Documentation](https://docs.prefect.io/core/task_library/spacy.html)      |
-| <img src="docs/.vuepress/public/logos/sqlite.png" style="max-height: 60px;">     | SQLite     | [Documentation](https://docs.prefect.io/core/task_library/sqlite.html)     |
-| <img src="docs/.vuepress/public/logos/twitter.png" style="max-height: 60px;">    | Twitter    | [Documentation](https://docs.prefect.io/core/task_library/twitter.html)    |
+| <img src="docs/.vuepress/public/logos/airtable.png" height=60 style="max-height: 60px;">   | Airtable   | [Documentation](https://docs.prefect.io/core/task_library/airtable.html)   |
+| <img src="docs/.vuepress/public/logos/aws.png" height=60 style="max-height: 60px;">        | AWS        | [Documentation](https://docs.prefect.io/core/task_library/aws.html)        |
+| <img src="docs/.vuepress/public/logos/azure.png" height=60 style="max-height: 60px;">      | Azure      | [Documentation](https://docs.prefect.io/core/task_library/azure.html)      |
+| <img src="docs/.vuepress/public/logos/azure_ml.jpg" height=60 style="max-height: 60px;">   | Azure ML   | [Documentation](https://docs.prefect.io/core/task_library/azureml.html)    |
+| <img src="docs/.vuepress/public/logos/gmail.png" height=60 style="max-height: 60px;">      | Email      | [Documentation](https://docs.prefect.io/core/task_library/email.html)      |
+| <img src="docs/.vuepress/public/logos/docker.png" height=60 style="max-height: 60px;">     | Docker     | [Documentation](https://docs.prefect.io/core/task_library/docker.html)     |
+| <img src="docs/.vuepress/public/logos/dropbox.png" height=60 style="max-height: 60px;">    | Dropbox    | [Documentation](https://docs.prefect.io/core/task_library/dropbox.html)    |
+| <img src="docs/.vuepress/public/logos/gcp.png" height=60 style="max-height: 60px;">        | GCP        | [Documentation](https://docs.prefect.io/core/task_library/gcp.html)        |
+| <img src="docs/.vuepress/public/logos/github.png" height=60 style="max-height: 60px;">     | GitHub     | [Documentation](https://docs.prefect.io/core/task_library/github.html)     |
+| <img src="docs/.vuepress/public/logos/kubernetes.png" height=60 style="max-height: 60px;"> | Kubernetes | [Documentation](https://docs.prefect.io/core/task_library/kubernetes.html) |
+| <img src="docs/.vuepress/public/logos/postgres.png" height=60 style="max-height: 60px;">   | Postgres   | [Documentation](https://docs.prefect.io/core/task_library/postgres.html)   |
+| <img src="docs/.vuepress/public/logos/python.png" height=60 style="max-height: 60px;">     | Python     | [Documentation](https://docs.prefect.io/core/task_library/function.html)   |
+| <img src="docs/.vuepress/public/logos/redis.png" height=60 style="max-height: 60px;">      | Redis      | [Documentation](https://docs.prefect.io/core/task_library/redis.html)      |
+| <img src="docs/.vuepress/public/logos/rss.png" height=60 style="max-height: 60px;">        | RSS        | [Documentation](https://docs.prefect.io/core/task_library/rss.html)        |
+| <img src="docs/.vuepress/public/logos/terminal.png" height=60 style="max-height: 60px;">   | Shell      | [Documentation](https://docs.prefect.io/core/task_library/shell.html)      |
+| <img src="docs/.vuepress/public/logos/slack.png" height=60 style="max-height: 60px;">      | Slack      | [Documentation](https://docs.prefect.io/core/task_library/slack.html)      |
+| <img src="docs/.vuepress/public/logos/snowflake.png" height=60 style="max-height: 60px;">  | Snowflake  | [Documentation](https://docs.prefect.io/core/task_library/snowflake.html)  |
+| <img src="docs/.vuepress/public/logos/spacy.png" height=60 style="max-height: 60px;">      | spaCy      | [Documentation](https://docs.prefect.io/core/task_library/spacy.html)      |
+| <img src="docs/.vuepress/public/logos/sqlite.png" height=60 style="max-height: 60px;">     | SQLite     | [Documentation](https://docs.prefect.io/core/task_library/sqlite.html)     |
+| <img src="docs/.vuepress/public/logos/twitter.png" height=60 style="max-height: 60px;">    | Twitter    | [Documentation](https://docs.prefect.io/core/task_library/twitter.html)    |
 
 ### Deployment & Execution
 
 |                                                                                  |                                                                                                           |
 | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| <img src="docs/.vuepress/public/logos/azure.png" style="max-height: 60px;">      | Azure                                                                                                     |
-| <img src="docs/.vuepress/public/logos/aws.png" style="max-height: 60px;">        | AWS                                                                                                       |
-| <img src="docs/.vuepress/public/logos/dask.png" style="max-height: 60px;">       | Dask                                                                                                      |
-| <img src="docs/.vuepress/public/logos/docker.png" style="max-height: 60px;">     | Docker                                                                                                    |
-| <img src="docs/.vuepress/public/logos/gcp.png" style="max-height: 60px;">        | GCP                                                                                                       |
-| <img src="docs/.vuepress/public/logos/kubernetes.png" style="max-height: 60px;"> | Kubernetes                                                                                                |
-| <img src="docs/.vuepress/public/logos/terminal.png" style="max-height: 60px;">   | [Universal Deploy](https://medium.com/the-prefect-blog/introducing-prefect-universal-deploy-7992283e5911) |
+| <img src="docs/.vuepress/public/logos/azure.png" height=60 style="max-height: 60px;">      | Azure                                                                                                     |
+| <img src="docs/.vuepress/public/logos/aws.png" height=60 style="max-height: 60px;">        | AWS                                                                                                       |
+| <img src="docs/.vuepress/public/logos/dask.png" height=60 style="max-height: 60px;">       | Dask                                                                                                      |
+| <img src="docs/.vuepress/public/logos/docker.png" height=60 style="max-height: 60px;">     | Docker                                                                                                    |
+| <img src="docs/.vuepress/public/logos/gcp.png" height=60 style="max-height: 60px;">        | GCP                                                                                                       |
+| <img src="docs/.vuepress/public/logos/kubernetes.png" height=60 style="max-height: 60px;"> | Kubernetes                                                                                                |
+| <img src="docs/.vuepress/public/logos/terminal.png" height=60 style="max-height: 60px;">   | [Universal Deploy](https://medium.com/the-prefect-blog/introducing-prefect-universal-deploy-7992283e5911) |
 
 ## Resources
 
