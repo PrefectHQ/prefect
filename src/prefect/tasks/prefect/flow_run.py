@@ -56,7 +56,7 @@ class FlowRunTask(Task):
 
         Example:
             ```python
-            from prefect.tasks.cloud.flow_run import FlowRunTask
+            from prefect.tasks.prefect.flow_run import FlowRunTask
 
             kickoff_task = FlowRunTask(project_name="My Cloud Project", flow_name="My Cloud Flow")
             ```
