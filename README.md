@@ -93,12 +93,12 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 Thanks to Prefect's growing task library and deep ecosystem integrations, building data applications is easier than ever.
 
-Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs.prefect.io/core/development/overview.html)!
+Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs.prefect.io/core/development/overview.html)! Prefect was designed to make adding new functionality extremely easy, whether you build on top of the open-source package or maintain an internal task library for your team.
 
 ### Task Library
 
-|                                                                                  |            |                                                                            |
-| -------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------- |
+|                                                                                            |            |                                                                            |
+| ------------------------------------------------------------------------------------------ | ---------- | -------------------------------------------------------------------------- |
 | <img src="docs/.vuepress/public/logos/airtable.png" height=60 style="max-height: 60px;">   | Airtable   | [Documentation](https://docs.prefect.io/core/task_library/airtable.html)   |
 | <img src="docs/.vuepress/public/logos/aws.png" height=60 style="max-height: 60px;">        | AWS        | [Documentation](https://docs.prefect.io/core/task_library/aws.html)        |
 | <img src="docs/.vuepress/public/logos/azure.png" height=60 style="max-height: 60px;">      | Azure      | [Documentation](https://docs.prefect.io/core/task_library/azure.html)      |
