@@ -81,7 +81,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._active_tenant_id = None
-        self._attached_headers = None
+        self._attached_headers = {}
         self.logger = create_diagnostic_logger("Diagnostics")
 
         # store api server
@@ -322,8 +322,12 @@ class Client:
     def attach_headers(self, headers: dict) -> None:
         """
         Set headers to be attached to this Client
+
+        Args:
+            - headers (dict): A dictionary of headers to attach to this client. These headers
+                get added on to the existing dictionary of headers.
         """
-        self._attached_headers = headers  # type: ignore
+        self._attached_headers.update(headers)
 
     # -------------------------------------------------------------------------
     # Auth
