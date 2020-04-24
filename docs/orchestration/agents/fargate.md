@@ -145,7 +145,7 @@ You should continue to use the `env_vars` kwarg to pass agent level environment 
 
 This adds support for Native AWS Secrets Manager and/or Parameter Store in your flows.
 
-Given that you running your Fargate tasks on`platformVersion` 1.4.0 or higher, you can also leverage `volumes` and `mountPoints` to attach an EFS backed volume on to your tasks.
+Given that you running your Fargate tasks on `platformVersion` 1.4.0 or higher, you can also leverage `volumes` and `mountPoints` to attach an EFS backed volume on to your tasks.
 In order to use `mountPoints` you will need to include the proper `volumes` kwarg as shown below.
 
 Here is an example of what kwargs would look like with `containerDefinitions` via Python:
