@@ -93,7 +93,7 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 Thanks to Prefect's growing task library and deep ecosystem integrations, building data applications is easier than ever.
 
-Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or even a PR!
+Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs.prefect.io/core/development/overview.html)!
 
 ### Task Library
 
@@ -122,8 +122,8 @@ Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect
 
 ### Deployment & Execution
 
-|                                                                                  |                                                                                                           |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+|                                                                                            |                                                                                                           |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | <img src="docs/.vuepress/public/logos/azure.png" height=60 style="max-height: 60px;">      | Azure                                                                                                     |
 | <img src="docs/.vuepress/public/logos/aws.png" height=60 style="max-height: 60px;">        | AWS                                                                                                       |
 | <img src="docs/.vuepress/public/logos/dask.png" height=60 style="max-height: 60px;">       | Dask                                                                                                      |
