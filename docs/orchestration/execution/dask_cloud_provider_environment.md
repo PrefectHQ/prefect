@@ -2,9 +2,6 @@
 
 [[toc]]
 
-::: warning Core server not supported, yet
-This environment is not currently supported with Prefect Core's server. Deployments using Prefect Core will be added in a future release.
-:::
 
 ## Overview
 
