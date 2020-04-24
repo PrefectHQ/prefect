@@ -1267,7 +1267,7 @@ class Client:
 
         result = self.graphql(
             mutation,
-            variables=dict(input=dict(type=agent_type, name=name, labels=str(labels))),
+            variables=dict(input=dict(type=agent_type, name=name, labels=labels)),
         )
 
         if not result.data.register_agent.id:
