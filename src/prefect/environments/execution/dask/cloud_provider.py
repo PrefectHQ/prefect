@@ -1,11 +1,12 @@
 from typing import Any, Callable, List, Type
 
 from distributed.deploy.cluster import Cluster
+from distributed.security import Security
 
-from prefect.environments.execution.remote import RemoteEnvironment
+from prefect.environments.execution import RemoteDaskEnvironment
 
 
-class DaskCloudProviderEnvironment(RemoteEnvironment):
+class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     """
     DaskCloudProviderEnvironment creates a new Dask cluster using the Dask Cloud Provider
     project. For each flow run, a new Dask cluster will be dynamically created and the
@@ -37,6 +38,16 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
+            Use this to connect to a Dask cluster that is enabled with TLS encryption. Fill out the Security
+            object like this:
+            ```
+                security = Security(tls_ca_file='cluster_ca.pem',
+                                    tls_client_cert='cli_cert.pem',
+                                    tls_client_key='cli_key.pem',
+                                    require_encryption=True)
+            ```
+            For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -49,20 +60,29 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        security: Security = None,
         **kwargs
     ) -> None:
         self._provider_class = provider_class
         self._adaptive_min_workers = adaptive_min_workers
         self._adaptive_max_workers = adaptive_max_workers
+        self._security = security
 
         self.cluster = None
 
         self.kwargs = kwargs
+        if self._security:
+            # We'll use the security config object both for our Dask Client connection *and*
+            # for the particular Dask Cloud Provider (e.g. Fargate) to use with its Dask
+            # Client connection when it connects to the scheduler after cluster creation so we
+            # need to put it in kwargs that get passed to the Dask Cloud Provider's __init()__
+            self.kwargs["security"] = self._security
         super().__init__(
+            address="",  # The scheduler address will be set later
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
-            executor="prefect.engine.executors.DaskExecutor",
+            security=self._security,
         )
 
     @property
@@ -78,6 +98,14 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
                     self.cluster.scheduler.address
                 )
             )
+            self.executor_kwargs["address"] = self.cluster.scheduler.address  # type: ignore
+        else:
+            if self.cluster:
+                self.cluster.close()
+            raise Exception(
+                "Unable to determine the Dask scheduler address after cluster creation. "
+                "Tearting down cluster and terminating setup."
+            )
         if self._adaptive_min_workers:
             self.logger.info(
                 "Enabling adaptive mode with min_workers={} max_workers={}".format(
@@ -91,7 +119,6 @@ class DaskCloudProviderEnvironment(RemoteEnvironment):
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
     ) -> None:
-        self.executor_kwargs["address"] = self.cluster.scheduler.address  # type: ignore
         self.logger.info(
             "Executing on Dask Cluster with scheduler address: {}".format(
                 self.executor_kwargs["address"]
