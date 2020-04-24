@@ -133,6 +133,82 @@ proxyConfiguration          dict
 inferenceAccelerators       list
 ```
 
+We have also added the ability to select items to the `containerDefinitions` kwarg of `register_task_definition`:
+
+```
+environments               list
+secrets                    list
+mountPoints                list
+```
+
+Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.  
+You should continue to use the `env_vars` kwarg to pass agent level environment variables to your tasks.
+
+This adds support for Native AWS Secrets Manager and/or Parameter Store in your flows.
+
+Given that you running your Fargate tasks on `platformVersion` 1.4.0 or higher, you can also leverage `volumes` and `mountPoints` to attach an EFS backed volume on to your tasks.
+In order to use `mountPoints` you will need to include the proper `volumes` kwarg as shown below.
+
+Here is an example of what kwargs would look like with `containerDefinitions` via Python:
+
+```python
+from prefect.agent.fargate import FargateAgent
+
+agent = FargateAgent(
+    aws_access_key_id="MY_ACCESS",
+    aws_secret_access_key="MY_SECRET",
+    aws_session_token="MY_SESSION",
+    region_name="MY_REGION",
+    networkConfiguration={
+        "awsvpcConfiguration": {
+            "assignPublicIp": "ENABLED",
+            "subnets": ["my_subnet_id"],
+            "securityGroups": []
+        }
+    },
+    cpu="256",
+    memory="512",
+    platformVersion="1.4.0",
+    containerDefinitions=[{
+        "environment": [{
+            "name": "TEST_ENV",
+            "value": "Success!"
+        }],
+        "secrets": [{
+            "name": "TEST_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+        }],
+        "mountPoints": [{
+            "sourceVolume": "myEfsVolume",
+            "containerPath": "/data",
+            "readOnly": False
+        }]
+    }],
+    volumes=[
+        {
+          "name": "myEfsVolume",
+          "efsVolumeConfiguration": {
+            "fileSystemId": "my_efs_id",
+            "transitEncryption": "ENABLED",
+            "authorizationConfig": {
+                "accessPointId": "my_efs_access_point",
+                "iam": "ENABLED"
+            }
+          }
+        }
+      ]
+    ),
+
+agent.start()
+```
+
+You can also pass these in using environment variables with the format of `containerDefinitions_<key>`, for example:
+```
+containerDefinitions_environment
+containerDefinitions_secrets
+containerDefinitions_mountPoints
+```
+
 Accepted kwargs for [`run_task`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task):
 
 ```
@@ -180,6 +256,8 @@ Please note that when setting the boto3 configuration for the `register_task_def
 By default, all of the kwargs mentioned above are passed in to the Agent configuration, which means that every flow inherits from them. There are use cases where you will want to use different attributes for different flows and that is supported through enabling `use_external_kwargs`.
 
 When enabled, the Agent will check for the existence of an external kwargs file from a bucket in S3. In order to use this feature you must also provide `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your Agent. If a file exists matching a set S3 key path, the Agent will apply these kwargs to the boto3 `register_task_definition` and `run_task` functions.
+
+External kwargs must be in `json` format.
 
 The S3 key path that will be used when fetching files is:
 
@@ -229,6 +307,53 @@ This functionality requires the agent have a proper IAM policy for fetching obje
             "Resource": "<s3 bucket kwargs path>"
         }
     ]
+}
+```
+
+External kwargs also support `containerDefinitions` mentioned above, which makes it easier support different environment variables, secrets, and mounted EFS volumes for different flows.
+
+Here is an example of the external kwargs json:
+
+```json
+{
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "assignPublicIp": "ENABLED",
+            "subnets": ["my_subnet_id"],
+            "securityGroups": []
+        }
+    },
+    "cpu": "256",
+    "memory"": "512",
+    "platformVersion": "1.4.0",
+    "containerDefinitions": [{
+        "environment": [{
+            "name": "TEST_ENV",
+            "value": "Success!"
+        }],
+        "secrets": [{
+            "name": "TEST_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+        }],
+        "mountPoints": [{
+            "sourceVolume": "myEfsVolume",
+            "containerPath": "/data",
+            "readOnly": false
+        }]
+    }],
+    "volumes": [
+        {
+          "name": "myEfsVolume",
+          "efsVolumeConfiguration": {
+            "fileSystemId": "my_efs_id",
+            "transitEncryption": "ENABLED",
+            "authorizationConfig": {
+                "accessPointId": "my_efs_access_point",
+                "iam": "ENABLED"
+        }
+      }
+    }
+  ]
 }
 ```
 
