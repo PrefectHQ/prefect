@@ -57,6 +57,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         assert not task.detach
         assert not task.entrypoint
         assert not task.environment
+        assert not task.volumes
         assert task.docker_server_url == "unix:///var/run/docker.sock"
 
     def test_filled_initialization(self):
@@ -66,6 +67,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
             detach=True,
             entrypoint=["test"],
             environment=["test"],
+            volumes=["/tmp/test:/tmp/test:ro"],
             name="test",
             docker_server_url="test",
         )
@@ -74,6 +76,7 @@ class TestCreateContainerTask(DockerLoggingTestingUtilityMixin):
         assert task.detach
         assert task.entrypoint == ["test"]
         assert task.environment == ["test"]
+        assert task.volumes == ["/tmp/test:/tmp/test:ro"]
         assert task.docker_server_url == "test"
 
     def test_empty_image_name_raises_error(self):
@@ -225,11 +228,15 @@ class TestListContainersTask(DockerLoggingTestingUtilityMixin):
     def test_empty_initialization(self):
         task = ListContainers()
         assert not task.all_containers
+        assert not task.filters
         assert task.docker_server_url == "unix:///var/run/docker.sock"
 
     def test_filled_initialization(self):
-        task = ListContainers(all_containers=True, docker_server_url="test")
+        task = ListContainers(
+            all_containers=True, filters={"name": "test"}, docker_server_url="test"
+        )
         assert task.all_containers == True
+        assert task.filters == {"name": "test"}
         assert task.docker_server_url == "test"
 
     def test_all_containers_init_value_is_used(self, monkeypatch):
