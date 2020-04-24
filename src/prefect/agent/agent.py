@@ -10,8 +10,11 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any, Generator, Iterable, Set
+from urllib.parse import urlparse
 
 import pendulum
+from tornado import web
+from tornado.ioloop import IOLoop
 
 from prefect import config
 from prefect.client import Client
@@ -49,6 +52,14 @@ def exit_handler(agent: "Agent") -> Generator:
         signal.signal(signal.SIGINT, original)
 
 
+class HealthHandler(web.RequestHandler):
+    """Respond to /api/health"""
+
+    def get(self):
+        # Empty json blob, may add more info later
+        self.write({})
+
+
 class Agent:
     """
     Base class for Agents. Information on using the Prefect agents can be found at
@@ -80,6 +91,7 @@ class Agent:
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        api_address: str = None,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
@@ -88,6 +100,11 @@ class Agent:
         self.env_vars = env_vars or dict()
         self.max_polls = max_polls
         self.log_to_cloud = config.logging.log_to_cloud
+
+        self.api_address = api_address or config.cloud.agent.get("api_address", "")
+        self._api_server = None
+        self._api_server_loop = None
+        self._api_server_thread = None
 
         token = config.cloud.agent.get("auth_token")
 
@@ -145,8 +162,9 @@ class Agent:
         new flow runs to deploy
         """
         try:
+            self.setup()
+
             with exit_handler(self) as exit_event:
-                self.agent_connect()
 
                 # Loop intervals for query sleep backoff
                 loop_intervals = {
@@ -187,7 +205,44 @@ class Agent:
                             )
                         )
         finally:
-            self.on_shutdown()
+            self.cleanup()
+
+    def setup(self) -> None:
+        self.agent_connect()
+
+        if self.api_address:
+            parsed = urlparse(self.api_address)
+            app = web.Application([("/api/health", HealthHandler)])
+
+            def run():
+                self._api_server = app.listen(parsed.port, address=parsed.hostname)
+                self._api_server_loop = IOLoop.current().start()
+
+            self._api_server_thread = threading.Thread(
+                name="api-server", target=run, daemon=True
+            )
+            self._api_server_thread.start()
+
+    def cleanup(self) -> None:
+        self.on_shutdown()
+
+        if self._api_server is not None:
+            self._api_server.stop()
+
+        if self._api_server_loop is not None:
+
+            def stop_server():
+                try:
+                    self._api_server_loop.stop()
+                except Exception:
+                    pass
+
+            self._api_server_loop.add_callback(stop_server)
+
+        if self._api_server_thread is not None:
+            # Give the server a small period to shutdown nicely, otherwise it
+            # will terminate on exit anyway since it's a daemon thread.
+            self._api_server_thread.join(0.1)
 
     def on_shutdown(self) -> None:
         """

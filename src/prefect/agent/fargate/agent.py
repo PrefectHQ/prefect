@@ -87,6 +87,7 @@ class FargateAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        api_address: str = None,
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -99,7 +100,11 @@ class FargateAgent(Agent):
         **kwargs
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            api_address=api_address,
         )
 
         from boto3 import client as boto3_client

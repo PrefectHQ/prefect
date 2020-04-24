@@ -56,12 +56,17 @@ class LocalAgent(Agent):
         show_flow_logs: bool = False,
         hostname_label: bool = True,
         max_polls: int = None,
+        api_address: str = None,
     ) -> None:
         self.processes = []  # type: list
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            api_address=api_address,
         )
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):

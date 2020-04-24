@@ -25,11 +25,6 @@ class NomadAgent(Agent):
             on each flow run that this agent submits for execution
     """
 
-    def __init__(
-        self, name: str = None, labels: Iterable[str] = None, env_vars: dict = None
-    ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
-
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on to a Nomad cluster as jobs

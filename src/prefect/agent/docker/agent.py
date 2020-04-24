@@ -61,6 +61,7 @@ class DockerAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        api_address: str = None,
         base_url: str = None,
         no_pull: bool = None,
         volumes: List[str] = None,
@@ -69,7 +70,11 @@ class DockerAgent(Agent):
         docker_interface: bool = True,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            api_address=api_address,
         )
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"

@@ -66,9 +66,14 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        api_address: str = None,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            api_address=api_address,
         )
 
         self.namespace = namespace
@@ -316,16 +321,6 @@ class KubernetesAgent(Agent):
         output_yaml = [deployment]
         output_yaml.extend(rbac_yaml)
         return yaml.safe_dump_all(output_yaml, explicit_start=True)
-
-    def heartbeat(self) -> None:
-        """
-        Write agent heartbeat by opening and closing a heartbeat file. This allows
-        liveness probes to check the agent's main process activity based on the
-        heartbeat file's last modified time.
-        """
-        os.makedirs(AGENT_DIRECTORY, exist_ok=True)
-
-        open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
 if __name__ == "__main__":
