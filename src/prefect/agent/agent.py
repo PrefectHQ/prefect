@@ -91,8 +91,6 @@ class Agent:
 
         token = config.cloud.agent.get("auth_token")
 
-        self.registration_id = None
-
         self.client = Client(api_token=token)
         if config.backend == "cloud":
             self._verify_token(token)

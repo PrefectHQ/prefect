@@ -148,6 +148,11 @@ def runner_token(monkeypatch):
 
 
 @pytest.fixture()
+def registration(monkeypatch):
+    monkeypatch.setattr("prefect.agent.agent.Agent._register_agent", MagicMock())
+
+
+@pytest.fixture()
 def cloud_api():
     with prefect.utilities.configuration.set_temporary_config(
         {"cloud.api": "https://api.prefect.io", "backend": "cloud"}
