@@ -131,11 +131,15 @@ class Agent:
 
     def _register_agent(self) -> str:
         """
-        Register this agent with Prefect Cloud and store registration ID on agent
+        Register this agent with Prefect Cloud and retrieve agent ID
+
+        Returns:
+            - The agent ID as a string
         """
-        # registration_id = self.client.register_agent(type=type(self), name=self.name, labels=self.labels)
-        registration_id = "ID"
-        return registration_id
+        agent_id = self.client.register_agent(
+            agent_type=type(self).__name__, name=self.name, labels=self.labels
+        )
+        return agent_id
 
     def start(self) -> None:
         """
