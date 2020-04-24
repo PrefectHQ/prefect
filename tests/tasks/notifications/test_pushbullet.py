@@ -7,6 +7,7 @@ import pytest
 
 pytest.importorskip("pushbullet")
 
+
 class TestInitialization:
     def test_inits_with_no_args(self):
         t = PushbulletTask()
@@ -29,7 +30,7 @@ class TestInitialization:
                 task.run()
         kwargs = pushbullet.call_args[0]
         assert kwargs == (42,)
-    
+
     def test_raises_if_secret_not_provided(self):
         task = PushbulletTask()
         with pytest.raises(ValueError, match="Secret"):
@@ -44,7 +45,5 @@ class TestInitialization:
         )
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(PUSHBULLET_TOKEN=42)):
-                with pytest.raises(ValueError, match="Secret"):
+                with pytest.raises(ValueError, match="message"):
                     task.run()
-
-    

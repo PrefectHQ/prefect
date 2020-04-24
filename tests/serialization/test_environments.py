@@ -11,6 +11,7 @@ from prefect.serialization.environment import (
     KubernetesJobEnvironmentSchema,
     LocalEnvironmentSchema,
     RemoteEnvironmentSchema,
+    RemoteDaskEnvironmentSchema,
 )
 
 
@@ -250,6 +251,38 @@ def test_serialize_remote_environment_with_labels():
     new = schema.load(serialized)
     assert new.executor == prefect.config.engine.executor.default_class
     assert new.executor_kwargs == {}
+    assert new.labels == set(["bob", "alice"])
+
+
+def test_serialize_remote_dask_environment():
+    env = environments.RemoteDaskEnvironment(address="test")
+
+    schema = RemoteDaskEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["address"] == "test"
+    assert serialized["labels"] == []
+
+    new = schema.load(serialized)
+    assert new.address == "test"
+    assert new.labels == set()
+
+
+def test_serialize_remote_dask_environment_with_labels():
+    env = environments.RemoteDaskEnvironment(
+        address="test", labels=["bob", "alice"], executor_kwargs={"not": "present"}
+    )
+
+    schema = RemoteDaskEnvironmentSchema()
+    serialized = schema.dump(env)
+    assert serialized
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["address"] == "test"
+    assert set(serialized["labels"]) == set(["bob", "alice"])
+
+    new = schema.load(serialized)
+    assert new.address == "test"
     assert new.labels == set(["bob", "alice"])
 
 

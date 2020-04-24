@@ -26,9 +26,10 @@ class SQLiteQuery(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query")
-    def run(self, query: str = None):
+    def run(self, db: str, query: str = None):
         """
         Args:
+            - db (str): the location of the database (.db) file
             - query (str, optional): the optional query to execute at runtime;
                 if not provided, `self.query` will be used instead. Note that a query should consist of a _single SQL statement_.
 
