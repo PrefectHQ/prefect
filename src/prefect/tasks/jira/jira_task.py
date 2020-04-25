@@ -1,6 +1,7 @@
 from prefect import Task
 from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
+from typing import cast
 from typing import Any
 
 try:
@@ -81,12 +82,12 @@ class CreateJiraIssueTask(Task):
             - None
         """
 
-    jira_credentials = cast(dict, prefect.client.Secret("JIRASECRETS").get())
+    jira_credentials = cast(dict, Secret("JIRASECRETS").get())
     username = jira_credentials["JIRAUSER"]
     password = jira_credentials["JIRATOKEN"]
 
-    if not server_URL:
-        server_URL = jira_credentials["JIRASERVER"]
+    if not server_url:
+        server_url = jira_credentials["JIRASERVER"]
 
     jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
 
