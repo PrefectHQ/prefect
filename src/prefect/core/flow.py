@@ -1,4 +1,5 @@
 import collections
+import collections.abc
 import copy
 import functools
 import inspect
@@ -181,7 +182,7 @@ class Flow:
 
         self._prefect_version = prefect.__version__
 
-        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+        if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         if on_failure is not None:
