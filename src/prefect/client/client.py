@@ -501,7 +501,7 @@ class Client:
         """
         payload = self.graphql(
             {
-                "mutation($input: refresh_token!)": {
+                "mutation($input: refresh_token_input!)": {
                     "refresh_token(input: $input)": {
                         "access_token",
                         "expires_at",
