@@ -10,14 +10,14 @@ from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
 
 class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     """
-    DaskCloudProviderEnvironment creates a new Dask cluster using the Dask Cloud Provider
+    DaskCloudProviderEnvironment creates Dask clusters using the Dask Cloud Provider
     project. For each flow run, a new Dask cluster will be dynamically created and the
-    flow will run using a `RemoteEnvironment` with the `DaskExecutor` using the Dask
-    scheduler address from the newly created Dask cluster. You can specify the number
-    of Dask workers manually (for example, passing the kwarg `n_workers`) or enable
-    adaptive mode by passing `adaptive_min_workers` and, optionally,
-    `adaptive_max_workers`. This environment aims to provide a very easy path to
-    Dask scalability for users of cloud platforms, like AWS.
+    flow will run using a `RemoteDaskEnvironment` with the Dask scheduler address
+    from the newly created Dask cluster. You can specify the number of Dask workers
+    manually (for example, passing the kwarg `n_workers`) or enable adaptive mode by
+    passing `adaptive_min_workers` and, optionally, `adaptive_max_workers`. This
+    environment aims to provide a very easy path to Dask scalability for users of
+    cloud platforms, like AWS.
 
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
@@ -38,16 +38,15 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             mode.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
-        - on_execute (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function callback which will
-            be called before the flow begins to execute. The callback function can examine the Flow run
-            parameters and modify the kwargs to be passed to the Dask Cloud Provider class's constructor prior
+        - on_start (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function callback which will
+            be called before the flow begins to run. The callback function can examine the Flow run
+            parameters and modify  kwargs to be passed to the Dask Cloud Provider class's constructor prior
             to launching the Dask cluster for the Flow run. This allows for dynamically sizing the cluster based
             on the Flow run parameters, e.g. settings n_workers. The callback function's signature should be:
-                `def on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:`
+                `def on_start(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:`
             The callback function may modify provider_kwargs (e.g. `provider_kwargs["n_workers"] = 3`) and any
-            relevant changes will be used when creating the Dask cluster.
+            relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
+        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
             Use this to connect to a Dask cluster that is enabled with TLS encryption. Fill out the Security
             object like this:
@@ -68,16 +67,15 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         adaptive_min_workers: int = None,
         adaptive_max_workers: int = None,
         labels: List[str] = None,
-        on_start: Callable = None,
+        on_start: Callable[[Dict[str, Any], Dict[str, Any]], None] = None,
         on_exit: Callable = None,
-        on_execute: Callable[[Dict[str, Any], Dict[str, Any]], None] = None,
         security: Security = None,
         **kwargs
     ) -> None:
         self._provider_class = provider_class
         self._adaptive_min_workers = adaptive_min_workers
         self._adaptive_max_workers = adaptive_max_workers
-        self._on_execute = on_execute
+        self._on_start = on_start
         self._security = security
         self._provider_kwargs = kwargs
         if self._security:
@@ -90,7 +88,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         super().__init__(
             address="",  # The scheduler address will be set after cluster creation
             labels=labels,
-            on_start=on_start,
+            on_start=None,  # Disable on_start in base classes since we'll call our own
             on_exit=on_exit,
             security=self._security,
         )
@@ -108,6 +106,18 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                     self.cluster.scheduler.address
                 )
             )
+            if (
+                hasattr(self.cluster.scheduler, "services")
+                and self.cluster.scheduler.services
+                and self.cluster.scheduler.services.get("dashboard", None)
+            ):
+                self.logger.info(
+                    "Dask cluster dashboard is available at http://{}:()".format(
+                        self.cluster.scheduler.services["dashboard"].server.address,
+                        self.cluster.scheduler.services["dashboard"].server.port,
+                    )
+                )
+
             self.executor_kwargs["address"] = self.cluster.scheduler.address  # type: ignore
         else:
             if self.cluster:
@@ -129,8 +139,8 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
     ) -> None:
-        if self._on_execute:
-            # If an on_execute Callable has been provided, retrieve the flow run parameters
+        if self._on_start:
+            # If an on_start Callable has been provided, retrieve the flow run parameters
             # and then allow the Callable a chance to update _provider_kwargs. This allows
             # better sizing of the cluster resources based on parameters for this Flow run.
             flow_run_id = prefect.context.get("flow_run_id")
@@ -138,7 +148,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 client = Client()
                 flow_run_info = client.get_flow_run_info(flow_run_id)
                 parameters = flow_run_info.parameters or {}  # type: ignore
-                self._on_execute(parameters, self._provider_kwargs)
+                self._on_start(parameters, self._provider_kwargs)
             except Exception as exc:
                 self.logger.info(
                     "Failed to retrieve flow run info with error: {}".format(repr(exc))
