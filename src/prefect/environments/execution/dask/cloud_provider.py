@@ -157,6 +157,37 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 self.logger.info(
                     "Failed to retrieve flow run info with error: {}".format(repr(exc))
                 )
+        if "image" not in self._provider_kwargs or not self._provider_kwargs.get(
+            "image"
+        ):
+            # If image is not specified, use the Flow's image so that dependencies are
+            # identical on alls containers: Flow runner, Dask scheduler, and Dask workers
+            flow_id = prefect.context.get("flow_id")
+            try:
+                client = Client()
+                flow_info = client.graphql(
+                    """query {
+                  flow(where: {id: {_eq: "dbebae33-bb3c-4b63-af23-3362a659fc00"}}) {
+                    storage
+                  }
+                }"""
+                )
+                storage_info = flow_info["data"]["flow"][0]["storage"]
+                image = "{}/{}:{}".format(
+                    storage_info["registry_url"],
+                    storage_info["image_name"],
+                    storage_info["image_tag"],
+                )
+                self.logger.info(
+                    "Using Flow's Docker image for Dask scheduler & workers: {}".format(
+                        image
+                    )
+                )
+                self._provider_kwargs["image"] = image
+            except Exception as exc:
+                self.logger.info(
+                    "Failed to retrieve flow info with error: {}".format(repr(exc))
+                )
 
         self._create_dask_cluster()
 
