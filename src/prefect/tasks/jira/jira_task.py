@@ -23,7 +23,7 @@ class CreateJiraIssueTask(Task):
     The server URL can be set as part of the 'JIRASECRETS' object ('JIRASERVER') or passed to the task as the "server_URL" argument.
     
     Args:
-        - server_URL (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
+        - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
         - project_name(str):  the key for your jira project. Can also be set at run time. 
         - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. Can also be set at run time. 
         - issue_type (str, optional): the type of issue you want to create.  Can also be set at run time. Defaults to 'Task'. 
@@ -67,7 +67,7 @@ class CreateJiraIssueTask(Task):
         or by using `Task.bind`.
 
         Args:
-        - server_URL (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
+        - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
         - project_name(str):  the key for your jira project; defaults to the one provided at initialization
         - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
         - issue_type (str, optional): the type of issue you want to create.; defaults to the one provided at initialization
@@ -82,24 +82,23 @@ class CreateJiraIssueTask(Task):
             - None
         """
 
-    jira_credentials = cast(dict, Secret("JIRASECRETS").get())
-    username = jira_credentials["JIRAUSER"]
-    password = jira_credentials["JIRATOKEN"]
+        jira_credentials = cast(dict, Secret("JIRASECRETS").get())
+        username = jira_credentials["JIRAUSER"]
+        password = jira_credentials["JIRATOKEN"]
 
-    if not server_url:
-        server_url = jira_credentials["JIRASERVER"]
+        if server_url is None:
+            server_url = jira_credentials["JIRASERVER"]
 
-    jira = JIRA(basic_auth=(username, password), options={"server": serverURL})
+        jira = JIRA(basic_auth=(username, password), options={"server": server_url})
 
-    options = {
-        server_url: server_url,
-        project_name: project_name,
-        assignee: assignee,
-        issue_type: issue_type,
-        summary: summary,
-        description: description,
-    }
-    created = jira.create_issue(options)
+        options = {
+            project_name: project_name,
+            assignee: assignee,
+            issue_type: issue_type,
+            summary: summary,
+            description: description,
+        }
+        created = jira.create_issue(options)
 
-    if not created:
-        raise ValueError("Creating Jira Issue failed")
+        if not created:
+            raise ValueError("Creating Jira Issue failed")
