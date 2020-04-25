@@ -1,4 +1,5 @@
 from typing import Any, Callable, List, Type, Dict
+from urllib.parse import urlparse
 
 from distributed.deploy.cluster import Cluster
 from distributed.security import Security
@@ -18,6 +19,18 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     passing `adaptive_min_workers` and, optionally, `adaptive_max_workers`. This
     environment aims to provide a very easy path to Dask scalability for users of
     cloud platforms, like AWS.
+
+    NOTE: AWS Fargate Task (not Prefect Task) startup time can be slow, depending
+    on docker image size. Total startup time for a Dask scheduler and workers can
+    be several minutes. This environment is a much better fit for production
+    deployments of scheduled Flows where there's little sensitivity to startup
+    time. DaskCloudProviderEnvironment` is a particularly good fit for automated
+    deployment of Flows in a CI/CD pipeline where the infrastructure for each Flow
+    should be as independent as possible, e.g. each Flow could have its own docker
+    image, dynamically create the Dask cluster to run on, etc. However, for
+    development and interactive testing, creating a Dask cluster manually with Dask
+    Cloud Provider and then using `RemoteDaskEnvironment` or just ` DaskExecutor`
+    with your flows will result in a much better development experience.
 
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
@@ -102,21 +115,11 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         self.cluster = self._provider_class(**self._provider_kwargs)
         if self.cluster and self.cluster.scheduler and self.cluster.scheduler.address:
             self.logger.info(
-                "Dask cluster created. Sheduler address: {}".format(
-                    self.cluster.scheduler.address
-                )
+                "Dask cluster created. Sheduler address: {} Dashboard: http://{}:8787 "
+                "(unless port was changed from default of 8787)".format(
+                    self.cluster.scheduler.address, urlparse(self.cluster.scheduler.address).hostname
+                )  # TODO submit PR to Dask Cloud Provider allowing discovery of dashboard port
             )
-            if (
-                hasattr(self.cluster.scheduler, "services")
-                and self.cluster.scheduler.services
-                and self.cluster.scheduler.services.get("dashboard", None)
-            ):
-                self.logger.info(
-                    "Dask cluster dashboard is available at http://{}:()".format(
-                        self.cluster.scheduler.services["dashboard"].server.address,
-                        self.cluster.scheduler.services["dashboard"].server.port,
-                    )
-                )
 
             self.executor_kwargs["address"] = self.cluster.scheduler.address  # type: ignore
         else:
@@ -157,7 +160,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         self._create_dask_cluster()
 
         self.logger.info(
-            "Executing on Dask Cluster with scheduler address: {}".format(
+            "Executing on dynamically created Dask Cluster with scheduler address: {}".format(
                 self.executor_kwargs["address"]
             )
         )
