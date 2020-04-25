@@ -62,6 +62,22 @@ def test_version_header_cant_be_overridden(monkeypatch):
     )
 
 
+def test_client_attached_headers(monkeypatch, cloud_api):
+    get = MagicMock()
+    session = MagicMock()
+    session.return_value.get = get
+    monkeypatch.setattr("requests.Session", session)
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        client = Client()
+        assert client._attached_headers == {}
+
+        client.attach_headers({"1": "1"})
+        assert client._attached_headers == {"1": "1"}
+
+        client.attach_headers({"2": "2"})
+        assert client._attached_headers == {"1": "1", "2": "2"}
+
+
 def test_client_posts_graphql_to_api_server(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
@@ -933,3 +949,31 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
 
         url = client.get_cloud_url(subdirectory="flow-run", id="id2")
         assert url == "http://hello.prefect.io/tslug/flow-run/id2"
+
+
+def test_register_agent(patch_post, cloud_api):
+    response = {"data": {"register_agent": {"id": "ID"}}}
+
+    patch_post(response)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        client = Client()
+
+        agent_id = client.register_agent(
+            agent_type="type", name="name", labels=["1", "2"]
+        )
+        assert agent_id == "ID"
+
+
+def test_register_agent_raises_error(patch_post, cloud_api):
+    response = {"data": {"register_agent": {"id": None}}}
+
+    patch_post(response)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        client = Client()
+
+        with pytest.raises(ValueError):
+            agent_id = client.register_agent(
+                agent_type="type", name="name", labels=["1", "2"]
+            )
