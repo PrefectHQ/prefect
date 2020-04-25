@@ -100,12 +100,6 @@ class Result(ResultInterface):
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
             the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - cache_for (timedelta, optional): The amount of time to maintain a cache
-            of this result.  Useful for situations where the containing Flow
-            will be rerun multiple times, but this task doesn't need to be.
-        - cache_validator (Callable, optional): Validator that will determine
-            whether the cache for this result is still valid (only required if `cache_for`
-            is provided; defaults to `prefect.engine.cache_validators.duration_only`)
         - location (str, optional): Possibly templated location to be used for saving the
             result to the destination.
     """

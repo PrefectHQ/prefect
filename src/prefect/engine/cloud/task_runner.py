@@ -41,6 +41,8 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
+        - result (Result, optional): the result instance used to retrieve and store task results during execution;
+            if not provided, will default to the one on the provided Task
     """
 
     def __init__(

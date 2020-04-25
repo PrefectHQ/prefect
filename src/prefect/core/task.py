@@ -148,7 +148,7 @@ class Task(metaclass=SignatureValidator):
         - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
+        - result (Result, optional): the result instance used to retrieve and store task results during execution
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
