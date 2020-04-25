@@ -92,9 +92,9 @@ class CreateJiraIssueTask(Task):
         jira = JIRA(basic_auth=(username, password), options={"server": server_url})
 
         options = {
-            project_name: project_name,
-            assignee: assignee,
-            issue_type: issue_type,
+            project: project_name,
+            assignee: {'accountId': assignee},
+            issuetype: {'name': issue_type},
             summary: summary,
             description: description,
         }
