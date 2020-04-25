@@ -62,7 +62,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             `register_task_definition` and `run_task`
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         provider_class: Type[Cluster],
         adaptive_min_workers: int = None,
