@@ -34,7 +34,7 @@ class PushbulletTask(Task):
                 at initialization
 
         Raises:
-            - None
+            - ValueError: if a `msg` was never provided
 
         Returns:
             - None
