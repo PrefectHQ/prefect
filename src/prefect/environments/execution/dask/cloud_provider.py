@@ -117,7 +117,8 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             self.logger.info(
                 "Dask cluster created. Sheduler address: {} Dashboard: http://{}:8787 "
                 "(unless port was changed from default of 8787)".format(
-                    self.cluster.scheduler.address, urlparse(self.cluster.scheduler.address).hostname
+                    self.cluster.scheduler.address,
+                    urlparse(self.cluster.scheduler.address).hostname,
                 )  # TODO submit PR to Dask Cloud Provider allowing discovery of dashboard port
             )
 
