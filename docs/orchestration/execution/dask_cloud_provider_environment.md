@@ -17,7 +17,7 @@ Support for AzureML is [coming soon](https://github.com/dask/dask-cloudprovider/
 
 :::warning Security Considerations on AWS Fargate 
 As of April 26, 2020 the Dask Cloud Provider project contains some
-security limitations with  AWS Fargate that make it inappropriate for use with sensitive data.
+security limitations with AWS Fargate that make it inappropriate for use with sensitive data.
 Until those security items are addressed, this environment should only be used
 for prototyping and testing with non-sensitive data. (See pull requests [85](https://github.com/dask/dask-cloudprovider/pull/85)
 and [91](https://github.com/dask/dask-cloudprovider/pull/91).)
