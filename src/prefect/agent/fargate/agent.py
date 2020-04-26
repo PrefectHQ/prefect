@@ -48,7 +48,7 @@ class FargateAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
-        - launch_type (str, optional): either FARGATE or ECS, defaults to FARGATE
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
