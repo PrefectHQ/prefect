@@ -76,6 +76,7 @@ class JiraTask(Task):
 
         Raises:
             - ValueError: if a `project_name` was never provided
+            - ValueError if a 'summary' was never provided
             - ValueError: if creating an issue failed
 
         Returns:
@@ -91,6 +92,12 @@ class JiraTask(Task):
 
         if issue_type is None:
             issue_type = "Task"
+        
+        if project_name is None:
+            raise ValueError("A project name must be provided")
+
+        if summary is None:
+            raise ValueError("A summary must be provided")
 
         jira = JIRA(basic_auth=(username, password), options={"server": server_url})
 
