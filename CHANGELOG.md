@@ -39,6 +39,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Nelson Cornet](https://github.com/sk4la)
 - [Braun Reyes](https://github.com/braunreyes)
 - [Fraznist](https://github.com/Fraznist)
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 

@@ -5,22 +5,267 @@
 
 ## Overview
 
-The Dask Cloud Provider Environment runs each Flow on a dynamically created Dask cluster. It uses 
+The Dask Cloud Provider Environment executes each Flow run on a dynamically created Dask cluster. It uses 
 the  [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a Dask scheduler and
 workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very 
-easy way to achieve high scalability without the steeper learning curve of Kubernetes.
+easy way to achieve high scalability without the more substantial complexity of Kubernetes.
 
-*IMPORTANT* As of April 19, 2020 the Dask Cloud Provider project contains some
-security limitations that make it inappropriate for use with sensitive data.
+:::tip AWS Only    
+Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
+Support for AzureML is [coming soon](https://github.com/dask/dask-cloudprovider/pull/67).
+:::
+
+:::warning Security Considerations on AWS Fargate 
+As of April 26, 2020 the Dask Cloud Provider project contains some
+security limitations with  AWS Fargate that make it inappropriate for use with sensitive data.
 Until those security items are addressed, this environment should only be used
-for prototyping and testing.
+for prototyping and testing with non-sensitive data. (See pull requests [85](https://github.com/dask/dask-cloudprovider/pull/85)
+and [91](https://github.com/dask/dask-cloudprovider/pull/91).)
+:::
 
 ## Process
 
 #### Initialization
 
 The `DaskCloudProviderEnvironment` serves largely to pass kwargs through to the specific class
-from the Dask Cloud Provider project that you're using. It's a good idea to test Dask Cloud
-Provider directly and confirm that it's working correctly before using `DaskCloudProviderEnvironment`.
+from the Dask Cloud Provider project that you're using. You can find the list of 
+available arguments in the Dask Cloud Provider 
+[API documentation](https://cloudprovider.dask.org/en/latest/api.html).
 
-TODO: Additional details and example usage.
+```python
+from dask_cloudprovider import FargateCluster
+
+from prefect import Flow, task
+from prefect.environments import DaskCloudProviderEnvironment
+
+environment = DaskCloudProviderEnvironment(
+    provider_class=FargateCluster,
+    task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
+    execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
+    n_workers=1,
+    scheduler_cpu=256,
+    scheduler_mem=512,
+    worker_cpu=512,
+    worker_mem=1024
+)
+```
+
+The above code will create a Dask scheduler and 1 Dask worker using AWS Fargate each
+time the Flow runs.
+
+
+:::warning Fargate Task Startup Latency
+AWS Fargate Task startup time can be slow and increases as your Docker
+image size increases. Total startup time for a Dask scheduler and workers can
+be several minutes. This environment is appropriate for production
+deployments of scheduled Flows where there's little sensitivity to startup
+time. `DaskCloudProviderEnvironment` is a particularly good fit for automated
+deployment of scheduled Flows in a CI/CD pipeline where the infrastructure for each Flow
+should be as independent as possible, e.g. each Flow could have its own docker
+image, dynamically create the Dask cluster for each Flow run, etc. However, for
+development and interactive testing, either using ECS (instead of Fargate) or 
+creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using 
+`RemoteDaskEnvironment` or just ` DaskExecutor` with your flows will result 
+in a much better and fast development experience.
+:::
+
+#### Requirements
+
+The Dask Cloud Provider environment requires sufficient privileges with your cloud provider
+in order to run Docker containers for the Dask scheduler and workers. It's a good idea to 
+test Dask Cloud Provider directly and confirm that it's working correctly before using 
+`DaskCloudProviderEnvironment`. See [this documentation](https://cloudprovider.dask.org/)
+for more details.
+
+Here's an example of creating a Dask cluster using Dask Cloud Provider directly, 
+running a Flow on it, and then closing the cluster to tear down all cloud resoures
+that were created.
+
+```python
+from dask_cloudprovider import FargateCluster
+
+from prefect import Flow, Parameter, task
+from prefect.engine.executors import DaskExecutor
+
+
+cluster = FargateCluster(
+    image="prefecthq/prefect:latest",
+    task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
+    execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
+    n_workers=1,
+    scheduler_cpu=256,
+    scheduler_mem=512,
+    worker_cpu=256,
+    worker_mem=512,
+    scheduler_timeout="15 minutes",
+)             
+
+
+@task
+def times_two(x):
+    return x * 2
+
+
+@task
+def get_sum(x_list):
+    return sum(x_list)
+
+                        
+with Flow("Dask Cloud Provider Test") as flow:
+    x = Parameter("x", default=[1, 2, 3])
+    y = times_two.map(x)
+    results = get_sum(y)
+
+flow.run(executor=DaskExecutor(cluster.scheduler.address), 
+         parameters={"x": list(range(10))})
+
+cluster.close()
+```
+
+#### Setup
+
+The Dask Cloud Provider environment has no setup step because it has no infrastructure requirements.
+
+#### Execute
+
+Create a new cluster consisting of one Dask scheduler and 1 or more Dask workers on your
+cloud provider. By default, `DaskCloudProviderEnvironment` will use the same Docker image
+as your Flow for the Dask scheduler and worker. This ensures that the Dask workers have the 
+same dependencies (python modules, etc.) as the environment where the Flow runs. This drastically 
+simplifies dependency management and avoids the need for separately distributing softare
+to Dask workers.
+
+Following creation of the Dask cluster, the Flow will be run using the 
+[Remote Dask Executor](/api/latest/engine/executors.html#remotedaskexecutor) pointed 
+to the newly-created Dask cluster. All Task execution will take place on the
+Dask workers.
+
+## Examples
+
+#### Simple Fixed Number of Dask Workers
+
+The following example will execute your Flow on an auto-scaling Dask cluster in Kubernetes. The cluster will start with a single worker and dynamically scale up to five workers as needed.
+
+```python
+from dask_cloudprovider import FargateCluster
+
+from prefect import Flow, task, Parameter
+from prefect.environments import DaskCloudProviderEnvironment
+
+environment = DaskCloudProviderEnvironment(
+    provider_class=FargateCluster,
+    cluster_arn="arn:aws:ecs:us-west-2:<your-aws-account-number>:cluster/<your-ecs-cluster-name>",
+    task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
+    execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
+    n_workers=1,
+    scheduler_cpu=256,
+    scheduler_mem=512,
+    worker_cpu=512,
+    worker_mem=1024
+)
+
+
+@task
+def times_two(x):
+    return x * 2
+
+
+@task
+def get_sum(x_list):
+    return sum(x_list)
+
+                        
+with Flow("Dask Cloud Provider Test", environment=environment) as flow:
+    x = Parameter("x", default=[1, 2, 3])
+    y = times_two.map(x)
+    results = get_sum(y)
+```
+
+#### Advanced Example: Dynamic Worker Sizing from Parameters & TLS Encryption
+
+In this example we enable TLS encryption with Dask and dynamically calculate the number of Dask
+workers based on the parameters to a Flow run just prior to execution.
+
+- The `on_start` callback function examines parameters for that Flow run and modifies the kwargs 
+that will get passed to the constructor of the provider class from Dask Cloud Provider.
+
+- TLS ecryption requires that the cert, key, and CA files are available in the Flow's Docker image
+
+- The `scheduler_extra_args` and `scheduler_extra_args` kwargs are not yet available in Dask Cloud Provider, 
+but there is an [open pull request](https://github.com/dask/dask-cloudprovider/pull/91) to include them.
+
+```python
+import math
+
+from typing import Any, List, Dict
+
+from distributed.security import Security
+from dask_cloudprovider import FargateCluster
+
+import prefect
+from prefect import Flow, Parameter, task
+from prefect.environments import DaskCloudProviderEnvironment
+
+
+security = Security(
+    tls_client_cert="/opt/tls/your-cert-file.pem",
+    tls_client_key="/opt/tls/your-key-file.key",
+    tls_ca_file="/opt/tls/your-ca-file.pem",
+    require_encryption=True,
+)
+
+
+def on_start(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:
+    length_of_x = len(parameters.get("x"))
+    natural_log_of_length = int(math.log(length_of_x))
+    n_workers = min(1, max(10, natural_log_of_length))  # At least 1 worker & no more than 10
+    provider_kwargs["n_workers"] = n_workers
+
+
+environment = DaskCloudProviderEnvironment(
+    provider_class=FargateCluster,
+    cluster_arn="arn:aws:ecs:us-west-2:<your-aws-account-number>:cluster/<your-ecs-cluster-name>",
+    task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
+    execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
+    n_workers=1,
+    scheduler_cpu=256,
+    scheduler_mem=512,
+    worker_cpu=512,
+    worker_mem=1024,
+    on_start=on_start,
+    security=security,
+    scheduler_extra_args=[
+        "--tls-cert",
+        "/opt/tls/your-cert-file.pem",
+        "--tls-key",
+        "/opt/tls/your-key-file.key",
+        "--tls-ca-file",
+        "/opt/tls/your-ca-file.pem",
+    ],
+    worker_extra_args=[
+        "--tls-cert",
+        "/opt/tls/your-cert-file.pem",
+        "--tls-key",
+        "/opt/tls/your-key-file.key",
+        "--tls-ca-file",
+        "/opt/tls/your-ca-file.pem",
+    ]
+)
+
+
+@task
+def times_two(x):
+    return x * 2
+
+
+@task
+def get_sum(x_list):
+    return sum(x_list)
+
+                        
+with Flow("DaskCloudProviderEnvironment Test", environment=environment) as flow:
+    x = Parameter("x", default=list(range(10)))
+    y = times_two.map(x)
+    results = get_sum(y)
+
+```
