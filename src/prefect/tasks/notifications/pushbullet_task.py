@@ -1,5 +1,5 @@
 from prefect import Task
-from prefect.client import PrefectSecret
+from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import Any
 
@@ -41,7 +41,7 @@ class PushbulletTask(Task):
             - None
         """
         if access_token is None:
-            access_token = PrefectSecret("PUSHBULLET_TOKEN").get()
+            access_token = Secret("PUSHBULLET_TOKEN").get()
 
         pb = Pushbullet(access_token)
 
