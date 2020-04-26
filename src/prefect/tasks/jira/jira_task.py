@@ -107,9 +107,7 @@ class JiraTask(Task):
         if summary is None:
             raise ValueError("A summary must be provided")
 
-        jira = JIRA(
-            basic_auth=(username, access_token), options={"server": server_url}
-        )
+        jira = JIRA(basic_auth=(username, access_token), options={"server": server_url})
 
         options = {
             "project": project_name,
