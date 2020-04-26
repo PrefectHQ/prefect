@@ -10,7 +10,7 @@ except ImportError:
     pass
 
 
-class CreateJiraIssueTask(Task):
+class JiraTask(Task):
     """
     Task for creating a jira issue. For this task to function properly,
     you need a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
