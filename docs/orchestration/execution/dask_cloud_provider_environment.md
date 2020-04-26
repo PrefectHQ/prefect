@@ -128,7 +128,7 @@ cluster.close()
 
 One of the coolest and most useful features of Dask is the visual dashboard that
 updates in real time as a cluster executes a Flow. Here's a view of the Dask dashboard
-processing the Flow above with 4 workers:
+while the above Flow processed a list of 100 items with 4 Dask workers:
 
 ![](/orchestration/dask/dask-cloud-provider-dashboard.png)
 
