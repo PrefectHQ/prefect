@@ -52,5 +52,19 @@ class TestInitialization:
                     JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "https://foo/bar"}
                 )
             ):
-                with pytest.raises(ValueError, match="message"):
+                with pytest.raises(ValueError, match="project"):
+                    task.run()
+    
+    def test_raises_if_summary_not_provided(self, monkeypatch):
+        task = JiraTask(project_name='Test')
+        client = MagicMock()
+        jira = MagicMock(client=client)
+        monkeypatch.setattr("prefect.tasks.jira.jira_task.JIRA", jira)
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(
+                    JIRASECRETS={"JIRAUSER": "Bob", "JIRATOKEN": "", "JIRASERVER": "https://foo/bar"}
+                )
+            ):
+                with pytest.raises(ValueError, match="summary"):
                     task.run()
