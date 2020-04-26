@@ -108,7 +108,7 @@ class JiraTask(Task):
             raise ValueError("A summary must be provided")
 
         jira = JIRA(
-            basic_auth=(username, access - token), options={"server": server_url}
+            basic_auth=(username, access_token), options={"server": server_url}
         )
 
         options = {
