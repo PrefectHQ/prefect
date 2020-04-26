@@ -50,8 +50,8 @@ environment = DaskCloudProviderEnvironment(
 )
 ```
 
-The above code will create a Dask scheduler and 1 Dask worker using AWS Fargate each
-that time any Flow using that environment runs.
+The above code will create a Dask scheduler and one Dask worker using AWS Fargate each
+time that a Flow using that environment runs.
 
 
 :::warning Fargate Task Startup Latency
