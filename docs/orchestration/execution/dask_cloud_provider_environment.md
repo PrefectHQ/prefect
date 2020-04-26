@@ -8,7 +8,7 @@
 The Dask Cloud Provider Environment executes each Flow run on a dynamically created Dask cluster. It uses 
 the [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a Dask scheduler and
 workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very 
-easy way to achieve high scalability without the more substantial complexity of Kubernetes.
+easy way to achieve high scalability without the complexity of Kubernetes.
 
 :::tip AWS Only    
 Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
@@ -66,14 +66,14 @@ image, dynamically create the Dask cluster for each Flow run, etc. However, for
 development and interactive testing, either using ECS (instead of Fargate) or 
 creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using 
 `RemoteDaskEnvironment` or just ` DaskExecutor` with your flows will result 
-in a much better and fast development experience.
+in a much better and faster development experience.
 :::
 
 #### Requirements
 
 The Dask Cloud Provider environment requires sufficient privileges with your cloud provider
 in order to run Docker containers for the Dask scheduler and workers. It's a good idea to 
-test Dask Cloud Provider directly and confirm that it's working correctly before using 
+test Dask Cloud Provider directly and confirm that it's working properly before using 
 `DaskCloudProviderEnvironment`. See [this documentation](https://cloudprovider.dask.org/)
 for more details.
 
@@ -87,7 +87,6 @@ from dask_cloudprovider import FargateCluster
 from prefect import Flow, Parameter, task
 from prefect.engine.executors import DaskExecutor
 
-
 cluster = FargateCluster(
     image="prefecthq/prefect:latest",
     task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
@@ -97,9 +96,12 @@ cluster = FargateCluster(
     scheduler_mem=512,
     worker_cpu=256,
     worker_mem=512,
-    scheduler_timeout="15 minutes",
-)             
-
+    scheduler_timeout="15 minutes",  
+)         
+# Be aware of scheduler_timeout. In this case, if no Dask client (e.g. Prefect 
+# Dask Executor) has connected to the Dask scheduler in 15 minutes, the Dask 
+# cluster will terminate. For development, you may want to increase this timeout.
+        
 
 @task
 def times_two(x):
@@ -119,7 +121,22 @@ with Flow("Dask Cloud Provider Test") as flow:
 flow.run(executor=DaskExecutor(cluster.scheduler.address), 
          parameters={"x": list(range(10))})
 
+# Tear down the Dask cluster. If you're developing and testing your flow you would
+# not do this after each Flow run, but when you're done developing and testing. 
 cluster.close()
+```
+
+One of the coolest and most useful features of Dask is the visual dashboard that
+updates in real time as a cluster executes a Flow. Here's a view of the Dask dashboard
+processing the Flow above with 4 workers:
+
+![](/orchestration/dask/dask-cloud-provider-dashboard.png)
+
+You can find the URL for the Dask dashboard of your cluster in the Flow logs:
+
+```
+April 26th 2020 at 12:17:41pm | prefect.DaskCloudProviderEnvironment
+Dask cluster created. Sheduler address: tls://172.33.18.197:8786 Dashboard: http://172.33.18.197:8787
 ```
 
 #### Setup
