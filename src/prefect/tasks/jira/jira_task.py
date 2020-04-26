@@ -92,7 +92,7 @@ class JiraTask(Task):
 
         if issue_type is None:
             issue_type = "Task"
-        
+
         if project_name is None:
             raise ValueError("A project name must be provided")
 
