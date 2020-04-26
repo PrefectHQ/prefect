@@ -24,7 +24,7 @@ class PushbulletTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("msg")
-    def run(self, msg: str = None) -> None:
+    def run(self, msg: str = None, access_token: str = None) -> None:
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
@@ -32,6 +32,7 @@ class PushbulletTask(Task):
         Args:
             - msg (str): The message you want sent to your phone; defaults to the one provided
                 at initialization
+            - access_token (str): a Pushbullet access token, provided with a Prefect secret. Defaults to the "PUSHBULLET_TOKEN" secret
 
         Raises:
             - None
@@ -39,10 +40,10 @@ class PushbulletTask(Task):
         Returns:
             - None
         """
+        if access_token is None:
+            access_token = PrefectSecret("PUSHBULLET_TOKEN").get()
 
-        pbtoken = PrefectSecret("PUSHBULLET_TOKEN").get()
-
-        pb = Pushbullet(pbtoken)
+        pb = Pushbullet(access_token)
 
         if msg is None:
             raise ValueError("A message must be provided")
