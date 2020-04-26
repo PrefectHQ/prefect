@@ -1,5 +1,5 @@
 from prefect import Task
-from prefect.client import PrefectSecret
+from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 from typing import cast
 from typing import Any
@@ -87,7 +87,7 @@ class JiraTask(Task):
             - None
         """
 
-        jira_credentials = cast(dict, PrefectSecret("JIRASECRETS").get())
+        jira_credentials = cast(dict, Secret("JIRASECRETS").get())
 
         if username is None:
             username = jira_credentials["JIRAUSER"]
