@@ -55,6 +55,8 @@ class JiraTask(Task):
     )
     def run(
         self,
+        username: str = None,
+        access_token: str = None,
         server_url: str = None,
         project_name: str = None,
         assignee: str = "-1",
@@ -67,6 +69,8 @@ class JiraTask(Task):
         or by using `Task.bind`.
 
         Args:
+        - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
+        - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
         - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
         - project_name(str):  the key for your jira project; defaults to the one provided at initialization
         - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
@@ -84,8 +88,12 @@ class JiraTask(Task):
         """
 
         jira_credentials = cast(dict, PrefectSecret("JIRASECRETS").get())
-        username = jira_credentials["JIRAUSER"]
-        password = jira_credentials["JIRATOKEN"]
+
+        if username is None:
+            username = jira_credentials["JIRAUSER"]
+
+        if access_token is None:
+            access_token = jira_credentials["JIRATOKEN"]
 
         if server_url is None:
             server_url = jira_credentials["JIRASERVER"]
@@ -99,7 +107,9 @@ class JiraTask(Task):
         if summary is None:
             raise ValueError("A summary must be provided")
 
-        jira = JIRA(basic_auth=(username, password), options={"server": server_url})
+        jira = JIRA(
+            basic_auth=(username, access - token), options={"server": server_url}
+        )
 
         options = {
             "project": project_name,
