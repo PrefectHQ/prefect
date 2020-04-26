@@ -6,7 +6,7 @@
 ## Overview
 
 The Dask Cloud Provider Environment executes each Flow run on a dynamically created Dask cluster. It uses 
-the  [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a Dask scheduler and
+the [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a Dask scheduler and
 workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very 
 easy way to achieve high scalability without the more substantial complexity of Kubernetes.
 
