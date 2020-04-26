@@ -90,16 +90,16 @@ class JiraTask(Task):
             server_url = jira_credentials["JIRASERVER"]
 
         if issue_type is None:
-            issue_type = 'Task'
+            issue_type = "Task"
 
         jira = JIRA(basic_auth=(username, password), options={"server": server_url})
 
         options = {
-            'project': project_name,
-            'assignee': {'accountId': assignee},
-            'issuetype': {'name': issue_type},
-            'summary': summary,
-            'description': description,
+            "project": project_name,
+            "assignee": {"accountId": assignee},
+            "issuetype": {"name": issue_type},
+            "summary": summary,
+            "description": description,
         }
         created = jira.create_issue(options)
 
