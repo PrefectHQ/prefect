@@ -167,7 +167,7 @@ will start with a single worker and dynamically scale up to five workers as need
 
 :::tip Dask Adaptive Mode vs. Fixed Number of Workers    
 While letting Dask dynamically choose the number of workers with adaptive mode is
-attractive, the slow startup time of Fargate worker may cause Dask to quickly request
+attractive, the slow startup time of Fargate workers may cause Dask to quickly request
 the maximum number of workers. You may find that manually specifying the number of
 workers with `n_workers` is more effective. You can also do your own calculation
 of `n_workers` based on Flow run parameters at execution time in your own `on_start()`
