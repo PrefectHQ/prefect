@@ -220,7 +220,7 @@ that will get passed to the constructor of the provider class from Dask Cloud Pr
 
 - TLS ecryption requires that the cert, key, and CA files are available in the Flow's Docker image
 
-- The `scheduler_extra_args` and `scheduler_extra_args` kwargs are not yet available in Dask Cloud Provider, 
+- The `scheduler_extra_args` and `worker_extra_args` kwargs are not yet available in Dask Cloud Provider, 
 but there is an [open pull request](https://github.com/dask/dask-cloudprovider/pull/91) to include them.
 
 ```python
