@@ -161,7 +161,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             "image"
         ):
             # If image is not specified, use the Flow's image so that dependencies are
-            # identical on alls containers: Flow runner, Dask scheduler, and Dask workers
+            # identical on all containers: Flow runner, Dask scheduler, and Dask workers
             flow_id = prefect.context.get("flow_id")
             try:
                 client = Client()
