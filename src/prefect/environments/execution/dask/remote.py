@@ -21,7 +21,8 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     f = Flow("dummy flow", environment=env)
     ```
 
-    If using the Security object then it should be filled out like this:
+    If using the Security object then it should be filled out like this:'
+
     ```python
     security = Security(tls_ca_file='cluster_ca.pem',
                         tls_client_cert='cli_cert.pem',
@@ -29,13 +30,14 @@ class RemoteDaskEnvironment(RemoteEnvironment):
                         require_encryption=True)
     ```
 
+    For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
+
 
     Args:
         - address (str): an address of the scheduler of a Dask cluster in URL form,
             e.g. `tcp://172.33.17.28:8786`
         - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
             Use this to connect to a Dask cluster that is enabled with TLS encryption.
-            For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
