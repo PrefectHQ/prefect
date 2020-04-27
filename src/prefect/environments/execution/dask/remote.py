@@ -21,7 +21,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     f = Flow("dummy flow", environment=env)
     ```
 
-    If using the Security object then it should be filled out like this:'
+    If using the Security object then it should be filled out like this:
 
     ```python
     security = Security(tls_ca_file='cluster_ca.pem',
