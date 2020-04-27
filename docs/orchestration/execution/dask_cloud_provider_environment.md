@@ -145,7 +145,7 @@ The Dask Cloud Provider environment has no setup step because it has no infrastr
 
 #### Execute
 
-Create a new cluster consisting of one Dask scheduler and 1 or more Dask workers on your
+Create a new cluster consisting of one Dask scheduler and one or more Dask workers on your
 cloud provider. By default, `DaskCloudProviderEnvironment` will use the same Docker image
 as your Flow for the Dask scheduler and worker. This ensures that the Dask workers have the 
 same dependencies (python modules, etc.) as the environment where the Flow runs. This drastically 
@@ -159,9 +159,20 @@ Dask workers.
 
 ## Examples
 
-#### Simple Fixed Number of Dask Workers
+#### Adaptive Number of Dask Workers
 
-The following example will execute your Flow on an auto-scaling Dask cluster in Kubernetes. The cluster will start with a single worker and dynamically scale up to five workers as needed.
+The following example will execute your Flow on a cluster that uses Dask's adaptive scaling
+to dynamically select the number of workers based on load of the Flow. The cluster
+will start with a single worker and dynamically scale up to five workers as needed. 
+
+:::tip Dask Adaptive Mode vs. Fixed Number of Workers    
+While letting Dask dynamically choose the number of workers with adaptive mode is
+attractive, the slow startup time of Fargate worker may cause Dask to quickly request
+the maximum number of workers. You may find that manually specifying the number of
+workers with `n_workers` is more effective. You can also do your own calculation
+of `n_workers` based on Flow run parameters at execution time in your own `on_start()`
+callback function. (See the last code example on this page.)
+:::
 
 ```python
 from dask_cloudprovider import FargateCluster
@@ -174,7 +185,8 @@ environment = DaskCloudProviderEnvironment(
     cluster_arn="arn:aws:ecs:us-west-2:<your-aws-account-number>:cluster/<your-ecs-cluster-name>",
     task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
     execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
-    n_workers=1,
+    adaptive_min_workers=1,
+    adaptive_max_workers=5,
     scheduler_cpu=256,
     scheduler_mem=512,
     worker_cpu=512,
