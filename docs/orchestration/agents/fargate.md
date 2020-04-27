@@ -154,6 +154,7 @@ Here is an example of what kwargs would look like with `containerDefinitions` vi
 from prefect.agent.fargate import FargateAgent
 
 agent = FargateAgent(
+    launch_type="FARGATE",
     aws_access_key_id="MY_ACCESS",
     aws_secret_access_key="MY_SECRET",
     aws_session_token="MY_SESSION",
