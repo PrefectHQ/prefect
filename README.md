@@ -48,7 +48,7 @@ from prefect import task, Flow, Parameter
 @task(log_stdout=True)
 def say_hello(name):
     print("Hello, {}!".format(name))
-For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
+
 
 with Flow("My First Flow") as flow:
     name = Parameter('name')
