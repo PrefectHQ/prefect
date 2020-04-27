@@ -61,14 +61,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
-            Use this to connect to a Dask cluster that is enabled with TLS encryption. Fill out the Security
-            object like this:
-            ```
-                security = Security(tls_ca_file='cluster_ca.pem',
-                                    tls_client_cert='cli_cert.pem',
-                                    tls_client_key='cli_key.pem',
-                                    require_encryption=True)
-            ```
+            Use this to connect to a Dask cluster that is enabled with TLS encryption.
             For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
@@ -167,10 +160,11 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 client = Client()
                 flow_info = client.graphql(
                     """query {
-                  flow(where: {id: {_eq: "dbebae33-bb3c-4b63-af23-3362a659fc00"}}) {
+                  flow(where: {id: {_eq: "%s"}}) {
                     storage
                   }
                 }"""
+                    % flow_id
                 )
                 storage_info = flow_info["data"]["flow"][0]["storage"]
                 image = "{}/{}:{}".format(
