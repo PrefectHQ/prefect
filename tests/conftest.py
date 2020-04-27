@@ -145,6 +145,7 @@ def patch_posts(monkeypatch):
 @pytest.fixture()
 def runner_token(monkeypatch):
     monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
+    monkeypatch.setattr("prefect.agent.agent.Agent._register_agent", MagicMock())
 
 
 @pytest.fixture()

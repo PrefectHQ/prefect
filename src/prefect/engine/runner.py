@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import functools
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -83,7 +83,7 @@ def call_state_handlers(method: Callable[..., State]) -> Callable[..., State]:
 class Runner:
     def __init__(self, state_handlers: Iterable[Callable] = None):
         if state_handlers is not None and not isinstance(
-            state_handlers, collections.Sequence
+            state_handlers, collections.abc.Sequence
         ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
