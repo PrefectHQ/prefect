@@ -26,6 +26,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix Docker storage path issue when registering flows on Windows machines - [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
 - Fix issue with refreshing Prefect Cloud tokens - [#2409](https://github.com/PrefectHQ/prefect/pull/2409)
+- Resolve invalid escape sequence deprecation warnings - [#2414](https://github.com/PrefectHQ/prefect/issues/2414)
 
 ### Deprecations
 
