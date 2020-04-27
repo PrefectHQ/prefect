@@ -19,6 +19,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
+- Add Pushbullet notification task to send notifications to mobile [#2366](https://github.com/PrefectHQ/prefect/pull/2366)
 - Add support for Docker volumes and filtering in `prefect.tasks.docker`.
 
 ### Fixes
