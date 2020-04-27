@@ -153,7 +153,7 @@ simplifies dependency management and avoids the need for separately distributing
 to Dask workers.
 
 Following creation of the Dask cluster, the Flow will be run using the 
-[Remote Dask Executor](/api/latest/engine/executors.html#remotedaskexecutor) pointed 
+[Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointed 
 to the newly-created Dask cluster. All Task execution will take place on the
 Dask workers.
 
