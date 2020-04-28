@@ -10,6 +10,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.10.5 <Badge text="beta" type="success"/>
+
+Released on Apr 28, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
 - Added serializer for `RemoteDaskEnvironment` - [#2369](https://github.com/PrefectHQ/prefect/issues/2369)
 - `server start` CLI command now defaults to image build based on current Prefect installation version - [#2375](https://github.com/PrefectHQ/prefect/issues/2375)
 - Add option to set `executor_kwargs` on `KubernetesJobEnvironment` and `FargateTaskEnvironment` - [#2258](https://github.com/PrefectHQ/prefect/issues/2258)
