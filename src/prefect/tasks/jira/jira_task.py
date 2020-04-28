@@ -81,3 +81,36 @@ class JiraTask(Task):
         Returns:
             - None
         """
+        jira_credentials = cast(dict, Secret("JIRASECRETS").get())
+
+        if username is None:
+            username = jira_credentials["JIRAUSER"]
+
+        if access_token is None:
+            access_token = jira_credentials["JIRATOKEN"]
+
+        if server_url is None:
+            server_url = jira_credentials["JIRASERVER"]
+
+        if issue_type is None:
+            issue_type = "Task"
+
+        if project_name is None:
+            raise ValueError("A project name must be provided")
+
+        if summary is None:
+            raise ValueError("A summary must be provided")
+
+        jira = JIRA(basic_auth=(username, access_token), options={"server": server_url})
+
+        options = {
+            "project": project_name,
+            "assignee": {"accountId": assignee},
+            "issuetype": {"name": issue_type},
+            "summary": summary,
+            "description": description,
+        }
+        created = jira.create_issue(options)
+
+        if not created:
+            raise ValueError("Creating Jira Issue failed")
