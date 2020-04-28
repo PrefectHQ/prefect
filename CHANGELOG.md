@@ -16,11 +16,12 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add map index to task logs for mapped task runs - [#2402](https://github.com/PrefectHQ/prefect/pull/2402)
 - Agents can now register themselves with Cloud for better management - [#2312](https://github.com/PrefectHQ/prefect/issues/2312)
 - Adding support for `environment`, `secrets`, and `mountPoints` via configurable `containerDefinitions` to the Fargate Agent - [#2397](https://github.com/PrefectHQ/prefect/pull/2397)
+- Add flag for disabling Docker agent interface check on Linux - [#2361](https://github.com/PrefectHQ/prefect/issues/2361)
 
 ### Task Library
 
-- Add Pushbullet notification task to send notifications to mobile [#2366](https://github.com/PrefectHQ/prefect/pull/2366)
-- Add support for Docker volumes and filtering in `prefect.tasks.docker`.
+- Add Pushbullet notification task to send notifications to mobile - [#2366](https://github.com/PrefectHQ/prefect/pull/2366)
+- Add support for Docker volumes and filtering in `prefect.tasks.docker` - [#2384](https://github.com/PrefectHQ/prefect/pull/2384)
 
 ### Fixes
 
@@ -41,6 +42,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Nelson Cornet](https://github.com/sk4la)
 - [Braun Reyes](https://github.com/braunreyes)
 - [Fraznist](https://github.com/Fraznist)
+- [sk4la](https://github.com/sk4la)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 
