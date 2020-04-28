@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import copy
 import inspect
 import uuid
@@ -252,7 +252,7 @@ class Task(metaclass=SignatureValidator):
         self.checkpoint = checkpoint
         self.result_handler = result_handler
 
-        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+        if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         if on_failure is not None:

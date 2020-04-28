@@ -849,3 +849,73 @@ def test_docker_agent_network(monkeypatch, runner_token):
     assert agent.network == "test-network"
     args, kwargs = api.create_container.call_args
     assert kwargs["networking_config"] == {"test-network": "config"}
+
+
+def test_docker_agent_deploy_with_interface_check_linux(
+    monkeypatch, runner_token, linux_platform
+):
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    get_ip = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.get_docker_ip", get_ip)
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert get_ip.called
+
+
+def test_docker_agent_deploy_with_no_interface_check_linux(
+    monkeypatch, runner_token, linux_platform
+):
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    get_ip = MagicMock()
+    monkeypatch.setattr("prefect.agent.docker.agent.get_docker_ip", get_ip)
+
+    agent = DockerAgent(docker_interface=False)
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="", image_name="name", image_tag="tag"
+                        ).serialize()
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert not get_ip.called
