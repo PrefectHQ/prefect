@@ -30,7 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
@@ -74,11 +74,7 @@ Released on Apr 28, 2020.
 - [Nelson Cornet](https://github.com/sk4la)
 - [Braun Reyes](https://github.com/braunreyes)
 - [Fraznist](https://github.com/Fraznist)
-<<<<<<< HEAD
-- [Joe Schmid](https://github.com/joeschmid)
-=======
 - [sk4la](https://github.com/sk4la)
->>>>>>> master
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 
