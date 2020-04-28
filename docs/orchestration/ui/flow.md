@@ -35,6 +35,6 @@ You can use the settings page to change which project your flow is part of and t
     vertical-align: bottom;
     z-index: -1;
     outline: 1;
-    box-shadow: 5px 25px 20px #3D4849;
+    box-shadow: 0px 20px 15px #3D4849;
 }
 </style>
