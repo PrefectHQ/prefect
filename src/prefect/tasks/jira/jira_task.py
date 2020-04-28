@@ -9,6 +9,7 @@ try:
 except ImportError:
     pass
 
+
 class JiraTask(Task):
     """
     Task for creating a jira issue. For this task to function properly,
