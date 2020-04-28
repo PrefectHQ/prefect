@@ -75,13 +75,16 @@ class JiraTask(Task):
         - issue_type (str, optional): the type of issue you want to create; defaults to 'Task'
         - summary (str, optional): summary or title for your issue; defaults to the one provided at initialization
         - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
+        
         Raises:
             - ValueError: if a `project_name` was never provided
             - ValueError if a 'summary' was never provided
             - ValueError: if creating an issue failed
+
         Returns:
             - None
         """
+
         jira_credentials = cast(dict, Secret("JIRASECRETS").get())
 
         if username is None:
