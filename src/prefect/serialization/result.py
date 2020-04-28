@@ -96,5 +96,13 @@ class StateResultSchema(OneOfSchema):
         "SafeResult": SafeResultSchema,
         "NoResultType": NoResultSchema,
         "Result": ResultSchema,
+        "AzureResult": AzureResultSchema,
+        "ConstantResult": ConstantResultSchema,
+        "GCSResult": GCSResultSchema,
+        "LocalResult": LocalResultSchema,
+        "PrefectResult": PrefectResultSchema,
+        "S3Result": S3ResultSchema,
+        "SecretResult": SecretResultSchema,
+        "ResultHandlerResult": ResultHandlerResultSchema,
         "_NORESULT": NORESULTSchema,
     }
