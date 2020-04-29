@@ -1056,7 +1056,8 @@ class Flow:
     # Visualization ------------------------------------------------------------
 
     def visualize(
-        self, flow_state: "prefect.engine.state.State" = None, filename: str = None
+        self, flow_state: "prefect.engine.state.State" = None, filename: str = None,
+        format: str = None
     ) -> object:
         """
         Creates graphviz object for representing the current flow; this graphviz
@@ -1071,6 +1072,7 @@ class Flow:
 
         Raises:
             - ImportError: if `graphviz` is not installed
+            - ValueError: if an invalid `format` is given. Refer to http://www.graphviz.org/doc/info/output.html for valid formats
         """
 
         try:
@@ -1175,7 +1177,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False)
+            graph.render(filename, view=False, format=format)
         else:
             try:
                 from IPython import get_ipython
