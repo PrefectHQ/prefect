@@ -268,10 +268,10 @@ module.exports = {
           ]
         },
         {
-          title: 'Questions',
+          title: 'FAQ',
           collapsable: true,
           children: [
-            'questions/questions',
+            'faq/questions',
           ]
         },
         {

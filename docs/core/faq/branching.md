@@ -7,7 +7,7 @@ Since Prefect flows are represented as DAGs it is easy to add branching logic to
 
 Let's use the following example. I have a piece of data that I want to perform some arithmetic on and then output that resulting value. My flow would look something like this:
 
-![Flow with Branching](/questions/branching.png)
+![Flow with Branching](/faq/branching.png)
 
 By using Prefect's syntax definition for setting task upstreams and downstreams this can be accomplished without any extras.
 
@@ -88,11 +88,11 @@ Prefect ships with various [tasks for control logic](/core/task_library/control_
 
 Let's say we want to have a flow where some conditional task is evaluated and then the downstream branches are run depending on the output of that conditional task—true or false. An example of this might look like the following:
 
-![Flow with Conditional Branching](/questions/conditional_branch.png)
+![Flow with Conditional Branching](/faq/conditional_branch.png)
 
 If you choose to use some of Prefect's default control flow tasks such as `if_else` and `merge` then the flow will take on a DAG with some additional checks added:
 
-![Flow with if_else and merge](/questions/if_else_merge.png)
+![Flow with if_else and merge](/faq/if_else_merge.png)
 
 In this flow, Prefect's control tasks do some boolean casting and conditional checks for you with the `if_else` task performing the check `if true then take the true branch, else take the false branch`. The `merge` task is used to bring your conditional branches back together after completion. For more information on control flow tasks take a look at their [API documentation](/core/task_library/control_flow.html). The code for a flow using these control flow tasks will look something like the following:
 
