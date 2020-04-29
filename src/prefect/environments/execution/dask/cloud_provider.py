@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Type, Dict
+from typing import Any, Callable, Dict, List, Type
 from urllib.parse import urlparse
 
 from distributed.deploy.cluster import Cluster
@@ -136,11 +136,12 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     def execute(  # type: ignore
         self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
     ) -> None:
+        flow_run_info = None
+        flow_run_id = prefect.context.get("flow_run_id")
         if self._on_start:
             # If an on_start Callable has been provided, retrieve the flow run parameters
             # and then allow the Callable a chance to update _provider_kwargs. This allows
             # better sizing of the cluster resources based on parameters for this Flow run.
-            flow_run_id = prefect.context.get("flow_run_id")
             try:
                 client = Client()
                 flow_run_info = client.get_flow_run_info(flow_run_id)
@@ -158,6 +159,10 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             flow_id = prefect.context.get("flow_id")
             try:
                 client = Client()
+                if not flow_id:  # We've observed cases where flow_id is None
+                    if not flow_run_info:
+                        flow_run_info = client.get_flow_run_info(flow_run_id)
+                    flow_id = flow_run_info.flow_id
                 flow_info = client.graphql(
                     """query {
                   flow(where: {id: {_eq: "%s"}}) {
