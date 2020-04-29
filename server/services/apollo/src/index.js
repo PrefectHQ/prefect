@@ -23,6 +23,8 @@ const PREFECT_API_URL =
 const PREFECT_API_HEALTH_URL =
   process.env.PREFECT_API_HEALTH_URL || 'http://localhost:4201/health'
 
+const TELEMETRY_ENABLED = process.env.TELEMETRY_ENABLED || true
+
 // --------------------------------------------------------------------
 // Server
 const depthLimit = require('graphql-depth-limit')
@@ -162,6 +164,7 @@ function sleep(ms) {
 async function runServerForever() {
   try {
     await runServer()
+    send_telemetry_event('startup')
   } catch (e) {
     log(e, e.message, e.stack)
     log('\nTrying again in 3 seconds...\n')
@@ -169,5 +172,33 @@ async function runServerForever() {
     await runServerForever()
   }
 }
+
+async function send_telemetry_event(event) {
+  if (TELEMETRY_ENABLED) {
+    try {
+      // TODO add timeout
+      fetch('https://sens-o-matic.prefect.io/', {
+        method: 'post',
+        body: JSON.stringify({
+          source: 'prefect_server',
+          type: event,
+          payload: { id: null }
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Prefect-Event': 'prefect_server-0.0.1'
+        }
+      })
+        .then(res => res.json())
+        .then(json => log(json))
+    } catch (error) {
+      log(error)
+    }
+  }
+}
+
+process.on('SIGTERM', async () => {
+  send_telemetry_event('shutdown')
+})
 
 runServerForever()
