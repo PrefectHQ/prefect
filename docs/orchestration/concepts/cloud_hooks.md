@@ -9,6 +9,8 @@ You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts
   <img src="/orchestration/ui/cloud-hook-email.png">
 </div>
 
+<p>&nbsp;</p>
+
 ## Set Up
 For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. However, different types of hook, need different inputs to set up.
 
@@ -30,9 +32,75 @@ Once you have an incoming webhook URL, you can copy it into the 'Slack URL' sect
 
 A Twilio Cloud Hook needs a few more inputs:  an Auth Token, an Account SID, a Messaging Service SID and at least one phone number. 
 
+The phone number is the number that you want alerts to be sent to. 
 
+The Auth Token and Account SID are on your project dashboard. 
 
+<div class="add-shadow">
+  <img src="/orchestration/ui/twilio-dashboard.png">
+</div>
 
+<p>&nbsp;</p>
+
+The Messaging Service SID requires you to have a messaging service set up.  These instructions are for the programmable SMS service.
+
+1. Click on the "All Products and Services" option in the side-menu. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/twilio-sidenav.png">
+</div>
+
+<p>&nbsp;</p>
+
+2. Select "Programmable SMS"
+3. Select SMS
+4. Click on the "Create New Messaging Service" icon 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/twilio-new.png">
+</div>
+
+<p>&nbsp;</p>
+
+5. Give your project a name and check the settings.
+6.  Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you do not need to enter this in the Prefect Cloud Hooks form.)
+7.  Your Mesaging Service SID is the Service SID in the Settings page. 
+
+### Pager Duty Cloud Hook
+
+For a Pager Duty token, you'll need an API Token and an Integration Key.  You will also need to select a Severity level from the dropdown menu. 
+
+The API Token comes from the API Access section of the Configuration menu of the Pager Duty dashboard. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/pager-duty-menu.png">
+</div>
+
+<p>&nbsp;</p>
+
+To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the integrations tab. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/pager-duty-integrations.png">
+</div>
+
+<p>&nbsp;</p>
+
+In integrations, select "New integration" and create a new integration using the API. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/pager-duty-new-integration.png">
+</div>
+
+<p>&nbsp;</p>
+
+Your Integration Key will show in the integrations list. 
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/pager-duty-integration-key.png">
+</div>
+
+<p>&nbsp;</p>
 
 <style>
 .add-shadow  {
