@@ -86,7 +86,7 @@ output_2.set_upstream(d, key="value", flow=flow)
 
 Prefect ships with various [tasks for control logic](/core/task_library/control_flow.html) that you can use off-the-shelf to control the branching structure of your flow. This is especially useful in cases where under certain conditions you want to control which branches of your flow run based on upstream events.
 
-Let's say we want to have a flow where some conditional task is evaluated and then the downstream branches are run depending on the output of that conditional task—true or false. An example of this might look like the following:
+Let's say you want to have a flow where some conditional task is evaluated and then the downstream branches are run depending on the output of that conditional task—true or false. An example of this might look like the following:
 
 ![Flow with Conditional Branching](/faq/conditional_branch.png)
 
