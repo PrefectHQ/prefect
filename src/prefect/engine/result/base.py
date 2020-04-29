@@ -80,8 +80,8 @@ class _NORESULT:
         return None
 
     @property
-    def value(self) -> "_NORESULT":
-        return self
+    def value(self) -> None:
+        return None
 
 
 NORESULT = _NORESULT()
