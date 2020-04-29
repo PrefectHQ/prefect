@@ -268,6 +268,13 @@ module.exports = {
           ]
         },
         {
+          title: 'Questions',
+          collapsable: true,
+          children: [
+            'questions/questions',
+          ]
+        },
+        {
           title: 'Task Library',
           collapsable: true,
           children: getChildren('docs/core', 'task_library')
