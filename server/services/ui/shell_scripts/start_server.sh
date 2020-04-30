@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-if [ $PREFECT_SERVER__GRAPHQL_URL != 'http://localhost:4200/graphql' ]
+if [ "$PREFECT_SERVER__GRAPHQL_URL" != 'http://localhost:4200/graphql' ]
 then
     echo "Replacing graphql references with: $PREFECT_SERVER__GRAPHQL_URL"
     for i in /var/www/js/*.js; do
