@@ -21,7 +21,9 @@ To set up an Email Cloud Hook, enter an email in the "To" section. The email you
 
 ### Web Cloud Hook
 
-To set up a web Cloud Hook, enter the URL endpoint that you want Prefect to send a JSON payload to when your flow enters whatever states you want alerted about. 
+The Web Cloud Hook operates as an all-purpose webhook and can hit any endpoint.
+
+To set up a Web Cloud Hook, enter the URL that you want Prefect to POST a JSON payload to when your flow enters your configured states. 
 
 ### Slack Cloud Hook
 
@@ -126,4 +128,3 @@ A full list of Cloud Hook queries and mutations can be found in the API schema (
     box-shadow: 0px 20px 15px #3D4849;
 }
 </style>
-
