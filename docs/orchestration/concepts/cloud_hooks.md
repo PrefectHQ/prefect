@@ -11,8 +11,20 @@ You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts
 
 <p>&nbsp;</p>
 
-## Set Up
-For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. However, different types of hook, need different inputs to set up.
+## API
+To create a Cloud Hook using the GraphQL API, you can use the `create_cloud_hook` mutation:
+
+```graphql
+mutation {
+  create_cloud_hook(input: {type: EMAIL, name: "Example", version_group_id: "abc", states: ["Running"], config: {}}) {
+    id
+  }
+}
+```
+A full list of Cloud Hook queries and mutations can be found in API schema (for example in the Interactive API page in the UI.)
+
+## UI
+For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. However, different types of hook, need different inputs.
 
 ### Email Cloud Hook
 
