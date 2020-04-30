@@ -62,11 +62,13 @@ flow.add_task(AccessSecret())
 
 ### Passing Secrets between tasks
 
+Prefect also has [Secret tasks](/api/latest/tasks/secrets.html) for passing secrets around between tasks. A Secret task is a special kind of task that has no result ever persisted. This means that you can securely provide secrets to the inputs of your tasks.
+
 :::: tabs
 ::: tab "Functional API"
 ```python
 from prefect import task, Flow
-from prefect.tasks.secrets import Secret
+from prefect.tasks.secrets import PrefectSecret
 
 @task
 def access_secret(secret_value):
@@ -74,7 +76,7 @@ def access_secret(secret_value):
     print(secret_value)
 
 with Flow("secret-retrieval") as flow:
-    secret = Secret("MY_SECRET")
+    secret = PrefectSecret("MY_SECRET")
     access_secret(secret)
 ```
 :::
@@ -82,7 +84,7 @@ with Flow("secret-retrieval") as flow:
 ::: tab "Imperative API"
 ```python
 from prefect import Task, Flow
-from prefect.tasks.secrets import Secret
+from prefect.tasks.secrets import PrefectSecret
 
 class AccessSecret(Task):
     def run(self, secret_value):
@@ -91,7 +93,7 @@ class AccessSecret(Task):
 
 flow = Flow("secret-retrieval")
 
-secret = Secret("MY_SECRET")
+secret = PrefectSecret("MY_SECRET")
 
 access_secret = AccessSecret()
 access_secret.set_upstream(secret, key="secret_value", flow=flow)
