@@ -170,7 +170,7 @@ While letting Dask dynamically choose the number of workers with adaptive mode i
 attractive, the slow startup time of Fargate workers may cause Dask to quickly request
 the maximum number of workers. You may find that manually specifying the number of
 workers with `n_workers` is more effective. You can also do your own calculation
-of `n_workers` based on Flow run parameters at execution time in your own `on_start()`
+of `n_workers` based on Flow run parameters at execution time in your own `on_execute()`
 callback function. (See the last code example on this page.)
 :::
 
@@ -215,7 +215,7 @@ with Flow("Dask Cloud Provider Test", environment=environment) as flow:
 In this example we enable TLS encryption with Dask and dynamically calculate the number of Dask
 workers based on the parameters to a Flow run just prior to execution.
 
-- The `on_start` callback function examines parameters for that Flow run and modifies the kwargs 
+- The `on_execute` callback function examines parameters for that Flow run and modifies the kwargs
 that will get passed to the constructor of the provider class from Dask Cloud Provider.
 
 - TLS ecryption requires that the cert, key, and CA files are available in the Flow's Docker image
@@ -244,7 +244,7 @@ security = Security(
 )
 
 
-def on_start(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:
+def on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:
     length_of_x = len(parameters.get("x"))
     natural_log_of_length = int(math.log(length_of_x))
     n_workers = min(1, max(10, natural_log_of_length))  # At least 1 worker & no more than 10
@@ -261,7 +261,7 @@ environment = DaskCloudProviderEnvironment(
     scheduler_mem=512,
     worker_cpu=512,
     worker_mem=1024,
-    on_start=on_start,
+    on_execute=on_execute,
     security=security,
     scheduler_extra_args=[
         "--tls-cert",
