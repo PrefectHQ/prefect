@@ -1,7 +1,7 @@
 
 # Cloud Hooks <Badge text="Cloud"/>
 
-Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately.  Current Cloud Hook endpoints are Slack, Twilio, Pager Duty and email. 
+Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. Prefect Cloud currently supports hooks for Slack, Twilio, Pager Duty, email, and a more general Webhook.
 
 You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts/api.html) or the Flow Settings page in the UI. 
 
@@ -126,7 +126,6 @@ A full list of Cloud Hook queries and mutations can be found in the API schema (
     box-shadow: 0px 20px 15px #3D4849;
 }
 </style>
-
 
 
 
