@@ -599,10 +599,11 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
+        if self.launch_type:
+            flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
-            requiresCompatibilities=[self.launch_type],
             networkMode="awsvpc",
             **flow_task_definition_kwargs
         )
@@ -644,10 +645,11 @@ class FargateAgent(Agent):
             )
         )
 
+        if self.launch_type:
+            flow_task_run_kwargs["launchType"] = self.launch_type
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
-            launchType=self.launch_type,
             **flow_task_run_kwargs
         )
 
