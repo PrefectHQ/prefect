@@ -71,7 +71,7 @@ The Messaging Service SID requires you to have a messaging service set up. These
 
 ### Pager Duty Cloud Hook
 
-For a Pager Duty token, you'll need an API Token and an Integration Key.  You will also need to select a Severity level from the dropdown menu. 
+For a Pager Duty token, you'll need an API Token and an Integration Key. You'll also need to select a Severity level from the dropdown menu. 
 
 The API Token comes from the API Access section of the Configuration menu of the Pager Duty dashboard. 
 
