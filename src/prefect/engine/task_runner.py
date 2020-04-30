@@ -22,7 +22,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result, NORESULT
+from prefect.engine.result import NoResult, Result, NORESULT, _NORESULT
 from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
@@ -145,15 +145,16 @@ class TaskRunner(Runner):
             context.update(resume=True)
 
         if "_loop_count" in state.cached_inputs:  # type: ignore
+            loop_result = state.cached_inputs.pop("_loop_result")
+            if isinstance(loop_result.value, _NORESULT):
+                loop_result = self.result.read(loop_result.location).value
+            else:
+                loop_result = loop_result.value
             loop_context = {
                 "task_loop_count": state.cached_inputs.pop(  # type: ignore
                     "_loop_count"
                 ).value,  # type: ignore
-                "task_loop_result": state.cached_inputs.pop(  # type: ignore
-                    "_loop_result"
-                )  # type: ignore
-                .populate_result(self.result)
-                .value,
+                "task_loop_result": loop_result,
             }
             context.update(loop_context)
 
