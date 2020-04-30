@@ -37,7 +37,7 @@ A Twilio Cloud Hook needs a few more inputs: an Auth Token, an Account SID, a Me
 
 The phone number is the number that you want alerts to be sent to. 
 
-The Auth Token and Account SID are on your project dashboard. 
+The Auth Token and Account SID are on your Twilio project dashboard. 
 
 <div class="add-shadow">
   <img src="/orchestration/ui/twilio-dashboard.png">
