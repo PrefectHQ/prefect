@@ -5,18 +5,6 @@ Cloud Hooks allow you to send notifications to certain endpoints when your flow 
 
 You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts/api.html) or the Flow Settings page in the UI. 
 
-## API
-To create a Cloud Hook using the GraphQL API, you can use the `create_cloud_hook` mutation:
-
-```graphql
-mutation {
-  create_cloud_hook(input: {type: EMAIL, name: "Example", version_group_id: "abc", states: ["Running"], config: {}}) {
-    id
-  }
-}
-```
-A full list of Cloud Hook queries and mutations can be found in the API schema (for example in the [Interactive API](/orchestration/ui/interactive-api.html) page of the UI.)
-
 ## UI
 
 For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. However, different types of hook, need different inputs.
@@ -114,6 +102,18 @@ Your Integration Key will show in the integrations list.
 </div>
 
 <p>&nbsp;</p>
+
+## API
+To create a Cloud Hook using the GraphQL API, you can use the `create_cloud_hook` mutation:
+
+```graphql
+mutation {
+  create_cloud_hook(input: {type: EMAIL, name: "Example", version_group_id: "abc", states: ["Running"], config: {}}) {
+    id
+  }
+}
+```
+A full list of Cloud Hook queries and mutations can be found in the API schema (for example in the [Interactive API](/orchestration/ui/interactive-api.html) page of the UI.)
 
 <style>
 .add-shadow  {
