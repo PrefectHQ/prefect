@@ -22,7 +22,7 @@ from prefect.engine.cache_validators import (
     partial_parameters_only,
 )
 from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
-from prefect.engine.results import PrefectResult
+from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     ResultHandler,
@@ -1393,6 +1393,80 @@ class TestCacheResultStep:
         assert new_state.message == "hello"
         assert new_state.result == 2
         assert new_state.cached_inputs == {"x": Result(5)}
+
+
+class TestTargetExistsStep:
+    @pytest.fixture(scope="class")
+    def tmp_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            yield tmp
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
+    )
+    def test_check_target(self, state):
+        new_state = TaskRunner(task=Task()).check_target(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.location is None
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
+    )
+    def test_check_target_not_exists(self, state):
+        new_state = TaskRunner(
+            task=Task(target="test-file", result=PrefectResult())
+        ).check_target(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.location is None
+
+    def test_check_target_exists(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="test-file")
+        result.write(1)
+
+        my_task = Task(target="test-file", result=result)
+
+        new_state = TaskRunner(task=my_task).check_target(
+            state=Running(result=result), inputs={}
+        )
+
+        assert result.exists("test-file")
+        assert new_state.is_cached()
+        assert new_state._result.location == "test-file"
+        assert new_state.message == "Result found at task target test-file"
+
+    def test_check_target_exists_multiple_checks(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="test-file")
+        result.write(1)
+
+        my_task = Task(target="test-file", result=result)
+
+        new_state = TaskRunner(task=my_task).check_target(
+            state=Running(result=result), inputs={}
+        )
+
+        assert result.exists("test-file")
+        assert new_state.is_cached()
+        assert new_state._result.location == "test-file"
+
+        new_state_2 = TaskRunner(task=my_task).check_target(state=new_state, inputs={})
+
+        assert result.exists("test-file")
+        assert new_state_2.is_cached()
+        assert new_state_2._result.location == "test-file"
 
 
 class TestCheckScheduledStep:

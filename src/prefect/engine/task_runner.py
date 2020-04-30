@@ -279,6 +279,9 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
+                # check to see if there is a Result at the task's target
+                state = self.check_target(state, inputs=task_inputs)
+
                 # check to see if the task has a cached result
                 state = self.check_task_is_cached(state, inputs=task_inputs)
 
@@ -612,6 +615,39 @@ class TaskRunner(Runner):
 
         """
         return state, upstream_states
+
+    def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
+        """
+        Checks if a Result exists at the task's target.
+
+        Args:
+            - state (State): the current state of this task
+            - inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
+                to the task's `run()` arguments.
+
+        Returns:
+            - State: the state of the task after running the check
+        """
+        result = self.task.result
+        target = self.task.target
+
+        if result and target:
+            if result.exists(target):
+                # expiration = pendulum.now("utc") + self.task.cache_for
+                # TODO: How to handle cached durations?
+
+                expiration = pendulum.now("utc")
+
+                cached_state = Cached(
+                    result=state._result,
+                    cached_inputs=inputs,
+                    cached_result_expiration=expiration,
+                    cached_parameters=prefect.context.get("parameters"),
+                    message=f"Result found at task target {target}",
+                )
+                return cached_state
+
+        return state
 
     @call_state_handlers
     def check_task_is_cached(self, state: State, inputs: Dict[str, Result]) -> State:

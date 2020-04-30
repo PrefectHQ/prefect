@@ -149,6 +149,8 @@ class Task(metaclass=SignatureValidator):
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
         - result (Result, optional): the result instance used to retrieve and store task results during execution
+        - target (str, optional): location to check for task Result. If a result exists at that location then
+            the task run will enter a cached state.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -189,6 +191,7 @@ class Task(metaclass=SignatureValidator):
         on_failure: Callable = None,
         log_stdout: bool = False,
         result: "Result" = None,
+        target: str = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
@@ -261,6 +264,8 @@ class Task(metaclass=SignatureValidator):
             )  # type: Optional[Result]
         else:
             self.result = result
+
+        self.target = target
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
