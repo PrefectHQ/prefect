@@ -114,10 +114,9 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
     def as_bool(x):
         return bool(x)
 
-    cases = {True: true_task}
-    if false_task is not None:
-        cases.update({False: false_task})
-    switch(condition=as_bool(condition), cases=cases)
+    cases = {c: t for c, t in [(True, true_task), (False, false_task)] if t is not None}
+    if cases:
+        switch(condition=as_bool(condition), cases=cases)
 
 
 def merge(*tasks: Task) -> Task:
