@@ -45,7 +45,7 @@ The Auth Token and Account SID are on your Twilio project dashboard.
 
 <p>&nbsp;</p>
 
-The Messaging Service SID requires you to have a messaging service set up.  These instructions are for the programmable SMS service.
+The Messaging Service SID requires you to have a messaging service set up. These instructions are for the programmable SMS service.
 
 1. Click on the "All Products and Services" option in the side-menu. 
 
