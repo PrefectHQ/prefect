@@ -79,7 +79,6 @@ class JiraTask(Task):
         Raises:
             - ValueError: if a `project_name` was never provided
             - ValueError if a 'summary' was never provided
-            - ValueError: if creating an issue failed
 
         Returns:
             - None
