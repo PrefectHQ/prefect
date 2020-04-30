@@ -66,7 +66,7 @@ The Messaging Service SID requires you to have a messaging service set up.  Thes
 <p>&nbsp;</p>
 
 5. Give your project a name and check the settings.
-6.  Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you do not need to enter this in the Prefect Cloud Hooks form.)
+6. Click on 'Numbers' and add a number to your account. (This is not the number your messages will get sent to so you don't need to enter this in the Prefect Cloud Hooks form.)
 7.  Your Mesaging Service SID is the Service SID in the Settings page. 
 
 ### Pager Duty Cloud Hook
