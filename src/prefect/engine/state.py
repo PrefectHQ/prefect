@@ -89,6 +89,52 @@ class State:
         else:
             self._result = Result(value=value)
 
+    def load_result(self, result: Result = None) -> "State":
+        """
+        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
+        using the logic of the provided result.  This method is mainly intended to be used
+        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+
+        Args:
+            - result (Result): the result instance to hydrate with `self.location`
+
+        Returns:
+            - State: the current state with a fully hydrated Result attached
+        """
+        result_reader = result or self._result
+
+        if isinstance(self._result.value, _NORESULT):
+            self._result = result_reader.read(self._result.location)
+        return self
+
+    def load_cached_results(self, results: Dict[str, Result] = None) -> "State":
+        """
+        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
+        using the logic of the provided result.  This method is mainly intended to be used
+        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+
+        Args:
+            - results (Dict[str, Result]): a dictionary of result instances to hydrate `self.cached_inputs` with
+
+        Returns:
+            - State: the current state with a fully hydrated Result attached
+        """
+        result_readers = {
+            key: results.get(key, result) for key, result in self.cached_inputs.items()
+        }
+
+        loaded_inputs = {}
+
+        for key, res in self.cached_inputs.items():
+            if isinstance(res.value, _NORESULT):
+                loaded_inputs[key] = result_readers.read(res.location)
+            else:
+                loaded_inputs[key] = res
+
+        self.cached_inputs = loaded_inputs
+
+        return self
+
     @classmethod
     def children(cls) -> "List[Type[State]]":
         children = []

@@ -200,7 +200,7 @@ class CloudTaskRunner(TaskRunner):
             if self.task.cache_validator(
                 state, sanitized_inputs, prefect.context.get("parameters")
             ):
-                state._result = state._result.populate_result(self.result)
+                state = state.load_result(self.result)
                 return state
 
         if self.task.cache_for is not None:
@@ -227,18 +227,12 @@ class CloudTaskRunner(TaskRunner):
 
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.cached_inputs = {
-                    key: res.populate_result(inputs[key])  # type: ignore
-                    for key, res in candidate_state.cached_inputs.items()
-                }
+                candidate_state.load_cached_inputs(inputs)
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
                 if self.task.cache_validator(
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate_state._result = candidate_state._result.populate_result(
-                        self.result
-                    )
-                    return candidate_state
+                    return candidate_state.load_result(self.result)
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
@@ -249,7 +243,7 @@ class CloudTaskRunner(TaskRunner):
 
         return state
 
-    def populate_results(
+    def load_results(
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> Tuple[State, Dict[Edge, State]]:
         """
@@ -266,16 +260,13 @@ class CloudTaskRunner(TaskRunner):
         upstream_results = {}
 
         for edge, upstream_state in upstream_states.items():
-            upstream_states[edge].result = upstream_state._result.populate_result(
+            upstream_states[edge] = upstream_state.load_result(
                 edge.upstream_task.result
             )
             if edge.key is not None:
                 upstream_results[edge.key] = edge.upstream_task.result
 
-        for key, res in state.cached_inputs.items():
-            if key in upstream_results:
-                state.cached_inputs[key] = res.populate_result(upstream_results[key])
-
+        state.load_cached_results(upstream_results)
         return state, upstream_states
 
     @tail_recursive

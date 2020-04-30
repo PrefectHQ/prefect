@@ -252,7 +252,7 @@ class TaskRunner(Runner):
                 )
 
                 # populate / hydrate all result objects
-                state, upstream_states = self.populate_results(
+                state, upstream_states = self.load_results(
                     state=state, upstream_states=upstream_states
                 )
 
@@ -595,7 +595,7 @@ class TaskRunner(Runner):
         ## TODO: raise informative error if any inputs are still NORESULT
         return task_inputs
 
-    def populate_results(
+    def load_results(
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> Tuple[State, Dict[Edge, State]]:
         """

@@ -151,23 +151,6 @@ class Result(ResultInterface):
         new.value = value
         return new
 
-    def populate_result(self, result: "Result") -> "Result":
-        """
-        Given another Result instance, uses `self.location` to create a fully hydrated `Result`
-        using the logic of the provided result.  This method is mainly intended to be used
-        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
-
-        Args:
-            - result (Result): the result instance to hydrate with `self.location`
-
-        Returns:
-            - Result: a new result instance
-        """
-        if isinstance(self.value, _NORESULT):
-            return result.read(self.location)
-        else:
-            return self
-
     def validate(self) -> bool:
         """
         Run any validator functions associated with this result and return whether the result is valid or not.
