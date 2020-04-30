@@ -106,7 +106,7 @@ Your Integration Key will show in the integrations list.
 <p>&nbsp;</p>
 
 ## API
-To create a Cloud Hook using the GraphQL API, you can use the `create_cloud_hook` mutation. To create an email Cloud Hook:
+To create a Cloud Hook using the GraphQL API, you can use the `create_cloud_hook` mutation. For example, to create an email Cloud Hook you'd use the following mutation:
 
 ```graphql
 mutation {
