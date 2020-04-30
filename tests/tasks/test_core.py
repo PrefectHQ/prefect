@@ -241,3 +241,17 @@ class TestCollections:
 
         assert len(f.tasks) == 10
         assert state.result[identity].result == dict(a=[1, dict(y=2)], b=(2, set([1])))
+
+    def test_list_maintains_sort_order_for_more_than_10_items(self):
+        # https://github.com/PrefectHQ/prefect/issues/2451
+        l = collections.List()
+        with Flow(name="test") as f:
+            l.bind(*list(range(15)))
+        assert f.run().result[l].result == list(range(15))
+
+    def test_tuple_maintains_sort_order_for_more_than_10_items(self):
+        # https://github.com/PrefectHQ/prefect/issues/2451
+        t = collections.Tuple()
+        with Flow(name="test") as f:
+            t.bind(*list(range(15)))
+        assert f.run().result[t].result == tuple(range(15))
