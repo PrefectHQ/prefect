@@ -17,7 +17,7 @@ For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom'
 
 ### Email Cloud Hook
 
-To set up an email Cloud Hook, decide which email you want your alerts to go to and enter it into the "To" section. 
+To set up an Email Cloud Hook, enter an email in the "To" section. The email you enter will receive formatted emails that contain state updates and a link to the flow for which this Cloud Hook is configured. 
 
 ### Web Cloud Hook
 
@@ -126,5 +126,4 @@ A full list of Cloud Hook queries and mutations can be found in the API schema (
     box-shadow: 0px 20px 15px #3D4849;
 }
 </style>
-
 
