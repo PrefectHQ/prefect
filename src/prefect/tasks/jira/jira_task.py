@@ -66,6 +66,7 @@ class JiraTask(Task):
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
+        
         Args:
         - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
         - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
@@ -77,7 +78,7 @@ class JiraTask(Task):
         - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
         
         Raises:
-            - ValueError: if a `project_name` or 'summary' were never provided
+            - ValueError: if a `project_name` or 'summary' are not provided
 
         Returns:
             - None
