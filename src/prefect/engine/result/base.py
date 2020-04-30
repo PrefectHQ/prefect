@@ -71,7 +71,7 @@ class ResultInterface:
 
 class _NORESULT:
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, _NORESULT):
+        if isinstance(other, (_NORESULT, NoResultType)):
             return True
         return False
 

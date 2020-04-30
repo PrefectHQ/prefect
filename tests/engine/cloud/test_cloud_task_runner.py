@@ -650,7 +650,7 @@ class TestStateResultHandling:
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
         assert res.is_failed()
-        assert "has no attribute" in res.message
+        assert "inputs are missing" in res.message
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -984,8 +984,8 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
     assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
 
 
-class TestPopulateResults:
-    def test_populate_results_from_upstream_reads_results(self):
+class TestLoadResults:
+    def test_load_results_from_upstream_reads_results(self):
         result = PrefectResult(location="1")
         state = Success(result=result)
 
@@ -993,37 +993,37 @@ class TestPopulateResults:
 
         t = Task(result=PrefectResult())
         edge = Edge(t, 2, key="x")
-        new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+        new_state, upstreams = CloudTaskRunner(task=Task()).load_results(
             state=Pending(), upstream_states={edge: state}
         )
         assert upstreams[edge].result == 1
 
-    def test_populate_results_from_upstream_reads_results_using_upstream_handlers(self):
+    def test_load_results_from_upstream_reads_results_using_upstream_handlers(self):
         class CustomResult(Result):
             def read(self, *args, **kwargs):
                 return "foo-bar-baz".split("-")
 
         state = Success(result=PrefectResult(location="1"))
         edge = Edge(Task(result=CustomResult()), 2, key="x")
-        new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+        new_state, upstreams = CloudTaskRunner(task=Task()).load_results(
             state=Pending(), upstream_states={edge: state},
         )
         assert upstreams[edge].result == ["foo", "bar", "baz"]
 
-    def test_populate_results_from_upstream_reads_secret_results(self):
+    def test_load_results_from_upstream_reads_secret_results(self):
         secret_result = SecretResult(prefect.tasks.secrets.PrefectSecret(name="foo"))
 
         state = Success(result=PrefectResult(location="foo"))
 
         with prefect.context(secrets=dict(foo=42)):
             edge = Edge(Task(result=secret_result), 2, key="x")
-            new_state, upstreams = CloudTaskRunner(task=Task()).populate_results(
+            new_state, upstreams = CloudTaskRunner(task=Task()).load_results(
                 state=Pending(), upstream_states={edge: state},
             )
 
         assert upstreams[edge].result == 42
 
-    def test_populate_results_from_upstream_reads_cached_inputs_using_upstream_results(
+    def test_load_results_from_upstream_reads_cached_inputs_using_upstream_results(
         self,
     ):
         class CustomResult(Result):
@@ -1036,7 +1036,7 @@ class TestPopulateResults:
         edge = Edge(Task(result=CustomResult()), 2, key="x")
         new_state, upstreams = CloudTaskRunner(
             task=Task(result=PrefectResult())
-        ).populate_results(state=state, upstream_states={edge: Success(result=result)})
+        ).load_results(state=state, upstream_states={edge: Success(result=result)})
 
         assert new_state.cached_inputs["x"].value == 99
 

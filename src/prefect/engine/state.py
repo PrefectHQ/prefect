@@ -103,7 +103,7 @@ class State:
         """
         result_reader = result or self._result
 
-        if isinstance(self._result.value, _NORESULT):
+        if self._result.value == NORESULT:
             self._result = result_reader.read(self._result.location)
         return self
 
@@ -126,8 +126,8 @@ class State:
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            if isinstance(res.value, _NORESULT):
-                loaded_inputs[key] = result_readers.read(res.location)
+            if res.value == NORESULT:
+                loaded_inputs[key] = result_readers[key].read(res.location)
             else:
                 loaded_inputs[key] = res
 

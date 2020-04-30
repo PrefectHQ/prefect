@@ -592,7 +592,9 @@ class TaskRunner(Runner):
                 }
             )
 
-        ## TODO: raise informative error if any inputs are still NORESULT
+        if any(NORESULT == val for val in task_inputs.values()):
+            state = Failed(message="Some upstream inputs are missing.")
+            raise ENDRUN(state)
         return task_inputs
 
     def load_results(
