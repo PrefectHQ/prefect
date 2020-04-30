@@ -81,7 +81,7 @@ The API Token comes from the API Access section of the Configuration menu of the
 
 <p>&nbsp;</p>
 
-To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the integrations tab. 
+To find your Integration Key, you also need the Configuration menu but choose Services. Select the service you want to add a Cloud Hook to and then click on the Integrations tab. 
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-integrations.png">
