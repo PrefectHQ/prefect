@@ -39,6 +39,23 @@ def test_ifelse(condition_value):
     )
 
 
+@pytest.mark.parametrize("condition_value", [True, False])
+def test_ifelse_doesnt_add_None_task(condition_value):
+    condition = Condition()
+    true_branch = SuccessTask(name="true branch")
+
+    with Flow(name="test") as flow:
+        cnd = ifelse(condition, true_branch, None)
+        assert len(flow.tasks) == 4
+
+    with prefect.context(CONDITION=condition_value):
+        state = flow.run()
+
+    assert isinstance(
+        state.result[true_branch], Success if condition_value is True else Skipped
+    )
+
+
 @pytest.mark.parametrize("condition_value", [1, "a", "False", True, [1], {1: 2}])
 def test_ifelse_with_truthy_conditions(condition_value):
     condition = Condition()
