@@ -23,8 +23,7 @@ class JiraTask(Task):
     
     Args:
         - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. 
-        - project_name(str):  the key for your jira project. Can also be set at run time. 
-        - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to.  Defaults to "automatic" if this is not set. Can also be set at run time. 
+        - service_desk_id (str):  the key for your jira project. Can also be set at run time. 
         - issue_type (str, optional): the type of issue you want to create.  Can also be set at run time. Defaults to 'Task'. 
         - summary (str, optional): summary or title for your issue. Can also be set at run time. 
         - description (str, optional): description or additional information for the issue. Can also be set at run time. 
@@ -34,15 +33,14 @@ class JiraTask(Task):
     def __init__(
         self,
         server_url: str = None,
-        project_name: str = None,
-        assignee: str = "-1",
+        service_desk_id: str = None,
         issue_type: str = None,
         summary: str = None,
         description: str = None,
         **kwargs: Any
     ):
         self.server_url = server_url
-        self.project_name = project_name
+        self.service_desk_id = service_desk_id
         self.assignee = assignee
         self.issue_type = issue_type
         self.summary = summary
@@ -50,15 +48,19 @@ class JiraTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "server_url", "project_name", "assignee", "issue_type", "summary", "description"
+        "server_url",
+        "service_desk_id",
+        "assignee",
+        "issue_type",
+        "summary",
+        "description",
     )
     def run(
         self,
         username: str = None,
         access_token: str = None,
         server_url: str = None,
-        project_name: str = None,
-        assignee: str = "-1",
+        service_desk_id: str = None,
         issue_type: str = None,
         summary: str = None,
         description: str = None,
@@ -66,22 +68,23 @@ class JiraTask(Task):
         """
         Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
         or by using `Task.bind`.
+
         Args:
         - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
         - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
         - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
-        - project_name(str):  the key for your jira project; defaults to the one provided at initialization
-        - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
-        - issue_type (str, optional): the type of issue you want to create; defaults to 'Task'
+        - service_desk_id(str):  the key for your jira project; defaults to the one provided at initialization
+        - issue_type (str, optional): the type of issue you want to create; 
         - summary (str, optional): summary or title for your issue; defaults to the one provided at initialization
         - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
+        
         Raises:
-            - ValueError: if a `project_name` was never provided
-            - ValueError if a 'summary' was never provided
-            - ValueError: if creating an issue failed
+            - ValueError: if a `service_desk_id`, `request_type`, or `summary` are not provided
+            
         Returns:
             - None
         """
+
         jira_credentials = cast(dict, Secret("JIRASECRETS").get())
 
         if username is None:
@@ -94,10 +97,10 @@ class JiraTask(Task):
             server_url = jira_credentials["JIRASERVER"]
 
         if issue_type is None:
-            issue_type = "Task"
+            raise ValueError("An issue_type must be provided")
 
-        if project_name is None:
-            raise ValueError("A project name must be provided")
+        if service_desk_id is None:
+            raise ValueError("A service desk id must be provided")
 
         if summary is None:
             raise ValueError("A summary must be provided")
@@ -105,13 +108,11 @@ class JiraTask(Task):
         jira = JIRA(basic_auth=(username, access_token), options={"server": server_url})
 
         options = {
-            "project": project_name,
-            "assignee": {"accountId": assignee},
-            "issuetype": {"name": issue_type},
-            "summary": summary,
-            "description": description,
+            "serviceDeskId": service_desk_id,
+            "requestTypeId": issue_type,
+            "requestFieldValues": {"summary": summary, "description": description},
         }
-        created = jira.create_issue(options)
+        created = jira.create_customer_request(options)
 
         if not created:
             raise ValueError("Creating Jira Issue failed")
