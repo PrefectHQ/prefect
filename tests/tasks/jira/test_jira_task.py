@@ -60,7 +60,7 @@ class TestInitialization:
                     }
                 )
             ):
-                with pytest.raises(ValueError, match="proect"):
+                with pytest.raises(ValueError, match="project"):
                     task.run()
 
     def test_raises_if_summary_not_provided(self, monkeypatch):
