@@ -77,8 +77,7 @@ class JiraTask(Task):
         - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
         
         Raises:
-            - ValueError: if a `project_name` was never provided
-            - ValueError if a 'summary' was never provided
+            - ValueError: if a `project_name` or 'summary' were never provided
 
         Returns:
             - None
