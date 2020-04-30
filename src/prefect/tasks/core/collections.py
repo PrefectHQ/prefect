@@ -70,7 +70,15 @@ class List(VarArgsTask):
         Returns:
             - list: a list of task results
         """
-        return [v for (k, v) in sorted(task_results.items())]
+        return [
+            v
+            for (k, v) in sorted(
+                task_results.items(),
+                # extract the integer index of the key to maintain sort order
+                # arg_1, arg_2, etc.
+                key=lambda item: int(item[0].split("_")[-1]),
+            )
+        ]
 
 
 class Tuple(VarArgsTask):
@@ -93,7 +101,17 @@ class Tuple(VarArgsTask):
         Returns:
             - tuple: a tuple of task results
         """
-        return tuple([v for (k, v) in sorted(task_results.items())])
+        return tuple(
+            [
+                v
+                for (k, v) in sorted(
+                    task_results.items(),
+                    # extract the integer index of the key to maintain sort order
+                    # arg_1, arg_2, etc.
+                    key=lambda item: int(item[0].split("_")[-1]),
+                )
+            ]
+        )
 
 
 class Set(VarArgsTask):
