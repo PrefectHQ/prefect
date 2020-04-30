@@ -33,7 +33,7 @@ Once you have an incoming webhook URL, you can copy it into the 'Slack URL' sect
 
 ### Twilio Cloud Hook
 
-A Twilio Cloud Hook needs a few more inputs:  an Auth Token, an Account SID, a Messaging Service SID and at least one phone number. 
+A Twilio Cloud Hook needs a few more inputs: an Auth Token, an Account SID, a Messaging Service SID and at least one phone number. 
 
 The phone number is the number that you want alerts to be sent to. 
 
