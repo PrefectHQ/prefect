@@ -119,6 +119,12 @@ def agent():
 @click.option(
     "--network", help="Add containers to an existing docker network", hidden=True,
 )
+@click.option(
+    "--no-docker-interface",
+    is_flag=True,
+    help="Disable presence of a Docker interface.",
+    hidden=True,
+)
 @click.pass_context
 def start(
     ctx,
@@ -136,6 +142,7 @@ def start(
     show_flow_logs,
     volume,
     network,
+    no_docker_interface,
     max_polls,
 ):
     """
@@ -171,12 +178,15 @@ def start(
 
     \b
     Docker Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
-        --no-pull               Pull images for a DockerAgent
-                                Defaults to pulling if not provided
-        --volume        TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
-                                Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
-        --network       TEXT    Add containers to an existing docker network
+        --base-url, -b      TEXT    A Docker daemon host URL for a DockerAgent
+        --no-pull                   Pull images for a DockerAgent
+                                    Defaults to pulling if not provided
+        --volume            TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
+                                    Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
+        --network           TEXT    Add containers to an existing docker network
+        --no-docker-interface       Disable the check of a Docker interface on this machine.
+                                    **Note**: This is mostly relevant for some Docker-in-Docker setups that users may be
+                                    running their agent with.
 
     \b
     Kubernetes Agent Options:
@@ -234,6 +244,7 @@ def start(
                 show_flow_logs=show_flow_logs,
                 volumes=list(volume),
                 network=network,
+                docker_interface=not no_docker_interface,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(

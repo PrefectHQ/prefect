@@ -130,6 +130,9 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
+            ## remove potentially non-json serializable formatting args
+            record_dict.pop("args", None)
+
             log = dict()
             log["flow_run_id"] = prefect.context.get("flow_run_id", None)
             log["task_run_id"] = prefect.context.get("task_run_id", None)

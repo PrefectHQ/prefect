@@ -17,7 +17,7 @@ def LiteralSetValue(value: list) -> str:
 
 @pytest.fixture(autouse=True)
 async def flow_id():
-    """
+    r"""
     1 -> 2 -> 3 -> 4 -> 5
             \              /
              7 -> 8 -> 9 -> 10
@@ -215,7 +215,7 @@ class TestDownstreamTraversal:
 
 
 class TestUpstreamTraversal:
-    """
+    r"""
     1 -> 2 -> 3 -> 4 -> 5
             \              /
              7 -> 8 -> 9 -> 10
