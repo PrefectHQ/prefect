@@ -89,7 +89,7 @@ To find your Integration Key, you also need the Configuration menu but choose Se
 
 <p>&nbsp;</p>
 
-In integrations, select "New integration" and create a new integration using the API. 
+In Integrations, select "New integration" and create a new integration using the API. 
 
 <div class="add-shadow">
   <img src="/orchestration/ui/pager-duty-new-integration.png">
