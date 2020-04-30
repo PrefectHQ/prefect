@@ -7,7 +7,7 @@ You can set up and edit your Cloud Hooks using the [API](/orchestration/concepts
 
 ## UI
 
-For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. However, different types of hook, need different inputs.
+For all Cloud Hooks, you can choose a name for the hook (the default is 'Custom') and decide which states you want to be alerted about. Different inputs are required depending on the type of Cloud Hook.
 
 <div class="add-shadow">
   <img src="/orchestration/ui/cloud-hook-email.png">
@@ -126,6 +126,5 @@ A full list of Cloud Hook queries and mutations can be found in the API schema (
     box-shadow: 0px 20px 15px #3D4849;
 }
 </style>
-
 
 
