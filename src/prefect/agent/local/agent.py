@@ -72,7 +72,7 @@ class LocalAgent(Agent):
         )
 
     def heartbeat(self) -> None:
-        for idx, process in enumerate(self.processes):
+        for idx, process in enumerate(list(self.processes)):
             if process.poll() is not None:
                 self.processes.pop(idx)
                 if process.returncode:
