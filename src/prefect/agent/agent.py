@@ -9,7 +9,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set
+from typing import Any, Generator, Iterable, Set, Optional, cast
 from urllib.parse import urlparse
 
 import pendulum
@@ -55,7 +55,7 @@ def exit_handler(agent: "Agent") -> Generator:
 class HealthHandler(web.RequestHandler):
     """Respond to /api/health"""
 
-    def get(self):
+    def get(self) -> None:
         # Empty json blob, may add more info later
         self.write({})
 
@@ -83,6 +83,8 @@ class Agent:
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
     """
 
     def __init__(
@@ -104,9 +106,9 @@ class Agent:
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
         )
-        self._api_server = None
-        self._api_server_loop = None
-        self._api_server_thread = None
+        self._api_server = None  # type: Optional[web.HTTPServer]
+        self._api_server_loop = None  # type: Optional[IOLoop]
+        self._api_server_thread = None  # type: Optional[threading.Thread]
 
         token = config.cloud.agent.get("auth_token")
 
@@ -214,12 +216,14 @@ class Agent:
 
         if self.agent_address:
             parsed = urlparse(self.agent_address)
+            if not parsed.port:
+                raise ValueError("Must specify port in agent address")
+            port = cast(int, parsed.port)
+            hostname = parsed.hostname or ""
             app = web.Application([("/api/health", HealthHandler)])
 
-            def run():
-                self._api_server = app.listen(
-                    parsed.port, address=parsed.hostname or ""
-                )
+            def run() -> None:
+                self._api_server = app.listen(port, address=hostname)
                 self._api_server_loop = IOLoop.current()
                 self._api_server_loop.start()
 
@@ -236,9 +240,10 @@ class Agent:
 
         if self._api_server_loop is not None:
 
-            def stop_server():
+            def stop_server() -> None:
                 try:
-                    self._api_server_loop.stop()
+                    loop = cast(IOLoop, self._api_server_loop)
+                    loop.stop()
                 except Exception:
                     pass
 

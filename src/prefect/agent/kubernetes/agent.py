@@ -43,6 +43,8 @@ class KubernetesAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
     """
 
     def __init__(

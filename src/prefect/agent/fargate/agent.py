@@ -53,6 +53,8 @@ class FargateAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
