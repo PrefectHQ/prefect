@@ -138,7 +138,7 @@ class TestBigQueryLoadFileInitialization:
         assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
-        assert task.file_obj is None
+        assert task.file is None
         assert task.rewind is False
         assert task.num_retries == 6
         assert task.size is None
@@ -160,7 +160,7 @@ class TestBigQueryLoadFileInitialization:
     def test_dataset_dest_and_table_dest_are_required_together_eventually(self, attr):
         task = BigQueryLoadFile(**{attr: "some-value"})
         with pytest.raises(ValueError) as exc:
-            task.run(file_obj=None)
+            task.run(file=None)
         assert attr in str(exc.value)
         assert "must be provided" in str(exc.value)
 
