@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
+- Add `flow_id` to context for flow runs from some agents - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
 
 ### Task Library
 
@@ -34,6 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Grégory Duchatelet](https://github.com/gregorg)
+- [Joe Scmid](https://github.com/joeschmid)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
