@@ -135,6 +135,32 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
         logger.handlers = []
 
 
+def test_cloud_handler_formats_messages_and_removes_args(caplog, monkeypatch):
+    monkeypatch.setattr("prefect.client.Client", MagicMock)
+    client = MagicMock()
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger = utilities.logging.configure_logging(testing=True)
+            assert hasattr(logger.handlers[-1], "client")
+            logger.handlers[-1].client = client
+
+            child_logger = logger.getChild("sub-test")
+            child_logger.info("Here's a number: %d", 42)
+
+            time.sleep(0.75)
+
+            cloud_logs = client.write_run_logs.call_args[0][0]
+            assert len(cloud_logs) == 1
+            assert cloud_logs[0]["message"] == "Here's a number: 42"
+            assert "args" not in cloud_logs[0]["info"]
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
 def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
     monkeypatch.setattr("prefect.client.Client", MagicMock)
     client = MagicMock()

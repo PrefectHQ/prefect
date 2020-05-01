@@ -99,6 +99,7 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
+- botocore_config (dict, optional): [botocore configuration](https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html) options to be passed to the boto3 client.
 
 - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
   When enabled, task definitions will use flow name as opposed to flow id and each new version will be a

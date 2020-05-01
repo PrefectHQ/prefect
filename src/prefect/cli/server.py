@@ -277,9 +277,12 @@ def start(
 
     if "PREFECT_SERVER_TAG" not in env:
         env.update(
-            PREFECT_SERVER_TAG=version or "master"
-            if len(prefect.__version__.split("+")) > 1
-            else prefect.__version__
+            PREFECT_SERVER_TAG=version
+            or (
+                "master"
+                if len(prefect.__version__.split("+")) > 1
+                else prefect.__version__
+            )
         )
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
