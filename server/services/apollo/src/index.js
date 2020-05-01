@@ -23,7 +23,11 @@ const PREFECT_API_URL =
 const PREFECT_API_HEALTH_URL =
   process.env.PREFECT_API_HEALTH_URL || 'http://localhost:4201/health'
 
-const TELEMETRY_ENABLED = process.env.TELEMETRY_ENABLED || true
+const PREFECT_SERVER__TELEMETRY__ENABLED =
+  process.env.PREFECT_SERVER__TELEMETRY__ENABLED || 'true'
+// Convert from a TOML boolean to a JavaScript boolean
+const TELEMETRY_ENABLED =
+  PREFECT_SERVER__TELEMETRY__ENABLED == 'true' ? true : false
 
 // --------------------------------------------------------------------
 // Server
