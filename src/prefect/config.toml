@@ -69,8 +69,8 @@ queue_interval = 30.0
     # Agents require different API tokens
     auth_token = ""
 
-    # Internal api address for agent health checks, etc...
-    api_address = ""
+    # Internal address for agent health checks, etc...
+    agent_address = ""
 
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers

@@ -66,14 +66,14 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
-        api_address: str = None,
+        agent_address: str = None,
     ) -> None:
         super().__init__(
             name=name,
             labels=labels,
             env_vars=env_vars,
             max_polls=max_polls,
-            api_address=api_address,
+            agent_address=agent_address,
         )
 
         self.namespace = namespace

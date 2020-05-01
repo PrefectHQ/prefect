@@ -83,7 +83,7 @@ def agent():
     type=int,
 )
 @click.option(
-    "--api-address",
+    "--agent-address",
     required=False,
     help="Address to serve internal api server at. Defaults to no server.",
     hidden=True,
@@ -152,7 +152,7 @@ def start(
     network,
     no_docker_interface,
     max_polls,
-    api_address,
+    agent_address,
 ):
     """
     Start an agent.
@@ -177,7 +177,7 @@ def start(
                                 if not specified.
         --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
-        --api-address   TEXT    The address to server internal api at. Currently this is
+        --agent-address TEXT    The address to server internal api at. Currently this is
                                 just health checks for use by an orchestration layer
                                 (e.g. kubernetes). Leave blank for no api server (default).
 
@@ -242,7 +242,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
-                api_address=api_address,
+                agent_address=agent_address,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
             ).start()
@@ -252,7 +252,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
-                api_address=api_address,
+                agent_address=agent_address,
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
@@ -266,7 +266,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
-                api_address=api_address,
+                agent_address=agent_address,
                 **kwargs
             ).start()
         elif agent_option == "kubernetes":
@@ -276,7 +276,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
-                api_address=api_address,
+                agent_address=agent_address,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
@@ -284,7 +284,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
-                api_address=api_address,
+                agent_address=agent_address,
             ).start()
 
 

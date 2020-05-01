@@ -41,7 +41,7 @@ spec:
               value: ""
             - name: JOB_CPU_LIMIT
               value: ""
-            - name: PREFECT__CLOUD__AGENT__API_ADDRESS
+            - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS
               value: "http://127.0.0.1:8080"
           resources:
             limits:

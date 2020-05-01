@@ -91,7 +91,7 @@ class Agent:
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
-        api_address: str = None,
+        agent_address: str = None,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
@@ -101,7 +101,7 @@ class Agent:
         self.max_polls = max_polls
         self.log_to_cloud = config.logging.log_to_cloud
 
-        self.api_address = api_address or config.cloud.agent.get("api_address", "")
+        self.agent_address = agent_address or config.cloud.agent.get("agent_address", "")
         self._api_server = None
         self._api_server_loop = None
         self._api_server_thread = None
@@ -210,8 +210,8 @@ class Agent:
     def setup(self) -> None:
         self.agent_connect()
 
-        if self.api_address:
-            parsed = urlparse(self.api_address)
+        if self.agent_address:
+            parsed = urlparse(self.agent_address)
             app = web.Application([("/api/health", HealthHandler)])
 
             def run():
