@@ -35,7 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Grégory Duchatelet](https://github.com/gregorg)
-- [Joe Scmid](https://github.com/joeschmid)
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
