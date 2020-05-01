@@ -1,10 +1,8 @@
 import os
-import sys
 import uuid
 from os import path
 from typing import Iterable
 
-import pendulum
 import yaml
 
 import prefect
@@ -15,18 +13,6 @@ from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
-
-
-def check_heartbeat() -> None:
-    """
-    Check the agent's heartbeat by verifying heartbeat file has been recently modified
-    """
-    current_timestamp = pendulum.now().timestamp()  # type: ignore
-    last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
-
-    # If file has not been modified in the last 40 seconds then raise an exit code of 1
-    if current_timestamp - last_modified_timestamp > 40:
-        sys.exit(1)
 
 
 class KubernetesAgent(Agent):
