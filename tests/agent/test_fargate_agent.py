@@ -39,6 +39,9 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
+
     # Client args
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "")
@@ -59,13 +62,14 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
         assert agent.logger
         assert agent.boto3_client
 
-        boto3_client.assert_called_with(
-            "ecs",
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-        )
+        assert boto3_client.call_args[0][0] == "ecs"
+        assert boto3_client.call_args[1]["aws_access_key_id"] == None
+        assert boto3_client.call_args[1]["aws_secret_access_key"] == None
+        assert boto3_client.call_args[1]["aws_session_token"] == None
+        assert boto3_client.call_args[1]["region_name"] == None
+
+        assert botocore_config.called
+        assert botocore_config.call_args == {}
 
 
 def test_parse_task_definition_kwargs(monkeypatch, runner_token):
@@ -300,6 +304,9 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
+
     def_kwarg_dict = {
         "taskRoleArn": "test",
         "executionRoleArn": "test",
@@ -366,6 +373,7 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         aws_secret_access_key="secret",
         aws_session_token="token",
         region_name="region",
+        botocore_config={"test": "config"},
         **kwarg_dict
     )
     assert agent
@@ -374,18 +382,22 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     assert agent.task_run_kwargs == run_kwarg_dict
     assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args[1] == {"test": "config"}
 
 
 def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
 
     def_kwarg_dict = {
         "taskRoleArn": "test",
@@ -458,18 +470,22 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     assert agent.task_run_kwargs == run_kwarg_dict
     assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args == {}
 
 
 def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
 
     def_kwarg_dict = {
         "placementConstraints": ["test"],
@@ -516,13 +532,14 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     assert agent.task_run_kwargs == run_kwarg_dict
     assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args == {}
 
 
 def test_deploy_flow_raises(monkeypatch, runner_token):

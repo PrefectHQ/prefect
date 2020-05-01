@@ -10,6 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
+- Add `botocore_config` option to Fargate agent for setting botocore configuration when interacting with boto3 client - [#2170](https://github.com/PrefectHQ/prefect/issues/2170)
 - Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
 - Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
 
