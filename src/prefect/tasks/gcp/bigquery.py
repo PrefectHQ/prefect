@@ -1,5 +1,7 @@
+import os
+from pathlib import Path
 import warnings
-from typing import List
+from typing import List, Union
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -10,6 +12,8 @@ from prefect.engine.signals import SUCCESS
 from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 
+
+_DEFAULT_NUM_RETRIES = 6
 
 def get_client(
     project: str, credentials: dict, credentials_secret: str = None
@@ -400,6 +404,135 @@ class BigQueryLoadGoogleCloudStorage(Task):
         if schema:
             job_config.schema = schema
         load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
+        result = load_job.result()  # block until job is finished
+
+
+class BigQueryLoadFile(Task):
+    """
+    Task for insert records in a Google BigQuery table via a [load job](https://cloud.google.com/bigquery/docs/loading-data).
+    Note that all of these settings can optionally be provided or overwritten at runtime.
+
+    Args:
+        - file (Union[str, path-liike object], optional): A string or path-like object of the file to be loaded
+        - dataset_id (str, optional): the id of a destination dataset to write the
+            records to
+        - table (str, optional): the name of a destination table to write the
+            records to
+        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+            will default to the one inferred from your credentials
+        - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+        - location (str, optional): location of the dataset that will be queried; defaults to "US"
+        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+            containing a JSON representation of your Google Application credentials
+        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
+    """
+
+    def __init__(
+        self,
+        file: Union[str, Path] = None,
+        rewind: bool = False,
+        size: int = None,
+        num_retries=_DEFAULT_NUM_RETRIES,
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        schema: List[bigquery.SchemaField] = None,
+        location: str = "US",
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        self.file = file
+        self.rewind = rewind
+        self.size = size
+        self.num_retries = num_retries
+        self.dataset_id = dataset_id
+        self.table = table
+        self.project = project
+        self.schema = schema
+        self.location = location
+        self.credentials_secret = credentials_secret
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "file", "rewind", "size", "num_retries", "dataset_id", "table", "project", "location", "credentials_secret"
+    )
+    def run(
+        self,
+        file: Union[str, Path] = None,
+        rewind: bool = False,
+        size=None,
+        num_retries=_DEFAULT_NUM_RETRIES,
+        dataset_id: str = None,
+        table: str = None,
+        project: str = None,
+        schema: List[bigquery.SchemaField] = None,
+        location: str = "US",
+        credentials: dict = None,
+        credentials_secret: str = None,
+        **kwargs
+    ):
+        """
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+
+        Args:
+            - file (Union[str, path-liike object], optional): A string or path-like object of the file to be loaded
+            - dataset_id (str, optional): the id of a destination dataset to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - table (str, optional): the name of a destination table to write the
+                records to; if not provided here, will default to the one provided at initialization
+            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
+                will default to the one inferred from your credentials
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+            - location (str, optional): location of the dataset that will be written to; defaults to "US"
+            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
+                You should provide these at runtime with an upstream Secret task.
+            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+                containing a JSON representation of your Google Application credentials
+            - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
+                see the documentation here:
+                https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
+
+        Raises:
+            - ValueError: if all required arguments haven't been provided or file does not exist
+            - IOError: if file can't be opened and read
+            - ValueError: if the load job results in an error
+
+        Returns:
+            - the response from `load_table_from_file`
+        """
+        ## check for any argument inconsistencies
+        if dataset_id is None or table is None:
+            raise ValueError("Both dataset_id and table must be provided.")
+        try:
+            path = Path(file)
+        except Exception:
+            raise ValueError("A string or path-like object must be provided.")
+        if not path.is_file():
+            raise ValueError(f"File {path.as_posix()} does not exist.")
+        
+        ## create client
+        client = get_client(
+            project=project,
+            credentials=credentials,
+            credentials_secret=credentials_secret,
+        )
+
+        ## get table reference
+        table_ref = client.dataset(dataset_id).table(table)
+
+        ## configure job
+        autodetect = kwargs.pop("autodetect", True)
+        job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
+        if schema:
+            job_config.schema = schema
+        
+        ## load data
+        try:
+            with open(file, 'rb') as file_obj:
+                load_job = client.load_table_from_file(file_obj, table_ref, rewind, size, num_retries, job_config=job_config)
+        except IOError:
+            raise IOError(f"Can't open and read from {path.as_posix()}.")
+        
         result = load_job.result()  # block until job is finished
 
 

@@ -13,6 +13,7 @@ try:
     from prefect.tasks.gcp.bigquery import (
         BigQueryTask,
         BigQueryLoadGoogleCloudStorage,
+        BigQueryLoadFile,
         BigQueryStreamingInsert,
         CreateBigQueryTable,
     )
