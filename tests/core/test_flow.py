@@ -1229,34 +1229,6 @@ class TestFlowVisualize:
             f.visualize()
 
 
-    # @pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-    def test_viz_saves_graph_object_if_filename_has_right_extension(self):
-        import graphviz
-
-        f = Flow(name="test")
-        f.add_task(Task(name="a_nice_task"))
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
-                graph = f.visualize(filename=tmp.name)
-                assert os.path.exists(os.path.join(tmpdir, tmp.name + ".pdf"))
-    # @pytest.mark.skipif(sys.platform == "win32", reason="Test fails on Windows")
-    def test_viz_saves_graph_object_if_correct_format_given(self):
-        import graphviz
-
-        f = Flow(name="test")
-        f.add_task(Task(name="a_nice_task"))
-        
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
-                # for _format in ["bmp", "canon", "cmap", "cmapx", "cmapx_np", "dot", "emf", "emfplus", "eps", "fig", "gd", "gd2", "gif", "gv", "imap", "imap_np", "ismap", "jpe", "jpeg", "jpg", "metafile" 
-                #     "pdf", "pic", "plain", "plain-ext", "png", "pov", "ps", "ps2", "svg", "svgz", "tif", "tiff", "tk", "vml", "vmlz", "vrml", "wbmp", "xdot", "xdot1.2", "xdot1.4"]:
-                for _format in graphviz.FORMATS:
-                    graph = f.visualize(filename=tmp.name, format=_format)
-                    assert os.path.exists(os.path.join(tmpdir, f"{tmp.name}.{_format}"))
-
-
-
 class TestCache:
     def test_cache_created(self):
         f = Flow(name="test")
