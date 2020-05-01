@@ -642,6 +642,10 @@ class FargateAgent(Agent):
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                         "value": flow_run.id,  # type: ignore
                     },
+                    {
+                        "name": "PREFECT__CONTEXT__FLOW_ID",
+                        "value": flow_run.flow.id,  # type: ignore
+                    },
                 ],
             }
         ]
