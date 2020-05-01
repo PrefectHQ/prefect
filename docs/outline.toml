@@ -292,7 +292,7 @@ classes = [
 [pages.tasks.jira]
 title = "Jira Tasks"
 module = "prefect.tasks.jira"
-classes = ["JiraTask"]
+classes = ["JiraTask", "JiraServiceDeskTask"]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"
