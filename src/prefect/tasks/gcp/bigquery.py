@@ -15,6 +15,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 _DEFAULT_NUM_RETRIES = 6
 
+
 def get_client(
     project: str, credentials: dict, credentials_secret: str = None
 ) -> bigquery.Client:
@@ -71,7 +72,7 @@ class BigQueryTask(Task):
         dataset_dest: str = None,
         table_dest: str = None,
         job_config: dict = None,
-        **kwargs
+        **kwargs,
     ):
         self.query = query
         self.query_params = query_params
@@ -219,7 +220,7 @@ class BigQueryStreamingInsert(Task):
         project: str = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         self.dataset_id = dataset_id
         self.table = table
@@ -240,7 +241,7 @@ class BigQueryStreamingInsert(Task):
         location: str = "US",
         credentials: dict = None,
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
@@ -330,7 +331,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         self.uri = uri
         self.dataset_id = dataset_id
@@ -354,7 +355,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
         location: str = "US",
         credentials: dict = None,
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
@@ -439,7 +440,7 @@ class BigQueryLoadFile(Task):
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         self.file = file
         self.rewind = rewind
@@ -454,7 +455,15 @@ class BigQueryLoadFile(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "file", "rewind", "size", "num_retries", "dataset_id", "table", "project", "location", "credentials_secret"
+        "file",
+        "rewind",
+        "size",
+        "num_retries",
+        "dataset_id",
+        "table",
+        "project",
+        "location",
+        "credentials_secret",
     )
     def run(
         self,
@@ -469,7 +478,7 @@ class BigQueryLoadFile(Task):
         location: str = "US",
         credentials: dict = None,
         credentials_secret: str = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
@@ -509,7 +518,7 @@ class BigQueryLoadFile(Task):
             raise ValueError("A string or path-like object must be provided.")
         if not path.is_file():
             raise ValueError(f"File {path.as_posix()} does not exist.")
-        
+
         ## create client
         client = get_client(
             project=project,
@@ -525,14 +534,21 @@ class BigQueryLoadFile(Task):
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema
-        
+
         ## load data
         try:
-            with open(file, 'rb') as file_obj:
-                load_job = client.load_table_from_file(file_obj, table_ref, rewind, size, num_retries, job_config=job_config)
+            with open(file, "rb") as file_obj:
+                load_job = client.load_table_from_file(
+                    file_obj,
+                    table_ref,
+                    rewind,
+                    size,
+                    num_retries,
+                    job_config=job_config,
+                )
         except IOError:
             raise IOError(f"Can't open and read from {path.as_posix()}.")
-        
+
         result = load_job.result()  # block until job is finished
 
 
@@ -564,7 +580,7 @@ class CreateBigQueryTable(Task):
         schema: List[bigquery.SchemaField] = None,
         clustering_fields: List[str] = None,
         time_partitioning: bigquery.TimePartitioning = None,
-        **kwargs
+        **kwargs,
     ):
         self.project = project
         self.credentials_secret = credentials_secret
