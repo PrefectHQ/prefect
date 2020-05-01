@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- flow.visualize is now able to accept a `format` argument to specify the output file type.
 
 ### Task Library
 

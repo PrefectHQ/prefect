@@ -1,0 +1,7 @@
+digraph {
+	2037230675336 [label=generate_data shape=ellipse]
+	2037230676872 [label=double_data shape=ellipse]
+	2037230677448 [label=double_data shape=ellipse]
+	2037230677448 -> 2037230676872 [label=input_data]
+	2037230675336 -> 2037230677448 [label=input_data]
+}

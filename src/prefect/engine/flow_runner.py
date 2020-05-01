@@ -450,22 +450,22 @@ class FlowRunner(Runner):
             # ---------------------------------------------
             # Collect results
             # ---------------------------------------------
-
+            print("Flowrunner.run Collecting results")
             # terminal tasks determine if the flow is finished
             terminal_tasks = self.flow.terminal_tasks()
 
             # reference tasks determine flow state
             reference_tasks = self.flow.reference_tasks()
-
+            # print("return_tasks", self.flow.get_tasks(name="triple_data"))
             # wait until all terminal tasks are finished
-            final_tasks = terminal_tasks.union(reference_tasks).union(return_tasks)
+            final_tasks = terminal_tasks.union(reference_tasks).union(self.flow.get_tasks(name="triple_data"))
             final_states = executor.wait(
                 {
                     t: task_states.get(t, Pending("Task not evaluated by FlowRunner."))
                     for t in final_tasks
                 }
             )
-
+            print("------------ final states", final_states)
             # also wait for any children of Mapped tasks to finish, and add them
             # to the dictionary to determine flow state
             all_final_states = final_states.copy()
