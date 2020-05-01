@@ -1645,9 +1645,7 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
     assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
 
 
-def test_deploy_flows_launch_type_ec2(
-    monkeypatch, runner_token
-):
+def test_deploy_flows_launch_type_ec2(monkeypatch, runner_token):
     boto3_client = MagicMock()
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
@@ -1720,9 +1718,7 @@ def test_deploy_flows_launch_type_ec2(
     assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
 
 
-def test_deploy_flows_launch_type_none(
-    monkeypatch, runner_token
-):
+def test_deploy_flows_launch_type_none(monkeypatch, runner_token):
     boto3_client = MagicMock()
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
