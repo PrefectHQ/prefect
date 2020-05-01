@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add `botocore_config` option to Fargate agent for setting botocore configuration when interacting with boto3 client - [#2170](https://github.com/PrefectHQ/prefect/issues/2170)
 - Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
+- Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
 
 ### Task Library
 
