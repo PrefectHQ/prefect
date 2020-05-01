@@ -169,6 +169,11 @@ async function runServerForever() {
   try {
     await runServer()
     send_telemetry_event('startup')
+    if (TELEMETRY_ENABLED) {
+      setInterval(() => {
+        send_telemetry_event('heartbeat')
+      }, 600000) // send heartbeat every 10 minutes
+    }
   } catch (e) {
     log(e, e.message, e.stack)
     log('\nTrying again in 3 seconds...\n')
@@ -200,9 +205,5 @@ async function send_telemetry_event(event) {
     }
   }
 }
-
-process.on('SIGTERM', async () => {
-  send_telemetry_event('shutdown')
-})
 
 runServerForever()
