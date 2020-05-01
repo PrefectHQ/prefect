@@ -14,15 +14,15 @@ class TestInitialization:
         assert t
 
     def test_kwargs_get_passed_to_task_init(self):
-        t = JiraServiceDeskTask(project_name="Test", summary="test", tags=["foo"])
-        assert t.project_name == "Test"
+        t = JiraServiceDeskTask(service_desk_id="3", issue_type=10010, summary="test", tags=["foo"])
+        assert t.service_desk_id == "3"
         assert t.tags == {"foo"}
 
     def test_token_pulled_from_secrets(self, monkeypatch):
-        task = JiraServiceDeskTask(project_name="TEST", summary="test")
+        task = JiraServiceDeskTask(service_desk_id= "3", issue_type=10010, summary="test")
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_task.JIRA", jira)
+        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
@@ -46,10 +46,10 @@ class TestInitialization:
             task.run()
 
     def test_raises_if_service_desk_id_not_provided(self, monkeypatch):
-        task = JiraServiceDeskTask()
+        task = JiraServiceDeskTask(issue_type=10010)
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_task.JIRA", jira)
+        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
@@ -64,10 +64,10 @@ class TestInitialization:
                     task.run()
 
     def test_raises_if_summary_not_provided(self, monkeypatch):
-        task = JiraTask(project_name="Test")
+        task = JiraServiceDeskTask(service_desk_id='4', issue_type=10010)
         client = MagicMock()
         jira = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.jira.jira_task.JIRA", jira)
+        monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(
                 secrets=dict(
