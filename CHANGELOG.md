@@ -21,6 +21,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add Pushbullet notification task to send notifications to mobile [#2366](https://github.com/PrefectHQ/prefect/pull/2366)
 - Add support for Docker volumes and filtering in `prefect.tasks.docker`.
+- Add `prefect.tasks.gcp.bigquery.BigQueryLoadFile` [#2423](https://github.com/PrefectHQ/prefect/issues/2423)
 
 ### Fixes
 
