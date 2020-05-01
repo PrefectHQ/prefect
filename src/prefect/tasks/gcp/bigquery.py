@@ -410,7 +410,10 @@ class BigQueryLoadFile(Task):
     Note that all of these settings can optionally be provided or overwritten at runtime.
 
     Args:
-        - file (Union[str, path-liike object], optional): A string or path-like object of the file to be loaded
+        - file (Union[str, path-like object], optional): A string or path-like object of the file to be loaded
+        - rewind (bool, optional): if True, seek to the beginning of the file handle before reading the file
+        - size (int, optional):  the number of bytes to read from the file handle. If size is None or large,
+            resumable upload will be used. Otherwise, multipart upload will be used.
         - dataset_id (str, optional): the id of a destination dataset to write the
             records to
         - table (str, optional): the name of a destination table to write the
@@ -480,6 +483,9 @@ class BigQueryLoadFile(Task):
 
         Args:
             - file (Union[str, path-liike object], optional): A string or path-like object of the file to be loaded
+            - rewind (bool, optional): if True, seek to the beginning of the file handle before reading the file
+            - size (int, optional):  the number of bytes to read from the file handle. If size is None or large,
+                resumable upload will be used. Otherwise, multipart upload will be used.
             - dataset_id (str, optional): the id of a destination dataset to write the
                 records to; if not provided here, will default to the one provided at initialization
             - table (str, optional): the name of a destination table to write the
