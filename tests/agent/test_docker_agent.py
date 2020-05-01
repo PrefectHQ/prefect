@@ -140,7 +140,9 @@ def test_populate_env_vars_uses_user_provided_env_vars(monkeypatch, runner_token
     ):
         agent = DockerAgent(env_vars=dict(AUTH_THING="foo"))
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
     assert env_vars["AUTH_THING"] == "foo"
 
@@ -161,13 +163,16 @@ def test_populate_env_vars(monkeypatch, runner_token):
     ):
         agent = DockerAgent()
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -194,13 +199,16 @@ def test_populate_env_vars_includes_agent_labels(monkeypatch, runner_token):
     ):
         agent = DockerAgent(labels=["42", "marvin"])
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
             "PREFECT__CLOUD__AGENT__LABELS": "['42', 'marvin']",
             "PREFECT__CLOUD__AUTH_TOKEN": "token",
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -230,7 +238,9 @@ def test_populate_env_vars_is_responsive_to_logging_config(
     ):
         agent = DockerAgent(labels=["42", "marvin"])
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
 
 
@@ -250,9 +260,10 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -288,7 +299,9 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, runner_token):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
-                    "flow": GraphQLResult({"storage": Local().serialize()}),
+                    "flow": GraphQLResult(
+                        {"storage": Local().serialize(), "id": "foo"}
+                    ),
                     "id": "id",
                     "name": "name",
                     "version": "version",
@@ -315,9 +328,10 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -350,9 +364,10 @@ def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -404,9 +419,10 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -835,9 +851,10 @@ def test_docker_agent_network(monkeypatch, runner_token):
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -872,9 +889,10 @@ def test_docker_agent_deploy_with_interface_check_linux(
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -907,9 +925,10 @@ def test_docker_agent_deploy_with_no_interface_check_linux(
             {
                 "flow": GraphQLResult(
                     {
+                        "id": "foo",
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
-                        ).serialize()
+                        ).serialize(),
                     }
                 ),
                 "id": "id",

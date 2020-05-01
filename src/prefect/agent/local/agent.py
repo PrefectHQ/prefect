@@ -157,6 +157,7 @@ class LocalAgent(Agent):
             "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             "PREFECT__LOGGING__LEVEL": "DEBUG",
