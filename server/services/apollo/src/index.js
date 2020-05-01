@@ -10,6 +10,7 @@ import {
   FilterRootFields
 } from 'apollo-server'
 import { HttpLink } from 'apollo-link-http'
+import { v4 as uuidv4 } from 'uuid'
 
 const APOLLO_API_PORT = process.env.APOLLO_API_PORT || '4200'
 const APOLLO_API_BIND_ADDRESS = process.env.APOLLO_API_BIND_ADDRESS || '0.0.0.0'
@@ -28,7 +29,7 @@ const PREFECT_SERVER__TELEMETRY__ENABLED =
 // Convert from a TOML boolean to a JavaScript boolean
 const TELEMETRY_ENABLED =
   PREFECT_SERVER__TELEMETRY__ENABLED == 'true' ? true : false
-
+const TELEMETRY_ID = uuidv4()
 // --------------------------------------------------------------------
 // Server
 const depthLimit = require('graphql-depth-limit')
@@ -191,7 +192,7 @@ async function send_telemetry_event(event) {
         body: JSON.stringify({
           source: 'prefect_server',
           type: event,
-          payload: { id: null }
+          payload: { id: TELEMETRY_ID }
         }),
         headers: {
           'Content-Type': 'application/json',
