@@ -122,7 +122,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -136,7 +136,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         job = agent.replace_job_spec_yaml(flow_run)
 
         assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "id"
+        assert job["metadata"]["labels"]["flow_id"] == "new_id"
         assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
@@ -147,9 +147,10 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == "default"
-        assert env[4]["value"] == "[]"
-        assert env[5]["value"] == "true"
+        assert env[3]["value"] == "new_id"
+        assert env[4]["value"] == "default"
+        assert env[5]["value"] == "[]"
+        assert env[6]["value"] == "true"
 
         user_vars = [
             dict(name="AUTH_THING", value="foo"),
@@ -176,7 +177,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -190,7 +191,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         job = agent.replace_job_spec_yaml(flow_run)
 
         assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "id"
+        assert job["metadata"]["labels"]["flow_id"] == "new_id"
         assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
@@ -201,9 +202,10 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == "default"
-        assert env[4]["value"] == "[]"
-        assert env[5]["value"] == "true"
+        assert env[3]["value"] == "new_id"
+        assert env[4]["value"] == "default"
+        assert env[5]["value"] == "[]"
+        assert env[6]["value"] == "true"
 
         assert (
             job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
@@ -231,7 +233,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -245,7 +247,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        assert env[5]["value"] == str(flag).lower()
+        assert env[6]["value"] == str(flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
@@ -283,7 +285,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -293,7 +295,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     agent = KubernetesAgent(labels=["foo", "bar"])
     job = agent.replace_job_spec_yaml(flow_run)
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-    assert env[4]["value"] == "['foo', 'bar']"
+    assert env[5]["value"] == "['foo', 'bar']"
 
 
 def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):

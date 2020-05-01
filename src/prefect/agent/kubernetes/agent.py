@@ -169,9 +169,10 @@ class KubernetesAgent(Agent):
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = os.getenv("NAMESPACE", "default")
-        env[4]["value"] = str(self.labels)
-        env[5]["value"] = str(self.log_to_cloud).lower()
+        env[3]["value"] = flow_run.flow.id  # type: ignore
+        env[4]["value"] = os.getenv("NAMESPACE", "default")
+        env[5]["value"] = str(self.labels)
+        env[6]["value"] = str(self.log_to_cloud).lower()
 
         # append all user provided values
         for key, value in self.env_vars.items():

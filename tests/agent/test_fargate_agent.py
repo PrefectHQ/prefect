@@ -668,6 +668,7 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                    {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "id"},
                 ],
             }
         ]
@@ -1559,6 +1560,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     "environment": [
                         {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
                     ],
                 }
             ]
@@ -1632,6 +1634,7 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
                     "environment": [
                         {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
                     ],
                 }
             ]
