@@ -101,7 +101,9 @@ class Agent:
         self.max_polls = max_polls
         self.log_to_cloud = config.logging.log_to_cloud
 
-        self.agent_address = agent_address or config.cloud.agent.get("agent_address", "")
+        self.agent_address = agent_address or config.cloud.agent.get(
+            "agent_address", ""
+        )
         self._api_server = None
         self._api_server_loop = None
         self._api_server_thread = None
@@ -215,8 +217,11 @@ class Agent:
             app = web.Application([("/api/health", HealthHandler)])
 
             def run():
-                self._api_server = app.listen(parsed.port, address=parsed.hostname)
-                self._api_server_loop = IOLoop.current().start()
+                self._api_server = app.listen(
+                    parsed.port, address=parsed.hostname or ""
+                )
+                self._api_server_loop = IOLoop.current()
+                self._api_server_loop.start()
 
             self._api_server_thread = threading.Thread(
                 name="api-server", target=run, daemon=True
@@ -242,7 +247,7 @@ class Agent:
         if self._api_server_thread is not None:
             # Give the server a small period to shutdown nicely, otherwise it
             # will terminate on exit anyway since it's a daemon thread.
-            self._api_server_thread.join(0.1)
+            self._api_server_thread.join(timeout=1)
 
     def on_shutdown(self) -> None:
         """

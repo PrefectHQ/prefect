@@ -1,5 +1,7 @@
-from unittest.mock import MagicMock
 import logging
+import socket
+import time
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -58,10 +60,15 @@ def test_agent_log_level(runner_token, cloud_api):
 
 def test_agent_log_level_responds_to_config(runner_token, cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+        {
+            "cloud.agent.auth_token": "TEST_TOKEN",
+            "cloud.agent.level": "DEBUG",
+            "cloud.agent.agent_address": "http://localhost:8000",
+        }
     ):
         agent = Agent()
         assert agent.logger.level == 10
+        assert agent.agent_address == "http://localhost:8000"
 
 
 def test_agent_env_vars(runner_token, cloud_api):
@@ -491,3 +498,36 @@ def test_agent_registration_and_id(monkeypatch, cloud_api):
     agent = Agent()
     assert agent._register_agent() == "ID"
     assert agent.client._attached_headers == {"X-PREFECT-AGENT-ID": "ID"}
+
+
+def test_agent_health_check(runner_token, cloud_api):
+    requests = pytest.importorskip("requests")
+
+    class TestAgent(Agent):
+        def agent_connect(self):
+            pass
+
+    with socket.socket() as sock:
+        sock.bind(("", 0))
+        port = sock.getsockname()[1]
+
+    agent = TestAgent(agent_address=f"http://127.0.0.1:{port}", max_polls=1)
+
+    agent.setup()
+
+    # May take a sec for the api server to startup
+    for attempt in range(5):
+        try:
+            resp = requests.get(f"http://127.0.0.1:{port}/api/health")
+            break
+        except Exception:
+            time.sleep(0.1)
+    else:
+        agent.cleanup()
+        assert False, "Failed to connect to health check"
+
+    assert resp.status_code == 200
+    assert resp.json() == {}
+
+    agent.cleanup()
+    assert not agent._api_server_thread.is_alive()
