@@ -12,9 +12,6 @@ from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-_DEFAULT_NUM_RETRIES = 6
-
-
 def get_client(
     project: str, credentials: dict, credentials_secret: str = None
 ) -> bigquery.Client:
@@ -432,7 +429,7 @@ class BigQueryLoadFile(Task):
         file: Union[str, Path] = None,
         rewind: bool = False,
         size: int = None,
-        num_retries=_DEFAULT_NUM_RETRIES,
+        num_retries: int = 6,
         dataset_id: str = None,
         table: str = None,
         project: str = None,
@@ -468,15 +465,14 @@ class BigQueryLoadFile(Task):
         self,
         file: Union[str, Path] = None,
         rewind: bool = False,
-        size=None,
-        num_retries=_DEFAULT_NUM_RETRIES,
+        size: int = None,
+        num_retries: int = 6,
         dataset_id: str = None,
         table: str = None,
         project: str = None,
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
         credentials: dict = None,
-        credentials_secret: str = None,
         **kwargs,
     ):
         """
@@ -494,8 +490,6 @@ class BigQueryLoadFile(Task):
             - location (str, optional): location of the dataset that will be written to; defaults to "US"
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
                 You should provide these at runtime with an upstream Secret task.
-            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                containing a JSON representation of your Google Application credentials
             - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
                 see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
