@@ -54,7 +54,6 @@ class JiraTask(Task):
     @defaults_from_attrs(
         "server_url",
         "service_desk_id",
-        "assignee",
         "issue_type",
         "summary",
         "description",
