@@ -10,7 +10,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Add `botocore_config` option to Fargate agent for setting botocore configuration when interacting with boto3 client - [#2170](https://github.com/PrefectHQ/prefect/issues/2170)
+- Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
 
 ### Task Library
 
@@ -18,8 +19,10 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Fix `start_server.sh` script when an env var is undefined - [#2450](https://github.com/PrefectHQ/prefect/pull/2450)
 - Fix `server start` CLI command not respecting `version` kwarg on tagged releases - [#2435](https://github.com/PrefectHQ/prefect/pull/2435)
 - Fix issue with non-JSON serializable args being used to format log messages preventing them from shipping to Cloud - [#2407](https://github.com/PrefectHQ/prefect/issues/2407)
+- Fix issue where ordered Prefect collections use lexical sorting, not numerical sorting, which can result in unexpected ordering - [#2452](https://github.com/PrefectHQ/prefect/pull/2452)
 
 ### Deprecations
 
@@ -31,7 +34,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Grégory Duchatelet](https://github.com/gregorg)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
@@ -61,6 +64,7 @@ Released on Apr 28, 2020.
 - Fix Docker storage path issue when registering flows on Windows machines - [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
 - Fix issue with refreshing Prefect Cloud tokens - [#2409](https://github.com/PrefectHQ/prefect/pull/2409)
 - Resolve invalid escape sequence deprecation warnings - [#2414](https://github.com/PrefectHQ/prefect/issues/2414)
+- Fix issue with list mutation while iterating - [#2419](https://github.com/PrefectHQ/prefect/issues/2419)
 
 ### Deprecations
 
@@ -76,6 +80,7 @@ Released on Apr 28, 2020.
 - [Braun Reyes](https://github.com/braunreyes)
 - [Fraznist](https://github.com/Fraznist)
 - [sk4la](https://github.com/sk4la)
+- [Troy Köhler](https://github.com/trkohler)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 
