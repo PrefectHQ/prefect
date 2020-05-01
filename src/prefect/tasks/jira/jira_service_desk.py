@@ -10,7 +10,7 @@ except ImportError:
     pass
 
 
-class JiraTask(Task):
+class JiraServiceDeskTask(Task):
     """
     Task for creating a Jira Service Desk customer request. For this task to function properly,
     you need a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
