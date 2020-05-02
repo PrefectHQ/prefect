@@ -2,7 +2,9 @@ from marshmallow import fields, post_load
 from typing import Any
 
 from prefect.engine import result, results
+from prefect.engine.result_handlers import ResultHandler
 from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.tasks.secrets import SecretBase
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
@@ -81,15 +83,35 @@ class S3ResultSchema(ObjectSchema):
 class SecretResultSchema(ObjectSchema):
     class Meta:
         object_class = results.SecretResult
+        exclude_fields = ["secret_type"]
 
     location = fields.Str(allow_none=True)
+    secret_type = fields.Function(
+        lambda res: type(res.secret_task).__name__, lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.SecretResult:
+        data["secret_task"] = SecretBase()
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class ResultHandlerResultSchema(ObjectSchema):
     class Meta:
         object_class = results.ResultHandlerResult
+        exclude_fields = ["result_handler_type"]
 
     location = fields.Str(allow_none=True)
+    result_handler_type = fields.Function(
+        lambda res: type(res.result_handler).__name__, lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.ResultHandlerResult:
+        data["result_handler"] = ResultHandler()
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class StateResultSchema(OneOfSchema):
