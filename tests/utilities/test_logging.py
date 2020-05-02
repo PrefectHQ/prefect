@@ -338,6 +338,27 @@ def test_context_attributes():
     assert test_filter.called
 
 
+def test_users_can_specify_additional_context_attributes(caplog):
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+        "task_name": "tn",
+        "task_slug": "ts",
+        "trace_id": "ID",
+    }
+
+    with utilities.configuration.set_temporary_config(
+        {"logging.log_attributes": '["trace_id"]'}
+    ):
+        logger = logging.getLogger("test-logger")
+
+        with context(items):
+            logger.critical("log entry!")
+
+    assert caplog.records[0].trace_id == "ID"
+
+
 def test_context_only_specified_attributes():
     items = {
         "flow_run_id": "fri",
