@@ -1,7 +1,9 @@
 import os
+from slugify import slugify
 from typing import Any
 
 import cloudpickle
+import pendulum
 
 from prefect import config
 from prefect.engine.result import Result
@@ -42,6 +44,12 @@ class LocalResult(Result):
         self.dir = abs_directory
 
         super().__init__(**kwargs)
+
+    @property
+    def default_location(self) -> str:
+        fname = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
+        location = os.path.join(self.dir, fname)
+        return location
 
     def read(self, location: str) -> Result:
         """
