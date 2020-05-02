@@ -1,4 +1,5 @@
-from marshmallow import fields
+from marshmallow import fields, post_load
+from typing import Any
 
 from prefect.engine import result, results
 from prefect.serialization.result_handlers import ResultHandlerSchema
@@ -29,6 +30,7 @@ class AzureResultSchema(ObjectSchema):
     class Meta:
         object_class = results.AzureResult
 
+    container = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
@@ -43,6 +45,7 @@ class GCSResultSchema(ObjectSchema):
     class Meta:
         object_class = results.GCSResult
 
+    bucket = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
@@ -50,7 +53,14 @@ class LocalResultSchema(ObjectSchema):
     class Meta:
         object_class = results.LocalResult
 
+    dir = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.LocalResult:
+        data["validate_dir"] = False
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class PrefectResultSchema(ObjectSchema):
@@ -64,6 +74,7 @@ class S3ResultSchema(ObjectSchema):
     class Meta:
         object_class = results.S3Result
 
+    bucket = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
