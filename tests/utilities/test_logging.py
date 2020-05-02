@@ -359,6 +359,28 @@ def test_users_can_specify_additional_context_attributes(caplog):
     assert caplog.records[0].trace_id == "ID"
 
 
+def test_users_can_specify_additional_context_attributes_and_fails_gracefully(caplog):
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+        "task_name": "tn",
+        "task_slug": "ts",
+        "trace_id": "ID",
+    }
+
+    with utilities.configuration.set_temporary_config(
+        {"logging.log_attributes": '["trace_id", "foo"]'}
+    ):
+        logger = logging.getLogger("test-logger")
+
+        with context(items):
+            logger.critical("log entry!")
+
+    assert caplog.records[0].foo is None
+    assert caplog.records[0].trace_id == "ID"
+
+
 def test_context_only_specified_attributes():
     items = {
         "flow_run_id": "fri",

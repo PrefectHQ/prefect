@@ -184,7 +184,7 @@ def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord
 
     for attr in PREFECT_LOG_RECORD_ATTRIBUTES + tuple(additional_attrs):
         value = prefect.context.get(attr, None)
-        if value:
+        if value or attr in additional_attrs:
             setattr(record, attr, value)
 
     return record
