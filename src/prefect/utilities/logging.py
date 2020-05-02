@@ -180,7 +180,7 @@ def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord
     """
     record = _original_log_record_factory(*args, **kwargs)
 
-    additional_attrs = literal_eval(context.config.logging.log_attributes)
+    additional_attrs = literal_eval(context.config.logging.get("log_attributes", "[]"))
 
     for attr in PREFECT_LOG_RECORD_ATTRIBUTES + tuple(additional_attrs):
         value = prefect.context.get(attr, None)
