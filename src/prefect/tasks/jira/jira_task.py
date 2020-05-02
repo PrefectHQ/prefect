@@ -68,14 +68,14 @@ class JiraTask(Task):
         or by using `Task.bind`.
         
         Args:
-        - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
-        - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
-        - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
-        - project_name(str):  the key for your jira project; defaults to the one provided at initialization
-        - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
-        - issue_type (str, optional): the type of issue you want to create; defaults to 'Task'
-        - summary (str, optional): summary or title for your issue; defaults to the one provided at initialization
-        - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
+            - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
+            -  access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
+            - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
+            - project_name(str):  the key for your jira project; defaults to the one provided at initialization
+            - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
+            - issue_type (str, optional): the type of issue you want to create; defaults to 'Task'
+            - summary (str, optional): summary or title for your issue; defaults to the one provided at initialization
+            - description (str, optional): description or additional information for the issue; defaults to the one provided at initialization
         
         Raises:
             - ValueError: if a `project_name` or 'summary' are not provided
