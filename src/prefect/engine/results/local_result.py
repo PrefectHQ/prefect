@@ -89,6 +89,7 @@ class LocalResult(Result):
         """
         new = self.format(**kwargs)
         new.value = value
+        assert new.location is not None
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
