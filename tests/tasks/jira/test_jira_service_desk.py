@@ -14,12 +14,16 @@ class TestInitialization:
         assert t
 
     def test_kwargs_get_passed_to_task_init(self):
-        t = JiraServiceDeskTask(service_desk_id="3", issue_type=10010, summary="test", tags=["foo"])
+        t = JiraServiceDeskTask(
+            service_desk_id="3", issue_type=10010, summary="test", tags=["foo"]
+        )
         assert t.service_desk_id == "3"
         assert t.tags == {"foo"}
 
     def test_token_pulled_from_secrets(self, monkeypatch):
-        task = JiraServiceDeskTask(service_desk_id= "3", issue_type=10010, summary="test")
+        task = JiraServiceDeskTask(
+            service_desk_id="3", issue_type=10010, summary="test"
+        )
         client = MagicMock()
         jira = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
@@ -64,7 +68,7 @@ class TestInitialization:
                     task.run()
 
     def test_raises_if_summary_not_provided(self, monkeypatch):
-        task = JiraServiceDeskTask(service_desk_id='4', issue_type=10010)
+        task = JiraServiceDeskTask(service_desk_id="4", issue_type=10010)
         client = MagicMock()
         jira = MagicMock(client=client)
         monkeypatch.setattr("prefect.tasks.jira.jira_service_desk.JIRA", jira)
