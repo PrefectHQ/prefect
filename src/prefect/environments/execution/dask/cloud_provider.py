@@ -63,6 +63,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 `def on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None:`
             The callback function may modify provider_kwargs (e.g. `provider_kwargs["n_workers"] = 3`) and any
             relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
+        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
