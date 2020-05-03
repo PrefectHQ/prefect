@@ -84,7 +84,7 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, (ResultInterface, type(NoResult))):
+        if isinstance(value, ResultInterface):
             self._result = value
         else:
             self._result = Result(value=value)
@@ -103,8 +103,9 @@ class State:
         """
         result_reader = result or self._result
 
-        if self._result.value == NoResult:
-            self._result = result_reader.read(self._result.location)
+        known_location = self._result.location or result.location
+        if self._result.value is None and known_location is not None:
+            self._result = result_reader.read(known_location)
         return self
 
     def load_cached_results(self, results: Dict[str, Result] = None) -> "State":
@@ -126,7 +127,7 @@ class State:
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            if res.value == NoResult:
+            if res.value is None and res.location is not None:
                 loaded_inputs[key] = result_readers[key].read(res.location)
             else:
                 loaded_inputs[key] = res

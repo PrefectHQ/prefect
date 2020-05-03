@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine.result import NoResult, Result, SafeResult, NoResult
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
@@ -52,7 +52,8 @@ all_states = sorted(
 def test_create_state_with_no_args(cls):
     state = cls()
     assert state.message is None
-    assert state.result == NoResult
+    assert state.result is None
+    assert state._result == NoResult
     assert state.context == dict()
     assert state.cached_inputs == dict()
 
@@ -121,7 +122,8 @@ def test_create_state_with_tags_in_context(cls):
     with prefect.context(task_tags=set("abcdef")):
         state = cls()
     assert state.message is None
-    assert state.result == NoResult
+    assert state.result is None
+    assert state._result == NoResult
     assert state.context == dict(tags=list(set("abcdef")))
 
     with prefect.context(task_tags=set("abcdef")):
@@ -461,3 +463,88 @@ def test_children_method_on_leaf_state_returns_hierarchy():
 
 def test_parents_method_on_success():
     assert set(Success.parents()) == {Finished, State}
+
+
+class TestResultInterface:
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_calls_read(self, cls):
+        """
+        This test ensures that the read logic of the provided result is
+        used instead of self._result; this is important when "hydrating" JSON
+        representations of Results objects that come from Cloud.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = 42
+                return self
+
+        state = cls(result=Result(location=""))
+        assert state.message is None
+        assert state.result is None
+
+        new_state = state.load_result(MyResult(location=""))
+        assert new_state.result == 42
+        assert new_state._result.location == "foo"
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_doesnt_call_read_if_value_present(self, cls):
+        """
+        This test ensures that multiple calls to `load_result` will not result in
+        multiple redundant reads from the remote result location.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result(value=42))
+        assert state.message is None
+        assert state.result == 42
+
+        new_state = state.load_result(MyResult())
+        assert new_state.result == 42
+        assert new_state._result.location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_doesnt_call_read_if_location_is_none(self, cls):
+        """
+        If both the value and location information are None, we assume that None is the
+        correct return value and perform no action.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result())
+        assert state.message is None
+        assert state.result is None
+        assert state._result.location is None
+
+        new_state = state.load_result(MyResult())
+        assert state.message is None
+        assert state.result is None
+        assert state._result.location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_reads_if_location_is_provided(self, cls):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result())
+        assert state.message is None
+        assert state.result is None
+        assert state._result.location is None
+
+        new_state = state.load_result(MyResult(location="foo"))
+        assert state.message is None
+        assert state.result == "bar"
+        assert state._result.location == "foo"
