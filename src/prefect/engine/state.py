@@ -127,8 +127,9 @@ class State:
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            if res.value is None and res.location is not None:
-                loaded_inputs[key] = result_readers[key].read(res.location)
+            known_location = res.location or result_readers[key].location
+            if res.value is None and known_location is not None:
+                loaded_inputs[key] = result_readers[key].read(known_location)
             else:
                 loaded_inputs[key] = res
 
