@@ -303,6 +303,7 @@ class NoResultType(SafeResult):
     """
 
     def __init__(self) -> None:
+        self.location = None
         super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:

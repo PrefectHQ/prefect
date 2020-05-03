@@ -650,7 +650,7 @@ class TestStateResultHandling:
 
         res = CloudTaskRunner(task=add).run(upstream_states=upstream_states)
         assert res.is_failed()
-        assert "inputs are missing" in res.message
+        assert "unsupported operand" in res.message
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -659,21 +659,19 @@ class TestStateResultHandling:
         states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
         assert states[0].is_running()  # this isn't ideal, it's a little confusing
         assert states[1].is_failed()
-        assert "has no attribute" in states[1].message
+        assert "unsupported operand" in states[1].message
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_task_runner_sends_checkpointed_success_states_to_cloud(
         self, client, checkpoint
     ):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def add(x, y):
             return x + y
 
         x_state, y_state = (
-            Success(result=Result(1, result_handler=handler)),
-            Success(result=Result(1, result_handler=handler)),
+            Success(result=PrefectResult(value=1)),
+            Success(result=PrefectResult(value=1)),
         )
 
         upstream_states = {
@@ -692,15 +690,21 @@ class TestStateResultHandling:
         states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
         assert states[0].is_running()
         assert states[1].is_successful()
-        assert states[1]._result.safe_value == SafeResult("2", result_handler=handler)
+        assert states[1]._result.location == "2"
 
-    def test_task_runner_handles_inputs_prior_to_setting_state(self, client):
+    def test_task_runner_preserves_location_of_inputs_when_retrying(self, client):
+        """
+        If a user opts out of checkpointing via checkpoint=False, we don't want to
+        surprise them by storing the result in cached_inputs.  This test ensures
+        that whatever location is provided to a downstream task is the one that is used.
+        """
+
         @prefect.task(max_retries=1, retry_delay=datetime.timedelta(days=1))
         def add(x, y):
             return x + y
 
-        x = Result(1, result_handler=JSONResultHandler())
-        y = Result("0", result_handler=JSONResultHandler())
+        x = PrefectResult(value=1)
+        y = PrefectResult(value="0", location="foo")
         state = Pending(cached_inputs=dict(x=x, y=y))
         x_state = Success()
         y_state = Success()
@@ -711,8 +715,6 @@ class TestStateResultHandling:
         res = CloudTaskRunner(task=add).run(
             state=state, upstream_states=upstream_states
         )
-        assert x.safe_value != NoResult
-        assert y.safe_value != NoResult
 
         ## assertions
         assert client.get_task_run_info.call_count == 0  # never called
@@ -724,7 +726,8 @@ class TestStateResultHandling:
         assert states[0].is_running()
         assert states[1].is_failed()
         assert isinstance(states[2], Retrying)
-        assert states[2].cached_inputs == dict(x=x, y=y)
+        assert states[2].cached_inputs["x"].location is None
+        assert states[2].cached_inputs["y"].location == "foo"
 
 
 def test_state_handler_failures_are_handled_appropriately(client, caplog):
@@ -949,14 +952,14 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
     @prefect.task(
         max_retries=2,
         retry_delay=datetime.timedelta(seconds=0),
-        result_handler=ResultHandler(),
+        result=PrefectResult(),
     )
     def tagged_task(x):
         if prefect.context.get("task_run_count", 1) == 1:
             raise ValueError("gimme a sec")
         return x
 
-    upstream_result = Result(value=42, result_handler=JSONResultHandler())
+    upstream_result = PrefectResult(value=42, location="42")
     res = CloudTaskRunner(task=tagged_task).run(
         context={"task_run_version": 1},
         state=None,
@@ -980,8 +983,7 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
         "Success",
     ]
 
-    # ensures result handler was called and persisted
-    assert calls[2]["state"].cached_inputs["x"].safe_value.value == "42"
+    assert calls[2]["state"].cached_inputs["x"].value == 42
 
 
 class TestLoadResults:
@@ -989,7 +991,7 @@ class TestLoadResults:
         result = PrefectResult(location="1")
         state = Success(result=result)
 
-        assert result.value is NoResult
+        assert result.value is None
 
         t = Task(result=PrefectResult())
         edge = Edge(t, 2, key="x")

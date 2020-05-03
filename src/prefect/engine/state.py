@@ -103,7 +103,7 @@ class State:
         """
         result_reader = result or self._result
 
-        known_location = self._result.location or result.location
+        known_location = self._result.location or getattr(result, "location", None)
         if self._result.value is None and known_location is not None:
             self._result = result_reader.read(known_location)
         return self
@@ -127,7 +127,9 @@ class State:
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            known_location = res.location or result_readers[key].location
+            known_location = res.location or getattr(
+                result_readers[key], "location", None
+            )
             if res.value is None and known_location is not None:
                 loaded_inputs[key] = result_readers[key].read(known_location)
             else:
