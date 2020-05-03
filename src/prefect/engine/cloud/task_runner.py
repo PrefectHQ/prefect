@@ -194,7 +194,7 @@ class CloudTaskRunner(TaskRunner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if state.is_cached():
+        if state.is_cached() is True:
             assert isinstance(state, Cached)  # mypy assert
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             if self.task.cache_validator(
