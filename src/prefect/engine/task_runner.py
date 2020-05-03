@@ -147,14 +147,14 @@ class TaskRunner(Runner):
         if "_loop_count" in state.cached_inputs:  # type: ignore
             loop_result = state.cached_inputs.pop("_loop_result")
             if loop_result.value is None and loop_result.location is not None:
-                loop_result = self.result.read(loop_result.location).value
+                loop_result_value = self.result.read(loop_result.location).value
             else:
-                loop_result = loop_result.value
+                loop_result_value = loop_result.value
             loop_context = {
                 "task_loop_count": state.cached_inputs.pop(  # type: ignore
                     "_loop_count"
                 ).value,  # type: ignore
-                "task_loop_result": loop_result,
+                "task_loop_result": loop_result_value,
             }
             context.update(loop_context)
 

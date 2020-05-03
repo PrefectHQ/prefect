@@ -10,7 +10,7 @@ Every run is initialized with the `Pending` state, meaning that it is waiting fo
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
 import datetime
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
 
@@ -108,7 +108,9 @@ class State:
             self._result = result_reader.read(known_location)
         return self
 
-    def load_cached_results(self, results: Dict[str, Result] = None) -> "State":
+    def load_cached_results(
+        self, results: Mapping[str, Optional[Result]] = None
+    ) -> "State":
         """
         Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
         using the logic of the provided result.  This method is mainly intended to be used
@@ -120,9 +122,11 @@ class State:
         Returns:
             - State: the current state with a fully hydrated Result attached
         """
+        results = results or dict()
+
         result_readers = {
             key: results.get(key, result) for key, result in self.cached_inputs.items()
-        }
+        }  # type: ignore
 
         loaded_inputs = {}
 
@@ -131,7 +135,7 @@ class State:
                 result_readers[key], "location", None
             )
             if res.value is None and known_location is not None:
-                loaded_inputs[key] = result_readers[key].read(known_location)
+                loaded_inputs[key] = result_readers[key].read(known_location)  # type: ignore
             else:
                 loaded_inputs[key] = res
 
