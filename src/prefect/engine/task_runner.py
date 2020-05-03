@@ -146,7 +146,7 @@ class TaskRunner(Runner):
 
         if "_loop_count" in state.cached_inputs:  # type: ignore
             loop_result = state.cached_inputs.pop("_loop_result")
-            if isinstance(loop_result.value, NoResult):
+            if loop_result.value is None and loop_result.location is not None:
                 loop_result = self.result.read(loop_result.location).value
             else:
                 loop_result = loop_result.value

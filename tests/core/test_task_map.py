@@ -287,7 +287,8 @@ def test_map_skips_dont_leak_out(executor):
     assert s.is_successful()
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
-    assert m.result == [NoResult, 4, 5]
+    assert m.result == [None, 4, 5]
+    assert m.map_states[0]._result == NoResult
     assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 

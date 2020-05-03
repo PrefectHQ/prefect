@@ -21,7 +21,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import NoResult, Result, SafeResult, NoResult
+from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
