@@ -21,7 +21,7 @@ from prefect.engine.cache_validators import (
     partial_inputs_only,
     partial_parameters_only,
 )
-from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
+from prefect.engine.result import NoResult, Result, SafeResult, NoResult
 from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
@@ -1357,7 +1357,7 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result is NORESULT
+        assert new_state._result is NoResult
         assert new_state.cached_inputs == {"x": Result(1)}
 
     @pytest.mark.parametrize(

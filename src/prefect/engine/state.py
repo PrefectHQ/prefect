@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Type
 import pendulum
 
 import prefect
-from prefect.engine.result import NORESULT, Result, ResultInterface
+from prefect.engine.result import NoResult, Result, ResultInterface
 
 
 class State:
@@ -47,7 +47,7 @@ class State:
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):
@@ -84,7 +84,7 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, (ResultInterface, type(NORESULT))):
+        if isinstance(value, (ResultInterface, type(NoResult))):
             self._result = value
         else:
             self._result = Result(value=value)
@@ -103,7 +103,7 @@ class State:
         """
         result_reader = result or self._result
 
-        if self._result.value == NORESULT:
+        if self._result.value == NoResult:
             self._result = result_reader.read(self._result.location)
         return self
 
@@ -126,7 +126,7 @@ class State:
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            if res.value == NORESULT:
+            if res.value == NoResult:
                 loaded_inputs[key] = result_readers[key].read(res.location)
             else:
                 loaded_inputs[key] = res
@@ -336,7 +336,7 @@ class Pending(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -369,7 +369,7 @@ class Scheduled(Pending):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -405,7 +405,7 @@ class Paused(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -435,7 +435,7 @@ class _MetaState(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         state: State = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -521,7 +521,7 @@ class Queued(_MetaState):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
@@ -578,7 +578,7 @@ class Retrying(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -664,7 +664,7 @@ class Looped(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         loop_count: int = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -718,7 +718,7 @@ class Cached(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
@@ -762,7 +762,7 @@ class Mapped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -813,7 +813,7 @@ class Failed(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -893,7 +893,7 @@ class Skipped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):

@@ -1,7 +1,10 @@
-from marshmallow import fields
+from marshmallow import fields, post_load
+from typing import Any
 
 from prefect.engine import result, results
+from prefect.engine.result_handlers import ResultHandler
 from prefect.serialization.result_handlers import ResultHandlerSchema
+from prefect.tasks.secrets import SecretBase
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
 
@@ -25,15 +28,11 @@ class NoResultSchema(ObjectSchema):
         object_class = result.NoResultType
 
 
-class NORESULTSchema(ObjectSchema):
-    class Meta:
-        object_class = result._NORESULT
-
-
 class AzureResultSchema(ObjectSchema):
     class Meta:
         object_class = results.AzureResult
 
+    container = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
@@ -48,6 +47,7 @@ class GCSResultSchema(ObjectSchema):
     class Meta:
         object_class = results.GCSResult
 
+    bucket = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
@@ -55,7 +55,14 @@ class LocalResultSchema(ObjectSchema):
     class Meta:
         object_class = results.LocalResult
 
+    dir = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.LocalResult:
+        data["validate_dir"] = False
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class PrefectResultSchema(ObjectSchema):
@@ -69,21 +76,42 @@ class S3ResultSchema(ObjectSchema):
     class Meta:
         object_class = results.S3Result
 
+    bucket = fields.Str(allow_none=False)
     location = fields.Str(allow_none=True)
 
 
 class SecretResultSchema(ObjectSchema):
     class Meta:
         object_class = results.SecretResult
+        exclude_fields = ["secret_type"]
 
     location = fields.Str(allow_none=True)
+    secret_type = fields.Function(
+        lambda res: type(res.secret_task).__name__, lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.SecretResult:
+        data["secret_task"] = SecretBase()
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class ResultHandlerResultSchema(ObjectSchema):
     class Meta:
         object_class = results.ResultHandlerResult
+        exclude_fields = ["result_handler_type"]
 
     location = fields.Str(allow_none=True)
+    result_handler_type = fields.Function(
+        lambda res: type(res.result_handler).__name__, lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> results.ResultHandlerResult:
+        data["result_handler"] = ResultHandler()
+        base_obj = super().create_object(data)
+        return base_obj
 
 
 class StateResultSchema(OneOfSchema):
@@ -104,5 +132,4 @@ class StateResultSchema(OneOfSchema):
         "S3Result": S3ResultSchema,
         "SecretResult": SecretResultSchema,
         "ResultHandlerResult": ResultHandlerResultSchema,
-        "_NORESULT": NORESULTSchema,
     }

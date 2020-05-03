@@ -18,7 +18,7 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.cache_validators import all_inputs, duration_only
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.result import NoResult, Result, SafeResult, NORESULT
+from prefect.engine.result import NoResult, Result, SafeResult, NoResult
 from prefect.engine.results import PrefectResult, SecretResult
 
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
@@ -989,7 +989,7 @@ class TestLoadResults:
         result = PrefectResult(location="1")
         state = Success(result=result)
 
-        assert result.value is NORESULT
+        assert result.value is NoResult
 
         t = Task(result=PrefectResult())
         edge = Edge(t, 2, key="x")

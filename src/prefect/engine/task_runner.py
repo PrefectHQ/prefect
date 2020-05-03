@@ -22,7 +22,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result, NORESULT, _NORESULT
+from prefect.engine.result import NoResult, Result
 from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
@@ -146,7 +146,7 @@ class TaskRunner(Runner):
 
         if "_loop_count" in state.cached_inputs:  # type: ignore
             loop_result = state.cached_inputs.pop("_loop_result")
-            if isinstance(loop_result.value, _NORESULT):
+            if isinstance(loop_result.value, NoResult):
                 loop_result = self.result.read(loop_result.location).value
             else:
                 loop_result = loop_result.value
@@ -588,11 +588,11 @@ class TaskRunner(Runner):
                 {
                     k: r
                     for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NORESULT) == NORESULT
+                    if task_inputs.get(k, NoResult) == NoResult
                 }
             )
 
-        if any(NORESULT == val for val in task_inputs.values()):
+        if any(NoResult == val for val in task_inputs.values()):
             state = Failed(message="Some upstream inputs are missing.")
             raise ENDRUN(state)
         return task_inputs
@@ -722,7 +722,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state._result != NORESULT:
+                        if not state.is_mapped() or upstream_state._result != NoResult:
                             if not hasattr(upstream_state.result, "__getitem__"):
                                 raise TypeError(
                                     "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
