@@ -33,7 +33,7 @@ The Kubernetes Agent can be run directly on your machine if you are currently au
 prefect agent start kubernetes
 ```
 
-:::tip Runner Token
+:::tip Runner Token <Badge text="Cloud"/>
 This Kubernetes Agent will use the _RUNNER_ token stored in your environment but if you want to manually pass it a token you may do so with `--token <COPIED_RUNNER_TOKEN>`.
 :::
 
