@@ -7,8 +7,7 @@ import pendulum
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.result import Result, _NORESULT
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -194,7 +193,7 @@ class CloudTaskRunner(TaskRunner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
-        if state.is_cached():
+        if state.is_cached() is True:
             assert isinstance(state, Cached)  # mypy assert
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             if self.task.cache_validator(

@@ -8,7 +8,6 @@ import pytest
 
 import prefect
 from prefect import config
-from prefect.engine.result import NORESULT
 from prefect.engine.results import (
     ConstantResult,
     LocalResult,
@@ -141,7 +140,7 @@ class TestLocalResult:
     def test_local_result_initializes_with_no_args(self):
         result = LocalResult()
         assert result.dir == os.path.join(config.home_dir, "results")
-        assert result.value == NORESULT
+        assert result.value is None
 
     def test_local_result_initializes_with_dir(self):
         root_dir = os.path.abspath(os.sep)

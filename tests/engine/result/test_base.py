@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.result import NoResult, NoResultType, Result, SafeResult, NORESULT
+from prefect.engine.result import NoResult, NoResultType, Result, SafeResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     LocalResultHandler,
@@ -28,7 +28,7 @@ class TestInitialization:
             n()
 
     def test_result_does_not_require_a_value(self):
-        assert Result().value is NORESULT
+        assert Result().value is None
 
     def test_result_inits_with_value(self):
         r = Result(3)

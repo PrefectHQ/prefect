@@ -8,7 +8,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.engine import state
+from prefect.engine import results, state
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
 from prefect.serialization.state import StateSchema
@@ -105,7 +105,7 @@ def test_serialize_state_with_no_result(cls):
     assert isinstance(serialized, dict)
     assert serialized["type"] == cls.__name__
     assert serialized["message"] == "message"
-    assert serialized["_result"]["type"] == "_NORESULT"
+    assert serialized["_result"]["type"] == "NoResultType"
     assert serialized["__version__"] == prefect.__version__
 
 
@@ -296,3 +296,34 @@ def test_deserialize_handles_unknown_fields():
     )
 
     assert deserialized.is_successful()
+
+
+class TestNewStyleResults:
+    def test_new_result_with_no_location_serializes_as_no_result(self):
+        s = state.Success(message="test", result=results.S3Result(bucket="foo"))
+        serialized = StateSchema().dump(s)
+        assert serialized["message"] == "test"
+        assert serialized["_result"]["type"] == "NoResultType"
+
+    def test_new_result_with_location_serializes_correctly(self):
+        s = state.Success(
+            message="test",
+            result=results.S3Result(bucket="foo", location="dir/place.txt"),
+        )
+        serialized = StateSchema().dump(s)
+        assert serialized["message"] == "test"
+        assert serialized["_result"]["type"] == "S3Result"
+
+    def test_new_result_with_location_deserializes_correctly(self):
+        s = state.Success(
+            message="test",
+            result=results.S3Result(bucket="foo", location="dir/place.txt"),
+        )
+        schema = StateSchema()
+        new_state = schema.load(schema.dump(s))
+
+        assert new_state.is_successful()
+        assert new_state.result is None
+        assert new_state._result.bucket == "foo"
+        assert isinstance(new_state._result, results.S3Result)
+        assert new_state._result.location == "dir/place.txt"

@@ -18,14 +18,12 @@ whose value is `None`.
 """
 import base64
 import copy
-import datetime
 import pendulum
 import uuid
 from typing import Any, Callable, Iterable, Union
 
 import cloudpickle
 
-from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities import logging
 
@@ -69,24 +67,6 @@ class ResultInterface:
         """Performs no computation."""
 
 
-class _NORESULT:
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, (_NORESULT, NoResultType)):
-            return True
-        return False
-
-    @property
-    def location(self) -> None:
-        return None
-
-    @property
-    def value(self) -> None:
-        return None
-
-
-NORESULT = _NORESULT()
-
-
 class Result(ResultInterface):
     """
     A representation of the result of a Prefect task; this class contains information about
@@ -106,7 +86,7 @@ class Result(ResultInterface):
 
     def __init__(
         self,
-        value: Any = NORESULT,
+        value: Any = None,
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
@@ -323,6 +303,7 @@ class NoResultType(SafeResult):
     """
 
     def __init__(self) -> None:
+        self.location = None
         super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:

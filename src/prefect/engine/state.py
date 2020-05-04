@@ -10,12 +10,12 @@ Every run is initialized with the `Pending` state, meaning that it is waiting fo
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
 import datetime
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
 
 import prefect
-from prefect.engine.result import NORESULT, Result, ResultInterface
+from prefect.engine.result import NoResult, Result, ResultInterface
 
 
 class State:
@@ -47,7 +47,7 @@ class State:
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):
@@ -84,7 +84,7 @@ class State:
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, (ResultInterface, type(NORESULT))):
+        if isinstance(value, ResultInterface):
             self._result = value
         else:
             self._result = Result(value=value)
@@ -103,11 +103,14 @@ class State:
         """
         result_reader = result or self._result
 
-        if self._result.value == NORESULT:
-            self._result = result_reader.read(self._result.location)
+        known_location = self._result.location or getattr(result, "location", None)  # type: ignore
+        if self._result.value is None and known_location is not None:  # type: ignore
+            self._result = result_reader.read(known_location)  # type: ignore
         return self
 
-    def load_cached_results(self, results: Dict[str, Result] = None) -> "State":
+    def load_cached_results(
+        self, results: Mapping[str, Optional[Result]] = None
+    ) -> "State":
         """
         Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
         using the logic of the provided result.  This method is mainly intended to be used
@@ -119,15 +122,20 @@ class State:
         Returns:
             - State: the current state with a fully hydrated Result attached
         """
+        results = results or dict()
+
         result_readers = {
             key: results.get(key, result) for key, result in self.cached_inputs.items()
-        }
+        }  # type: ignore
 
         loaded_inputs = {}
 
         for key, res in self.cached_inputs.items():
-            if res.value == NORESULT:
-                loaded_inputs[key] = result_readers[key].read(res.location)
+            known_location = res.location or getattr(
+                result_readers[key], "location", None
+            )
+            if res.value is None and known_location is not None:
+                loaded_inputs[key] = result_readers[key].read(known_location)  # type: ignore
             else:
                 loaded_inputs[key] = res
 
@@ -336,7 +344,7 @@ class Pending(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -369,7 +377,7 @@ class Scheduled(Pending):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -405,7 +413,7 @@ class Paused(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -435,7 +443,7 @@ class _MetaState(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         state: State = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -521,7 +529,7 @@ class Queued(_MetaState):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
@@ -578,7 +586,7 @@ class Retrying(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -664,7 +672,7 @@ class Looped(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         loop_count: int = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -718,7 +726,7 @@ class Cached(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
@@ -762,7 +770,7 @@ class Mapped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -813,7 +821,7 @@ class Failed(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -893,7 +901,7 @@ class Skipped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NORESULT,
+        result: Any = NoResult,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):

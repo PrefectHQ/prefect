@@ -22,7 +22,7 @@ import prefect
 from prefect import config
 from prefect.core import Edge, Task
 from prefect.engine import signals
-from prefect.engine.result import NoResult, Result, NORESULT, _NORESULT
+from prefect.engine.result import NoResult, Result
 from prefect.engine.results import PrefectResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
@@ -146,15 +146,15 @@ class TaskRunner(Runner):
 
         if "_loop_count" in state.cached_inputs:  # type: ignore
             loop_result = state.cached_inputs.pop("_loop_result")
-            if isinstance(loop_result.value, _NORESULT):
-                loop_result = self.result.read(loop_result.location).value
+            if loop_result.value is None and loop_result.location is not None:
+                loop_result_value = self.result.read(loop_result.location).value
             else:
-                loop_result = loop_result.value
+                loop_result_value = loop_result.value
             loop_context = {
                 "task_loop_count": state.cached_inputs.pop(  # type: ignore
                     "_loop_count"
                 ).value,  # type: ignore
-                "task_loop_result": loop_result,
+                "task_loop_result": loop_result_value,
             }
             context.update(loop_context)
 
@@ -584,20 +584,20 @@ class TaskRunner(Runner):
         for edge, upstream_state in upstream_states.items():
             # construct task inputs
             if edge.key is not None:
-                task_inputs[edge.key] = upstream_state._result
+                task_inputs[edge.key] = upstream_state._result  # type: ignore
 
         if state.is_pending() and state.cached_inputs:
             task_inputs.update(
                 {
                     k: r
                     for k, r in state.cached_inputs.items()
-                    if task_inputs.get(k, NORESULT) == NORESULT
+                    if task_inputs.get(k, NoResult) == NoResult
                 }
             )
 
-        if any(NORESULT == val for val in task_inputs.values()):
-            state = Failed(message="Some upstream inputs are missing.")
-            raise ENDRUN(state)
+        #        if any(NoResult == val for val in task_inputs.values()):
+        #            state = Failed(message="Some upstream inputs are missing.")
+        #            raise ENDRUN(state)
         return task_inputs
 
     def load_results(
@@ -758,7 +758,7 @@ class TaskRunner(Runner):
                         # in the `cached_inputs` attribute of one of the child states).
                         # Therefore, we only try to get a result if EITHER this task's
                         # state is not already mapped OR the upstream result is not None.
-                        if not state.is_mapped() or upstream_state._result != NORESULT:
+                        if not state.is_mapped() or upstream_state._result != NoResult:
                             if not hasattr(upstream_state.result, "__getitem__"):
                                 raise TypeError(
                                     "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
@@ -766,7 +766,7 @@ class TaskRunner(Runner):
                                         preview=repr(upstream_state.result)[:10],
                                     )
                                 )
-                            upstream_result = upstream_state._result.from_value(
+                            upstream_result = upstream_state._result.from_value(  # type: ignore
                                 upstream_state.result[i]
                             )
                             states[edge].result = upstream_result
