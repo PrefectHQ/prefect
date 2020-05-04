@@ -39,6 +39,11 @@ class FargateAgent(Agent):
     prefect agent start fargate networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
     ```
 
+    botocore configuration options can be provided to the Fargate Agent:
+    ```
+    FargateAgent(botocore_config={"retries": {"max_attempts": 10}})
+    ```
+
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
@@ -48,6 +53,7 @@ class FargateAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -59,6 +65,8 @@ class FargateAgent(Agent):
             `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
+        - botocore_config (dict, optional): botocore configuration options to be passed to the
+            boto3 client. https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
         - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
             When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
             task definition revision. Each revision will be registered with a tag called 'PrefectFlowId'
@@ -80,10 +88,12 @@ class FargateAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
+        botocore_config: dict = None,
         enable_task_revisions: bool = False,
         use_external_kwargs: bool = False,
         external_kwargs_s3_bucket: str = None,
@@ -96,6 +106,7 @@ class FargateAgent(Agent):
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource
+        from botocore.config import Config
 
         # Config used for boto3 client initialization
         aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
@@ -104,12 +115,14 @@ class FargateAgent(Agent):
         )
         aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         region_name = region_name or os.getenv("REGION_NAME")
+        botocore_config = botocore_config or {}
 
         # revisions and kwargs configurations
         self.enable_task_revisions = enable_task_revisions
         self.use_external_kwargs = use_external_kwargs
         self.external_kwargs_s3_bucket = external_kwargs_s3_bucket
         self.external_kwargs_s3_key = external_kwargs_s3_key
+        self.launch_type = launch_type
 
         # Parse accepted kwargs for task definition, run, and container definitions key of task definition
         (
@@ -125,6 +138,7 @@ class FargateAgent(Agent):
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             region_name=region_name,
+            config=Config(**botocore_config),
         )
         # fetch external kwargs from s3 if needed
         if self.use_external_kwargs:
@@ -146,6 +160,7 @@ class FargateAgent(Agent):
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 region_name=region_name,
+                config=Config(**botocore_config),
             )
 
     def _override_kwargs(
@@ -596,10 +611,11 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
+        if self.launch_type:
+            flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
-            requiresCompatibilities=["FARGATE"],
             networkMode="awsvpc",
             **flow_task_definition_kwargs
         )
@@ -630,6 +646,10 @@ class FargateAgent(Agent):
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                         "value": flow_run.id,  # type: ignore
                     },
+                    {
+                        "name": "PREFECT__CONTEXT__FLOW_ID",
+                        "value": flow_run.flow.id,  # type: ignore
+                    },
                 ],
             }
         ]
@@ -641,10 +661,11 @@ class FargateAgent(Agent):
             )
         )
 
+        if self.launch_type:
+            flow_task_run_kwargs["launchType"] = self.launch_type
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
-            launchType="FARGATE",
             **flow_task_run_kwargs
         )
 
