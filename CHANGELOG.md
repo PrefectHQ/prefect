@@ -121,6 +121,7 @@ Released on May 5, 2020.
 - Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
 - Allow users to inject custom context variables into their logger formats - [#2462](https://github.com/PrefectHQ/prefect/issues/2462)
 - Add option to set backend on `agent install` CLI command - [#2478](https://github.com/PrefectHQ/prefect/pull/2478)
+- Allow for setting docker daemon at build time using DOCKER_HOST env var to override base_url in docker storage - [#2482](https://github.com/PrefectHQ/prefect/pull/2482)
 
 ### Task Library
 
