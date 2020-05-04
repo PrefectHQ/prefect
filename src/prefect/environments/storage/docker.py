@@ -57,7 +57,7 @@ class Docker(Storage):
         - files (dict, optional): a dictionary of files to copy into the image
             when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for
-            Docker related functionality
+            Docker related functionality.  DOCKER_HOST env var takes precedence
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
@@ -92,12 +92,6 @@ class Docker(Storage):
         secrets: List[str] = None,
     ) -> None:
         self.registry_url = registry_url
-
-        if sys.platform == "win32":
-            default_url = "npipe:////./pipe/docker_engine"
-        else:
-            default_url = "unix://var/run/docker.sock"
-
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -111,7 +105,12 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = base_url or default_url
+        self.base_url = environ.get(
+            "DOCKER_HOST",
+            "unix://var/run/docker.sock"
+            if sys.platform != "win32"
+            else "npipe:////./pipe/docker_engine",
+        )
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
