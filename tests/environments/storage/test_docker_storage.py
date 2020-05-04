@@ -149,6 +149,14 @@ def test_initialized_docker_storage():
     assert storage.local_image
 
 
+def test_env_var_precedence_docker_storage(monkeypatch):
+    storage = Docker(base_url="foo")
+    assert storage.base_url == "foo"
+    monkeypatch.setenv("DOCKER_HOST", "bar")
+    storage = Docker(base_url="foo")
+    assert storage.base_url == "bar"
+
+
 def test_docker_storage_allows_for_user_provided_config_locations():
     storage = Docker(env_vars={"PREFECT__USER_CONFIG_PATH": "1"})
 
