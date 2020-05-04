@@ -223,7 +223,7 @@ class Agent:
             app = web.Application([("/api/health", HealthHandler)])
 
             def run() -> None:
-                self._api_server = app.listen(port, address=hostname)
+                self._api_server = app.listen(port, address=hostname)  # type: ignore
                 self._api_server_loop = IOLoop.current()
                 self._api_server_loop.start()  # type: ignore
 

@@ -2,7 +2,6 @@ import json
 import os
 import uuid
 from os import path
-from typing import Iterable
 
 from prefect import config
 from prefect.agent import Agent
