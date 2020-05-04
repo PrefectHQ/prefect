@@ -1,7 +1,7 @@
-# Scaling Out with Kubernetes <Badge text="Cloud"/>
+# Scaling Out with Kubernetes
 
-::: warning Core server not supported, yet
-There is currently no default way of exposing the Prefect Core's server endpoint. Deployments using Prefect Core and Kubernetes will be added in a future release.
+::: warning Core server
+In order to use this agent with Prefect Core's server the server's GraphQL API endpoint must be accessible.
 :::
 
 In previous tutorials we used the Local Agent and Docker Agent to execute flow runs on the current host. Now we will deploy our flow out to an existing Kubernetes Cluster.
