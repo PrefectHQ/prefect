@@ -23,7 +23,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     on docker image size. Total startup time for a Dask scheduler and workers can
     be several minutes. This environment is a much better fit for production
     deployments of scheduled Flows where there's little sensitivity to startup
-    time. DaskCloudProviderEnvironment` is a particularly good fit for automated
+    time. `DaskCloudProviderEnvironment` is a particularly good fit for automated
     deployment of Flows in a CI/CD pipeline where the infrastructure for each Flow
     should be as independent as possible, e.g. each Flow could have its own docker
     image, dynamically create the Dask cluster to run on, etc. However, for
