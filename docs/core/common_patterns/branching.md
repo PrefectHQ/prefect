@@ -84,13 +84,13 @@ output_2.set_upstream(d, key="value", flow=flow)
 
 ### Branching based on conditional logic
 
-Prefect ships with various [tasks for control logic](/core/task_library/control_flow.html) that you can use off-the-shelf to control the branching structure of your flow. This is especially useful in cases where under certain conditions you want to control which branches of your flow run based on upstream events.
+Prefect ships with various [tasks for control logic](/core/task_library/control_flow.html) that you can use off-the-shelf to control the branching structure of your flow. This is especially useful in cases where under certain conditions you want to control which branches of your flow run based on upstream events. Branches that you don't want to run should enter a `Skipped` state.
 
-Let's say you want to have a flow where some conditional task is evaluated and then the downstream branches are run depending on the output of that conditional task—true or false. An example of this might look like the following:
+Let's say you want to have a flow where some conditional task is evaluated and then the downstream branches are run depending on the output of that conditional task. An example of this might look like the following:
 
 ![Flow with Conditional Branching](/faq/conditional_branch.png)
 
-If you choose to use some of Prefect's default control flow tasks such as `if_else` and `merge` then the flow will take on a DAG with some additional checks added:
+If you choose to use some of Prefect's default control flow tasks such as `if_else` and `merge` then Prefect will automatically add some additional tasks to your flow:
 
 ![Flow with if_else and merge](/faq/if_else_merge.png)
 

@@ -268,10 +268,10 @@ module.exports = {
           ]
         },
         {
-          title: 'FAQ',
+          title: 'Common Patterns',
           collapsable: true,
           children: [
-            'faq/questions',
+            'common_patterns/patterns',
           ]
         },
         {

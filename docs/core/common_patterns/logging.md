@@ -50,7 +50,7 @@ class MyTask(prefect.Task):
 
 ### Logging stdout
 
-Tasks also provide an optional argument to toggle the logging of stdout—`logstdout`. This means that, if enabled, anytime you send output to stdout (such as `print()`) it will be logged using the Prefect logger. This option is disabled by default.
+Tasks also provide an optional argument to toggle the logging of stdout—`log_stdout`. This means that, if enabled, anytime you send output to stdout (such as `print()`) it will be logged using the Prefect logger. This option is disabled by default because this option [might not be suitable](https://docs.python.org/3/library/contextlib.html#contextlib.redirect_stdout) for certain types of tasks.
 
 :::: tabs
 ::: tab "Functional API"
