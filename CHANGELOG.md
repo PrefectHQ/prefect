@@ -6,13 +6,17 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add DaskCloudProviderEnvironment to dynamically launch Dask clusters, e.g. on AWS Fargate - [#2360](https://github.com/PrefectHQ/prefect/pull/2360)
 
 ### Enhancements
 
 - Add `botocore_config` option to Fargate agent for setting botocore configuration when interacting with boto3 client - [#2170](https://github.com/PrefectHQ/prefect/issues/2170)
 - Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
 - Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
+- Add support for EC2 launch type in Fargate Agent and `FargateTaskEnvironment` - [#2421](https://github.com/PrefectHQ/prefect/pull/2421)
+- Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
+- Allow users to inject custom context variables into their logger formats - [#2462](https://github.com/PrefectHQ/prefect/issues/2462)
+- Add option to set backend on `agent install` CLI command - [#2478](https://github.com/PrefectHQ/prefect/pull/2478)
 
 ### Task Library
 
@@ -24,6 +28,8 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix `server start` CLI command not respecting `version` kwarg on tagged releases - [#2435](https://github.com/PrefectHQ/prefect/pull/2435)
 - Fix issue with non-JSON serializable args being used to format log messages preventing them from shipping to Cloud - [#2407](https://github.com/PrefectHQ/prefect/issues/2407)
 - Fix issue where ordered Prefect collections use lexical sorting, not numerical sorting, which can result in unexpected ordering - [#2452](https://github.com/PrefectHQ/prefect/pull/2452)
+- Fix issue where Resource Manager was failing due to non-JSON timestamp in log writing - [#2474](https://github.com/PrefectHQ/prefect/issues/2474)
+- Fix periodic error in local agent process management loop - [#2419](https://github.com/PrefectHQ/prefect/issues/2419)
 
 ### Deprecations
 
@@ -35,7 +41,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Joe Schmid](https://github.com/joeschmid)
 - [Grégory Duchatelet](https://github.com/gregorg)
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
@@ -65,7 +73,6 @@ Released on Apr 28, 2020.
 - Fix Docker storage path issue when registering flows on Windows machines - [#2332](https://github.com/PrefectHQ/prefect/issues/2332)
 - Fix issue with refreshing Prefect Cloud tokens - [#2409](https://github.com/PrefectHQ/prefect/pull/2409)
 - Resolve invalid escape sequence deprecation warnings - [#2414](https://github.com/PrefectHQ/prefect/issues/2414)
-- Fix issue with list mutation while iterating - [#2419](https://github.com/PrefectHQ/prefect/issues/2419)
 
 ### Deprecations
 
