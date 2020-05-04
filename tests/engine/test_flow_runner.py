@@ -1547,7 +1547,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     assert set(loggers) == {
         "prefect.TaskRunner",
         "prefect.CustomFlowRunner",
-        "prefect.Task: log_stuff",
+        "prefect.log_stuff",
     }
 
 
