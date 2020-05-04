@@ -179,7 +179,7 @@ classes = ["DaskKubernetesEnvironment", "FargateTaskEnvironment", "KubernetesJob
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
-classes = ["FilterTask"]
+classes = ["FilterTask", "case"]
 functions = ["switch", "ifelse", "merge"]
 
 [pages.tasks.airtable]

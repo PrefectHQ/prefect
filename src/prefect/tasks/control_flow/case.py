@@ -16,40 +16,42 @@ class case(object):
     run if the result of ``task`` is equal to ``value``.
 
     Args:
-        task (Task): The task to use in the comparison
-        value (Any): A constant the result of ``task`` will be compared with
+        - task (Task): The task to use in the comparison
+        - value (Any): A constant the result of ``task`` will be compared with
 
-    Examples:
-        A ``case`` block is similar to Python's if-blocks. It delimits a block
-        of tasks that will only be run if the result of ``task`` is equal to
-        ``value``:
+    Example:
 
-        ```python
-        # Standard python code
-        if task == value:
-            res = run_if_task_equals_value()
-            other_task(res)
+    A ``case`` block is similar to Python's if-blocks. It delimits a block
+    of tasks that will only be run if the result of ``task`` is equal to
+    ``value``:
 
-        # Equivalent prefect code
-        with case(task, value):
-            # Tasks created in this block are only run if ``task == value``
-            res = run_if_task_equals_value()
-            other_task(run)
-        ```
+    ```python
+    # Standard python code
+    if task == value:
+        res = run_if_task_equals_value()
+        other_task(res)
 
-        The ``value`` argument can be any non-task object. Here we branch on a
-        string result:
+    # Equivalent prefect code
+    with case(task, value):
+        # Tasks created in this block are only run if the
+        # result of ``task`` is equal to ``value``
+        res = run_if_task_equals_value()
+        other_task(run)
+    ```
 
-        ```python
-        with Flow("example") as flow:
-            cond = condition()
+    The ``value`` argument can be any non-task object. Here we branch on a
+    string result:
 
-            with case(cond, "a"):
-                run_if_cond_is_a()
+    ```python
+    with Flow("example") as flow:
+        cond = condition()
 
-            with case(cond, "b"):
-                run_if_cond_is_b()
-        ```
+        with case(cond, "a"):
+            run_if_cond_is_a()
+
+        with case(cond, "b"):
+            run_if_cond_is_b()
+    ```
     """
 
     def __init__(self, task: Task, value: Any):
