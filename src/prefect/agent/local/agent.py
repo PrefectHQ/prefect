@@ -57,7 +57,7 @@ class LocalAgent(Agent):
         hostname_label: bool = True,
         max_polls: int = None,
     ) -> None:
-        self.processes = []  # type: list
+        self.processes = set()
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
         super().__init__(
@@ -72,9 +72,9 @@ class LocalAgent(Agent):
         )
 
     def heartbeat(self) -> None:
-        for idx, process in enumerate(list(self.processes)):
+        for process in list(self.processes):
             if process.poll() is not None:
-                self.processes.pop(idx)
+                self.processes.remove(process)
                 if process.returncode:
                     self.logger.info(
                         "Process PID {} returned non-zero exit code".format(process.pid)
@@ -135,7 +135,7 @@ class LocalAgent(Agent):
             env=current_env,
         )
 
-        self.processes.append(p)
+        self.processes.add(p)
         self.logger.debug(
             "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
         )
