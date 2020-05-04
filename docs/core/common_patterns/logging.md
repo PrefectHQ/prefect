@@ -80,3 +80,7 @@ flow.add_task(my_task)
 ```
 :::
 ::::
+
+### Logging with a backend
+
+If you are deploying your flows with the use of a backend such as Prefect Core's server or Prefect Cloud then there are a couple subtle configuration changes that you might happening on each run. First, the configuration option `log_to_cloud` will be set to `True`. This means that the logs from your flow will be sent to the backend where they can be digested and managed. Second, the logging level will always be set to `DEBUG`. This is to ensure that the maximal amount of information is provided in case something goes wrong. The debug logs can always be filtered out after via the UI or API.
