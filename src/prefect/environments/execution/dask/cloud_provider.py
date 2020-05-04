@@ -34,10 +34,13 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
 
-    *IMPORTANT* As of April 19, 2020 the Dask Cloud Provider project contains some
-    security limitations that make it inappropriate for use with sensitive data.
-    Until those security items are addressed, this environment should only be used
-    for prototyping and testing.
+    *IMPORTANT* By default, Dask Cloud Provider may create a Dask cluster in some
+    environments (e.g. Fargate) that is accessible via a public IP, without any
+    authentication, and configured to NOT encrypt network traffic. Please be
+    conscious of security issues if you test this environment. (Also see pull
+    requests [85](https://github.com/dask/dask-cloudprovider/pull/85) and
+    [91](https://github.com/dask/dask-cloudprovider/pull/91) in the Dask Cloud
+    Provider project.)
 
     Args:
         - provider_class (class): Class of a provider from the Dask Cloud Provider
