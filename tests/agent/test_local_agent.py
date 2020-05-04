@@ -40,7 +40,7 @@ def test_local_agent_config_options(runner_token):
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.log_to_cloud is True
-        assert agent.processes == []
+        assert agent.processes == set()
         assert agent.import_paths == ["test_path"]
         assert set(agent.labels) == {
             "azure-flow-storage",
@@ -438,7 +438,7 @@ def test_local_agent_heartbeat(
         )
     )
 
-    process = agent.processes[0]
+    process = list(agent.processes)[0]
     process_call = process.root_call
 
     with LogCapture() as logcap:
