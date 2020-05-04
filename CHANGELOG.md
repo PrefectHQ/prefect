@@ -6,7 +6,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
-- None
+- Add DaskCloudProviderEnvironment to dynamically launch Dask clusters, e.g. on AWS Fargate - [#2360](https://github.com/PrefectHQ/prefect/pull/2360)
 
 ### Enhancements
 
@@ -40,6 +40,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Joe Schmid](https://github.com/joeschmid)
 - [Grégory Duchatelet](https://github.com/gregorg)
 - [Joe Schmid](https://github.com/joeschmid)
 
