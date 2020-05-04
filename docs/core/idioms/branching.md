@@ -90,11 +90,11 @@ Let's say you want to have a flow where some conditional task is evaluated and t
 
 ![Flow with Conditional Branching](/faq/conditional_branch.png)
 
-If you choose to use some of Prefect's default control flow tasks such as `if_else` and `merge` then Prefect will automatically add some additional tasks to your flow:
+If you choose to use some of Prefect's default control flow tasks such as `ifelse` and `merge` then Prefect will automatically add some additional tasks to your flow:
 
-![Flow with if_else and merge](/faq/if_else_merge.png)
+![Flow with ifelse and merge](/faq/if_else_merge.png)
 
-In this flow, Prefect's control tasks do some boolean casting and conditional checks for you with the `if_else` task performing the check `if true then take the true branch, else take the false branch`. The `merge` task is used to bring your conditional branches back together after completion. For more information on control flow tasks take a look at their [API documentation](/core/task_library/control_flow.html). The code for a flow using these control flow tasks will look something like the following:
+In this flow, Prefect's control tasks do some boolean casting and conditional checks for you with the `ifelse` task performing the check `if true then take the true branch, else take the false branch`. The `merge` task is used to bring your conditional branches back together after completion. For more information on control flow tasks take a look at their [API documentation](/core/task_library/control_flow.html). The code for a flow using these control flow tasks will look something like the following:
 
 :::: tabs
 ::: tab "Functional API"

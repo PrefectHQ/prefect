@@ -2,7 +2,7 @@
 
 [Mapping](/core/concepts/mapping.html) in Prefect is a great way for dynamic task creation and parallel execution. Sometimes you may want to pass extra arguments to functions that you're using to map over inputs but you don't want to map over those extra arguments. This is where Prefect's [`unmapped`](/api/latest/utilities/tasks.html#unmapped) operator can come into play.
 
-In this example let's take a flow where we want to pass in a [Parameter](/core/concepts/parameters.html) `multiple` to be multiplied against a random list of numbers also specified with a `total` Parameter. This random list of numbers will be generated at runtime. Keep in mind that Prefect supports complete DAG dynamic generation with the option of tasks being able to be generated at runtime instead at the time of flow definition.
+In this example let's take a flow where we want to pass in a [Parameter](/core/concepts/parameters.html) `multiple` to be multiplied against a random list of numbers also specified with a `total` Parameter. This random list of numbers will be generated at runtime. If your tasks map over iterables that are generated at runtime then Prefect will dynamically build the DAG based on those values.
 
 ![Unmapped Option](/faq/unmapped.png)
 
@@ -56,7 +56,8 @@ numbers = GetNumbers()
 numbers.set_upstream(total, key="total", flow=flow)
 
 output_value = OutputValue()
-output_value.bind(mapped=True, n=numbers, multiple=unmapped(multiple), flow=flow)
+output_value.set_upstream(numbers, key="n", mapped=True, flow=flow)
+output_value.set_upstream(multiple, key="multiple", mapped=False, flow=flow)
 ```
 :::
 ::::
