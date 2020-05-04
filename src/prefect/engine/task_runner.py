@@ -171,12 +171,14 @@ class TaskRunner(Runner):
         context.setdefault("checkpointing", config.flows.checkpointing)
 
         map_index = context.get("map_index", None)
-        if isinstance(map_index, int):
-            self.task.logger = prefect.utilities.logging.get_logger(
-                "Task: {}[{}]".format(self.task.name, map_index)
+        if isinstance(map_index, int) and context.get("task_full_name"):
+            context.update(
+                logger=prefect.utilities.logging.get_logger(
+                    context.get("task_full_name")
+                )
             )
-
-        context.update(logger=self.task.logger)
+        else:
+            context.update(logger=self.task.logger)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
