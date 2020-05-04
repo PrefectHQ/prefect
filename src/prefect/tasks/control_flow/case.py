@@ -63,7 +63,11 @@ class case(object):
         self._tasks = set()
 
     def add_task(self, task: Task) -> None:
-        """Add a new task under the case statement"""
+        """Add a new task under the case statement.
+
+        Args:
+            - task (Task): the task to add
+        """
         self._tasks.add(task)
 
     def __enter__(self):
