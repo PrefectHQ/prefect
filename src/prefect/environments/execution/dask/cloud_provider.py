@@ -19,7 +19,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     environment aims to provide a very easy path to Dask scalability for users of
     cloud platforms, like AWS.
 
-    NOTE: AWS Fargate Task (not Prefect Task) startup time can be slow, depending
+    **NOTE:** AWS Fargate Task (not Prefect Task) startup time can be slow, depending
     on docker image size. Total startup time for a Dask scheduler and workers can
     be several minutes. This environment is a much better fit for production
     deployments of scheduled Flows where there's little sensitivity to startup
