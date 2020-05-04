@@ -25,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix `server start` CLI command not respecting `version` kwarg on tagged releases - [#2435](https://github.com/PrefectHQ/prefect/pull/2435)
 - Fix issue with non-JSON serializable args being used to format log messages preventing them from shipping to Cloud - [#2407](https://github.com/PrefectHQ/prefect/issues/2407)
 - Fix issue where ordered Prefect collections use lexical sorting, not numerical sorting, which can result in unexpected ordering - [#2452](https://github.com/PrefectHQ/prefect/pull/2452)
+- Fix issue where Resource Manager was failing due to non-JSON timestamp in log writing - [#2474](https://github.com/PrefectHQ/prefect/issues/2474)
 
 ### Deprecations
 
