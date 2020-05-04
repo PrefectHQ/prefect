@@ -308,6 +308,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
         api="test_api",
         namespace="test_namespace",
         resource_manager_enabled=True,
+        backend="backend-test",
     )
 
     deployment = yaml.safe_load(deployment)
@@ -320,6 +321,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
+    assert agent_env[9]["value"] == "backend-test"
 
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"

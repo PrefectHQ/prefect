@@ -422,7 +422,7 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             labels=list(label),
-            backend=backend
+            backend=backend,
         )
         click.echo(deployment)
     elif name == "local":
