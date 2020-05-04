@@ -337,6 +337,13 @@ def start(
     hidden=True,
     is_flag=True,
 )
+@click.option(
+    "--backend",
+    "-b",
+    required=False,
+    help="Prefect backend to use for this agent.",
+    hidden=True,
+)
 def install(
     name,
     token,
@@ -353,6 +360,7 @@ def install(
     label,
     import_path,
     show_flow_logs,
+    backend,
 ):
     """
     Install an agent. Outputs configuration text which can be used to install on various
@@ -380,6 +388,8 @@ def install(
         --mem-limit                 TEXT    Limit memory for Prefect init job
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
+        --backend                   TEST    Prefect backend to use for this agent
+                                            Defaults to the backend currently set in config.
 
     \b
     Local Agent Options:
@@ -413,6 +423,7 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             labels=list(label),
+            backend=backend,
         )
         click.echo(deployment)
     elif name == "local":

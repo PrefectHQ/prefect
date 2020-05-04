@@ -210,6 +210,7 @@ class KubernetesAgent(Agent):
         cpu_request: str = None,
         cpu_limit: str = None,
         labels: Iterable[str] = None,
+        backend: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -234,6 +235,8 @@ class KubernetesAgent(Agent):
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - backend (str, optional): toggle which backend to use for this agent.
+                Defaults to backend currently set in config.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -248,6 +251,7 @@ class KubernetesAgent(Agent):
         mem_limit = mem_limit or ""
         cpu_request = cpu_request or ""
         cpu_limit = cpu_limit or ""
+        backend = backend or config.backend
 
         version = prefect.__version__.split("+")
         image_version = (
@@ -267,6 +271,7 @@ class KubernetesAgent(Agent):
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
+        agent_env[9]["value"] = backend
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request

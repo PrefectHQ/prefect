@@ -354,6 +354,8 @@ def test_agent_install_k8s_asses_args():
             "test_label1",
             "-l",
             "test_label2",
+            "-b",
+            "backend-test",
         ],
     )
     assert result.exit_code == 0
@@ -370,6 +372,7 @@ def test_agent_install_k8s_asses_args():
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
+    assert "backend-test" in result.output
 
 
 def test_agent_install_k8s_no_resource_manager():

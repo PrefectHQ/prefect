@@ -15,6 +15,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Add support for EC2 launch type in Fargate Agent and `FargateTaskEnvironment` - [#2421](https://github.com/PrefectHQ/prefect/pull/2421)
 - Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
 - Allow users to inject custom context variables into their logger formats - [#2462](https://github.com/PrefectHQ/prefect/issues/2462)
+- Add option to set backend on `agent install` CLI command - [#2478](https://github.com/PrefectHQ/prefect/pull/2478)
 
 ### Task Library
 
