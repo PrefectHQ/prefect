@@ -389,6 +389,7 @@ def install(
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
         --backend                   TEST    Prefect backend to use for this agent
+                                            Defaults to the backend currently set in config.
 
     \b
     Local Agent Options:

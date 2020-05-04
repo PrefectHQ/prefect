@@ -236,7 +236,7 @@ class KubernetesAgent(Agent):
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - backend (str, optional): toggle which backend to use for this agent.
-                Defaults to "cloud".
+                Defaults to backend currently set in config.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -251,7 +251,7 @@ class KubernetesAgent(Agent):
         mem_limit = mem_limit or ""
         cpu_request = cpu_request or ""
         cpu_limit = cpu_limit or ""
-        backend = backend or "cloud"
+        backend = backend or config.backend
 
         version = prefect.__version__.split("+")
         image_version = (
