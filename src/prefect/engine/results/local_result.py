@@ -1,7 +1,9 @@
 import os
+from slugify import slugify
 from typing import Any
 
 import cloudpickle
+import pendulum
 
 from prefect import config
 from prefect.engine.result import Result
@@ -43,6 +45,12 @@ class LocalResult(Result):
 
         super().__init__(**kwargs)
 
+    @property
+    def default_location(self) -> str:
+        fname = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
+        location = os.path.join(self.dir, fname)
+        return location
+
     def read(self, location: str) -> Result:
         """
         Reads a result from the local file system and returns the corresponding `Result` instance.
@@ -81,6 +89,7 @@ class LocalResult(Result):
         """
         new = self.format(**kwargs)
         new.value = value
+        assert new.location is not None
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 

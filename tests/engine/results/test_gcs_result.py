@@ -27,7 +27,7 @@ class TestGCSResult:
 
     def test_gcs_init(self, google_client):
         result = GCSResult(bucket="bob")
-        assert result.value == None
+        assert result.value is None
         assert result.bucket == "bob"
         assert google_client.called is False
         result.gcs_bucket()
