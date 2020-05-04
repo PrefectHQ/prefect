@@ -103,9 +103,9 @@ class State:
         """
         result_reader = result or self._result
 
-        known_location = self._result.location or getattr(result, "location", None)
-        if self._result.value is None and known_location is not None:
-            self._result = result_reader.read(known_location)
+        known_location = self._result.location or getattr(result, "location", None)  # type: ignore
+        if self._result.value is None and known_location is not None:  # type: ignore
+            self._result = result_reader.read(known_location)  # type: ignore
         return self
 
     def load_cached_results(
