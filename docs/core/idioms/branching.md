@@ -1,5 +1,5 @@
 
-# How do I make branches in my flow?
+# Creating (conditional) branches in a flow
 
 Since Prefect flows are represented as DAGs it is easy to add branching logic to a flow. By default branches can be specified by setting upstreams and downstreams to tasks in the flow. To take it a step further, Prefect also has concepts built in to allow for conditional branching based on task outputs.
 

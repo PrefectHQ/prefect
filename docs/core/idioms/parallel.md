@@ -1,4 +1,4 @@
-# How do I run my tasks in parallel?
+# Parallelism in Prefect
 
 Prefect supports fully asynchronous / parallel running of a flow's tasks and the preferred method for doing this is using [Dask](https://dask.org/). By connecting to a Dask scheduler, a flow can begin executing its tasks on either local or remote Dask workers. Parallel execution is incredibly useful when executing many mapped tasks simultenously but for this example you will see a flow that has three pre-defined tasks at the same level that we want to execute asynchronously in order to better visualize it.
 

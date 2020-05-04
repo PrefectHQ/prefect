@@ -269,10 +269,10 @@ module.exports = {
           ]
         },
         {
-          title: 'Common Patterns',
+          title: 'Prefect Idioms',
           collapsable: true,
           children: [
-            'common_patterns/patterns',
+            'idioms/idioms',
           ]
         },
         {

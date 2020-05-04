@@ -1,4 +1,4 @@
-# How do I map over specific arguments?
+# Use task mapping to map over a specific set of arguments
 
 [Mapping](/core/concepts/mapping.html) in Prefect is a great way for dynamic task creation and parallel execution. Sometimes you may want to pass extra arguments to functions that you're using to map over inputs but you don't want to map over those extra arguments. This is where Prefect's [`unmapped`](/api/latest/utilities/tasks.html#unmapped) operator can come into play.
 

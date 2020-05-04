@@ -1,4 +1,4 @@
-# How do I inspect the results from my tasks?
+# Accessing task results locally
 
 When working on your flows locally Prefect makes it easy to retrieve the [results](/core/concepts/results.html) from your individual tasks in the flow. This is done by grabbing the `.result` attribute from [states](/core/concepts/states.html). Calling `flow.run` returns the flow's final state which can be used to retrieve results from all of the tasks in the flow.
 
