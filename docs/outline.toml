@@ -174,7 +174,7 @@ classes = ["Docker", "Local", "S3", "GCS", "Azure"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
+classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -292,7 +292,7 @@ classes = [
 [pages.tasks.notifications]
 title = "Notification Tasks"
 module = "prefect.tasks.notifications"
-classes = ["EmailTask", "SlackTask"]
+classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 
 [pages.tasks.postgres]
 title = "Postgres Tasks"

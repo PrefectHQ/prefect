@@ -130,6 +130,9 @@ class CloudHandler(logging.StreamHandler):
             assert isinstance(self.client, Client)  # mypy assert
 
             record_dict = record.__dict__.copy()
+            ## remove potentially non-json serializable formatting args
+            record_dict.pop("args", None)
+
             log = dict()
             log["flow_run_id"] = prefect.context.get("flow_run_id", None)
             log["task_run_id"] = prefect.context.get("task_run_id", None)
@@ -177,9 +180,11 @@ def _log_record_context_injector(*args: Any, **kwargs: Any) -> logging.LogRecord
     """
     record = _original_log_record_factory(*args, **kwargs)
 
-    for attr in PREFECT_LOG_RECORD_ATTRIBUTES:
+    additional_attrs = literal_eval(context.config.logging.get("log_attributes", "[]"))
+
+    for attr in PREFECT_LOG_RECORD_ATTRIBUTES + tuple(additional_attrs):
         value = prefect.context.get(attr, None)
-        if value:
+        if value or attr in additional_attrs:
             setattr(record, attr, value)
 
     return record

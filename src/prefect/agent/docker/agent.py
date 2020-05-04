@@ -50,6 +50,9 @@ class DockerAgent(Agent):
             to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any and all created containers.
         - network (str, optional): Add containers to an existing docker network
+        - docker_interface (bool, optional): Toggle whether or not a `docker0` interface is present on this machine.
+            Defaults to `True`. **Note**: This is mostly relevant for some Docker-in-Docker setups that users may be
+            running their agent with.
     """
 
     def __init__(
@@ -63,6 +66,7 @@ class DockerAgent(Agent):
         volumes: List[str] = None,
         show_flow_logs: bool = False,
         network: str = None,
+        docker_interface: bool = True,
     ) -> None:
         super().__init__(
             name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
@@ -93,6 +97,11 @@ class DockerAgent(Agent):
         # Add containers to a docker network
         self.network = network
         self.logger.debug("Docker network set to {}".format(self.network))
+
+        self.docker_interface = docker_interface
+        self.logger.debug(
+            "Docker interface toggle set to {}".format(self.docker_interface)
+        )
 
         self.failed_connections = 0
         self.docker_client = self._get_docker_client()
@@ -339,7 +348,7 @@ class DockerAgent(Agent):
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
 
-        if sys.platform.startswith("linux"):
+        if sys.platform.startswith("linux") and self.docker_interface:
             docker_internal_ip = get_docker_ip()
             host_config.update(extra_hosts={"host.docker.internal": docker_internal_ip})
 
@@ -414,6 +423,7 @@ class DockerAgent(Agent):
             "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             "PREFECT__LOGGING__LEVEL": "DEBUG",

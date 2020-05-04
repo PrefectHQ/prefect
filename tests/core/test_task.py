@@ -273,13 +273,13 @@ class TestCreateTask:
 def test_task_has_logger():
     t = Task()
     assert isinstance(t.logger, logging.Logger)
-    assert t.logger.name == "prefect.Task: Task"
+    assert t.logger.name == "prefect.Task"
 
 
 def test_task_has_logger_with_informative_name():
     t = Task(name="foo")
     assert isinstance(t.logger, logging.Logger)
-    assert t.logger.name == "prefect.Task: foo"
+    assert t.logger.name == "prefect.foo"
 
 
 def test_task_produces_no_result():
@@ -314,15 +314,15 @@ def test_tags():
         Task(tags="test")
 
     t3 = Task(tags=["test", "test2", "test"])
-    assert t3.tags == set(["test", "test2"])
+    assert t3.tags == {"test", "test2"}
 
     with prefect.context(tags=["test"]):
         t4 = Task()
-        assert t4.tags == set(["test"])
+        assert t4.tags == {"test"}
 
     with prefect.context(tags=["test1", "test2"]):
         t5 = Task(tags=["test3"])
-        assert t5.tags == set(["test1", "test2", "test3"])
+        assert t5.tags == {"test1", "test2", "test3"}
 
 
 class TestInputsOutputs:
@@ -599,17 +599,17 @@ class TestTaskArgs:
 @pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
     with pytest.warns(
-        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+        UserWarning, match=r"all cache_\* options on a Task will be deprecated*"
     ):
         Task(cache_for=object())
 
     with pytest.warns(
-        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+        UserWarning, match=r"all cache_\* options on a Task will be deprecated*"
     ):
         Task(cache_validator=object())
 
     with pytest.warns(
-        UserWarning, match="all cache_\* options on a Task will be deprecated*"
+        UserWarning, match=r"all cache_\* options on a Task will be deprecated*"
     ):
         Task(cache_key=object())
 
