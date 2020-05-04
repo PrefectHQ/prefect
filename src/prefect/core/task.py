@@ -438,7 +438,7 @@ class Task(metaclass=SignatureValidator):
 
         case = prefect.context.get("case", None)
         if case is not None:
-            case.add_child(self)
+            case.add_task(self)
 
         self.set_dependencies(
             flow=flow,

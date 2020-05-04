@@ -1,23 +1,68 @@
+from typing import Any
+
 import prefect
 from prefect import Task
 
 from .conditional import CompareValue
 
 
-__all__ = ("case", "Variable")
+__all__ = ("case",)
 
 
 class case(object):
-    def __init__(self, value, case):
-        if isinstance(case, Task):
-            raise TypeError("`case` cannot be a task")
+    """A conditional block in a flow definition.
 
+    Used as a context-manager, ``case`` creates a block of tasks that are only
+    run if the result of ``task`` is equal to ``value``.
+
+    Args:
+        task (Task): The task to use in the comparison
+        value (Any): A constant the result of ``task`` will be compared with
+
+    Examples:
+        A ``case`` block is similar to Python's if-blocks. It delimits a block
+        of tasks that will only be run if the result of ``task`` is equal to
+        ``value``:
+
+        ```python
+        # Standard python code
+        if task == value:
+            res = run_if_task_equals_value()
+            other_task(res)
+
+        # Equivalent prefect code
+        with case(task, value):
+            # Tasks created in this block are only run if ``task == value``
+            res = run_if_task_equals_value()
+            other_task(run)
+        ```
+
+        The ``value`` argument can be any non-task object. Here we branch on a
+        string result:
+
+        ```python
+        with Flow("example") as flow:
+            cond = condition()
+
+            with case(cond, "a"):
+                run_if_cond_is_a()
+
+            with case(cond, "b"):
+                run_if_cond_is_b()
+        ```
+    """
+
+    def __init__(self, task: Task, value: Any):
+        if isinstance(value, Task):
+            raise TypeError("`value` cannot be a task")
+
+        self.task = task
         self.value = value
-        self.case = case
-        self.children = set()
+        self._tasks = set()
 
-    def add_child(self, child):
-        self.children.add(child)
+    def add_task(self, task: Task) -> None:
+        """Add a new task under the case statement"""
+        self._tasks.add(task)
 
     def __enter__(self):
         self.__prev_case = prefect.context.get("case")
@@ -29,35 +74,16 @@ class case(object):
         else:
             prefect.context.update(case=self.__prev_case)
 
-        if self.children:
+        if self._tasks:
 
             flow = prefect.context.get("flow", None)
             if not flow:
                 raise ValueError("Could not infer an active Flow context.")
 
-            cond = CompareValue(self.case, name=f"case({self.case})",).bind(
-                value=self.value
+            cond = CompareValue(self.value, name=f"case({self.value})",).bind(
+                value=self.task
             )
 
-            for child in self.children:
-                if not any(t in self.children for t in flow.upstream_tasks(child)):
+            for child in self._tasks:
+                if not any(t in self._tasks for t in flow.upstream_tasks(child)):
                     child.set_upstream(cond)
-
-
-class Variable(Task):
-    def __init__(self, **kwargs):
-        if kwargs.setdefault("skip_on_upstream_skip", False):
-            raise ValueError("Variable tasks must have `skip_on_upstream_skip=False`.")
-        kwargs.setdefault("trigger", prefect.triggers.not_all_skipped)
-        self._input_counter = 0
-        super().__init__(**kwargs)
-
-    def set(self, task):
-        i = self._input_counter
-        self._input_counter += 1
-        self.set_dependencies(keyword_tasks={"in_%d" % i: task})
-
-    def run(self, **inputs):
-        return next(
-            (v for k, v in sorted(inputs.items(), reverse=True) if v is not None), None,
-        )
