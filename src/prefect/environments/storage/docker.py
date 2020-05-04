@@ -105,9 +105,11 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = environ.get(
+        self.base_url = os.environ.get(
             "DOCKER_HOST",
-            "unix://var/run/docker.sock"
+            base_url
+            if base_url
+            else "unix://var/run/docker.sock"
             if sys.platform != "win32"
             else "npipe:////./pipe/docker_engine",
         )
