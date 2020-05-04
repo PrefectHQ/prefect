@@ -85,5 +85,7 @@ class case(object):
             )
 
             for child in self._tasks:
-                if not any(t in self._tasks for t in flow.upstream_tasks(child)):
+                # If a task has no upstream tasks created in this case block,
+                # the case conditional should be set as an upstream task.
+                if not self._tasks.intersection(flow.upstream_tasks(child)):
                     child.set_upstream(cond)
