@@ -15,6 +15,10 @@ from prefect.environments.storage import Docker
 
 @pytest.fixture
 def no_docker_host_var(monkeypatch):
+    """
+    This fixture is for tests that assert an unset DOCKER_HOST variable
+    to avoid muddying test results from running Docker in Docker (e.g. in CI)
+    """
     monkeypatch.delenv("DOCKER_HOST", raising=False)
 
 
