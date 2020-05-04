@@ -92,6 +92,10 @@ class Docker(Storage):
         secrets: List[str] = None,
     ) -> None:
         self.registry_url = registry_url
+        if sys.platform == "win32":
+            default_url = "npipe:////./pipe/docker_engine"
+        else:
+            default_url = "unix://var/run/docker.sock"
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -105,14 +109,7 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = os.environ.get(
-            "DOCKER_HOST",
-            base_url
-            if base_url
-            else "unix://var/run/docker.sock"
-            if sys.platform != "win32"
-            else "npipe:////./pipe/docker_engine",
-        )
+        self.base_url = os.environ.get("DOCKER_HOST", base_url or default_url)
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
