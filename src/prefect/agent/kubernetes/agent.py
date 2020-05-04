@@ -235,6 +235,8 @@ class KubernetesAgent(Agent):
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - backend (str, optional): toggle which backend to use for this agent.
+                Defaults to "cloud".
 
         Returns:
             - str: A string representation of the generated YAML
