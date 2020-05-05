@@ -53,6 +53,8 @@ class FargateAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
         - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
@@ -88,6 +90,7 @@ class FargateAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
         launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
@@ -101,7 +104,11 @@ class FargateAgent(Agent):
         **kwargs
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
         )
 
         from boto3 import client as boto3_client
