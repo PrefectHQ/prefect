@@ -208,6 +208,7 @@ class KubernetesAgent(Agent):
         cpu_request: str = None,
         cpu_limit: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
         backend: str = None,
     ) -> str:
         """
@@ -233,6 +234,8 @@ class KubernetesAgent(Agent):
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - env_vars (dict, optional): additional environment variables to attach to all
+                jobs created by this agent
             - backend (str, optional): toggle which backend to use for this agent.
                 Defaults to backend currently set in config.
 
@@ -276,6 +279,12 @@ class KubernetesAgent(Agent):
         agent_env[6]["value"] = mem_limit
         agent_env[7]["value"] = cpu_request
         agent_env[8]["value"] = cpu_limit
+
+        if env_vars:
+            for k, v in env_vars.items():
+                agent_env.append(
+                    {"name": f"PREFECT__CLOUD__AGENT__ENV_VARS__{k}", "value": v}
+                )
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][

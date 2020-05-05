@@ -322,6 +322,25 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert resource_manager_env[3]["value"] == "test_namespace"
 
 
+def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        env_vars={"test1": "test2", "test3": "test4"}
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert agent_env[11]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
+    assert agent_env[11]["value"] == "test2"
+    assert agent_env[12]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
+    assert agent_env[12]["value"] == "test4"
+
+
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)

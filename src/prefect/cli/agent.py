@@ -343,6 +343,13 @@ def start(
     hidden=True,
 )
 @click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variables to set on each submitted flow run.",
+    hidden=True,
+)
+@click.option(
     "--import-path",
     "-p",
     multiple=True,
@@ -377,6 +384,7 @@ def install(
     cpu_request,
     cpu_limit,
     label,
+    env,
     import_path,
     show_flow_logs,
     backend,
@@ -394,6 +402,9 @@ def install(
         --token, -t                 TEXT    A Prefect Cloud API token
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
                                             Multiple values supported e.g. `-l label1 -l label2`
+        --env, -e                   TEXT    Environment variables to set on each submitted flow run.
+                                            Note that equal signs in environment variable values are not currently supported from the CLI.
+                                            Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
 
     \b
     Kubernetes Agent Options:
@@ -428,6 +439,11 @@ def install(
         click.secho("{} is not a supported agent for `install`".format(name), fg="red")
         return
 
+    env_vars = dict()
+    for env_var in env:
+        k, v = env_var.split("=")
+        env_vars[k] = v
+
     if name == "kubernetes":
         deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
             token=token,
@@ -442,6 +458,7 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             labels=list(label),
+            env_vars=env_vars,
             backend=backend,
         )
         click.echo(deployment)

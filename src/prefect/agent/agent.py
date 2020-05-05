@@ -101,7 +101,7 @@ class Agent:
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
-        self.env_vars = env_vars or dict()
+        self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
 
