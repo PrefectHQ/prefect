@@ -258,15 +258,22 @@ class CloudTaskRunner(TaskRunner):
         """
         upstream_results = {}
 
-        for edge, upstream_state in upstream_states.items():
-            upstream_states[edge] = upstream_state.load_result(
-                edge.upstream_task.result
-            )
-            if edge.key is not None:
-                upstream_results[edge.key] = edge.upstream_task.result
+        try:
+            for edge, upstream_state in upstream_states.items():
+                upstream_states[edge] = upstream_state.load_result(
+                    edge.upstream_task.result
+                )
+                if edge.key is not None:
+                    upstream_results[edge.key] = edge.upstream_task.result
 
-        state.load_cached_results(upstream_results)
-        return state, upstream_states
+            state.load_cached_results(upstream_results)
+            return state, upstream_states
+        except Exception as exc:
+            new_state = Failed(
+                message=f"Failed to retrieve task results: {exc}", result=exc
+            )
+            final_state = self.handle_state_change(old_state=state, new_state=new_state)
+            raise ENDRUN(final_state)
 
     @tail_recursive
     def run(

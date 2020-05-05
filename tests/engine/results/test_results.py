@@ -153,6 +153,13 @@ class TestLocalResult:
         assert new_result.location == "42.txt"
         assert new_result.value == "so-much-data"
 
+    def test_local_result_creates_necessary_dirs(self, tmp_dir):
+        os_independent_template = os.path.join("mydir", "mysubdir", "{thing}.txt")
+        result = LocalResult(dir=tmp_dir, location=os_independent_template)
+        new_result = result.write("so-much-data", thing=42)
+        assert new_result.location == os.path.join("mydir", "mysubdir", "42.txt")
+        assert new_result.value == "so-much-data"
+
     def test_local_result_cleverly_redirects_prefect_defaults(self):
         result = LocalResult(dir=config.home_dir)
         assert result.dir == os.path.join(config.home_dir, "results")

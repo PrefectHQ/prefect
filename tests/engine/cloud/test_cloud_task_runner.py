@@ -1081,3 +1081,24 @@ def test_task_runner_doesnt_use_upstream_result_handlers_if_value_present(client
     state = CloudTaskRunner(task=t).run(upstream_states=upstream_states)
     assert state.is_successful()
     assert state.result == 1
+
+
+def test_task_runner_gracefully_handles_load_results_failures(client):
+    class MyResult(Result):
+        def read(self, *args, **kwargs):
+            raise TypeError("something is wrong!")
+
+    @prefect.task(result=PrefectResult())
+    def t(x):
+        return x
+
+    success = Success(result=MyResult(location="foo.txt"))
+    upstream_states = {Edge(Task(result=MyResult()), t, key="x"): success}
+    state = CloudTaskRunner(task=t).run(upstream_states=upstream_states)
+
+    assert state.is_failed()
+    assert "task results" in state.message
+    assert client.set_task_run_state.call_count == 1  # Pending -> Failed
+
+    states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
+    assert [type(s).__name__ for s in states] == ["Failed"]
