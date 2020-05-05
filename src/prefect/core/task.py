@@ -269,7 +269,7 @@ class Task(metaclass=SignatureValidator):
 
         if result.location and target:
             warnings.warn(
-                "Both `result` and `target` set on task. Task result will use target as location."
+                "Both `result.location` and `target` set on task. Task result will use target as location."
             )
             self.result = result.copy()
             self.result.location = target
