@@ -85,7 +85,15 @@ class TaskRunner(Runner):
     ):
         self.context = prefect.context.to_dict()
         self.task = task
-        self.result = task.result or result
+
+        # if the result was provided off the parent Flow object
+        # we want to use the task's target as the target location
+        if task.result:
+            self.result = task.result
+        else:
+            self.result = result.copy()
+            if self.task.target:
+                self.result.location = self.task.target
         super().__init__(state_handlers=state_handlers)
 
     def __repr__(self) -> str:
@@ -595,9 +603,6 @@ class TaskRunner(Runner):
                 }
             )
 
-        #        if any(NoResult == val for val in task_inputs.values()):
-        #            state = Failed(message="Some upstream inputs are missing.")
-        #            raise ENDRUN(state)
         return task_inputs
 
     def load_results(
@@ -947,10 +952,11 @@ class TaskRunner(Runner):
             )
             return new_state
 
-        ## checkpoint tasks if a result interface is present, except for when the user has opted out by disabling checkpointing
+        ## checkpoint tasks if a result is present, except for when the user has opted out by disabling checkpointing
         if (
             prefect.context.get("checkpointing") is True
             and self.task.checkpoint is not False
+            and value is not None
         ):
             try:
                 result = self.result.write(value, **prefect.context)

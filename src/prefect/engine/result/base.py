@@ -97,7 +97,7 @@ class Result(ResultInterface):
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        self.location = self._template = location
+        self.location = location
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -208,8 +208,8 @@ class Result(ResultInterface):
         """
         new = self.copy()
         if new.location is not None:
-            assert new._template is not None
-            new.location = new._template.format(**kwargs)
+            assert new.location is not None
+            new.location = new.location.format(**kwargs)
         else:
             new.location = new.default_location
         return new
