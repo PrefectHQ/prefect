@@ -147,7 +147,7 @@ class S3Result(Result):
 
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
 
@@ -155,6 +155,7 @@ class S3Result(Result):
 
         Args:
             - location (str): Location of the result in the specific result target.
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
@@ -162,7 +163,9 @@ class S3Result(Result):
         import botocore
 
         try:
-            self.client.get_object(Bucket=self.bucket, Key=location).load()
+            self.client.get_object(
+                Bucket=self.bucket, Key=location.format(**kwargs)
+            ).load()
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "404":
                 return False
