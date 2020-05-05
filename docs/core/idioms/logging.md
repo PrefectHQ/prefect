@@ -14,6 +14,10 @@ level = "INFO"
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
+# additional log attributes to extract from context
+# e.g., log_attributes = "['context_var']"
+log_attributes = "[]"
+
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S"
 
@@ -84,3 +88,5 @@ flow.add_task(my_task)
 ### Logging with a backend
 
 If you are deploying your flows with the use of a backend such as Prefect Core's server or Prefect Cloud then there are a couple subtle configuration changes that you might happening on each run. First, the configuration option `log_to_cloud` will be set to `True`. This means that the logs from your flow will be sent to the backend where they can be digested and managed. Second, the logging level will always be set to `DEBUG`. This is to ensure that the maximal amount of information is provided in case something goes wrong. The debug logs can always be filtered out after via the UI or API.
+
+Logging can _also_ be disabled for backend runs when providing the `--no-cloud-logs` flag when starting a Prefect agent from the CLI.
