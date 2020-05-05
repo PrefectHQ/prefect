@@ -78,6 +78,9 @@ class LocalAgent(Agent):
             ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
         )
 
+        self.logger.debug(f"Import paths: {self.import_paths}")
+        self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
+
     def heartbeat(self) -> None:
         for process in list(self.processes):
             if process.poll() is not None:

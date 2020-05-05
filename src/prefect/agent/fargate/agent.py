@@ -101,7 +101,7 @@ class FargateAgent(Agent):
         use_external_kwargs: bool = False,
         external_kwargs_s3_bucket: str = None,
         external_kwargs_s3_key: str = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
             name=name,
@@ -169,6 +169,14 @@ class FargateAgent(Agent):
                 region_name=region_name,
                 config=Config(**botocore_config),
             )
+
+        self.logger.debug(f"Launch type: {self.launch_type}")
+        self.logger.debug(f"Enable task revisions: {self.enable_task_revisions}")
+        self.logger.debug(f"Use external kwargs: {self.use_external_kwargs}")
+        self.logger.debug(
+            f"External kwargs S3 bucket: {self.external_kwargs_s3_bucket}"
+        )
+        self.logger.debug(f"External kwargs S3 key: {self.external_kwargs_s3_key}")
 
     def _override_kwargs(
         self,
@@ -624,7 +632,7 @@ class FargateAgent(Agent):
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
             networkMode="awsvpc",
-            **flow_task_definition_kwargs
+            **flow_task_definition_kwargs,
         )
 
     def _run_task(
@@ -673,7 +681,7 @@ class FargateAgent(Agent):
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
-            **flow_task_run_kwargs
+            **flow_task_run_kwargs,
         )
 
         return task["tasks"][0].get("taskArn")

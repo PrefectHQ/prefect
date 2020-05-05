@@ -80,6 +80,8 @@ class KubernetesAgent(Agent):
 
         self.batch_client = client.BatchV1Api()
 
+        self.logger.debug(f"Namespace: {self.namespace}")
+
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
         Deploy flow runs on to a k8s cluster as jobs

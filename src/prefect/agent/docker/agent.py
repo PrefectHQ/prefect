@@ -125,6 +125,12 @@ class DockerAgent(Agent):
             )
             raise exc
 
+        self.logger.debug(f"Base URL: {self.base_url}")
+        self.logger.debug(f"No pull: {self.no_pull}")
+        self.logger.debug(f"Volumes: {volumes}")
+        self.logger.debug(f"Network: {self.network}")
+        self.logger.debug(f"Docker interface: {self.docker_interface}")
+
     def _get_docker_client(self) -> "docker.APIClient":
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
