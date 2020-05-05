@@ -2657,3 +2657,24 @@ def test_result_handler_option_shows_deprecation():
         UserWarning, match="the result_handler Flow option will be deprecated*"
     ):
         Flow("dummy", result_handler=object())
+
+
+def test_results_write_to_formatted_locations(tmpdir):
+    with Flow("results", result=LocalResult(dir=tmpdir)) as flow:
+
+        @task(target="{config.backend}/{map_index}.txt")
+        def return_x(x):
+            return x
+
+        vals = return_x.map(x=[1, 42, None, "string-type"])
+
+    with set_temporary_config({"flows.checkpointing": True, "backend": "foobar-test"}):
+        flow_state = flow.run()
+
+    assert flow_state.is_successful()
+    assert os.listdir(tmpdir) == ["foobar-test"]
+    assert set(os.listdir(os.path.join(tmpdir, "foobar-test"))) == {
+        "0.txt",
+        "1.txt",
+        "3.txt",
+    }

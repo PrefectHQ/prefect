@@ -93,7 +93,9 @@ class LocalResult(Result):
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
-        with open(os.path.join(self.dir, new.location), "wb") as f:
+        full_path = os.path.join(self.dir, new.location)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
         self.logger.debug("Finished uploading result to {}...".format(new.location))
