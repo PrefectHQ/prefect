@@ -268,13 +268,7 @@ module.exports = {
             'concepts/common-pitfalls'
           ]
         },
-        {
-          title: 'Prefect Idioms',
-          collapsable: true,
-          children: [
-            'idioms/idioms',
-          ]
-        },
+        '/core/idioms/idioms',
         {
           title: 'Task Library',
           collapsable: true,
