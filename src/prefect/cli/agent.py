@@ -9,7 +9,6 @@ _agents = {
     "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
     "local": "prefect.agent.local.LocalAgent",
-    "nomad": "prefect.agent.nomad.NomadAgent",
 }
 
 
@@ -159,7 +158,7 @@ def start(
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`)
                                 Defaults to `local`
 
     \b
