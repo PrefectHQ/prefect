@@ -633,15 +633,10 @@ class TaskRunner(Runner):
 
         if result and target:
             if result.exists(target):
-                # expiration = pendulum.now("utc") + self.task.cache_for
-                # TODO: How to handle cached durations?
-
-                expiration = pendulum.now("utc")
-
                 cached_state = Cached(
                     result=state._result,
                     cached_inputs=inputs,
-                    cached_result_expiration=expiration,
+                    cached_result_expiration=None,
                     cached_parameters=prefect.context.get("parameters"),
                     message=f"Result found at task target {target}",
                 )
