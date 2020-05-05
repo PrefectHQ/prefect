@@ -98,7 +98,7 @@ Setting labels through the `PREFECT__CLOUD__AGENT__LABELS` environment variable 
 Agents can optionally run a private HTTP server for use as a health check.
 Health checks can be used by common orchestration services (e.g.
 ``supervisord``, ``docker``, ``kubernetes``, ...) to check that the agent is
-running properly and take actions (suche as restarting the agent) if it's not.
+running properly and take actions (such as restarting the agent) if it's not.
 
 A few ways to enable:
 
