@@ -55,6 +55,7 @@ class FargateAgent(Agent):
             defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
         - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
@@ -91,6 +92,7 @@ class FargateAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
         launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
@@ -109,6 +111,7 @@ class FargateAgent(Agent):
             env_vars=env_vars,
             max_polls=max_polls,
             agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
 
         from boto3 import client as boto3_client

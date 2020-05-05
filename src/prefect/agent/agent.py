@@ -83,8 +83,9 @@ class Agent:
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
-        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+        - agent_address (str, optional): Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
     """
 
     def __init__(
@@ -94,6 +95,7 @@ class Agent:
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
@@ -101,7 +103,7 @@ class Agent:
         )
         self.env_vars = env_vars or dict()
         self.max_polls = max_polls
-        self.log_to_cloud = config.logging.log_to_cloud
+        self.log_to_cloud = False if no_cloud_logs else True
 
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""

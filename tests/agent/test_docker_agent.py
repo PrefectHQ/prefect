@@ -230,18 +230,14 @@ def test_populate_env_vars_is_responsive_to_logging_config(
     )
 
     with set_temporary_config(
-        {
-            "cloud.agent.auth_token": "token",
-            "cloud.api": "api",
-            "logging.log_to_cloud": flag,
-        }
+        {"cloud.agent.auth_token": "token", "cloud.api": "api",}
     ):
-        agent = DockerAgent(labels=["42", "marvin"])
+        agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
         env_vars = agent.populate_env_vars(
             GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
         )
-    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
 def test_docker_agent_deploy_flow(monkeypatch, runner_token):

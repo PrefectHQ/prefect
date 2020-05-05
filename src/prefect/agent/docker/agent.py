@@ -43,6 +43,7 @@ class DockerAgent(Agent):
             defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -64,6 +65,7 @@ class DockerAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
         base_url: str = None,
         no_pull: bool = None,
         volumes: List[str] = None,
@@ -77,6 +79,7 @@ class DockerAgent(Agent):
             env_vars=env_vars,
             max_polls=max_polls,
             agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"

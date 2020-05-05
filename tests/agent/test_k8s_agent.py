@@ -238,13 +238,10 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
         }
     )
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
-    ):
-        agent = KubernetesAgent()
-        job = agent.replace_job_spec_yaml(flow_run)
-        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        assert env[6]["value"] == str(flag).lower()
+    agent = KubernetesAgent(no_cloud_logs=flag)
+    job = agent.replace_job_spec_yaml(flow_run)
+    env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert env[6]["value"] == str(not flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):

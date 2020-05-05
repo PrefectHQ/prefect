@@ -45,6 +45,7 @@ class KubernetesAgent(Agent):
             defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
     """
 
     def __init__(
@@ -55,6 +56,7 @@ class KubernetesAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         super().__init__(
             name=name,
@@ -62,6 +64,7 @@ class KubernetesAgent(Agent):
             env_vars=env_vars,
             max_polls=max_polls,
             agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
 
         self.namespace = namespace

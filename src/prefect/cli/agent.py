@@ -219,7 +219,6 @@ def start(
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
-        "logging.log_to_cloud": False if no_cloud_logs else True,
     }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
@@ -245,6 +244,7 @@ def start(
                 agent_address=agent_address,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
+                no_cloud_logs=no_cloud_logs,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
