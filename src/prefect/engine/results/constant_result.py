@@ -36,12 +36,13 @@ class ConstantResult(Result):
         """
         raise ValueError("Cannot write values to `ConstantResult` types.")
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
              - location (str): for interface compatibility
+             - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: True, confirming the constant exists.

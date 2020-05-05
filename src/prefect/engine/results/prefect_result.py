@@ -49,12 +49,13 @@ class PrefectResult(Result):
         new.location = json.dumps(new.value)
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Confirms that the provided value is JSON deserializable.
 
         Args:
             - location (str): the value to test
+            - **kwargs (Any): unused, for compatibility with the interface
 
         Returns:
             - bool: whether the provided string can be deserialized

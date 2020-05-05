@@ -100,7 +100,7 @@ class LocalResult(Result):
 
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists in the file system.
 
@@ -109,8 +109,9 @@ class LocalResult(Result):
         Args:
             - location (str): Location of the result in the specific result target.
                 Will check whether the provided location exists
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists
         """
-        return os.path.exists(os.path.join(self.dir, location))
+        return os.path.exists(os.path.join(self.dir, location.format(**kwargs)))
