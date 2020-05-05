@@ -628,7 +628,7 @@ class TaskRunner(Runner):
         Returns:
             - State: the state of the task after running the check
         """
-        result = self.task.result
+        result = self.result
         target = self.task.target
 
         if result and target:
