@@ -79,10 +79,10 @@ assert Edge(upstream_task=t, downstream_task=l, key="x") in flow.edges
 ```python
 state = flow.run()
 
-assert state.is_successful
-assert state.result[e].is_successful
-assert state.result[t].is_successful
-assert state.result[l].is_successful
+assert state.is_successful()
+assert state.result[e].is_successful()
+assert state.result[t].is_successful()
+assert state.result[l].is_successful()
 ```
 
 #### Testing results
