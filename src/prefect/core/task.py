@@ -267,11 +267,11 @@ class Task(metaclass=SignatureValidator):
 
         self.target = target
 
-        if result.location and target:
+        if hasattr(result, "location") and target:
             warnings.warn(
                 "Both `result.location` and `target` set on task. Task result will use target as location."
             )
-            self.result = result.copy()
+            self.result = result.copy()  # type: ignore
             self.result.location = target
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
