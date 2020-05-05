@@ -1,5 +1,3 @@
-from os import path
-import tempfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,7 +8,6 @@ import yaml
 
 import prefect
 from prefect.agent.kubernetes import KubernetesAgent
-from prefect.agent.kubernetes.agent import check_heartbeat
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -528,73 +525,6 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
             assert "rbac" in document["apiVersion"]
             assert document["metadata"]["namespace"] == "test_namespace"
             assert document["metadata"]["name"] == "prefect-agent-rbac"
-
-
-def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-        agent.heartbeat()
-
-        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
-
-
-def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-        agent.heartbeat()
-
-        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        first = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        # Wait one second until next heartbeat
-        import time
-
-        time.sleep(1)
-
-        agent.heartbeat()
-        second = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        assert second > first
-
-
-def test_k8s_agent_heartbeat_check(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-
-        # Verify no exit codes of status `1` were raised
-        agent.heartbeat()
-        assert not check_heartbeat()
-
-        agent.heartbeat()
-        assert not check_heartbeat()
 
 
 def test_k8s_agent_start_max_polls(monkeypatch, runner_token):

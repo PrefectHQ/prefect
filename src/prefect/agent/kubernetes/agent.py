@@ -1,10 +1,8 @@
 import os
-import sys
 import uuid
 from os import path
 from typing import Iterable
 
-import pendulum
 import yaml
 
 import prefect
@@ -15,18 +13,6 @@ from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
-
-
-def check_heartbeat() -> None:
-    """
-    Check the agent's heartbeat by verifying heartbeat file has been recently modified
-    """
-    current_timestamp = pendulum.now().timestamp()  # type: ignore
-    last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
-
-    # If file has not been modified in the last 40 seconds then raise an exit code of 1
-    if current_timestamp - last_modified_timestamp > 40:
-        sys.exit(1)
 
 
 class KubernetesAgent(Agent):
@@ -57,6 +43,8 @@ class KubernetesAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
     """
 
     def __init__(
@@ -66,9 +54,14 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
         )
 
         self.namespace = namespace
@@ -322,16 +315,6 @@ class KubernetesAgent(Agent):
         output_yaml = [deployment]
         output_yaml.extend(rbac_yaml)
         return yaml.safe_dump_all(output_yaml, explicit_start=True)
-
-    def heartbeat(self) -> None:
-        """
-        Write agent heartbeat by opening and closing a heartbeat file. This allows
-        liveness probes to check the agent's main process activity based on the
-        heartbeat file's last modified time.
-        """
-        os.makedirs(AGENT_DIRECTORY, exist_ok=True)
-
-        open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
 if __name__ == "__main__":
