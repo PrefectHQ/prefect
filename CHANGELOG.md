@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
+- Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism [#2485](https://github.com/PrefectHQ/prefect/issues/2485) 
 
 ### Task Library
 
