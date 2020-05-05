@@ -6,6 +6,38 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Features
 
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- None
+
+## 0.10.6 <Badge text="beta" type="success"/>
+
+Released on May 5, 2020.
+
+### Features
+
 - Add DaskCloudProviderEnvironment to dynamically launch Dask clusters, e.g. on AWS Fargate - [#2360](https://github.com/PrefectHQ/prefect/pull/2360)
 
 ### Enhancements
@@ -40,7 +72,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- [Joe Schmid](https://github.com/joeschmid)
 - [Grégory Duchatelet](https://github.com/gregorg)
 - [Joe Schmid](https://github.com/joeschmid)
 
