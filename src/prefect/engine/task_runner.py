@@ -632,7 +632,7 @@ class TaskRunner(Runner):
         target = self.task.target
 
         if result and target:
-            if result.exists(target):
+            if result.exists(target, **prefect.context):
                 cached_state = Cached(
                     result=state._result,
                     cached_inputs=inputs,
