@@ -15,11 +15,6 @@ from prefect.engine.result_handlers import (
 )
 
 
-## TODO: write test that multiple writes / formats works
-## what if we allowed indexing into a result which makes a copy...
-## TODO: create from_value(value)
-
-
 class TestInitialization:
     def test_noresult_is_already_init(self):
         n = NoResult
