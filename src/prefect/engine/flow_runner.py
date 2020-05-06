@@ -157,9 +157,6 @@ class FlowRunner(Runner):
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
-        if not context.get("caches"):
-            context.setdefault("caches", {})
-
         # add various formatted dates to context
         now = pendulum.now("utc")
         dates = {

@@ -637,9 +637,11 @@ class TaskRunner(Runner):
                 state = Pending("Cache was invalid; ready to run.")
 
         if self.task.cache_for is not None:
-            candidate_states = prefect.context.caches.get(
-                self.task.cache_key or self.task.name, []
-            )
+            candidate_states = []
+            if prefect.context.get("caches"):
+                candidate_states = prefect.context.caches.get(
+                    self.task.cache_key or self.task.name, []
+                )
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             for candidate in candidate_states:
                 if self.task.cache_validator(
