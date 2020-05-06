@@ -268,7 +268,6 @@ module.exports = {
             'concepts/common-pitfalls'
           ]
         },
-        '/core/idioms/idioms',
         {
           title: 'Task Library',
           collapsable: true,
@@ -302,6 +301,7 @@ module.exports = {
             'development/sprints'
           ]
         },
+        '/core/idioms/idioms',
         '/core/faq',
         '/core/community',
         '/core/code_of_conduct'
