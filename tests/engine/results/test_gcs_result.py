@@ -27,9 +27,8 @@ class TestGCSResult:
 
     def test_gcs_init(self, google_client):
         result = GCSResult(bucket="bob")
-        assert result.value == None
+        assert result.value is None
         assert result.bucket == "bob"
-        assert result.credentials_secret == None
         assert google_client.called is False
         result.gcs_bucket()
         assert google_client.return_value.bucket.call_args[0][0] == "bob"
@@ -57,15 +56,6 @@ class TestGCSResult:
 
         assert new_result.location == "path/to/my/stuff.txt"
         assert new_result.value is None
-
-    def test_gcs_uses_custom_secret_name(self, google_client):
-        result = GCSResult(bucket="foo", credentials_secret="TEST_SECRET")
-
-        with prefect.context(secrets=dict(TEST_SECRET=94611)):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
-                result.gcs_bucket()
-
-        assert google_client.call_args[1]["credentials"] == 94611
 
     def test_gcs_writes_binary_string(self, google_client):
         blob = MagicMock()

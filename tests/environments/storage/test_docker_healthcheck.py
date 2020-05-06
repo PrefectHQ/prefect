@@ -87,7 +87,7 @@ class TestResultHandlerCheck:
         with Flow("THIS IS A TEST") as flow:
             result = down(x=up, upstream_tasks=[Task(), Task()])
 
-        assert healthchecks.result_handler_check([flow]) is None
+        assert healthchecks.result_check([flow]) is None
 
     @pytest.mark.parametrize(
         "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
@@ -99,8 +99,8 @@ class TestResultHandlerCheck:
 
         f = Flow("foo-test", tasks=[up])
 
-        with pytest.raises(ValueError, match="have a result handler."):
-            healthchecks.result_handler_check([f])
+        with pytest.raises(ValueError, match="have a result type."):
+            healthchecks.result_check([f])
 
     @pytest.mark.parametrize(
         "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
@@ -113,7 +113,7 @@ class TestResultHandlerCheck:
             pass
 
         f = Flow("foo-test", tasks=[up], result_handler=42)
-        assert healthchecks.result_handler_check([f]) is None
+        assert healthchecks.result_check([f]) is None
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -137,9 +137,9 @@ class TestResultHandlerCheck:
             result = down(x=up)
 
         with pytest.raises(
-            ValueError, match="upstream dependencies do not have result handlers."
+            ValueError, match="upstream dependencies do not have result types."
         ):
-            healthchecks.result_handler_check([f])
+            healthchecks.result_check([f])
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -160,7 +160,7 @@ class TestResultHandlerCheck:
         with Flow("non-keyed-test") as f:
             result = down(upstream_tasks=[up])
 
-        assert healthchecks.result_handler_check([f]) is None
+        assert healthchecks.result_check([f]) is None
 
 
 class TestEnvironmentDependencyCheck:

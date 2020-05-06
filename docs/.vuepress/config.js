@@ -217,6 +217,7 @@ module.exports = {
           collapsable: true,
           children: [
             'recipes/deployment',
+            'recipes/third_party_auth',
             'recipes/configuring_storage',
             'recipes/multi_flow_storage',
             'recipes/k8s_dask',

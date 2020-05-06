@@ -36,7 +36,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.engine.task_runner import TaskRunner
-from prefect.tasks.secrets import Secret
+from prefect.tasks.secrets import PrefectSecret
 from prefect.triggers import any_failed, manual_only
 from prefect.utilities.debug import raise_on_exception
 
@@ -267,9 +267,9 @@ def test_flow_runner_remains_running_if_tasks_are_retrying():
     assert flow_state.result[task2].is_retrying()
 
 
-def test_secrets_retry_by_default_and_pull_from_context():
+def test_secrets_dynamically_pull_from_context():
     flow = Flow(name="test")
-    task1 = Secret("foo")
+    task1 = PrefectSecret("foo", max_retries=1, retry_delay=datetime.timedelta(0))
 
     flow.add_task(task1)
 
@@ -1407,29 +1407,18 @@ class TestContext:
             res.result[return_scheduled_start_time].result, datetime.datetime
         )
 
-    def test_flow_runner_does_override_scheduled_start_time_when_running_off_schedule(
-        self,
-    ):
-        @prefect.task
-        def return_scheduled_start_time():
-            return prefect.context.get("scheduled_start_time")
-
-        f = Flow(name="test", tasks=[return_scheduled_start_time])
-        res = f.run(context=dict(scheduled_start_time=42), run_on_schedule=False)
-
-        assert res.is_successful()
-        assert res.result[return_scheduled_start_time].is_successful()
-        assert res.result[return_scheduled_start_time].result == 42
-
+    @pytest.mark.parametrize("run_on_schedule", [True, False])
     def test_flow_runner_doesnt_override_scheduled_start_time_when_running_on_schedule(
-        self,
+        self, run_on_schedule
     ):
         @prefect.task
         def return_scheduled_start_time():
             return prefect.context.get("scheduled_start_time")
 
         f = Flow(name="test", tasks=[return_scheduled_start_time])
-        res = f.run(context=dict(scheduled_start_time=42), run_on_schedule=True)
+        res = f.run(
+            context=dict(scheduled_start_time=42), run_on_schedule=run_on_schedule
+        )
 
         assert res.is_successful()
         assert res.result[return_scheduled_start_time].result != 42

@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased release/0.11.0 <Badge text="beta" type="success"/>
+
+These changes are available in the [release/0.11.0 branch](https://github.com/PrefectHQ/prefect).
+
+### Features
+
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
+- Moved `prefect.tasks.cloud` to `prefect.tasks.prefect` - [#2404](https://github.com/PrefectHQ/prefect/pull/2404)
+
+### Contributors
+
+- None
+
+# Changelog
+
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).

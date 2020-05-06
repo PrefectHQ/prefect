@@ -1,8 +1,6 @@
-import warnings
 from typing import Any, List
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -15,28 +13,13 @@ class GetRepoInfo(Task):
             form `organization/repo_name` or `user/repo_name`; can also be provided to the `run` method
         - info_keys (List[str], optional): a list of repo attributes to pull (e.g., `["stargazers_count", "subscribers_count"]`).
             A full list of available keys can be found in the official [GitHub documentation](https://developer.github.com/v3/repos/)
-        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token;
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
-    def __init__(
-        self,
-        repo: str = None,
-        info_keys: List[str] = None,
-        token_secret: str = None,
-        **kwargs: Any
-    ):
+    def __init__(self, repo: str = None, info_keys: List[str] = None, **kwargs: Any):
         self.repo = repo
         self.info_keys = info_keys or []
 
-        if token_secret is not None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-
-        self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "info_keys")
@@ -63,15 +46,6 @@ class GetRepoInfo(Task):
         """
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
-
-        ## prepare the request
-        if token is None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-            token = Secret(self.token_secret).get()
 
         # 'import requests' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
@@ -101,7 +75,6 @@ class CreateBranch(Task):
         - base (str, optional): the name of the branch you want to branch off; can also
             be provided to the `run` method.  Defaults to "master".
         - branch_name (str, optional): the name of the new branch; can also be provided to the `run` method
-        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token;
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -110,20 +83,12 @@ class CreateBranch(Task):
         repo: str = None,
         base: str = "master",
         branch_name: str = None,
-        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
         self.base = base
         self.branch_name = branch_name
 
-        if token_secret is not None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-        self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "base", "branch_name")
@@ -159,15 +124,6 @@ class CreateBranch(Task):
 
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
-
-        ## prepare the request
-        if token is None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-            token = Secret(self.token_secret).get()
 
         # 'import requests' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low

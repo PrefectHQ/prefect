@@ -65,8 +65,10 @@ class Docker(Storage):
         - local_image (bool, optional): an optional flag whether or not to use a
             local docker image, if True then a pull will not be attempted
         - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
-            are not added to the Dockerfile. If False (default), healthchecks 
+            are not added to the Dockerfile. If False (default), healthchecks
             are included.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -87,6 +89,7 @@ class Docker(Storage):
         prefect_version: str = None,
         local_image: bool = False,
         ignore_healthchecks: bool = False,
+        secrets: List[str] = None,
     ) -> None:
         self.registry_url = registry_url
 
@@ -158,7 +161,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
-        super().__init__()
+        super().__init__(secrets=secrets)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -372,12 +375,12 @@ class Docker(Storage):
         Dockerfile that it can use to define the container. This function takes the
         specified arguments then writes them to a temporary file called Dockerfile.
 
-        *Note*: if `files` are added to this container, they will be copied to this 
+        *Note*: if `files` are added to this container, they will be copied to this
         directory as well.
 
         Args:
-            - directory (str, optional): A directory where the Dockerfile will be 
-                created, if no directory is specified is will be created in the 
+            - directory (str, optional): A directory where the Dockerfile will be
+                created, if no directory is specified is will be created in the
                 current working directory
 
         Returns:
@@ -479,7 +482,7 @@ class Docker(Storage):
         if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """
-                
+
                 RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     flow_file_paths=", ".join(
