@@ -97,31 +97,6 @@ Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect
 
 ### Task Library
 
-|                                                                                            |            |                                                                                      |
-| ------------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------ |
-| <img src="docs/.vuepress/public/logos/airtable.png" height=60 style="max-height: 60px;">   | Airtable   | [Documentation](https://docs.prefect.io/core/task_library/airtable.html)             |
-| <img src="docs/.vuepress/public/logos/aws.png" height=60 style="max-height: 60px;">        | AWS        | [Documentation](https://docs.prefect.io/core/task_library/aws.html)                  |
-| <img src="docs/.vuepress/public/logos/azure.png" height=60 style="max-height: 60px;">      | Azure      | [Documentation](https://docs.prefect.io/core/task_library/azure.html)                |
-| <img src="docs/.vuepress/public/logos/azure_ml.jpg" height=60 style="max-height: 60px;">   | Azure ML   | [Documentation](https://docs.prefect.io/core/task_library/azureml.html)              |
-| <img src="docs/.vuepress/public/logos/gmail.png" height=60 style="max-height: 60px;">      | Email      | [Documentation](https://docs.prefect.io/core/task_library/email.html)                |
-| <img src="docs/.vuepress/public/logos/docker.png" height=60 style="max-height: 60px;">     | Docker     | [Documentation](https://docs.prefect.io/core/task_library/docker.html)               |
-| <img src="docs/.vuepress/public/logos/dropbox.png" height=60 style="max-height: 60px;">    | Dropbox    | [Documentation](https://docs.prefect.io/core/task_library/dropbox.html)              |
-| <img src="docs/.vuepress/public/logos/gcp.png" height=60 style="max-height: 60px;">        | GCP        | [Documentation](https://docs.prefect.io/core/task_library/gcp.html)                  |
-| <img src="docs/.vuepress/public/logos/github.png" height=60 style="max-height: 60px;">     | GitHub     | [Documentation](https://docs.prefect.io/core/task_library/github.html)               |
-| <img src="docs/.vuepress/public/logos/jinja.png" height=60 style="max-height: 60px;">      | Jinja      | [Documentation](https://docs.prefect.io/api/latest/tasks/strings.html#jinjatemplate) |
-| <img src="docs/.vuepress/public/logos/kubernetes.png" height=60 style="max-height: 60px;"> | Kubernetes | [Documentation](https://docs.prefect.io/core/task_library/kubernetes.html)           |
-| <img src="docs/.vuepress/public/logos/postgres.png" height=60 style="max-height: 60px;">   | Postgres   | [Documentation](https://docs.prefect.io/core/task_library/postgres.html)             |
-| <img src="docs/.vuepress/public/logos/prefect.png" height=60 style="max-height: 60px;">    | Prefect    | [Documentation](https://docs.prefect.io/core/task_library/prefect.html)              |
-| <img src="docs/.vuepress/public/logos/python.png" height=60 style="max-height: 60px;">     | Python     | [Documentation](https://docs.prefect.io/core/task_library/function.html)             |
-| <img src="docs/.vuepress/public/logos/redis.png" height=60 style="max-height: 60px;">      | Redis      | [Documentation](https://docs.prefect.io/core/task_library/redis.html)                |
-| <img src="docs/.vuepress/public/logos/rss.png" height=60 style="max-height: 60px;">        | RSS        | [Documentation](https://docs.prefect.io/core/task_library/rss.html)                  |
-| <img src="docs/.vuepress/public/logos/terminal.png" height=60 style="max-height: 60px;">   | Shell      | [Documentation](https://docs.prefect.io/core/task_library/shell.html)                |
-| <img src="docs/.vuepress/public/logos/slack.png" height=60 style="max-height: 60px;">      | Slack      | [Documentation](https://docs.prefect.io/core/task_library/slack.html)                |
-| <img src="docs/.vuepress/public/logos/snowflake.png" height=60 style="max-height: 60px;">  | Snowflake  | [Documentation](https://docs.prefect.io/core/task_library/snowflake.html)            |
-| <img src="docs/.vuepress/public/logos/spacy.png" height=60 style="max-height: 60px;">      | spaCy      | [Documentation](https://docs.prefect.io/core/task_library/spacy.html)                |
-| <img src="docs/.vuepress/public/logos/sqlite.png" height=60 style="max-height: 60px;">     | SQLite     | [Documentation](https://docs.prefect.io/core/task_library/sqlite.html)               |
-| <img src="docs/.vuepress/public/logos/twitter.png" height=60 style="max-height: 60px;">    | Twitter    | [Documentation](https://docs.prefect.io/core/task_library/twitter.html)              |
-=======
 |       |       |       |       |       |
 | :---: | :---: | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/airtable.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Airtable</p>](https://docs.prefect.io/core/task_library/airtable.html) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/aws.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>AWS</p>](https://docs.prefect.io/core/task_library/aws.html) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Azure</p>](https://docs.prefect.io/core/task_library/azure.html) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure_ml.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Azure ML</p>](https://docs.prefect.io/core/task_library/azureml.html) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/email.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Email</p>](https://docs.prefect.io/core/task_library/email.html) |
