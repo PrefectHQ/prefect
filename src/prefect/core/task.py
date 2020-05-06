@@ -20,6 +20,7 @@ from typing import (
 
 import prefect
 import prefect.engine.cache_validators
+from prefect.engine.results import PrefectResult, ResultHandlerResult
 import prefect.engine.signals
 import prefect.triggers
 from prefect.utilities import logging
@@ -147,7 +148,9 @@ class Task(metaclass=SignatureValidator):
         - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
             retrieving and storing state results during execution; if not provided, will default to the
             one attached to the Flow
-        - result (Result, optional, RESERVED FOR FUTURE USE): the result instance used to retrieve and store task results during execution
+        - result (Result, optional): the result instance used to retrieve and store task results during execution
+        - target (str, optional): location to check for task Result. If a result exists at that location then
+            the task run will enter a cached state.
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -183,11 +186,12 @@ class Task(metaclass=SignatureValidator):
         cache_validator: Callable = None,
         cache_key: str = None,
         checkpoint: bool = None,
-        result_handler: Optional["ResultHandler"] = None,
+        result_handler: "ResultHandler" = None,
         state_handlers: List[Callable] = None,
         on_failure: Callable = None,
         log_stdout: bool = False,
-        result: Optional["Result"] = None,
+        result: "Result" = None,
+        target: str = None,
     ):
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
@@ -251,7 +255,24 @@ class Task(metaclass=SignatureValidator):
         )
         self.cache_validator = cache_validator or default_validator
         self.checkpoint = checkpoint
-        self.result_handler = result_handler
+        if result_handler:
+            warnings.warn(
+                "Result Handlers are deprecated; please use the new style Result classes instead."
+            )
+            self.result = ResultHandlerResult.from_result_handler(
+                result_handler
+            )  # type: Optional[Result]
+        else:
+            self.result = result
+
+        self.target = target
+
+        if getattr(result, "location", None) and target:
+            warnings.warn(
+                "Both `result.location` and `target` set on task. Task result will use target as location."
+            )
+            self.result = result.copy()  # type: ignore
+            self.result.location = target
 
         if state_handlers and not isinstance(state_handlers, collections.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -1042,14 +1063,8 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        from prefect.engine.result_handlers import JSONResultHandler
-
         super().__init__(
-            name=name,
-            slug=name,
-            tags=tags,
-            result_handler=JSONResultHandler(),
-            checkpoint=True,
+            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True,
         )
 
     def __repr__(self) -> str:

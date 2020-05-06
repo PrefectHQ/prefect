@@ -5,7 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-from prefect.engine.result_handlers import AzureResultHandler
+from prefect.engine.results import AzureResult
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -52,10 +52,10 @@ class Azure(Storage):
         self.container = container
         self.blob_name = blob_name
 
-        result_handler = AzureResultHandler(
-            connection_string=connection_string, container=container
+        result = AzureResult(
+            connection_string=self.connection_string, container=container
         )
-        super().__init__(result_handler=result_handler, secrets=secrets)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

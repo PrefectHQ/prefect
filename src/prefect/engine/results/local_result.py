@@ -93,14 +93,16 @@ class LocalResult(Result):
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
-        with open(os.path.join(self.dir, new.location), "wb") as f:
+        full_path = os.path.join(self.dir, new.location)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
         self.logger.debug("Finished uploading result to {}...".format(new.location))
 
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists in the file system.
 
@@ -109,8 +111,9 @@ class LocalResult(Result):
         Args:
             - location (str): Location of the result in the specific result target.
                 Will check whether the provided location exists
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists
         """
-        return os.path.exists(os.path.join(self.dir, location))
+        return os.path.exists(os.path.join(self.dir, location.format(**kwargs)))

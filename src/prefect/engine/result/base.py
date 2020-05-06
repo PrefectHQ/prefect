@@ -97,7 +97,7 @@ class Result(ResultInterface):
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        self.location = self._template = location
+        self.location = location
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -208,13 +208,13 @@ class Result(ResultInterface):
         """
         new = self.copy()
         if new.location is not None:
-            assert new._template is not None
-            new.location = new._template.format(**kwargs)
+            assert new.location is not None
+            new.location = new.location.format(**kwargs)
         else:
             new.location = new.default_location
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists.
 
@@ -224,6 +224,7 @@ class Result(ResultInterface):
             - location (str, optional): Location of the result in the specific result target.
                 If provided, will check whether the provided location exists;
                 otherwise, will use `self.location`
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
@@ -303,6 +304,7 @@ class NoResultType(SafeResult):
     """
 
     def __init__(self) -> None:
+        self.location = None
         super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:
