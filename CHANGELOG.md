@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- flow.visualize is now able to accept a `format` argument to specify the output file type. [#2447]
+- `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
 - Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
 - Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism [#2494](https://github.com/PrefectHQ/prefect/pull/2494) 
 
