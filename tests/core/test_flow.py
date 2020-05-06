@@ -1231,7 +1231,7 @@ class TestFlowVisualize:
     def test_viz_saves_graph_object_with_correct_extension(self):
         import graphviz
 
-        tested_formats = ["jpg", "png", "svg", "gif", "jpeg", "pdf", "tif", "tiff"]
+        tested_formats = ["jpg", "png", "svg", "gif", "jpeg", "pdf", "tiff"]
         f = Flow(name="test")
         f.add_task(Task(name="a_nice_task"))
 
