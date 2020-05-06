@@ -302,6 +302,7 @@ module.exports = {
             'development/sprints'
           ]
         },
+        '/core/idioms/idioms',
         '/core/faq',
         '/core/community',
         '/core/code_of_conduct'
