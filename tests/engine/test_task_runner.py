@@ -2176,7 +2176,6 @@ def test_task_runner_logs_map_index_for_mapped_tasks(caplog):
         def run(self):
             map_index = prefect.context.get("map_index")
             self.logger.info("{}".format(map_index))
-            print(map_index)
 
     task = MyTask()
     edge = Edge(Task(), task, mapped=True)

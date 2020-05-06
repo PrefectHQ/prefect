@@ -642,7 +642,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
     assert set(loggers) == {
         "prefect.CloudTaskRunner",
         "prefect.CustomFlowRunner",
-        "prefect.Task: log_stuff",
+        "prefect.log_stuff",
     }
 
     task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]

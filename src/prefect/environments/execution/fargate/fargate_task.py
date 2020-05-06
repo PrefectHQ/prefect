@@ -49,6 +49,10 @@ class FargateTaskEnvironment(Environment):
     are not serialized and will only ever exist on this object.
 
     Args:
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
+        - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -72,6 +76,7 @@ class FargateTaskEnvironment(Environment):
 
     def __init__(  # type: ignore
         self,
+        launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -82,6 +87,7 @@ class FargateTaskEnvironment(Environment):
         on_exit: Callable = None,
         **kwargs
     ) -> None:
+        self.launch_type = launch_type
         # Not serialized, only stored on the object
         self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key or os.getenv(
@@ -286,7 +292,7 @@ class FargateTaskEnvironment(Environment):
 
         boto3_c.run_task(
             overrides={"containerOverrides": container_overrides},
-            launchType="FARGATE",
+            launchType=self.launch_type,
             **self.task_run_kwargs
         )
 

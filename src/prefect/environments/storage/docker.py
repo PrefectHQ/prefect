@@ -126,7 +126,7 @@ class Docker(Storage):
             python_version = "{}.{}".format(
                 sys.version_info.major, sys.version_info.minor
             )
-            if re.match("^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
+            if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
@@ -396,7 +396,7 @@ class Docker(Storage):
         env_vars = ""
         if self.env_vars:
             white_space = " " * 20
-            env_vars = "ENV " + " \ \n{}".format(white_space).join(
+            env_vars = "ENV " + " \\ \n{}".format(white_space).join(
                 "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
             )
 

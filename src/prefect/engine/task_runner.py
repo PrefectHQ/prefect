@@ -175,12 +175,14 @@ class TaskRunner(Runner):
         context.setdefault("checkpointing", config.flows.checkpointing)
 
         map_index = context.get("map_index", None)
-        if isinstance(map_index, int):
-            self.task.logger = prefect.utilities.logging.get_logger(
-                "Task: {}[{}]".format(self.task.name, map_index)
+        if isinstance(map_index, int) and context.get("task_full_name"):
+            context.update(
+                logger=prefect.utilities.logging.get_logger(
+                    context.get("task_full_name")
+                )
             )
-
-        context.update(logger=self.task.logger)
+        else:
+            context.update(logger=self.task.logger)
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -676,9 +678,11 @@ class TaskRunner(Runner):
                 state = Pending("Cache was invalid; ready to run.")
 
         if self.task.cache_for is not None:
-            candidate_states = prefect.context.caches.get(
-                self.task.cache_key or self.task.name, []
-            )
+            candidate_states = []
+            if prefect.context.get("caches"):
+                candidate_states = prefect.context.caches.get(
+                    self.task.cache_key or self.task.name, []
+                )
             sanitized_inputs = {key: res.value for key, res in inputs.items()}
             for candidate in candidate_states:
                 if self.task.cache_validator(

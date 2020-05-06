@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import copy
 import inspect
 import uuid
@@ -196,7 +196,7 @@ class Task(metaclass=SignatureValidator):
         self.name = name or type(self).__name__
         self.slug = slug or str(uuid.uuid4())
 
-        self.logger = logging.get_logger("Task: {}".format(self.name))
+        self.logger = logging.get_logger(self.name)
 
         # avoid silently iterating over a string
         if isinstance(tags, str):
@@ -274,7 +274,7 @@ class Task(metaclass=SignatureValidator):
             self.result = result.copy()  # type: ignore
             self.result.location = target
 
-        if state_handlers and not isinstance(state_handlers, collections.Sequence):
+        if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
         if on_failure is not None:
@@ -457,6 +457,10 @@ class Task(metaclass=SignatureValidator):
         flow = flow or prefect.context.get("flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
+
+        case = prefect.context.get("case", None)
+        if case is not None:
+            case.add_task(self)
 
         self.set_dependencies(
             flow=flow,
