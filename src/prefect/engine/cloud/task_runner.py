@@ -48,7 +48,7 @@ class CloudTaskRunner(TaskRunner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result: Result = Result(),
+        result: Result = None,
     ) -> None:
         self.client = Client()
         super().__init__(task=task, state_handlers=state_handlers, result=result)

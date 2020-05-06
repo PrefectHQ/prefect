@@ -81,7 +81,7 @@ class TaskRunner(Runner):
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result: Result = Result(),
+        result: Result = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
@@ -91,7 +91,7 @@ class TaskRunner(Runner):
         if task.result:
             self.result = task.result
         else:
-            self.result = result.copy()
+            self.result = Result().copy() if result is None else result.copy()
             if self.task.target:
                 self.result.location = self.task.target
         super().__init__(state_handlers=state_handlers)
