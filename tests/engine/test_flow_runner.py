@@ -690,6 +690,24 @@ class TestOutputCaching:
         assert flow_state.result[y].result == 100
 
 
+class TestCachingFromContext:
+    def test_caches_do_not_persist_across_flow_runner_runs(self):
+        @prefect.task(cache_for=datetime.timedelta(seconds=10))
+        def test_task():
+            return random.random()
+
+        with Flow("test_cache") as flow:
+            t = test_task()
+
+        flow_state = FlowRunner(flow=flow).run(return_tasks=[t])
+        first_result = flow_state.result[t].result
+
+        flow_state = FlowRunner(flow=flow).run(return_tasks=[t])
+        second_result = flow_state.result[t].result
+
+        assert first_result != second_result
+
+
 class TestInitializeRun:
     def test_initialize_sets_none_to_pending(self):
         result = FlowRunner(Flow(name="test")).initialize_run(
