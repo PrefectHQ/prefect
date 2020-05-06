@@ -10,16 +10,17 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- flow.visualize is now able to accept a `format` argument to specify the output file type.
+- flow.visualize is now able to accept a `format` argument to specify the output file type. [#2447]
+- Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
+- Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism [#2494](https://github.com/PrefectHQ/prefect/pull/2494) 
 
 ### Task Library
 
-- None
+- Add new `case` control-flow construct, for nicer management of conditional tasks - [#2443](https://github.com/PrefectHQ/prefect/pull/2443)
 
 ### Fixes
 
-- Fix `server start` CLI command not respecting `version` kwarg on tagged releases - [#2435](https://github.com/PrefectHQ/prefect/pull/2435)
-- Fix issue with non-JSON serializable args being used to format log messages preventing them from shipping to Cloud - [#2407](https://github.com/PrefectHQ/prefect/issues/2407)
+- Give a better error for non-serializable callables when registering with cloud/server - [#2491](https://github.com/PrefectHQ/prefect/pull/2491)
 
 ### Deprecations
 
@@ -32,6 +33,49 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
+
+## 0.10.6 <Badge text="beta" type="success"/>
+
+Released on May 5, 2020.
+
+### Features
+
+- Add DaskCloudProviderEnvironment to dynamically launch Dask clusters, e.g. on AWS Fargate - [#2360](https://github.com/PrefectHQ/prefect/pull/2360)
+
+### Enhancements
+
+- Add `botocore_config` option to Fargate agent for setting botocore configuration when interacting with boto3 client - [#2170](https://github.com/PrefectHQ/prefect/issues/2170)
+- Don't create a `None` task for a null condition when using `ifelse` - [#2449](https://github.com/PrefectHQ/prefect/pull/2449)
+- Add support for EC2 launch type in Fargate Agent and `FargateTaskEnvironment` - [#2421](https://github.com/PrefectHQ/prefect/pull/2421)
+- Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
+- Allow users to inject custom context variables into their logger formats - [#2462](https://github.com/PrefectHQ/prefect/issues/2462)
+- Add option to set backend on `agent install` CLI command - [#2478](https://github.com/PrefectHQ/prefect/pull/2478)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix `start_server.sh` script when an env var is undefined - [#2450](https://github.com/PrefectHQ/prefect/pull/2450)
+- Fix `server start` CLI command not respecting `version` kwarg on tagged releases - [#2435](https://github.com/PrefectHQ/prefect/pull/2435)
+- Fix issue with non-JSON serializable args being used to format log messages preventing them from shipping to Cloud - [#2407](https://github.com/PrefectHQ/prefect/issues/2407)
+- Fix issue where ordered Prefect collections use lexical sorting, not numerical sorting, which can result in unexpected ordering - [#2452](https://github.com/PrefectHQ/prefect/pull/2452)
+- Fix issue where Resource Manager was failing due to non-JSON timestamp in log writing - [#2474](https://github.com/PrefectHQ/prefect/issues/2474)
+- Fix periodic error in local agent process management loop - [#2419](https://github.com/PrefectHQ/prefect/issues/2419)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- None
+
+### Contributors
+
+- [Grégory Duchatelet](https://github.com/gregorg)
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.10.5 <Badge text="beta" type="success"/>
 
@@ -76,6 +120,7 @@ Released on Apr 28, 2020.
 - [Braun Reyes](https://github.com/braunreyes)
 - [Fraznist](https://github.com/Fraznist)
 - [sk4la](https://github.com/sk4la)
+- [Troy Köhler](https://github.com/trkohler)
 
 ## 0.10.4 <Badge text="beta" type="success"/>
 

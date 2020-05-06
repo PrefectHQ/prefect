@@ -379,10 +379,9 @@ class StatefulFunctionReference(fields.Field):
         try:
             qual_name = to_qualified_name(value)
         except:
-            if self.reject_invalid:
-                raise ValidationError("Invalid function reference: {}".format(value))
-            else:
-                return qual_name
+            raise ValidationError(
+                f"Invalid function reference, function required, got {value}"
+            )
 
         # sort matches such that the longest / most specific match comes first
         valid_bases = sorted(

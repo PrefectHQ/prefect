@@ -69,6 +69,9 @@ queue_interval = 30.0
     # Agents require different API tokens
     auth_token = ""
 
+    # Internal address for agent health checks, etc...
+    agent_address = ""
+
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers
         loop_interval = 60
@@ -81,6 +84,10 @@ level = "INFO"
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
 
+# additional log attributes to extract from context
+# e.g., log_attributes = "['context_var']"
+log_attributes = "[]"
+#
 # the timestamp format
 datefmt = "%Y-%m-%d %H:%M:%S"
 

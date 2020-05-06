@@ -83,6 +83,14 @@ def agent():
     type=int,
 )
 @click.option(
+    "--agent-address",
+    required=False,
+    help="Address to serve internal api server at. Defaults to no server.",
+    hidden=True,
+    type=str,
+    default="",
+)
+@click.option(
     "--namespace",
     required=False,
     help="Kubernetes namespace to create jobs.",
@@ -144,6 +152,7 @@ def start(
     network,
     no_docker_interface,
     max_polls,
+    agent_address,
 ):
     """
     Start an agent.
@@ -168,6 +177,9 @@ def start(
                                 if not specified.
         --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
+        --agent-address TEXT    The address to server internal api at. Currently this is
+                                just health checks for use by an orchestration layer
+                                (e.g. kubernetes). Leave blank for no api server (default).
 
     \b
     Local Agent Options:
@@ -230,6 +242,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
+                agent_address=agent_address,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
             ).start()
@@ -239,6 +252,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
+                agent_address=agent_address,
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
@@ -252,6 +266,7 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
+                agent_address=agent_address,
                 **kwargs
             ).start()
         elif agent_option == "kubernetes":
@@ -261,10 +276,15 @@ def start(
                 labels=list(label),
                 env_vars=env_vars,
                 max_polls=max_polls,
+                agent_address=agent_address,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars, max_polls=max_polls,
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
             ).start()
 
 
@@ -337,6 +357,13 @@ def start(
     hidden=True,
     is_flag=True,
 )
+@click.option(
+    "--backend",
+    "-b",
+    required=False,
+    help="Prefect backend to use for this agent.",
+    hidden=True,
+)
 def install(
     name,
     token,
@@ -353,6 +380,7 @@ def install(
     label,
     import_path,
     show_flow_logs,
+    backend,
 ):
     """
     Install an agent. Outputs configuration text which can be used to install on various
@@ -380,6 +408,8 @@ def install(
         --mem-limit                 TEXT    Limit memory for Prefect init job
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
+        --backend                   TEST    Prefect backend to use for this agent
+                                            Defaults to the backend currently set in config.
 
     \b
     Local Agent Options:
@@ -413,6 +443,7 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             labels=list(label),
+            backend=backend,
         )
         click.echo(deployment)
     elif name == "local":

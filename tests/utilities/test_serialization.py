@@ -279,6 +279,14 @@ class TestStatefulFunctionReferenceField:
         )
         assert deserialized["f_allow_invalid"] is None
 
+    def test_serialize_non_function_good_error(self):
+        class Foo(object):
+            def __call__(self, a, b):
+                return a + b
+
+        with pytest.raises(marshmallow.ValidationError, match="function required"):
+            self.Schema().dump(dict(f=Foo()))
+
     def test_serialize_none(self):
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().dump({"f": None})

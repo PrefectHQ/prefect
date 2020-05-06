@@ -73,7 +73,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.10.5)', link: '/api/latest/' },
+          { text: 'Latest (0.10.6)', link: '/api/latest/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -166,6 +166,7 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
+            'concepts/cloud_hooks',
             'concepts/secrets',
             'concepts/services',
             'concepts/tokens',
@@ -193,6 +194,7 @@ module.exports = {
             'execution/storage_options',
             'execution/remote_environment',
             'execution/remote_dask_environment',
+            'execution/dask_cloud_provider_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
             'execution/fargate_task_environment',

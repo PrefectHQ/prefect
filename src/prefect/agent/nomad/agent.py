@@ -2,7 +2,6 @@ import json
 import os
 import uuid
 from os import path
-from typing import Iterable
 
 from prefect import config
 from prefect.agent import Agent
@@ -23,12 +22,11 @@ class NomadAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
     """
-
-    def __init__(
-        self, name: str = None, labels: Iterable[str] = None, env_vars: dict = None
-    ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -88,6 +86,7 @@ class NomadAgent(Agent):
         env["PREFECT__CLOUD__API"] = config.cloud.api or "https://api.prefect.io"
         env["PREFECT__CLOUD__AGENT__AUTH_TOKEN"] = config.cloud.agent.auth_token
         env["PREFECT__CONTEXT__FLOW_RUN_ID"] = flow_run.id  # type: ignore
+        env["PREFECT__CONTEXT__FLOW_ID"] = flow_run.flow.id  # type: ignore
         env["PREFECT__CONTEXT__NAMESPACE"] = os.getenv("NAMESPACE", "default")
         env["PREFECT__LOGGING__LOG_TO_CLOUD"] = str(self.log_to_cloud).lower()
 
