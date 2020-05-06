@@ -378,6 +378,7 @@ class TestConfigValidation:
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__SECRETS__mY_spECIal_kEY", "42")
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__strange_VAlUE", "false")
         monkeypatch.setenv("PREFECT_TEST__CONTEXT__FLOW_RUN_ID", "12345")
+        monkeypatch.setenv("PREFECT_TEST__CONTEXT__FLOW_ID", "56789")
 
         with tempfile.TemporaryDirectory() as test_config_dir:
             test_config_loc = os.path.join(test_config_dir, "test_config.toml")
@@ -401,4 +402,5 @@ class TestConfigValidation:
         assert config.context.secrets.KeY == 1
         assert config.context.spECIAL_TOP_key == "foo"
         assert config.context.flow_run_id == 12345
+        assert config.context.flow_id == 56789
         assert config.context.strange_value is False

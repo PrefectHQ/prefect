@@ -168,12 +168,20 @@ def test_agent_start_fargate_kwargs_received(monkeypatch, runner_token):
 
     runner = CliRunner()
     result = runner.invoke(
-        agent, ["start", "fargate", "taskRoleArn=arn", "--volumes=vol"]
+        agent,
+        [
+            "start",
+            "fargate",
+            "taskRoleArn=arn",
+            "--volumes=vol",
+            "--agent-address=http://localhost:8000",
+        ],
     )
     assert result.exit_code == 0
 
     assert fargate_agent.called
     fargate_agent.assert_called_with(
+        agent_address="http://localhost:8000",
         labels=[],
         env_vars=dict(),
         max_polls=None,
@@ -194,6 +202,7 @@ def test_agent_start_with_env_vars(monkeypatch, runner_token):
     assert result.exit_code == 0
 
     docker_agent.assert_called_with(
+        agent_address="",
         base_url=None,
         env_vars={"KEY": "VAL", "SETTING": "false"},
         max_polls=None,
@@ -203,6 +212,7 @@ def test_agent_start_with_env_vars(monkeypatch, runner_token):
         show_flow_logs=False,
         volumes=[],
         network=None,
+        docker_interface=True,
     )
 
 
@@ -215,6 +225,7 @@ def test_agent_start_with_max_polls(monkeypatch, runner_token):
     assert result.exit_code == 0
 
     docker_agent.assert_called_with(
+        agent_address="",
         base_url=None,
         env_vars={},
         max_polls=5,
@@ -224,6 +235,7 @@ def test_agent_start_with_max_polls(monkeypatch, runner_token):
         show_flow_logs=False,
         volumes=[],
         network=None,
+        docker_interface=True,
     )
 
 
@@ -352,6 +364,12 @@ def test_agent_install_k8s_asses_args():
             "test_label1",
             "-l",
             "test_label2",
+            "-b",
+            "backend-test",
+            "-e",
+            "ENVTEST=TESTENV",
+            "-e",
+            "ENVTEST2=TESTENV2",
         ],
     )
     assert result.exit_code == 0
@@ -368,6 +386,13 @@ def test_agent_install_k8s_asses_args():
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
+    assert "backend-test" in result.output
+
+    # Environment Variables
+    assert "ENVTEST" in result.output
+    assert "TESTENV" in result.output
+    assert "ENVTEST2" in result.output
+    assert "TESTENV2" in result.output
 
 
 def test_agent_install_k8s_no_resource_manager():

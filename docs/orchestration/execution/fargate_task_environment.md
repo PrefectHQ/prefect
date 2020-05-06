@@ -146,6 +146,7 @@ def output_value(value):
 flow = Flow(
     "Fargate Task Environment",
     environment=FargateTaskEnvironment(
+        launch_type="FARGATE",
         aws_session_token="MY_AWS_SESSION_TOKEN",
         region="us-east-1",
         cpu="256",
