@@ -1228,6 +1228,20 @@ class TestFlowVisualize:
                 res = AddTask(name="a_nice_task").map(x=Task(name="a_list_task"), y=8)
             f.visualize()
 
+    def test_viz_saves_graph_object_with_correct_extension(self):
+        import graphviz
+
+        tested_formats = ["jpg", "png", "svg", "gif", "jpeg", "pdf", "tif", "tiff"]
+        f = Flow(name="test")
+        f.add_task(Task(name="a_nice_task"))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
+                print(sorted(list(graphviz.FORMATS)))
+                for _format in tested_formats:
+                    graph = f.visualize(filename=tmp.name, format=_format)
+                    assert os.path.exists(os.path.join(tmpdir, f"{tmp.name}.{_format}"))
+
 
 class TestCache:
     def test_cache_created(self):

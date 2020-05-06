@@ -1056,8 +1056,10 @@ class Flow:
     # Visualization ------------------------------------------------------------
 
     def visualize(
-        self, flow_state: "prefect.engine.state.State" = None, filename: str = None,
-        format: str = None
+        self,
+        flow_state: "prefect.engine.state.State" = None,
+        filename: str = None,
+        format: str = None,
     ) -> object:
         """
         Creates graphviz object for representing the current flow; this graphviz
@@ -1069,10 +1071,11 @@ class Flow:
             - flow_state (State, optional): flow state object used to optionally color the nodes
             - filename (str, optional): a filename specifying a location to save this visualization to; if provided,
                 the visualization will not be rendered automatically
+            - format (str, optional): a format specifying the output file type; defaults to 'pdf'. 
+              Refer to http://www.graphviz.org/doc/info/output.html for valid formats
 
         Raises:
             - ImportError: if `graphviz` is not installed
-            - ValueError: if an invalid `format` is given. Refer to http://www.graphviz.org/doc/info/output.html for valid formats
         """
 
         try:
