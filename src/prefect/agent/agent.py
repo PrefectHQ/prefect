@@ -125,7 +125,7 @@ class Agent:
         self.submitting_flow_runs = set()  # type: Set[str]
 
         self.logger.debug("Verbose logs enabled")
-        self.logger.debug(f"Environment variables: {self.env_vars}")
+        self.logger.debug(f"Environment variables: {[*self.env_vars]}")
         self.logger.debug(f"Max polls: {self.max_polls}")
         self.logger.debug(f"Agent address: {self.agent_address}")
         self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
