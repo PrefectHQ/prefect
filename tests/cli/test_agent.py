@@ -366,6 +366,10 @@ def test_agent_install_k8s_asses_args():
             "test_label2",
             "-b",
             "backend-test",
+            "-e",
+            "ENVTEST=TESTENV",
+            "-e",
+            "ENVTEST2=TESTENV2",
         ],
     )
     assert result.exit_code == 0
@@ -383,6 +387,12 @@ def test_agent_install_k8s_asses_args():
     assert "test_label1" in result.output
     assert "test_label2" in result.output
     assert "backend-test" in result.output
+
+    # Environment Variables
+    assert "ENVTEST" in result.output
+    assert "TESTENV" in result.output
+    assert "ENVTEST2" in result.output
+    assert "TESTENV2" in result.output
 
 
 def test_agent_install_k8s_no_resource_manager():

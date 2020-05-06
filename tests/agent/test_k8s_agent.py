@@ -238,13 +238,10 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
         }
     )
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
-    ):
-        agent = KubernetesAgent()
-        job = agent.replace_job_spec_yaml(flow_run)
-        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        assert env[6]["value"] == str(flag).lower()
+    agent = KubernetesAgent(no_cloud_logs=flag)
+    job = agent.replace_job_spec_yaml(flow_run)
+    env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert env[6]["value"] == str(not flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
@@ -323,6 +320,25 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"
     assert resource_manager_env[3]["value"] == "test_namespace"
+
+
+def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        env_vars={"test1": "test2", "test3": "test4"}
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert agent_env[11]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
+    assert agent_env[11]["value"] == "test2"
+    assert agent_env[12]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
+    assert agent_env[12]["value"] == "test4"
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):

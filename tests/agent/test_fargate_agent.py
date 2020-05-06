@@ -947,15 +947,15 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         "propagateTags": "test",
     }
 
-    with set_temporary_config({"logging.log_to_cloud": flag}):
-        agent = FargateAgent(
-            aws_access_key_id="id",
-            aws_secret_access_key="secret",
-            aws_session_token="token",
-            region_name="region",
-            labels=["aws", "staging"],
-            **kwarg_dict
-        )
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        labels=["aws", "staging"],
+        no_cloud_logs=flag,
+        **kwarg_dict
+    )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -992,7 +992,10 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                     "value": "['aws', 'staging']",
                 },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": str(flag).lower()},
+                {
+                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "value": str(not flag).lower(),
+                },
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1151,7 +1154,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(
                     {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -1490,6 +1493,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         cluster="test",
         tags=[{"key": "team", "value": "data"}],
         labels=["aws", "staging"],
+        no_cloud_logs=True,
     )
     agent.deploy_flow(
         GraphQLResult(

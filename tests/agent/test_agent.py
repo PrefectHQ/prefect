@@ -77,6 +77,17 @@ def test_agent_env_vars(runner_token, cloud_api):
         assert agent.env_vars == dict(AUTH_THING="foo")
 
 
+def test_agent_env_vars_from_config(runner_token, cloud_api):
+    with set_temporary_config(
+        {
+            "cloud.agent.auth_token": "TEST_TOKEN",
+            "cloud.agent.env_vars": {"test1": "test2", "test3": "test4"},
+        }
+    ):
+        agent = Agent()
+        assert agent.env_vars == {"test1": "test2", "test3": "test4"}
+
+
 def test_agent_max_polls(runner_token, cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(max_polls=10)
