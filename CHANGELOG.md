@@ -14,6 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Enhance agent verbose logs to include provided kwargs at start - [#2486](https://github.com/PrefectHQ/prefect/issues/2486)
 - Add `no_cloud_logs` option to all Agent classes for an easier way to disable sending logs to backend - [#2484](https://github.com/PrefectHQ/prefect/issues/2484)
 - Add option to set flow run environment variables on Kubernetes agent install - [#2424](https://github.com/PrefectHQ/prefect/issues/2424)
+- Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism [#2494](https://github.com/PrefectHQ/prefect/pull/2494) 
 
 ### Task Library
 
@@ -21,7 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Give a better error for non-serializable callables when registering with cloud/server - [#2491](https://github.com/PrefectHQ/prefect/pull/2491)
 
 ### Deprecations
 
