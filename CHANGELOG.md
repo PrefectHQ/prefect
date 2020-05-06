@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased release/0.11.0 <Badge text="beta" type="success"/>
+
+These changes are available in the [release/0.11.0 branch](https://github.com/PrefectHQ/prefect).
+
+### Features
+
+- None
+
+### Enhancements
+
+- None
+
+### Task Library
+
+- None
+
+### Fixes
+
+- None
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
+- Moved `prefect.tasks.cloud` to `prefect.tasks.prefect` - [#2404](https://github.com/PrefectHQ/prefect/pull/2404)
+
+### Contributors
+
+- None
+
+# Changelog
+
 ## Unreleased <Badge text="beta" type="success"/>
 
 These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
@@ -11,16 +47,14 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
-- Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
-- Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism [#2494](https://github.com/PrefectHQ/prefect/pull/2494) 
 
 ### Task Library
 
-- Add new `case` control-flow construct, for nicer management of conditional tasks - [#2443](https://github.com/PrefectHQ/prefect/pull/2443)
+- None
 
 ### Fixes
 
-- Give a better error for non-serializable callables when registering with cloud/server - [#2491](https://github.com/PrefectHQ/prefect/pull/2491)
+- None
 
 ### Deprecations
 
@@ -29,6 +63,43 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Breaking Changes
 
 - None
+
+### Contributors
+
+- [Alvin Goh](https://github.com/chuehsien)
+
+## 0.10.7 <Badge text="beta" type="success"/>
+
+Released on May 6, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Agents now support an optional HTTP health check, for use by their backing orchestration layer (e.g. k8s, docker, supervisord, ...) - [#2406](https://github.com/PrefectHQ/prefect/pull/2406)
+- Sets dask scheduler default to "threads" on LocalDaskExecutor to provide parallelism - [#2494](https://github.com/PrefectHQ/prefect/pull/2494)
+- Enhance agent verbose logs to include provided kwargs at start - [#2486](https://github.com/PrefectHQ/prefect/issues/2486)
+- Add `no_cloud_logs` option to all Agent classes for an easier way to disable sending logs to backend - [#2484](https://github.com/PrefectHQ/prefect/issues/2484)
+- Add option to set flow run environment variables on Kubernetes agent install - [#2424](https://github.com/PrefectHQ/prefect/issues/2424)
+
+### Task Library
+
+- Add new `case` control-flow construct, for nicer management of conditional tasks - [#2443](https://github.com/PrefectHQ/prefect/pull/2443)
+
+### Fixes
+
+- Give a better error for non-serializable callables when registering with cloud/server - [#2491](https://github.com/PrefectHQ/prefect/pull/2491)
+- Fix runners retrieving invalid `context.caches` on runs started directly from a flow runner - [#2403](https://github.com/PrefectHQ/prefect/issues/2403)
+
+### Deprecations
+
+- None
+
+### Breaking Changes
+
+- Remove the Nomad agent - [#2492](https://github.com/PrefectHQ/prefect/pull/2492)
 
 ### Contributors
 

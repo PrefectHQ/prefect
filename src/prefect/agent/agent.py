@@ -83,8 +83,9 @@ class Agent:
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
-        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+        - agent_address (str, optional): Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
     """
 
     def __init__(
@@ -94,14 +95,15 @@ class Agent:
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
-        self.env_vars = env_vars or dict()
+        self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
-        self.log_to_cloud = config.logging.log_to_cloud
+        self.log_to_cloud = False if no_cloud_logs else True
 
         self.agent_address = agent_address or config.cloud.agent.get(
             "agent_address", ""
@@ -109,13 +111,6 @@ class Agent:
         self._api_server = None  # type: ignore
         self._api_server_loop = None  # type: Optional[IOLoop]
         self._api_server_thread = None  # type: Optional[threading.Thread]
-
-        token = config.cloud.agent.get("auth_token")
-
-        self.client = Client(api_token=token)
-        if config.backend == "cloud":
-            self._verify_token(token)
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -128,6 +123,21 @@ class Agent:
 
         self.logger = logger
         self.submitting_flow_runs = set()  # type: Set[str]
+
+        self.logger.debug("Verbose logs enabled")
+        self.logger.debug(f"Environment variables: {[*self.env_vars]}")
+        self.logger.debug(f"Max polls: {self.max_polls}")
+        self.logger.debug(f"Agent address: {self.agent_address}")
+        self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
+
+        token = config.cloud.agent.get("auth_token")
+
+        self.logger.debug(f"Prefect backend: {config.backend}")
+
+        self.client = Client(api_token=token)
+        if config.backend == "cloud":
+            self._verify_token(token)
+            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
     def _verify_token(self, token: str) -> None:
         """
@@ -158,6 +168,9 @@ class Agent:
         agent_id = self.client.register_agent(
             agent_type=type(self).__name__, name=self.name, labels=self.labels
         )
+
+        self.logger.debug(f"Agent ID: {agent_id}")
+
         return agent_id
 
     def start(self) -> None:
@@ -223,6 +236,9 @@ class Agent:
             app = web.Application([("/api/health", HealthHandler)])
 
             def run() -> None:
+                self.logger.debug(
+                    f"Agent API server listening on port {self.agent_address}"
+                )
                 self._api_server = app.listen(port, address=hostname)  # type: ignore
                 self._api_server_loop = IOLoop.current()
                 self._api_server_loop.start()  # type: ignore
@@ -236,9 +252,11 @@ class Agent:
         self.on_shutdown()
 
         if self._api_server is not None:
+            self.logger.debug("Stopping agent API server")
             self._api_server.stop()
 
         if self._api_server_loop is not None:
+            self.logger.debug("Stopping agent API server loop")
 
             def stop_server() -> None:
                 try:
@@ -250,6 +268,7 @@ class Agent:
             self._api_server_loop.add_callback(stop_server)
 
         if self._api_server_thread is not None:
+            self.logger.debug("Joining agent API threads")
             # Give the server a small period to shutdown nicely, otherwise it
             # will terminate on exit anyway since it's a daemon thread.
             self._api_server_thread.join(timeout=1)

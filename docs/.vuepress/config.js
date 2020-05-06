@@ -73,7 +73,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.10.6)', link: '/api/latest/' },
+          { text: 'Latest (0.10.7)', link: '/api/latest/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -217,6 +217,7 @@ module.exports = {
           collapsable: true,
           children: [
             'recipes/deployment',
+            'recipes/third_party_auth',
             'recipes/configuring_storage',
             'recipes/multi_flow_storage',
             'recipes/k8s_dask',
@@ -302,6 +303,7 @@ module.exports = {
             'development/sprints'
           ]
         },
+        '/core/idioms/idioms',
         '/core/faq',
         '/core/community',
         '/core/code_of_conduct'

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import cloudpickle
 import pytest
 
-from prefect import Flow
+from prefect import context, Flow
 from prefect.environments.storage import S3
 
 pytest.importorskip("boto3")
@@ -21,24 +21,20 @@ def test_create_s3_storage():
 
 def test_create_s3_storage_init_args():
     storage = S3(
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="session",
         bucket="bucket",
         key="key",
         client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
+        secrets=["auth"],
     )
     assert storage
     assert storage.flows == dict()
-    assert storage.aws_access_key_id == "id"
-    assert storage.aws_secret_access_key == "secret"
-    assert storage.aws_session_token == "session"
     assert storage.bucket == "bucket"
     assert storage.key == "key"
     assert storage.client_options == {
         "endpoint_url": "http://some-endpoint",
         "use_ssl": False,
     }
+    assert storage.secrets == ["auth"]
 
 
 def test_serialize_s3_storage():
@@ -63,13 +59,14 @@ def test_boto3_client_property(monkeypatch):
 
     storage = S3(
         bucket="bucket",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="session",
         client_options={"endpoint_url": "http://some-endpoint", "use_ssl": False,},
     )
 
-    boto3_client = storage._boto3_client
+    credentials = dict(
+        ACCESS_KEY="id", SECRET_ACCESS_KEY="secret", SESSION_TOKEN="session"
+    )
+    with context(secrets=dict(AWS_CREDENTIALS=credentials)):
+        boto3_client = storage._boto3_client
     assert boto3_client
     boto3.assert_called_with(
         "s3",

@@ -1,7 +1,6 @@
 from typing import Any, TYPE_CHECKING
 
 from prefect.engine.result.base import Result
-from prefect.client import Secret
 
 if TYPE_CHECKING:
     import google.cloud
@@ -15,22 +14,19 @@ class GCSResult(Result):
     runtime environment has the proper credentials available
     (see https://cloud.google.com/docs/authentication/production for all the authentication options).
 
-    You can also optionally provide the name of a Prefect Secret containing your
-    service account key. To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
+    You can also optionally provide your service account key to `prefect.context.secrets.GCP_CREDENTIALS` for
+    automatic authentication - see [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
+
+    To read more about service account keys see https://cloud.google.com/iam/docs/creating-managing-service-account-keys.
     To read more about the JSON representation of service account keys see https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts.keys.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
-        - credentials_secret (str, optional): the name of the Prefect Secret
-            which stores a JSON representation of your Google Cloud credentials.
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(
-        self, bucket: str = None, credentials_secret: str = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, bucket: str = None, **kwargs: Any) -> None:
         self.bucket = bucket
-        self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
     @property
@@ -38,11 +34,7 @@ class GCSResult(Result):
         if not hasattr(self, "_gcs_bucket"):
             from prefect.utilities.gcp import get_storage_client
 
-            if self.credentials_secret:
-                credentials = Secret(self.credentials_secret).get()
-            else:
-                credentials = None
-            client = get_storage_client(credentials=credentials)
+            client = get_storage_client()
             self.gcs_bucket = client.bucket(self.bucket)
         return self._gcs_bucket
 
@@ -113,7 +105,7 @@ class GCSResult(Result):
             raise exc
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists.
 
@@ -122,8 +114,9 @@ class GCSResult(Result):
         Args:
             - location (str): Location of the result in the specific result target.
                 Will check whether the provided location exists
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
         """
-        return self.gcs_bucket.blob(location).exists()
+        return self.gcs_bucket.blob(location.format(**kwargs)).exists()

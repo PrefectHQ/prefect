@@ -17,11 +17,12 @@ class TestS3Result:
         import boto3
 
         session = MagicMock()
-        with patch.dict("sys.modules", {"boto3": MagicMock(session=session)}):
-            yield session
+        boto = MagicMock(session=session)
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto)
+        yield session
 
     def test_s3_client_init_uses_secrets(self, session):
-        result = S3Result(bucket="bob", credentials_secret="AWS_CREDENTIALS")
+        result = S3Result(bucket="bob")
         assert result.bucket == "bob"
         assert session.Session().client.called is False
 
@@ -32,22 +33,8 @@ class TestS3Result:
                 result.initialize_client()
         assert session.Session().client.call_args[1] == {
             "aws_access_key_id": 1,
+            "aws_session_token": None,
             "aws_secret_access_key": 42,
-        }
-
-    def test_s3_client_init_uses_custom_secrets(self, session):
-        result = S3Result(bucket="bob", credentials_secret="MY_FOO")
-
-        with prefect.context(
-            secrets=dict(MY_FOO=dict(ACCESS_KEY=1, SECRET_ACCESS_KEY=999))
-        ):
-            with set_temporary_config({"cloud.use_local_secrets": True}):
-                result.initialize_client()
-
-        assert result.bucket == "bob"
-        assert session.Session().client.call_args[1] == {
-            "aws_access_key_id": 1,
-            "aws_secret_access_key": 999,
         }
 
     def test_s3_writes_to_blob_with_rendered_filename(self, session):

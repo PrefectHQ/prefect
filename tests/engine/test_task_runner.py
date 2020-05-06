@@ -22,6 +22,7 @@ from prefect.engine.cache_validators import (
     partial_parameters_only,
 )
 from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.result_handlers import (
     JSONResultHandler,
     ResultHandler,
@@ -800,74 +801,6 @@ class TestGetTaskInputs:
         )
         assert inputs == {"x": Result(1)}
 
-    def test_get_inputs_from_upstream_reads_results(self):
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(), upstream_states={Edge(1, 2, key="x"): state}
-        )
-        assert inputs == {"x": result.to_result()}
-
-    def test_get_inputs_from_upstream_reads_results_using_upstream_handlers(self):
-        class CustomHandler(ResultHandler):
-            def read(self, loc):
-                return "foo-bar-baz".split("-")
-
-        new_handler = CustomHandler()
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(),
-            upstream_states={Edge(Task(result_handler=new_handler), 2, key="x"): state},
-        )
-        res = Result(value=["foo", "bar", "baz"], result_handler=new_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
-
-    def test_get_inputs_from_upstream_reads_secret_results(self):
-        secret_handler = SecretResultHandler(prefect.tasks.secrets.Secret(name="foo"))
-
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Success(result=result)
-
-        with prefect.context(secrets=dict(foo=42)):
-            inputs = TaskRunner(task=Task()).get_task_inputs(
-                state=Pending(),
-                upstream_states={
-                    Edge(Task(result_handler=secret_handler), 2, key="x"): state
-                },
-            )
-
-        res = Result(value=42, result_handler=secret_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
-
-    def test_get_inputs_from_upstream_reads_cached_inputs(self):
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Pending(cached_inputs=dict(x=result))
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=state, upstream_states={}
-        )
-        assert inputs == {"x": result.to_result()}
-
-    def test_get_inputs_from_upstream_reads_cached_inputs_using_upstream_handlers(self):
-        class CustomHandler(ResultHandler):
-            def read(self, loc):
-                return 99
-
-        new_handler = CustomHandler()
-        result = SafeResult("1", result_handler=JSONResultHandler())
-        state = Pending(cached_inputs=dict(x=result))
-        inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=state,
-            upstream_states={
-                Edge(Task(result_handler=new_handler), 2, key="x"): Success()
-            },
-        )
-        res = Result(value=99, result_handler=new_handler)
-        res.safe_value = result
-        assert inputs == {"x": res}
-
     def test_get_inputs_from_upstream_with_non_key_edges(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
             state=Pending(),
@@ -907,7 +840,7 @@ class TestGetTaskInputs:
 
     def test_cached_inputs_overwrites_upstream_states_if_they_are_noresult(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(1), "y": Result(2)}),
+            state=Pending(cached_inputs={"x": Result(value=1), "y": Result(value=2)}),
             upstream_states={
                 Edge(1, 2, key="x"): Success(),
                 Edge(1, 2, key="y"): Success(),
@@ -917,13 +850,14 @@ class TestGetTaskInputs:
 
     def test_cached_inputs_doesnt_overwrites_upstream_states_if_hydrated(self):
         inputs = TaskRunner(task=Task()).get_task_inputs(
-            state=Pending(cached_inputs={"x": Result(1), "y": Result(2)}),
+            state=Pending(cached_inputs={"x": Result(value=1), "y": Result(value=2)}),
             upstream_states={
                 Edge(1, 2, key="x"): Success(result=None),
                 Edge(1, 2, key="y"): Success(result=5),
             },
         )
-        assert inputs == {"x": Result(None), "y": Result(5)}
+        assert inputs["x"].value == None
+        assert inputs["y"].value == 5
 
 
 class TestCheckTaskCached:
@@ -975,48 +909,15 @@ class TestCheckTaskCached:
         )
         assert new_state.is_pending()
 
-    def test_reads_result_if_cached_valid(self):
-        with pytest.warns(UserWarning):
-            task = Task(cache_validator=cache_validators.duration_only)
-        result = SafeResult("2", result_handler=JSONResultHandler())
-        state = Cached(
-            result=result,
-            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
-        )
-
-        new = TaskRunner(task).check_task_is_cached(
-            state=state, inputs={"a": Result(1)}
-        )
-        assert new is state
-        assert new.result == 2
-
-    def test_reads_result_using_handler_attribute_if_cached_valid(self):
-        class Handler(ResultHandler):
-            def read(self, val):
-                return 53
-
-        with pytest.warns(UserWarning):
-            task = Task(
-                cache_validator=cache_validators.duration_only, result_handler=Handler()
-            )
-        result = SafeResult("2", result_handler=JSONResultHandler())
-        state = Cached(
-            result=result,
-            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
-        )
-
-        new = TaskRunner(task).check_task_is_cached(
-            state=state, inputs={"a": Result(1)}
-        )
-        assert new is state
-        assert new.result == 53
-
     def test_reads_result_from_context_if_cached_valid(self):
         task = Task(
             cache_for=timedelta(minutes=1),
             cache_validator=cache_validators.duration_only,
+            result=PrefectResult(),
         )
-        result = SafeResult("2", result_handler=JSONResultHandler())
+
+        result = PrefectResult(value=2)
+
         state = Cached(
             result=result,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -1028,41 +929,19 @@ class TestCheckTaskCached:
             )
         assert new is state
         assert new.result == 2
-
-    def test_reads_result_from_context_if_cached_valid_using_task_handler(task):
-        class Handler(ResultHandler):
-            def read(self, val):
-                return 53
-
-        task = Task(
-            result_handler=Handler(),
-            cache_for=timedelta(minutes=1),
-            cache_validator=cache_validators.duration_only,
-        )
-        result = SafeResult("2", result_handler=JSONResultHandler())
-        state = Cached(
-            result=result,
-            cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
-        )
-
-        with prefect.context(caches={"Task": [state]}):
-            new = TaskRunner(task).check_task_is_cached(
-                state=Pending(), inputs={"a": Result(1)}
-            )
-        assert new is state
-        assert new.result == 53
 
     def test_state_kwarg_is_prioritized_over_context_caches(self):
         task = Task(
             cache_for=timedelta(minutes=1),
             cache_validator=cache_validators.duration_only,
+            result=PrefectResult(),
         )
         state_a = Cached(
-            result=SafeResult("2", result_handler=JSONResultHandler()),
+            result=PrefectResult(value=2),
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
         state_b = Cached(
-            result=SafeResult("99", result_handler=JSONResultHandler()),
+            result=PrefectResult(value=99),
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
         )
 
@@ -1079,7 +958,7 @@ class TestCheckTaskCached:
             cache_validator=cache_validators.duration_only,
             cache_key="FOO",
         )
-        result = SafeResult("2", result_handler=JSONResultHandler())
+        result = PrefectResult(value=2)
         state = Cached(
             result=result,
             cached_result_expiration=pendulum.now("utc") + timedelta(minutes=1),
@@ -1274,16 +1153,15 @@ class TestRunTaskStep:
         )
         assert state.is_successful()
         assert isinstance(state._result, Result)
-        assert state._result == Result(value=None, result_handler=runner.result_handler)
+        assert state._result == Result(value=None)
 
-    def test_returns_success_with_correct_result_handler(self):
-        runner = TaskRunner(task=Task(result_handler=JSONResultHandler()))
+    def test_returns_success_with_correct_result_type(self):
+        runner = TaskRunner(task=Task(result=PrefectResult()))
         state = runner.get_task_run_state(
             state=Running(), inputs={}, timeout_handler=None
         )
         assert state.is_successful()
-        assert isinstance(state._result, Result)
-        assert state._result.result_handler == JSONResultHandler()
+        assert isinstance(state._result, PrefectResult)
 
     def test_success_state_without_checkpoint(self):
         @prefect.task(checkpoint=False)
@@ -1291,17 +1169,15 @@ class TestRunTaskStep:
             return x + 1
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn).get_task_run_state(
+            new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result.location is None
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_config(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn(x):
             return x + 1
 
@@ -1311,13 +1187,11 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+        assert new_state._result.location == "3"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_context(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn(x):
             return x + 1
 
@@ -1326,76 +1200,48 @@ class TestRunTaskStep:
                 state=Running(), inputs={"x": Result(2)}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("3", result_handler=handler)
+        assert new_state._result.location == "3"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_is_checkpointed_if_result_handler_present(self, checkpoint):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=checkpoint, result_handler=handler)
+        @prefect.task(checkpoint=checkpoint, result=PrefectResult())
         def fn():
             return 1
 
         ## checkpointing allows users to toggle behavior for local testing
         with prefect.context(checkpointing=False):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
+        assert new_state._result.location is None
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("1", result_handler=handler)
-
-    def test_success_state_is_not_checkpointed_if_result_handler_present_and_opted_out(
-        self,
-    ):
-        handler = JSONResultHandler()
-
-        @prefect.task(checkpoint=False, result_handler=handler)
-        def fn():
-            return 1
-
-        ## checkpointing allows users to toggle behavior for local testing
-        with prefect.context(checkpointing=False):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
-            )
-        assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
-
-        # We should expect that globally enabling checkpointing does not override the task checkout option (if set)
-        with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result_handler=handler).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
-            )
-        assert new_state.is_successful()
-        assert new_state._result.safe_value == NoResult
+        assert new_state._result.location == "1"
 
     def test_success_state_for_parameter(self):
-        handler = JSONResultHandler()
         p = prefect.Parameter("p", default=2)
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
                 state=Running(), inputs={}, timeout_handler=None
             )
         assert new_state.is_successful()
-        assert new_state._result.safe_value == SafeResult("2", result_handler=handler)
+        assert new_state._result.location == "2"
 
     @pytest.mark.parametrize("checkpoint", [True, None])
-    def test_success_state_with_bad_handler_results_in_failed_state(self, checkpoint):
-        class BadHandler(ResultHandler):
-            def read(self, val):
+    def test_success_state_with_bad_result_results_in_failed_state(self, checkpoint):
+        class BadResult(Result):
+            def read(self, *args, **kwargs):
                 pass
 
-            def write(self, val):
+            def write(self, *args, **kwargs):
                 raise SyntaxError("Oh boy")
 
-        @prefect.task(checkpoint=checkpoint, result_handler=BadHandler())
+        @prefect.task(checkpoint=checkpoint, result=BadResult())
         def fn(x):
             return x + 1
 
@@ -1406,15 +1252,15 @@ class TestRunTaskStep:
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
 
-    def test_success_state_with_bad_handler_and_checkpointing_disabled(self):
-        class BadHandler(ResultHandler):
-            def read(self, val):
+    def test_success_state_with_bad_result_and_checkpointing_disabled(self):
+        class BadResult(Result):
+            def read(self, *args, **kwargs):
                 pass
 
-            def write(self, val):
+            def write(self, *args, **kwargs):
                 raise SyntaxError("Oh boy")
 
-        @prefect.task(checkpoint=False, result_handler=BadHandler())
+        @prefect.task(checkpoint=False, result=BadResult())
         def fn(x):
             return x + 1
 
@@ -1498,10 +1344,10 @@ class TestCacheResultStep:
             Running(result=1),
         ],
     )
-    def test_non_success_states(self, state):
+    def test_non_success_states_with_results(self, state):
         new_state = TaskRunner(task=Task()).cache_result(state=state, inputs={})
         assert new_state is state
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result.location is None
 
     @pytest.mark.parametrize(
         "state", [cls() for cls in Failed.__subclasses__() + [Failed]]
@@ -1511,7 +1357,7 @@ class TestCacheResultStep:
             state=state, inputs={"x": Result(1)}
         )
         assert new_state is state
-        assert new_state._result.safe_value is NoResult
+        assert new_state._result is NoResult
         assert new_state.cached_inputs == {"x": Result(1)}
 
     @pytest.mark.parametrize(
@@ -1547,6 +1393,80 @@ class TestCacheResultStep:
         assert new_state.message == "hello"
         assert new_state.result == 2
         assert new_state.cached_inputs == {"x": Result(5)}
+
+
+class TestTargetExistsStep:
+    @pytest.fixture(scope="class")
+    def tmp_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            yield tmp
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
+    )
+    def test_check_target(self, state):
+        new_state = TaskRunner(task=Task()).check_target(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.location is None
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Failed(result=1),
+            Skipped(result=1),
+            Finished(result=1),
+            Pending(result=1),
+            Running(result=1),
+        ],
+    )
+    def test_check_target_not_exists(self, state):
+        new_state = TaskRunner(
+            task=Task(target="test-file", result=PrefectResult())
+        ).check_target(state=state, inputs={})
+        assert new_state is state
+        assert new_state._result.location is None
+
+    def test_check_target_exists(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="test-file")
+        result.write(1)
+
+        my_task = Task(target="test-file", result=result)
+
+        new_state = TaskRunner(task=my_task).check_target(
+            state=Running(result=result), inputs={}
+        )
+
+        assert result.exists("test-file")
+        assert new_state.is_cached()
+        assert new_state._result.location == "test-file"
+        assert new_state.message == "Result found at task target test-file"
+
+    def test_check_target_exists_multiple_checks(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="test-file")
+        result.write(1)
+
+        my_task = Task(target="test-file", result=result)
+
+        new_state = TaskRunner(task=my_task).check_target(
+            state=Running(result=result), inputs={}
+        )
+
+        assert result.exists("test-file")
+        assert new_state.is_cached()
+        assert new_state._result.location == "test-file"
+
+        new_state_2 = TaskRunner(task=my_task).check_target(state=new_state, inputs={})
+
+        assert result.exists("test-file")
+        assert new_state_2.is_cached()
+        assert new_state_2._result.location == "test-file"
 
 
 class TestCheckScheduledStep:
@@ -2225,22 +2145,6 @@ def test_task_tags_are_attached_to_all_states():
 
     states = [s[0][-1] for s in task_handler.call_args_list]
     assert all(set(state.context["tags"]) == set(["alice", "bob"]) for state in states)
-
-
-def test_task_runner_uses_upstream_result_handlers():
-    class Handler(ResultHandler):
-        def read(self, val):
-            return "cool"
-
-    @prefect.task
-    def t(x):
-        return x
-
-    success = Success(result=SafeResult(1, result_handler=JSONResultHandler()))
-    upstream_states = {Edge(Task(result_handler=Handler()), t, key="x"): success}
-    state = TaskRunner(task=t).run(upstream_states=upstream_states)
-    assert state.is_successful()
-    assert state.result == "cool"
 
 
 def test_task_runner_logs_stdout(caplog):

@@ -10,7 +10,7 @@ Every run is initialized with the `Pending` state, meaning that it is waiting fo
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
 import datetime
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
 
@@ -67,7 +67,7 @@ class State:
         """
         if type(self) == type(other):
             assert isinstance(other, State)  # this assertion is here for MyPy only
-            eq = self._result.value == other._result.value  # type: ignore
+            eq = self.result == other.result  # type: ignore
             for attr in self.__dict__:
                 if attr.startswith("_") or attr in ["context", "message", "result"]:
                     continue
@@ -80,7 +80,7 @@ class State:
 
     @property
     def result(self) -> Any:
-        return self._result.value  # type: ignore
+        return getattr(self._result, "value", self._result)
 
     @result.setter
     def result(self, value: Any) -> None:
@@ -88,6 +88,60 @@ class State:
             self._result = value
         else:
             self._result = Result(value=value)
+
+    def load_result(self, result: Result = None) -> "State":
+        """
+        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
+        using the logic of the provided result.  This method is mainly intended to be used
+        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+
+        Args:
+            - result (Result): the result instance to hydrate with `self.location`
+
+        Returns:
+            - State: the current state with a fully hydrated Result attached
+        """
+        result_reader = result or self._result
+
+        known_location = self._result.location or getattr(result, "location", None)  # type: ignore
+        if self._result.value is None and known_location is not None:  # type: ignore
+            self._result = result_reader.read(known_location)  # type: ignore
+        return self
+
+    def load_cached_results(
+        self, results: Mapping[str, Optional[Result]] = None
+    ) -> "State":
+        """
+        Given another Result instance, uses the current Result's `location` to create a fully hydrated `Result`
+        using the logic of the provided result.  This method is mainly intended to be used
+        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+
+        Args:
+            - results (Dict[str, Result]): a dictionary of result instances to hydrate `self.cached_inputs` with
+
+        Returns:
+            - State: the current state with a fully hydrated Result attached
+        """
+        results = results or dict()
+
+        result_readers = {
+            key: results.get(key, result) for key, result in self.cached_inputs.items()
+        }  # type: ignore
+
+        loaded_inputs = {}
+
+        for key, res in self.cached_inputs.items():
+            known_location = res.location or getattr(
+                result_readers[key], "location", None
+            )
+            if res.value is None and known_location is not None:
+                loaded_inputs[key] = result_readers[key].read(known_location)  # type: ignore
+            else:
+                loaded_inputs[key] = res
+
+        self.cached_inputs = loaded_inputs
+
+        return self
 
     @classmethod
     def children(cls) -> "List[Type[State]]":

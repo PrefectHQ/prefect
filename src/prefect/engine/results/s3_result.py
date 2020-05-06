@@ -1,9 +1,7 @@
 import io
-import json
 from typing import Any, TYPE_CHECKING, Dict
 
 import prefect
-from prefect.client import Secret
 from prefect.engine.result import Result
 
 if TYPE_CHECKING:
@@ -14,32 +12,24 @@ class S3Result(Result):
     """
     Result that is written to and retrieved from an AWS S3 Bucket.
 
-    For authentication, there are two options: you can set a Prefect Secret containing
-    your AWS access keys which will be passed directly to the `boto3` client, or you can
-    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can provide your AWS credentials
+    to `prefect.context.secrets.AWS_CREDENTIALS` for automatic authentication
+    or you can [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
+
+    See [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
 
     Args:
         - bucket (str): the name of the bucket to write to / read from
-        - credentials_secret (str, optional): the name of the Prefect Secret
-            that stores your AWS credentials; this Secret must be a JSON string
-            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-            passed directly to `boto3`.  If not provided, `boto3`
-            will fall back on standard AWS rules for authentication.
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized (changing the "service_name" is not permitted).
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
     def __init__(
-        self,
-        bucket: str,
-        credentials_secret: str = None,
-        boto3_kwargs: Dict[str, Any] = None,
-        **kwargs: Any
+        self, bucket: str, boto3_kwargs: Dict[str, Any] = None, **kwargs: Any
     ) -> None:
         self.bucket = bucket
-        self.credentials_secret = credentials_secret
         self.boto3_kwargs = boto3_kwargs or dict()
         assert (
             "service_name" not in self.boto3_kwargs.keys()
@@ -51,32 +41,12 @@ class S3Result(Result):
         """
         Initializes an S3 Client.
         """
-        import boto3
-
-        aws_access_key = self.boto3_kwargs.pop("aws_access_key_id", None)
-        aws_secret_access_key = self.boto3_kwargs.pop("aws_secret_access_key", None)
-
-        if self.credentials_secret:
-            if aws_access_key is not None or aws_secret_access_key is not None:
-                self.logger.warning(
-                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "credentials_secret"'
-                )
-
-            aws_credentials = Secret(self.credentials_secret).get()
-            if isinstance(aws_credentials, str):
-                aws_credentials = json.loads(aws_credentials)
-
-            aws_access_key = aws_credentials["ACCESS_KEY"]
-            aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
+        from prefect.utilities.aws import get_boto_client
 
         # use a new boto session when initializing in case we are in a new thread
         # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
-        session = boto3.session.Session()
-        s3_client = session.client(
-            "s3",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-            **self.boto3_kwargs
+        s3_client = get_boto_client(
+            "s3", credentials=None, use_session=True, **self.boto3_kwargs
         )
         self.client = s3_client
 
@@ -177,7 +147,7 @@ class S3Result(Result):
 
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists in the S3 bucket.
 
@@ -185,6 +155,7 @@ class S3Result(Result):
 
         Args:
             - location (str): Location of the result in the specific result target.
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
@@ -192,7 +163,9 @@ class S3Result(Result):
         import botocore
 
         try:
-            self.client.get_object(Bucket=self.bucket, Key=location).load()
+            self.client.get_object(
+                Bucket=self.bucket, Key=location.format(**kwargs)
+            ).load()
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "404":
                 return False

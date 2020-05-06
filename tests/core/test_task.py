@@ -10,6 +10,7 @@ import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
+from prefect.engine.results import PrefectResult
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -244,16 +245,25 @@ class TestCreateTask:
         with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
             Task(cache_validator=all_inputs)
 
-    def test_create_task_with_and_without_result_handler(self):
+    def test_create_task_with_result_handler_is_deprecated_and_converts_to_result(self):
         t1 = Task()
-        assert t1.result_handler is None
-        t2 = Task(result_handler=JSONResultHandler())
-        assert isinstance(t2.result_handler, ResultHandler)
-        assert isinstance(t2.result_handler, JSONResultHandler)
+        assert not hasattr(t1, "result_handler")
 
-    def test_create_parameter_uses_json_result_handler(self):
+        with pytest.warns(UserWarning, match="deprecated"):
+            t2 = Task(result_handler=JSONResultHandler())
+
+        assert not hasattr(t2, "result_handler")
+        assert isinstance(t2.result, PrefectResult)
+
+    def test_create_task_with_and_without_result(self):
+        t1 = Task()
+        assert t1.result is None
+        t2 = Task(result=PrefectResult())
+        assert isinstance(t2.result, PrefectResult)
+
+    def test_create_parameter_uses_prefect_result(self):
         p = Parameter("p")
-        assert isinstance(p.result_handler, JSONResultHandler)
+        assert isinstance(p.result, PrefectResult)
 
     def test_create_task_with_and_without_checkpoint(self):
         t = Task()
@@ -612,11 +622,3 @@ def test_cache_options_show_deprecation():
         UserWarning, match=r"all cache_\* options on a Task will be deprecated*"
     ):
         Task(cache_key=object())
-
-
-@pytest.mark.skip("Result handlers not yet deprecated")
-def test_result_handler_option_shows_deprecation():
-    with pytest.warns(
-        UserWarning, match="the result_handler Task option will be deprecated*"
-    ):
-        Task(result_handler=object())

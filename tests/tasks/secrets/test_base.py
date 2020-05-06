@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 
 import prefect
-from prefect.engine.result_handlers import SecretResultHandler
+from prefect.engine.results import SecretResult
 from prefect.tasks.secrets import SecretBase, PrefectSecret, Secret
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
@@ -33,9 +33,8 @@ class TestPrefectSecret:
     def test_create_secret(self):
         secret = PrefectSecret(name="test")
         assert secret.name == "test"
-        assert secret.max_retries == 2
-        assert secret.retry_delay.total_seconds() == 1.0
-        assert isinstance(secret.result_handler, SecretResultHandler)
+        assert secret.checkpoint is False
+        assert isinstance(secret.result, SecretResult)
 
     def test_create_secret_with_different_retry_settings(self):
         secret = PrefectSecret(name="test", max_retries=0, retry_delay=None)
@@ -43,9 +42,9 @@ class TestPrefectSecret:
         assert secret.max_retries == 0
         assert secret.retry_delay is None
 
-    def test_create_secret_with_result_handler(self):
+    def test_create_secret_with_result(self):
         with pytest.raises(ValueError):
-            secret = PrefectSecret(name="test", result_handler=lambda x: None)
+            secret = PrefectSecret(name="test", result=lambda x: None)
 
     def test_secret_name_can_be_overwritten(self):
         secret = PrefectSecret(name="test")
@@ -177,6 +176,4 @@ class TestPrefectSecret:
         secret = PrefectSecret(name="long name")
         new = cloudpickle.loads(cloudpickle.dumps(secret))
         assert new.name == "long name"
-        assert new.max_retries == 2
-        assert new.retry_delay.total_seconds() == 1.0
-        assert isinstance(new.result_handler, SecretResultHandler)
+        assert isinstance(new.result, SecretResult)

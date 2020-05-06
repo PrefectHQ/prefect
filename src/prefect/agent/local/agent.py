@@ -40,6 +40,7 @@ class LocalAgent(Agent):
             defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
@@ -59,6 +60,7 @@ class LocalAgent(Agent):
         hostname_label: bool = True,
         max_polls: int = None,
         agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -69,6 +71,7 @@ class LocalAgent(Agent):
             env_vars=env_vars,
             max_polls=max_polls,
             agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
@@ -77,6 +80,9 @@ class LocalAgent(Agent):
         self.labels.extend(
             ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
         )
+
+        self.logger.debug(f"Import paths: {self.import_paths}")
+        self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
 
     def heartbeat(self) -> None:
         for process in list(self.processes):

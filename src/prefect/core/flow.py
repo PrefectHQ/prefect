@@ -32,6 +32,7 @@ import prefect.schedules
 from prefect.core.edge import Edge
 from prefect.core.task import Parameter, Task
 from prefect.engine.result import NoResult, Result
+from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
 from prefect.environments import Environment
 from prefect.environments.storage import Storage, get_default_storage_class
@@ -159,7 +160,15 @@ class Flow:
         self.schedule = schedule
         self.environment = environment or prefect.environments.RemoteEnvironment()
         self.storage = storage
-        self.result_handler = result_handler
+        if result_handler:
+            warnings.warn(
+                "Result Handlers are deprecated; please use the new style Result classes instead."
+            )
+            self.result = ResultHandlerResult.from_result_handler(
+                result_handler
+            )  # type: Optional[Result]
+        else:
+            self.result = result
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -825,15 +834,19 @@ class Flow:
 
     # Execution  ---------------------------------------------------------------
 
-    def _run_on_schedule(
-        self, parameters: Dict[str, Any], runner_cls: type, **kwargs: Any
+    def _run(
+        self,
+        parameters: Dict[str, Any],
+        runner_cls: type,
+        run_on_schedule: bool = True,
+        **kwargs: Any
     ) -> "prefect.engine.state.State":
 
         base_parameters = parameters or dict()
 
         ## determine time of first run
         try:
-            if self.schedule is not None:
+            if run_on_schedule and self.schedule is not None:
                 next_run_event = self.schedule.next(1, return_events=True)[0]
                 next_run_time = next_run_event.start_time  # type: ignore
                 parameters = base_parameters.copy()
@@ -933,7 +946,7 @@ class Flow:
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
 
             try:
-                if self.schedule is not None:
+                if run_on_schedule and self.schedule is not None:
                     next_run_event = self.schedule.next(1, return_events=True)[0]
                     next_run_time = next_run_event.start_time  # type: ignore
                     parameters = base_parameters.copy()
@@ -1026,13 +1039,13 @@ class Flow:
 
         if run_on_schedule is None:
             run_on_schedule = cast(bool, prefect.config.flows.run_on_schedule)
-        if run_on_schedule is False:
-            runner = runner_cls(flow=self)
-            state = runner.run(parameters=parameters, return_tasks=self.tasks, **kwargs)
-        else:
-            state = self._run_on_schedule(
-                parameters=parameters, runner_cls=runner_cls, **kwargs
-            )
+
+        state = self._run(
+            parameters=parameters,
+            runner_cls=runner_cls,
+            run_on_schedule=run_on_schedule,
+            **kwargs
+        )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
         # interrupted before any tasks were executed), we set the dict manually.
@@ -1366,8 +1379,8 @@ class Flow:
             self.environment.labels.update(labels)
 
         # register the flow with a default result handler if one not provided
-        if not self.result_handler:
-            self.result_handler = self.storage.result_handler
+        if not self.result:
+            self.result = self.storage.result
 
         client = prefect.Client()
         registered_flow = client.register(

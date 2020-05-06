@@ -61,31 +61,6 @@ class TestCreateBranchInitialization:
 
 
 # deprecated
-class TestCredentialsSecret:
-    def test_creds_are_pulled_from_secret_at_runtime_repo_info(self, monkeypatch):
-        task = GetRepoInfo(token_secret="GITHUB_ACCESS_TOKEN")
-
-        req = MagicMock()
-        monkeypatch.setattr(requests, "get", req)
-
-        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-            task.run(repo="org/repo")
-
-        assert req.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-    def test_creds_are_pulled_from_secret_at_runtime_create_branch(self, monkeypatch):
-        task = CreateBranch(token_secret="GITHUB_ACCESS_TOKEN")
-
-        req = MagicMock()
-        monkeypatch.setattr(requests, "get", req)
-
-        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-            with pytest.raises(ValueError, match="not found"):
-                task.run(repo="org/repo", branch_name="new")
-
-        assert req.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"
-
-
 def test_base_name_is_filtered_for(monkeypatch):
     task = CreateBranch(base="BOB", branch_name="NEWBRANCH")
 
