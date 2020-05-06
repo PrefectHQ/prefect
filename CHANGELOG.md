@@ -25,11 +25,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Deprecations
 
-- Remove the Nomad agent - [#2492](https://github.com/PrefectHQ/prefect/pull/2492)
+- None
 
 ### Breaking Changes
 
-- None
+- Remove the Nomad agent - [#2492](https://github.com/PrefectHQ/prefect/pull/2492)
 
 ### Contributors
 
