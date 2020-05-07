@@ -338,6 +338,7 @@ def test_context_attributes():
     assert test_filter.called
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Test randomly fails on Windows")
 def test_users_can_specify_additional_context_attributes(caplog):
     items = {
         "flow_run_id": "fri",
@@ -359,6 +360,7 @@ def test_users_can_specify_additional_context_attributes(caplog):
     assert caplog.records[0].trace_id == "ID"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Test randomly fails on Windows")
 def test_users_can_specify_additional_context_attributes_and_fails_gracefully(caplog):
     items = {
         "flow_run_id": "fri",
