@@ -1,6 +1,7 @@
 import copy
 from contextlib import redirect_stdout
 import itertools
+import json
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -75,6 +76,8 @@ class TaskRunner(Runner):
             result of the previous handler.
         - result (Result, optional): the result type to use for retrieving and storing state results
             during execution (if the Task doesn't already have one)
+        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
+            during execution (to be used on upstream inputs if they don't provide their own results)
     """
 
     def __init__(
@@ -82,6 +85,7 @@ class TaskRunner(Runner):
         task: Task,
         state_handlers: Iterable[Callable] = None,
         result: Result = None,
+        default_result: Result = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
@@ -94,6 +98,7 @@ class TaskRunner(Runner):
             self.result = Result().copy() if result is None else result.copy()
             if self.task.target:
                 self.result.location = self.task.target
+        self.default_result = default_result or Result()
         super().__init__(state_handlers=state_handlers)
 
     def __repr__(self) -> str:
@@ -159,9 +164,11 @@ class TaskRunner(Runner):
             else:
                 loop_result_value = loop_result.value
             loop_context = {
-                "task_loop_count": state.cached_inputs.pop(  # type: ignore
-                    "_loop_count"
-                ).value,  # type: ignore
+                "task_loop_count": json.loads(
+                    state.cached_inputs.pop(  # type: ignore
+                        "_loop_count"
+                    ).location
+                ),  # type: ignore
                 "task_loop_result": loop_result_value,
             }
             context.update(loop_context)
@@ -911,6 +918,7 @@ class TaskRunner(Runner):
 
             raise ENDRUN(state)
 
+        value = None
         try:
             self.logger.debug(
                 "Task '{name}': Calling task.run() method...".format(
@@ -1031,7 +1039,7 @@ class TaskRunner(Runner):
             if prefect.context.get("task_loop_count") is not None:
                 loop_context = {
                     "_loop_count": PrefectResult(
-                        value=prefect.context["task_loop_count"],
+                        location=json.dumps(prefect.context["task_loop_count"]),
                     ),
                     "_loop_result": self.result.from_value(
                         value=prefect.context.get("task_loop_result")

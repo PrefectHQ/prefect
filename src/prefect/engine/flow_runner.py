@@ -571,6 +571,7 @@ class FlowRunner(Runner):
                 task=task,
                 state_handlers=task_runner_state_handlers,
                 result=default_result or Result(),
+                default_result=self.flow.result,
             )
 
             # if this task reduces over a mapped state, make sure its children have finished
