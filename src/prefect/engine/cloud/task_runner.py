@@ -42,6 +42,8 @@ class CloudTaskRunner(TaskRunner):
             result of the previous handler.
         - result (Result, optional): the result instance used to retrieve and store task results during execution;
             if not provided, will default to the one on the provided Task
+        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
+            during execution (to be used on upstream inputs if they don't provide their own results)
     """
 
     def __init__(
@@ -49,9 +51,15 @@ class CloudTaskRunner(TaskRunner):
         task: Task,
         state_handlers: Iterable[Callable] = None,
         result: Result = None,
+        default_result: Result = None,
     ) -> None:
         self.client = Client()
-        super().__init__(task=task, state_handlers=state_handlers, result=result)
+        super().__init__(
+            task=task,
+            state_handlers=state_handlers,
+            result=result,
+            default_result=default_result,
+        )
 
     def _heartbeat(self) -> bool:
         try:
@@ -261,10 +269,12 @@ class CloudTaskRunner(TaskRunner):
         try:
             for edge, upstream_state in upstream_states.items():
                 upstream_states[edge] = upstream_state.load_result(
-                    edge.upstream_task.result
+                    edge.upstream_task.result or self.default_result
                 )
                 if edge.key is not None:
-                    upstream_results[edge.key] = edge.upstream_task.result
+                    upstream_results[edge.key] = (
+                        edge.upstream_task.result or self.default_result
+                    )
 
             state.load_cached_results(upstream_results)
             return state, upstream_states

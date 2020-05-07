@@ -27,9 +27,7 @@ def get_safe(obj: state.State, context: dict) -> Any:
             return obj._result
         return obj._result.safe_value  # type: ignore
     value = context.get("value", result.NoResult)
-    if value is None:
-        return value
-    return value.safe_value
+    return value
 
 
 class BaseStateSchema(ObjectSchema):

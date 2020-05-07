@@ -1,4 +1,5 @@
 import datetime
+import json
 import tempfile
 import uuid
 
@@ -8,6 +9,7 @@ import pytest
 
 import prefect
 from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
@@ -223,7 +225,7 @@ def test_states_have_color(cls):
 def test_serialize_and_deserialize_on_raw_cached_state():
     now = pendulum.now("utc")
     state = Cached(
-        cached_inputs=dict(x=Result(99), p=Result("p")),
+        cached_inputs=dict(x=PrefectResult(value=99), p=PrefectResult(value="p")),
         result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
@@ -233,14 +235,14 @@ def test_serialize_and_deserialize_on_raw_cached_state():
     assert new_state.color == state.color
     assert new_state.result is None
     assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
 
 
 def test_serialize_and_deserialize_on_mixed_cached_state():
-    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
+    safe_dct = PrefectResult(location=json.dumps(dict(hi=5, bye=6)))
     now = pendulum.now("utc")
     state = Cached(
-        cached_inputs=dict(x=Result(2), p=Result("p")),
+        cached_inputs=dict(x=PrefectResult(value=2), p=PrefectResult(value="p")),
         result=safe_dct,
         cached_result_expiration=now,
     )
@@ -248,9 +250,9 @@ def test_serialize_and_deserialize_on_mixed_cached_state():
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Cached)
     assert new_state.color == state.color
-    assert new_state.result == dict(hi=5, bye=6)
+    assert new_state._result.location == json.dumps(dict(hi=5, bye=6))
     assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
 
 
 def test_serialize_and_deserialize_on_safe_cached_state():
@@ -283,12 +285,12 @@ def test_serialization_of_cached_inputs_with_safe_values(cls):
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_unsafe_values(cls):
-    unsafe5 = Result(5, result_handler=JSONResultHandler())
+    unsafe5 = PrefectResult(value=5)
     state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == dict(hi=NoResult, bye=NoResult)
+    assert new_state.cached_inputs == dict(hi=PrefectResult(), bye=PrefectResult())
 
 
 def test_state_equality():

@@ -327,3 +327,23 @@ class TestNewStyleResults:
         assert new_state._result.bucket == "foo"
         assert isinstance(new_state._result, results.S3Result)
         assert new_state._result.location == "dir/place.txt"
+
+    def test_cached_inputs_are_serialized_correctly(self):
+        s = state.Cached(
+            message="test",
+            result=results.PrefectResult(value=1, location="1"),
+            cached_inputs=dict(
+                x=results.PrefectResult(location='"foo"'),
+                y=results.PrefectResult(location='"bar"'),
+            ),
+        )
+        schema = StateSchema()
+        serialized = schema.dump(s)
+
+        assert serialized["cached_inputs"]["x"]["location"] == '"foo"'
+        assert serialized["cached_inputs"]["y"]["location"] == '"bar"'
+
+        new_state = schema.load(serialized)
+
+        assert new_state.cached_inputs["x"].location == '"foo"'
+        assert new_state.cached_inputs["y"].location == '"bar"'
