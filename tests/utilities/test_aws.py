@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("boto3")
+
 import prefect
 from prefect.utilities.aws import get_boto_client
 from prefect.utilities.configuration import set_temporary_config
