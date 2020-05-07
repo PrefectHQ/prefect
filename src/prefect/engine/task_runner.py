@@ -164,9 +164,11 @@ class TaskRunner(Runner):
             else:
                 loop_result_value = loop_result.value
             loop_context = {
-                "task_loop_count": state.cached_inputs.pop(  # type: ignore
-                    "_loop_count"
-                ).value,  # type: ignore
+                "task_loop_count": json.loads(
+                    state.cached_inputs.pop(  # type: ignore
+                        "_loop_count"
+                    ).location
+                ),  # type: ignore
                 "task_loop_result": loop_result_value,
             }
             context.update(loop_context)
