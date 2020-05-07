@@ -22,7 +22,7 @@ def get_boto_client(
         - **kwargs (Any, optional): additional keyword arguments to pass to boto3
 
     Returns:
-        - Client: an initialized and authenticated Google Client
+        - Client: an initialized and authenticated boto3 Client
     """
     aws_access_key = None
     aws_secret_access_key = None
