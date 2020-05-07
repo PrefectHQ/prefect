@@ -32,7 +32,7 @@ async def delete_data_after_each_test():
         yield
     finally:
         await models.Flow.where().delete()
-        await models.ResourcePool.where().delete()
+        await models.FlowConcurrencyLimit.where().delete()
 
 
 @pytest.fixture
@@ -217,29 +217,29 @@ async def excess_submitted_task_runs():
 
 
 @pytest.fixture
-async def resource_pool() -> models.ResourcePool:
+async def flow_concurrency_limit() -> models.FlowConcurrencyLimit:
 
-    pool_id = await api.resource_pools.create_resource_pool(
-        "test pool",
-        description="A resource pool created from Prefect Server's test suite.",
+    concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
+        "test flow concurrency limit",
+        description="A flow concurrency limit created from Prefect Server's test suite.",
         slots=1,
     )
 
-    populated_pool = await models.ResourcePool.where(id=pool_id).first(
-        {"id", "name", "description", "slots"}
-    )
-    return populated_pool
+    populated_concurrency_limit = await models.FlowConcurrencyLimit.where(
+        id=concurrency_limit_id
+    ).first({"id", "name", "description", "slots"})
+    return populated_concurrency_limit
 
 
 @pytest.fixture
-async def resource_pool_2() -> models.ResourcePool:
-    pool_id = await api.resource_pools.create_resource_pool(
+async def flow_concurrency_limit_2() -> models.FlowConcurrencyLimit:
+    concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
         "spark",
-        description="A second resource pool created from Prefect Server's test suite",
+        description="A second flow concurrency limit created from Prefect Server's test suite",
         slots=1,
     )
 
-    populated_pool = await models.ResourcePool.where(id=pool_id).first(
-        {"id", "name", "description", "slots"}
-    )
-    return populated_pool
+    populated_concurrency_limit = await models.FlowConcurrencyLimit.where(
+        id=concurrency_limit_id
+    ).first({"id", "name", "description", "slots"})
+    return populated_concurrency_limit

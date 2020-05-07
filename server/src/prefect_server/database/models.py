@@ -6,11 +6,11 @@ import datetime
 from typing import Any, Dict, List
 
 import pendulum
+import prefect
 import pydantic
+
 from prefect_server import config
 from prefect_server.database.orm import HasuraModel, UUIDString
-
-import prefect
 
 
 class Flow(HasuraModel):
@@ -249,8 +249,8 @@ class Log(HasuraModel):
     info: Dict[str, Any] = None
 
 
-class ResourcePool(HasuraModel):
-    __hasura_type__ = "resource_pool"
+class FlowConcurrencyLimit(HasuraModel):
+    __hasura_type__ = "flow_concurrency_limit"
 
     id: UUIDString = None
     created: datetime.datetime = None

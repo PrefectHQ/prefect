@@ -1,5 +1,5 @@
 """
-add resource pools
+add flow concurrency limits
 
 Revision ID: 52f08a976090
 Revises: 7e65dadba625
@@ -22,7 +22,7 @@ def upgrade():
         """
         -- Table Definition ----------------------------------------------
 
-        CREATE TABLE resource_pool (
+        CREATE TABLE flow_concurrency_limit (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             created timestamp with time zone NOT NULL DEFAULT now(),
             updated timestamp with time zone NOT NULL DEFAULT now(),
@@ -33,7 +33,7 @@ def upgrade():
 
         -- Indices -------------------------------------------------------
 
-        CREATE INDEX ix_resource_pool_name ON resource_pool(name text_ops);
+        CREATE INDEX ix_flow_concurrency_name ON flow_concurrency_limit(name text_ops);
 
         """
     )
@@ -42,6 +42,6 @@ def upgrade():
 def downgrade():
     op.execute(
         """
-        DROP TABLE resource_pool CASCADE;
+        DROP TABLE flow_concurrency_limit CASCADE;
         """
     )

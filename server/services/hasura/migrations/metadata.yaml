@@ -179,9 +179,9 @@ tables:
     name: task_run_state
     schema: public
 - table:
-    name: log
+    name: flow_concurrency_limit
     schema: public
 - table:
-    name: resource_pool
+    name: log
     schema: public
 version: 2

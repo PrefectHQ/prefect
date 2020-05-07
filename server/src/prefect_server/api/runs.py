@@ -230,19 +230,28 @@ async def get_runs_in_queue(
     )
 
     # See if any flows are resource constrained and find current available resources
-    resources = set()
+    concurrency_limits = set()
     for flow_run in flow_runs:
-        flow_resources = flow_run.flow.settings.get("resources") or []
-        for flow_resource in flow_resources:
-            resources.add(flow_resource)
+        flow_concurrency_limits = flow_run.flow.settings.get("concurrency_limits") or []
+        for flow_concurrency_limit in flow_concurrency_limits:
+            concurrency_limits.add(flow_concurrency_limit)
 
     available_resource_utilization = {
-        resource: await api.resource_pools.get_available_resources(pool_name=resource)
-        for resource in resources
+        flow_concurrency_limit: await api.concurrency_limits.get_available_flow_concurrency(
+            flow_concurrency_limit
+        )
+        for flow_concurrency_limit in concurrency_limits
     }
 
     counter = 0
     final_flow_runs = []
+
+    # The concurrency checks occuring here are _not_ the end-all-be-all
+    # for ensuring flow concurrency. The checks occur here to ensure we
+    # don't have agents pulling runs that  Without these checks here,
+    # a situation where _only_ flow runs that _don't_ have available
+    # concurrency slots are returned is possible when there are
+    # runs in the queue that _could_ be submitted for execution.
 
     for flow_run in flow_runs:
         if counter == config.queued_runs_returned_limit:
@@ -258,25 +267,26 @@ async def get_runs_in_queue(
         if not run_labels and labels:
             continue
 
-        # if the flow run has available resources
-        flow_resources = flow_run.flow.settings.get("resources") or []
-        if flow_resources:
-
+        # Required concurrency slots of this flow run
+        flow_concurrency_limits = flow_run.flow.settings.get("concurrency_limits") or []
+        if flow_concurrency_limits:
+            # if the execution environment has available concurrency for all
+            # of the concurrency slots this flow run requires.
             if not all(
                 [
-                    available_resource_utilization[resource] > 0
-                    for resource in flow_resources
+                    available_resource_utilization[concurrency_limit] > 0
+                    for concurrency_limit in flow_concurrency_limits
                 ]
             ):
-                # The run doesn't have the available resources, so we
+                # The run doesn't have the available concurrency slots, so we
                 # bail early and don't count towards the number
                 # in the queue.
 
                 continue
             else:
 
-                for resource in flow_resources:
-                    available_resource_utilization[resource] -= 1
+                for concurrency_limit in flow_concurrency_limits:
+                    available_resource_utilization[concurrency_limit] -= 1
 
         final_flow_runs.append(flow_run.id)
         counter += 1

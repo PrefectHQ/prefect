@@ -9,14 +9,13 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import pendulum
-from box import Box
-
 import prefect
-
+from box import Box
 from prefect.engine.state import Failed, Queued, State
+from prefect.utilities.graphql import EnumValue, with_args
+
 from prefect_server import api, config
 from prefect_server.database import hasura, models
-from prefect.utilities.graphql import EnumValue, with_args
 from prefect_server.utilities.logging import get_logger
 
 logger = get_logger("api")
@@ -43,6 +42,10 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> None:
 
     if not flow_run:
         raise ValueError(f"Invalid flow run ID: {flow_run_id}.")
+
+    # TODO: Add gatekeeper flow-run-concurrency code here, and document
+    # that this is the codeset that ultimately matters for restricting
+    # settings flows to running if there isn't concurrency available
 
     # --------------------------------------------------------
     # insert the new state in the database
