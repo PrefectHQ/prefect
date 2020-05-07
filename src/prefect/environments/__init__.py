@@ -6,4 +6,5 @@ from prefect.environments.execution import (
     LocalEnvironment,
     RemoteEnvironment,
     RemoteDaskEnvironment,
+    DaskCloudProviderEnvironment,
 )
