@@ -897,7 +897,11 @@ class Flow:
                     context=flow_run_context,
                     **kwargs
                 )
-                if not isinstance(flow_state.result, dict):
+
+                # if flow_state is still scheduled; this most likely means
+                # that initialize_run failed (possibly due to a connection issue)
+                # and so we want to abort instead of creating an infinite loop
+                if not isinstance(flow_state.result, dict) or flow_state.is_scheduled():
                     error = True
                     break
 
@@ -1084,7 +1088,7 @@ class Flow:
             - flow_state (State, optional): flow state object used to optionally color the nodes
             - filename (str, optional): a filename specifying a location to save this visualization to; if provided,
                 the visualization will not be rendered automatically
-            - format (str, optional): a format specifying the output file type; defaults to 'pdf'. 
+            - format (str, optional): a format specifying the output file type; defaults to 'pdf'.
               Refer to http://www.graphviz.org/doc/info/output.html for valid formats
 
         Raises:
