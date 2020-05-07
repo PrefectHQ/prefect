@@ -1,10 +1,8 @@
 import os
-import sys
 import uuid
 from os import path
 from typing import Iterable
 
-import pendulum
 import yaml
 
 import prefect
@@ -15,18 +13,6 @@ from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
-
-
-def check_heartbeat() -> None:
-    """
-    Check the agent's heartbeat by verifying heartbeat file has been recently modified
-    """
-    current_timestamp = pendulum.now().timestamp()  # type: ignore
-    last_modified_timestamp = path.getmtime("{}/heartbeat".format(AGENT_DIRECTORY))
-
-    # If file has not been modified in the last 40 seconds then raise an exit code of 1
-    if current_timestamp - last_modified_timestamp > 40:
-        sys.exit(1)
 
 
 class KubernetesAgent(Agent):
@@ -57,6 +43,9 @@ class KubernetesAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
     """
 
     def __init__(
@@ -66,9 +55,16 @@ class KubernetesAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
 
         self.namespace = namespace
@@ -86,6 +82,8 @@ class KubernetesAgent(Agent):
             config.load_kube_config()
 
         self.batch_client = client.BatchV1Api()
+
+        self.logger.debug(f"Namespace: {self.namespace}")
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -169,9 +167,10 @@ class KubernetesAgent(Agent):
         env[0]["value"] = config.cloud.api or "https://api.prefect.io"
         env[1]["value"] = config.cloud.agent.auth_token
         env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = os.getenv("NAMESPACE", "default")
-        env[4]["value"] = str(self.labels)
-        env[5]["value"] = str(self.log_to_cloud).lower()
+        env[3]["value"] = flow_run.flow.id  # type: ignore
+        env[4]["value"] = os.getenv("NAMESPACE", "default")
+        env[5]["value"] = str(self.labels)
+        env[6]["value"] = str(self.log_to_cloud).lower()
 
         # append all user provided values
         for key, value in self.env_vars.items():
@@ -209,6 +208,8 @@ class KubernetesAgent(Agent):
         cpu_request: str = None,
         cpu_limit: str = None,
         labels: Iterable[str] = None,
+        env_vars: dict = None,
+        backend: str = None,
     ) -> str:
         """
         Generate and output an installable YAML spec for the agent.
@@ -233,6 +234,10 @@ class KubernetesAgent(Agent):
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
+            - env_vars (dict, optional): additional environment variables to attach to all
+                jobs created by this agent
+            - backend (str, optional): toggle which backend to use for this agent.
+                Defaults to backend currently set in config.
 
         Returns:
             - str: A string representation of the generated YAML
@@ -247,6 +252,7 @@ class KubernetesAgent(Agent):
         mem_limit = mem_limit or ""
         cpu_request = cpu_request or ""
         cpu_limit = cpu_limit or ""
+        backend = backend or config.backend
 
         version = prefect.__version__.split("+")
         image_version = (
@@ -266,12 +272,19 @@ class KubernetesAgent(Agent):
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
+        agent_env[9]["value"] = backend
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request
         agent_env[6]["value"] = mem_limit
         agent_env[7]["value"] = cpu_request
         agent_env[8]["value"] = cpu_limit
+
+        if env_vars:
+            for k, v in env_vars.items():
+                agent_env.append(
+                    {"name": f"PREFECT__CLOUD__AGENT__ENV_VARS__{k}", "value": v}
+                )
 
         # Use local prefect version for image
         deployment["spec"]["template"]["spec"]["containers"][0][
@@ -316,16 +329,6 @@ class KubernetesAgent(Agent):
         output_yaml = [deployment]
         output_yaml.extend(rbac_yaml)
         return yaml.safe_dump_all(output_yaml, explicit_start=True)
-
-    def heartbeat(self) -> None:
-        """
-        Write agent heartbeat by opening and closing a heartbeat file. This allows
-        liveness probes to check the agent's main process activity based on the
-        heartbeat file's last modified time.
-        """
-        os.makedirs(AGENT_DIRECTORY, exist_ok=True)
-
-        open("{}/heartbeat".format(AGENT_DIRECTORY), "w").close()
 
 
 if __name__ == "__main__":

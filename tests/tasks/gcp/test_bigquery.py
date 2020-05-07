@@ -22,7 +22,6 @@ class TestBigQueryInitialization:
         assert task.project is None
         assert task.location == "US"
         assert task.dry_run_max_bytes is None
-        assert task.credentials_secret is None
         assert task.dataset_dest is None
         assert task.table_dest is None
         assert task.job_config == dict()
@@ -41,7 +40,6 @@ class TestBigQueryInitialization:
             "project",
             "location",
             "dry_run_max_bytes",
-            "credentials_secret",
             "dataset_dest",
             "table_dest",
             "job_config",
@@ -70,7 +68,6 @@ class TestBigQueryStreamingInsertInitialization:
         task = BigQueryStreamingInsert()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
 
@@ -80,9 +77,7 @@ class TestBigQueryStreamingInsertInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["project", "location", "credentials_secret", "dataset_id", "table"]
-    )
+    @pytest.mark.parametrize("attr", ["project", "location", "dataset_id", "table"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = BigQueryStreamingInsert(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -101,7 +96,6 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         task = BigQueryLoadGoogleCloudStorage()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
         assert task.uri is None
@@ -114,9 +108,7 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["project", "location", "credentials_secret", "dataset_id", "table"]
-    )
+    @pytest.mark.parametrize("attr", ["project", "location", "dataset_id", "table"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = BigQueryLoadGoogleCloudStorage(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -256,9 +248,7 @@ class TestBigQueryStreamingInsertCredentialsandProjects:
 
 class TestDryRuns:
     def test_dry_run_doesnt_raise_if_limit_not_exceeded(self, monkeypatch):
-        task = BigQueryTask(
-            dry_run_max_bytes=1200, credentials_secret="GOOGLE_APPLICATION_CREDENTIALS"
-        )
+        task = BigQueryTask(dry_run_max_bytes=1200)
 
         client = MagicMock(
             query=MagicMock(return_value=MagicMock(total_bytes_processed=1200))
@@ -268,13 +258,10 @@ class TestDryRuns:
             MagicMock(return_value=client),
         )
 
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-            task.run(query="SELECT *")
+        task.run(query="SELECT *")
 
     def test_dry_run_raises_if_limit_is_exceeded(self, monkeypatch):
-        task = BigQueryTask(
-            dry_run_max_bytes=1200, credentials_secret="GOOGLE_APPLICATION_CREDENTIALS"
-        )
+        task = BigQueryTask(dry_run_max_bytes=1200)
 
         client = MagicMock(
             query=MagicMock(return_value=MagicMock(total_bytes_processed=21836427))
@@ -284,19 +271,17 @@ class TestDryRuns:
             MagicMock(return_value=client),
         )
 
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-            with pytest.raises(
-                ValueError,
-                match="Query will process 21836427 bytes which is above the set maximum of 1200 for this task",
-            ):
-                task.run(query="SELECT *")
+        with pytest.raises(
+            ValueError,
+            match="Query will process 21836427 bytes which is above the set maximum of 1200 for this task",
+        ):
+            task.run(query="SELECT *")
 
 
 class TestCreateBigQueryTableInitialization:
     def test_initializes_with_nothing_and_sets_defaults(self):
         task = CreateBigQueryTable()
         assert task.project is None
-        assert task.credentials_secret is None
         assert task.dataset is None
         assert task.table is None
         assert task.schema is None
@@ -313,7 +298,6 @@ class TestCreateBigQueryTableInitialization:
         "attr",
         [
             "project",
-            "credentials_secret",
             "dataset",
             "table",
             "schema",
@@ -329,25 +313,8 @@ class TestCreateBigQueryTableInitialization:
         monkeypatch.setattr(
             "prefect.tasks.gcp.bigquery.get_bigquery_client", MagicMock()
         )
-        task = CreateBigQueryTable(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
+        task = CreateBigQueryTable()
         with pytest.raises(prefect.engine.signals.SUCCESS) as exc:
-            with prefect.context(
-                secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})
-            ):
-                task.run()
-
-        assert "already exists" in str(exc.value)
-
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = CreateBigQueryTable(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
-
-        client_util = MagicMock(
-            return_value=MagicMock(get_table=MagicMock(side_effect=NotFound("boy")))
-        )
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
-        )
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
             task.run()
 
-        assert client_util.call_args[1]["credentials"] == {"key": 42}
+        assert "already exists" in str(exc.value)

@@ -2,7 +2,7 @@ import cloudpickle
 import pytest
 
 from prefect import context, triggers
-from prefect.core.edge import Edge
+from prefect.core.edge import Edge, Task
 from prefect.engine import signals
 from prefect.engine.state import (
     Failed,
@@ -24,10 +24,10 @@ def generate_states(success=0, failed=0, skipped=0, pending=0, retrying=0) -> di
         Retrying: retrying,
     }
 
-    states = set()
+    states = dict()
     for state, count in state_counts.items():
         for _ in range(count):
-            states.add(state())
+            states[Edge(Task(), Task())] = state()
     return states
 
 
@@ -348,7 +348,7 @@ def test_some_successful_is_pickleable():
     ],
 )
 def test_standard_triggers_return_true_for_empty_upstream(trigger):
-    assert trigger(set()) is True
+    assert trigger(dict()) is True
 
 
 @pytest.mark.parametrize("func", [triggers.some_failed, triggers.some_successful])

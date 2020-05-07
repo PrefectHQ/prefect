@@ -209,11 +209,11 @@ class LocalDaskExecutor(Executor):
     Prefect's mapping feature will not work in conjunction with setting `scheduler="processes"`.
 
     Args:
-        - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "synchronous".
+        - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "threads".
         - **kwargs (Any): Additional keyword arguments to pass to dask config
     """
 
-    def __init__(self, scheduler: str = "synchronous", **kwargs: Any):
+    def __init__(self, scheduler: str = "threads", **kwargs: Any):
         self.scheduler = scheduler
         self.kwargs = kwargs
         super().__init__()

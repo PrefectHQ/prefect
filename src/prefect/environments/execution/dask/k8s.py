@@ -296,9 +296,15 @@ class DaskKubernetesEnvironment(Environment):
             ) as f:
                 flow = cloudpickle.load(f)
 
-                executor = DaskExecutor(address=cluster.scheduler_address)
-                runner_cls = get_default_flow_runner_class()
-                runner_cls(flow=flow).run(executor=executor)
+                ## populate global secrets
+                secrets = prefect.context.get("secrets", {})
+                for secret in flow.storage.secrets:
+                    secrets[secret.name] = secret.run()
+
+                with prefect.context(secrets=secrets):
+                    executor = DaskExecutor(address=cluster.scheduler_address)
+                    runner_cls = get_default_flow_runner_class()
+                    runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)

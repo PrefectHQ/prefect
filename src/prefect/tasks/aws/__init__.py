@@ -1,8 +1,7 @@
 """
 This module contains a collection of tasks for interacting with AWS resources.
 
-Note that all tasks require a Prefect Secret called `"AWS_CREDENTIALS"` that should be a JSON
-document with two keys: `"ACCESS_KEY"` and `"SECRET_ACCESS_KEY"`.
+All AWS related tasks can be authenticated using the `AWS_CREDENTIALS` Prefect Secret that should be a dictionary with two keys: `"ACCESS_KEY"` and `"SECRET_ACCESS_KEY"`.  See [Third Party Authentication](../../../orchestration/recipes/third_party_auth.html) for more information.
 """
 try:
     from prefect.tasks.aws.s3 import S3Download, S3Upload

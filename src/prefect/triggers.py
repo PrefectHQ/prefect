@@ -42,23 +42,44 @@ flow.set_reference_tasks([success])
 flow.run()
 ```
 """
-from typing import TYPE_CHECKING, Callable, Set, Union
+from typing import TYPE_CHECKING, Callable, Dict, Union
 
 from prefect import context
 from prefect.engine import signals
+from prefect.engine.state import Mapped
 
 if TYPE_CHECKING:
     from prefect.engine import state  # pylint: disable=W0611
+    from prefect import core  # pylint: disable=W0611
 
 
-def all_finished(upstream_states: Set["state.State"]) -> bool:
+def _get_all_states_as_set(upstream_states: Dict["core.Edge", "state.State"]) -> set:
+    """
+    Convert all upstream states to a set and expand map states.
+
+    Args:
+        - upstream_states (dict[Edge, State]): the set of all upstream states
+
+    Returns:
+        - set: a set of all upstream State objects
+    """
+    all_states = set()
+    for upstream_state in upstream_states.values():
+        if isinstance(upstream_state, Mapped):
+            all_states.update(upstream_state.map_states)
+        else:
+            all_states.add(upstream_state)
+    return all_states
+
+
+def all_finished(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     This task will run no matter what the upstream states are, as long as they are finished.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
-    if not all(s.is_finished() for s in upstream_states):
+    if not all(s.is_finished() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_finished" but some of the upstream tasks were not finished.'
         )
@@ -66,7 +87,7 @@ def all_finished(upstream_states: Set["state.State"]) -> bool:
     return True
 
 
-def manual_only(upstream_states: Set["state.State"]) -> bool:
+def manual_only(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     This task will never run automatically, because this trigger will
     always place the task in a Paused state. The only exception is if
@@ -74,7 +95,7 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
     automatically when a task starts in a Resume state.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
     if context.get("resume"):
         return True
@@ -82,64 +103,68 @@ def manual_only(upstream_states: Set["state.State"]) -> bool:
     raise signals.PAUSE('Trigger function is "manual_only"')
 
 
-def all_successful(upstream_states: Set["state.State"]) -> bool:
+def all_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     Runs if all upstream tasks were successful. Note that `SKIPPED` tasks are considered
     successes and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if not all(s.is_successful() for s in upstream_states):
+    if not all(s.is_successful() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_successful" but some of the upstream tasks failed.'
         )
     return True
 
 
-def all_failed(upstream_states: Set["state.State"]) -> bool:
+def all_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     Runs if all upstream tasks failed. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if not all(s.is_failed() for s in upstream_states):
+    if not all(s.is_failed() for s in _get_all_states_as_set(upstream_states)):
         raise signals.TRIGGERFAIL(
             'Trigger was "all_failed" but some of the upstream tasks succeeded.'
         )
     return True
 
 
-def any_successful(upstream_states: Set["state.State"]) -> bool:
+def any_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     Runs if any tasks were successful. Note that `SKIPPED` tasks are considered successes
     and `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if upstream_states and not any(s.is_successful() for s in upstream_states):
+    if upstream_states and not any(
+        s.is_successful() for s in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_successful" but none of the upstream tasks succeeded.'
         )
     return True
 
 
-def any_failed(upstream_states: Set["state.State"]) -> bool:
+def any_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     Runs if any tasks failed. Note that `SKIPPED` tasks are considered successes and
     `TRIGGER_FAILED` tasks are considered failures.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if upstream_states and not any(s.is_failed() for s in upstream_states):
+    if upstream_states and not any(
+        s.is_failed() for s in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "any_failed" but none of the upstream tasks failed.'
         )
@@ -148,7 +173,7 @@ def any_failed(upstream_states: Set["state.State"]) -> bool:
 
 def some_failed(
     at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Set["state.State"]], bool]:
+) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
     """
     Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -164,12 +189,12 @@ def some_failed(
             absolute number.
     """
 
-    def _some_failed(upstream_states: Set["state.State"]) -> bool:
+    def _some_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         """
         The underlying trigger function.
 
         Args:
-            - upstream_states (set[State]): the set of all upstream states
+            - upstream_states (dict[Edge, State]): the set of all upstream states
 
         Returns:
             - bool: whether the trigger thresolds were met
@@ -178,8 +203,10 @@ def some_failed(
             return True
 
         # scale conversions
-        num_failed = len([s for s in upstream_states if s.is_failed()])
-        num_states = len(upstream_states)
+        num_failed = len(
+            [s for s in _get_all_states_as_set(upstream_states) if s.is_failed()]
+        )
+        num_states = len(_get_all_states_as_set(upstream_states))
         if at_least is not None:
             min_num = (num_states * at_least) if at_least < 1 else at_least
         else:
@@ -200,7 +227,7 @@ def some_failed(
 
 def some_successful(
     at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Set["state.State"]], bool]:
+) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
     """
     Runs if some amount of upstream tasks succeed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -216,12 +243,12 @@ def some_successful(
             absolute number.
     """
 
-    def _some_successful(upstream_states: Set["state.State"]) -> bool:
+    def _some_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         """
         The underlying trigger function.
 
         Args:
-            - upstream_states (set[State]): the set of all upstream states
+            - upstream_states (dict[Edge, State]): the set of all upstream states
 
         Returns:
             - bool: whether the trigger thresolds were met
@@ -230,8 +257,10 @@ def some_successful(
             return True
 
         # scale conversions
-        num_success = len([s for s in upstream_states if s.is_successful()])
-        num_states = len(upstream_states)
+        num_success = len(
+            [s for s in _get_all_states_as_set(upstream_states) if s.is_successful()]
+        )
+        num_states = len(_get_all_states_as_set(upstream_states))
         if at_least is not None:
             min_num = (num_states * at_least) if at_least < 1 else at_least
         else:
@@ -250,17 +279,19 @@ def some_successful(
     return _some_successful
 
 
-def not_all_skipped(upstream_states: Set["state.State"]) -> bool:
+def not_all_skipped(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     """
     Runs if all upstream tasks were successful and were not all skipped.
 
     Args:
-        - upstream_states (set[State]): the set of all upstream states
+        - upstream_states (dict[Edge, State]): the set of all upstream states
     """
 
-    if all(state.is_skipped() for state in upstream_states):
+    if all(state.is_skipped() for state in _get_all_states_as_set(upstream_states)):
         raise signals.SKIP("All upstreams were skipped", result=None)
-    elif not all(state.is_successful() for state in upstream_states):
+    elif not all(
+        state.is_successful() for state in _get_all_states_as_set(upstream_states)
+    ):
         raise signals.TRIGGERFAIL(
             'Trigger was "not_all_skipped" but some of the upstream tasks failed.'
         )
@@ -268,4 +299,4 @@ def not_all_skipped(upstream_states: Set["state.State"]) -> bool:
 
 
 # aliases
-always_run = all_finished  # type: Callable[[Set["state.State"]], bool]
+always_run = all_finished  # type: Callable[[Dict["core.Edge", "state.State"]], bool]

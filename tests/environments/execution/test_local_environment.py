@@ -4,7 +4,16 @@ import pytest
 
 import prefect
 from prefect.environments.execution import LocalEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
+
+
+class DummyStorage(Local):
+    def add_flow(self, flow):
+        self.flows[flow.name] = flow
+        return flow.name
+
+    def get_flow(self, location):
+        return self.flows[location]
 
 
 def test_create_environment():
@@ -53,7 +62,7 @@ def test_environment_execute():
         global_dict["run"] = True
 
     environment = LocalEnvironment()
-    storage = Memory()
+    storage = DummyStorage()
     flow = prefect.Flow("test", tasks=[add_to_dict])
     flow_loc = storage.add_flow(flow)
 
@@ -62,7 +71,7 @@ def test_environment_execute():
 
 
 def test_environment_execute_with_env_runner():
-    class TestStorage(Memory):
+    class TestStorage(DummyStorage):
         def get_flow(self, *args, **kwargs):
             raise NotImplementedError()
 
@@ -93,7 +102,7 @@ def test_environment_execute_with_kwargs():
         global_dict["result"] = x
 
     environment = LocalEnvironment()
-    storage = Memory()
+    storage = DummyStorage()
     with prefect.Flow("test") as flow:
         x = prefect.Parameter("x")
         add_to_dict(x)
@@ -105,7 +114,7 @@ def test_environment_execute_with_kwargs():
 
 
 def test_environment_execute_with_env_runner_with_kwargs():
-    class TestStorage(Memory):
+    class TestStorage(DummyStorage):
         def get_flow(self, *args, **kwargs):
             raise NotImplementedError()
 
@@ -145,7 +154,7 @@ def test_environment_execute_calls_callbacks():
         global_dict["run"] = True
 
     environment = LocalEnvironment(on_start=start_func, on_exit=exit_func)
-    storage = Memory()
+    storage = DummyStorage()
     flow = prefect.Flow("test", tasks=[add_to_dict])
     flow_loc = storage.add_flow(flow)
 
