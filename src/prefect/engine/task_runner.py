@@ -1,6 +1,7 @@
 import copy
 from contextlib import redirect_stdout
 import itertools
+import json
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1036,7 +1037,7 @@ class TaskRunner(Runner):
             if prefect.context.get("task_loop_count") is not None:
                 loop_context = {
                     "_loop_count": PrefectResult(
-                        value=prefect.context["task_loop_count"],
+                        location=json.dumps(prefect.context["task_loop_count"]),
                     ),
                     "_loop_result": self.result.from_value(
                         value=prefect.context.get("task_loop_result")
