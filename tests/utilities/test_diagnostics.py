@@ -91,7 +91,7 @@ def test_flow_information():
         tasks=[t1, t2],
         storage=prefect.environments.storage.Local(),
         schedule=prefect.schedules.Schedule(clocks=[]),
-        result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+        result=prefect.engine.results.PrefectResult(),
     )
 
     flow_information = diagnostics.flow_information(flow)["flow_information"]
@@ -100,7 +100,7 @@ def test_flow_information():
     # Type information
     assert flow_information["environment"]["type"] == "RemoteEnvironment"
     assert flow_information["storage"]["type"] == "Local"
-    assert flow_information["result_handler"]["type"] == "JSONResultHandler"
+    assert flow_information["result"]["type"] == "PrefectResult"
     assert flow_information["schedule"]["type"] == "Schedule"
     assert flow_information["task_count"] == 2
 
@@ -136,7 +136,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
             tasks=[t1, t2],
             storage=prefect.environments.storage.Local(),
             schedule=prefect.schedules.Schedule(clocks=[]),
-            result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+            result=prefect.engine.results.PrefectResult(),
         )
 
         monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
@@ -159,7 +159,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         # Type information
         assert flow_information["environment"]["type"] == "RemoteEnvironment"
         assert flow_information["storage"]["type"] == "Local"
-        assert flow_information["result_handler"]["type"] == "JSONResultHandler"
+        assert flow_information["result"]["type"] == "PrefectResult"
         assert flow_information["schedule"]["type"] == "Schedule"
         assert flow_information["task_count"] == 2
 

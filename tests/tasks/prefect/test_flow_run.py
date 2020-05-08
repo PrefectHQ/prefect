@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from prefect.tasks.cloud.flow_run import FlowRunTask
+from prefect.tasks.prefect.flow_run import FlowRunTask
 
 
 @pytest.fixture()
@@ -15,7 +15,7 @@ def client(monkeypatch):
         create_flow_run=MagicMock(return_value="xyz890"),
     )
     monkeypatch.setattr(
-        "prefect.tasks.cloud.flow_run.Client", MagicMock(return_value=cloud_client),
+        "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client),
     )
     yield cloud_client
 

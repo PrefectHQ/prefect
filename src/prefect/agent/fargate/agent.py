@@ -53,6 +53,10 @@ class FargateAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -87,6 +91,9 @@ class FargateAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
+        launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
@@ -96,10 +103,15 @@ class FargateAgent(Agent):
         use_external_kwargs: bool = False,
         external_kwargs_s3_bucket: str = None,
         external_kwargs_s3_key: str = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
 
         from boto3 import client as boto3_client
@@ -120,6 +132,7 @@ class FargateAgent(Agent):
         self.use_external_kwargs = use_external_kwargs
         self.external_kwargs_s3_bucket = external_kwargs_s3_bucket
         self.external_kwargs_s3_key = external_kwargs_s3_key
+        self.launch_type = launch_type
 
         # Parse accepted kwargs for task definition, run, and container definitions key of task definition
         (
@@ -159,6 +172,14 @@ class FargateAgent(Agent):
                 region_name=region_name,
                 config=Config(**botocore_config),
             )
+
+        self.logger.debug(f"Launch type: {self.launch_type}")
+        self.logger.debug(f"Enable task revisions: {self.enable_task_revisions}")
+        self.logger.debug(f"Use external kwargs: {self.use_external_kwargs}")
+        self.logger.debug(
+            f"External kwargs S3 bucket: {self.external_kwargs_s3_bucket}"
+        )
+        self.logger.debug(f"External kwargs S3 key: {self.external_kwargs_s3_key}")
 
     def _override_kwargs(
         self,
@@ -608,12 +629,13 @@ class FargateAgent(Agent):
                 task_definition_name  # type: ignore
             )
         )
+        if self.launch_type:
+            flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
-            requiresCompatibilities=["FARGATE"],
             networkMode="awsvpc",
-            **flow_task_definition_kwargs
+            **flow_task_definition_kwargs,
         )
 
     def _run_task(
@@ -657,11 +679,12 @@ class FargateAgent(Agent):
             )
         )
 
+        if self.launch_type:
+            flow_task_run_kwargs["launchType"] = self.launch_type
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
-            launchType="FARGATE",
-            **flow_task_run_kwargs
+            **flow_task_run_kwargs,
         )
 
         return task["tasks"][0].get("taskArn")

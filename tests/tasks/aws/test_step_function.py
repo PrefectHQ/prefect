@@ -10,7 +10,6 @@ from prefect.utilities.configuration import set_temporary_config
 class TestStepActivate:
     def test_initialization(self):
         task = StepActivate(state_machine_arn="arn", execution_name="name")
-        assert task.aws_credentials_secret == "AWS_CREDENTIALS"
 
     def test_initialization_passes_to_task_constructor(self):
         task = StepActivate(
@@ -19,17 +18,15 @@ class TestStepActivate:
         assert task.name == "test"
         assert task.tags == {"AWS"}
 
-    def test_creds_are_pulled_from_secret(self, monkeypatch):
+    def test_exposes_boto3_start_execution_api(self, monkeypatch):
         task = StepActivate(state_machine_arn="arn", execution_name="name")
         client = MagicMock()
         boto3 = MagicMock(client=client)
-        monkeypatch.setattr("prefect.tasks.aws.step_function.boto3", boto3)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(
-                secrets=dict(
-                    AWS_CREDENTIALS={"ACCESS_KEY": "42", "SECRET_ACCESS_KEY": "99"}
-                )
-            ):
-                task.run()
-        kwargs = client.call_args[1]
-        assert kwargs == {"aws_access_key_id": "42", "aws_secret_access_key": "99"}
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        task.run()
+
+        called_method = client.mock_calls[1]
+        assert called_method[0] == "().start_execution"
+        called_method.assert_called_once_with(
+            {"stateMachineArn": "arn", "name": "name", "input": {}}
+        )

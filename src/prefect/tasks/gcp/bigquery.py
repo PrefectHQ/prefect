@@ -1,29 +1,12 @@
-import warnings
 from typing import List
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from prefect.client import Secret
 from prefect.core import Task
 from prefect.engine.signals import SUCCESS
 from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
-
-
-def get_client(
-    project: str, credentials: dict, credentials_secret: str = None
-) -> bigquery.Client:
-    creds = None
-    if credentials_secret is not None:
-        warnings.warn(
-            "The `credentials_secret` argument is deprecated. Use a `Secret` task "
-            "to pass the credentials value at runtime instead.",
-            UserWarning,
-        )
-        # TODO: make this optional so that the machine can authenticate externally to Prefect
-        creds = Secret(credentials_secret).get()
-    return get_bigquery_client(credentials=creds, project=project)
 
 
 class BigQueryTask(Task):
@@ -43,8 +26,6 @@ class BigQueryTask(Task):
         - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
             to process; this will be determined by executing a dry run and raising a `ValueError` if the
             maximum is exceeded
-        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            containing a JSON representation of your Google Application credentials
         - dataset_dest (str, optional): the optional name of a destination dataset to write the
             query results to, if you don't want them returned; if provided, `table_dest` must also be
             provided
@@ -63,7 +44,6 @@ class BigQueryTask(Task):
         project: str = None,
         location: str = "US",
         dry_run_max_bytes: int = None,
-        credentials_secret: str = None,
         dataset_dest: str = None,
         table_dest: str = None,
         job_config: dict = None,
@@ -74,7 +54,6 @@ class BigQueryTask(Task):
         self.project = project
         self.location = location
         self.dry_run_max_bytes = dry_run_max_bytes
-        self.credentials_secret = credentials_secret
         self.dataset_dest = dataset_dest
         self.table_dest = table_dest
         self.job_config = job_config or {}
@@ -86,7 +65,6 @@ class BigQueryTask(Task):
         "project",
         "location",
         "dry_run_max_bytes",
-        "credentials_secret",
         "dataset_dest",
         "table_dest",
         "job_config",
@@ -99,7 +77,6 @@ class BigQueryTask(Task):
         location: str = "US",
         dry_run_max_bytes: int = None,
         credentials: dict = None,
-        credentials_secret: str = None,
         dataset_dest: str = None,
         table_dest: str = None,
         job_config: dict = None,
@@ -120,9 +97,8 @@ class BigQueryTask(Task):
                 to process; this will be determined by executing a dry run and raising a `ValueError` if the
                 maximum is exceeded
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
-            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                containing a JSON representation of your Google Application credentials
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - dataset_dest (str, optional): the optional name of a destination dataset to write the
                 query results to, if you don't want them returned; if provided, `table_dest` must also be
                 provided
@@ -149,11 +125,7 @@ class BigQueryTask(Task):
             )
 
         ## create client
-        client = get_client(
-            project=project,
-            credentials=credentials,
-            credentials_secret=credentials_secret,
-        )
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         ## setup jobconfig
         job_config = bigquery.QueryJobConfig(**job_config)
@@ -203,8 +175,6 @@ class BigQueryStreamingInsert(Task):
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
         - location (str, optional): location of the dataset that will be written to; defaults to "US"
-        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            containing a JSON representation of your Google Application credentials
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -214,19 +184,15 @@ class BigQueryStreamingInsert(Task):
         table: str = None,
         project: str = None,
         location: str = "US",
-        credentials_secret: str = None,
         **kwargs
     ):
         self.dataset_id = dataset_id
         self.table = table
         self.project = project
         self.location = location
-        self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "dataset_id", "table", "project", "location", "credentials_secret"
-    )
+    @defaults_from_attrs("dataset_id", "table", "project", "location")
     def run(
         self,
         records: List[dict],
@@ -235,7 +201,6 @@ class BigQueryStreamingInsert(Task):
         project: str = None,
         location: str = "US",
         credentials: dict = None,
-        credentials_secret: str = None,
         **kwargs
     ):
         """
@@ -253,9 +218,8 @@ class BigQueryStreamingInsert(Task):
                 will default to the one inferred from your credentials
             - location (str, optional): location of the dataset that will be written to; defaults to "US"
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
-            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                containing a JSON representation of your Google Application credentials
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - **kwargs (optional): additional kwargs to pass to the
                 `insert_rows_json` method; see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
@@ -272,11 +236,7 @@ class BigQueryStreamingInsert(Task):
             raise ValueError("Both dataset_id and table must be provided.")
 
         ## create client
-        client = get_client(
-            project=project,
-            credentials=credentials,
-            credentials_secret=credentials_secret,
-        )
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         ## get table reference
         table_ref = client.dataset(dataset_id).table(table)
@@ -312,8 +272,6 @@ class BigQueryLoadGoogleCloudStorage(Task):
             will default to the one inferred from your credentials
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - location (str, optional): location of the dataset that will be queried; defaults to "US"
-        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            containing a JSON representation of your Google Application credentials
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -325,7 +283,6 @@ class BigQueryLoadGoogleCloudStorage(Task):
         project: str = None,
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
-        credentials_secret: str = None,
         **kwargs
     ):
         self.uri = uri
@@ -334,12 +291,9 @@ class BigQueryLoadGoogleCloudStorage(Task):
         self.project = project
         self.schema = schema
         self.location = location
-        self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "uri", "dataset_id", "table", "project", "location", "credentials_secret"
-    )
+    @defaults_from_attrs("uri", "dataset_id", "table", "project", "location")
     def run(
         self,
         uri: str = None,
@@ -349,7 +303,6 @@ class BigQueryLoadGoogleCloudStorage(Task):
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
         credentials: dict = None,
-        credentials_secret: str = None,
         **kwargs
     ):
         """
@@ -366,9 +319,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
             - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
             - location (str, optional): location of the dataset that will be written to; defaults to "US"
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
-            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                containing a JSON representation of your Google Application credentials
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
                 see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
@@ -385,11 +337,7 @@ class BigQueryLoadGoogleCloudStorage(Task):
             raise ValueError("Both dataset_id and table must be provided.")
 
         ## create client
-        client = get_client(
-            project=project,
-            credentials=credentials,
-            credentials_secret=credentials_secret,
-        )
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         ## get table reference
         table_ref = client.dataset(dataset_id).table(table)
@@ -411,8 +359,6 @@ class CreateBigQueryTable(Task):
     Args:
         - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
             will default to the one inferred from your credentials
-        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            containing a JSON representation of your Google Application credentials
         - dataset (str, optional): the name of a dataset in that the table will be created
         - table (str, optional): the name of a table to create
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
@@ -425,7 +371,6 @@ class CreateBigQueryTable(Task):
     def __init__(
         self,
         project: str = None,
-        credentials_secret: str = None,
         dataset: str = None,
         table: str = None,
         schema: List[bigquery.SchemaField] = None,
@@ -434,7 +379,6 @@ class CreateBigQueryTable(Task):
         **kwargs
     ):
         self.project = project
-        self.credentials_secret = credentials_secret
         self.dataset = dataset
         self.table = table
         self.schema = schema
@@ -442,12 +386,11 @@ class CreateBigQueryTable(Task):
         self.time_partitioning = time_partitioning
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("project", "credentials_secret", "dataset", "table", "schema")
+    @defaults_from_attrs("project", "dataset", "table", "schema")
     def run(
         self,
         project: str = None,
         credentials: dict = None,
-        credentials_secret: str = None,
         dataset: str = None,
         table: str = None,
         schema: List[bigquery.SchemaField] = None,
@@ -459,9 +402,8 @@ class CreateBigQueryTable(Task):
             - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
                 will default to the one inferred from your credentials
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
-            - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                containing a JSON representation of your Google Application credentials
+                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
+                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
             - dataset (str, optional): the name of a dataset in that the table will be created
             - table (str, optional): the name of a table to create
             - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
@@ -472,11 +414,7 @@ class CreateBigQueryTable(Task):
         Raises:
             - SUCCESS: a `SUCCESS` signal if the table already exists
         """
-        client = get_client(
-            project=project,
-            credentials=credentials,
-            credentials_secret=credentials_secret,
-        )
+        client = get_bigquery_client(project=project, credentials=credentials)
 
         try:
             dataset_ref = client.get_dataset(dataset)

@@ -1,9 +1,8 @@
-import datetime
 import warnings
 
 from prefect.client.secrets import Secret as _Secret
 from prefect.core.task import Task
-from prefect.engine.result_handlers import SecretResultHandler
+from prefect.engine.results import SecretResult
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -20,17 +19,18 @@ class SecretBase(Task):
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
 
     Raises:
-        - ValueError: if a `result_handler` keyword is passed
+        - ValueError: if a `result` keyword is passed
     """
 
     def __init__(self, **kwargs):
-        if kwargs.get("result_handler"):
-            raise ValueError("Result Handlers for Secrets are not configurable.")
-        kwargs["result_handler"] = SecretResultHandler(secret_task=self)
+        if kwargs.get("result"):
+            raise ValueError("Result types for Secrets are not configurable.")
+        kwargs["checkpoint"] = False
         super().__init__(**kwargs)
+        self.result = SecretResult(secret_task=self)
 
 
-class PrefectSecret(Task):
+class PrefectSecret(SecretBase):
     """
     Prefect Secrets Task.  This task retrieves the underlying secret through
     the Prefect Secrets API (which has the ability to toggle between local vs. Cloud secrets).
@@ -40,16 +40,11 @@ class PrefectSecret(Task):
         - **kwargs (Any, optional): additional keyword arguments to pass to the Task constructor
 
     Raises:
-        - ValueError: if a `result_handler` keyword is passed
+        - ValueError: if a `result` keyword is passed
     """
 
     def __init__(self, name, **kwargs):
         kwargs["name"] = name
-        kwargs.setdefault("max_retries", 2)
-        kwargs.setdefault("retry_delay", datetime.timedelta(seconds=1))
-        if kwargs.get("result_handler"):
-            raise ValueError("Result Handlers for Secrets are not configurable.")
-        kwargs["result_handler"] = SecretResultHandler(secret_task=self)
         super().__init__(**kwargs)
 
     @defaults_from_attrs("name")
