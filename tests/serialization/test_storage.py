@@ -70,7 +70,7 @@ def test_docker_serialize_with_flows():
     assert serialized["image_name"] == "name"
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
-    assert serialized["flows"] == {"test": "/root/.prefect/flows/test.prefect"}
+    assert serialized["flows"] == {"test": "/opt/.prefect/flows/test.prefect"}
     assert serialized["secrets"] == ["FOO"]
 
     deserialized = DockerSchema().load(serialized)
