@@ -161,11 +161,13 @@ def test_initialized_docker_storage(no_docker_host_var):
 
 
 def test_env_var_precedence_docker_storage(monkeypatch, no_docker_host_var):
+    monkeypatch.setenv("DOCKER_HOST", "bar")
+    storage = Docker()
+    assert storage.base_url
+    assert storage.base_url == "bar"
     storage = Docker(base_url="foo")
     assert storage.base_url == "foo"
-    monkeypatch.setenv("DOCKER_HOST", "bar")
     storage = Docker(base_url="foo")
-    assert storage.base_url == "bar"
 
 
 def test_docker_storage_allows_for_user_provided_config_locations():
