@@ -316,11 +316,14 @@ class CloudTaskRunner(TaskRunner):
                         and edge.mapped
                         and edge.upstream_task.checkpoint is not False
                     ):
-                        task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
-                            task_inputs[edge.key].value,
-                            filename=f"{edge.key}-{map_index}",
-                            **prefect.context,
-                        )
+                        try:
+                            task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
+                                task_inputs[edge.key].value,
+                                filename=f"{edge.key}-{map_index}",
+                                **prefect.context,
+                            )
+                        except NotImplementedError:
+                            pass
         except Exception as exc:
             new_state = Failed(
                 message=f"Failed to save inputs for mapped task: {exc}", result=exc
