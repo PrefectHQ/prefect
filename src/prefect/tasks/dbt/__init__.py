@@ -1,5 +1,5 @@
 """
-This module contains a tasks for interacting with dbt via the shell.
+This module contains a task for interacting with dbt via the shell.
 """
 
 try:
