@@ -109,7 +109,7 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = os.environ.get("DOCKER_HOST", base_url or default_url)
+        self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
