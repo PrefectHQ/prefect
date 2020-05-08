@@ -47,6 +47,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
+- Docker storage now writes flows to `/opt` dir to remove need for root permissions - [#2025](https://github.com/PrefectHQ/prefect/issues/2025)
 
 ### Task Library
 
