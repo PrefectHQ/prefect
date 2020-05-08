@@ -296,11 +296,12 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
-                # check to see if there is a Result at the task's target
-                state = self.check_target(state, inputs=task_inputs)
-
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
+                if self.task.target:
+                    # check to see if there is a Result at the task's target
+                    state = self.check_target(state, inputs=task_inputs)
+                else:
+                    # check to see if the task has a cached result
+                    state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # check if the task's trigger passes
                 # triggers can raise Pauses, which require task_inputs to be available for caching
@@ -630,6 +631,7 @@ class TaskRunner(Runner):
         """
         return state, upstream_states
 
+    @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks if a Result exists at the task's target.
@@ -647,8 +649,9 @@ class TaskRunner(Runner):
 
         if result and target:
             if result.exists(target, **prefect.context):
+                new_res = result.read(target.format(**prefect.context))
                 cached_state = Cached(
-                    result=state._result,
+                    result=new_res,
                     cached_inputs=inputs,
                     cached_result_expiration=None,
                     cached_parameters=prefect.context.get("parameters"),

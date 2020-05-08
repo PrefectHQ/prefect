@@ -1416,6 +1416,22 @@ class TestTargetExistsStep:
         assert new_state is state
         assert new_state._result.location is None
 
+    def test_check_target_calls_state_handlers(self):
+        glob = []
+
+        def sh(obj, old, new):
+            glob.append(new)
+
+        res = PrefectResult(location="42")
+        state = Pending()
+        new_state = TaskRunner(
+            task=Task(target="42", result=res, state_handlers=[sh])
+        ).check_target(state=state, inputs={})
+
+        assert new_state.is_cached()
+        assert new_state.result == 42
+        assert len(glob) == 1
+
     @pytest.mark.parametrize(
         "state",
         [
