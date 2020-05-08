@@ -37,6 +37,7 @@ extras = {
         "azure-cosmos >= 3.1.1, <3.2",
     ],
     "dask_cloudprovider": ["dask_cloudprovider >= 0.2.0, < 1.0"],
+    "dbt": ["dbt >= 0.13.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "gcp": [
@@ -53,7 +54,7 @@ extras = {
     "pushbullet": ["pushbullet.py >= 0.11.0"],
     "redis": ["redis >= 3.2.1"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
-    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
+    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
     "test": test_requires,
