@@ -17,7 +17,7 @@ Docker provides an excellent industry-standard abstraction for shipping code alo
 Whenever you call `flow.register` or build a [Docker storage object](../../api/latest/environments/storage.html#docker) yourself, Prefect will perform the following actions:
 
 - calls `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
-- stores these bytes inside the Docker image in the `/root/.prefect/` directory
+- stores these bytes inside the Docker image in the `/opt/.prefect/` directory
 - runs various health checks on your Flow inside the image to try and catch any issues
 
 ::: warning cloudpickle
