@@ -18,7 +18,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 ### Fixes
 
-- None
+- Fix bug in Kubernetes agent ``deployment.yaml`` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)
 
 ### Deprecations
 
