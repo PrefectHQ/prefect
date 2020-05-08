@@ -14,7 +14,7 @@ class JiraServiceDeskTask(Task):
     """
     Task for creating a Jira Service Desk customer request. For this task to function properly,
     you need a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
-    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') should be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
+    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') can be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
     An example 'JIRASECRETS' object looks like this:
     ```
     JIRASECRETS = { JIRATOKEN = "XXXXXXXXX", JIRAUSER = "xxxxx@yyy.com", JIRASERVER = "https://???.atlassian.net" }

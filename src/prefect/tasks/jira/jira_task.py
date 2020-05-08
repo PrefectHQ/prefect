@@ -14,7 +14,7 @@ class JiraTask(Task):
     """
     Task for creating a jira issue. For this task to function properly,
     you need a Jira account and API token.  The API token can be created at: https://id.atlassian.com/manage/api-tokens 
-    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') should be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
+    The Jira account username ('JIRAUSER'), API token ('JIRATOKEN') can be set as part of a 'JIRASECRETS' object in Prefect Secrets. 
     An example 'JIRASECRETS' object looks like this:
     ```
     JIRASECRETS = { JIRATOKEN = "XXXXXXXXX", JIRAUSER = "xxxxx@yyy.com", JIRASERVER = "https://???.atlassian.net" }
@@ -69,7 +69,7 @@ class JiraTask(Task):
         
         Args:
             - username(str): the jira username, provided with a Prefect secret (defaults to JIRAUSER in JIRASECRETS)
-            -  access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
+            - access_token (str): a Jira access token, provided with a Prefect secret (defaults to JIRATOKEN in JIRASECRETS)
             - server_url (str): the URL of your atlassian account e.g. "https://test.atlassian.net".  Can also be set as a Prefect Secret. Defaults to the one provided at initialization
             - project_name(str):  the key for your jira project; defaults to the one provided at initialization
             - assignee (str, optional): the atlassian accountId of the person you want to assign the ticket to; defaults to "automatic" if this is not set; defaults to the one provided at initialization
