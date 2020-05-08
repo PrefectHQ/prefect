@@ -57,7 +57,7 @@ class Docker(Storage):
         - files (dict, optional): a dictionary of files to copy into the image
             when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for
-            Docker related functionality.  DOCKER_HOST env var takes precedence
+            Docker related functionality.  Defaults to DOCKER_HOST env var if not set
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
