@@ -318,7 +318,7 @@ class CloudTaskRunner(TaskRunner):
                     ):
                         task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
                             task_inputs[edge.key].value,
-                            filename="inputs",
+                            filename=f"{edge.key}-{map_index}",
                             **prefect.context,
                         )
         except Exception as exc:
