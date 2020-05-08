@@ -971,7 +971,7 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
-                result = self.result.write(value, **prefect.context)
+                result = self.result.write(value, filename="output", **prefect.context)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
@@ -1037,13 +1037,30 @@ class TaskRunner(Runner):
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
             if prefect.context.get("task_loop_count") is not None:
+
+                loop_result = self.result.from_value(
+                    value=prefect.context.get("task_loop_result")
+                )
+
+                ## checkpoint tasks if a result is present, except for when the user has opted out by disabling checkpointing
+                if (
+                    prefect.context.get("checkpointing") is True
+                    and self.task.checkpoint is not False
+                    and loop_result.value is not None
+                ):
+                    try:
+                        value = prefect.context.get("task_loop_result")
+                        loop_result = self.result.write(
+                            value, filename="output", **prefect.context
+                        )
+                    except NotImplementedError:
+                        pass
+
                 loop_context = {
                     "_loop_count": PrefectResult(
                         location=json.dumps(prefect.context["task_loop_count"]),
                     ),
-                    "_loop_result": self.result.from_value(
-                        value=prefect.context.get("task_loop_result")
-                    ),
+                    "_loop_result": loop_result,
                 }
                 inputs.update(loop_context)
             if run_count <= self.task.max_retries:
