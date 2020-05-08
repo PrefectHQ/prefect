@@ -105,7 +105,7 @@ class Docker(Storage):
 
         self.env_vars = env_vars or {}
         self.env_vars.setdefault(
-            "PREFECT__USER_CONFIG_PATH", "/root/.prefect/config.toml"
+            "PREFECT__USER_CONFIG_PATH", "/opt/.prefect/config.toml"
         )
 
         self.files = files or {}
@@ -219,7 +219,7 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "/root/.prefect/flows/{}.prefect".format(slugify(flow.name))
+        flow_path = "/opt/.prefect/flows/{}.prefect".format(slugify(flow.name))
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
@@ -459,9 +459,9 @@ class Docker(Storage):
             {extra_commands}
             {pip_installs}
 
-            RUN mkdir -p /root/.prefect/
+            RUN mkdir -p /opt/.prefect/
             {copy_flows}
-            COPY {healthcheck_loc} /root/.prefect/healthcheck.py
+            COPY {healthcheck_loc} /opt/.prefect/healthcheck.py
             {copy_files}
 
             {env_vars}
@@ -483,7 +483,7 @@ class Docker(Storage):
             file_contents += textwrap.dedent(
                 """
 
-                RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
+                RUN python /opt/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     flow_file_paths=", ".join(
                         ['"{}"'.format(k) for k in self.flows.values()]
