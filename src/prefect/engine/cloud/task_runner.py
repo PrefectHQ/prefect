@@ -285,6 +285,51 @@ class CloudTaskRunner(TaskRunner):
             final_state = self.handle_state_change(old_state=state, new_state=new_state)
             raise ENDRUN(final_state)
 
+    def get_task_inputs(
+        self, state: State, upstream_states: Dict[Edge, State]
+    ) -> Dict[str, Result]:
+        """
+        Given the task's current state and upstream states, generates the inputs for this task.
+        Upstream state result values are used. If the current state has `cached_inputs`, they
+        will override any upstream values.
+
+        Args:
+            - state (State): the task's current state.
+            - upstream_states (Dict[Edge, State]): the upstream state_handlers
+
+        Returns:
+            - Dict[str, Result]: the task inputs
+
+        """
+        task_inputs = super().get_task_inputs(state, upstream_states)
+
+        try:
+            ## for mapped tasks, we need to take extra steps to store the cached_inputs;
+            ## this is because in the event of a retry we don't want to have to load the
+            ## entire upstream array that is being mapped over, instead we need store the
+            ## individual pieces of data separately for more efficient retries
+            map_index = prefect.context.get("map_index")
+            if map_index not in [-1, None]:
+                for edge, upstream_state in upstream_states.items():
+                    if (
+                        edge.key
+                        and edge.mapped
+                        and edge.upstream_task.checkpoint is not False
+                    ):
+                        task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
+                            task_inputs[edge.key].value,
+                            filename=f"{edge.key}-{map_index}",
+                            **prefect.context,
+                        )
+        except Exception as exc:
+            new_state = Failed(
+                message=f"Failed to save inputs for mapped task: {exc}", result=exc
+            )
+            final_state = self.handle_state_change(old_state=state, new_state=new_state)
+            raise ENDRUN(final_state)
+
+        return task_inputs
+
     @tail_recursive
     def run(
         self,
