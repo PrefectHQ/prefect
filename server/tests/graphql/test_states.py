@@ -264,7 +264,9 @@ class TestSetTaskRunStates:
         assert tr.version == 1
         assert tr.state == "Success"
 
-    async def test_set_task_run_state(self, run_query,  running_flow_run_id, task_run_id):
+    async def test_set_task_run_state(
+        self, run_query, running_flow_run_id, task_run_id
+    ):
         result = await run_query(
             query=self.mutation,
             variables=dict(

@@ -113,6 +113,7 @@ async def edge_id(flow_id):
 async def flow_run_id(flow_id):
     return await api.runs.create_flow_run(flow_id=flow_id, parameters=dict(x=1))
 
+
 @pytest.fixture
 async def running_flow_run_id(flow_run_id):
     await api.states.set_flow_run_state(flow_run_id, state=Running())
