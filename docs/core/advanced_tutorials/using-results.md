@@ -23,7 +23,7 @@ For Prefect Core server or Prefect Cloud users:
 - A result subclass that matches the storage backend of your `prefect.config.flows.storage` setting will automatically be applied to all tasks, if available; notably this is not yet supported for Docker Storage
 - You can override the automatic result subclass at the global level, flow level, or task level
 
-#### Setting result handler at the flow level
+#### Setting result at the flow level
 ```bash
 export PREFECT__FLOWS__CHECKPOINTING=true
 ```
@@ -37,7 +37,7 @@ def add(x, y=1):
     return x + y
 
 # send the configuration to the Flow object
-with Flow("my handled flow!", result_handler=LocalResult()):
+with Flow("my handled flow!", result=LocalResult()):
     first_result = add(1, y=2)
     second_result = add(x=first_result, y=100)
 ```
@@ -53,7 +53,7 @@ export PREFECT__FLOWS__CHECKPOINTING=true
 from prefect.engine.results import LocalResult
 
 # configure on the task decorator
-@task(result_handler=LocalResult())
+@task(result=LocalResult())
 def add(x, y=1):
     return x + y
 
@@ -62,7 +62,7 @@ class AddTask(Task):
             return x + y
 
 # or when instantiating a Task object
-a = AddTask(result_handler=LocalResult())
+a = AddTask(result=LocalResult())
 
 with Flow("my handled flow!"):
     first_result = add(1, y=2)
@@ -101,7 +101,7 @@ After running my flow, I can see that my task states know the key name of their 
 '2020/2/24/133eaf17-ab77-4468-afdf-734b6540dde0.prefect_result'
 ```
 
-Using [gsutil](https://cloud.google.com/storage/docs/gsutil), I can see that those keys exist in the GCS bucket I configured my results handler to submit data to:
+Using [gsutil](https://cloud.google.com/storage/docs/gsutil), I can see that those keys exist in the GCS bucket I configured my result to submit data to:
 
 ```bash
 $ gsutil ls -r gs://prefect_results
