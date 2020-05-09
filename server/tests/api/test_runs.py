@@ -317,9 +317,9 @@ class TestGetTaskRunInfo:
         assert all(tr.state == "Pending" for tr in trs)
         assert all(tr.serialized_state["type"] == "Pending" for tr in trs)
 
-    async def test_task_run_pulls_current_state(self, flow_run_id, task_id):
+    async def test_task_run_pulls_current_state(self, running_flow_run_id, task_id):
         tr_id = await runs.get_or_create_task_run(
-            flow_run_id=flow_run_id, task_id=task_id, map_index=None
+            flow_run_id=running_flow_run_id, task_id=task_id, map_index=None
         )
         await states.set_task_run_state(tr_id, state=Running())
 
