@@ -296,11 +296,12 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
-                # check to see if there is a Result at the task's target
-                state = self.check_target(state, inputs=task_inputs)
-
-                # check to see if the task has a cached result
-                state = self.check_task_is_cached(state, inputs=task_inputs)
+                if self.task.target:
+                    # check to see if there is a Result at the task's target
+                    state = self.check_target(state, inputs=task_inputs)
+                else:
+                    # check to see if the task has a cached result
+                    state = self.check_task_is_cached(state, inputs=task_inputs)
 
                 # check if the task's trigger passes
                 # triggers can raise Pauses, which require task_inputs to be available for caching
@@ -630,6 +631,7 @@ class TaskRunner(Runner):
         """
         return state, upstream_states
 
+    @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Checks if a Result exists at the task's target.
@@ -647,8 +649,9 @@ class TaskRunner(Runner):
 
         if result and target:
             if result.exists(target, **prefect.context):
+                new_res = result.read(target.format(**prefect.context))
                 cached_state = Cached(
-                    result=state._result,
+                    result=new_res,
                     cached_inputs=inputs,
                     cached_result_expiration=None,
                     cached_parameters=prefect.context.get("parameters"),
@@ -971,7 +974,7 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
-                result = self.result.write(value, **prefect.context)
+                result = self.result.write(value, filename="output", **prefect.context)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
@@ -1037,13 +1040,30 @@ class TaskRunner(Runner):
         if state.is_failed():
             run_count = prefect.context.get("task_run_count", 1)
             if prefect.context.get("task_loop_count") is not None:
+
+                loop_result = self.result.from_value(
+                    value=prefect.context.get("task_loop_result")
+                )
+
+                ## checkpoint tasks if a result is present, except for when the user has opted out by disabling checkpointing
+                if (
+                    prefect.context.get("checkpointing") is True
+                    and self.task.checkpoint is not False
+                    and loop_result.value is not None
+                ):
+                    try:
+                        value = prefect.context.get("task_loop_result")
+                        loop_result = self.result.write(
+                            value, filename="output", **prefect.context
+                        )
+                    except NotImplementedError:
+                        pass
+
                 loop_context = {
                     "_loop_count": PrefectResult(
                         location=json.dumps(prefect.context["task_loop_count"]),
                     ),
-                    "_loop_result": self.result.from_value(
-                        value=prefect.context.get("task_loop_result")
-                    ),
+                    "_loop_result": loop_result,
                 }
                 inputs.update(loop_context)
             if run_count <= self.task.max_retries:
