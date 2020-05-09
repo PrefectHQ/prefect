@@ -178,7 +178,7 @@ class CloudFlowRunner(FlowRunner):
             scheduled_start_time=flow_run_info.scheduled_start_time,
         )
 
-        tasks = {t.slug: t for t in self.flow.tasks}
+        tasks = {self.flow.slugs[t]: t for t in self.flow.tasks}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
             task = tasks[task_run.task_slug]

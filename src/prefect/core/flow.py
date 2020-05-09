@@ -172,6 +172,7 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.slugs = dict()  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -411,6 +412,14 @@ class Flow:
 
     # Graph --------------------------------------------------------------------
 
+    def _generate_task_slug(self, task: Task) -> str:
+        slug_bases = []
+        for t in self.tasks:
+            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
+        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
+        index = slug_bases.count(new_slug)
+        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+
     def add_task(self, task: Task) -> Task:
         """
         Add a task to the flow if the task does not already exist. The tasks are
@@ -431,11 +440,7 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if task.slug and any(task.slug == t.slug for t in self.tasks):
-                raise ValueError(
-                    'A task with the slug "{}" already exists in this '
-                    "flow.".format(task.slug)
-                )
+            self.slugs[task] = self._generate_task_slug(task)
 
         if task not in self.tasks:
             self.tasks.add(task)
@@ -839,7 +844,7 @@ class Flow:
         parameters: Dict[str, Any],
         runner_cls: type,
         run_on_schedule: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
 
         base_parameters = parameters or dict()
@@ -895,7 +900,7 @@ class Flow:
                     state=flow_state,
                     task_states=flow_state.result,
                     context=flow_run_context,
-                    **kwargs
+                    **kwargs,
                 )
 
                 # if flow_state is still scheduled; this most likely means
@@ -972,7 +977,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
         """
         Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
@@ -1049,7 +1054,7 @@ class Flow:
             parameters=parameters,
             runner_cls=runner_cls,
             run_on_schedule=run_on_schedule,
-            **kwargs
+            **kwargs,
         )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
@@ -1348,7 +1353,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config
