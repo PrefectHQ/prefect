@@ -6,7 +6,7 @@ sidebarDepth: 0
 
 Let's take a look at using results to persist and track task output. As introduced in the concept documentation for ["Results"](../concepts/results.md), Prefect tasks associate their return value with a `Result` object attached to a task's `State`. If you configure the `Result` object for a task and enable checkpointing, the pipeline will also persist results to storage as a pickle into one of the supported storage backends.
 
-Why would you persist the output of your tasks? The most common situation is to enable retrying from failure of a task for users that use a state database, such as Prefect Core's server or Prefect Cloud. By persisting the output of a task somewhere besides in-memory, a state database that knows the persisted location of a task's output can restart from where it left off. Another common situation is to allow for inspection of intermediary data when debugging flows (including -- maybe especially -- production ones). By checkpointing data during different data transformation Tasks, runtime data bugs can be tracked down by analyzing the checkpoints sequentially.
+Why would you persist the output of your tasks? The most common situation is to enable retrying from failure of a task for users that use a state database, such as Prefect Core's server or Prefect Cloud. By persisting the output of a task somewhere besides in-memory, a state database that knows the persisted location of a task's output can restart from where it left off. In the same vein, using a persistent cache to prevent reruns of expensive or slow tasks outside of a single Python interpreter is only possible when the return value of tasks are persisted somewhere outside of memory. Another common situation is to allow for inspection of intermediary data when debugging flows (including -- maybe especially -- production ones). By checkpointing data during different data transformation Tasks, runtime data bugs can be tracked down by analyzing the checkpoints sequentially.
 
 ## Setting up to handle results
 
@@ -14,7 +14,7 @@ Checkpointing must be enabled for the pipeline to write a result. You must enabl
 
 For Core-only users, you must:
 
-- Opt-in to checkpointing globally by setting the `prefect.config.flows.checkpointing` to "True"
+- Opt-in to checkpointing globally by setting the `prefect.config.flows.checkpointing` to "True" via [your preferred Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html)
 - Specify the result your tasks will use for at least one level of specificity (flow-level or task-level)
 
 For Prefect Core server or Prefect Cloud users:
@@ -50,10 +50,10 @@ export PREFECT__FLOWS__CHECKPOINTING=true
 
 ```python{4-5,13-14}
 # flow.py
-from prefect.engine.results import LocalResult
+from prefect.engine.results import LocalResult, PrefectResult
 
 # configure on the task decorator
-@task(result=LocalResult())
+@task(result=PrefectResult())
 def add(x, y=1):
     return x + y
 
@@ -62,7 +62,7 @@ class AddTask(Task):
             return x + y
 
 # or when instantiating a Task object
-a = AddTask(result=LocalResult())
+a = AddTask(result=LocalResult(dir="/Users/prefect/results"))
 
 with Flow("my handled flow!"):
     first_result = add(1, y=2)
