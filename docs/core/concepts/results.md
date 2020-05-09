@@ -21,10 +21,10 @@ dict
 
 You can instead configure your task to use a subclass of `Result` that aligned with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md). These subclasses of `Result` always have four important attributes / methods:
 
-- `location`: the location the data should be stored to
+- `location`: the location the data should be stored to (note that this can be templated as described below)
 - `read()`: how to read from the storage backend
 - `write()`: how to write to the storage backend
-- `exists()`: how to determine if the location exists for this storage backend
+- `exists()`: how to determine if the data exists at the provided location for this storage backend
 
 There are many different `Result` classes aligning with different storage backends depending on your needs, such as `GCSResult` and `S3Result`. See the whole list in the [API docs for results](../../api/latest/engine/results.md)
 
@@ -105,7 +105,7 @@ b'\x80\x05K\x03.'
 3
 ```
 
-One special result subclass is the `PrefectResult`, which stores the data in a Prefect state database, either Prefect Core's server or Prefect Cloud. You might consider this storage backend since it requires no extra configuration as long as you have tasks which return small pieces of JSON-serializable data. How this actually works is that both the `PrefectResult.value` and `PrefectResult.location` match, so that the `PrefectResult.location` serialized to the state database actually is the value of the result itself. 
+One special result subclass is the `PrefectResult`, which stores the data in a Prefect state database, either Prefect Core's server or Prefect Cloud. You might consider this storage backend since it requires no extra configuration as long as you have tasks which return small pieces of JSON-serializable data. How this actually works is that both the `PrefectResult.value` and `PrefectResult.location` match, so that the `PrefectResult.location` serialized to the state database actually is the JSON representation of the value of the result itself. 
 
 To showcase this, below is the same example with a flow configured to checkpoint each task's output using the `PrefectResult`. Note that now both `Result.value` and `Result.location` contain references to the actual return value of its task, the integer `3`.
 
@@ -130,7 +130,7 @@ Configuring a task to persist results requires two steps. First, enable checkpoi
 1. Alternatively, you can set a Task-level result. This is achieved using the `result` keyword argument at Task initialization (or in the `@task` decorator). If you provide a result here, it will _always_ be used if the _output_ of this Task needs to be cached for any reason whatsoever.
 
 ::: tip The Hierarchy
-Task-level results will _always_ be used over flow-level results. Neither will be used if a task's `checkpointing` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
+Task-level results will _always_ be used over flow-level results. Neither will be used if a task's `checkpoint` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
 :::
 
 ::: warning Results are always attached to their task's outputs
