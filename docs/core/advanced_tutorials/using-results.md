@@ -214,3 +214,13 @@ And this value `3` is also visible to Cloud users in the UI when inspecting the 
 This is a useful backend for data that is small and safe to store in the database, as it requires no extra configuration.
 
 ## Migrating from Result Handlers
+
+If you used result handlers in Prefect versions lower than 0.11.0, they have now been replaced by the `Result` subclasses described in this document.
+
+If you use result handlers in your flows and upgrade to 0.11.0, they will be auto-converted at runtime into `Result` subclasses matching the storage backend -- for example `GCSResultHandler`s will turn into `GCSResult`s. 
+
+Custom result handlers will be auto-converted at runtime into `ResultHandlerResult` classes, which act as a wrapper to expose the custom result handler's `read` and `write` methods.
+
+The conversion logic itself is located [in the code here](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/results/result_handler_result.py).
+
+As you write new flows or upgrade existing flows, consider using the new `Result` subclasses wherever you would have used result handlers. We do not have an official timeline for removing result handlers entirely, but they are currently in maintenance mode and new features leveraging dataflow in Prefect will be designed and implemented against the `Result` interface only going forward.
