@@ -4,7 +4,7 @@ sidebarDepth: 0
 
 # Using Results
 
-Let's take a look at using results to persist task output. As introduced in the concept documentation for ["Results"](../concepts/results.md), Prefect tasks associate their return value with a `Result` object attached to a task's `State`. If you configure the `Result` object for a task and enable checkpointing, the pipeline will also persist results to storage as a pickle into one of the supported storage backends.
+Let's take a look at using results to persist and track task output. As introduced in the concept documentation for ["Results"](../concepts/results.md), Prefect tasks associate their return value with a `Result` object attached to a task's `State`. If you configure the `Result` object for a task and enable checkpointing, the pipeline will also persist results to storage as a pickle into one of the supported storage backends.
 
 Why would you persist the output of your tasks? The most common situation is to enable retrying from failure of a task for users that use a state database, such as Prefect Core's server or Prefect Cloud. By persisting the output of a task somewhere besides in-memory, a state database that knows the persisted location of a task's output can restart from where it left off. Another common situation is to allow for inspection of intermediary data when debugging flows (including -- maybe especially -- production ones). By checkpointing data during different data transformation Tasks, runtime data bugs can be tracked down by analyzing the checkpoints sequentially.
 
