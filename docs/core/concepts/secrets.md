@@ -6,7 +6,7 @@ Very often, workflows require sensitive information to run: API keys, passwords,
 
 Prefect provides a mechanism called `Secrets` for working with sensitive information.
 
-- `Secret` tasks, which are special tasks that can be used in your flow when working with sensitive information. Unlike regular tasks, `Secret` tasks are designed to access sensitive information at runtime and use a special `ResultHandler` to ensure the results are not stored.
+- `Secret` tasks, which are special tasks that can be used in your flow when working with sensitive information. Unlike regular tasks, `Secret` tasks are designed to access sensitive information at runtime and use a special `SecretResult` to ensure the results are not stored.
 - The `prefect.client.secrets` API, which provides an interface for working with sensitive information. This API can be used where tasks are unavailable, including notifications, state handlers, and result handlers.
 
 ::: tip Keep secrets secret!

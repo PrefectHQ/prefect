@@ -154,7 +154,7 @@ classes = [
 [pages.engine.result]
 title = "Results"
 module = "prefect.engine.result"
-classes = ["Result", "SafeResult", "NoResultType"]
+classes = ["Result", "SafeResult", "NoResultType", "PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult", "SecretResult", "ConstantResult"]
 
 [pages.engine.result_handlers]
 title = "Result Handlers"
