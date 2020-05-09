@@ -62,29 +62,45 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> None:
     await flow_run_state.insert()
 
 
-async def set_task_run_state(task_run_id: str, state: State,) -> None:
+async def set_task_run_state(task_run_id: str, state: State, force=False) -> None:
     """
     Updates a task run state.
 
     Args:
         - task_run_id (str): the task run id to update
         - state (State): the new state
+        - false (bool): if True, avoids pipeline checks
     """
 
     if task_run_id is None:
         raise ValueError(f"Invalid task run ID.")
 
     task_run = await models.TaskRun.where({"id": {"_eq": task_run_id},}).first(
-        {"id": True, "version": True, "state": True, "serialized_state": True,}
+        {
+            "id": True,
+            "version": True,
+            "state": True,
+            "serialized_state": True,
+            "flow_run": {"id": True, "state": True},
+        }
     )
 
     if not task_run:
         raise ValueError(f"Invalid task run ID: {task_run_id}.")
 
     # ------------------------------------------------------
+    # if the state is running, ensure the flow run is also running
+    # ------------------------------------------------------
+    if not force and state.is_running() and task_run.flow_run.state != "Running":
+        raise ValueError(
+            f"State update failed for task run ID {task_run_id}: provided "
+            f"a running state but associated flow run {task_run.flow_run.id} is not "
+            "in a running state."
+        )
+
+    # ------------------------------------------------------
     # if we have cached inputs on the old state, we need to carry them forward
     # ------------------------------------------------------
-
     if not state.cached_inputs and task_run.serialized_state.get("cached_inputs", None):
         # load up the old state's cached inputs and apply them to the new state
         serialized_state = state_schema.load(task_run.serialized_state)

@@ -38,8 +38,58 @@ from prefect_server.database import models
 
 
 class TestTaskRunStates:
-    async def test_set_task_run_state(self, task_run_id):
-        await states.set_task_run_state(task_run_id=task_run_id, state=Running())
+    @pytest.mark.parametrize(
+        "state_cls", [s for s in State.children() if s not in _MetaState.children()]
+    )
+    async def test_set_task_run_state(
+        self, running_flow_run_id, task_run_id, state_cls
+    ):
+        await states.set_task_run_state(task_run_id=task_run_id, state=state_cls())
+
+        query = await models.TaskRun.where(id=task_run_id).first(
+            {"version", "state", "serialized_state"}
+        )
+
+        assert query.version == 1
+        assert query.state == state_cls.__name__
+        assert query.serialized_state["type"] == state_cls.__name__
+
+    @pytest.mark.parametrize(
+        "state_cls",
+        [
+            s
+            for s in State.children()
+            if s not in _MetaState.children() and not s().is_running()
+        ],
+    )
+    async def test_set_non_running_task_run_state_works_when_flow_run_is_not_running(
+        self, flow_run_id, task_run_id, state_cls
+    ):
+        await states.set_flow_run_state(flow_run_id, state=Success())
+        await states.set_task_run_state(task_run_id=task_run_id, state=state_cls())
+
+        query = await models.TaskRun.where(id=task_run_id).first(
+            {"version", "state", "serialized_state"}
+        )
+
+        assert query.version == 1
+        assert query.state == state_cls.__name__
+        assert query.serialized_state["type"] == state_cls.__name__
+
+    async def test_set_running_task_run_state_fails_when_flow_run_is_not_running(
+        self, flow_run_id, task_run_id
+    ):
+        await states.set_flow_run_state(flow_run_id, state=Success())
+        with pytest.raises(ValueError, match="State update failed"):
+            await states.set_task_run_state(task_run_id=task_run_id, state=Running())
+
+    async def test_set_running_task_run_state_works_when_flow_run_is_not_running_if_force(
+        self, flow_run_id, task_run_id,
+    ):
+        await states.set_flow_run_state(flow_run_id, state=Success())
+        await states.set_task_run_state(
+            task_run_id=task_run_id, state=Running(), force=True
+        )
 
         query = await models.TaskRun.where(id=task_run_id).first(
             {"version", "state", "serialized_state"}
@@ -50,7 +100,7 @@ class TestTaskRunStates:
         assert query.serialized_state["type"] == "Running"
 
     async def test_set_task_run_state_does_not_increment_run_count_when_looping(
-        self, task_run_id
+        self, task_run_id, running_flow_run_id
     ):
         # simulate some looping
         await states.set_task_run_state(task_run_id=task_run_id, state=Running())
@@ -63,7 +113,9 @@ class TestTaskRunStates:
         assert task_run.run_count == 1
 
     @pytest.mark.parametrize("state", [Running(), Success()])
-    async def test_set_task_run_state_fails_with_wrong_task_run_id(self, state):
+    async def test_set_task_run_state_fails_with_wrong_task_run_id(
+        self, state, running_flow_run_id
+    ):
         with pytest.raises(ValueError, match="Invalid task run ID"):
             await states.set_task_run_state(task_run_id=str(uuid.uuid4()), state=state)
 
@@ -76,12 +128,10 @@ class TestTaskRunStates:
         assert not task_run_info.end_time
 
     @pytest.mark.parametrize(
-        "state",
-        [s() for s in State.children() if s not in _MetaState.children()],
-        ids=[s.__name__ for s in State.children() if s not in _MetaState.children()],
+        "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )
     async def test_setting_a_task_run_state_pulls_cached_inputs_if_possible(
-        self, task_run_id, state
+        self, running_flow_run_id, task_run_id, state_cls
     ):
         # set up a Failed state with cached inputs
         res1 = SafeResult(1, result_handler=JSONResultHandler())
@@ -93,14 +143,14 @@ class TestTaskRunStates:
         )
 
         # try to schedule the task run to scheduled
-        await states.set_task_run_state(task_run_id=task_run_id, state=state)
+        await states.set_task_run_state(task_run_id=task_run_id, state=state_cls())
 
         task_run = await models.TaskRun.where(id=task_run_id).first(
             {"serialized_state"}
         )
 
         # ensure the state change took place
-        assert task_run.serialized_state["type"] == type(state).__name__
+        assert task_run.serialized_state["type"] == state_cls.__name__
         assert task_run.serialized_state["cached_inputs"]["x"]["value"] == 1
         assert task_run.serialized_state["cached_inputs"]["y"]["value"] == {"z": 2}
 
@@ -114,7 +164,7 @@ class TestTaskRunStates:
         ids=[s.__name__ for s in State.children() if s not in _MetaState.children()],
     )
     async def test_task_runs_with_null_cached_inputs_do_not_overwrite_cache(
-        self, state, task_run_id
+        self, running_flow_run_id, state, task_run_id
     ):
         # set up a Failed state with null cached inputs
         await states.set_task_run_state(task_run_id=task_run_id, state=state)
@@ -133,7 +183,7 @@ class TestTaskRunStates:
         "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )
     async def test_task_runs_cached_inputs_give_preference_to_new_cached_inputs(
-        self, state_cls, task_run_id
+        self, running_flow_run_id, state_cls, task_run_id
     ):
         # set up a Failed state with null cached inputs
         res1 = SafeResult(1, result_handler=JSONResultHandler())
@@ -159,9 +209,12 @@ class TestTaskRunStates:
 
 
 class TestFlowRunStates:
-    async def test_set_flow_run_state(self, flow_run_id):
+    @pytest.mark.parametrize(
+        "state_cls", [s for s in State.children() if s not in _MetaState.children()]
+    )
+    async def test_set_flow_run_state(self, flow_run_id, state_cls):
         result = await states.set_flow_run_state(
-            flow_run_id=flow_run_id, state=Running()
+            flow_run_id=flow_run_id, state=state_cls()
         )
 
         query = await models.FlowRun.where(id=flow_run_id).first(
@@ -169,8 +222,8 @@ class TestFlowRunStates:
         )
 
         assert query.version == 2
-        assert query.state == "Running"
-        assert query.serialized_state["type"] == "Running"
+        assert query.state == state_cls.__name__
+        assert query.serialized_state["type"] == state_cls.__name__
 
     @pytest.mark.parametrize("state", [Running(), Success()])
     async def test_set_flow_run_state_fails_with_wrong_flow_run_id(self, state):
