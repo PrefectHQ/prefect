@@ -622,6 +622,28 @@ class TestGetRunsInQueue:
         assert labeled_flow_run_id not in mixed_flow_runs
         assert flow_run_id not in mixed_flow_runs
 
+    @pytest.mark.parametrize(
+        "run_labels,agent_labels,expected",
+        [
+            (["foo", "bar"], ["foo", "bar"], True),
+            (["foo", "bar"], ["foo", "bar", "baz"], True),
+            (["foo", "bar", "baz"], ["foo", "bar"], False),
+            (["foo", "bar"], ["dev"], False),
+            (["foo", "bar"], ["foo", "staging"], False),
+        ],
+    )
+    def test_labels_filtered_correctly(self, run_labels, agent_labels, expected):
+        def filter_logic(run_labels, agent_labels) -> bool:
+            if set(run_labels) - set(agent_labels):
+                return False
+
+            if not run_labels and agent_labels:
+                return False
+
+            return True
+
+        assert filter_logic(run_labels, agent_labels) == expected
+
     async def test_get_flow_run_in_queue_before_certain_time(
         self, flow_run_id,
     ):
