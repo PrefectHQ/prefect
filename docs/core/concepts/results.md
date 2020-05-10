@@ -107,13 +107,13 @@ b'\x80\x05K\x03.'
 
 One special result subclass is the `PrefectResult`, which stores the data in a Prefect state database, either Prefect Core's server or Prefect Cloud. You might consider this storage backend since it requires no extra configuration as long as you have tasks which return small pieces of JSON-serializable data. How this actually works is that both the `PrefectResult.value` and `PrefectResult.location` match, so that the `PrefectResult.location` serialized to the state database actually is the JSON representation of the value of the result itself. 
 
-To showcase this, below is the same example with a flow configured to checkpoint each task's output using the `PrefectResult`. Note that now both `Result.value` and `Result.location` contain references to the actual return value of its task, the integer `3`.
+To showcase this, below is the same example with a flow configured to checkpoint each task's output using the `PrefectResult`. Note that now both `Result.value` and `Result.location` contain references to the return value of its task, the integer `3`, and it's JSON representation, respectively.
 
 ```python
 >>> state.result[first_result]._result.value                 
 3
->>> state.result[first_result]._result.safe_value            
-3
+>>> state.result[first_result]._result.location            
+'3'
 ```
 
 ::: warning Handle your data carefully
