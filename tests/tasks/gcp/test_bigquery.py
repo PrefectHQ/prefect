@@ -127,7 +127,6 @@ class TestBigQueryLoadFileInitialization:
         task = BigQueryLoadFile()
         assert task.project is None
         assert task.location == "US"
-        assert task.credentials_secret is None
         assert task.dataset_id is None
         assert task.table is None
         assert task.file is None
@@ -141,9 +140,7 @@ class TestBigQueryLoadFileInitialization:
         assert task.checkpoint is True
         assert task.tags == {"bob"}
 
-    @pytest.mark.parametrize(
-        "attr", ["project", "location", "credentials_secret", "dataset_id", "table"]
-    )
+    @pytest.mark.parametrize("attr", ["project", "location", "dataset_id", "table"])
     def test_initializes_attr_from_kwargs(self, attr):
         task = BigQueryLoadFile(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
@@ -155,95 +152,6 @@ class TestBigQueryLoadFileInitialization:
             task.run(file=None)
         assert attr in str(exc.value)
         assert "must be provided" in str(exc.value)
-
-
-class TestBigQueryCredentialsandProjects:
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
-
-        client_util = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
-        )
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={"key": 42})):
-            task.run(query="SELECT *")
-
-        assert client_util.call_args[1]["credentials"] == {"key": 42}
-
-    def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
-        self, monkeypatch
-    ):
-        task = BigQueryTask(credentials_secret="GOOGLE_APPLICATION_CREDENTIALS")
-        task_proj = BigQueryTask(
-            project="test-init", credentials_secret="GOOGLE_APPLICATION_CREDENTIALS"
-        )
-
-        client_util = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
-        )
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=dict())):
-            task.run(query="SELECT *")
-            task_proj.run(query="SELECT *")
-            task_proj.run(query="SELECT *", project="run-time")
-
-        x, y, z = client_util.call_args_list
-
-        assert x[1]["project"] is None  ## pulled from credentials within util
-        assert y[1]["project"] == "test-init"  ## pulled from init
-        assert z[1]["project"] == "run-time"  ## pulled from run kwarg
-
-
-class TestBigQueryStreamingInsertCredentialsandProjects:
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = BigQueryStreamingInsert(
-            dataset_id="id",
-            table="table",
-            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
-        )
-
-        client_util = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
-        )
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS=42)):
-            task.run(records=[])
-
-        assert client_util.call_args[1]["credentials"] == 42
-
-    def test_project_is_pulled_from_creds_and_can_be_overriden_at_anytime(
-        self, monkeypatch
-    ):
-        task = BigQueryStreamingInsert(
-            dataset_id="id",
-            table="table",
-            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
-        )
-        task_proj = BigQueryStreamingInsert(
-            dataset_id="id",
-            table="table",
-            project="test-init",
-            credentials_secret="GOOGLE_APPLICATION_CREDENTIALS",
-        )
-
-        client_util = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.gcp.bigquery.get_bigquery_client", client_util
-        )
-
-        with prefect.context(secrets=dict(GOOGLE_APPLICATION_CREDENTIALS={})):
-            task.run(records=[])
-            task_proj.run(records=[])
-            task_proj.run(records=[], project="run-time")
-
-        x, y, z = client_util.call_args_list
-
-        assert x[1]["project"] is None  ## will be pulled from credentials
-        assert y[1]["project"] == "test-init"  ## pulled from init
-        assert z[1]["project"] == "run-time"  ## pulled from run kwarg
 
 
 class TestDryRuns:

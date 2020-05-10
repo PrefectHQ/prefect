@@ -370,8 +370,6 @@ class BigQueryLoadFile(Task):
             will default to the one inferred from your credentials
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - location (str, optional): location of the dataset that will be queried; defaults to "US"
-        - credentials_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            containing a JSON representation of your Google Application credentials
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -386,7 +384,6 @@ class BigQueryLoadFile(Task):
         project: str = None,
         schema: List[bigquery.SchemaField] = None,
         location: str = "US",
-        credentials_secret: str = None,
         **kwargs,
     ):
         self.file = file
@@ -398,7 +395,6 @@ class BigQueryLoadFile(Task):
         self.project = project
         self.schema = schema
         self.location = location
-        self.credentials_secret = credentials_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -410,7 +406,6 @@ class BigQueryLoadFile(Task):
         "table",
         "project",
         "location",
-        "credentials_secret",
     )
     def run(
         self,
@@ -467,11 +462,7 @@ class BigQueryLoadFile(Task):
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
         ## create client
-        client = get_client(
-            project=project,
-            credentials=credentials,
-            credentials_secret=credentials_secret,
-        )
+        client = get_bigquery_client(project=project, credentials=credentials,)
 
         ## get table reference
         table_ref = client.dataset(dataset_id).table(table)
