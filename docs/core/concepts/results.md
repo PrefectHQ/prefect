@@ -38,7 +38,7 @@ also provides a `NoResult` object representing the _absence_ of computation / da
 The most common scenario in which a user might need to directly interact with a `Result` object produced by the Prefect pipeline in memory is when running flows locally. All Prefect `States` have `Result` objects built into them, which can be accessed via the private `_result` attribute. For convenience, the public `.result` property retrieves the underlying `Result`'s value.
 
 ```python
->>> task_ref = flow.get_tasks[0]
+>>> task_ref = flow.get_tasks()[0]
 >>> state = flow.run()
 >>> state._result.value  # a Flow State's Result value is its Tasks' States
 {<Task: add>: <Success: "Task run succeeded.">,
