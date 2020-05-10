@@ -810,16 +810,16 @@ class TestGetRunsInQueue:
         flow_ids = await models.FlowRun.where({"id": {"_in": queued_runs}}).get(
             {"id", "flow_id"}
         )
-        labeled_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
-        constrained_flow_runs = [
+        limited_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
+        unconstrained_flow_runs = [
             row for row in flow_ids if row.flow_id == labeled_flow_id_2
         ]
 
-        assert len(queued_runs) == len(labeled_flow_runs) + len(unconstrained_flow_runs)
+        assert len(queued_runs) == len(limited_flow_runs) + len(unconstrained_flow_runs)
         capacity = await api.concurrency_limits.get_available_flow_concurrency(
             [flow_concurrency_limit.name, flow_concurrency_limit_2.name]
         )
-        assert len(constrained_flow_runs) <= min(
+        assert len(limited_flow_runs) <= min(
             [
                 capacity[flow_concurrency_limit.name],
                 capacity[flow_concurrency_limit_2.name],
