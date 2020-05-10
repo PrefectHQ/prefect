@@ -713,42 +713,49 @@ class TestGetRunsInQueue:
         assert not await runs.get_runs_in_queue()
 
     async def test_concurrency_limited_flows_are_not_retrieved(
-        self, flow_id: str, flow_concurrency_limit: models.FlowConcurrencyLimit
+        self,
+        labeled_flow_id: str,
+        labeled_flow_id_2: str,
+        flow_concurrency_limit: models.FlowConcurrencyLimit,
+        flow_concurrency_limit_2: models.FlowConcurrencyLimit,
     ):
+        """
+        Tests to make sure that even when there are constrained flows
+        that don't pass their constraint check, we're able to find
+        flows that aren't concurrency constraint and return
+        them from the queue.
+        """
 
-        # create more runs than concurrency allows
-        for _ in range(2 * config.queued_runs_returned_limit):
-            await runs.create_flow_run(flow_id=flow_id)
-
-        await api.flows._update_flow_setting(
-            flow_id, "concurrency_limits", [flow_concurrency_limit.name]
-        )
-        # There is already a running flow run, so this shouldn't bring back
-        # any queued runs.
-        assert len(
-            await runs.get_runs_in_queue()
-        ) == await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
-        )
-
-        await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
-            set={"slots": 5}
+        agent_labels = ["foo", "bar", "baz"]
+        num_unconstrained_flows = 5
+        await asyncio.gather(
+            *(
+                [
+                    runs.create_flow_run(flow_id=labeled_flow_id)
+                    for _ in range(2 * config.queued_runs_returned_limit)
+                ]
+                + [
+                    runs.create_flow_run(flow_id=labeled_flow_id_2)
+                    for _ in range(num_unconstrained_flows)
+                ]
+            )
         )
 
-        queued_runs = await runs.get_runs_in_queue()
-        # 5 available slots, and should be limited based on concurrency
-        # limits.
-        assert len(
-            queued_runs
-        ) == await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+        queued_runs = len(await runs.get_runs_in_queue(labels=agent_labels))
+        available_constraint_slots = await api.concurrency_limits.get_available_flow_concurrency(
+            [flow_concurrency_limit.name, flow_concurrency_limit_2.name]
         )
+        expected_number_of_runs = (
+            min(available_constraint_slots.values()) + num_unconstrained_flows
+        )
+        assert queued_runs == expected_number_of_runs
 
     async def test_finds_concurrency_limited_and_other_flows(
         self,
-        flow_id: str,
+        labeled_flow_id_2: str,
         labeled_flow_id: str,
         flow_concurrency_limit: models.FlowConcurrencyLimit,
+        flow_concurrency_limit_2: models.FlowConcurrencyLimit,
     ):
         """
         This test should be making sure that if both a concurrency limited
@@ -759,45 +766,69 @@ class TestGetRunsInQueue:
         number of returned flow runs as specified by the config)
         """
         # create more runs than concurrency allows
-        for _ in range(5):
-            await runs.create_flow_run(flow_id=flow_id)
+        num_unconstrained_flow_runs = 3
+        agent_labels = ["foo", "bar", "baz"]
 
-        for _ in range(10):
-            await runs.create_flow_run(flow_id=labeled_flow_id)
-
-        await api.flows._update_flow_setting(
-            flow_id, "concurrency_limits", [flow_concurrency_limit.name]
+        to_be_created = []
+        to_be_created.extend(
+            [
+                runs.create_flow_run(flow_id=labeled_flow_id_2)
+                for _ in range(num_unconstrained_flow_runs)
+            ]
         )
+        to_be_created.extend(
+            [runs.create_flow_run(flow_id=labeled_flow_id) for _ in range(10)]
+        )
+        await asyncio.gather(*to_be_created)
+        queued_runs = await runs.get_runs_in_queue(labels=agent_labels)
+
+        flow_ids = await models.FlowRun.where({"id": {"_in": queued_runs}}).get(
+            {"id", "flow_id"}
+        )
+        labeled_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
+        unconstrained_flow_runs = [
+            row for row in flow_ids if row.flow_id == labeled_flow_id_2
+        ]
+
         # There is already a running flow run, so this shouldn't bring back
         # any queued runs.
-        assert len(
-            await runs.get_runs_in_queue()
-        ) == await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+
+        available_slots = await api.concurrency_limits.get_available_flow_concurrency(
+            [flow_concurrency_limit.name, flow_concurrency_limit_2.name]
+        )
+
+        assert len(queued_runs) == num_unconstrained_flow_runs + min(
+            available_slots.values()
         )
 
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
             set={"slots": 5}
         )
 
-        queued_runs = await runs.get_runs_in_queue()
+        queued_runs = await runs.get_runs_in_queue(labels=agent_labels)
 
         flow_ids = await models.FlowRun.where({"id": {"_in": queued_runs}}).get(
             {"id", "flow_id"}
         )
         labeled_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
-        constrained_flow_runs = [row for row in flow_ids if row.flow_id == flow_id]
+        constrained_flow_runs = [
+            row for row in flow_ids if row.flow_id == labeled_flow_id_2
+        ]
 
-        assert len(queued_runs) == len(labeled_flow_runs) + len(constrained_flow_runs)
-        assert len(
-            constrained_flow_runs
-        ) <= await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+        assert len(queued_runs) == len(labeled_flow_runs) + len(unconstrained_flow_runs)
+        capacity = await api.concurrency_limits.get_available_flow_concurrency(
+            [flow_concurrency_limit.name, flow_concurrency_limit_2.name]
+        )
+        assert len(constrained_flow_runs) <= min(
+            [
+                capacity[flow_concurrency_limit.name],
+                capacity[flow_concurrency_limit_2.name],
+            ]
         )
 
     async def test_requires_all_concurrency_slots_for_eligibility(
         self,
-        flow_id: str,
+        labeled_flow_id: str,
         flow_concurrency_limit: models.FlowConcurrencyLimit,
         flow_concurrency_limit_2: models.FlowConcurrencyLimit,
     ):
@@ -807,18 +838,14 @@ class TestGetRunsInQueue:
         if all concurrency slots required are available.
         """
         await models.FlowRun.where().delete()
-        await api.flows._update_flow_setting(
-            flow_id,
-            "concurrency_limits",
-            [flow_concurrency_limit.name, flow_concurrency_limit_2.name],
-        )
 
-        for _ in range(5):
-            await runs.create_flow_run(flow_id=flow_id)
+        await asyncio.gather(
+            *[runs.create_flow_run(flow_id=labeled_flow_id) for _ in range(5)]
+        )
 
         assert await models.FlowRun.where().count() == 5
 
-        # Both fixtures hae a default limit of 1, so we need to set 1
+        # Both fixtures have a default limit of 1, so we need to set 1
         # higher for this test to actually test it.
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
             {"slots": 4}
@@ -827,7 +854,7 @@ class TestGetRunsInQueue:
             id=flow_concurrency_limit.id
         ).first({"id", "slots", "name"})
 
-        queued_runs = await runs.get_runs_in_queue()
+        queued_runs = await runs.get_runs_in_queue(labels=["foo", "bar"])
 
         assert len(queued_runs) == min(
             [flow_concurrency_limit.slots, flow_concurrency_limit_2.slots]

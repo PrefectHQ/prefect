@@ -13,7 +13,7 @@ flow runs all at once.
 
 import asyncio
 import uuid
-from typing import Optional
+from typing import Dict, List, Optional
 
 import pendulum
 import prefect
@@ -81,7 +81,9 @@ async def delete_flow_concurrency_limit(flow_concurrency_limit_id: str) -> bool:
     return bool(result.affected_rows)
 
 
-async def get_available_flow_concurrency(execution_env_label: str) -> int:
+async def get_available_flow_concurrency(
+    execution_env_labels: List[str],
+) -> Dict[str, int]:
     """
     Determines the number of open flow concurrency slots are available
     given a certain Execution Environment label.
@@ -92,41 +94,36 @@ async def get_available_flow_concurrency(execution_env_label: str) -> int:
     the `Running` state.
 
     Args:
-        - execution_env_label (Optional[str]): Name of the 
-
-    Raises:
-        - ValueError: If a flow concurrency limit can't be found with the
-            provided `execution_env_label`.
+        - execution_env_label (List[str]): List of environment execution
+            labels to get their concurrency maximums.
 
     Returns:
-        - int: Number of available concurrency slots for the label
+        - Dict[str, int]: Number of available concurrency slots for each
+            label that's passed in. If not found, the label won't be present
+            in the output dictionary.
     """
 
-    where_clause = {"name": {"_eq": execution_env_label}}
+    concurrency_limits = await models.FlowConcurrencyLimit.where(
+        {"name": {"_in": execution_env_labels}}
+    ).get({"id", "name", "slots"})
+    if not concurrency_limits:
+        return {}
 
-    concurrency_limit = await models.FlowConcurrencyLimit.where(
-        where=where_clause
-    ).first({"id", "name", "slots"})
-    if concurrency_limit is None:
-        raise ValueError(
-            f"Unable to find execution environment with label: {execution_env_label}"
-        )
+    limits = {limit.name: limit.slots for limit in concurrency_limits}
 
     # Only count the resource as taken if the flow run is currently
-    # in a running state and also is tagged with the resource.
-    utilized_resources = await models.FlowRun.where(
-        where={
-            "flow": {
-                "settings": {
-                    "_contains": {"concurrency_limits": [concurrency_limit.name]}
-                }
-            },
-            "state": {"_in": RUNNING_STATES},
-        }
-    ).count()
+    # in a running state and also is tagged with the environment tag.
 
-    available_resources = concurrency_limit.slots - utilized_resources
-    if available_resources > 0:
-        return available_resources
-    else:
-        return 0
+    utilized_slots = {
+        limit.name: await models.FlowRun.where(
+            where={
+                "flow": {"environment": {"_contains": {"labels": [limit.name]}}},
+                "state": {"_in": RUNNING_STATES},
+            }
+        ).count()
+        for limit in concurrency_limits
+    }
+
+    result = {label: limits[label] - used for label, used in utilized_slots.items()}
+
+    return result

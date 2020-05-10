@@ -150,68 +150,54 @@ class TestGetAvailableConcurrencyLimits:
             )
 
     @pytest.mark.parametrize(
-        "concurrency_limits", [["bigquery"], ["spark"], ["bigquery", "spark"]]
+        "labels", [["foo"], ["bar"], ["foo", "bar"], ["bar", "foo"]]
     )
-    async def test_contains_in(
-        self, labeled_flow_id: str, concurrency_limits: List[str]
+    async def test_contains_partial_matches_in(
+        self, labeled_flow_id: str, labels: List[str]
     ):
         """
         This test doesn't necessarily test our code, but it does test
         that our understanding of how Hasura handles filtering a JSONB
-        field with the structure:
+        for the existance of one or more values that should return a match
+        given the structure:
         {
-            key: [value, value2, value,3]
+            environment: {labels: [foo, bar, value,3]}
         }
+        These find the match because they're either a subset or exact
+        match. Order doesn't matter.
         """
-        result = await api.flows._update_flow_setting(
-            labeled_flow_id, "concurrency_limits", concurrency_limits
-        )
-        assert result is True
+
         res = await models.Flow.where(
-            {"settings": {"_contains": {"concurrency_limits": concurrency_limits}}}
+            {"environment": {"_contains": {"labels": labels}}}
         ).count()
         assert res == 1
 
-    async def test_bottoms_out_at_0(
-        self,
-        flow_id: str,
-        flow_run_id: str,
-        flow_run_id_2: str,
-        flow_concurrency_limit: models.FlowConcurrencyLimit,
+    @pytest.mark.parametrize("labels", [["foo", "bar", "baz"], ["baz"], ["foo", "baz"]])
+    async def test_contains_not_full_match(
+        self, labeled_flow_id: str, labels: List[str]
     ):
         """
-        This test makes sure that in the case of over-allocating
-        available slots, we return 0 slots available so we can't
-        over-over-allocate the slots.
+        This test doesn't necessarily test our code, but it does test
+        that our understanding of how Hasura handles filtering a JSONB
+        for the existance of one or more values that should not return 
+        a match given the structure:
+        {
+            environment: {labels: [value, value2, value,3]}
+        }
+        These don't find a match because the _contains filter needs
+        to be an exact match or subset.
+
         """
-
-        result = await api.flows._update_flow_setting(
-            flow_id, "concurrency_limits", [flow_concurrency_limit.name]
-        )
-        assert result is True
-
-        available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
-        )
-
-        assert available_concurrency_limits == 0
-
-        await asyncio.gather(
-            api.states.set_flow_run_state(flow_run_id, Running()),
-            api.states.set_flow_run_state(flow_run_id_2, Running()),
-        )
-
-        available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
-        )
-
-        assert available_concurrency_limits == 0
+        res = await models.Flow.where(
+            {"environment": {"_contains": {"labels": labels}}}
+        ).count()
+        assert res == 0
 
     async def test_only_includes_running_states(
         self,
-        flow_id: str,
-        flow_run_id: str,
-        flow_run_id_2: str,
+        labeled_flow_id: str,
+        labeled_flow_run_id: str,
+        labeled_flow_run_id_2: str,
         flow_concurrency_limit: models.FlowConcurrencyLimit,
     ):
         """
@@ -219,33 +205,31 @@ class TestGetAvailableConcurrencyLimits:
         the concurrency limit's usage.
         """
 
-        result = await api.flows._update_flow_setting(
-            flow_id, "concurrency_limits", [flow_concurrency_limit.name]
-        )
-
         # Setting the limit higher so we can actually observe the changes
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
             set={"slots": 10}
         )
 
         available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+            [flow_concurrency_limit.name]
         )
 
-        assert available_concurrency_limits == 9
+        assert available_concurrency_limits[flow_concurrency_limit.name] == 9
 
         # Now that the flow is running, it should take up a spot
-        await asyncio.gather(api.states.set_flow_run_state(flow_run_id, Running()))
+        await api.states.set_flow_run_state(labeled_flow_run_id, Running())
 
         new_available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+            [flow_concurrency_limit.name]
         )
         # We should have 1 less spot due to the new flow run
-        assert available_concurrency_limits == (new_available_concurrency_limits + 1)
+        old = available_concurrency_limits[flow_concurrency_limit.name]
+        new = new_available_concurrency_limits[flow_concurrency_limit.name]
+        assert old == new + 1
 
     async def test_only_includes_labeled_runs(
         self,
-        flow_id: str,
+        flow_run_id: str,
         labeled_flow_id: str,
         labeled_flow_run_id: str,
         flow_concurrency_limit: models.FlowConcurrencyLimit,
@@ -254,9 +238,6 @@ class TestGetAvailableConcurrencyLimits:
         Tests to make sure that only flows using the environment that is tagged
         counts towards the concurrency limit's capacity.
         """
-        await api.flows._update_flow_setting(
-            flow_id, "concurrency_limits", [flow_concurrency_limit.name]
-        )
 
         # Setting the limit higher so we can actually observe the changes
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
@@ -264,18 +245,16 @@ class TestGetAvailableConcurrencyLimits:
         )
 
         available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+            [flow_concurrency_limit.name]
         )
 
-        assert available_concurrency_limits == 10
+        assert available_concurrency_limits[flow_concurrency_limit.name] == 10
 
         # Marking the flow that _doesn't_ use the concurrency limit as running
-        await asyncio.gather(
-            api.states.set_flow_run_state(labeled_flow_run_id, Running())
-        )
+        await api.states.set_flow_run_state(flow_run_id, Running())
 
         new_available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit.name
+            [flow_concurrency_limit.name]
         )
         # No flow concurrency slots should be taken because it isn't tagged w/ the label
         assert available_concurrency_limits == new_available_concurrency_limits

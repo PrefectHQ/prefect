@@ -46,6 +46,8 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> None:
     # TODO: Add gatekeeper flow-run-concurrency code here, and document
     # that this is the codeset that ultimately matters for restricting
     # settings flows to running if there isn't concurrency available
+    # TODO: Figure out how to deal w/ feature flagging and only
+    # do the concurrency check when there plugin is enabled
 
     # --------------------------------------------------------
     # insert the new state in the database

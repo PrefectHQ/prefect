@@ -6,11 +6,11 @@ import datetime
 from typing import Any, Dict, List
 
 import pendulum
-import prefect
 import pydantic
-
 from prefect_server import config
 from prefect_server.database.orm import HasuraModel, UUIDString
+
+import prefect
 
 
 class Flow(HasuraModel):

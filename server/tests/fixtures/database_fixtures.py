@@ -79,6 +79,29 @@ async def labeled_flow_id():
 
 
 @pytest.fixture
+async def labeled_flow_id_2():
+
+    flow = prefect.Flow(
+        name="Labeled Flow 2",
+        environment=prefect.environments.execution.remote.RemoteEnvironment(
+            labels=["baz"]
+        ),
+        schedule=prefect.schedules.IntervalSchedule(
+            start_date=pendulum.datetime(2018, 1, 1),
+            interval=datetime.timedelta(days=1),
+        ),
+    )
+    flow.add_edge(
+        prefect.Task("t1", tags={"red", "blue"}),
+        prefect.Task("t2", tags={"red", "green"}),
+    )
+    flow.add_task(prefect.Parameter("x", default=1))
+
+    flow_id = await api.flows.create_flow(serialized_flow=flow.serialize())
+    return flow_id
+
+
+@pytest.fixture
 async def schedule_id(flow_id):
     schedule = await models.Schedule.where({"flow_id": {"_eq": flow_id}}).first("id")
     return schedule.id
@@ -124,6 +147,15 @@ async def running_flow_run_id(flow_run_id):
 @pytest.fixture
 async def labeled_flow_run_id(labeled_flow_id):
     return await api.runs.create_flow_run(flow_id=labeled_flow_id, parameters=dict(x=1))
+
+
+@pytest.fixture
+async def labeled_flow_run_id_2(labeled_flow_id):
+    flow_run_id = await api.runs.create_flow_run(
+        flow_id=labeled_flow_id, parameters=dict(x=2)
+    )
+    await api.states.set_flow_run_state(flow_run_id=flow_run_id, state=Running())
+    return flow_run_id
 
 
 @pytest.fixture
@@ -220,7 +252,7 @@ async def excess_submitted_task_runs():
 async def flow_concurrency_limit() -> models.FlowConcurrencyLimit:
 
     concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-        "test flow concurrency limit",
+        "foo",
         description="A flow concurrency limit created from Prefect Server's test suite.",
         slots=1,
     )
@@ -234,7 +266,7 @@ async def flow_concurrency_limit() -> models.FlowConcurrencyLimit:
 @pytest.fixture
 async def flow_concurrency_limit_2() -> models.FlowConcurrencyLimit:
     concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-        "spark",
+        "bar",
         description="A second flow concurrency limit created from Prefect Server's test suite",
         slots=1,
     )

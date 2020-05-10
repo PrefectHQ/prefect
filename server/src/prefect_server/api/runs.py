@@ -223,7 +223,7 @@ async def get_runs_in_queue(
             ]
         }
     ).get(
-        {"id": True, "flow": {"environment": True, "settings": True}},
+        {"id": True, "flow": {"environment": True}},
         order_by=[{"current_state": {"start_time": EnumValue("asc")}}],
         # get extra in case labeled or resource constrained runs don't show up at the top
         limit=config.queued_runs_returned_limit * 4,
@@ -232,16 +232,18 @@ async def get_runs_in_queue(
     # See if any flows are resource constrained and find current available resources
     concurrency_limits = set()
     for flow_run in flow_runs:
-        flow_concurrency_limits = flow_run.flow.settings.get("concurrency_limits") or []
+        flow_concurrency_limits = flow_run.flow.environment.get("labels") or []
         for flow_concurrency_limit in flow_concurrency_limits:
             concurrency_limits.add(flow_concurrency_limit)
 
-    available_resource_utilization = {
-        flow_concurrency_limit: await api.concurrency_limits.get_available_flow_concurrency(
-            flow_concurrency_limit
-        )
-        for flow_concurrency_limit in concurrency_limits
-    }
+    # Some environments may be tagged w/ labels but _not_ have
+    # limits associated with them, so we check for all of them
+    # but this mapping likely won't contain all labels
+    # we pass in.
+
+    available_concurrency_slots = await api.concurrency_limits.get_available_flow_concurrency(
+        list(concurrency_limits)
+    )
 
     counter = 0
     final_flow_runs = []
@@ -259,34 +261,39 @@ async def get_runs_in_queue(
 
         run_labels = flow_run.flow.environment.get("labels") or []
 
+        # Agent label filtering
         # if the run labels are a superset of the provided labels, skip
         if set(run_labels) - set(labels):
             continue
 
+        # Agent label filtering
         # if the run has no labels but labels were provided, skip
         if not run_labels and labels:
             continue
 
+        # Flow concurrency filtering
         # Required concurrency slots of this flow run
-        flow_concurrency_limits = flow_run.flow.settings.get("concurrency_limits") or []
-        if flow_concurrency_limits:
-            # if the execution environment has available concurrency for all
-            # of the concurrency slots this flow run requires.
+        if run_labels:
+
+            # Unconstrained environments won't be in the dict, so
+            # defaulting to 1 to make sure they pass the test.
             if not all(
                 [
-                    available_resource_utilization[concurrency_limit] > 0
-                    for concurrency_limit in flow_concurrency_limits
+                    available_concurrency_slots.get(concurrency_limit, 1) > 0
+                    for concurrency_limit in run_labels
                 ]
             ):
-                # The run doesn't have the available concurrency slots, so we
-                # bail early and don't count towards the number
-                # in the queue.
+
+                # The environment doesn't have the available concurrency slots, so we
+                # bail early and don't count towards the number in the queue.
 
                 continue
             else:
-
-                for concurrency_limit in flow_concurrency_limits:
-                    available_resource_utilization[concurrency_limit] -= 1
+                for used_slot in run_labels:
+                    # Env labels don't need to be constrained, so we only
+                    # decrement if they are constrained.
+                    if used_slot in available_concurrency_slots:
+                        available_concurrency_slots[used_slot] -= 1
 
         final_flow_runs.append(flow_run.id)
         counter += 1
