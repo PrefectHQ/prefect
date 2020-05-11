@@ -54,6 +54,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
 
 ### Task Library
+- `DbtShellTask` - an extension of ShellTask for working with data build tool (dbt)
 
 - Add `prefect.tasks.gcp.bigquery.BigQueryLoadFile` [#2423](https://github.com/PrefectHQ/prefect/issues/2423)
 
@@ -73,6 +74,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - [Alvin Goh](https://github.com/chuehsien)
 - [Daniel Kapitan](https://github.com/dkapitan)
+- [Mark McDonald](https://github.com/mhmcdonald)
 
 ## 0.10.7 <Badge text="beta" type="success"/>
 

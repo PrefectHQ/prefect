@@ -53,7 +53,7 @@ extras = {
     "pushbullet": ["pushbullet.py >= 0.11.0"],
     "redis": ["redis >= 3.2.1"],
     "rss": ["feedparser >= 5.0.1, < 6.0"],
-    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.0"],
+    "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
     "templates": ["jinja2 >= 2.0, < 3.0"],
     "test": test_requires,
