@@ -802,7 +802,7 @@ class TestGetRunsInQueue:
         )
 
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
-            set={"slots": 5}
+            set={"limit": 5}
         )
 
         queued_runs = await runs.get_runs_in_queue(labels=agent_labels)
@@ -848,14 +848,14 @@ class TestGetRunsInQueue:
         # Both fixtures have a default limit of 1, so we need to set 1
         # higher for this test to actually test it.
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
-            {"slots": 4}
+            {"limit": 4}
         )
         flow_concurrency_limit = await models.FlowConcurrencyLimit.where(
             id=flow_concurrency_limit.id
-        ).first({"id", "slots", "name"})
+        ).first({"id", "limit", "name"})
 
         queued_runs = await runs.get_runs_in_queue(labels=["foo", "bar"])
 
         assert len(queued_runs) == min(
-            [flow_concurrency_limit.slots, flow_concurrency_limit_2.slots]
+            [flow_concurrency_limit.limit, flow_concurrency_limit_2.limit]
         )

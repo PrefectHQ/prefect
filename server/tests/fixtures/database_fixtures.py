@@ -254,12 +254,12 @@ async def flow_concurrency_limit() -> models.FlowConcurrencyLimit:
     concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
         "foo",
         description="A flow concurrency limit created from Prefect Server's test suite.",
-        slots=1,
+        limit=1,
     )
 
     populated_concurrency_limit = await models.FlowConcurrencyLimit.where(
         id=concurrency_limit_id
-    ).first({"id", "name", "description", "slots"})
+    ).first({"id", "name", "description", "limit"})
     return populated_concurrency_limit
 
 
@@ -268,10 +268,10 @@ async def flow_concurrency_limit_2() -> models.FlowConcurrencyLimit:
     concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
         "bar",
         description="A second flow concurrency limit created from Prefect Server's test suite",
-        slots=1,
+        limit=1,
     )
 
     populated_concurrency_limit = await models.FlowConcurrencyLimit.where(
         id=concurrency_limit_id
-    ).first({"id", "name", "description", "slots"})
+    ).first({"id", "name", "description", "limit"})
     return populated_concurrency_limit

@@ -21,14 +21,14 @@ class TestCreateFlowConcurrencyLimit:
         description = (
             "A flow concurrency limit created from Prefect Server's test suite."
         )
-        slots = 5
+        limit = 5
 
         concurrency_limit_count = await orm.ModelQuery(
             model=models.FlowConcurrencyLimit
         ).count()
 
         concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-            flow_concurrency_limit_name, slots=slots, description=description
+            flow_concurrency_limit_name, limit=limit, description=description
         )
 
         new_concurrency_limit_count = await orm.ModelQuery(
@@ -38,15 +38,15 @@ class TestCreateFlowConcurrencyLimit:
 
         concurrency_limit = await models.FlowConcurrencyLimit.where(
             where={"id": {"_eq": concurrency_limit_id}}
-        ).first({"id", "name", "description", "slots"})
+        ).first({"id", "name", "description", "limit"})
         assert concurrency_limit is not None
         assert concurrency_limit.id == concurrency_limit_id
         assert concurrency_limit.description == description
-        assert concurrency_limit.slots == slots
+        assert concurrency_limit.limit == limit
         assert concurrency_limit.name == flow_concurrency_limit_name
 
-    @pytest.mark.parametrize("slots", [0, -5])
-    async def test_raises_error_on_bad_slots(self, slots: int):
+    @pytest.mark.parametrize("limit", [0, -5])
+    async def test_raises_error_on_bad_limit(self, limit: int):
 
         flow_concurrency_limit_name = "test concurrency limit"
         description = (
@@ -59,7 +59,7 @@ class TestCreateFlowConcurrencyLimit:
 
         with pytest.raises(ValueError):
             concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-                flow_concurrency_limit_name, slots=slots, description=description
+                flow_concurrency_limit_name, limit=limit, description=description
             )
 
         new_concurrency_limit_count = await orm.ModelQuery(
@@ -74,14 +74,14 @@ class TestCreateFlowConcurrencyLimit:
         description = (
             "A flow concurrency limit created from Prefect Server's test suite."
         )
-        slots = 5
+        limit = 5
 
         concurrency_limit_count = await orm.ModelQuery(
             model=models.FlowConcurrencyLimit
         ).count()
 
         concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-            flow_concurrency_limit_name, slots=slots, description=description
+            flow_concurrency_limit_name, limit=limit, description=description
         )
 
         new_concurrency_limit_count = await orm.ModelQuery(
@@ -92,7 +92,7 @@ class TestCreateFlowConcurrencyLimit:
 
         with pytest.raises(ValueError):
             concurrency_limit_id = await api.concurrency_limits.create_flow_concurrency_limit(
-                flow_concurrency_limit_name, slots=slots, description=description
+                flow_concurrency_limit_name, limit=limit, description=description
             )
 
         newest_concurrency_limit_count = await orm.ModelQuery(
@@ -207,7 +207,7 @@ class TestGetAvailableConcurrencyLimits:
 
         # Setting the limit higher so we can actually observe the changes
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
-            set={"slots": 10}
+            set={"limit": 10}
         )
 
         available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
@@ -241,7 +241,7 @@ class TestGetAvailableConcurrencyLimits:
 
         # Setting the limit higher so we can actually observe the changes
         await models.FlowConcurrencyLimit.where(id=flow_concurrency_limit.id).update(
-            set={"slots": 10}
+            set={"limit": 10}
         )
 
         available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
@@ -256,5 +256,5 @@ class TestGetAvailableConcurrencyLimits:
         new_available_concurrency_limits = await api.concurrency_limits.get_available_flow_concurrency(
             [flow_concurrency_limit.name]
         )
-        # No flow concurrency slots should be taken because it isn't tagged w/ the label
+        # No flow concurrency limit should be taken because it isn't tagged w/ the label
         assert available_concurrency_limits == new_available_concurrency_limits

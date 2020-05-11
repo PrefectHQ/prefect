@@ -30,7 +30,7 @@ RUNNING_STATES = [
 
 
 async def create_flow_concurrency_limit(
-    name: str, slots: int, description: Optional[str] = None
+    name: str, limit: int, description: Optional[str] = None
 ) -> str:
     """
     Creates a new flow concurrency limit based on
@@ -38,7 +38,7 @@ async def create_flow_concurrency_limit(
 
     Args:
         - name (str): Name of the execution environment's label.
-        - slots (int): Number of concurrent flow runs that can occur at once.
+        - limit (int): Number of concurrent flow runs that can occur at once.
         - description (Optional[str]): Description of the flow concurrency limit
             intended for end-user clarificiation.
 
@@ -46,18 +46,18 @@ async def create_flow_concurrency_limit(
         - str: Id of the new flow concurrency limit
 
     Raises:
-        - ValueError: If too few slots are requested.
+        - ValueError: If too low of a limit is requested.
         - ValueError: If a flow concurrency limit with the same name already exists.
     """
 
-    if slots <= 0:
+    if limit <= 0:
         raise ValueError(
-            f"Invalid slot specification for new flow concurrency limit {name}.\
+            f"Invalid limit specification for new flow concurrency limit {name}.\
                 Expected > 0 for being able to limit runs properly."
         )
 
     flow_concurrency_limit_id = await models.FlowConcurrencyLimit(
-        name=name, slots=slots, description=description
+        name=name, limit=limit, description=description
     ).insert()
 
     return flow_concurrency_limit_id
@@ -105,11 +105,11 @@ async def get_available_flow_concurrency(
 
     concurrency_limits = await models.FlowConcurrencyLimit.where(
         {"name": {"_in": execution_env_labels}}
-    ).get({"id", "name", "slots"})
+    ).get({"id", "name", "limit"})
     if not concurrency_limits:
         return {}
 
-    limits = {limit.name: limit.slots for limit in concurrency_limits}
+    limits = {limit.name: limit.limit for limit in concurrency_limits}
 
     # Only count the resource as taken if the flow run is currently
     # in a running state and also is tagged with the environment tag.
