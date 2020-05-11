@@ -59,7 +59,7 @@ Each of these methods depend on the `Result.location` attribute to determine whe
 ### Persisting user-created `Result`s
 If you want to use the `Result` API yourself, such as in a task, instantiate a configured result object and use its `read`, `write`, and `exists` methods directly however you want to in your task.
 
-For example, if your task needs to read a file from an S3 bucket, consider using Prefect's `S3Result` to identify the S3 file and read it:
+For example, if your task needs to read a file from an S3 bucket, consider using Prefect's `S3Result` to identify the S3 file and interact with it:
 
 ```python
 from prefect import Flow, task
@@ -67,8 +67,9 @@ from prefect.engine.results import S3Result
 
 @task
 def my_task():
-    my_file_in_S3 = S3Result(bucket='mybucket', location='myfile.txt')
-    contents = my_file_in_S3.read()
+    s3_result = S3Result(bucket='bucket_o_models')
+    my_saved_model_result = s3_result.read(location='model.pickle')
+    my_model = my_saved_model_result.value
     # ...
 ```
 
