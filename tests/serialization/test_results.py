@@ -153,7 +153,7 @@ def test_result_handler_result():
 
 
 def test_custom_result():
-    class CustomResult(Result):
+    class MySuperAwesomeAmazingTopOfTheLineCustomResult(Result):
         def __init__(self, test_kwarg=None, **kwargs):
             self.test_kwarg = test_kwarg
             self.read_result = False
@@ -177,7 +177,9 @@ def test_custom_result():
             return new
 
     schema = StateResultSchema()
-    result = CustomResult(test_kwarg="yes", value=42, location="bar")
+    result = MySuperAwesomeAmazingTopOfTheLineCustomResult(
+        test_kwarg="yes", value=42, location="bar"
+    )
     serialized = schema.dump(result)
 
     assert serialized["type"] == "CustomResult"
