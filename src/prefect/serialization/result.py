@@ -5,7 +5,12 @@ from prefect.engine import result, results
 from prefect.engine.result_handlers import ResultHandler
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.tasks.secrets import SecretBase
-from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
+from prefect.utilities.serialization import (
+    JSONCompatible,
+    ObjectSchema,
+    OneOfSchema,
+    to_qualified_name,
+)
 
 
 class SafeResultSchema(ObjectSchema):
@@ -26,6 +31,21 @@ class ResultSchema(ObjectSchema):
 class NoResultSchema(ObjectSchema):
     class Meta:
         object_class = result.NoResultType
+
+
+class CustomResultSchema(ObjectSchema):
+    class Meta:
+        object_class = lambda: result.Result
+        exclude_fields = ["type"]
+
+    type = fields.Function(
+        lambda handler: to_qualified_name(type(handler)), lambda x: x
+    )
+
+    @post_load
+    def create_object(self, data: dict, **kwargs: Any) -> result.Result:
+        """Because we cannot deserialize a custom class, return `None`"""
+        return result.Result()
 
 
 class AzureResultSchema(ObjectSchema):
@@ -124,6 +144,7 @@ class StateResultSchema(OneOfSchema):
         "SafeResult": SafeResultSchema,
         "NoResultType": NoResultSchema,
         "Result": ResultSchema,
+        "CustomResult": CustomResultSchema,
         "AzureResult": AzureResultSchema,
         "ConstantResult": ConstantResultSchema,
         "GCSResult": GCSResultSchema,
@@ -133,3 +154,10 @@ class StateResultSchema(OneOfSchema):
         "SecretResult": SecretResultSchema,
         "ResultHandlerResult": ResultHandlerResultSchema,
     }
+
+    def get_obj_type(self, obj: Any) -> str:
+        name = obj.__class__.__name__
+        if name in self.type_schemas:
+            return name
+        else:
+            return "CustomResult"
