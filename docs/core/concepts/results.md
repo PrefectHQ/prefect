@@ -13,13 +13,20 @@ A Prefect `Result` object represents data Prefect knows about, most importantly 
 In the unconfigured case, all `State` objects produced by a flow have a basic `Result` object with only `Result.value` set. These base objects do not know how to write themselves to persistent storage.
 
 ```python
+# access the underlying Result instance
 >>> type(state._result)
 prefect.engine.result.Result
->>> type(state._result.value)  # this is the type of your Task's return value
+
+# this is the type of your Task's return value
+>>> type(state._result.value)
+dict
+
+# the value can be conveniently accessed via `state.result`
+>>> type(state.result)
 dict
 ```
 
-You can instead configure your task to use a subclass of `Result` that aligned with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md)). These subclasses of `Result` always have four important attributes / methods:
+You can instead configure your task to use a subclass of `Result` that aligns with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md)). These subclasses of `Result` always have four important attributes / methods:
 
 - `location`: the location the data should be stored to (note that this can be templated as described below)
 - `read()`: how to read from the storage backend

@@ -8,6 +8,8 @@ Let's take a look at using results to persist and track task output. As introduc
 
 Why would you persist the output of your tasks? The most common situation is to enable retrying from failure of a task for users that use a state database, such as Prefect Core's server or Prefect Cloud. By persisting the output of a task somewhere besides in-memory, a state database that knows the persisted location of a task's output can restart from where it left off. In the same vein, using a persistent cache to prevent reruns of expensive or slow tasks outside of a single Python interpreter is only possible when the return value of tasks are persisted somewhere outside of memory. Another common situation is to allow for inspection of intermediary data when debugging flows (including—maybe especially—production ones). By checkpointing data during different data transformation Tasks, runtime data bugs can be tracked down by analyzing the checkpoints sequentially.
 
+[[toc]]
+
 ## Setting up to handle results
 
 Checkpointing must be enabled for the pipeline to write a result. You must enable in two places: globally for the Prefect installation, and at the task level by providing a `Result` subclass to tasks either through its flow initialization or as a task-level override. Depending on which result subclass you configure, you may also need to ensure your authentication credentials are set up properly. For users of Prefect Core's server or Prefect Cloud, some of this is handled by default.
@@ -75,7 +77,7 @@ In the above examples, we only used the `LocalResult` class. This is one of seve
 
 We can write our own result subclasses as long as they extend the [`Result`](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py) interface, or we can pick an existing implementation from Prefect Core that utilizes a storage backend we like; for example, I will use `prefect.engine.results.GCSResult` so that my data will be persisted in Google Cloud Storage.
 
-## Running a flow with `GCSResult`
+## Example: Running a flow with `GCSResult`
 
 Since the `GCSResult` object must be instantiated with some initialization arguments, we utilize a flow-level override to pass in the Python object after configuring it:
 
@@ -137,9 +139,9 @@ Now my flow will always store this task's data at `gs://prefect_results/my_task.
 
 ## Templating a task's location
 
-You can also provide a templatable string to a result subclass' `location` attribute. You can include in the template string anything that is in `prefect.context`, including any custom context you set.
+You can also provide a templatable string to a result subclass' `location` attribute. You can include in the template string anything that is in `prefect.context`, including any custom context you set.  Note that [standard Python string formatting rules](https://www.python.org/dev/peps/pep-3101/#format-strings) apply, so for example you can provide custom date formatters (e.g., `"{date:%Y-%d}"`) to your locations and targets.
 
-For example, we can achieve the same thing as our prior example but using the fact that `prefect.context.task_name` will resolve to the name task's function at runtime:
+For example, we can achieve the same thing as our prior example but using the fact that `prefect.context.task_name` will resolve to the task's function name at runtime:
 
 ```python
 # flow.py
@@ -182,7 +184,19 @@ gs://prefect_results/my_second_task.txt
 
 ## Specifying a location for mapped or looped tasks
 
-Mapped or looped tasks require special consideration when it comes to their result location, as they may run many times and each of their results should be stored separately.
+Mapped or looped tasks require special consideration when it comes to their result location, as they may run many times and each of their results can be stored separately.
+
+### Mapping
+
+When configuring results for a mapped pipeline, if you choose to configure the location it is required that you include `{filename}` as in your result location / target template.  When your task runs you will notice that two files will be written: one where `filename=inputs` and one where `filename=outputs`.  In non-mapped pipelines the output of the upstream task is identical to the input of the downstream task, so this distinction is unnecessary; the input to a _mapped_ task, on the other hand, is an manipulated version of the upstream output - in particular, it represents a single element indexed from the upstream's returned list-like object.  Consequently, Prefect stores the mapped input individually to avoid having to read in the entire list in the event of a retry / recovery from a failure.
+
+As a matter of clarity it is highly recommended that you use `{map_index}` in your location template as well to avoid duplicate writes to the same location.
+
+### Looping
+
+Assuming you have [configured your Flow to run with persistence](#setting-up-to-handle-results), each iteration of your looped task will write to your configured `Result` location.  When using Prefect defaults this means that each iteration will produce a new file with a different timestamp and UUID.  
+
+If instead you provide a custom location, you'll need to decide whether you want each loop iteration to result in a new filename or whether you are comfortable with each iteration overwriting the previous one.  If you prefer to keep the results separate, note that Prefect provides `task_loop_count` in Prefect context so the simplest solution is to use `{task_loop_count}` in your templated location.
 
 ## Running a flow with `PrefectResult`
 
