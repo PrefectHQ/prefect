@@ -9,6 +9,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 class DbtShellTask(ShellTask):
     """
     Task for running dbt commands. It will create a profiles.yml file prior to running dbt commands.
+
     Args:
         - command (string, optional): dbt command to be executed; can also be
             provided post-initialization by calling this task instance
@@ -31,17 +32,25 @@ class DbtShellTask(ShellTask):
         - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
             as a list, or just the last line as a string; defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
+
     Example:
         ```python
         from prefect import Flow
         from ccde.prefect.tasks.dbt import DbtShellTask
+
         with Flow(name="dbt_flow") as f:
-        task = DbtShellTask(
-                            profile_name='default',
-                            environment='test',
-                            dbt_kwargs={'type': 'snowflake', 'threads': 1, 'account': 'account.us-east-1'},
-                            overwrite_profiles=True,
-                            profiles_dir=test_path)(command='dbt run')
+            task = DbtShellTask(
+                profile_name='default',
+                environment='test',
+                dbt_kwargs={
+                    'type': 'snowflake',
+                    'threads': 1,
+                    'account': 'account.us-east-1'
+                },
+                overwrite_profiles=True,
+                profiles_dir=test_path
+            )(command='dbt run')
+
         out = f.run()
         ```
     """
@@ -71,6 +80,7 @@ class DbtShellTask(ShellTask):
         """
         If no profiles.yml file is found or if overwrite_profiles flag is set to True, this will first generate
         a profiles.yml file in the profiles_dir directory. Then run the dbt cli shell command.
+
         Args:
             - command (string): shell command to be executed; can also be
                 provided at task initialization. Any variables / functions defined in
@@ -79,10 +89,12 @@ class DbtShellTask(ShellTask):
             - env (dict, optional): dictionary of environment variables to use for
                 the subprocess
              - dbt_kwargs(dict, optional): keyword arguments used to populate the profiles.yml file
+
         Returns:
             - stdout (string): if `return_all` is `False` (the default), only the last line of stdout
                 is returned, otherwise all lines are returned, which is useful for passing
                 result of shell command to other downstream tasks. If there is no output, `None` is returned.
+
         Raises:
             - prefect.engine.signals.FAIL: if command has an exit code other
                 than 0
