@@ -144,7 +144,7 @@ If you're interested in testing your Task as Prefect sees it, using a `TaskRunne
 - are the upstream tasks in an appropriate state, as specified by your Task's trigger?
 - is your Task mapped, and should it spawn multiple copies of itself?
 - is your Task running on Cloud, and should it set its state in the Cloud database?
-- does your Task have result handlers or state handlers that need to be called?
+- does your Task have result persistence configured, or state handlers that need to be called?
 - what State should your Task run be in after it has run?
 
 To see this in action, let's run a Task which requires no inputs.
@@ -570,7 +570,7 @@ with Flow("add-with-default") as f:
 We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
-Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, result handlers, etc.
+Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, results, etc.
 :::
 
 ## State Handlers
