@@ -13,6 +13,15 @@ from prefect import Flow
 from prefect.environments.storage import Docker
 
 
+@pytest.fixture
+def no_docker_host_var(monkeypatch):
+    """
+    This fixture is for tests that assert an unset DOCKER_HOST variable
+    to avoid muddying test results from running Docker in Docker (e.g. in CI)
+    """
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
+
+
 def test_create_docker_storage():
     storage = Docker(secrets=["cloud_creds"])
     assert storage
@@ -49,7 +58,7 @@ def test_add_flow_to_docker():
         ("darwn", "unix://var/run/docker.sock"),
     ],
 )
-def test_empty_docker_storage(monkeypatch, platform, url):
+def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
@@ -78,7 +87,9 @@ def test_empty_docker_storage(monkeypatch, platform, url):
         ("darwn", "unix://var/run/docker.sock"),
     ],
 )
-def test_empty_docker_storage_on_tagged_commit(monkeypatch, platform, url):
+def test_empty_docker_storage_on_tagged_commit(
+    monkeypatch, platform, url, no_docker_host_var
+):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2")
@@ -122,7 +133,7 @@ def test_docker_init_responds_to_prefect_version(monkeypatch, version):
     assert storage.prefect_version == version[1]
 
 
-def test_initialized_docker_storage():
+def test_initialized_docker_storage(no_docker_host_var):
     storage = Docker(
         registry_url="test1",
         base_image="test3",
@@ -147,6 +158,16 @@ def test_initialized_docker_storage():
     assert storage.base_url == "test_url"
     assert storage.prefect_version == "my-branch"
     assert storage.local_image
+
+
+def test_env_var_precedence_docker_storage(monkeypatch, no_docker_host_var):
+    monkeypatch.setenv("DOCKER_HOST", "bar")
+    storage = Docker()
+    assert storage.base_url
+    assert storage.base_url == "bar"
+    storage = Docker(base_url="foo")
+    assert storage.base_url == "foo"
+    storage = Docker(base_url="foo")
 
 
 def test_docker_storage_allows_for_user_provided_config_locations():
@@ -477,7 +498,7 @@ def test_create_dockerfile_with_weird_flow_name():
             )
 
 
-def test_create_dockerfile_from_everything():
+def test_create_dockerfile_from_everything(no_docker_host_var):
 
     with tempfile.TemporaryDirectory() as tempdir_outside:
 
