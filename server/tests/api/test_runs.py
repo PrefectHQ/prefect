@@ -785,7 +785,7 @@ class TestGetRunsInQueue:
         flow_ids = await models.FlowRun.where({"id": {"_in": queued_runs}}).get(
             {"id", "flow_id"}
         )
-        labeled_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
+        limited_flow_runs = [row for row in flow_ids if row.flow_id == labeled_flow_id]
         unconstrained_flow_runs = [
             row for row in flow_ids if row.flow_id == labeled_flow_id_2
         ]
