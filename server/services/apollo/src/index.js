@@ -187,22 +187,23 @@ async function send_telemetry_event(event) {
   if (TELEMETRY_ENABLED) {
     try {
       // TODO add timeout
+      const body = JSON.stringify({
+        source: 'prefect_server',
+        type: event,
+        payload: { id: TELEMETRY_ID }
+      })
+      log(`Sending telemetry to Prefect Technnologies, Inc: ${body}`)
+
       fetch('https://sens-o-matic.prefect.io/', {
         method: 'post',
-        body: JSON.stringify({
-          source: 'prefect_server',
-          type: event,
-          payload: { id: TELEMETRY_ID }
-        }),
+        body,
         headers: {
           'Content-Type': 'application/json',
           'X-Prefect-Event': 'prefect_server-0.0.1'
         }
       })
-        .then(res => res.json())
-        .then(json => log(json))
     } catch (error) {
-      log(error)
+      log(`Error sending telemetry event: ${error.message}`)
     }
   }
 }
