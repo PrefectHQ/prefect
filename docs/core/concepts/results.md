@@ -19,7 +19,7 @@ prefect.engine.result.Result
 dict
 ```
 
-You can instead configure your task to use a subclass of `Result` that aligned with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md). These subclasses of `Result` always have four important attributes / methods:
+You can instead configure your task to use a subclass of `Result` that aligned with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md)). These subclasses of `Result` always have four important attributes / methods:
 
 - `location`: the location the data should be stored to (note that this can be templated as described below)
 - `read()`: how to read from the storage backend
