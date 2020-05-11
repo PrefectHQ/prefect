@@ -54,7 +54,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Task Library
 
-- None
+- Add `prefect.tasks.gcp.bigquery.BigQueryLoadFile` [#2423](https://github.com/PrefectHQ/prefect/issues/2423)
 
 ### Fixes
 
@@ -71,6 +71,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Alvin Goh](https://github.com/chuehsien)
+- [Daniel Kapitan](https://github.com/dkapitan)
 
 ## 0.10.7 <Badge text="beta" type="success"/>
 

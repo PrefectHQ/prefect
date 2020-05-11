@@ -45,3 +45,15 @@ Task for insert records in a Google BigQuery table via [the streaming API](https
 Task for creating Google BigQuery tables.
 
 [API Reference](/api/latest/tasks/gcp.html#prefect-tasks-google-bigquery-createbigquerytable)
+
+### BigQueryLoadGoogleCloudStorage <Badge text="task"/>
+
+Task for [loading data in a Google BigQuery table](https://cloud.google.com/bigquery/docs/loading-data) via [the Python client](https://googleapis.dev/python/bigquery/latest/generated/google.cloud.bigquery.client.Client.html#google.cloud.bigquery.client.Client.load_table_from_uri).
+
+[API Reference](/api/latest/tasks/gcp.html#prefect-tasks-google-bigquery-bigqueryloadgooglecloudstorage)
+
+### BigQueryLoadFile <Badge text="task"/>
+
+Task for [loading data in a Google BigQuery table](https://cloud.google.com/bigquery/docs/loading-data) via [the Python client](https://googleapis.dev/python/bigquery/latest/generated/google.cloud.bigquery.client.Client.html#google.cloud.bigquery.client.Client.load_table_from_file).
+
+[API Reference](/api/latest/tasks/gcp.html#prefect-tasks-google-bigquery-bigqueryloadfile)
