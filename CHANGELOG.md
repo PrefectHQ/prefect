@@ -18,7 +18,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 ### Task Library
 
-- None
+- Tasks to create issues for Jira and Jira Service Desk [#2431](https://github.com/PrefectHQ/prefect/pull/2431)
 
 ### Fixes
 
