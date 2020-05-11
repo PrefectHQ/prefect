@@ -15,6 +15,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 ### Server
 
 - Add "cancellation-lite" semantic by preventing task runs from running if the flow run isn't running - [#2535](https://github.com/PrefectHQ/prefect/pull/2535)
+- Add minimal telemetry to Prefect Server [#2467](https://github.com/PrefectHQ/prefect/pull/2467)
 
 ### Task Library
 
@@ -22,7 +23,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 ### Fixes
 
-- Fix bug in Kubernetes agent ``deployment.yaml`` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)
+- Fix bug in Kubernetes agent `deployment.yaml` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)
 
 ### Deprecations
 
@@ -126,7 +127,6 @@ Released on May 5, 2020.
 - Add `flow_id` to context for Flow runs - [#2461](https://github.com/PrefectHQ/prefect/pull/2461)
 - Allow users to inject custom context variables into their logger formats - [#2462](https://github.com/PrefectHQ/prefect/issues/2462)
 - Add option to set backend on `agent install` CLI command - [#2478](https://github.com/PrefectHQ/prefect/pull/2478)
-- Add minimal telemetry to Prefect Server [#2467](https://github.com/PrefectHQ/prefect/pull/2467)
 
 ### Task Library
 
