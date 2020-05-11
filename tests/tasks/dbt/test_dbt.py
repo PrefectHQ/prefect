@@ -13,12 +13,8 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.fixture()
-def test_path():
-    return os.path.dirname(os.path.realpath(__file__))
-
-
-def test_shell_creates_profiles_yml_file(test_path):
+def test_shell_creates_profiles_yml_file(tmpdir):
+    dbt_dir = tmpdir.mkdir("dbt")
     with Flow(name="test") as f:
         task = DbtShellTask(
             profile_name="default",
@@ -36,21 +32,19 @@ def test_shell_creates_profiles_yml_file(test_path):
                 "private_key_passphrase": "password123",
             },
             overwrite_profiles=True,
-            profiles_dir=test_path,
+            profiles_dir=str(dbt_dir),
         )(command="ls")
 
     out = f.run()
-    profiles_path = os.path.join(test_path, "profiles.yml")
+    profiles_path = dbt_dir.join("profiles.yml")
     assert out.is_successful()
     assert os.path.exists(profiles_path)
-    os.remove(profiles_path)
 
 
-def test_shell_uses_dbt_envar(test_path):
-    dbt_project_path = os.path.join(test_path, "dbt_project")
-    os.environ["DBT_PROFILES_DIR"] = dbt_project_path
-    pathlib.Path(dbt_project_path).mkdir(parents=True, exist_ok=True)
-    real_profiles_path = os.path.join(dbt_project_path, "profiles.yml")
+def test_shell_uses_dbt_envar(tmpdir, monkeypatch):
+    dbt_project_path = tmpdir.mkdir("dbt_project")
+    monkeypatch.setenv("DBT_PROFILES_DIR", dbt_project_path)
+    real_profiles_path = dbt_project_path.join("profiles.yml")
     open(real_profiles_path, "a").close()
 
     with Flow(name="test") as f:
@@ -70,12 +64,10 @@ def test_shell_uses_dbt_envar(test_path):
                 "private_key_passphrase": "password123",
             },
             overwrite_profiles=False,
-            profiles_dir=test_path,
+            profiles_dir=str(tmpdir),
         )(command="ls")
 
     out = f.run()
-    missing_profiles_path = os.path.join(test_path, "profiles.yml")
+    missing_profiles_path = tmpdir.join("profiles.yml")
     assert out.is_successful()
     assert not os.path.exists(missing_profiles_path)
-    os.remove(real_profiles_path)
-    pathlib.Path(dbt_project_path).rmdir()
