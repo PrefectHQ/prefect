@@ -1,3 +1,5 @@
+from shutil import which
 import pytest
 
-pytest.importorskip("dbt")
+if not which("dbt"):
+    pytest.skip("dbt not installed")
