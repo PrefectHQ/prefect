@@ -16,7 +16,7 @@ class ConstantResult(Result):
 
     def read(self, location: str) -> Result:
         """
-        Returns the underlying value regardless of the argument passed.
+        Will return the underlying value regardless of the argument passed.
 
         Args:
             - location (str): an unused argument
@@ -25,7 +25,7 @@ class ConstantResult(Result):
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Returns the repr of the underlying value, purely for convenience.
+        Will return the repr of the underlying value, purely for convenience.
 
         Args:
             - value (Any): unused, for interface compatibility
