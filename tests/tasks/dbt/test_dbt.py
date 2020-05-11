@@ -43,7 +43,7 @@ def test_shell_creates_profiles_yml_file(tmpdir):
 
 def test_shell_uses_dbt_envar(tmpdir, monkeypatch):
     dbt_project_path = tmpdir.mkdir("dbt_project")
-    monkeypatch.setenv("DBT_PROFILES_DIR", dbt_project_path)
+    monkeypatch.setenv("DBT_PROFILES_DIR", str(dbt_project_path))
     real_profiles_path = dbt_project_path.join("profiles.yml")
     open(real_profiles_path, "a").close()
 
