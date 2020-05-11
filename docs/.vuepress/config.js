@@ -73,7 +73,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.10.5)', link: '/api/latest/' },
+          { text: 'Latest (0.10.7)', link: '/api/latest/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -194,6 +194,7 @@ module.exports = {
             'execution/storage_options',
             'execution/remote_environment',
             'execution/remote_dask_environment',
+            'execution/dask_cloud_provider_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
             'execution/fargate_task_environment',
@@ -216,6 +217,7 @@ module.exports = {
           collapsable: true,
           children: [
             'recipes/deployment',
+            'recipes/third_party_auth',
             'recipes/configuring_storage',
             'recipes/multi_flow_storage',
             'recipes/k8s_dask',
@@ -306,6 +308,7 @@ module.exports = {
             'development/sprints'
           ]
         },
+        '/core/idioms/idioms',
         '/core/faq',
         '/core/community',
         '/core/code_of_conduct'

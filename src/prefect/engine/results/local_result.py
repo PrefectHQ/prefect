@@ -1,7 +1,9 @@
 import os
+from slugify import slugify
 from typing import Any
 
 import cloudpickle
+import pendulum
 
 from prefect import config
 from prefect.engine.result import Result
@@ -43,6 +45,12 @@ class LocalResult(Result):
 
         super().__init__(**kwargs)
 
+    @property
+    def default_location(self) -> str:
+        fname = "prefect-result-" + slugify(pendulum.now("utc").isoformat())
+        location = os.path.join(self.dir, fname)
+        return location
+
     def read(self, location: str) -> Result:
         """
         Reads a result from the local file system and returns the corresponding `Result` instance.
@@ -81,17 +89,20 @@ class LocalResult(Result):
         """
         new = self.format(**kwargs)
         new.value = value
+        assert new.location is not None
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
-        with open(os.path.join(self.dir, new.location), "wb") as f:
+        full_path = os.path.join(self.dir, new.location)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
         self.logger.debug("Finished uploading result to {}...".format(new.location))
 
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists in the file system.
 
@@ -100,8 +111,9 @@ class LocalResult(Result):
         Args:
             - location (str): Location of the result in the specific result target.
                 Will check whether the provided location exists
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists
         """
-        return os.path.exists(os.path.join(self.dir, location))
+        return os.path.exists(os.path.join(self.dir, location.format(**kwargs)))

@@ -40,7 +40,7 @@ def test_local_agent_config_options(runner_token):
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.log_to_cloud is True
-        assert agent.processes == []
+        assert agent.processes == set()
         assert agent.import_paths == ["test_path"]
         assert set(agent.labels) == {
             "azure-flow-storage",
@@ -52,15 +52,13 @@ def test_local_agent_config_options(runner_token):
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_local_agent_responds_to_logging_config(runner_token, flag):
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": flag}
-    ):
-        agent = LocalAgent()
-        assert agent.log_to_cloud is flag
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = LocalAgent(no_cloud_logs=flag)
+        assert agent.log_to_cloud is not flag
         env_vars = agent.populate_env_vars(
             GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
         )
-        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
 def test_local_agent_config_options_hostname(runner_token):
@@ -438,7 +436,7 @@ def test_local_agent_heartbeat(
         )
     )
 
-    process = agent.processes[0]
+    process = list(agent.processes)[0]
     process_call = process.root_call
 
     with LogCapture() as logcap:

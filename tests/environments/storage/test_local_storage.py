@@ -6,28 +6,29 @@ import pytest
 
 import prefect
 from prefect import Flow
-from prefect.engine.result_handlers import LocalResultHandler
+from prefect.engine.results import LocalResult
 from prefect.environments.storage import Local
 from prefect.utilities.configuration import set_temporary_config
 
 
 def test_create_local_storage():
-    storage = Local()
+    storage = Local(secrets=["AUTH"])
     assert storage
     end_path = os.path.join(".prefect", "flows")
     assert storage.directory.endswith(end_path)
-    assert isinstance(storage.result_handler, LocalResultHandler)
+    assert isinstance(storage.result, LocalResult)
 
     end_path = os.path.join(".prefect", "results")
-    assert storage.result_handler.dir.endswith(end_path)
+    assert storage.result.dir.endswith(end_path)
+    assert storage.secrets == ["AUTH"]
 
 
 def test_create_local_storage_with_custom_dir():
     storage = Local(directory=".")
     assert storage
     assert os.path.isabs(storage.directory)
-    assert isinstance(storage.result_handler, LocalResultHandler)
-    assert storage.result_handler.dir == storage.directory
+    assert isinstance(storage.result, LocalResult)
+    assert storage.result.dir == storage.directory
 
 
 def test_create_local_storage_without_validation():
@@ -35,8 +36,8 @@ def test_create_local_storage_without_validation():
     assert storage
     assert storage.directory == "C:\\Users\\chris\\.prefect\\flows"
 
-    assert isinstance(storage.result_handler, LocalResultHandler)
-    assert storage.result_handler.dir == storage.directory
+    assert isinstance(storage.result, LocalResult)
+    assert storage.result.dir == storage.directory
 
 
 def test_add_flow_to_storage():

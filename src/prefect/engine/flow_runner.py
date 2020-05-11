@@ -16,7 +16,7 @@ import pendulum
 import prefect
 from prefect.core import Edge, Flow, Task
 from prefect.engine.result import Result
-from prefect.engine.result_handlers import ConstantResultHandler
+from prefect.engine.results import ConstantResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
 from prefect.engine.state import (
     Cancelled,
@@ -431,7 +431,7 @@ class FlowRunner(Runner):
                     )
                     upstream_states[edge] = Success(
                         "Auto-generated constant value",
-                        result=Result(val, result_handler=ConstantResultHandler(val)),
+                        result=ConstantResult(value=val),
                     )
 
                 # -- run the task
@@ -566,11 +566,12 @@ class FlowRunner(Runner):
 
         """
         with prefect.context(self.context):
-            default_handler = task.result_handler or self.flow.result_handler
+            default_result = task.result or self.flow.result
             task_runner = self.task_runner_cls(
                 task=task,
                 state_handlers=task_runner_state_handlers,
-                result_handler=default_handler,
+                result=default_result or Result(),
+                default_result=self.flow.result,
             )
 
             # if this task reduces over a mapped state, make sure its children have finished

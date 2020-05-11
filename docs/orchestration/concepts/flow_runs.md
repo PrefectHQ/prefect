@@ -21,15 +21,21 @@ client.create_flow_run(flow_id="<flow id>")
 The client method takes a number of optional arguments, including scheduled start time, parameters and an idempotency key. See the API reference for complete detail.
 
 ::: tip A Stable API for Flow Runs
-For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`. If provided, the unique unarchived flow within the version group will be scheduled for execution.  
+For flows which update regularly, you can instead provide a `version_group_id` to `create_flow_run`. If provided, the unique unarchived flow within the version group will be scheduled for execution.
 :::
 
 ### Core CLI
 
-You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name:
+You can also create flow runs via the Prefect CLI by providing a flow name and its corresponding project name if using Cloud:
 
+```bash
+# Using Prefect Core's server
+prefect run server --name "My Flow Name"
 ```
-prefect run cloud -n "My Flow Name" -p "Hello, World!"
+
+```bash
+# Using Prefect Cloud
+prefect run cloud --name "My Flow Name" --project "Hello, World!"
 ```
 
 Similarly to the Client call, you can optionally provide parameters here as well.

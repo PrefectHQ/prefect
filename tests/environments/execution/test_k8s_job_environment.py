@@ -10,7 +10,7 @@ import yaml
 
 import prefect
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -131,7 +131,7 @@ def test_execute_improper_storage():
             job_spec_file=os.path.join(directory, "job.yaml")
         )
         with pytest.raises(TypeError):
-            environment.execute(storage=Memory(), flow_location="")
+            environment.execute(storage=Local(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
@@ -227,7 +227,8 @@ def test_run_flow(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -259,7 +260,8 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)

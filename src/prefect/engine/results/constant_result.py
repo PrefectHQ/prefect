@@ -16,7 +16,7 @@ class ConstantResult(Result):
 
     def read(self, location: str) -> Result:
         """
-        Returns the underlying value regardless of the argument passed.
+        Will return the underlying value regardless of the argument passed.
 
         Args:
             - location (str): an unused argument
@@ -25,23 +25,24 @@ class ConstantResult(Result):
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Returns the repr of the underlying value, purely for convenience.
+        Will return the repr of the underlying value, purely for convenience.
 
         Args:
             - value (Any): unused, for interface compatibility
             - **kwargs (optional): unused, for interface compatibility
 
         Raises:
-            ValueError: ConstantResults cannot be written to
+            - ValueError: ConstantResults cannot be written to
         """
         raise ValueError("Cannot write values to `ConstantResult` types.")
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         As all Python objects are valid constants, always returns `True`.
 
         Args:
              - location (str): for interface compatibility
+             - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: True, confirming the constant exists.

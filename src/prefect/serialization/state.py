@@ -23,11 +23,11 @@ def get_safe(obj: state.State, context: dict) -> Any:
     safe way prior to serialization (if they want the result to be avaiable post-serialization).
     """
     if context.get("attr") == "_result":
+        if getattr(obj._result, "location", None) is not None:
+            return obj._result
         return obj._result.safe_value  # type: ignore
     value = context.get("value", result.NoResult)
-    if value is None:
-        return value
-    return value.safe_value
+    return value
 
 
 class BaseStateSchema(ObjectSchema):

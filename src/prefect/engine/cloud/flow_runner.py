@@ -4,7 +4,6 @@ import prefect
 from prefect.client import Client
 from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
@@ -114,7 +113,7 @@ class CloudFlowRunner(FlowRunner):
         version = prefect.context.get("flow_run_version")
 
         try:
-            cloud_state = prepare_state_for_cloud(new_state)
+            cloud_state = new_state
             self.client.set_flow_run_state(
                 flow_run_id=flow_run_id, version=version, state=cloud_state
             )

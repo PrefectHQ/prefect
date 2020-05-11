@@ -101,7 +101,7 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
     else:
         return x
 
-    return_task.auto_generated = True
+    return_task.auto_generated = True  # type: ignore
     return return_task
 
 

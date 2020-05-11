@@ -32,16 +32,3 @@ class TestCreateGitHubPRInitialization:
         task = CreateGitHubPR()
         with pytest.raises(ValueError, match="repo"):
             task.run()
-
-
-class TestCredentialsandProjects:
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = CreateGitHubPR(token_secret="GITHUB_ACCESS_TOKEN")
-
-        req = MagicMock()
-        monkeypatch.setattr(requests, "post", req)
-
-        with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN={"key": 42})):
-            task.run(repo="org/repo")
-
-        assert req.call_args[1]["headers"]["AUTHORIZATION"] == "token {'key': 42}"

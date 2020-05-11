@@ -164,9 +164,15 @@ class KubernetesJobEnvironment(Environment):
             ) as f:
                 flow = cloudpickle.load(f)
 
-                runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()(**self.executor_kwargs)
-                runner_cls(flow=flow).run(executor=executor_cls)
+                ## populate global secrets
+                secrets = prefect.context.get("secrets", {})
+                for secret in flow.storage.secrets:
+                    secrets[secret.name] = secret.run()
+
+                with prefect.context(secrets=secrets):
+                    runner_cls = get_default_flow_runner_class()
+                    executor_cls = get_default_executor_class()(**self.executor_kwargs)
+                    runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)

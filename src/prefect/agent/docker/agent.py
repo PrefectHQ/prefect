@@ -41,6 +41,9 @@ class DockerAgent(Agent):
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
         - base_url (str, optional): URL for a Docker daemon server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as
             `tcp://0.0.0.0:2375` can be provided
@@ -61,6 +64,8 @@ class DockerAgent(Agent):
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
         base_url: str = None,
         no_pull: bool = None,
         volumes: List[str] = None,
@@ -69,7 +74,12 @@ class DockerAgent(Agent):
         docker_interface: bool = True,
     ) -> None:
         super().__init__(
-            name=name, labels=labels, env_vars=env_vars, max_polls=max_polls
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
         )
         if platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
@@ -117,6 +127,12 @@ class DockerAgent(Agent):
                 "Issue connecting to the Docker daemon. Make sure it is running."
             )
             raise exc
+
+        self.logger.debug(f"Base URL: {self.base_url}")
+        self.logger.debug(f"No pull: {self.no_pull}")
+        self.logger.debug(f"Volumes: {volumes}")
+        self.logger.debug(f"Network: {self.network}")
+        self.logger.debug(f"Docker interface: {self.docker_interface}")
 
     def _get_docker_client(self) -> "docker.APIClient":
         # 'import docker' is expensive time-wise, we should do this just-in-time to keep

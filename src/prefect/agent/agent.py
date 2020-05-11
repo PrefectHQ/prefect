@@ -9,9 +9,12 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Set
+from typing import Any, Generator, Iterable, Set, Optional, cast
+from urllib.parse import urlparse
 
 import pendulum
+from tornado import web
+from tornado.ioloop import IOLoop
 
 from prefect import config
 from prefect.client import Client
@@ -49,6 +52,14 @@ def exit_handler(agent: "Agent") -> Generator:
         signal.signal(signal.SIGINT, original)
 
 
+class HealthHandler(web.RequestHandler):
+    """Respond to /api/health"""
+
+    def get(self) -> None:
+        # Empty json blob, may add more info later
+        self.write({})
+
+
 class Agent:
     """
     Base class for Agents. Information on using the Prefect agents can be found at
@@ -72,6 +83,9 @@ class Agent:
             on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
             defaults to infinite
+        - agent_address (str, optional): Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
     """
 
     def __init__(
@@ -80,21 +94,23 @@ class Agent:
         labels: Iterable[str] = None,
         env_vars: dict = None,
         max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
         self.labels = list(
             labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
         )
-        self.env_vars = env_vars or dict()
+        self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
-        self.log_to_cloud = config.logging.log_to_cloud
+        self.log_to_cloud = False if no_cloud_logs else True
 
-        token = config.cloud.agent.get("auth_token")
-
-        self.client = Client(api_token=token)
-        if config.backend == "cloud":
-            self._verify_token(token)
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+        self.agent_address = agent_address or config.cloud.agent.get(
+            "agent_address", ""
+        )
+        self._api_server = None  # type: ignore
+        self._api_server_loop = None  # type: Optional[IOLoop]
+        self._api_server_thread = None  # type: Optional[threading.Thread]
 
         logger = logging.getLogger(self.name)
         logger.setLevel(config.cloud.agent.get("level"))
@@ -107,6 +123,21 @@ class Agent:
 
         self.logger = logger
         self.submitting_flow_runs = set()  # type: Set[str]
+
+        self.logger.debug("Verbose logs enabled")
+        self.logger.debug(f"Environment variables: {[*self.env_vars]}")
+        self.logger.debug(f"Max polls: {self.max_polls}")
+        self.logger.debug(f"Agent address: {self.agent_address}")
+        self.logger.debug(f"Log to Cloud: {self.log_to_cloud}")
+
+        token = config.cloud.agent.get("auth_token")
+
+        self.logger.debug(f"Prefect backend: {config.backend}")
+
+        self.client = Client(api_token=token)
+        if config.backend == "cloud":
+            self._verify_token(token)
+            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
     def _verify_token(self, token: str) -> None:
         """
@@ -137,6 +168,9 @@ class Agent:
         agent_id = self.client.register_agent(
             agent_type=type(self).__name__, name=self.name, labels=self.labels
         )
+
+        self.logger.debug(f"Agent ID: {agent_id}")
+
         return agent_id
 
     def start(self) -> None:
@@ -145,8 +179,9 @@ class Agent:
         new flow runs to deploy
         """
         try:
+            self.setup()
+
             with exit_handler(self) as exit_event:
-                self.agent_connect()
 
                 # Loop intervals for query sleep backoff
                 loop_intervals = {
@@ -187,7 +222,56 @@ class Agent:
                             )
                         )
         finally:
-            self.on_shutdown()
+            self.cleanup()
+
+    def setup(self) -> None:
+        self.agent_connect()
+
+        if self.agent_address:
+            parsed = urlparse(self.agent_address)
+            if not parsed.port:
+                raise ValueError("Must specify port in agent address")
+            port = cast(int, parsed.port)
+            hostname = parsed.hostname or ""
+            app = web.Application([("/api/health", HealthHandler)])
+
+            def run() -> None:
+                self.logger.debug(
+                    f"Agent API server listening on port {self.agent_address}"
+                )
+                self._api_server = app.listen(port, address=hostname)  # type: ignore
+                self._api_server_loop = IOLoop.current()
+                self._api_server_loop.start()  # type: ignore
+
+            self._api_server_thread = threading.Thread(
+                name="api-server", target=run, daemon=True
+            )
+            self._api_server_thread.start()
+
+    def cleanup(self) -> None:
+        self.on_shutdown()
+
+        if self._api_server is not None:
+            self.logger.debug("Stopping agent API server")
+            self._api_server.stop()
+
+        if self._api_server_loop is not None:
+            self.logger.debug("Stopping agent API server loop")
+
+            def stop_server() -> None:
+                try:
+                    loop = cast(IOLoop, self._api_server_loop)
+                    loop.stop()
+                except Exception:
+                    pass
+
+            self._api_server_loop.add_callback(stop_server)
+
+        if self._api_server_thread is not None:
+            self.logger.debug("Joining agent API threads")
+            # Give the server a small period to shutdown nicely, otherwise it
+            # will terminate on exit anyway since it's a daemon thread.
+            self._api_server_thread.join(timeout=1)
 
     def on_shutdown(self) -> None:
         """
