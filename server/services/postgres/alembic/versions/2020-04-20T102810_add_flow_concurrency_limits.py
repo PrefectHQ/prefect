@@ -28,13 +28,21 @@ def upgrade():
             updated timestamp with time zone NOT NULL DEFAULT now(),
             name character varying NOT NULL UNIQUE,
             description text,
-            slots integer NOT NULL
+            "limit" integer NOT NULL
         );
 
         -- Indices -------------------------------------------------------
 
         CREATE INDEX ix_flow_concurrency_name ON flow_concurrency_limit(name text_ops);
 
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER update_timestamp
+        BEFORE UPDATE ON public.flow_concurrency_limit
+        FOR EACH ROW
+        EXECUTE PROCEDURE set_updated_timestamp();
         """
     )
 
