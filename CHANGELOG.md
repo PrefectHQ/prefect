@@ -10,7 +10,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 ### Enhancements
 
-- None
+- Allow slack_task to accept a dictionary for the message parameter to build a specially-strctured JSON Block
 
 ### Server
 
