@@ -150,3 +150,41 @@ def test_result_handler_result():
     assert isinstance(new_result, results.ResultHandlerResult)
     assert new_result.location == "foo"
     assert new_result.value is None
+
+
+def test_custom_result():
+    class CustomResult(Result):
+        def __init__(self, test_kwarg=None, **kwargs):
+            self.test_kwarg = test_kwarg
+            self.read_result = False
+            self.write_result = False
+            self.exists_result = False
+            super().__init__(**kwargs)
+
+        def read(self, location) -> Result:
+            new = self.copy()
+            new.read_result = True
+            return new
+
+        def write(self, value, **kwargs) -> Result:
+            new = self.copy()
+            new.write_result = True
+            return new
+
+        def exists(self, location, **kwargs) -> Result:
+            new = self.copy()
+            new.exists_result = True
+            return new
+
+    schema = StateResultSchema()
+    result = CustomResult(test_kwarg="yes", value=42, location="bar")
+    serialized = schema.dump(result)
+
+    assert serialized["type"] == "CustomResult"
+    assert serialized["location"] == "bar"
+    assert serialized["__version__"]
+
+    new_result = schema.load(serialized)
+    assert isinstance(new_result, Result)
+    assert new_result.location == "bar"
+    assert new_result.value is None

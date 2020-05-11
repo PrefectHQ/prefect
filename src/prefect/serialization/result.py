@@ -38,14 +38,14 @@ class CustomResultSchema(ObjectSchema):
         object_class = lambda: result.Result
         exclude_fields = ["type"]
 
-    type = fields.Function(
-        lambda handler: to_qualified_name(type(handler)), lambda x: x
-    )
+    location = fields.Str(allow_none=True)
+
+    type = fields.Function(lambda result: to_qualified_name(type(result)), lambda x: x)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> result.Result:
-        """Because we cannot deserialize a custom class, return `None`"""
-        return result.Result()
+        """Because we cannot deserialize a custom class, return a base `Result`"""
+        return result.Result(location=data.get("location"))
 
 
 class AzureResultSchema(ObjectSchema):
