@@ -192,7 +192,7 @@ Let's see this with an example. The same flow that adds numbers together will in
 
 ```python
 # flow.py
-from prefect.engine.result import PrefectResult
+from prefect.engine.results import PrefectResult
 
 with Flow("my handled flow!", result=PrefectResult()):
     ...
