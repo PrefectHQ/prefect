@@ -77,10 +77,9 @@ class DbtShellTask(ShellTask):
         self.profiles_dir = profiles_dir
         self.set_profiles_envar = set_profiles_envar
         self.dbt_kwargs = dbt_kwargs
-        self.helper_script = helper_script
-        self.shell = shell
-        self.return_all = return_all
-        super().__init__(**kwargs)
+        super().__init__(
+            **kwargs, shell=shell, return_all=return_all, helper_script=helper_script
+        )
 
     @defaults_from_attrs("command", "env", "dbt_kwargs")
     def run(
@@ -138,9 +137,5 @@ class DbtShellTask(ShellTask):
             os.environ["DBT_PROFILES_DIR"] = self.profiles_dir
 
         super(DbtShellTask, self).run(
-            command=command,
-            env=env,
-            shell=self.shell,
-            return_all=self.return_all,
-            helper_script=self.helper_script,
+            command=command, env=env,
         )
