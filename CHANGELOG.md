@@ -12,9 +12,13 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 - None
 
+### Server
+
+- Add "cancellation-lite" semantic by preventing task runs from running if the flow run isn't running - [#2535](https://github.com/PrefectHQ/prefect/pull/2535)
+
 ### Task Library
 
-- None
+- Tasks to create issues for Jira and Jira Service Desk [#2431](https://github.com/PrefectHQ/prefect/pull/2431)
 
 ### Fixes
 
@@ -51,7 +55,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Task Library
 - `DbtShellTask` - an extension of ShellTask for working with data build tool (dbt)
 
-- None
+- Add `prefect.tasks.gcp.bigquery.BigQueryLoadFile` [#2423](https://github.com/PrefectHQ/prefect/issues/2423)
 
 ### Fixes
 
@@ -68,6 +72,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - [Alvin Goh](https://github.com/chuehsien)
+- [Daniel Kapitan](https://github.com/dkapitan)
 - [Mark McDonald](https://github.com/mhmcdonald)
 
 ## 0.10.7 <Badge text="beta" type="success"/>

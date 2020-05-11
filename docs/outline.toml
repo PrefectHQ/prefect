@@ -289,6 +289,11 @@ classes = [
         "CreateBigQueryTable"
         ]
 
+[pages.tasks.jira]
+title = "Jira Tasks"
+module = "prefect.tasks.jira"
+classes = ["JiraTask", "JiraServiceDeskTask"]
+
 [pages.tasks.notifications]
 title = "Notification Tasks"
 module = "prefect.tasks.notifications"

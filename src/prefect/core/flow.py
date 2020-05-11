@@ -945,7 +945,8 @@ class Flow:
                         s
                         for s in prefect.context.caches.get(t.cache_key or t.name, [])
                         + cached_sub_states
-                        if s.cached_result_expiration > now
+                        if s.cached_result_expiration
+                        and s.cached_result_expiration > now
                     ]
                     prefect.context.caches[t.cache_key or t.name] = fresh_states
 
