@@ -92,7 +92,7 @@ The `State` object returned from a flow run with this task will have tasks' `Res
 >>> state.result[first_result]._result.value
 3
 >>> state.result[first_result]._result.location           
-'/Users/prefect/Desktop/HelloWorld/results/prefect-result-2020-02-23t18-38-40-381223-00-00
+'/Users/prefect/Desktop/HelloWorld/results/prefect-result-2020-02-23t18-38-40-381223-00-00'
 ```
 
 Inside that file is a `cloudpickle` of the value `3`, as the implementation of `LocalResult` persists the data from `Result.value` as a pickle at the local filesystem location of `Result.location`.
