@@ -257,6 +257,11 @@ classes = [
         "ReplaceNamespacedService"
         ]
 
+[pages.tasks.dbt]
+title = "DBT Tasks"
+module = "prefect.tasks.dbt"
+classes = ["DbtShellTask"]
+
 [pages.tasks.docker]
 title = "Docker Tasks"
 module = "prefect.tasks.docker"
