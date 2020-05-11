@@ -18,16 +18,16 @@ class DbtShellTask(ShellTask):
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; can also be provided at runtime
         - environment (string, optional): The default target your dbt project will use
-        - helper_script (str, optional): a string representing a shell script, which
-            will be executed prior to the `command` in the same process. Can be used to
-            change directories, define helper functions, etc. when re-using this Task
-            for different commands in a Flow
         - overwrite_profiles (boolean, optional): flag to indicate whether existing profiles.yml file
             should be overwritten; defaults to `False`
         - profile_name (string, optional): Profile name used for populating the profile name of profiles.yml
         - profiles_dir (string, optional): path to directory where the profile.yml file will be contained
         - set_profiles_envar (boolean, optional): flag to indicate whether DBT_PROFILES_DIR should be set to the
             provided profiles_dir; defaults to `True`
+        - helper_script (str, optional): a string representing a shell script, which
+            will be executed prior to the `command` in the same process. Can be used to
+            change directories, define helper functions, etc. when re-using this Task
+            for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
         - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
             as a list, or just the last line as a string; defaults to `False`
@@ -57,20 +57,29 @@ class DbtShellTask(ShellTask):
 
     def __init__(
         self,
+        command: str = None,
         profile_name: str = None,
+        env: dict = None,
         environment: str = None,
         overwrite_profiles: bool = False,
         profiles_dir: str = None,
         set_profiles_envar: bool = True,
         dbt_kwargs: dict = None,
+        helper_script: str = None,
+        shell: str = "bash",
+        return_all: bool = False,
         **kwargs: Any
     ):
+        self.command = command
         self.profile_name = profile_name
         self.environment = environment
         self.overwrite_profiles = overwrite_profiles
         self.profiles_dir = profiles_dir
         self.set_profiles_envar = set_profiles_envar
         self.dbt_kwargs = dbt_kwargs
+        self.helper_script = helper_script
+        self.shell = shell
+        self.return_all = return_all
         super().__init__(**kwargs)
 
     @defaults_from_attrs("command", "env", "dbt_kwargs")
@@ -128,4 +137,10 @@ class DbtShellTask(ShellTask):
         if self.set_profiles_envar:
             os.environ["DBT_PROFILES_DIR"] = self.profiles_dir
 
-        super(DbtShellTask, self).run(command=command, env=env)
+        super(DbtShellTask, self).run(
+            command=command,
+            env=env,
+            shell=self.shell,
+            return_all=self.return_all,
+            helper_script=self.helper_script,
+        )
