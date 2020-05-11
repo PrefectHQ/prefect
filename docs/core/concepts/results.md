@@ -8,7 +8,7 @@ Prefect's result framework was designed with security and privacy concerns in mi
 
 ## `Result` objects
 
-A Prefect `Result` object represent data Prefect knows about, most importantly the output of a Prefect Task: anytime a Task runs, its output is encapsulated in a `Result` object. This object retains information about what the data is and how to write or read it if it needs to be saved / retrieved at a later time.
+A Prefect `Result` object represents data Prefect knows about, most importantly the output of a Prefect Task: anytime a Task runs, its output is encapsulated in a `Result` object. This object retains information about what the data is and how to write or read it if it needs to be saved / retrieved at a later time.
   
 In the unconfigured case, all `State` objects produced by a flow have a basic `Result` object with only `Result.value` set. These base objects do not know how to write themselves to persistent storage.
 
