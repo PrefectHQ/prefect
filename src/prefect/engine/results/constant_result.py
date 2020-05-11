@@ -32,7 +32,7 @@ class ConstantResult(Result):
             - **kwargs (optional): unused, for interface compatibility
 
         Raises:
-            ValueError: ConstantResults cannot be written to
+            - ValueError: ConstantResults cannot be written to
         """
         raise ValueError("Cannot write values to `ConstantResult` types.")
 
