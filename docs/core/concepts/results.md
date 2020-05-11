@@ -6,6 +6,8 @@ At a high level, all `State` objects produced by the Prefect pipeline have a `Re
 
 Prefect's result framework was designed with security and privacy concerns in mind. Consequently, Prefect's abstractions allow users to take advantage of all its features without ever needing to surrender control, access, or even visibility of their private data.
 
+[[toc]]
+
 ## `Result` objects
 
 A Prefect `Result` object represents data Prefect knows about, most importantly the output of a Prefect Task: anytime a Task runs, its output is encapsulated in a `Result` object. This object retains information about what the data is and how to write or read it if it needs to be saved / retrieved at a later time.
@@ -28,7 +30,7 @@ dict
 
 You can instead configure your task to use a subclass of `Result` that aligns with a persistent storage backend. This allows you to turn on persistent forms of caching and checkpointing. (Learn more about that in [Caching and Persisting Data](persistence.md)). These subclasses of `Result` always have four important attributes / methods:
 
-- `location`: the location the data should be stored to (note that this can be templated as described below)
+- `location`: the location the data should be stored to (note that this can be templated as [described below](#templating-result-locations))
 - `read()`: how to read from the storage backend
 - `write()`: how to write to the storage backend
 - `exists()`: how to determine if the data exists at the provided location for this storage backend
@@ -130,7 +132,9 @@ Using checkpointing with results means that data will be persisted beyond the Pr
 In particular, when running on Prefect Cloud, the `location` attribute of the result is what is stored in the state database. When using `PrefectResult` or a custom result subclass, pay special attention to what data is in the `location` attribute.
 :::
 
-### How to configure task result persistence
+## How to configure task result persistence
+
+### Choose a Result type
 
 Configuring a task to persist results requires two steps. First, enable checkpointing. Once this configuration is set, there is a hierarchy to determining what `Result` subclass to use for a given piece of data:
 
@@ -148,5 +152,31 @@ For example, suppose task A is configured to use result A, and task B to use res
 ::: warning Parameters are different
 There is one exception to the rule for Results: Prefect Parameters. Prefect Parameters always use the `PrefectResult` so that their cached values are inspectable in the UI.
 :::
+
+### Templating Result locations
+
+By default, Prefect will store task results in a file / directory structure based on the timestamp of when the result is written along with a randomly generated UUID.  This of course can be configured to your needs:
+
+- you can provide an explicit, hardcoded filepath using the `location` kwarg on all Result classes
+- alternatively, you can provide a `location` _template_ [format string](https://www.python.org/dev/peps/pep-3101/#format-strings) which will be templated with values in [Prefect context](/api/latest/utilities/context.html) at runtime.
+
+Note that if you pursue option two above, Python string templating allows for powerful configuration.  For example, the code below writes task results to both a hardcoded location as well as a location based on the day of the week:
+
+```python
+from prefect import task, Flow
+from prefect.engine.results import LocalResult
+
+
+@task(result=LocalResult(location="initial_data.prefect"))
+def root_task():
+    return [1, 2, 3]
+
+@task(result=LocalResult(location="{date:%A}/{task_name}.prefect"))
+def downstream_task(x):
+    return [i * 10 for i in x]
+
+with Flow("local-results") as flow:
+    downstream_task(root_task)
+```
 
 To learn more about using results, check out the tutorial on [Using Results](../advanced_tutorials/using-results.html). If you used to use Result Handlers prior to 0.11.0, that tutorial also has a section on [Migrating from Result Handlers](../advanced_tutorials/using-results.html#migrating-from-result-handlers)
