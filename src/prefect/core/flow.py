@@ -437,9 +437,12 @@ class Flow:
                     "flow.".format(task.slug)
                 )
 
-        if task not in self.tasks:
             self.tasks.add(task)
             self._cache.clear()
+
+            case = prefect.context.get("case", None)
+            if case is not None:
+                case.add_task(task, self)
 
         return task
 

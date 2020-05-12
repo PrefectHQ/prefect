@@ -11,6 +11,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 ### Enhancements
 
 - Allow slack_task to accept a dictionary for the message parameter to build a specially-structured JSON Block - [#2541](https://github.com/PrefectHQ/prefect/pull/2541)
+- Support using `case` for control flow with the imperative api - [#2546](https://github.com/PrefectHQ/prefect/pull/2546)
 
 ### Server
 
