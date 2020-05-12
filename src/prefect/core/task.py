@@ -461,10 +461,6 @@ class Task(metaclass=SignatureValidator):
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
 
-        case = prefect.context.get("case", None)
-        if case is not None:
-            case.add_task(self)
-
         self.set_dependencies(
             flow=flow,
             upstream_tasks=upstream_tasks,
