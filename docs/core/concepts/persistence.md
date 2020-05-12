@@ -93,3 +93,20 @@ def func_task():
     return 99
 ```
 
+::: tip Targets can be templated
+Note that `target`s can optionally be templated, using [values found in `prefect.context`](/api/latest/utilities/context.html).  For example, the following target specification will store data based on the day of the week the flow is run on:
+
+```python
+from prefect.engine.results import LocalResult
+from prefect import task, Task
+
+
+# create a task via the task decorator
+@task(target="{date:%A}/{task_name}.txt", checkpoint=True, result_handler=LocalResult(dir="~/.prefect"))
+def func_task():
+    return 99
+```
+
+See the [official Python documentation](https://www.python.org/dev/peps/pep-3101/#format-strings) for more information on the flexibility of string formatting.
+:::
+
