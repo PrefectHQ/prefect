@@ -424,7 +424,7 @@ def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -444,7 +444,7 @@ def test_task_failure_caches_inputs_automatically(client):
 
 
 def test_task_failure_caches_constant_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -467,7 +467,7 @@ def test_task_failure_caches_constant_inputs_automatically(client):
 def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recompute_if_necessary(
     client,
 ):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")

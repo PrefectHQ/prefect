@@ -368,7 +368,7 @@ class CloudTaskRunner(TaskRunner):
             executor=executor,
         )
         while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
+            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, (Retrying, Queued))
             naptime = max(
