@@ -61,9 +61,7 @@ def test_empty_docker_storage(monkeypatch, platform, url):
     assert not storage.image_name
     assert not storage.image_tag
     assert storage.python_dependencies == ["wheel"]
-    assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"
-    }
+    assert storage.env_vars == {"PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"}
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
@@ -90,9 +88,7 @@ def test_empty_docker_storage_on_tagged_commit(monkeypatch, platform, url):
     assert not storage.image_name
     assert not storage.image_tag
     assert storage.python_dependencies == ["wheel"]
-    assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"
-    }
+    assert storage.env_vars == {"PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"}
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
