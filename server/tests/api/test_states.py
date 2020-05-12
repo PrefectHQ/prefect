@@ -9,11 +9,10 @@ import time
 import uuid
 
 import pendulum
+import prefect
 import pytest
 from asynctest import CoroutineMock
 from box import Box
-
-import prefect
 from prefect.engine.result import Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.state import (
@@ -32,6 +31,7 @@ from prefect.engine.state import (
     TriggerFailed,
     _MetaState,
 )
+
 from prefect_server import api, config, utilities
 from prefect_server.api import runs, states
 from prefect_server.database import models
@@ -239,3 +239,116 @@ class TestFlowRunStates:
         )
         assert not flow_run_info.start_time
         assert not flow_run_info.end_time
+
+
+class TestFlowRunStatesConcurrency:
+    async def test_labeled_flow_run_has_expected_labels(self, labeled_flow_id: str):
+        """
+        Simple test to make sure that our `labeled_flow_id`'s environment labels
+        haven't changed. If they change, the mocked tests below will likely
+        become invalid.
+        """
+        flow = await models.Flow.where(id=labeled_flow_id).first({"id", "environment"})
+        assert set(flow.environment["labels"]) == set(["foo", "bar"])
+
+    @pytest.mark.parametrize(
+        "state", [Failed(), Success(), Submitted(), Scheduled(), Retrying()]
+    )
+    async def test_doesnt_check_concurrency_on_not_running(
+        self, labeled_flow_run_id: str, state: State, monkeypatch
+    ):
+        """
+        This test should make sure that the flow run concurrency checks
+        don't occur when being transitioned to any state other than
+        `Running`.
+
+        In order to test this properly, we do need to peek into the implementation
+        of making sure the flow run _would_ normally trigger a concurrency check.
+        """
+
+        mock_concurrency_check = CoroutineMock(return_value={})
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+        await states.set_flow_run_state(labeled_flow_run_id, state)
+        mock_concurrency_check.assert_not_called()
+
+        await states.set_flow_run_state(labeled_flow_run_id, Running())
+        mock_concurrency_check.assert_called_once()
+
+    async def test_raises_error_on_failing_concurrency_check(
+        self, labeled_flow_run_id: str, monkeypatch
+    ):
+        """
+        This test should check to make sure that if a flow's labels
+        don't have concurrency slots available that we fail the transition
+        into a `Running` state and raise an error.
+        """
+        mock_concurrency_check = CoroutineMock(return_value={"foo": 0, "bar": 0})
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+        with pytest.raises(ValueError, match="concurrency limit"):
+            await states.set_flow_run_state(labeled_flow_run_id, Running())
+
+        mock_concurrency_check.assert_called_once()
+
+    @pytest.mark.parametrize("limits", [{"foo": 0}, {"bar": 0}])
+    async def test_full_concurrency_and_unlimited_labels(
+        self, labeled_flow_run_id: str, monkeypatch, limits: dict
+    ):
+        """
+        This should test whenever there is an environment with one or more
+        limited labels and one or more unlimited labels that the concurrency
+        gets limited strictly due to the limited label's capacity.
+        """
+        mock_concurrency_check = CoroutineMock(return_value=limits)
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+        with pytest.raises(ValueError, match="concurrency limit"):
+            await states.set_flow_run_state(labeled_flow_run_id, Running())
+
+        mock_concurrency_check.assert_called_once()
+
+    @pytest.mark.parametrize("limits", [{"foo": 1}, {"bar": 1}, {}])
+    async def test_ignores_unlimited_labels(
+        self, labeled_flow_run_id: str, monkeypatch, limits: dict
+    ):
+        """
+        This should test that if a flow's execution environment has labels
+        that aren't explicitely limited, the limit is treated as "unlimited",
+        and does not cause a failure when setting to `Running`.
+        """
+        mock_concurrency_check = CoroutineMock(return_value=limits)
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+
+        await states.set_flow_run_state(labeled_flow_run_id, Running())
+
+        mock_concurrency_check.assert_called_once()
+
+    async def test_unlabeled_environment_not_concurrency_checked(
+        self, flow_run_id: str, monkeypatch
+    ):
+        """
+        This code is attempting to be 100% opt in, so we need to make sure
+        that if users don't mark their flow environments, they will not
+        have their flows throttled. While this is implicitly done in other
+        tests, it should be explicitely marked here due to the importance
+        of being opt in.
+        """
+        mock_concurrency_check = CoroutineMock()
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+
+        await states.set_flow_run_state(flow_run_id, Running())
+
+        mock_concurrency_check.assert_not_called()
