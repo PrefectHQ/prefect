@@ -1,0 +1,57 @@
+# Using a Result target
+
+Targets in Prefect are templatable location strings that are used to check for the existence of a task [Result](/core/concepts/results.html). This is useful in cases where you might want a task to only write data to a location once or merely not rerun if some piece of data is present. If a result exists at that location then the task run will enter a cached state.
+
+The flow below will write the result of the first task to a target specified with a filepath of `/task_name/today`. For a list of all available context variables at runtime visit the [context API documentation](/api/latest/utilities/context.html#context). This is a powerful construct because it means that only the first run of this task on any given day will run and write the result. Any other runs up until the next calendar day will use the cached result found at `/task_name/today`.
+
+:::: tabs
+::: tab "Functional API"
+```python
+from prefect import task, Flow
+from prefect.engine.results import LocalResult
+
+@task(result=LocalResult(), target="/{task_name}/{today}")
+def get_data():
+    return [1, 2, 3, 4, 5]
+
+@task
+def print_data(data):
+    print(data)
+
+
+with Flow("using-targets") as flow:
+    data = get_data()
+    print_data(data)
+```
+:::
+
+::: tab "Imperative API"
+```python
+from prefect import Task, Flow
+from prefect.engine.results import LocalResult
+
+class GetData(Task):
+    def run(self):
+        return [1, 2, 3, 4, 5]
+
+class PrintData(Task):
+    def run(self, data):
+        print(data)
+
+flow = Flow("using-targets")
+
+get_data = GetData(result=LocalResult(), target="/{task_name}/{today}")
+
+print_data = PrintData()
+print_data.set_upstream(get_data, key="data", flow=flow)
+```
+:::
+::::
+
+::: warning Result Locations and Targets
+If you provide a `location` to a task's `Result` and a `target` then the target will be used as the location of the result.
+:::
+
+::: tip Flow Result
+A `Result` can be set on the flow object and then all tasks will use that Result type. This is useful when you want to easily set all tasks in your flow to write their results to a single directory or bucket and then you could use the target as a way to verify the existence of that result prior to each task run.
+:::
