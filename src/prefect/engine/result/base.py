@@ -229,7 +229,9 @@ class Result(ResultInterface):
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def read(self, location: str) -> "Result":
         """
@@ -241,7 +243,9 @@ class Result(ResultInterface):
         Returns:
             - Any: The value saved to the result.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def write(self, value: Any, **kwargs: Any) -> "Result":
         """
@@ -256,7 +260,9 @@ class Result(ResultInterface):
         Returns:
             - Result: a new result object with the appropriately formatted location destination
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
 
 class SafeResult(ResultInterface):

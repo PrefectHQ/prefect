@@ -47,12 +47,6 @@ def result_check(flows: list):
         if flow.result is not None:
             continue
 
-        ## test for tasks which are checkpointed with no result handler
-        if any([(t.checkpoint and t.result is None) for t in flow.tasks]):
-            raise ValueError(
-                "Some tasks request to be checkpointed but do not have a result type. See https://docs.prefect.io/core/concepts/results.html for more details."
-            )
-
         ## test for tasks which might retry without upstream result handlers
         retry_tasks = [t for t in flow.tasks if t.max_retries > 0]
         upstream_edges = flow.all_upstream_edges()
