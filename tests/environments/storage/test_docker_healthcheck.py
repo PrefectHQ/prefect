@@ -92,19 +92,6 @@ class TestResultHandlerCheck:
     @pytest.mark.parametrize(
         "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
     )
-    def test_raises_for_checkpointed_tasks(self, kwargs):
-        @task(**kwargs)
-        def up():
-            pass
-
-        f = Flow("foo-test", tasks=[up])
-
-        with pytest.raises(ValueError, match="have a result type."):
-            healthchecks.result_check([f])
-
-    @pytest.mark.parametrize(
-        "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
-    )
     def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result_handler(
         self, kwargs
     ):
