@@ -67,6 +67,7 @@ services:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://graphql:4201/graphql/}
       PREFECT_API_HEALTH_URL: ${PREFECT_API_HEALTH_URL:-http://graphql:4201/health}
+      PREFECT_SERVER__TELEMETRY__ENABLED: ${PREFECT_SERVER__TELEMETRY__ENABLED:-true}
     networks:
       - prefect-server
     restart: "always"

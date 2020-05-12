@@ -46,6 +46,9 @@ endpoint = "${server.host}:${server.port}"
     endpoint = "${server.ui.host}:${server.ui.port}"
     graphql_url = "http://localhost:4200/graphql"
 
+    [server.telemetry]
+    enabled = true
+
 [cloud]
 api = "${${backend}.endpoint}"
 endpoint = "https://api.prefect.io"

@@ -10,6 +10,7 @@ import {
   FilterRootFields
 } from 'apollo-server'
 import { HttpLink } from 'apollo-link-http'
+import { v4 as uuidv4 } from 'uuid'
 
 const APOLLO_API_PORT = process.env.APOLLO_API_PORT || '4200'
 const APOLLO_API_BIND_ADDRESS = process.env.APOLLO_API_BIND_ADDRESS || '0.0.0.0'
@@ -23,6 +24,12 @@ const PREFECT_API_URL =
 const PREFECT_API_HEALTH_URL =
   process.env.PREFECT_API_HEALTH_URL || 'http://localhost:4201/health'
 
+const PREFECT_SERVER__TELEMETRY__ENABLED =
+  process.env.PREFECT_SERVER__TELEMETRY__ENABLED || 'false'
+// Convert from a TOML boolean to a JavaScript boolean
+const TELEMETRY_ENABLED =
+  PREFECT_SERVER__TELEMETRY__ENABLED == 'true' ? true : false
+const TELEMETRY_ID = uuidv4()
 // --------------------------------------------------------------------
 // Server
 const depthLimit = require('graphql-depth-limit')
@@ -162,11 +169,42 @@ function sleep(ms) {
 async function runServerForever() {
   try {
     await runServer()
+    send_telemetry_event('startup')
+    if (TELEMETRY_ENABLED) {
+      setInterval(() => {
+        send_telemetry_event('heartbeat')
+      }, 600000) // send heartbeat every 10 minutes
+    }
   } catch (e) {
     log(e, e.message, e.stack)
     log('\nTrying again in 3 seconds...\n')
     await sleep(3000)
     await runServerForever()
+  }
+}
+
+async function send_telemetry_event(event) {
+  if (TELEMETRY_ENABLED) {
+    try {
+      // TODO add timeout
+      const body = JSON.stringify({
+        source: 'prefect_server',
+        type: event,
+        payload: { id: TELEMETRY_ID }
+      })
+      log(`Sending telemetry to Prefect Technnologies, Inc: ${body}`)
+
+      fetch('https://sens-o-matic.prefect.io/', {
+        method: 'post',
+        body,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Prefect-Event': 'prefect_server-0.0.1'
+        }
+      })
+    } catch (error) {
+      log(`Error sending telemetry event: ${error.message}`)
+    }
   }
 }
 
