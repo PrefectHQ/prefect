@@ -1629,6 +1629,10 @@ class TestTaskStateHandlers:
                 TaskRunner(task=task).run()
 
     def test_task_handler_errors_are_logged(self, caplog):
+        import logging
+
+        caplog.set_level(logging.DEBUG)
+
         def handler(*args, **kwargs):
             raise SyntaxError("oops")
 
