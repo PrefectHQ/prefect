@@ -268,7 +268,7 @@ class Task(metaclass=SignatureValidator):
 
         self.target = target
 
-        if target:
+        if target and result:
             self.result = result.copy()  # type: ignore
             self.result.location = target
 
