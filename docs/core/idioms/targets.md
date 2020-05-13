@@ -1,8 +1,14 @@
-# Using a Result target
+# Using Result targets for efficient caching
 
-Targets in Prefect are templatable location strings that are used to check for the existence of a task [Result](/core/concepts/results.html). This is useful in cases where you might want a task to only write data to a location once or merely not rerun if some piece of data is present. If a result exists at that location then the task run will enter a cached state.
+Targets in Prefect are templatable location strings that are used to check for the existence of a task [Result](/core/concepts/results.html). This is useful in cases where you might want a task to only write data to a location once or merely not rerun if some piece of data is present. If a result exists at that location then the task run will enter a cached state. This behavior is commonly referred to as caching in Prefect and it is generally used when you do not want to recompute the result of a task if it already exists.
 
-The flow below will write the result of the first task to a target specified with a filepath of `/task_name/today`. For a list of all available context variables at runtime visit the [context API documentation](/api/latest/utilities/context.html#context). This is a powerful construct because it means that only the first run of this task on any given day will run and write the result. Any other runs up until the next calendar day will use the cached result found at `/task_name/today`.
+The flow below will write the result of the first task to a target specified with a filepath of `task_name-today`. For a list of all available context variables at runtime visit the [context API documentation](/api/latest/utilities/context.html#context). This is a powerful construct because it means that only the first run of this task on any given day will run and write the result. Any other runs up until the next calendar day will use the cached result found at `task_name-today`.
+
+::: warning Result Types
+Please review the [documentation for each result type](/api/latest/engine/results.html) before you configure. Some types have specific configuration options for where to write the result.
+
+For example: the `LocalResult` below has an optional `dir` kwargs which accepts an absolute path to a directory for storing results.
+:::
 
 :::: tabs
 ::: tab "Functional API"
@@ -10,7 +16,7 @@ The flow below will write the result of the first task to a target specified wit
 from prefect import task, Flow
 from prefect.engine.results import LocalResult
 
-@task(result=LocalResult(), target="/{task_name}/{today}")
+@task(result=LocalResult(), target="{task_name}-{today}")
 def get_data():
     return [1, 2, 3, 4, 5]
 
@@ -40,7 +46,7 @@ class PrintData(Task):
 
 flow = Flow("using-targets")
 
-get_data = GetData(result=LocalResult(), target="/{task_name}/{today}")
+get_data = GetData(result=LocalResult(), target="{task_name}-{today}")
 
 print_data = PrintData()
 print_data.set_upstream(get_data, key="data", flow=flow)

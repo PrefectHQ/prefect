@@ -6,4 +6,4 @@
 - [Logging configuration and usage](logging.html)
 - [Accessing task results locally](task-results.html)
 - [Testing Prefect flows and tasks](testing-flows.html)
-- [Using a Result target](targets.html)
+- [Using Result targets for efficient caching](targets.html)
