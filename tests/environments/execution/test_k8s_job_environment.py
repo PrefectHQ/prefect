@@ -25,6 +25,7 @@ def test_create_k8s_job_environment():
         )
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.unique_job_name == False
         assert environment.executor_kwargs == {}
         assert environment.labels == set()
         assert environment.on_start is None
@@ -285,7 +286,7 @@ def test_populate_job_yaml():
             file.write("job")
 
         environment = KubernetesJobEnvironment(
-            job_spec_file=os.path.join(directory, "job.yaml")
+            job_spec_file=os.path.join(directory, "job.yaml"), unique_job_name=True
         )
 
         file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
@@ -307,6 +308,8 @@ def test_populate_job_yaml():
                     docker_name="test1/test2:test3",
                     flow_file_path="test4",
                 )
+
+        assert yaml_obj["metadata"]["name"] == "prefect-dask-job-id_test"
 
         assert (
             yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
