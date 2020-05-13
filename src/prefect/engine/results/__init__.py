@@ -27,7 +27,7 @@ def my_example_task():
 
 ```
 
-Results will only persist data if checkpointing is turned on. To learn more about how to use results and how to configure checkpointing, read our tutorial on [Using Results](../core/advanced_tutorials/using-results.md).
+Results will only persist return data if checkpointing is turned on. To learn more about how to use results and how to configure checkpointing, read our tutorial on [Using Results](../core/advanced_tutorials/using-results.md).
 
 
 """

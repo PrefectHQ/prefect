@@ -1,6 +1,6 @@
 """
 :::warning
-Result handlers have been deprecated in 0.11.0. For Prefect installations 0.11.00+, at runtime, all result handlers configured on a flow will be autoconverted into a matching subclass of `Result` from `prefect.engine.results`.
+Result handlers have been deprecated in 0.11.0. For Prefect installations 0.11.0+, at runtime, all result handlers configured on a flow will be autoconverted into a matching subclass of `Result` from `prefect.engine.results`.
 :::
 
 Result handler is a specific implementation of a `read` / `write` interface for handling data.
