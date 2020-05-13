@@ -157,6 +157,16 @@ class TestResultCheck:
 
         assert healthchecks.result_check([f]) is None
 
+    def test_doesnt_raise_for_tasks_with_no_result(self, tmpdir):
+        @task
+        def down(x):
+            pass
+
+        with Flow("upstream-test") as f:
+            result = down.map(x=[1, 2, 3])
+
+        assert healthchecks.result_check([f]) is None
+
     def test_raises_for_mapped_tasks_with_poorly_specified_result_location(
         self, tmpdir
     ):
