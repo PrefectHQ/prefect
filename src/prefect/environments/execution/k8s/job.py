@@ -39,6 +39,8 @@ class KubernetesJobEnvironment(Environment):
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
+        - unique_job_name (bool, optional): Use a unique name for each job created with this environment. Defaults
+            to `False`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
