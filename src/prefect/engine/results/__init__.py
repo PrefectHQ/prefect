@@ -8,21 +8,22 @@ Note that a result's `read` and `write` methods return new `Result` instances, t
 For example, here is how you would use a result in a task directly to read and write arbitrary pieces of data:
 
 ```python
+import prefect
 from prefect import task
 from prefect.engine.results import S3Result
 
-MY_RESULTS = S3Result(bucket='my_bucket')
+MY_RESULTS = S3Result(bucket='my_bucket', location="{task_name}.txt")
 
-@task
+@task(name="my_example_task")
 def my_example_task():
-    # read data from a file in the bucket
+    # read data from a file in the bucket.
     my_task_data = MY_RESULTS.read(location="some_data_in_my_bucket.csv")
     print(my_task_data.value) # is the deserialized data that was in the file s3://my_bucket/some_data_in_my_bucket.csv
     
-    # write data to a templated filename in the bucket
+    # write data to the templated location in the bucket using prefect context
     data = 3
-    my_task_data = MY_RESULTS.write(data, location="{task_name}.txt")
-    print(my_task_data.value) # is the value of the variable data
+    my_task_data = MY_RESULTS.write(data, **prefect.context)
+    print(my_task_data.value) # is the value `3
     print(my_task_data.location) # is "my_example_task.txt"
 
 ```
