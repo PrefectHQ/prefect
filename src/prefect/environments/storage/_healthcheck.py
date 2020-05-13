@@ -10,6 +10,7 @@ import sys
 import warnings
 
 import cloudpickle
+import prefect
 
 
 def system_check(python_version: str):
@@ -42,16 +43,26 @@ def cloudpickle_deserialization_check(flow_file_paths: str):
     return flows
 
 
+def _check_mapped_result_templates(flow: "prefect.Flow"):
+    if not any(edge.key and edge.mapped for edge in flow.edges):
+        return
+
+    for edge in flow.edges:
+        if edge.mapped and edge.key:
+            result = edge.downstream_task.result or flow.result
+            if result.location is None:
+                continue
+            if "{filename}" not in result.location:
+                raise ValueError(
+                    "Mapped tasks with custom result locations must include {filename} as a template in their location - see https://docs.prefect.io/core/advanced_tutorials/using-results.html#specifying-a-location-for-mapped-or-looped-tasks"
+                )
+
+
 def result_check(flows: list):
     for flow in flows:
+        _check_mapped_result_templates(flow)
         if flow.result is not None:
             continue
-
-        ## test for tasks which are checkpointed with no result handler
-        if any([(t.checkpoint and t.result is None) for t in flow.tasks]):
-            raise ValueError(
-                "Some tasks request to be checkpointed but do not have a result type. See https://docs.prefect.io/core/concepts/results.html for more details."
-            )
 
         ## test for tasks which might retry without upstream result handlers
         retry_tasks = [t for t in flow.tasks if t.max_retries > 0]
