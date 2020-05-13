@@ -8,6 +8,7 @@ import cloudpickle
 import pytest
 
 from prefect import Flow, Task, task
+from prefect.engine.results import LocalResult
 from prefect.environments import Environment, RemoteEnvironment
 from prefect.environments.storage import _healthcheck as healthchecks
 
@@ -74,7 +75,7 @@ class TestSystemCheck:
         assert len(records) == 0
 
 
-class TestResultHandlerCheck:
+class TestResultCheck:
     def test_no_raise_on_normal_flow(self):
         @task
         def up():
@@ -109,14 +110,14 @@ class TestResultHandlerCheck:
             dict(cache_for=datetime.timedelta(minutes=1)),
         ],
     )
-    def test_raises_for_tasks_with_upstream_dependencies_with_no_result_handlers(
+    def test_raises_for_tasks_with_upstream_dependencies_with_no_result_configured(
         self, kwargs
     ):
         @task
         def up():
             pass
 
-        @task(**kwargs, result_handler=42)
+        @task(**kwargs, result=42)
         def down(x):
             pass
 
@@ -126,6 +127,62 @@ class TestResultHandlerCheck:
         with pytest.raises(
             ValueError, match="upstream dependencies do not have result types."
         ):
+            healthchecks.result_check([f])
+
+    @pytest.mark.parametrize("location", [None, "{filename}.txt"])
+    def test_doesnt_raise_for_mapped_tasks_with_correctly_specified_result_location(
+        self, location, tmpdir
+    ):
+        @task(result=LocalResult(dir=tmpdir, location=location))
+        def down(x):
+            pass
+
+        with Flow("upstream-test") as f:
+            result = down.map(x=[1, 2, 3])
+
+        assert healthchecks.result_check([f]) is None
+
+    @pytest.mark.parametrize("location", [None, "{filename}.txt"])
+    def test_doesnt_raise_for_mapped_tasks_with_correctly_specified_result_location_on_flow(
+        self, location, tmpdir
+    ):
+        @task
+        def down(x):
+            pass
+
+        with Flow(
+            "upstream-test", result=LocalResult(dir=tmpdir, location=location)
+        ) as f:
+            result = down.map(x=[1, 2, 3])
+
+        assert healthchecks.result_check([f]) is None
+
+    def test_raises_for_mapped_tasks_with_poorly_specified_result_location(
+        self, tmpdir
+    ):
+        @task(result=LocalResult(dir=tmpdir, location="{task_name}.txt"))
+        def down(x):
+            pass
+
+        with Flow("upstream-test") as f:
+            result = down.map(x=[1, 2, 3])
+
+        with pytest.raises(ValueError, match="filename"):
+            healthchecks.result_check([f])
+
+    def test_raises_for_mapped_tasks_with_poorly_specified_result_location_on_flow(
+        self, tmpdir
+    ):
+        @task
+        def down(x):
+            pass
+
+        with Flow(
+            "upstream-test", result=LocalResult(dir=tmpdir, location="my_path.txt")
+        ) as f:
+            result = down.map(x=[1, 2, 3])
+
+        with pytest.raises(ValueError, match="filename"):
             healthchecks.result_check([f])
 
     @pytest.mark.parametrize(
