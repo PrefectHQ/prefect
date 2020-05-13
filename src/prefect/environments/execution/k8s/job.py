@@ -50,12 +50,14 @@ class KubernetesJobEnvironment(Environment):
     def __init__(
         self,
         job_spec_file: str = None,
+        unique_job_name: bool = False,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
+        self.unique_job_name = unique_job_name
         self.executor_kwargs = executor_kwargs or dict()
 
         # Load specs from file if path given, store on object
@@ -206,6 +208,11 @@ class KubernetesJobEnvironment(Environment):
         # Create metadata label fields if they do not exist
         if not yaml_obj.get("metadata"):
             yaml_obj["metadata"] = {}
+
+        if self.unique_job_name:
+            yaml_obj["metadata"][
+                "name"
+            ] = f"{yaml_obj['metadata']['name']}-{flow_run_id[:8]}"
 
         if not yaml_obj["metadata"].get("labels"):
             yaml_obj["metadata"]["labels"] = {}
