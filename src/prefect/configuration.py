@@ -58,7 +58,7 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     elif val.upper() == "FALSE":
         return False
 
-    # dicts
+    # dicts, ints, floats, or any other literal Python syntax
     try:
         val_as_obj = literal_eval(val)
         return val_as_obj
