@@ -214,7 +214,7 @@ class KubernetesJobEnvironment(Environment):
         if self.unique_job_name:
             yaml_obj["metadata"][
                 "name"
-            ] = f"{yaml_obj['metadata']['name']}-{flow_run_id[:8]}"
+            ] = f"{yaml_obj['metadata']['name']}-{str(uuid.uuid4())[:8]}"
 
         if not yaml_obj["metadata"].get("labels"):
             yaml_obj["metadata"]["labels"] = {}

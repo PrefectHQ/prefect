@@ -309,7 +309,8 @@ def test_populate_job_yaml():
                     flow_file_path="test4",
                 )
 
-        assert yaml_obj["metadata"]["name"] == "prefect-dask-job-id_test"
+        assert "prefect-dask-job-" in yaml_obj["metadata"]["name"]
+        assert len(yaml_obj["metadata"]["name"]) == 25
 
         assert (
             yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
