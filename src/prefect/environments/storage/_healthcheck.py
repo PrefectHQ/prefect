@@ -50,9 +50,10 @@ def _check_mapped_result_templates(flow: "prefect.Flow"):
     for edge in flow.edges:
         if edge.mapped and edge.key:
             result = edge.downstream_task.result or flow.result
-            if result.location is None:
+            location = getattr(result, "location", None)
+            if location is None:
                 continue
-            if "{filename}" not in result.location:
+            if "{filename}" not in location:
                 raise ValueError(
                     "Mapped tasks with custom result locations must include {filename} as a template in their location - see https://docs.prefect.io/core/advanced_tutorials/using-results.html#specifying-a-location-for-mapped-or-looped-tasks"
                 )
