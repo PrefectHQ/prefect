@@ -23,6 +23,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Add "cancellation-lite" semantic by preventing task runs from running if the flow run isn't running - [#2535](https://github.com/PrefectHQ/prefect/pull/2535)
 - Add minimal telemetry to Prefect Server - [#2467](https://github.com/PrefectHQ/prefect/pull/2467)
+- Add volume to postgres container - [#2560](https://github.com/PrefectHQ/prefect/pull/2560)
 
 ### Task Library
 
