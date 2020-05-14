@@ -41,6 +41,10 @@ or specify the secret via environment variable:
 export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 ```
 
+::: tip Default secrets
+Special default secret names can be used to authenticate to third-party systems in a installation-wide way. Read more about this in our [Secrets concept documentation](/core/concepts/secrets.md#default-secrets).
+:::
+
 ::: tip
 When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
 :::

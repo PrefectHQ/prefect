@@ -13,6 +13,10 @@ class LocalResult(Result):
     """
     Result that is written to and retrieved from the local file system.
 
+    **Note**: If this result raises a `PermissionError` that could mean it is attempting
+    to write results to a directory that it is not permissioned for. In that case it may be
+    helpful to specify a specific `dir` for that result instance.
+
     Args:
         - dir (str, optional): the _absolute_ path to a directory for storing
             all results; defaults to `${prefect.config.home_dir}/results`

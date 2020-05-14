@@ -38,6 +38,9 @@ def make_env(fname=None):
             port=config.server.graphql.port
         ),
         APOLLO_HOST_PORT=config.server.host_port,
+        PREFECT_SERVER__TELEMETRY__ENABLED=(
+            "true" if config.server.telemetry.enabled is True else "false"
+        ),
     )
 
     POSTGRES_ENV = dict(

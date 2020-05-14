@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+from ast import literal_eval
 from typing import Optional, Union, cast
 
 import toml
@@ -41,14 +42,13 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     Maps:
         - "true" (any capitalization) to `True`
         - "false" (any capitalization) to `False`
-        - integers to `int`
-        - floats to `float`
-
+        - any other valid literal Python syntax interpretable by ast.literal_eval
+        
     Arguments:
         - val (str): the string value of an environment variable
 
     Returns:
-        Union[bool, int, float, str]: the type-cast env var value
+        Union[bool, int, float, str, dict, list, None, tuple]: the type-cast env var value
     """
 
     # bool
@@ -57,19 +57,10 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     elif val.upper() == "FALSE":
         return False
 
-    # int
+    # dicts, ints, floats, or any other literal Python syntax
     try:
-        val_as_int = int(val)
-        if str(val_as_int) == val:
-            return val_as_int
-    except Exception:
-        pass
-
-    # float
-    try:
-        val_as_float = float(val)
-        if str(val_as_float) == val:
-            return val_as_float
+        val_as_obj = literal_eval(val)
+        return val_as_obj
     except Exception:
         pass
 

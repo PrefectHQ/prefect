@@ -13,6 +13,15 @@ from prefect import Flow
 from prefect.environments.storage import Docker
 
 
+@pytest.fixture
+def no_docker_host_var(monkeypatch):
+    """
+    This fixture is for tests that assert an unset DOCKER_HOST variable
+    to avoid muddying test results from running Docker in Docker (e.g. in CI)
+    """
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
+
+
 def test_create_docker_storage():
     storage = Docker(secrets=["cloud_creds"])
     assert storage
@@ -37,9 +46,9 @@ def test_add_flow_to_docker():
     storage = Docker()
     f = Flow("test")
     assert f not in storage
-    assert storage.add_flow(f) == "/root/.prefect/flows/test.prefect"
+    assert storage.add_flow(f) == "/opt/prefect/flows/test.prefect"
     assert f.name in storage
-    assert storage.flows[f.name] == "/root/.prefect/flows/test.prefect"
+    assert storage.flows[f.name] == "/opt/prefect/flows/test.prefect"
 
 
 @pytest.mark.parametrize(
@@ -49,7 +58,7 @@ def test_add_flow_to_docker():
         ("darwn", "unix://var/run/docker.sock"),
     ],
 )
-def test_empty_docker_storage(monkeypatch, platform, url):
+def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
@@ -61,9 +70,7 @@ def test_empty_docker_storage(monkeypatch, platform, url):
     assert not storage.image_name
     assert not storage.image_tag
     assert storage.python_dependencies == ["wheel"]
-    assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml"
-    }
+    assert storage.env_vars == {"PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"}
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
@@ -78,7 +85,9 @@ def test_empty_docker_storage(monkeypatch, platform, url):
         ("darwn", "unix://var/run/docker.sock"),
     ],
 )
-def test_empty_docker_storage_on_tagged_commit(monkeypatch, platform, url):
+def test_empty_docker_storage_on_tagged_commit(
+    monkeypatch, platform, url, no_docker_host_var
+):
     monkeypatch.setattr("prefect.environments.storage.docker.sys.platform", platform)
     monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
     monkeypatch.setattr(prefect, "__version__", "0.9.2")
@@ -90,9 +99,7 @@ def test_empty_docker_storage_on_tagged_commit(monkeypatch, platform, url):
     assert not storage.image_name
     assert not storage.image_tag
     assert storage.python_dependencies == ["wheel"]
-    assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml"
-    }
+    assert storage.env_vars == {"PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml"}
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
@@ -122,7 +129,7 @@ def test_docker_init_responds_to_prefect_version(monkeypatch, version):
     assert storage.prefect_version == version[1]
 
 
-def test_initialized_docker_storage():
+def test_initialized_docker_storage(no_docker_host_var):
     storage = Docker(
         registry_url="test1",
         base_image="test3",
@@ -142,11 +149,21 @@ def test_initialized_docker_storage():
     assert storage.python_dependencies == ["test", "wheel"]
     assert storage.env_vars == {
         "test": "1",
-        "PREFECT__USER_CONFIG_PATH": "/root/.prefect/config.toml",
+        "PREFECT__USER_CONFIG_PATH": "/opt/prefect/config.toml",
     }
     assert storage.base_url == "test_url"
     assert storage.prefect_version == "my-branch"
     assert storage.local_image
+
+
+def test_env_var_precedence_docker_storage(monkeypatch, no_docker_host_var):
+    monkeypatch.setenv("DOCKER_HOST", "bar")
+    storage = Docker()
+    assert storage.base_url
+    assert storage.base_url == "bar"
+    storage = Docker(base_url="foo")
+    assert storage.base_url == "foo"
+    storage = Docker(base_url="foo")
 
 
 def test_docker_storage_allows_for_user_provided_config_locations():
@@ -396,7 +413,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
                 output = dockerfile.read()
 
             assert (
-                "COPY {} /root/.prefect/flows/foo.prefect".format(
+                "COPY {} /opt/prefect/flows/foo.prefect".format(
                     os.path.join(directory, "foo.flow")
                 )
                 in output
@@ -405,7 +422,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
                 "COPY {} ./test2".format(os.path.join(directory, "test")) in output
             ), output
             assert (
-                "COPY {} /root/.prefect/healthcheck.py".format(
+                "COPY {} /opt/prefect/healthcheck.py".format(
                     os.path.join(directory, "healthcheck.py")
                 )
                 in output
@@ -472,12 +489,12 @@ def test_create_dockerfile_with_weird_flow_name():
                 output = dockerfile.read()
 
             assert (
-                "COPY what-is-this.flow /root/.prefect/flows/what-is-this.prefect"
+                "COPY what-is-this.flow /opt/prefect/flows/what-is-this.prefect"
                 in output
             )
 
 
-def test_create_dockerfile_from_everything():
+def test_create_dockerfile_from_everything(no_docker_host_var):
 
     with tempfile.TemporaryDirectory() as tempdir_outside:
 
@@ -517,9 +534,9 @@ def test_create_dockerfile_from_everything():
             assert results != None
             assert results.group("result") == "test=1"
 
-            assert "COPY healthcheck.py /root/.prefect/healthcheck.py" in output
-            assert "COPY test.flow /root/.prefect/flows/test.prefect" in output
-            assert "COPY other.flow /root/.prefect/flows/other.prefect" in output
+            assert "COPY healthcheck.py /opt/prefect/healthcheck.py" in output
+            assert "COPY test.flow /opt/prefect/flows/test.prefect" in output
+            assert "COPY other.flow /opt/prefect/flows/other.prefect" in output
 
 
 @pytest.mark.parametrize("ignore_healthchecks", [True, False])
@@ -541,9 +558,9 @@ def test_run_healthchecks_arg(ignore_healthchecks):
                 output = dockerfile.read()
 
             if ignore_healthchecks:
-                assert "RUN python /root/.prefect/healthcheck.py" not in output
+                assert "RUN python /opt/prefect/healthcheck.py" not in output
             else:
-                assert "RUN python /root/.prefect/healthcheck.py" in output
+                assert "RUN python /opt/prefect/healthcheck.py" in output
 
 
 def test_pull_image(capsys, monkeypatch):

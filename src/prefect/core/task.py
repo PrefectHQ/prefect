@@ -150,7 +150,8 @@ class Task(metaclass=SignatureValidator):
             one attached to the Flow
         - result (Result, optional): the result instance used to retrieve and store task results during execution
         - target (str, optional): location to check for task Result. If a result exists at that location then
-            the task run will enter a cached state.
+            the task run will enter a cached state.  `target` strings can be templated formatting strings which will be formatted
+            at runtime with values from `prefect.context`
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -267,12 +268,14 @@ class Task(metaclass=SignatureValidator):
 
         self.target = target
 
-        if getattr(result, "location", None) and target:
-            warnings.warn(
-                "Both `result.location` and `target` set on task. Task result will use target as location."
-            )
+        if target and result:
             self.result = result.copy()  # type: ignore
             self.result.location = target
+
+            if getattr(result, "location", None):
+                warnings.warn(
+                    "Both `result.location` and `target` set on task. Task result will use target as location."
+                )
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -457,10 +460,6 @@ class Task(metaclass=SignatureValidator):
         flow = flow or prefect.context.get("flow", None)
         if not flow:
             raise ValueError("Could not infer an active Flow context.")
-
-        case = prefect.context.get("case", None)
-        if case is not None:
-            case.add_task(self)
 
         self.set_dependencies(
             flow=flow,

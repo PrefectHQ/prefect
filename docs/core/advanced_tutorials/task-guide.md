@@ -35,7 +35,7 @@ When the run method of your task is called, it is executed as Python code. Conse
 There are still a few considerations though:
 
 - if you utilize timeouts, this sometimes relies on multiprocessing / multithreading which can interfere with how resource intensive your Task can be
-- make sure that you understand the possible retrictions on [Task inputs and outputs](#task-inputs-and-outputs)
+- make sure that you understand the possible restrictions on [Task inputs and outputs](#task-inputs-and-outputs)
   :::
 
 Generally speaking, there are two preferred methods for creating your own Prefect Tasks: using the `@task` decorator on a function, or subclassing the Prefect `Task` class. Let's take a look at an example of each of these individually by writing a custom task which adds two numbers together.
@@ -201,7 +201,7 @@ In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, whic
 
 ## Task Inputs and Outputs
 
-In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Sucessful"). In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.
+In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Successful"). In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.
 
 However, there _can_ be restrictions on what tasks can receive as inputs and return as outputs. In particular, Prefect's most popular executor is the `DaskExecutor`, which allows users to execute tasks on a cluster; because each machine is running a different Python process, Dask must convert Python objects to bytecode that can be shared between different processes. Consequently, the data that is passed around the Prefect platform must be compatible with this serialization protocol. Specifically, tasks must operate on objects that are serializable by the [`cloudpickle` library](https://github.com/cloudpipe/cloudpickle).
 
@@ -256,7 +256,7 @@ So far, so good - our Flow now consists of a single task. How might we add a sin
 - the task is _called_ within a Flow context _or_
 - the task is called as a dependency of another task
 
-In this case, because we have a single Task and no dependencies, we must resort to _calling_ the instantiatied Task:
+In this case, because we have a single Task and no dependencies, we must resort to _calling_ the instantiated Task:
 
 ```python
 with Flow("example-v2") as f:
@@ -333,7 +333,7 @@ flow.tasks
 #  <Task: do_nothing>}
 ```
 
-This can be burdensome for deeply nested Python collections. To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
+This can be burdensome for deeply nested Python collections. To prevent this granular auto-generation from occurring, you can always wrap Python objects in a `Constant` Task:
 
 ```python
 from prefect.tasks.core.constants import Constant

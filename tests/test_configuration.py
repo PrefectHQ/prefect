@@ -64,6 +64,10 @@ def config(test_config_file_path, monkeypatch):
     monkeypatch.setenv("PREFECT_TEST__ENV_VARS__NEGATIVE_INT", "-10")
     monkeypatch.setenv("PREFECT_TEST__ENV_VARS__FLOAT", "7.5")
     monkeypatch.setenv("PREFECT_TEST__ENV_VARS__NEGATIVE_FLOAT", "-7.5")
+    monkeypatch.setenv(
+        "PREFECT_TEST__CONTEXT__SECRETS__AWS_CREDENTIALS",
+        '{"ACCESS_KEY": "abcdef", "SECRET_ACCESS_KEY": "ghijklmn"}',
+    )
     monkeypatch.setenv("PATH", "1/2/3")
     monkeypatch.setenv(
         "PREFECT_TEST__ENV_VARS__ESCAPED_CHARACTERS", r"line 1\nline 2\rand 3\tand 4"
@@ -79,6 +83,12 @@ def test_keys(config):
     assert "general" in config
     assert "nested" in config.general
     assert "x" not in config
+
+
+def test_dicts_are_created(config):
+    val = config.context.secrets.AWS_CREDENTIALS
+    assert isinstance(val, dict)
+    assert val["ACCESS_KEY"] == "abcdef"
 
 
 def test_getattr_missing(config):

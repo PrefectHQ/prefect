@@ -70,7 +70,7 @@ def func_task():
     return 99
 ```
 
-There are many different `Result` classes aligning with different storage backends depending on your needs, such as `GCSResult` and `S3Result`. See the whole list in the [API docs for results](../../api/latest/engine/results.md)
+There are many different `Result` classes aligning with different storage backends depending on your needs, such as `GCSResult` and `S3Result`. See the whole list in the [API docs for results](../../api/latest/engine/results.md).
 
 ::: tip Check your global configuration, too
 The default setting in Prefect Core is that checkpointing is globally turned _off_, and the default setting in Prefect Cloud 0.9.1+ is that checkpointing is globally turned _on_. For more information, read the concepts documentation on [Results](results.md) and the setup tutorial on [Using Results](../advanced_tutorials/using-results.html).
@@ -80,7 +80,7 @@ The default setting in Prefect Core is that checkpointing is globally turned _of
 
 You can combine the concepts of persistent output and skipping task execution by configuring a task to skip execution based on the presence of a persisted `Result`. Many workflow authors may recognize this from tools like Make or Luigi, where tasks define "targets" (usually files on disk) and task computation is avoided in favor of using the data from the target if the target exists.
 
-To enable this behavior for a task, provide the target location to the task's `target` kwarg along with the `result` and `checkpointing` kwargs necessary to enable checkpointing. Whenever this task is run, it will first check to see if the storage backend configured by the result has a file matching the name of the target, and if so, will enter a `Cached` state with the data from the target file as the task's return value.
+To enable this behavior for a task, provide the target location to the task's `target` kwarg along with the `result` and `checkpointing` kwargs necessary to enable checkpointing. Whenever this task is run, it will first check to see if the storage backend configured by the result has a file matching the name of the target, and if so, will enter a `Cached` state with the data from the target file as the task's return value. If it has not been cached, the output of the task will be written to the `target` location and be available as a cache for future runs of this task, even between running Python processes.
 
 ```python
 from prefect.engine.results import LocalResult
@@ -92,4 +92,21 @@ from prefect import task, Task
 def func_task():
     return 99
 ```
+
+::: tip Targets can be templated
+Note that `target`s can optionally be templated, using [values found in `prefect.context`](/api/latest/utilities/context.html).  For example, the following target specification will store data based on the day of the week the flow is run on:
+
+```python
+from prefect.engine.results import LocalResult
+from prefect import task, Task
+
+
+# create a task via the task decorator
+@task(target="{date:%A}/{task_name}.txt", checkpoint=True, result_handler=LocalResult(dir="~/.prefect"))
+def func_task():
+    return 99
+```
+
+See the [official Python documentation](https://www.python.org/dev/peps/pep-3101/#format-strings) for more information on the flexibility of string formatting.
+:::
 

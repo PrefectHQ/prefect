@@ -78,9 +78,8 @@ This will then ensure that the `AWS_CREDENTIALS` secret is globally present in `
 In some instances you may need to override the global options presented above on a per-task basis, or you may choose to explicitly provide credentials to every task that needs them.  Either way, all Prefect tasks from the Task library which require credentials to authenticate offer optional runtime arguments for providing this information.
 
 
-### List of default Secret names
+### Default Secret names
 
-The following is a list of the default names and contents of Prefect Secrets that, if set and declared, can be used to automatically authenticate your flow with the listed service:
+A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets, all supported Prefect interactions with those services will be automatically configured.
 
-- `GCP_CREDENTIALS`: a dictionary containing a valid [Service Account Key](https://cloud.google.com/docs/authentication/getting-started)
-- `AWS_CREDENTIALS`: a dictionary containing two required keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`, and an optional `SESSION_TOKEN`, which are passed directly to [the `boto3` client](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
+See the list of default secret names on the [Secrets concept documentation](../../core/concepts/secrets.md#default-secrets).
