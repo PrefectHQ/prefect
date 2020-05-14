@@ -1,5 +1,6 @@
 const sidebar81 = require('../api/0.8.1/sidebar')
 const sidebar98 = require('../api/0.9.8/sidebar')
+const sidebar107 = require('../api/0.10.7/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -73,7 +74,8 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.10.7)', link: '/api/latest/' },
+          { text: 'Latest (0.11.0)', link: '/api/latest/' },
+          { text: '0.10.7', link: '/api/0.10.7/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -87,6 +89,7 @@ module.exports = {
     sidebar: {
       '/api/0.8.1/': sidebar81.sidebar,
       '/api/0.9.8/': sidebar98.sidebar,
+      '/api/0.10.7/': sidebar107.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
