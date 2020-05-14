@@ -29,7 +29,7 @@ For example, given an environment with the environment variable `PREFECT__CONTEX
 >>> from prefect.tasks.secrets import PrefectSecret
 >>> p = PrefectSecret('foo')                        
 >>> p.run()                   
-{'ACCESS_KEY': 'abcdef', 'SECRET_ACCESS_KEY': 'ghijklmn'}
+'mypassword'
 ```
 :::
 ::: tab Secret API
