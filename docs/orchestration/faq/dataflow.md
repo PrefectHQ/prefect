@@ -2,7 +2,7 @@
 
 Prefect Cloud's innovative hybrid execution model was designed to satisfy the majority of on-prem needs while still offering a managed platform. In order to achieve this, Prefect was designed to allow users the ability to ensure both their _code_ and their _data_ never leaves their internal ecosystem. This guide will focus on how _data_ moves between tasks and flows in the Prefect Cloud execution model, as well as call out any caveats that might result in data being exposed to Prefect Cloud.
 
-All data being referenced here are the inputs and outputs of Prefect tasks. Note that _all task execution_ occurs in user-controllled infrastructure; consequently, when a task passes data to a downstream task, this data passage occurs _entirely in the user's infrastructure_ as well. The only time data might leave the user's execution infrastructure is when task data is persisted.
+All data being referenced here are the inputs and outputs of Prefect tasks. Note that _all task execution_ occurs in user-controlled infrastructure; consequently, when a task passes data to a downstream task, this data passage occurs _entirely in the user's infrastructure_ as well. The only time data might leave the user's execution infrastructure is when task data is persisted.
 
 Note additionally that when metadata does arrive in Prefect Cloud, it is accessible only via other users in your tenant with the appropriate permissions.
 
