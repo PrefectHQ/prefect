@@ -10,7 +10,7 @@ These changes are available in the [release/0.11.0 branch](https://github.com/Pr
 
 ### Enhancements
 
-- None
+- Prevent local cycles even if flow validation is deferred - [#2565](https://github.com/PrefectHQ/prefect/pull/2565)
 
 ### Server
 
