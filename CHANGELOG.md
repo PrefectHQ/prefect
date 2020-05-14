@@ -53,6 +53,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - [Alvin Goh](https://github.com/chuehsien)
 - [Daniel Kapitan](https://github.com/dkapitan)
 - [Mark McDonald](https://github.com/mhmcdonald)
+- [Jie Lou](https://github.com/JLouSRM)
 
 ## 0.10.7 <Badge text="beta" type="success"/>
 
