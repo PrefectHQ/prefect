@@ -82,4 +82,4 @@ In some instances you may need to override the global options presented above on
 
 A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets, all supported Prefect interactions with those services will be automatically configured.
 
-See the list of defualt secret names on the [Secrets concept documentation](../../core/concepts/secrets.md#default-secrets).
+See the list of default secret names on the [Secrets concept documentation](../../core/concepts/secrets.md#default-secrets).
