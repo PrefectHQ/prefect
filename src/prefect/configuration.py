@@ -42,14 +42,13 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
     Maps:
         - "true" (any capitalization) to `True`
         - "false" (any capitalization) to `False`
-        - integers to `int`
-        - floats to `float`
-
+        - any other valid literal Python syntax interpretable by ast.literal_eval
+        
     Arguments:
         - val (str): the string value of an environment variable
 
     Returns:
-        Union[bool, int, float, str]: the type-cast env var value
+        Union[bool, int, float, str, dict, list, None, tuple]: the type-cast env var value
     """
 
     # bool
