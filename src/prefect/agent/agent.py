@@ -354,7 +354,7 @@ class Agent:
 
     def on_flow_run_deploy_attempt(self, fut: "Future", flow_run_id: str) -> None:
         """
-        Indicates that a flow run deployment has been deployed (sucessfully or otherwise).
+        Indicates that a flow run deployment has been deployed (successfully or otherwise).
         This is intended to be a future callback hook, called in the agent's main thread
         when the background thread has completed the deploy_and_update_flow_run() call, either
         successfully, in error, or cancelled. In all cases the agent should be open to
