@@ -10,7 +10,8 @@ ENV SERVER_VERSION=${VERSION}
 RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no-install-suggests --allow-unauthenticated \
     curl \
     git \
-    sudo
+    sudo && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG PREFECT_VERSION=master
 ENV PREFECT_VERSION=$PREFECT_VERSION
