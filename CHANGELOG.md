@@ -22,7 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- None
+- Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
 
 ### Deprecations
 

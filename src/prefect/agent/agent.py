@@ -98,9 +98,11 @@ class Agent:
         no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = list(
-            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
-        )
+
+        self.labels = labels or config.cloud.agent.get("labels", [])
+        # quick hack in case config has not been evaluated to a list yet
+        if isinstance(self.labels, str):
+            self.labels = ast.literal_eval(self.labels)
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
@@ -166,7 +168,7 @@ class Agent:
             - The agent ID as a string
         """
         agent_id = self.client.register_agent(
-            agent_type=type(self).__name__, name=self.name, labels=self.labels
+            agent_type=type(self).__name__, name=self.name, labels=self.labels  # type: ignore
         )
 
         self.logger.debug(f"Agent ID: {agent_id}")
