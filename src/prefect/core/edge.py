@@ -86,6 +86,9 @@ class Edge:
         key: str = None,
         mapped: bool = False,
     ):
+        if upstream_task is downstream_task:
+            raise ValueError("Edges can not connect a task to itself.")
+
         self.upstream_task = upstream_task
         self.downstream_task = downstream_task
         self.mapped = mapped

@@ -517,6 +517,25 @@ def test_eager_cycle_detection_defaults_false():
         f.validate()
 
 
+def test_direct_cycles_are_always_detected_1():
+    # edge classes prevent tasks from connecting to themselves, so
+    # direct cycles should always be prevented
+    f = Flow(name="test")
+    t = Task()
+    with pytest.raises(ValueError):
+        f.add_edge(t, t)
+
+
+def test_direct_cycles_are_always_detected_2():
+    # edge classes prevent tasks from connecting to themselves, so
+    # direct cycles should always be prevented
+    f = Flow(name="test")
+    t = Task()
+    with f:
+        with pytest.raises(ValueError):
+            t.set_upstream(t)
+
+
 def test_eager_validation_is_off_by_default(monkeypatch):
     # https://github.com/PrefectHQ/prefect/issues/919
     assert not prefect.config.flows.eager_edge_validation
