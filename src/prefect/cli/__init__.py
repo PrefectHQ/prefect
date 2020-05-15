@@ -115,7 +115,7 @@ def backend(api):
     """
     Switch Prefect API backend to either `server` or `cloud`
     """
-    if api not in ["server", "cloud"]:
+    if api not in {"server", "cloud"}:
         click.secho("{} is not a valid backend API".format(api), fg="red")
         return
 

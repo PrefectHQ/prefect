@@ -21,7 +21,7 @@ FIELS_OF_INTEREST = (
 def clean_vector(raw_vector: List[Any]):
     clean = dict(zip(AIRCRAFT_VECTOR_FIELDS, raw_vector[:]))
 
-    if None in (clean["longitude"], clean["latitude"]):
+    if None in {clean["longitude"], clean["latitude"]}:
         # this is an invalid vector, ignore it
         return None
 

@@ -154,7 +154,7 @@ class CloudTaskRunner(TaskRunner):
         # if the map_index is not None, this is a dynamic task and we need to load
         # task run info for it
         map_index = context.get("map_index")
-        if map_index not in [-1, None]:
+        if map_index not in {-1, None}:
             try:
                 task_run_info = self.client.get_task_run_info(
                     flow_run_id=context.get("flow_run_id", ""),
@@ -309,7 +309,7 @@ class CloudTaskRunner(TaskRunner):
             ## entire upstream array that is being mapped over, instead we need store the
             ## individual pieces of data separately for more efficient retries
             map_index = prefect.context.get("map_index")
-            if map_index not in [-1, None]:
+            if map_index not in {-1, None}:
                 for edge, upstream_state in upstream_states.items():
                     if (
                         edge.key

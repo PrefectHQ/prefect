@@ -241,7 +241,7 @@ class Docker(Storage):
         """
         Full name of the Docker image.
         """
-        if None in [self.image_name, self.image_tag]:
+        if None in {self.image_name, self.image_tag}:
             raise ValueError("Docker storage is missing required fields")
 
         return "{}:{}".format(

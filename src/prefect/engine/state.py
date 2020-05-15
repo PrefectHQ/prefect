@@ -69,7 +69,7 @@ class State:
             assert isinstance(other, State)  # this assertion is here for MyPy only
             eq = self.result == other.result  # type: ignore
             for attr in self.__dict__:
-                if attr.startswith("_") or attr in ["context", "message", "result"]:
+                if attr.startswith("_") or attr in {"context", "message", "result"}:
                     continue
                 eq &= getattr(self, attr, object()) == getattr(other, attr, object())
             return eq

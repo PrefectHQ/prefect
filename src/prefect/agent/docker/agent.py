@@ -199,7 +199,7 @@ class DockerAgent(Agent):
         for volume_spec in volume_specs:
             fields = volume_spec.split(":")
 
-            if fields[-1] in ("ro", "rw"):
+            if fields[-1] in {"ro", "rw"}:
                 mode = fields.pop()
             else:
                 mode = "rw"

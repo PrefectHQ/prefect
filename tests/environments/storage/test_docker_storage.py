@@ -386,7 +386,7 @@ def test_create_dockerfile_from_dockerfile():
 
     # test proper indentation
     assert all(
-        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+        line == line.lstrip() for line in output.split("\n") if line not in {"\n", " "}
     )
 
 
@@ -432,7 +432,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
 
     # test proper indentation
     assert all(
-        line == line.lstrip() for line in output.split("\n") if line not in ["\n", " "]
+        line == line.lstrip() for line in output.split("\n") if line not in {"\n", " "}
     )
 
 

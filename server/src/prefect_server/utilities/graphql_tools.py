@@ -212,7 +212,7 @@ def type_to_ast(graphql_type):
     """
     if isinstance(graphql_type, graphql.GraphQLNonNull):
         inner_type = type_to_ast(graphql_type.of_type)
-        if inner_type.kind in ("list_type", "named_type"):
+        if inner_type.kind in {"list_type", "named_type"}:
             return graphql.NonNullTypeNode(type=inner_type)
         else:
             raise ValueError("Incorrect inner non-null type.")
