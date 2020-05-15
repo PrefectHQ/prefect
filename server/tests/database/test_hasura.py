@@ -831,7 +831,7 @@ class TestExecuteResult:
         result = await HasuraClient().execute("query { x }")
         assert isinstance(result, Box)
         assert result.data.x == 1
-        assert isinstance(result.data.y[0].a, Box)
+        assert isinstance(result.data.y[0], Box)
         assert result.data.y[0].a == 1
 
     async def test_execute_respects_not_as_box(self):
