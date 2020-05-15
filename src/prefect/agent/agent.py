@@ -100,6 +100,10 @@ class Agent:
         self.name = name or config.cloud.agent.get("name", "agent")
 
         self.labels = labels or config.cloud.agent.get("labels", [])
+        try:
+            self.labels = ast.literal_eval(self.labels)
+        except ValueError:
+            pass
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
