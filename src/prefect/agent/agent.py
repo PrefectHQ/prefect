@@ -173,7 +173,7 @@ class Agent:
             - The agent ID as a string
         """
         agent_id = self.client.register_agent(
-            agent_type=type(self).__name__, name=self.name, labels=self.labels
+            agent_type=type(self).__name__, name=self.name, labels=self.labels  # type: ignore
         )
 
         self.logger.debug(f"Agent ID: {agent_id}")
