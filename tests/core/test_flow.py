@@ -1903,7 +1903,9 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
-    def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(self, repeat_schedule):
+    def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(
+        self, repeat_schedule
+    ):
         schedule = repeat_schedule(3)
 
         class StatefulTask(Task):
