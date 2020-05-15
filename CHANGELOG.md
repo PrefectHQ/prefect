@@ -14,7 +14,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Server
 
-- None
+- Add API healthcheck tile to the UI - [#2395](https://github.com/PrefectHQ/prefect/issues/2395)
 
 ### Task Library
 
