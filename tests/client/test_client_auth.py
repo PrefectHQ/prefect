@@ -115,17 +115,6 @@ class TestClientConfig:
                 client = Client(api_token="a")
                 client.save_api_token()
 
-                client = Client()
-                assert client._api_token == "a"
-
-    def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self, cloud_api
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp}):
-                client = Client(api_token="a")
-                client.save_api_token()
-
                 client = Client(api_token="b")
                 assert client._api_token == "b"
 

@@ -542,7 +542,7 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     assert botocore_config.call_args == {}
 
 
-def test_deploy_flow_raises(monkeypatch, runner_token):
+def test_deploy_flow_local_storage_raises(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
@@ -566,7 +566,7 @@ def test_deploy_flow_raises(monkeypatch, runner_token):
     assert not boto3_client.run_task.called
 
 
-def test_deploy_flow_raises(monkeypatch, runner_token):
+def test_deploy_flow_docker_storage_raises(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
