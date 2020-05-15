@@ -1,4 +1,4 @@
-from typing import Callable, List, Type
+from typing import Callable, List
 
 from distributed.security import Security
 
