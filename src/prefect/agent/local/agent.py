@@ -75,7 +75,7 @@ class LocalAgent(Agent):
         )
         hostname = socket.gethostname()
         if hostname_label and (hostname not in self.labels):
-            assert isinstance(self.labels, list)
+            # assert isinstance(self.labels, list)
             self.labels.append(hostname)
         self.labels.extend(
             ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
