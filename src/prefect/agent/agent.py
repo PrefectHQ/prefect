@@ -1,4 +1,3 @@
-import ast
 import functools
 import logging
 import math
@@ -99,10 +98,7 @@ class Agent:
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
 
-        self.labels = labels or config.cloud.agent.get("labels", [])
-        # quick hack in case config has not been evaluated to a list yet
-        if isinstance(self.labels, str):
-            self.labels = ast.literal_eval(self.labels)
+        self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True

@@ -101,7 +101,7 @@ def test_agent_labels(runner_token, cloud_api):
 
 
 def test_agent_labels_from_config_var(runner_token):
-    with set_temporary_config({"cloud.agent.labels": "['test', '2']"}):
+    with set_temporary_config({"cloud.agent.labels": ["test", "2"]}):
         agent = Agent()
         assert agent.labels == ["test", "2"]
 

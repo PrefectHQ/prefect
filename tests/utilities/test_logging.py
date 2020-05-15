@@ -351,7 +351,7 @@ def test_users_can_specify_additional_context_attributes(caplog):
     }
 
     with utilities.configuration.set_temporary_config(
-        {"logging.log_attributes": '["trace_id"]'}
+        {"logging.log_attributes": ["trace_id"]}
     ):
         logger = logging.getLogger("test-logger")
 
@@ -373,7 +373,7 @@ def test_users_can_specify_additional_context_attributes_and_fails_gracefully(ca
     }
 
     with utilities.configuration.set_temporary_config(
-        {"logging.log_attributes": '["trace_id", "foo"]'}
+        {"logging.log_attributes": ["trace_id", "foo"]}
     ):
         logger = logging.getLogger("test-logger")
 
@@ -417,7 +417,7 @@ def test_context_only_specified_attributes():
     assert test_filter.called
 
     with utilities.configuration.set_temporary_config(
-        {"logging.extra_loggers": "['extra_logger']"}
+        {"logging.extra_loggers": ["extra_logger"]}
     ):
         utilities.logging.configure_extra_loggers()
         assert (
