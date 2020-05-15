@@ -98,9 +98,16 @@ class Agent:
         no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = list(
-            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
-        )
+
+        # Handle possible malformed evals
+        if labels:
+            self.labels = labels
+        else:
+            try:
+                self.labels = ast.literal_eval(config.cloud.agent.get("labels", "[]"))
+            except Exception:
+                self.labels = config.cloud.agent.get("labels", "[]")
+
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
