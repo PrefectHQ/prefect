@@ -22,7 +22,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
+- None
 
 ### Deprecations
 
@@ -35,6 +35,14 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Contributors
 
 - None
+
+## 0.11.1 <Badge text="beta" type="success"/>
+
+Released on May 15, 2020.
+
+### Fixes
+
+- Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
 
 ## 0.11.0 <Badge text="beta" type="success"/>
 
