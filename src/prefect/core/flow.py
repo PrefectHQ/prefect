@@ -331,8 +331,23 @@ class Flow:
 
     @contextmanager
     def _flow_context(self) -> Iterator["Flow"]:
-        with prefect.context(flow=self):
+        """
+        When entering a flow context, the Prefect context is modified to include:
+            - `flow`: the flow itself
+            - `_new_task_tracker`: a set of all tasks created while the context is 
+                open, in order to provide user friendly warnings if they aren't added
+                to the flow itself. This is purely for user experience.
+        """
+        new_task_tracker = set()
+
+        with prefect.context(flow=self, _new_task_tracker=new_task_tracker):
             yield self
+
+        if new_task_tracker.difference(self.tasks):
+            warnings.warn(
+                "Tasks were created but not added to the flow: "
+                f"{new_task_tracker.difference(self.tasks)}"
+            )
 
     def __enter__(self) -> "Flow":
         self._ctx = self._flow_context()
@@ -852,7 +867,7 @@ class Flow:
         parameters: Dict[str, Any],
         runner_cls: type,
         run_on_schedule: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
 
         base_parameters = parameters or dict()
@@ -908,7 +923,7 @@ class Flow:
                     state=flow_state,
                     task_states=flow_state.result,
                     context=flow_run_context,
-                    **kwargs
+                    **kwargs,
                 )
 
                 # if flow_state is still scheduled; this most likely means
@@ -985,7 +1000,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
         """
         Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
@@ -1062,7 +1077,7 @@ class Flow:
             parameters=parameters,
             runner_cls=runner_cls,
             run_on_schedule=run_on_schedule,
-            **kwargs
+            **kwargs,
         )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
@@ -1361,7 +1376,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config

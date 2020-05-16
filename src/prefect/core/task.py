@@ -288,6 +288,12 @@ class Task(metaclass=SignatureValidator):
 
         self.log_stdout = log_stdout
 
+        # if new task creations are being tracked, add this task
+        # this makes it possible to give guidance to users that forget
+        # to add tasks to a flow
+        if "_new_task_tracker" in prefect.context:
+            prefect.context._new_task_tracker.add(self)
+
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
 

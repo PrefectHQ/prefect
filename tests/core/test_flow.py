@@ -693,6 +693,12 @@ def test_key_states_raises_error_if_not_iterable():
             f.set_reference_tasks(t1)
 
 
+def test_warning_raised_if_tasks_are_created_but_not_added_to_flow():
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            x = Parameter("x")
+
+
 class TestEquality:
     def test_equality_based_on_tasks(self):
         f1 = Flow(name="test")
