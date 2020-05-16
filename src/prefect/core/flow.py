@@ -216,6 +216,14 @@ class Flow:
     def __iter__(self) -> Iterable[Task]:
         yield from self.sorted_tasks()
 
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        # remove _cache
+        state.pop("_cache", None)
+        # remove _ctx since it is an active generator
+        state.pop("_ctx", None)
+        return state
+
     def copy(self) -> "Flow":
         """
         Create and returns a copy of the current Flow.
@@ -323,17 +331,19 @@ class Flow:
     # Context Manager ----------------------------------------------------------
 
     @contextmanager
-    def __flow_context(self) -> "Flow":
+    def _flow_context(self) -> "Flow":
         with prefect.context(flow=self):
             yield self
 
     def __enter__(self) -> "Flow":
+        self._ctx = self._flow_context()
+        return self._ctx.__enter__()
 
-        self.__ctx = self.__flow_context()
-        return self.__ctx.__enter__()
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        return self.__ctx.__exit__(exc_type, exc_value, traceback)
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        result = self._ctx.__exit__(exc_type, exc_value, traceback)
+        # delete _ctx because it's an active generator
+        del self._ctx
+        return result
 
     # Introspection ------------------------------------------------------------
 
