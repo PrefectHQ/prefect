@@ -538,7 +538,6 @@ def test_agent_health_check(runner_token, cloud_api):
         assert False, "Failed to connect to health check"
 
     assert resp.status_code == 200
-    assert resp.json() == {}
 
     agent.cleanup()
     assert not agent._api_server_thread.is_alive()
