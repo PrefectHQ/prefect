@@ -162,7 +162,12 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
 
     kwarg_dict = {
         "containerDefinitions": [
-            {"environment": "test", "secrets": "test", "mountPoints": "test"}
+            {
+                "environment": "test",
+                "secrets": "test",
+                "mountPoints": "test",
+                "logConfiguration": "test",
+            }
         ]
     }
 
@@ -176,6 +181,7 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
         "environment": "test",
         "secrets": "test",
         "mountPoints": "test",
+        "logConfiguration": "test",
     }
 
 
@@ -339,6 +345,7 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         "environment": "test",
         "secrets": "test",
         "mountPoints": "test",
+        "logConfiguration": "test",
     }
 
     kwarg_dict = {
@@ -363,7 +370,12 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         "enableECSManagedTags": "test",
         "propagateTags": "test",
         "containerDefinitions": [
-            {"environment": "test", "secrets": "test", "mountPoints": "test"}
+            {
+                "environment": "test",
+                "secrets": "test",
+                "mountPoints": "test",
+                "logConfiguration": "test",
+            }
         ],
     }
 
@@ -431,6 +443,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
         "environment": "test",
         "secrets": "test",
         "mountPoints": "test",
+        "logConfiguration": "test",
     }
 
     # Client args
@@ -463,6 +476,7 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("containerDefinitions_environment", "test")
     monkeypatch.setenv("containerDefinitions_secrets", "test")
     monkeypatch.setenv("containerDefinitions_mountPoints", "test")
+    monkeypatch.setenv("containerDefinitions_logConfiguration", "test")
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
@@ -821,6 +835,15 @@ def test_deploy_flow_register_task_definition_all_args(
                         "readOnly": False,
                     }
                 ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": "prefect",
+                        "awslogs-region": "us-east-1",
+                        "awslogs-stream-prefix": "flow-runs",
+                        "awslogs-create-group": "true",
+                    },
+                },
             }
         ],
     }
@@ -896,6 +919,15 @@ def test_deploy_flow_register_task_definition_all_args(
                     "readOnly": False,
                 }
             ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "prefect",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "flow-runs",
+                    "awslogs-create-group": "true",
+                },
+            },
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -1009,6 +1041,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "essential": True,
             "secrets": [],
             "mountPoints": [],
+            "logConfiguration": {},
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -1076,6 +1109,7 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
             "essential": True,
             "secrets": [],
             "mountPoints": [],
+            "logConfiguration": {},
         }
     ]
 
@@ -1168,6 +1202,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(
                 "essential": True,
                 "secrets": [],
                 "mountPoints": [],
+                "logConfiguration": {},
             }
         ],
         family="name",
@@ -1541,6 +1576,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                 "essential": True,
                 "secrets": [],
                 "mountPoints": [],
+                "logConfiguration": {},
             }
         ],
         cpu="256",
