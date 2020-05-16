@@ -321,7 +321,7 @@ class FargateAgent(Agent):
             "propagateTags",
         ]
 
-        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment"]
+        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment", "logConfiguration"]
 
         task_definition_kwargs = {}
         definition_kwarg_list_eval = {
