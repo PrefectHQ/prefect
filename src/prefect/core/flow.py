@@ -7,6 +7,7 @@ import os
 import tempfile
 import time
 import warnings
+from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Any,
@@ -321,17 +322,18 @@ class Flow:
 
     # Context Manager ----------------------------------------------------------
 
+    @contextmanager
+    def __flow_context(self) -> "Flow":
+        with prefect.context(flow=self):
+            yield self
+
     def __enter__(self) -> "Flow":
-        self.__previous_flow = prefect.context.get("flow")
-        prefect.context.update(flow=self)
-        return self
 
-    def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
-        del prefect.context.flow
-        if self.__previous_flow is not None:
-            prefect.context.update(flow=self.__previous_flow)
+        self.__ctx = self.__flow_context()
+        return self.__ctx.__enter__()
 
-        del self.__previous_flow
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self.__ctx.__exit__(exc_type, exc_value, traceback)
 
     # Introspection ------------------------------------------------------------
 
