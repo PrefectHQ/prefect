@@ -14,6 +14,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -218,8 +219,6 @@ class Flow:
 
     def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()
-        # remove _cache
-        state.pop("_cache", None)
         # remove _ctx since it is an active generator
         state.pop("_ctx", None)
         return state
@@ -331,7 +330,7 @@ class Flow:
     # Context Manager ----------------------------------------------------------
 
     @contextmanager
-    def _flow_context(self) -> "Flow":
+    def _flow_context(self) -> Iterator["Flow"]:
         with prefect.context(flow=self):
             yield self
 
@@ -339,11 +338,10 @@ class Flow:
         self._ctx = self._flow_context()
         return self._ctx.__enter__()
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore
         result = self._ctx.__exit__(exc_type, exc_value, traceback)
         # delete _ctx because it's an active generator
         del self._ctx
-        return result
 
     # Introspection ------------------------------------------------------------
 
