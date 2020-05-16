@@ -113,7 +113,7 @@ class ReadGsheetRow(Task):
             - sheet_key (str): The key corresponding to the Google Sheet
             - worksheet_name (str): The worksheet to target
         Returns:
-            - a dictionary containing information about the successful insert
+            - a list of values from the row 
         """
         client = AuthenticateGsheets(credentials_filename).run()
         google_sheet = client.open_by_key(sheet_key)
