@@ -338,7 +338,7 @@ class Flow:
                 open, in order to provide user friendly warnings if they aren't added
                 to the flow itself. This is purely for user experience.
         """
-        new_task_tracker = set()
+        new_task_tracker = set() # type: Set[Task]
 
         with prefect.context(flow=self, _new_task_tracker=new_task_tracker):
             yield self
