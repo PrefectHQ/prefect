@@ -699,6 +699,16 @@ def test_warning_raised_if_tasks_are_created_but_not_added_to_flow():
             x = Parameter("x")
 
 
+def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            f.add_task(x)
+
+    # no warnings
+    assert len(record) == 0
+
+
 class TestEquality:
     def test_equality_based_on_tasks(self):
         f1 = Flow(name="test")
