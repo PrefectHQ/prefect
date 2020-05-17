@@ -693,6 +693,16 @@ def test_key_states_raises_error_if_not_iterable():
             f.set_reference_tasks(t1)
 
 
+def test_context_is_scoped_to_flow_context():
+    with Flow(name="f"):
+        prefect.context.name = "f"
+        with Flow(name="g"):
+            prefect.context.name = "g"
+            assert prefect.context.name == "g"
+        assert prefect.context.name == "f"
+    assert "name" not in prefect.context
+
+
 class TestEquality:
     def test_equality_based_on_tasks(self):
         f1 = Flow(name="test")
