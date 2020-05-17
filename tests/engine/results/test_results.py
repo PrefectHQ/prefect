@@ -2,15 +2,22 @@ import os
 import json
 import tempfile
 from typing import Union
+from unittest.mock import patch
 
 import cloudpickle
 import pytest
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 import prefect
 from prefect import config
 from prefect.engine.results import (
     ConstantResult,
     LocalResult,
+    PandasResult,
     PrefectResult,
     SecretResult,
 )
@@ -198,3 +205,115 @@ class TestLocalResult:
         new_result = result.write("so-much-data", thing=44)
         assert result.exists("44.txt") is True
         assert result.exists(os.path.join(tmp_dir, "44.txt")) is True
+
+
+@pytest.mark.skipif(pd is None, reason="Pandas not installed.")
+class TestPandasResult:
+    @pytest.fixture(scope="class")
+    def tmp_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            yield tmp
+
+    @patch("prefect.engine.results.pandas_result.pd")
+    def test_matching_io_handlers_are_found(self, mock_pandas):
+        dummy_io_func = lambda x: x
+        mock_pandas.read_thing = dummy_io_func
+        mock_pandas.DataFrame.to_thing = dummy_io_func
+
+        read_io_ops, write_io_ops = PandasResult._generate_pandas_io_methods()
+
+        expected_read_io_ops = {"thing": dummy_io_func}
+        expected_write_io_ops = {"thing": "to_thing"}
+
+        assert expected_read_io_ops == read_io_ops
+        assert expected_write_io_ops == write_io_ops
+
+    @patch("prefect.engine.results.pandas_result.pd")
+    def test_read_only_handler_not_returned(self, mock_pandas):
+        mock_pandas.read_thing = lambda x: x
+
+        read_io_ops, write_io_ops = PandasResult._generate_pandas_io_methods()
+
+        expected_read_io_ops = {}
+        expected_write_io_ops = {}
+
+        assert expected_read_io_ops == read_io_ops
+        assert expected_write_io_ops == write_io_ops
+
+    @patch("prefect.engine.results.pandas_result.pd")
+    def test_write_only_handler_not_returned(self, mock_pandas):
+        mock_pandas.DataFrame.to_thing = lambda x: x
+
+        read_io_ops, write_io_ops = PandasResult._generate_pandas_io_methods()
+
+        expected_read_io_ops = {}
+        expected_write_io_ops = {}
+
+        assert expected_read_io_ops == read_io_ops
+        assert expected_write_io_ops == write_io_ops
+
+    def test_all_read_handlers_have_matching_write_handlers(self):
+        read_io_ops, write_io_ops = PandasResult._generate_pandas_io_methods()
+        assert sorted(list(read_io_ops.keys())) == sorted(list(write_io_ops.keys()))
+
+    def test_pandas_result_initializes_with_no_args(self):
+        result = PandasResult()
+        assert result.dir == os.path.join(config.home_dir, "results")
+        assert result.value is None
+
+    def test_pandas_result_initializes_with_dir(self):
+        root_dir = os.path.abspath(os.sep)
+        result = PandasResult(dir=root_dir)
+        assert result.dir == root_dir
+
+    def test_pandas_result_writes_using_rendered_template_name(self, tmp_dir):
+        result = PandasResult(dir=tmp_dir, location="{thing}.csv")
+        value = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+        new_result = result.write(value, thing=42)
+        assert new_result.location == "42.csv"
+        pd.testing.assert_frame_equal(new_result.value, value)
+
+    def test_pandas_result_creates_necessary_dirs(self, tmp_dir):
+        os_independent_template = os.path.join("mydir", "mysubdir", "{thing}.txt")
+        result = PandasResult(dir=tmp_dir, location=os_independent_template)
+        value = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+        new_result = result.write(value, thing=42)
+        assert new_result.location == os.path.join("mydir", "mysubdir", "42.txt")
+        pd.testing.assert_frame_equal(new_result.value, value)
+
+    def test_pandas_result_cleverly_redirects_prefect_defaults(self):
+        result = PandasResult(dir=config.home_dir)
+        assert result.dir == os.path.join(config.home_dir, "results")
+
+    @pytest.mark.parametrize("file_type", ["csv", "json"])
+    def test_pandas_result_writes_and_reads_different_file_types(
+        self, tmp_dir, file_type
+    ):
+        result = PandasResult(
+            file_type=file_type, dir=tmp_dir, location="test." + file_type
+        )
+        value = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+        final = result.read(result.write(value).location).value
+        print(value)
+        print(final)
+        pd.testing.assert_frame_equal(value, final[["one", "two"]])
+
+    def test_pandas_result_is_pickleable(self):
+        result = PandasResult(dir="root")
+        new = cloudpickle.loads(cloudpickle.dumps(result))
+        assert isinstance(new, PandasResult)
+
+    def test_pandas_result_writes_and_exists(self, tmp_dir):
+        result = PandasResult(dir=tmp_dir, location="{thing}.csv")
+        assert result.exists("43.csv") is False
+        value = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+        new_result = result.write(value, thing=43)
+        assert result.exists("43.csv") is True
+
+    def test_pandas_exists_full_path(self, tmp_dir):
+        result = PandasResult(dir=tmp_dir, location="{thing}.csv")
+        assert result.exists("44.csv") is False
+        value = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
+        new_result = result.write(value, thing=44)
+        assert result.exists("44.csv") is True
+        assert result.exists(os.path.join(tmp_dir, "44.csv")) is True
