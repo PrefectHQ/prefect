@@ -10,7 +10,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- None
+- Allow log configuration in Fargate Agent - [#2589](https://github.com/PrefectHQ/prefect/pull/2589)
 
 ### Server
 
@@ -35,7 +35,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
-- None
+- [Joe Schmid](https://github.com/joeschmid)
 
 ## 0.11.1 <Badge text="beta" type="success"/>
 
