@@ -2167,10 +2167,14 @@ def test_task_runner_logs_stdout(caplog):
     class MyTask(Task):
         def run(self):
             print("TEST_HERE")
+            return 42
 
     task = MyTask(log_stdout=True)
-    TaskRunner(task=task).run()
+    state = TaskRunner(task=task).run()
 
+    # there was a bug previously with log_stdout where
+    # data was not being passed on correctly
+    assert state.result == 42
     logs = [r.message for r in caplog.records]
     assert logs[1] == "TEST_HERE"
 

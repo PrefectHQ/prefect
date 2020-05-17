@@ -217,12 +217,6 @@ class Flow:
     def __iter__(self) -> Iterable[Task]:
         yield from self.sorted_tasks()
 
-    def __getstate__(self) -> Dict[str, Any]:
-        state = self.__dict__.copy()
-        # remove _ctx since it is an active generator
-        state.pop("_ctx", None)
-        return state
-
     def copy(self) -> "Flow":
         """
         Create and returns a copy of the current Flow.
@@ -355,7 +349,7 @@ class Flow:
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore
         result = self._ctx.__exit__(exc_type, exc_value, traceback)
-        # delete _ctx because it's an active generator
+        # delete _ctx because it's an active generator, which prevents pickling
         del self._ctx
 
     # Introspection ------------------------------------------------------------
