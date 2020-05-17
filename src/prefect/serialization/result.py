@@ -85,6 +85,17 @@ class LocalResultSchema(ObjectSchema):
         return base_obj
 
 
+class PandasResultSchema(ObjectSchema):
+    class Meta:
+        object_class = results.PandasResult
+
+    file_type = fields.Str(allow_none=False)
+    dir = fields.Str(allow_none=False)
+    location = fields.Str(allow_none=True)
+    read_kwargs = fields.Dict(allow_none=True)
+    write_kwargs = fields.Dict(allow_none=True)
+
+
 class PrefectResultSchema(ObjectSchema):
     class Meta:
         object_class = results.PrefectResult
@@ -149,6 +160,7 @@ class StateResultSchema(OneOfSchema):
         "ConstantResult": ConstantResultSchema,
         "GCSResult": GCSResultSchema,
         "LocalResult": LocalResultSchema,
+        "PandasResult": PandasResultSchema,
         "PrefectResult": PrefectResultSchema,
         "S3Result": S3ResultSchema,
         "SecretResult": SecretResultSchema,

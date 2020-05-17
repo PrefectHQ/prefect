@@ -87,6 +87,34 @@ def test_local_result_doesnt_validate_on_deserialization():
     assert new_result.dir == r"C:\Windows\paths\are\weird"
 
 
+def test_pandas_result():
+    schema = StateResultSchema()
+    result = results.PandasResult(
+        file_type="json",
+        value=42,
+        location="bar",
+        read_kwargs={"one": "one"},
+        write_kwargs={"two": "two"},
+    )
+    serialized = schema.dump(result)
+
+    assert serialized["file_type"] == "json"
+    assert serialized["type"] == "PandasResult"
+    assert serialized["dir"] is not None
+    assert serialized["location"] == "bar"
+    assert serialized["read_kwargs"] == {"one": "one"}
+    assert serialized["write_kwargs"] == {"two": "two"}
+
+    new_result = schema.load(serialized)
+    assert isinstance(new_result, results.PandasResult)
+    assert new_result.file_type == "json"
+    assert new_result.dir == result.dir
+    assert new_result.location == "bar"
+    assert new_result.value is None
+    assert new_result.read_kwargs == {"one": "one"}
+    assert new_result.write_kwargs == {"two": "two"}
+
+
 def test_prefect_result():
     schema = StateResultSchema()
     result = results.PrefectResult(value=42, location="42")
