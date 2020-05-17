@@ -7,7 +7,6 @@ from prefect.engine.result_handlers import (
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
-    PandasResultHandler,
     ResultHandler,
     S3ResultHandler,
     SecretResultHandler,
@@ -88,16 +87,6 @@ class AzureResultHandlerSchema(BaseResultHandlerSchema):
     azure_credentials_secret = fields.String(allow_none=True)
 
 
-class PandasResultHandlerSchema(BaseResultHandlerSchema):
-    class Meta:
-        object_class = PandasResultHandler
-
-    path = fields.String(allow_none=False)
-    file_type = fields.String(allow_none=False)
-    read_kwargs = fields.Dict(allow_none=True)
-    write_kwargs = fields.Dict(allow_none=True)
-
-
 class ResultHandlerSchema(OneOfSchema):
     """
     Field that chooses between several nested schemas
@@ -110,7 +99,6 @@ class ResultHandlerSchema(OneOfSchema):
         "S3ResultHandler": S3ResultHandlerSchema,
         "JSONResultHandler": JSONResultHandlerSchema,
         "LocalResultHandler": LocalResultHandlerSchema,
-        "PandasResultHandler": PandasResultHandlerSchema,
         "AzureResultHandler": AzureResultHandlerSchema,
         "SecretResultHandler": SecretResultHandlerSchema,
         "CustomResultHandler": CustomResultHandlerSchema,
