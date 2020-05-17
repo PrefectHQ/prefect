@@ -137,67 +137,6 @@ class TestLocalResultHandler:
         assert obj.dir == root_dir
 
 
-@pytest.mark.xfail(raises=ImportError, reason="Pandas not installed.")
-class TestPandasResultHandler:
-    def test_serialize_result_handler_with_no_kwargs(self):
-        path = os.path.join(os.path.abspath(os.sep), "test.csv")
-        file_type = "csv"
-        serialized = ResultHandlerSchema().dump(PandasResultHandler(path, file_type))
-        assert isinstance(serialized, dict)
-        assert serialized["type"] == "PandasResultHandler"
-        assert serialized["path"] == path
-        assert serialized["file_type"] == file_type
-        assert serialized["read_kwargs"] == {}
-        assert serialized["write_kwargs"] == {}
-
-    def test_deserialize_from_dict_no_kwargs(self):
-        schema = ResultHandlerSchema()
-        path = os.path.join(os.path.abspath(os.sep), "test.csv")
-        file_type = "csv"
-        obj = schema.load(schema.dump(PandasResultHandler(path, file_type)))
-        assert isinstance(obj, PandasResultHandler)
-        assert obj.path == path
-        assert obj.file_type == file_type
-        assert obj.read_kwargs == {}
-        assert obj.write_kwargs == {}
-
-    def test_serialize_result_handler_with_kwargs(self):
-        path = os.path.join(os.path.abspath(os.sep), "test.csv")
-        file_type = "csv"
-        read_kwargs = {"a": 1}
-        write_kwargs = {"b": 2}
-        serialized = ResultHandlerSchema().dump(
-            PandasResultHandler(
-                path, file_type, read_kwargs=read_kwargs, write_kwargs=write_kwargs
-            )
-        )
-        assert isinstance(serialized, dict)
-        assert serialized["type"] == "PandasResultHandler"
-        assert serialized["path"] == path
-        assert serialized["file_type"] == file_type
-        assert serialized["read_kwargs"] == read_kwargs
-        assert serialized["write_kwargs"] == write_kwargs
-
-    def test_deserialize_from_dict_with_kwargs(self):
-        schema = ResultHandlerSchema()
-        path = os.path.join(os.path.abspath(os.sep), "test.csv")
-        file_type = "csv"
-        read_kwargs = {"a": 1}
-        write_kwargs = {"b": 2}
-        obj = schema.load(
-            schema.dump(
-                PandasResultHandler(
-                    path, file_type, read_kwargs=read_kwargs, write_kwargs=write_kwargs
-                )
-            )
-        )
-        assert isinstance(obj, PandasResultHandler)
-        assert obj.path == path
-        assert obj.file_type == file_type
-        assert obj.read_kwargs == read_kwargs
-        assert obj.write_kwargs == write_kwargs
-
-
 @pytest.mark.xfail(raises=ImportError, reason="google extras not installed.")
 class TestGCSResultHandler:
     def test_serialize(self):
