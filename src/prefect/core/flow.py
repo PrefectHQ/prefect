@@ -7,12 +7,14 @@ import os
 import tempfile
 import time
 import warnings
+from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -321,17 +323,19 @@ class Flow:
 
     # Context Manager ----------------------------------------------------------
 
+    @contextmanager
+    def _flow_context(self) -> Iterator["Flow"]:
+        with prefect.context(flow=self):
+            yield self
+
     def __enter__(self) -> "Flow":
-        self.__previous_flow = prefect.context.get("flow")
-        prefect.context.update(flow=self)
-        return self
+        self._ctx = self._flow_context()
+        return self._ctx.__enter__()
 
-    def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
-        del prefect.context.flow
-        if self.__previous_flow is not None:
-            prefect.context.update(flow=self.__previous_flow)
-
-        del self.__previous_flow
+    def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore
+        result = self._ctx.__exit__(exc_type, exc_value, traceback)
+        # delete _ctx because it's an active generator, which prevents pickling
+        del self._ctx
 
     # Introspection ------------------------------------------------------------
 

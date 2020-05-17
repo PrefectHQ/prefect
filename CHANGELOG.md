@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Allow log configuration in Fargate Agent - [#2589](https://github.com/PrefectHQ/prefect/pull/2589)
+- Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
 
 ### Server
 
@@ -24,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
 - Fix type for Dask Security in RemoteDaskEnvironment - [#2571](https://github.com/PrefectHQ/prefect/pull/2571)
+- Fix issue with `log_stdout` not correctly storing returned data on the task run state - [#2585](https://github.com/PrefectHQ/prefect/pull/2585)
 
 ### Deprecations
 
