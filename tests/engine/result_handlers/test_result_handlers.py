@@ -14,7 +14,6 @@ from prefect.engine.result_handlers import (
     GCSResultHandler,
     JSONResultHandler,
     LocalResultHandler,
-    PandasResultHandler,
     ResultHandler,
     S3ResultHandler,
     SecretResultHandler,
