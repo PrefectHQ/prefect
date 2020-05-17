@@ -11,6 +11,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
+- Create `initialize_task()` method for abstracting initialization logic across new task instances and copies - [#2590](https://github.com/PrefectHQ/prefect/pull/2590)
 
 ### Server
 
