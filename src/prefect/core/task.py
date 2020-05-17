@@ -268,15 +268,6 @@ class Task(metaclass=SignatureValidator):
 
         self.target = target
 
-        if target and result:
-            self.result = result.copy()  # type: ignore
-            self.result.location = target
-
-            if getattr(result, "location", None):
-                warnings.warn(
-                    "Both `result.location` and `target` set on task. Task result will use target as location."
-                )
-
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
@@ -287,6 +278,30 @@ class Task(metaclass=SignatureValidator):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
+
+        self.initialize_task()
+
+    def initialize_task(self) -> None:
+        """
+        There are two places that task attributes can be set: `Task.__init__()`
+        and `Task.copy()`, which is frequently used for creating tasks in the
+        functional API. Therefore, we need a common place for any initialization
+        logic (other than assigning attributes) to avoid repition and ensure
+        task instances are created in a uniform way. 
+
+        Any initialization logic that doesn't involve simple assignments should
+        be put in this method.
+        """
+        # if a target and a result are provided, update the result location
+        # to point at the target
+        if self.target and self.result:
+            self.result = self.result.copy()
+            self.result.location = self.target
+
+            if getattr(self.result, "location", None):
+                warnings.warn(
+                    "Both `result.location` and `target` set on task. Task result will use target as location."
+                )
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -370,6 +385,8 @@ class Task(metaclass=SignatureValidator):
         new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
+
+        new.initialize_task()
 
         return new
 
