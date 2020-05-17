@@ -1,7 +1,11 @@
 import os
-import pandas as pd
 import pendulum
 import typing
+
+try:
+    import pandas as pd
+except ImportError:
+    pass  # Allows other tests
 
 from slugify import slugify
 
