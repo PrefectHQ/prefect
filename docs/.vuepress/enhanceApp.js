@@ -10,25 +10,5 @@ export default ({ router }) => {
       path: '/guide/*',
       redirect: '/core/*'
     },
-    // redirect from `cloud/cloud_concepts` to `cloud/concepts`
-    {
-      path: '/cloud/cloud_concepts/*',
-      redirect: '/cloud/concepts/*'
-    },
-    // redirect from `api/unreleased` to `api/latest`
-    {
-      path: '/api/unreleased/*',
-      redirect: '/api/latest/*'
-    },
-    // redirect from `core/tutorials` to `core/advanced_tutorials`
-    {
-      path: '/core/tutorials/*',
-      redirect: '/core/advanced_tutorials/*'
-    },
-    // redirect from `cloud/agent` to `cloud/agents`
-    {
-      path: '/cloud/agent/*',
-      redirect: '/cloud/agents/*'
-    }
   ])
 }

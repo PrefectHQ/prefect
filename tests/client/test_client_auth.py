@@ -59,7 +59,7 @@ class TestClientConfig:
             expected = os.path.join("abc", "def", "client", "xyz", "settings.toml")
             assert str(path) == os.path.expanduser(expected)
 
-    def test_client_token_initializes_from_file(selfmonkeypatch):
+    def test_client_token_initializes_from_file(selfmonkeypatch, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
@@ -108,18 +108,7 @@ class TestClientConfig:
                     assert toml.load(f)["api_token"] == "b"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self,
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp}):
-                client = Client(api_token="a")
-                client.save_api_token()
-
-                client = Client()
-                assert client._api_token == "a"
-
-    def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self,
+        self, cloud_api
     ):
         with tempfile.TemporaryDirectory() as tmp:
             with set_temporary_config({"home_dir": tmp}):
@@ -149,10 +138,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -170,10 +159,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -191,10 +180,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -214,10 +203,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -239,17 +228,17 @@ class TestTenantAuth:
         }
 
     def test_login_to_tenant_writes_tenant_and_reloads_it_when_token_is_reloaded(
-        self, patch_post
+        self, patch_post, cloud_api
     ):
         tenant_id = str(uuid.uuid4())
         post = patch_post(
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -273,10 +262,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -296,10 +285,10 @@ class TestTenantAuth:
             {
                 "data": {
                     "tenant": [{"id": tenant_id}],
-                    "switchTenant": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "switch_tenant": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     },
                 }
             }
@@ -324,10 +313,10 @@ class TestTenantAuth:
         patch_post(
             {
                 "data": {
-                    "refreshToken": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "refresh_token": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     }
                 }
             }
@@ -339,18 +328,18 @@ class TestTenantAuth:
         # add buffer because Windows doesn't compare milliseconds
         assert client._access_token_expires_at < pendulum.now().add(seconds=1)
         client._refresh_access_token()
-        assert client._access_token is "ACCESS_TOKEN"
-        assert client._refresh_token is "REFRESH_TOKEN"
+        assert client._access_token == "ACCESS_TOKEN"
+        assert client._refresh_token == "REFRESH_TOKEN"
         assert client._access_token_expires_at > pendulum.now().add(seconds=599)
 
     def test_refresh_token_passes_access_token_as_arg(self, patch_post):
         post = patch_post(
             {
                 "data": {
-                    "refreshToken": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "refresh_token": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     }
                 }
             }
@@ -359,16 +348,16 @@ class TestTenantAuth:
         client._access_token = "access"
         client._refresh_access_token()
         variables = json.loads(post.call_args[1]["json"]["variables"])
-        assert variables["input"]["accessToken"] == "access"
+        assert variables["input"]["access_token"] == "access"
 
     def test_refresh_token_passes_refresh_token_as_header(self, patch_post):
         post = patch_post(
             {
                 "data": {
-                    "refreshToken": {
-                        "accessToken": "ACCESS_TOKEN",
-                        "expiresAt": "2100-01-01",
-                        "refreshToken": "REFRESH_TOKEN",
+                    "refresh_token": {
+                        "access_token": "ACCESS_TOKEN",
+                        "expires_at": "2100-01-01",
+                        "refresh_token": "REFRESH_TOKEN",
                     }
                 }
             }
@@ -439,7 +428,7 @@ class TestTenantAuth:
         refresh_token.assert_not_called()
 
     def test_client_clears_active_tenant_if_login_fails_on_initialization(
-        self, patch_post
+        self, patch_post, cloud_api
     ):
         post = patch_post(
             {

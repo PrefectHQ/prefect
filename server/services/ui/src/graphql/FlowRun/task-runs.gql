@@ -1,0 +1,19 @@
+query TaskRuns(
+  $limit: Int!
+  $offset: Int!
+  $orderBy: [task_run_order_by!]
+  $where: task_run_bool_exp
+) {
+  task_run(where: $where, order_by: $orderBy, limit: $limit, offset: $offset) {
+    id
+    map_index
+    state
+    start_time
+    duration
+    task {
+      id
+      name
+      mapped
+    }
+  }
+}

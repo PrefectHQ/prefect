@@ -1,0 +1,19 @@
+query Heartbeat($taskRunId: uuid!, $timestamp: timestamptz, $state: String, $limit: Int) {
+  task_run(where: { id: { _eq: $taskRunId } }) {
+    id
+    states_aggregate {aggregate {count}}
+    states(
+      limit: $limit
+      where: { timestamp: { _gte: $timestamp } , state: {_eq: $state}}
+      order_by: { timestamp: desc_nulls_last }
+
+    ) {
+      id: timestamp
+      state
+      message
+      timestamp
+      result
+
+    }
+  }
+}

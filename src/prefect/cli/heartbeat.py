@@ -9,7 +9,7 @@ from prefect.client import Client
 @click.group(hidden=True)
 def heartbeat():
     """
-    Send heartbeats back to Prefect Cloud.
+    Send heartbeats back to the Prefect API.
 
     \b
     Usage:
@@ -39,7 +39,7 @@ def heartbeat():
 )
 def task_run(id, num):
     """
-    Send heartbeats back to Prefect Cloud for a given task run ID.
+    Send heartbeats back to the Prefect API for a given task run ID.
 
     \b
     Options:
@@ -77,7 +77,7 @@ def task_run(id, num):
 )
 def flow_run(id, num):
     """
-    Send heartbeats back to Prefect Cloud for a given flow run ID.
+    Send heartbeats back to the Prefect API for a given flow run ID.
 
     \b
     Options:

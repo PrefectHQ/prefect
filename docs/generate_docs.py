@@ -71,10 +71,32 @@ def load_outline(
             )
             module = importlib.import_module(data["module"])
             page["top-level-doc"] = module
+
+            # extract documented function objects
+            # note that if one is listed as an attribute of a submodule
+            # we attempt to import the submodule and extract the function there
             for fun in data.get("functions", []):
-                page["functions"].append(getattr(module, fun))
+                if "." in fun:
+                    parts = fun.split(".")
+                    submod = ".".join([module.__name__, parts[0]])
+                    module = importlib.import_module(submod)
+                    obj = getattr(module, parts[1])
+                else:
+                    obj = getattr(module, fun)
+                page["functions"].append(obj)
+
+            # extract documented classes
+            # note that if one is listed as an attribute of a submodule
+            # we attempt to import the submodule and extract the class there
             for clss in data.get("classes", []):
-                page["classes"].append(getattr(module, clss))
+                if "." in clss:
+                    parts = clss.split(".")
+                    submod = ".".join([module.__name__, parts[0]])
+                    module = importlib.import_module(submod)
+                    obj = getattr(module, parts[1])
+                else:
+                    obj = getattr(module, clss)
+                page["classes"].append(obj)
             OUTLINE.append(page)
         else:
             OUTLINE.extend(load_outline(data, prefix=fname))

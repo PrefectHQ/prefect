@@ -1,0 +1,321 @@
+# Licensed under the Prefect Community License, available at
+# https://www.prefect.io/legal/prefect-community-license
+ 
+
+type Query {
+  hello: String
+}
+type Mutation {
+
+  # ------------------------------------------------------
+  # flows
+  # ------------------------------------------------------
+
+  "Create a new flow from a serialized JSON representation."
+  create_flow(input: create_flow_input!): flow_id_payload
+
+  "Create a new flow from a compressed JSON representation. Used by Prefect Core."
+  create_flow_from_compressed_string(
+    input: create_flow_from_compressed_string_input!
+  ): flow_id_payload
+
+  "Delete a flow."
+  delete_flow(input: delete_flow_input!): success_payload
+
+  """
+  Archive a flow. This hides it from the UI and turns off its schedule, but does
+  not delete it or its history. Archived flows cannot be run.
+  """
+  archive_flow(input: archive_flow_input!): success_payload
+
+  "Disable heartbeats for a flow."
+  disable_flow_heartbeat(input: disable_flow_heartbeat_input!): success_payload
+
+  "Enable heartbeats for a flow."
+  enable_flow_heartbeat(input: enable_flow_heartbeat_input!): success_payload
+
+  # ------------------------------------------------------
+  # schedules
+  # ------------------------------------------------------
+
+  """
+  Mark a flow's schedule as active, indicating that the Prefect scheduler should
+  automatically create new runs for this flow.
+  """
+  set_schedule_active(input: set_schedule_active_input!): success_payload
+
+  """
+  Mark a flow's schedule as inactive, indicating that the Prefect scheduler should not
+  automatically creating new runs for this flow. Any existing auto-scheduled runs that have
+  not started will be deleted.
+  """
+  set_schedule_inactive(input: set_schedule_inactive_input!): success_payload
+
+  "Schedules new flow runs, if possible."
+  schedule_flow_runs(input: schedule_flow_runs_input!): [flow_run_id_payload!]
+
+  # ------------------------------------------------------
+  # runs
+  # ------------------------------------------------------
+
+  "Create a new flow run."
+  create_flow_run(input: create_flow_run_input!): flow_run_id_payload
+
+  """
+  Create a new task run, if it doesn't exist already. This is useful when dealing with dynamic
+  task runs, such as those created by mapping, when it is not known if the task run has been
+  attempted already.
+  """
+  get_or_create_task_run(
+    input: get_or_create_task_run_input!
+  ): task_run_id_payload
+
+  "Update a flow run's heartbeat. This indicates the flow run is alive and is called automatically by Prefect Core."
+  update_flow_run_heartbeat(
+    input: update_flow_run_heartbeat_input!
+  ): success_payload
+
+  "Update a task run's heartbeat. This indicates the task run is alive and is called automatically by Prefect Core."
+  update_task_run_heartbeat(
+    input: update_task_run_heartbeat_input!
+  ): success_payload
+
+  "Delete a flow run."
+  delete_flow_run(input: delete_flow_run_input!): success_payload
+
+  get_runs_in_queue(input: get_runs_in_queue_input!): runs_in_queue_payload
+
+  # ------------------------------------------------------
+  # logs
+  # ------------------------------------------------------
+
+  "Submit logs for flow and task runs. Called automatically by Prefect Core."
+  write_run_logs(input: write_run_logs_input!): success_payload
+
+  # ------------------------------------------------------
+  # states
+  # ------------------------------------------------------
+
+  "Update one or more flow run states. A valid run version must be provided."
+  set_flow_run_states(
+    input: set_flow_run_states_input!
+  ): set_flow_run_states_payload
+
+  "Update one or more task run states. A valid run version must be provided."
+  set_task_run_states(
+    input: set_task_run_states_input!
+  ): set_task_run_states_payload
+}
+
+# ------------------------------------------------------
+# flow inputs
+# ------------------------------------------------------
+
+input create_flow_input {
+  "The serialized representation of this flow (usually created from flow.serialize())"
+  serialized_flow: JSON!
+  "For Cloud API compatibility; unused"
+  project_id: UUID
+  "An optional string specifying the version group - if provided, this flow will be added to the given version group; when not provided the flow will be versioned by name."
+  version_group_id: String
+  "A boolean specifying whether to begin scheduling runs for this flow immediately"
+  set_schedule_active: Boolean
+  "An optional description of this Flow"
+  description: String
+}
+
+input create_flow_from_compressed_string_input {
+  "The serialized representation of this flow (usually created from flow.serialize())"
+  serialized_flow: String!
+  "For Cloud API compatibility; unused"
+  project_id: UUID
+  "An optional string specifying the version group - if provided, this flow will be added to the given version group; when not provided the flow will be versioned by name."
+  version_group_id: String
+  "A boolean specifying whether to begin scheduling runs for this flow immediately"
+  set_schedule_active: Boolean
+  "An optional description of this Flow"
+  description: String
+}
+
+input delete_flow_input {
+  "The ID of the flow to delete"
+  flow_id: UUID!
+}
+
+input archive_flow_input {
+  "The ID of the flow to archive"
+  flow_id: UUID!
+}
+
+input enable_flow_heartbeat_input {
+  "The ID of the flow to update"
+  flow_id: UUID!
+}
+
+input disable_flow_heartbeat_input {
+  "The ID of the flow to update"
+  flow_id: UUID!
+}
+
+# ------------------------------------------------------
+# schedule inputs
+# ------------------------------------------------------
+
+input set_schedule_active_input {
+  "The ID of the schedule to set to active"
+  schedule_id: UUID!
+}
+
+input set_schedule_inactive_input {
+  "The ID of the schedule to set to inactive"
+  schedule_id: UUID!
+}
+
+input schedule_flow_runs_input {
+  schedule_id: UUID!
+  max_runs: Int
+}
+
+# ------------------------------------------------------
+# run inputs
+# ------------------------------------------------------
+
+input create_flow_run_input {
+  "The ID of the flow to schedule a run for"
+  flow_id: UUID
+  "A JSON payload specifying parameter values for any parameters in this flow"
+  parameters: JSON
+  "A JSON payload of key / value pairs to be placed in Prefect context for this run"
+  context: JSON
+  "An optional start time to schedule this run for - if not provided, will be scheduled immediately"
+  scheduled_start_time: DateTime
+  "An optional name to provide this run - useful for searching in the UI or crafting GraphQL queries"
+  flow_run_name: String
+  "The version group to schedule a run for - if provided, the unique unarchived version in this version group will be run; this input is useful as a stable API for running a regularly updated flow"
+  version_group_id: String
+}
+
+input get_or_create_task_run_input {
+  flow_run_id: UUID!
+  task_id: UUID!
+  map_index: Int
+}
+
+input update_flow_run_heartbeat_input {
+  flow_run_id: UUID!
+}
+
+input update_task_run_heartbeat_input {
+  task_run_id: UUID!
+}
+
+input get_runs_in_queue_input {
+  before: DateTime
+  labels: [String!]
+}
+
+input delete_flow_run_input {
+  flow_run_id: UUID!
+}
+
+# ------------------------------------------------------
+# log inputs
+# ------------------------------------------------------
+
+input write_run_log_input {
+  flow_run_id: UUID!
+  task_run_id: UUID
+  timestamp: DateTime
+  message: String
+  name: String
+  level: log_level
+  info: JSON
+}
+
+input write_run_logs_input {
+  logs: [write_run_log_input!]!
+}
+
+# ------------------------------------------------------
+# state inputs
+# ------------------------------------------------------
+
+input set_flow_run_states_input {
+  states: [set_flow_run_state_input!]!
+}
+
+input set_flow_run_state_input {
+  flow_run_id: UUID!
+  state: JSON!
+  version: Int!
+}
+
+input set_task_run_states_input {
+  states: [set_task_run_state_input!]!
+}
+
+input set_task_run_state_input {
+  task_run_id: UUID!
+  state: JSON!
+  version: Int!
+  flow_run_version: Int
+}
+
+# ------------------------------------------------------
+# Payloads (Assorted)
+# ------------------------------------------------------
+
+type success_payload {
+  "A boolean specifying whether this mutation was successful"
+  success: Boolean
+  "If populated, contains an error message explaining what went wrong with the mutation"
+  error: String
+}
+
+type flow_id_payload {
+  id: UUID
+}
+
+type flow_run_id_payload {
+  id: UUID
+}
+
+type task_run_id_payload {
+  id: UUID
+}
+
+type runs_in_queue_payload {
+  flow_run_ids: [String!]
+}
+
+type set_flow_run_state_payload {
+  id: UUID
+  status: String
+  message: String
+}
+
+type set_flow_run_states_payload {
+  states: [set_flow_run_state_payload!]
+}
+
+type set_task_run_state_payload {
+  id: UUID
+  status: String
+  message: String
+}
+
+type set_task_run_states_payload {
+  states: [set_task_run_state_payload!]
+}
+
+# ------------------------------------------------------
+# Enums
+# ------------------------------------------------------
+
+enum log_level {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}

@@ -81,7 +81,43 @@ Another common use of Prefect signals is when the task in question will be neste
 
 Prefect provides a powerful `Context` object to share information without requiring explicit arguments on a task's `run()` method.
 
-The `Context` can be accessed at any time, and will be pre-populated with information before and during each flow run. For an exhaustive list of values that you can find in context, see the corresponding [API documentation](../../api/latest/utilities/context.html).
+The `Context` can be accessed at any time, and Prefect will populate it with information during flow and task execution. The context object itself can be populated with any arbitrary user-defined key-value pair, which in turn can be accessed with dot notation or with dictionary-like indexing. For example, the following code assumes a user has provided the context `a=1` , and can access it one of three ways:
+
+```python
+>>> import prefect
+>>> prefect.context.a
+1
+>>> prefect.context['a']
+1
+>>> prefect.context.get('a')
+1
+```
+
+### Adding context globally
+Adding context globally is possible via your `config.toml` in a section called `[context]`. For any keys specified here, as long as Prefect Core does not override this key internally, it will be accessible globally from `prefect.context`, even outside of a flow run.
+```
+# config.toml
+[context]
+a = 1
+```
+
+```python
+>>> import prefect
+>>> prefect.context.a
+1
+```
+
+### Modifying context at runtime
+Modifying context, even globally set context keys, at specific times is possible using a provided context manager:
+```python
+>>> import prefect
+>>> with prefect.context(a=2):
+...    print(prefect.context.a)
+...
+2
+```
+
+This is often useful to run flows under different situations for rapid iterative development:
 
 ```python
 @task
@@ -100,6 +136,36 @@ with prefect.context(key='abc'):
     flow.run() # this run is successful
 ```
 
-::: warning Modifying the context
-We strongly recommend that users treat the context as read-only. Modifications can have unintended consequences.
+### Prefect-supplied context
+In addition to your own context keys, Prefect supplies context to the context object dynamically during flow runs and task runs. This context provides some standard information about the current flow or task. For example, running tasks already know about the day they are run from Prefect-provided context:
+ 
+```python{4}
+@task
+def report_start_day():
+    logger = prefect.context.get("logger")
+    logger.info(prefect.context.today)
+
+with Flow('My flow') as flow:
+	report_start_day()
+
+flow.run()
+```
+```text{5}
+[2020-03-02 22:15:58,779] INFO - prefect.FlowRunner | Beginning Flow run for 'My flow'
+[2020-03-02 22:15:58,780] INFO - prefect.FlowRunner | Starting flow run.
+[2020-03-02 22:15:58,786] INFO - prefect.TaskRunner | Task 'report_start_time': Starting task run...
+[2020-03-02 22:15:58,786] INFO - prefect.Task: report_start_day | 2020-03-02
+[2020-03-02 22:15:58,788] INFO - prefect.TaskRunner | Task 'report_start_time': finished task run for task with final state: 'Success'
+[2020-03-02 22:15:58,789] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
+```
+Using this context can be useful to write time-aware tasks, such as tasks that trigger future work respective to its start time using `prefect.context.tomorrow` or processing only the prior day's data by using `prefect.context.yesterday`.
+
+::: tip What else is in context?
+For an exhaustive list of values that you can find in context, see the corresponding [API documentation](../../api/latest/utilities/context.html).
+:::
+
+::: warning Caveats to modifying Prefect-supplied context
+Since Prefect uses some context internally to track metadata during the flow and task run logic, modifying Prefect-supplied context keys can have unintended consequences. It is recommended to generally avoid overriding the key names described in the API documentation.
+
+One exception to this is the timestamp related keys such as `prefect.context.today`. Users may wish to modify this context per flow run in order to implement "backfills", where individual flow runs execute on a subset of timeseries data.
 :::

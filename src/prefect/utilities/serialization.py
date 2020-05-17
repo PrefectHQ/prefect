@@ -102,6 +102,8 @@ class ObjectSchema(Schema):
         Returns:
             - dict: the data dict, without its __version__ field
         """
+        # don't mutate data
+        data = data.copy()
         data.pop("__version__", None)
         return data
 
@@ -116,6 +118,8 @@ class ObjectSchema(Schema):
         Returns:
             - dict: the data dict, with an additional __version__ field
         """
+        # don't mutate data
+        data = data.copy()
         data.setdefault("__version__", prefect.__version__)
         return data
 
@@ -375,10 +379,9 @@ class StatefulFunctionReference(fields.Field):
         try:
             qual_name = to_qualified_name(value)
         except:
-            if self.reject_invalid:
-                raise ValidationError("Invalid function reference: {}".format(value))
-            else:
-                return qual_name
+            raise ValidationError(
+                f"Invalid function reference, function required, got {value}"
+            )
 
         # sort matches such that the longest / most specific match comes first
         valid_bases = sorted(
@@ -425,7 +428,7 @@ class StatefulFunctionReference(fields.Field):
             return None
 
         # call function on state
-        kwargs = value.get("kwargs")
+        kwargs = value.get("kwargs", {}).copy()
 
         # if there are no kwargs, then this function isn't stateful
         if not kwargs:

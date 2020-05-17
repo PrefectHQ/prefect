@@ -3,19 +3,22 @@ title: Welcome
 sidebarDepth: 0
 ---
 
-
-<div align="center" style="margin-top:100px; margin-bottom:40px;">
-<img src="/assets/prefect-core-logo.svg"  width=600 >
+<div align="center" style="margin-top:50px; margin-bottom:40px">
+    <img src="/illustrations/core-illustration.svg"  width=500>
+</div>
+<div  style="float:left; width:100%; margin-bottom:40px;">
+    <img src="/assets/prefect-core-logo.svg"  width=400 >
 </div>
 
+<!-- # Welcome! -->
 
-# Welcome!
+[Prefect Core](https://www.prefect.io/products/core) is a new kind of workflow management system that makes it easy to take your data pipelines and add semantics like retries, logging, dynamic mapping, caching, failure notifications, and more. 
 
-[Prefect Core](https://www.prefect.io/products/core) is a new kind of workflow management system. We started with a simple premise:
+We started with a simple premise:
 
 > Your code probably works. But sometimes it doesn't.
 
-When your code works, you might not even need a workflow system. We call that  [**positive engineering**](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d). It's only when things go wrong that a system like Prefect starts to be valuable. That's [**negative engineering**](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d): all the little details that guarantee your code either achieves its goal, or [fails successfully](https://www.youtube.com/watch?v=TlawR_gi8-Y). In this way, workflow systems are actually risk management tools, like insurance: there when you need them, invisible when you don't.
+When your code works as expected, you probably don't even need a workflow system. We call that [**positive engineering**](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) - code that achieves your business objective. It's only when things go wrong that a system like Prefect starts to be valuable. That's [**negative engineering**](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d): all the little details that guarantee your code either achieves its goal, or [fails successfully](https://www.youtube.com/watch?v=TlawR_gi8-Y). In this way, workflow systems are actually risk management tools, like insurance: there when you need them, invisible when you don't.
 
 And yet, we don't see a single tool designed that way. Other workflow systems seem to believe that they're actually positive engineering tools, somehow enabling users to do things they couldn't do otherwise. As a result, they feel no shame in asking users to generate yet another config file, or contort code into a convoluted DAG structure. Prefect already knows you can write incredible code; it just wants to make sure it works.
 
@@ -27,4 +30,4 @@ Now it can be.
 
 Happy engineering!
 
-*- The Prefect Team*
+_- The Prefect Team_

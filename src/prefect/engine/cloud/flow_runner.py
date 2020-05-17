@@ -4,7 +4,6 @@ import prefect
 from prefect.client import Client
 from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
-from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, State
@@ -65,6 +64,7 @@ class CloudFlowRunner(FlowRunner):
         try:
             # use empty string for testing purposes
             flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
+            self.client.update_flow_run_heartbeat(flow_run_id)
             self.heartbeat_cmd = ["prefect", "heartbeat", "flow-run", "-i", flow_run_id]
 
             query = {
@@ -75,7 +75,7 @@ class CloudFlowRunner(FlowRunner):
                 }
             }
             flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if flow_run.flow.settings.get("disable_heartbeat"):
+            if not flow_run.flow.settings.get("heartbeat_enabled", True):
                 return False
             return True
         except Exception as exc:
@@ -113,7 +113,7 @@ class CloudFlowRunner(FlowRunner):
         version = prefect.context.get("flow_run_version")
 
         try:
-            cloud_state = prepare_state_for_cloud(new_state)
+            cloud_state = new_state
             self.client.set_flow_run_state(
                 flow_run_id=flow_run_id, version=version, state=cloud_state
             )

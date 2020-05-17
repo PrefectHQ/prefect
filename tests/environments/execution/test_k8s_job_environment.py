@@ -10,7 +10,7 @@ import yaml
 
 import prefect
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -25,10 +25,26 @@ def test_create_k8s_job_environment():
         )
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.unique_job_name == False
+        assert environment.executor_kwargs == {}
         assert environment.labels == set()
         assert environment.on_start is None
         assert environment.on_exit is None
         assert environment.logger.name == "prefect.KubernetesJobEnvironment"
+
+
+def test_create_k8s_job_environment_with_executor_kwargs():
+    with tempfile.TemporaryDirectory() as directory:
+
+        with open(os.path.join(directory, "job.yaml"), "w+") as file:
+            file.write("job")
+
+        environment = KubernetesJobEnvironment(
+            job_spec_file=os.path.join(directory, "job.yaml"),
+            executor_kwargs={"test": "here"},
+        )
+        assert environment
+        assert environment.executor_kwargs == {"test": "here"}
 
 
 def test_create_k8s_job_environment_labels():
@@ -116,7 +132,7 @@ def test_execute_improper_storage():
             job_spec_file=os.path.join(directory, "job.yaml")
         )
         with pytest.raises(TypeError):
-            environment.execute(storage=Memory(), flow_location="")
+            environment.execute(storage=Local(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
@@ -195,7 +211,9 @@ def test_create_flow_run_job_fails_outside_cluster():
 
 def test_run_flow(monkeypatch):
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
-    environment = KubernetesJobEnvironment(path.join(file_path, "job.yaml"))
+    environment = KubernetesJobEnvironment(
+        path.join(file_path, "job.yaml"), executor_kwargs={"test": "here"}
+    )
 
     flow_runner = MagicMock()
     monkeypatch.setattr(
@@ -203,9 +221,15 @@ def test_run_flow(monkeypatch):
         MagicMock(return_value=flow_runner),
     )
 
+    executor = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_executor_class", MagicMock(return_value=executor),
+    )
+
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -217,6 +241,7 @@ def test_run_flow(monkeypatch):
                 environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "test"
+        assert executor.call_args[1] == {"test": "here"}
 
 
 def test_run_flow_calls_callbacks(monkeypatch):
@@ -236,7 +261,8 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -260,7 +286,7 @@ def test_populate_job_yaml():
             file.write("job")
 
         environment = KubernetesJobEnvironment(
-            job_spec_file=os.path.join(directory, "job.yaml")
+            job_spec_file=os.path.join(directory, "job.yaml"), unique_job_name=True
         )
 
         file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
@@ -270,7 +296,11 @@ def test_populate_job_yaml():
             job["spec"]["template"]["spec"]["containers"][0]["env"] = []
 
         with set_temporary_config(
-            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+            {
+                "cloud.graphql": "gql_test",
+                "cloud.auth_token": "auth_test",
+                "logging.extra_loggers": "['test_logger']",
+            }
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -278,6 +308,9 @@ def test_populate_job_yaml():
                     docker_name="test1/test2:test3",
                     flow_file_path="test4",
                 )
+
+        assert "prefect-dask-job-" in yaml_obj["metadata"]["name"]
+        assert len(yaml_obj["metadata"]["name"]) == 25
 
         assert (
             yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
@@ -296,6 +329,7 @@ def test_populate_job_yaml():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -356,6 +390,7 @@ def test_populate_job_yaml_no_defaults():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "[]"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -393,7 +428,11 @@ def test_populate_job_yaml_multiple_containers():
             job["spec"]["template"]["spec"]["containers"][1]["env"] = []
 
         with set_temporary_config(
-            {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+            {
+                "cloud.graphql": "gql_test",
+                "cloud.auth_token": "auth_test",
+                "logging.extra_loggers": "['test_logger']",
+            }
         ):
             with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
                 yaml_obj = environment._populate_job_spec_yaml(
@@ -420,6 +459,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -443,6 +483,7 @@ def test_populate_job_yaml_multiple_containers():
         assert env[3]["value"] == "namespace_test"
         assert env[4]["value"] == "test1/test2:test3"
         assert env[5]["value"] == "test4"
+        assert env[10]["value"] == "['test_logger']"
 
         assert (
             yaml_obj["spec"]["template"]["spec"]["containers"][1]["image"]

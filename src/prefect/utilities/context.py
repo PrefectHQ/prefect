@@ -52,7 +52,7 @@ In addition, Prefect Cloud supplies some additional context variables:
 | `task_run_id` | the id of the current task run |
 | `task_run_version` | the state version of the current task run |
 
-Users can also provide values to context at runtime.
+Users can also provide values to context at runtime. For more information, see the [Context concept doc](https://docs.prefect.io/core/concepts/execution.html#context).
 """
 
 import contextlib

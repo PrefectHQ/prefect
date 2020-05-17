@@ -1,0 +1,18 @@
+query Heartbeat($flowId: uuid!, $timestamp: timestamptz, $state: String) {
+  flow_run(
+    limit: 10
+    where: {
+      flow: { id: { _eq: $flowId } }
+      state_timestamp: { _gte: $timestamp }
+      state: {_eq: $state}
+    }
+    order_by: { state_timestamp: desc_nulls_last }
+  ) {
+    id
+    name
+    scheduled_start_time
+    state
+    state_message
+    state_timestamp
+  }
+}

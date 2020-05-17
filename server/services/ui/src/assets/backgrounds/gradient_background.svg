@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440px" height="1726px" viewBox="0 0 1440 1726" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 54.1 (76490) - https://sketchapp.com -->
+    <title>Group 3</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="0%" y1="50%" x2="100%" y2="50%" id="linearGradient-1">
+            <stop stop-color="#2EDAFF" offset="0%"></stop>
+            <stop stop-color="#0E50F5" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="0%" y1="50%" x2="100%" y2="50%" id="linearGradient-2">
+            <stop stop-color="#2EDAFF" offset="0%"></stop>
+            <stop stop-color="#0E50F5" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="0%" y1="50%" x2="100%" y2="50%" id="linearGradient-3">
+            <stop stop-color="#0E50F5" offset="0%"></stop>
+            <stop stop-color="#2EDAFF" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Design" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Lighthouse-Partnership">
+            <g id="Group-3" transform="translate(-521.000000, -787.000000)">
+                <polygon id="Rectangle" fill="url(#linearGradient-1)" points="521 787 1961 787 1961 1808 521 1089.02473"></polygon>
+                <polygon id="Rectangle-Copy-11" fill="url(#linearGradient-2)" points="0 355 1440 355 1440 1330 0 611.024732"></polygon>
+                <polygon id="Rectangle-Copy-6" fill="url(#linearGradient-2)" points="321 313 1761 764 1761 1288 321 569.024732"></polygon>
+                <polygon id="Rectangle-Copy-12" fill="url(#linearGradient-2)" points="107 0 1547 787 1547 975 107 256.024732"></polygon>
+                <polygon id="Rectangle-Copy-5" fill="url(#linearGradient-3)" transform="translate(1241.000000, 1800.500000) rotate(-180.000000) translate(-1241.000000, -1800.500000) " points="521 1088 1961 1088 1961 2513 521 1794.00655"></polygon>
+            </g>
+        </g>
+    </g>
+</svg>

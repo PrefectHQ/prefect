@@ -77,7 +77,7 @@ class GCSResultHandler(ResultHandler):
         Returns:
             - str: the GCS URI
         """
-        date = pendulum.now("utc").format("Y/M/D")
+        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()

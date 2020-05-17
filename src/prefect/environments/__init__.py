@@ -5,4 +5,6 @@ from prefect.environments.execution import (
     KubernetesJobEnvironment,
     LocalEnvironment,
     RemoteEnvironment,
+    RemoteDaskEnvironment,
+    DaskCloudProviderEnvironment,
 )

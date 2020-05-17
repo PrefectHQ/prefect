@@ -35,7 +35,7 @@ We highly recommend turning off [Dask work stealing](https://distributed.dask.or
 DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive
 ```
 
-On rare occasions, work stealing can result in tasks attempting to run twice..
+On rare occasions, work stealing can result in tasks attempting to run twice.
 :::
 
 Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example was repurposed from the [distributed documentation](https://distributed.readthedocs.io/en/latest/web.html#example-computation):
@@ -77,7 +77,7 @@ with Flow("dask-example") as flow:
     total = list_sum(adds)
 ```
 
-So far, all we have done is define a flow that contains all the necessary information for how to run these tasks - none of our custom task code has been executed yet. 
+So far, all we have done is define a flow that contains all the necessary information for how to run these tasks -- none of our custom task code has been executed yet. 
 To have this flow run on our Dask cluster, all we need to do is provide an appropriately configured `DaskExecutor` to the `flow.run()` method:
 
 ```python

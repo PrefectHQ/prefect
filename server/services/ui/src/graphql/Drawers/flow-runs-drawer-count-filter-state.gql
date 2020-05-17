@@ -1,0 +1,13 @@
+query FlowRunsCount($flowId: uuid, $heartbeat: timestamptz, $state: String) {
+  flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      heartbeat: { _gte: $heartbeat }
+      state: { _eq: $state }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}

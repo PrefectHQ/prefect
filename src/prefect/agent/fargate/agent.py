@@ -17,7 +17,7 @@ class FargateAgent(Agent):
     """
     Agent which deploys flow runs as tasks using Fargate. This agent can run anywhere as
     long as the proper access configuration variables are set.  Information on using the
-    Fargate Agent can be found at https://docs.prefect.io/cloud/agents/fargate.html
+    Fargate Agent can be found at https://docs.prefect.io/orchestration/agents/fargate.html
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -39,6 +39,11 @@ class FargateAgent(Agent):
     prefect agent start fargate networkConfiguration="{'awsvpcConfiguration': {'assignPublicIp': 'ENABLED', 'subnets': ['my_subnet_id'], 'securityGroups': []}}"
     ```
 
+    botocore configuration options can be provided to the Fargate Agent:
+    ```
+    FargateAgent(botocore_config={"retries": {"max_attempts": 10}})
+    ```
+
     Args:
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
@@ -46,6 +51,12 @@ class FargateAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -57,6 +68,8 @@ class FargateAgent(Agent):
             `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
+        - botocore_config (dict, optional): botocore configuration options to be passed to the
+            boto3 client. https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
         - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
             When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
             task definition revision. Each revision will be registered with a tag called 'PrefectFlowId'
@@ -77,20 +90,33 @@ class FargateAgent(Agent):
         name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
+        max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
+        launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
+        botocore_config: dict = None,
         enable_task_revisions: bool = False,
         use_external_kwargs: bool = False,
         external_kwargs_s3_bucket: str = None,
         external_kwargs_s3_key: str = None,
-        **kwargs
+        **kwargs,
     ) -> None:
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
+        )
 
         from boto3 import client as boto3_client
         from boto3 import resource as boto3_resource
+        from botocore.config import Config
 
         # Config used for boto3 client initialization
         aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
@@ -99,17 +125,21 @@ class FargateAgent(Agent):
         )
         aws_session_token = aws_session_token or os.getenv("AWS_SESSION_TOKEN")
         region_name = region_name or os.getenv("REGION_NAME")
+        botocore_config = botocore_config or {}
 
         # revisions and kwargs configurations
         self.enable_task_revisions = enable_task_revisions
         self.use_external_kwargs = use_external_kwargs
         self.external_kwargs_s3_bucket = external_kwargs_s3_bucket
         self.external_kwargs_s3_key = external_kwargs_s3_key
+        self.launch_type = launch_type
 
-        # Parse accepted kwargs for definition and run
-        self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(
-            kwargs, True
-        )
+        # Parse accepted kwargs for task definition, run, and container definitions key of task definition
+        (
+            self.task_definition_kwargs,
+            self.task_run_kwargs,
+            self.container_definitions_kwargs,
+        ) = self._parse_kwargs(kwargs, True)
 
         # Client initialization
         self.boto3_client = boto3_client(
@@ -118,6 +148,7 @@ class FargateAgent(Agent):
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             region_name=region_name,
+            config=Config(**botocore_config),
         )
         # fetch external kwargs from s3 if needed
         if self.use_external_kwargs:
@@ -139,13 +170,23 @@ class FargateAgent(Agent):
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 region_name=region_name,
+                config=Config(**botocore_config),
             )
+
+        self.logger.debug(f"Launch type: {self.launch_type}")
+        self.logger.debug(f"Enable task revisions: {self.enable_task_revisions}")
+        self.logger.debug(f"Use external kwargs: {self.use_external_kwargs}")
+        self.logger.debug(
+            f"External kwargs S3 bucket: {self.external_kwargs_s3_bucket}"
+        )
+        self.logger.debug(f"External kwargs S3 key: {self.external_kwargs_s3_key}")
 
     def _override_kwargs(
         self,
         flow_run: GraphQLResult,
         flow_task_definition_kwargs: dict,
         flow_task_run_kwargs: dict,
+        flow_container_definitions_kwargs: dict,
     ) -> None:
         """
         Return new kwargs updated from external kwargs file.
@@ -154,6 +195,7 @@ class FargateAgent(Agent):
             - flow_run (GraphQLResult): A GraphQLResult flow run object
             - flow_task_definition_kwargs (dict):  task_definition_kwargs to update
             - flow_task_run_kwargs (dict): task_run_kwargs to update
+            - flow_container_definitions_kwargs (dict): container_definitions_kwargs to update
         """
         from botocore.exceptions import ClientError
 
@@ -180,17 +222,24 @@ class FargateAgent(Agent):
         self.logger.info("Updating default kwargs with external")
         external_kwargs = json.loads(body)
         # parse external kwargs
-        ext_task_definition_kwargs, ext_task_run_kwargs = self._parse_kwargs(
-            external_kwargs
-        )
+        (
+            ext_task_definition_kwargs,
+            ext_task_run_kwargs,
+            ext_container_definitions_kwargs,
+        ) = self._parse_kwargs(external_kwargs)
         self.logger.debug(
             "External task definition kwargs:\n{}".format(ext_task_definition_kwargs)
         )
         self.logger.debug("External task run kwargs:\n{}".format(ext_task_run_kwargs))
-
-        # update flow_task_definition_kwargs and flow_task_run_kwargs
+        self.logger.debug(
+            "External container definitions kwargs:\n{}".format(
+                ext_container_definitions_kwargs
+            )
+        )
+        # update flow_task_* kwargs
         flow_task_definition_kwargs.update(ext_task_definition_kwargs)
         flow_task_run_kwargs.update(ext_task_run_kwargs)
+        flow_container_definitions_kwargs.update(ext_container_definitions_kwargs)
 
     def _add_flow_tags(
         self, flow_run: GraphQLResult, flow_task_definition_kwargs: dict
@@ -240,7 +289,7 @@ class FargateAgent(Agent):
             - check_envars (bool): Whether to check envars for kwargs
 
         Returns:
-            tuple: a tuple of two dictionaries (task_definition_kwargs, task_run_kwargs)
+            tuple: a tuple of three dictionaries (task_definition_kwargs, task_run_kwargs, container_definitions_kwargs)
         """
         definition_kwarg_list = [
             "taskRoleArn",
@@ -272,6 +321,8 @@ class FargateAgent(Agent):
             "propagateTags",
         ]
 
+        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment"]
+
         task_definition_kwargs = {}
         definition_kwarg_list_eval = {
             i: (i not in definition_kwarg_list_no_eval) for i in definition_kwarg_list
@@ -296,6 +347,17 @@ class FargateAgent(Agent):
                 except (ValueError, SyntaxError):
                     pass
                 task_run_kwargs.update({key: item})
+                self.logger.debug("{} = {}".format(key, item))
+
+        container_definitions_kwargs = {}
+        for key, item in user_kwargs.get("containerDefinitions", [{}])[0].items():
+            if key in container_definitions_kwarg_list:
+                try:
+                    # Parse kwarg if needed
+                    item = literal_eval(item)
+                except (ValueError, SyntaxError):
+                    pass
+                container_definitions_kwargs.update({key: item})
                 self.logger.debug("{} = {}".format(key, item))
 
         # Check environment if keys were not provided
@@ -323,7 +385,22 @@ class FargateAgent(Agent):
                         pass
                     task_run_kwargs.update({key: run_env_value})
 
-        return task_definition_kwargs, task_run_kwargs
+            for key in container_definitions_kwarg_list:
+                if not container_definitions_kwargs.get(key) and os.getenv(
+                    "containerDefinitions_{}".format(key)
+                ):
+                    self.logger.debug(
+                        "Container definition: {} from environment variable".format(key)
+                    )
+                    cd_env_value = os.getenv("containerDefinitions_{}".format(key))
+                    try:
+                        # Parse env var if needed
+                        cd_env_value = literal_eval(cd_env_value)  # type: ignore
+                    except (ValueError, SyntaxError):
+                        pass
+                    container_definitions_kwargs.update({key: cd_env_value})
+
+        return task_definition_kwargs, task_run_kwargs, container_definitions_kwargs
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -345,6 +422,9 @@ class FargateAgent(Agent):
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
+        flow_container_definitions_kwargs = copy.deepcopy(
+            self.container_definitions_kwargs
+        )
 
         # create task_definition_name dict for passing into verify method
         task_definition_dict = {}
@@ -352,7 +432,10 @@ class FargateAgent(Agent):
         if self.use_external_kwargs:
             # override from  external kwargs
             self._override_kwargs(
-                flow_run, flow_task_definition_kwargs, flow_task_run_kwargs
+                flow_run,
+                flow_task_definition_kwargs,
+                flow_task_run_kwargs,
+                flow_container_definitions_kwargs,
             )
 
         # set proper task_definition_name and tags based on enable_task_revisions flag
@@ -380,6 +463,7 @@ class FargateAgent(Agent):
             self._create_task_definition(
                 flow_run,
                 flow_task_definition_kwargs,
+                flow_container_definitions_kwargs,
                 task_definition_dict["task_definition_name"],
             )
 
@@ -458,6 +542,7 @@ class FargateAgent(Agent):
         self,
         flow_run: GraphQLResult,
         flow_task_definition_kwargs: dict,
+        container_definitions_kwargs: dict,
         task_definition_name: str,
     ) -> None:
         """
@@ -467,6 +552,7 @@ class FargateAgent(Agent):
         Args:
             - flow_runs (list): A list of GraphQLResult flow run objects
             - flow_task_definition_kwargs (dict): kwargs to use for registration
+            - container_definitions_kwargs (dict): container definitions kwargs to use for registration
             - task_definition_name (str): task definition name to use
         """
         self.logger.debug(
@@ -505,6 +591,8 @@ class FargateAgent(Agent):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                 ],
+                "secrets": [],
+                "mountPoints": [],
                 "essential": True,
             }
         ]
@@ -512,18 +600,42 @@ class FargateAgent(Agent):
         for key, value in self.env_vars.items():
             container_definitions[0]["environment"].append(dict(name=key, value=value))
 
+        # apply container definitions to "containerDefinitions" key of task definition
+        # do not allow override of static envars from Prefect base task definition, which may include self.env_vars
+
+        base_envar_keys = [x["name"] for x in container_definitions[0]["environment"]]
+        self.logger.debug(
+            "Removing static Prefect envars from container_definitions_kwargs if exists"
+        )
+        container_definitions_environment = [
+            x
+            for x in container_definitions_kwargs.get("environment", [])
+            if x["name"] not in base_envar_keys
+        ]
+
+        container_definitions[0]["environment"].extend(
+            container_definitions_environment
+        )
+        container_definitions[0]["secrets"] = container_definitions_kwargs.get(
+            "secrets", []
+        )
+        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
+            "mountPoints", []
+        )
+
         # Register task definition
         self.logger.debug(
             "Registering task definition {}".format(
                 task_definition_name  # type: ignore
             )
         )
+        if self.launch_type:
+            flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
         self.boto3_client.register_task_definition(
             family=task_definition_name,  # type: ignore
             containerDefinitions=container_definitions,
-            requiresCompatibilities=["FARGATE"],
             networkMode="awsvpc",
-            **flow_task_definition_kwargs
+            **flow_task_definition_kwargs,
         )
 
     def _run_task(
@@ -552,6 +664,10 @@ class FargateAgent(Agent):
                         "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                         "value": flow_run.id,  # type: ignore
                     },
+                    {
+                        "name": "PREFECT__CONTEXT__FLOW_ID",
+                        "value": flow_run.flow.id,  # type: ignore
+                    },
                 ],
             }
         ]
@@ -563,11 +679,12 @@ class FargateAgent(Agent):
             )
         )
 
+        if self.launch_type:
+            flow_task_run_kwargs["launchType"] = self.launch_type
         task = self.boto3_client.run_task(
             taskDefinition=task_definition_name,
             overrides={"containerOverrides": container_overrides},
-            launchType="FARGATE",
-            **flow_task_run_kwargs
+            **flow_task_run_kwargs,
         )
 
         return task["tasks"][0].get("taskArn")

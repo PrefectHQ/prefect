@@ -1,0 +1,21 @@
+query($heartbeat: timestamptz) {
+  flow {
+    id
+    name
+    archived
+    failed_count: flow_runs_aggregate(
+      where: { state: { _eq: "Failed" }, heartbeat: { _gte: $heartbeat } }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    runs_count: flow_runs_aggregate(
+      where: { heartbeat: { _gte: $heartbeat } }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+}

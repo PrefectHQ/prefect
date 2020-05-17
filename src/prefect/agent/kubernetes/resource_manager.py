@@ -267,13 +267,17 @@ class ResourceManager:
         )
 
         try:
-            self.client.write_run_log(
-                flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                timestamp=pendulum.now(),
-                name="resource-manager",
-                message=logs,
-                level="ERROR",
-                info={},
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                        timestamp=pendulum.now("UTC").isoformat(),
+                        name="resource-manager",
+                        message=logs,
+                        level="ERROR",
+                        info={},
+                    )
+                ]
             )
         except HTTPError as exc:
             self.logger.exception(exc)
@@ -291,15 +295,19 @@ class ResourceManager:
         )
 
         try:
-            self.client.write_run_log(
-                flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                timestamp=pendulum.now(),
-                name="resource-manager",
-                message="Flow run pod {} entered an unknown state in namespace {}".format(
-                    name, self.namespace
-                ),
-                level="ERROR",
-                info={},
+            self.client.write_run_logs(
+                [
+                    dict(
+                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                        timestamp=pendulum.now("UTC").isoformat(),
+                        name="resource-manager",
+                        message="Flow run pod {} entered an unknown state in namespace {}".format(
+                            name, self.namespace
+                        ),
+                        level="ERROR",
+                        info={},
+                    )
+                ]
             )
         except HTTPError as exc:
             self.logger.exception(exc)
@@ -322,15 +330,19 @@ class ResourceManager:
                 )
 
                 try:
-                    self.client.write_run_log(
-                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                        timestamp=pendulum.now(),
-                        name="resource-manager",
-                        message="Flow run image pull error for pod {} in namespace {}".format(
-                            pod.metadata.name, self.namespace
-                        ),
-                        level="ERROR",
-                        info={},
+                    self.client.write_run_logs(
+                        [
+                            dict(
+                                flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                                timestamp=pendulum.now("UTC").isoformat(),
+                                name="resource-manager",
+                                message="Flow run image pull error for pod {} in namespace {}".format(
+                                    pod.metadata.name, self.namespace
+                                ),
+                                level="ERROR",
+                                info={},
+                            )
+                        ]
                     )
                 except HTTPError as exc:
                     self.logger.exception(exc)

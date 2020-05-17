@@ -6,14 +6,15 @@ from prefect.environments.storage import (
     GCS,
     S3,
     Azure,
-    Bytes,
     Docker,
     Local,
-    Memory,
     Storage,
 )
-from prefect.utilities.serialization import Bytes as BytesField
-from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
+from prefect.utilities.serialization import (
+    JSONCompatible,
+    ObjectSchema,
+    OneOfSchema,
+)
 
 
 class AzureSchema(ObjectSchema):
@@ -23,6 +24,7 @@ class AzureSchema(ObjectSchema):
     container = fields.String(allow_none=False)
     blob_name = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Azure:
@@ -37,20 +39,6 @@ class BaseStorageSchema(ObjectSchema):
         object_class = Storage
 
 
-class BytesSchema(ObjectSchema):
-    class Meta:
-        object_class = Bytes
-
-    flows = fields.Dict(key=fields.Str(), values=BytesField())
-
-    @post_load
-    def create_object(self, data: dict, **kwargs: Any) -> Docker:
-        flows = data.pop("flows", dict())
-        base_obj = super().create_object(data)
-        base_obj.flows = flows
-        return base_obj
-
-
 class DockerSchema(ObjectSchema):
     class Meta:
         object_class = Docker
@@ -60,6 +48,7 @@ class DockerSchema(ObjectSchema):
     image_tag = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -77,6 +66,7 @@ class GCSSchema(ObjectSchema):
     key = fields.Str(allow_none=True)
     project = fields.Str(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> GCS:
@@ -92,6 +82,7 @@ class LocalSchema(ObjectSchema):
 
     directory = fields.Str(allow_none=False)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -112,6 +103,7 @@ class S3Schema(ObjectSchema):
     client_options = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
+    secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> S3:
@@ -119,11 +111,6 @@ class S3Schema(ObjectSchema):
         base_obj = super().create_object(data)
         base_obj.flows = flows
         return base_obj
-
-
-class MemorySchema(ObjectSchema):
-    class Meta:
-        object_class = Memory
 
 
 class StorageSchema(OneOfSchema):
@@ -134,11 +121,9 @@ class StorageSchema(OneOfSchema):
     # map class name to schema
     type_schemas = {
         "Azure": AzureSchema,
-        "Bytes": BytesSchema,
         "Docker": DockerSchema,
         "GCS": GCSSchema,
         "Local": LocalSchema,
-        "Memory": MemorySchema,
         "Storage": BaseStorageSchema,
         "S3": S3Schema,
     }

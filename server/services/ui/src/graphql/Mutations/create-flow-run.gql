@@ -1,0 +1,19 @@
+mutation CreateFlowRun(
+  $context: JSON
+  $flowId: UUID!
+  $flowRunName: String
+  $parameters: JSON
+  $scheduledStartTime: DateTime
+) {
+  create_flow_run(
+    input: {
+      context: $context
+      flow_id: $flowId
+      flow_run_name: $flowRunName
+      parameters: $parameters
+      scheduled_start_time: $scheduledStartTime
+    }
+  ) {
+    id
+  }
+}

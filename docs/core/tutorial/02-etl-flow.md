@@ -1,6 +1,10 @@
-# ETL: The Prefect Way
+---
+sidebarDepth: 0
+---
 
-Let's improve the overall structure of our example workflow introduced in the previous tutorial by using Prefect to encapsulate our code.
+# ETL with Prefect
+
+In this tutorial, we'll use Prefect to improve the overall structure of the ETL workflow from the [previous tutorial](/core/tutorial/01-etl-before-prefect.html).
 
 ::: tip Follow along in the Terminal
 

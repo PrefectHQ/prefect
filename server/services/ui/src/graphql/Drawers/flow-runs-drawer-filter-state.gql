@@ -1,0 +1,33 @@
+query FlowRuns(
+  $flowId: uuid
+  $heartbeat: timestamptz
+  $limit: Int
+  $offset: Int
+  $state: String
+) {
+  flow_run(
+    where: {
+      flow_id: { _eq: $flowId }
+      heartbeat: { _gte: $heartbeat }
+      state: { _eq: $state }
+    }
+    order_by: { scheduled_start_time: desc }
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    name
+    state
+    start_time
+    end_time
+    duration
+    scheduled_start_time
+    flow {
+      id
+      name
+      schedules {
+        schedule
+      }
+    }
+  }
+}

@@ -39,6 +39,9 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
 
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
+
     # Client args
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "")
@@ -59,13 +62,14 @@ def test_fargate_agent_config_options(monkeypatch, runner_token):
         assert agent.logger
         assert agent.boto3_client
 
-        boto3_client.assert_called_with(
-            "ecs",
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-        )
+        assert boto3_client.call_args[0][0] == "ecs"
+        assert boto3_client.call_args[1]["aws_access_key_id"] == None
+        assert boto3_client.call_args[1]["aws_secret_access_key"] == None
+        assert boto3_client.call_args[1]["aws_session_token"] == None
+        assert boto3_client.call_args[1]["region_name"] == None
+
+        assert botocore_config.called
+        assert botocore_config.call_args == {}
 
 
 def test_parse_task_definition_kwargs(monkeypatch, runner_token):
@@ -88,7 +92,11 @@ def test_parse_task_definition_kwargs(monkeypatch, runner_token):
         "inferenceAccelerators": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == kwarg_dict
     assert task_run_kwargs == {"placementConstraints": "test", "tags": "test"}
@@ -104,7 +112,11 @@ def test_parse_task_definition_kwargs_errors(monkeypatch, runner_token):
         "placementConstraints": "taskRoleArn='arn:aws:iam::543216789012:role/Dev",
     }
 
-    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == kwarg_dict
     assert task_run_kwargs == {
@@ -132,10 +144,74 @@ def test_parse_task_run_kwargs(monkeypatch, runner_token):
         "propagateTags": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_run_kwargs == kwarg_dict
     assert task_definition_kwargs == {"placementConstraints": "test", "tags": "test"}
+
+
+def test_parse_container_definition_kwargs(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": [
+            {"environment": "test", "secrets": "test", "mountPoints": "test"}
+        ]
+    }
+
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
+
+    assert container_definitions_kwargs == {
+        "environment": "test",
+        "secrets": "test",
+        "mountPoints": "test",
+    }
+
+
+def test_parse_container_definition_kwargs_errors(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": [
+            {
+                "secrets": [
+                    {
+                        "name": "TEST_SECRET1",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    }
+                ],
+            }
+        ]
+    }
+
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
+
+    assert container_definitions_kwargs == {
+        "secrets": [
+            {
+                "name": "TEST_SECRET1",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+            }
+        ]
+    }
 
 
 def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
@@ -195,7 +271,11 @@ def test_parse_task_definition_and_run_kwargs(monkeypatch, runner_token):
         "propagateTags": "test",
     }
 
-    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == def_kwarg_dict
     assert task_run_kwargs == run_kwarg_dict
@@ -207,17 +287,25 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, runner_token):
 
     agent = FargateAgent()
 
-    kwarg_dict = {"test": "not_real"}
+    kwarg_dict = {"test": "not_real", "containerDefinitions": [{"test": "not_real",}]}
 
-    task_definition_kwargs, task_run_kwargs = agent._parse_kwargs(kwarg_dict)
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
 
     assert task_definition_kwargs == {}
     assert task_run_kwargs == {}
+    assert container_definitions_kwargs == {}
 
 
 def test_fargate_agent_config_options_init(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
 
     def_kwarg_dict = {
         "taskRoleArn": "test",
@@ -245,6 +333,12 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         "tags": "test",
         "enableECSManagedTags": "test",
         "propagateTags": "test",
+    }
+
+    container_def_kwargs_dict = {
+        "environment": "test",
+        "secrets": "test",
+        "mountPoints": "test",
     }
 
     kwarg_dict = {
@@ -268,6 +362,9 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         "networkConfiguration": "test",
         "enableECSManagedTags": "test",
         "propagateTags": "test",
+        "containerDefinitions": [
+            {"environment": "test", "secrets": "test", "mountPoints": "test"}
+        ],
     }
 
     agent = FargateAgent(
@@ -276,25 +373,31 @@ def test_fargate_agent_config_options_init(monkeypatch, runner_token):
         aws_secret_access_key="secret",
         aws_session_token="token",
         region_name="region",
+        botocore_config={"test": "config"},
         **kwarg_dict
     )
     assert agent
     assert agent.name == "test"
     assert agent.task_definition_kwargs == def_kwarg_dict
     assert agent.task_run_kwargs == run_kwarg_dict
+    assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args[1] == {"test": "config"}
 
 
 def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
 
     def_kwarg_dict = {
         "taskRoleArn": "test",
@@ -322,6 +425,12 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
         "tags": "test",
         "enableECSManagedTags": "test",
         "propagateTags": "test",
+    }
+
+    container_def_kwargs_dict = {
+        "environment": "test",
+        "secrets": "test",
+        "mountPoints": "test",
     }
 
     # Client args
@@ -351,24 +460,32 @@ def test_fargate_agent_config_env_vars(monkeypatch, runner_token):
     monkeypatch.setenv("networkConfiguration", "test")
     monkeypatch.setenv("enableECSManagedTags", "test")
     monkeypatch.setenv("propagateTags", "test")
+    monkeypatch.setenv("containerDefinitions_environment", "test")
+    monkeypatch.setenv("containerDefinitions_secrets", "test")
+    monkeypatch.setenv("containerDefinitions_mountPoints", "test")
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
     assert agent.task_definition_kwargs == def_kwarg_dict
     assert agent.task_run_kwargs == run_kwarg_dict
+    assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args == {}
 
 
 def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
+
+    botocore_config = MagicMock()
+    monkeypatch.setattr("botocore.config.Config", botocore_config)
 
     def_kwarg_dict = {
         "placementConstraints": ["test"],
@@ -378,6 +495,14 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     run_kwarg_dict = {
         "placementConstraints": ["test"],
         "networkConfiguration": {"test": "test"},
+    }
+
+    container_def_kwargs_dict = {
+        "environment": [{"name": "test", "value": "test"}],
+        "secrets": [{"name": "test", "valueFrom": "test"}],
+        "mountPoints": [
+            {"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}
+        ],
     }
 
     # Client args
@@ -390,22 +515,34 @@ def test_fargate_agent_config_env_vars_lists_dicts(monkeypatch, runner_token):
     monkeypatch.setenv("placementConstraints", "['test']")
     monkeypatch.setenv("proxyConfiguration", "{'test': 'test'}")
     monkeypatch.setenv("networkConfiguration", "{'test': 'test'}")
+    monkeypatch.setenv(
+        "containerDefinitions_environment", '[{"name": "test", "value": "test"}]'
+    )
+    monkeypatch.setenv(
+        "containerDefinitions_secrets", '[{"name": "test", "valueFrom": "test"}]'
+    )
+    monkeypatch.setenv(
+        "containerDefinitions_mountPoints",
+        '[{"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}]',
+    )
 
     agent = FargateAgent(subnets=["subnet"])
     assert agent
     assert agent.task_definition_kwargs == def_kwarg_dict
     assert agent.task_run_kwargs == run_kwarg_dict
+    assert agent.container_definitions_kwargs == container_def_kwargs_dict
 
-    boto3_client.assert_called_with(
-        "ecs",
-        aws_access_key_id="id",
-        aws_secret_access_key="secret",
-        aws_session_token="token",
-        region_name="region",
-    )
+    assert boto3_client.call_args[0][0] == "ecs"
+    assert boto3_client.call_args[1]["aws_access_key_id"] == "id"
+    assert boto3_client.call_args[1]["aws_secret_access_key"] == "secret"
+    assert boto3_client.call_args[1]["aws_session_token"] == "token"
+    assert boto3_client.call_args[1]["region_name"] == "region"
+
+    assert botocore_config.called
+    assert botocore_config.call_args == {}
 
 
-def test_deploy_flow_raises(monkeypatch, runner_token):
+def test_deploy_flow_local_storage_raises(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
@@ -429,7 +566,7 @@ def test_deploy_flow_raises(monkeypatch, runner_token):
     assert not boto3_client.run_task.called
 
 
-def test_deploy_flow_raises(monkeypatch, runner_token):
+def test_deploy_flow_docker_storage_raises(monkeypatch, runner_token):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {}
@@ -531,6 +668,7 @@ def test_deploy_flow_all_args(monkeypatch, runner_token):
                 "environment": [
                     {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                    {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "id"},
                 ],
             }
         ]
@@ -625,7 +763,9 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     assert container_defs[0]["environment"][-2] in user_vars
 
 
-def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token):
+def test_deploy_flow_register_task_definition_all_args(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
@@ -661,6 +801,28 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
         },
         "enableECSManagedTags": "test",
         "propagateTags": "test",
+        "containerDefinitions": [
+            {
+                "environment": [{"name": "TEST_ENV", "value": "Success!"}],
+                "secrets": [
+                    {
+                        "name": "TEST_SECRET1",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    },
+                    {
+                        "name": "TEST_SECRET",
+                        "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                    },
+                ],
+                "mountPoints": [
+                    {
+                        "sourceVolume": "myEfsVolume",
+                        "containerPath": "/data",
+                        "readOnly": False,
+                    }
+                ],
+            }
+        ],
     }
 
     with set_temporary_config({"logging.log_to_cloud": True}):
@@ -714,8 +876,26 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
                     "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
+                {"name": "TEST_ENV", "value": "Success!"},
             ],
             "essential": True,
+            "secrets": [
+                {
+                    "name": "TEST_SECRET1",
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                },
+                {
+                    "name": "TEST_SECRET",
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+                },
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "myEfsVolume",
+                    "containerPath": "/data",
+                    "readOnly": False,
+                }
+            ],
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -728,7 +908,7 @@ def test_deploy_flow_register_task_definition_all_args(monkeypatch, runner_token
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_deploy_flows_includes_agent_labels_in_environment(
-    monkeypatch, runner_token, flag
+    monkeypatch, runner_token, flag, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -767,15 +947,15 @@ def test_deploy_flows_includes_agent_labels_in_environment(
         "propagateTags": "test",
     }
 
-    with set_temporary_config({"logging.log_to_cloud": flag}):
-        agent = FargateAgent(
-            aws_access_key_id="id",
-            aws_secret_access_key="secret",
-            aws_session_token="token",
-            region_name="region",
-            labels=["aws", "staging"],
-            **kwarg_dict
-        )
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        labels=["aws", "staging"],
+        no_cloud_logs=flag,
+        **kwarg_dict
+    )
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
@@ -812,7 +992,10 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                     "value": "['aws', 'staging']",
                 },
                 {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": str(flag).lower()},
+                {
+                    "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                    "value": str(not flag).lower(),
+                },
                 {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                 {
                     "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -824,6 +1007,8 @@ def test_deploy_flows_includes_agent_labels_in_environment(
                 },
             ],
             "essential": True,
+            "secrets": [],
+            "mountPoints": [],
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
@@ -835,7 +1020,7 @@ def test_deploy_flows_includes_agent_labels_in_environment(
 
 
 def test_deploy_flow_register_task_definition_no_repo_credentials(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
 
@@ -889,6 +1074,8 @@ def test_deploy_flow_register_task_definition_no_repo_credentials(
                 },
             ],
             "essential": True,
+            "secrets": [],
+            "mountPoints": [],
         }
     ]
 
@@ -925,7 +1112,9 @@ def test_deploy_flows_require_docker_storage(monkeypatch, runner_token):
 # test to support task revisions and external kwargs
 
 
-def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
+def test_deploy_flows_enable_task_revisions_no_tags(
+    monkeypatch, runner_token, cloud_api
+):
     boto3_client = MagicMock()
 
     boto3_client.describe_task_definition.return_value = {"tags": []}
@@ -965,7 +1154,7 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
                     {"name": "PREFECT__CLOUD__API", "value": "https://api.prefect.io"},
                     {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
-                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "false"},
+                    {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                     {"name": "PREFECT__LOGGING__LEVEL", "value": "DEBUG"},
                     {
                         "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -977,6 +1166,8 @@ def test_deploy_flows_enable_task_revisions_no_tags(monkeypatch, runner_token):
                     },
                 ],
                 "essential": True,
+                "secrets": [],
+                "mountPoints": [],
             }
         ],
         family="name",
@@ -1080,9 +1271,30 @@ def test_override_kwargs(monkeypatch, runner_token):
 
     boto3_resource = MagicMock()
     streaming_body = MagicMock()
-    streaming_body.read.return_value.decode.return_value = (
-        '{"cpu": "256", "networkConfiguration": "test"}'
-    )
+    streaming_body.read.return_value.decode.return_value = """{
+              "cpu": "256",
+              "networkConfiguration": "test",
+              "containerDefinitions": [{
+                "environment": [{
+                  "name": "TEST_ENV",
+                  "value": "Success!"
+                }],
+                "secrets": [{
+                    "name": "TEST_SECRET1",
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+                  },
+                  {
+                    "name": "TEST_SECRET",
+                    "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+                  }
+                ],
+                "mountPoints": [{
+                  "sourceVolume": "myEfsVolume",
+                  "containerPath": "/data",
+                  "readOnly": false
+                }]
+              }]
+            }"""
     boto3_resource.return_value.Object.return_value.get.return_value = {
         "Body": streaming_body
     }
@@ -1100,6 +1312,7 @@ def test_override_kwargs(monkeypatch, runner_token):
     )
     definition_kwargs = {}
     run_kwargs = {}
+    container_definitions_kwargs = {}
     agent._override_kwargs(
         GraphQLResult(
             {
@@ -1119,12 +1332,29 @@ def test_override_kwargs(monkeypatch, runner_token):
         ),
         definition_kwargs,
         run_kwargs,
+        container_definitions_kwargs,
     )
-
+    print(container_definitions_kwargs)
     assert boto3_resource.called
     assert streaming_body.read().decode.called
     assert definition_kwargs == {"cpu": "256"}
     assert run_kwargs == {"networkConfiguration": "test"}
+    assert container_definitions_kwargs == {
+        "environment": [{"name": "TEST_ENV", "value": "Success!"}],
+        "secrets": [
+            {
+                "name": "TEST_SECRET1",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+            },
+            {
+                "name": "TEST_SECRET",
+                "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test",
+            },
+        ],
+        "mountPoints": [
+            {"sourceVolume": "myEfsVolume", "containerPath": "/data", "readOnly": False}
+        ],
+    }
 
 
 def test_override_kwargs_exception(monkeypatch, runner_token):
@@ -1149,6 +1379,7 @@ def test_override_kwargs_exception(monkeypatch, runner_token):
     )
     definition_kwargs = {}
     run_kwargs = {}
+    container_definitions_kwargs = {}
     agent._override_kwargs(
         GraphQLResult(
             {
@@ -1168,12 +1399,14 @@ def test_override_kwargs_exception(monkeypatch, runner_token):
         ),
         definition_kwargs,
         run_kwargs,
+        container_definitions_kwargs,
     )
 
     assert boto3_resource.called
     assert streaming_body.read().decode.called
     assert definition_kwargs == {}
     assert run_kwargs == {}
+    assert container_definitions_kwargs == {}
 
 
 def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_token):
@@ -1225,7 +1458,7 @@ def test_deploy_flows_enable_task_revisions_tags_passed_in(monkeypatch, runner_t
 
 
 def test_deploy_flows_enable_task_revisions_with_external_kwargs(
-    monkeypatch, runner_token
+    monkeypatch, runner_token, cloud_api
 ):
     boto3_client = MagicMock()
     boto3_resource = MagicMock()
@@ -1260,6 +1493,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
         cluster="test",
         tags=[{"key": "team", "value": "data"}],
         labels=["aws", "staging"],
+        no_cloud_logs=True,
     )
     agent.deploy_flow(
         GraphQLResult(
@@ -1305,6 +1539,8 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     },
                 ],
                 "essential": True,
+                "secrets": [],
+                "mountPoints": [],
             }
         ],
         cpu="256",
@@ -1328,6 +1564,7 @@ def test_deploy_flows_enable_task_revisions_with_external_kwargs(
                     "environment": [
                         {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
                     ],
                 }
             ]
@@ -1401,6 +1638,7 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
                     "environment": [
                         {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                         {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
                     ],
                 }
             ]
@@ -1409,3 +1647,225 @@ def test_deploy_flows_disable_task_revisions_with_external_kwargs(
         tags=[{"key": "test", "value": "test"}],
     )
     assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
+
+
+def test_deploy_flows_launch_type_ec2(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    boto3_resource = MagicMock()
+    streaming_body = MagicMock()
+
+    streaming_body.read.return_value.decode.return_value = '{"cpu": "256", "networkConfiguration": "test", "tags": [{"key": "test", "value": "test"}]}'
+    boto3_resource.return_value.Object.return_value.get.return_value = {
+        "Body": streaming_body
+    }
+
+    boto3_client.describe_task_definition.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
+    boto3_client.register_task_definition.return_value = {}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+    monkeypatch.setattr("boto3.resource", boto3_resource)
+
+    agent = FargateAgent(
+        launch_type="EC2",
+        enable_task_revisions=False,
+        use_external_kwargs=True,
+        external_kwargs_s3_bucket="test-bucket",
+        external_kwargs_s3_key="prefect-artifacts/kwargs",
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        cluster="test",
+        labels=["aws", "staging"],
+    )
+    agent.deploy_flow(
+        GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "new_id",
+                        "version": 6,
+                        "name": "name",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+    assert agent.task_definition_kwargs == {}
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.not_called
+    boto3_client.run_task.assert_called_with(
+        launchType="EC2",
+        networkConfiguration="test",
+        cluster="test",
+        overrides={
+            "containerOverrides": [
+                {
+                    "name": "flow",
+                    "environment": [
+                        {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
+                        {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
+                    ],
+                }
+            ]
+        },
+        taskDefinition="prefect-task-new_id",
+        tags=[{"key": "test", "value": "test"}],
+    )
+    assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
+
+
+def test_deploy_flows_launch_type_none(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    boto3_resource = MagicMock()
+    streaming_body = MagicMock()
+
+    streaming_body.read.return_value.decode.return_value = '{"cpu": "256", "networkConfiguration": "test", "tags": [{"key": "test", "value": "test"}]}'
+    boto3_resource.return_value.Object.return_value.get.return_value = {
+        "Body": streaming_body
+    }
+
+    boto3_client.describe_task_definition.return_value = {}
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
+    boto3_client.register_task_definition.return_value = {}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+    monkeypatch.setattr("boto3.resource", boto3_resource)
+
+    agent = FargateAgent(
+        launch_type=None,
+        enable_task_revisions=False,
+        use_external_kwargs=True,
+        external_kwargs_s3_bucket="test-bucket",
+        external_kwargs_s3_key="prefect-artifacts/kwargs",
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        cluster="test",
+        labels=["aws", "staging"],
+    )
+    agent.deploy_flow(
+        GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "id": "new_id",
+                        "version": 6,
+                        "name": "name",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+    assert agent.task_definition_kwargs == {}
+    assert boto3_client.describe_task_definition.called
+    assert boto3_client.register_task_definition.not_called
+    boto3_client.run_task.assert_called_with(
+        networkConfiguration="test",
+        cluster="test",
+        overrides={
+            "containerOverrides": [
+                {
+                    "name": "flow",
+                    "environment": [
+                        {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
+                        {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": "id"},
+                        {"name": "PREFECT__CONTEXT__FLOW_ID", "value": "new_id"},
+                    ],
+                }
+            ]
+        },
+        taskDefinition="prefect-task-new_id",
+        tags=[{"key": "test", "value": "test"}],
+    )
+    assert boto3_client.run_task.called_with(taskDefinition="prefect-task-new_id")
+
+
+def test_fargate_agent_start_max_polls(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=1)
+    agent.start()
+
+    assert agent_process.called
+    assert heartbeat.called
+
+
+def test_fargate_agent_start_max_polls_count(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=2)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 2
+    assert heartbeat.call_count == 2
+
+
+def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    on_shutdown = MagicMock()
+    monkeypatch.setattr(
+        "prefect.agent.fargate.agent.FargateAgent.on_shutdown", on_shutdown
+    )
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.fargate.agent.FargateAgent.heartbeat", heartbeat)
+
+    agent = FargateAgent(max_polls=0)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 0
+    assert heartbeat.call_count == 0

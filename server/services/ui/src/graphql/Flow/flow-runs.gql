@@ -1,0 +1,79 @@
+query FlowRuns($flowId: uuid!, $updated: timestamptz) {
+  Success: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Success" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Failed: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Failed" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Submitted: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Submitted" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Paused: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Paused" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Resume: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Resume" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Running: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Running" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  Cancelled: flow_run_aggregate(
+    where: {
+      flow_id: { _eq: $flowId }
+      updated: { _gte: $updated }
+      state: { _eq: "Cancelled" }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}

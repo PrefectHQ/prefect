@@ -37,3 +37,15 @@ def test_config():
     result = runner.invoke(cli, ["config"])
     assert result.exit_code == 0
     assert result.output
+
+
+def test_diagnostics(monkeypatch):
+    monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["diagnostics"])
+    assert result.exit_code == 0
+    assert result.output
+
+    assert "PREFECT__TEST" in result.output
+    assert "NOT__PREFECT" not in result.output

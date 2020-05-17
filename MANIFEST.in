@@ -1,5 +1,6 @@
 include LICENSE
 include src/prefect/config.toml
+include src/prefect/cli/docker-compose.yml
 include versioneer.py
 include requirements.txt
 include dev-requirements.txt

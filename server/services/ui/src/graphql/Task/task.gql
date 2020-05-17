@@ -1,0 +1,48 @@
+query Task($id: uuid!) {
+  task_by_pk(id: $id) {
+    id
+    name
+    description
+    created
+    retry_delay
+    max_retries
+    trigger
+    type
+    upstream_edges {
+      id
+      upstream_task {
+        id
+        name
+        retry_delay
+        max_retries
+        trigger
+        type
+      }
+    }
+    downstream_edges {
+      id
+      downstream_task {
+        id
+        name
+        retry_delay
+        max_retries
+        trigger
+        type
+      }
+    }
+    flow {
+      id
+      name
+      version
+      parameters
+    }
+    task_runs(
+      where: { flow_run: { state: { _neq: "Scheduled" } } }
+      order_by: { state_start_time: desc }
+      limit: 1
+    ) {
+      id
+      state
+    }
+  }
+}

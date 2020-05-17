@@ -15,24 +15,17 @@ def test_get_init():
     runner = CliRunner()
     result = runner.invoke(get)
     assert result.exit_code == 0
-    assert (
-        "Get commands that refer to querying Prefect Cloud metadata." in result.output
-    )
+    assert "Get commands that refer to querying Prefect API metadata." in result.output
 
 
 def test_get_help():
     runner = CliRunner()
     result = runner.invoke(get, ["--help"])
     assert result.exit_code == 0
-    assert (
-        "Get commands that refer to querying Prefect Cloud metadata." in result.output
-    )
+    assert "Get commands that refer to querying Prefect API metadata." in result.output
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_flows(monkeypatch):
+def test_get_flows_server(monkeypatch, server_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
@@ -40,17 +33,46 @@ def test_get_flows(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    runner = CliRunner()
+    result = runner.invoke(get, ["flows"])
+    assert result.exit_code == 0
+    assert (
+        "NAME" in result.output
+        and "VERSION" in result.output
+        and "AGE" in result.output
+    )
+
+    query = """
+    query {
+        flow(where: { _and: { name: { _eq: null }, version: { _eq: null } } }, order_by: { name: asc, version: desc }, distinct_on: name, limit: 10) {
+            name
+            version
+            created
+        }
+    }
+    """
+
+    assert post.called
+    assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_get_flows_cloud(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["flows"])
         assert result.exit_code == 0
         assert (
             "NAME" in result.output
             and "VERSION" in result.output
-            and "PROJECT NAME" in result.output
             and "AGE" in result.output
+            and "PROJECT NAME" in result.output
         )
 
         query = """
@@ -58,10 +80,10 @@ def test_get_flows(monkeypatch):
             flow(where: { _and: { name: { _eq: null }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name, limit: 10) {
                 name
                 version
+                created
                 project {
                     name
                 }
-                created
             }
         }
         """
@@ -70,10 +92,7 @@ def test_get_flows(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_flows_populated(monkeypatch):
+def test_get_flows_populated(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(flow=[]))))
     )
@@ -81,9 +100,7 @@ def test_get_flows_populated(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
             get,
@@ -107,10 +124,10 @@ def test_get_flows_populated(monkeypatch):
             flow(where: { _and: { name: { _eq: "name" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: null, limit: 100) {
                 name
                 version
+                created
                 project {
                     name
                 }
-                created
             }
         }
         """
@@ -119,10 +136,7 @@ def test_get_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_projects(monkeypatch):
+def test_get_projects(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
     )
@@ -130,9 +144,7 @@ def test_get_projects(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["projects"])
         assert result.exit_code == 0
@@ -162,10 +174,7 @@ def test_get_projects(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_projects_populated(monkeypatch):
+def test_get_projects_populated(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(project=[]))))
     )
@@ -173,9 +182,7 @@ def test_get_projects_populated(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["projects", "--name", "name"])
         assert result.exit_code == 0
@@ -199,10 +206,7 @@ def test_get_projects_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_flow_runs(monkeypatch):
+def test_get_flow_runs_server(monkeypatch, server_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
@@ -212,9 +216,49 @@ def test_get_flow_runs(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        runner = CliRunner()
+        result = runner.invoke(get, ["flow-runs"])
+        assert result.exit_code == 0
+        assert (
+            "NAME" in result.output
+            and "FLOW NAME" in result.output
+            and "STATE" in result.output
+            and "AGE" in result.output
+            and "START TIME" in result.output
+            and "DURATION" in result.output
+        )
+
+        query = """
+        query {
+            flow_run(where: { flow: { _and: { name: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
+                flow {
+                    name
+                }
+                created
+                state
+                name
+                duration
+                start_time
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_get_flow_runs_cloud(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow_run=[])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["flow-runs"])
         assert result.exit_code == 0
@@ -246,10 +290,7 @@ def test_get_flow_runs(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_flow_runs_populated(monkeypatch):
+def test_get_flow_runs_populated(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
@@ -259,9 +300,7 @@ def test_get_flow_runs_populated(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
             get,
@@ -297,10 +336,7 @@ def test_get_flow_runs_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_tasks(monkeypatch):
+def test_get_tasks_server(monkeypatch, server_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
     )
@@ -308,9 +344,46 @@ def test_get_tasks(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    runner = CliRunner()
+    result = runner.invoke(get, ["tasks"])
+    assert result.exit_code == 0
+    assert (
+        "NAME" in result.output
+        and "FLOW NAME" in result.output
+        and "FLOW VERSION" in result.output
+        and "AGE" in result.output
+        and "MAPPED" in result.output
+        and "TYPE" in result.output
+    )
+
+    query = """
+    query {
+        task(where: { _and: { name: { _eq: null }, flow: { name: { _eq: null }, version: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
+            name
+            created
+            flow {
+                name
+                version
+            }
+            mapped
+            type
+        }
+    }
+    """
+
+    assert post.called
+    assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_get_tasks_cloud(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["tasks"])
         assert result.exit_code == 0
@@ -325,7 +398,7 @@ def test_get_tasks(monkeypatch):
 
         query = """
         query {
-            task(where: { _and: { name: { _eq: null }, flow: { name: { _eq: null }, project: { name: { _eq: null } }, version: { _eq: null } } } }, limit: 10, order_by: { created: desc }) {
+            task(where: { _and: { name: { _eq: null }, flow: { name: { _eq: null }, version: { _eq: null }, project: { name: { _eq: null } } } } }, limit: 10, order_by: { created: desc }) {
                 name
                 created
                 flow {
@@ -342,10 +415,7 @@ def test_get_tasks(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_tasks_populated(monkeypatch):
+def test_get_tasks_populated(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(json=MagicMock(return_value=dict(data=dict(task=[]))))
     )
@@ -353,9 +423,7 @@ def test_get_tasks_populated(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(
             get,
@@ -377,7 +445,7 @@ def test_get_tasks_populated(monkeypatch):
 
         query = """
         query {
-            task(where: { _and: { name: { _eq: "task" }, flow: { name: { _eq: "flow" }, project: { name: { _eq: "project" } }, version: { _eq: 2 } } } }, limit: 100, order_by: { created: desc }) {
+            task(where: { _and: { name: { _eq: "task" }, flow: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } } }, limit: 100, order_by: { created: desc }) {
                 name
                 created
                 flow {
@@ -394,10 +462,7 @@ def test_get_tasks_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_logs(monkeypatch):
+def test_get_logs(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -423,9 +488,7 @@ def test_get_logs(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run"])
         assert result.exit_code == 0
@@ -453,10 +516,7 @@ def test_get_logs(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
-def test_get_logs_info(monkeypatch):
+def test_get_logs_info(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(
@@ -468,9 +528,7 @@ def test_get_logs_info(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run", "--info"])
         assert result.exit_code == 0
@@ -492,7 +550,7 @@ def test_get_logs_info(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-def test_get_logs_fails(monkeypatch):
+def test_get_logs_fails(monkeypatch, cloud_api):
     post = MagicMock(
         return_value=MagicMock(
             json=MagicMock(return_value=dict(data=dict(flow_run=[])))
@@ -502,9 +560,7 @@ def test_get_logs_fails(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with set_temporary_config(
-        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
-    ):
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
         runner = CliRunner()
         result = runner.invoke(get, ["logs", "--name", "flow_run"])
         assert result.exit_code == 0

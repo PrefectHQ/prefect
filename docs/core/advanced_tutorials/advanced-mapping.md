@@ -202,7 +202,7 @@ The `Parameter` class has a few useful settings that we need in the above exampl
 - `required`: a boolean specifying whether or not the parameter is required at flow runtime; if not provided, the default value will be used
   :::
 
-To highlight the benefits of `map`, note that we went from scraping a single episode to scraping all episodes by writing one new function and recompliling our flow with minimal change: our original flow had _three_ tasks, while our new flow has _hundreds_!
+To highlight the benefits of `map`, note that we went from scraping a single episode to scraping all episodes by writing one new function and recompiling our flow with minimal change: our original flow had _three_ tasks, while our new flow has _hundreds_!
 
 ```python
 flow.visualize()
@@ -211,9 +211,9 @@ flow.visualize()
 ![full scrape flow](/full_scrape_flow.svg){.viz-md .viz-padded}
 
 ::: tip How mapped tasks are returned
-In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If, the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state. This `Mapped` state has two special attributes worth knowing about:
+In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state. This `Mapped` state has two special attributes worth knowing about:
 
-- `map_states`: this attributes contains a list of all the states of all the individual mapped instances
+- `map_states`: this attribute contains a list of all the states of all the individual mapped instances
 - `result`: the result of a `Mapped` task is a list of all the results of its individual mapped instances
   :::
 

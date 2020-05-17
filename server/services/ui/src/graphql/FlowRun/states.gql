@@ -1,0 +1,19 @@
+query FlowRunStates(
+  $where: flow_run_state_bool_exp
+  $limit: Int!
+  $offset: Int!
+  $orderBy: [flow_run_state_order_by!]
+) {
+  flow_run_state(
+    where: $where
+    limit: $limit
+    order_by: $orderBy
+    offset: $offset
+  ) {
+    state
+    start_time
+    timestamp
+    result
+    message
+  }
+}

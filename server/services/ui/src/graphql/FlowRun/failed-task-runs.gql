@@ -1,0 +1,12 @@
+query($flowRunId: uuid) {
+  task_run(
+    where: {
+      flow_run_id: { _eq: $flowRunId }
+      state: { _in: ["Failed", "Cancelled", "TimedOut", "TriggerFailed"] }
+    }
+  ) {
+    task_id
+    version
+    id
+  }
+}

@@ -1,0 +1,32 @@
+query FailDetails($heartbeat: timestamptz) {
+  flow_run(
+    where: { state: { _eq: "Failed" }, heartbeat: { _gte: $heartbeat } }
+    distinct_on: flow_id
+    order_by: [{ flow_id: asc }, { heartbeat: desc }]
+  ) {
+    id
+    name
+    scheduled_start_time
+    start_time
+    end_time
+    duration
+    flow {
+      id
+      name
+      failed_runs_count: flow_runs_aggregate(
+        where: { state: { _eq: "Failed" }, heartbeat: { _gte: $heartbeat } }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      runs_count: flow_runs_aggregate(
+        where: { heartbeat: { _gte: $heartbeat } }
+      ) {
+        aggregate {
+          count
+        }
+      }
+    }
+  }
+}

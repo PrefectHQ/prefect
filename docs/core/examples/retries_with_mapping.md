@@ -11,7 +11,7 @@ This example showcases a few basic Prefect concepts:
 - task retries: `flow.run()` will perform retries, on schedule, for all tasks that require it,
     including individual mapped tasks
 
-This flow first generates a list of random length, and them maps over that list to spawn a dynamic number of
+This flow first generates a list of random length, and then maps over that list to spawn a dynamic number of
 downstream tasks that randomly fail.  The takeaway here is that we don't have to know a-priori how many mapped tasks
 will be created prior to execution!  Additionally, each failed mapped task will retry on its own.
 

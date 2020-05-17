@@ -1,4 +1,7 @@
-# Parallel Execution
+---
+sidebarDepth: 0
+---
+# Scaling Out
 
 ::: tip Follow along in the Terminal
 
@@ -27,8 +30,8 @@ This will spin up a [Local Dask Cluster](http://distributed.dask.org/en/latest/l
 flow.run(
     executor=DaskExecutor(
         address='some-ip:port/to-your-dask-scheduler'
-        )
     )
+)
 ```
 
 Furthermore, you can implement your own `Executor` for use with any Prefect `Flow`, as long as the object provided satisfies [the `Executor` interface](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/executors/base.py) (i.e. appropriate `submit`, `map`, and `wait` functions, similar to Python's [`concurrent.futures.Executor`](https://docs.python.org/3/library/concurrent.futures.html#executor-objects) interface). In this way, the sky is the limit!

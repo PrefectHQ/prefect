@@ -50,6 +50,8 @@ spec:
               value: "False"
             - name: DASK_DISTRIBUTED__SCHEDULER__BLOCKED_HANDLERS
               value: "['feed', 'run_function']"
+            - name: PREFECT__LOGGING__EXTRA_LOGGERS
+              value: PREFECT__LOGGING__EXTRA_LOGGERS
           resources:
             requests:
               cpu: "100m"

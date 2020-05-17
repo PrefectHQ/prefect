@@ -53,14 +53,19 @@ class TestListImagesTask(DockerLoggingTestingUtilityMixin):
         task = ListImages()
         assert not task.repository_name
         assert not task.all_layers
+        assert not task.filters
         assert task.docker_server_url == "unix:///var/run/docker.sock"
 
     def test_filled_initialization(self):
         task = ListImages(
-            repository_name="test", all_layers=True, docker_server_url="test"
+            repository_name="test",
+            all_layers=True,
+            filters={"name": "test"},
+            docker_server_url="test",
         )
         assert task.repository_name == "test"
         assert task.all_layers == True
+        assert task.filters == {"name": "test"}
         assert task.docker_server_url == "test"
 
     def test_repository_name_init_value_is_used(self, monkeypatch):

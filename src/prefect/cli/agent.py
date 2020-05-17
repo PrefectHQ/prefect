@@ -9,7 +9,6 @@ _agents = {
     "docker": "prefect.agent.docker.DockerAgent",
     "kubernetes": "prefect.agent.kubernetes.KubernetesAgent",
     "local": "prefect.agent.local.LocalAgent",
-    "nomad": "prefect.agent.nomad.NomadAgent",
 }
 
 
@@ -76,6 +75,21 @@ def agent():
     hidden=True,
 )
 @click.option(
+    "--max-polls",
+    required=False,
+    help="Maximum number of polls for the agent",
+    hidden=True,
+    type=int,
+)
+@click.option(
+    "--agent-address",
+    required=False,
+    help="Address to serve internal api server at. Defaults to no server.",
+    hidden=True,
+    type=str,
+    default="",
+)
+@click.option(
     "--namespace",
     required=False,
     help="Kubernetes namespace to create jobs.",
@@ -99,7 +113,7 @@ def agent():
 @click.option(
     "--no-cloud-logs",
     is_flag=True,
-    help="Turn off Cloud logging for all flows run through this agent.",
+    help="Turn off logging for all flows run through this agent.",
     hidden=True,
 )
 @click.option("--base-url", "-b", help="Docker daemon base URL.", hidden=True)
@@ -107,6 +121,15 @@ def agent():
     "--volume",
     multiple=True,
     help="Host paths for Docker bind mount volumes attached to each Flow runtime container.",
+    hidden=True,
+)
+@click.option(
+    "--network", help="Add containers to an existing docker network", hidden=True,
+)
+@click.option(
+    "--no-docker-interface",
+    is_flag=True,
+    help="Disable presence of a Docker interface.",
     hidden=True,
 )
 @click.pass_context
@@ -125,13 +148,17 @@ def start(
     import_path,
     show_flow_logs,
     volume,
+    network,
+    no_docker_interface,
+    max_polls,
+    agent_address,
 ):
     """
     Start an agent.
 
     \b
     Arguments:
-        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`, `nomad`)
+        agent-option    TEXT    The name of an agent to start (e.g. `docker`, `kubernetes`, `local`, `fargate`)
                                 Defaults to `local`
 
     \b
@@ -145,8 +172,13 @@ def start(
         --env, -e       TEXT    Environment variables to set on each submitted flow run.
                                 Note that equal signs in environment variable values are not currently supported from the CLI.
                                 Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
-        --no-cloud-logs         Turn off logging to Prefect Cloud for all flow runs
+        --max-polls     INT     Maximum number of times the agent should poll the Prefect API for flow runs. Will run forever
+                                if not specified.
+        --no-cloud-logs         Turn off logging to the Prefect API for all flow runs
                                 Defaults to `False`
+        --agent-address TEXT    The address to server internal api at. Currently this is
+                                just health checks for use by an orchestration layer
+                                (e.g. kubernetes). Leave blank for no api server (default).
 
     \b
     Local Agent Options:
@@ -157,11 +189,15 @@ def start(
 
     \b
     Docker Agent Options:
-        --base-url, -b  TEXT    A Docker daemon host URL for a DockerAgent
-        --no-pull               Pull images for a DockerAgent
-                                Defaults to pulling if not provided
-        --volume        TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
-                                Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
+        --base-url, -b      TEXT    A Docker daemon host URL for a DockerAgent
+        --no-pull                   Pull images for a DockerAgent
+                                    Defaults to pulling if not provided
+        --volume            TEXT    Host paths for Docker bind mount volumes attached to each Flow runtime container.
+                                    Multiple values supported e.g. `--volume /some/path --volume /some/other/path`
+        --network           TEXT    Add containers to an existing docker network
+        --no-docker-interface       Disable the check of a Docker interface on this machine.
+                                    **Note**: This is mostly relevant for some Docker-in-Docker setups that users may be
+                                    running their agent with.
 
     \b
     Kubernetes Agent Options:
@@ -171,7 +207,7 @@ def start(
     \b
     Fargate Agent Options:
         Any of the configuration options outlined in the docs can be provided here
-        https://docs.prefect.io/cloud/agents/fargate.html#configuration
+        https://docs.prefect.io/orchestration/agents/fargate.html#configuration
     """
 
     # Split context
@@ -182,7 +218,6 @@ def start(
 
     tmp_config = {
         "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
-        "logging.log_to_cloud": False if no_cloud_logs else True,
     }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
@@ -204,30 +239,51 @@ def start(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
                 import_paths=list(import_path),
                 show_flow_logs=show_flow_logs,
+                no_cloud_logs=no_cloud_logs,
             ).start()
         elif agent_option == "docker":
             from_qualified_name(retrieved_agent)(
                 name=name,
                 labels=list(label),
                 env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
                 base_url=base_url,
                 no_pull=no_pull,
                 show_flow_logs=show_flow_logs,
                 volumes=list(volume),
+                network=network,
+                docker_interface=not no_docker_interface,
             ).start()
         elif agent_option == "fargate":
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars, **kwargs
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
+                **kwargs
             ).start()
         elif agent_option == "kubernetes":
             from_qualified_name(retrieved_agent)(
-                namespace=namespace, name=name, labels=list(label), env_vars=env_vars
+                namespace=namespace,
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
             ).start()
         else:
             from_qualified_name(retrieved_agent)(
-                name=name, labels=list(label), env_vars=env_vars
+                name=name,
+                labels=list(label),
+                env_vars=env_vars,
+                max_polls=max_polls,
+                agent_address=agent_address,
             ).start()
 
 
@@ -236,9 +292,7 @@ def start(
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
-@click.option(
-    "--api", "-a", required=False, help="A Prefect Cloud API URL.", hidden=True
-)
+@click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
 @click.option(
     "--namespace",
     "-n",
@@ -289,6 +343,13 @@ def start(
     hidden=True,
 )
 @click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variables to set on each submitted flow run.",
+    hidden=True,
+)
+@click.option(
     "--import-path",
     "-p",
     multiple=True,
@@ -301,6 +362,13 @@ def start(
     help="Display logging output from flows run by the agent.",
     hidden=True,
     is_flag=True,
+)
+@click.option(
+    "--backend",
+    "-b",
+    required=False,
+    help="Prefect backend to use for this agent.",
+    hidden=True,
 )
 def install(
     name,
@@ -316,8 +384,10 @@ def install(
     cpu_request,
     cpu_limit,
     label,
+    env,
     import_path,
     show_flow_logs,
+    backend,
 ):
     """
     Install an agent. Outputs configuration text which can be used to install on various
@@ -332,10 +402,13 @@ def install(
         --token, -t                 TEXT    A Prefect Cloud API token
         --label, -l                 TEXT    Labels the agent will use to query for flow runs
                                             Multiple values supported e.g. `-l label1 -l label2`
+        --env, -e                   TEXT    Environment variables to set on each submitted flow run.
+                                            Note that equal signs in environment variable values are not currently supported from the CLI.
+                                            Multiple values supported e.g. `-e AUTH=token -e PKG_SETTING=true`
 
     \b
     Kubernetes Agent Options:
-        --api, -a                   TEXT    A Prefect Cloud API URL
+        --api, -a                   TEXT    A Prefect API URL
         --namespace, -n             TEXT    Agent namespace to launch workloads
         --image-pull-secrets, -i    TEXT    Name of image pull secrets to use for workloads
         --resource-manager                  Enable resource manager on install
@@ -345,6 +418,8 @@ def install(
         --mem-limit                 TEXT    Limit memory for Prefect init job
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
+        --backend                   TEST    Prefect backend to use for this agent
+                                            Defaults to the backend currently set in config.
 
     \b
     Local Agent Options:
@@ -364,6 +439,11 @@ def install(
         click.secho("{} is not a supported agent for `install`".format(name), fg="red")
         return
 
+    env_vars = dict()
+    for env_var in env:
+        k, v = env_var.split("=")
+        env_vars[k] = v
+
     if name == "kubernetes":
         deployment = from_qualified_name(retrieved_agent).generate_deployment_yaml(
             token=token,
@@ -378,6 +458,8 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             labels=list(label),
+            env_vars=env_vars,
+            backend=backend,
         )
         click.echo(deployment)
     elif name == "local":

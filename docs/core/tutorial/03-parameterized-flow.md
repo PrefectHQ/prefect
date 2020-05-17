@@ -1,4 +1,8 @@
-# Parameterizing Our Flow
+---
+sidebarDepth: 0
+---
+
+# Adding Parameters
 
 ::: tip Follow along in the Terminal
 
@@ -9,7 +13,7 @@ python 03_parameterized_etl_flow.py
 
 :::
 
-In the last tutorial we refactored the Aircraft ETL script into a Prefect Flow. However, the `extract_live_data` Task has been hard coded to pull aircraft data only within a particular area, in this case a 200 KM radius surrounding Dulles International Airport:
+In the [last tutorial](/core/tutorial/02-etl-flow.html) we refactored the Aircraft ETL script into a Prefect Flow. However, the `extract_live_data` Task has been hard coded to pull aircraft data only within a particular area, in this case a 200 KM radius surrounding Dulles International Airport:
 
 ```python{4-5}
 @task

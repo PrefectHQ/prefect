@@ -10,7 +10,8 @@ import yaml
 
 import prefect
 from prefect.environments import DaskKubernetesEnvironment
-from prefect.environments.storage import Docker, Memory
+from prefect.environments.storage import Docker, Local
+from prefect.tasks.secrets import EnvVarSecret
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -20,6 +21,7 @@ def test_create_dask_environment():
     assert environment.min_workers == 1
     assert environment.max_workers == 2
     assert environment.work_stealing is False
+    assert environment.scheduler_logs is False
     assert environment.private_registry is False
     assert environment.docker_secret is None
     assert environment.labels == set()
@@ -33,6 +35,7 @@ def test_create_dask_environment_args():
         min_workers=5,
         max_workers=6,
         work_stealing=True,
+        scheduler_logs=True,
         private_registry=True,
         docker_secret="docker",
     )
@@ -40,6 +43,7 @@ def test_create_dask_environment_args():
     assert environment.min_workers == 5
     assert environment.max_workers == 6
     assert environment.work_stealing is True
+    assert environment.scheduler_logs is True
     assert environment.private_registry is True
     assert environment.docker_secret == "docker"
 
@@ -134,7 +138,7 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 def test_execute_improper_storage():
     environment = DaskKubernetesEnvironment()
     with pytest.raises(TypeError):
-        environment.execute(storage=Memory(), flow_location="")
+        environment.execute(storage=Local(), flow_location="")
 
 
 def test_execute_storage_missing_fields():
@@ -203,7 +207,8 @@ def test_run_flow(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -234,7 +239,8 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
     with tempfile.TemporaryDirectory() as directory:
         with open(os.path.join(directory, "flow_env.prefect"), "w+") as env:
-            flow = prefect.Flow("test")
+            storage = Local(directory)
+            flow = prefect.Flow("test", storage=storage)
             flow_path = os.path.join(directory, "flow_env.prefect")
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
@@ -252,7 +258,7 @@ def test_run_flow_calls_callbacks(monkeypatch):
 
 
 def test_populate_job_yaml():
-    environment = DaskKubernetesEnvironment(work_stealing=True)
+    environment = DaskKubernetesEnvironment(work_stealing=True, scheduler_logs=True)
 
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
@@ -260,7 +266,11 @@ def test_populate_job_yaml():
         job = yaml.safe_load(job_file)
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.extra_loggers": "['test_logger']",
+        }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
             yaml_obj = environment._populate_job_yaml(
@@ -286,6 +296,10 @@ def test_populate_job_yaml():
     assert env[4]["value"] == "test1/test2:test3"
     assert env[5]["value"] == "test4"
     assert env[13]["value"] == "True"
+    assert (
+        env[15]["value"]
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes', 'distributed.scheduler']"
+    )
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]
@@ -302,7 +316,11 @@ def test_populate_worker_pod_yaml():
         pod = yaml.safe_load(pod_file)
 
     with set_temporary_config(
-        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+        {
+            "cloud.graphql": "gql_test",
+            "cloud.auth_token": "auth_test",
+            "logging.extra_loggers": "['test_logger']",
+        }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
@@ -315,6 +333,10 @@ def test_populate_worker_pod_yaml():
     assert env[0]["value"] == "gql_test"
     assert env[1]["value"] == "auth_test"
     assert env[2]["value"] == "id_test"
+    assert (
+        env[11]["value"]
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+    )
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -371,6 +393,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
+            "logging.extra_loggers": "['test_logger']",
         }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
@@ -389,6 +412,10 @@ def test_populate_custom_worker_spec_yaml(log_flag):
     assert env[5]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[6]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[7]["value"] == str(log_flag).lower()
+    assert (
+        env[8]["value"]
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+    )
 
     assert yaml_obj["spec"]["containers"][0]["image"] == "my_image"
 
@@ -408,6 +435,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
+            "logging.extra_loggers": "['test_logger']",
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
@@ -432,6 +460,10 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
     assert env[8]["value"] == "prefect.engine.cloud.CloudTaskRunner"
     assert env[9]["value"] == "prefect.engine.executors.DaskExecutor"
     assert env[10]["value"] == str(log_flag).lower()
+    assert (
+        env[11]["value"]
+        == "['test_logger', 'dask_kubernetes.core', 'distributed.deploy.adaptive', 'kubernetes']"
+    )
 
     assert (
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"]

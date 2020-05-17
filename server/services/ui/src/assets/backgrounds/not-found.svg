@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="800" viewBox="0 0 1280 800">
+    <defs>
+        <path id="a" d="M.977 0h1279.001v800H.977z"/>
+        <linearGradient id="b" x1="71.381%" x2="4.039%" y1="97.663%" y2="25.12%">
+            <stop offset="0%" stop-color="#A7BECF"/>
+            <stop offset="100%" stop-color="#CEDBE5"/>
+        </linearGradient>
+        <linearGradient id="d" x1="42.361%" x2="63.826%" y1="18.56%" y2="105.628%">
+            <stop offset="0%" stop-color="#F6F9FB"/>
+            <stop offset="100%" stop-color="#D7DFE4"/>
+        </linearGradient>
+        <linearGradient id="e" x1="32.536%" x2="90.595%" y1="30.45%" y2="67.441%">
+            <stop offset="0%" stop-color="#F6F9FB"/>
+            <stop offset="100%" stop-color="#D7DFE4"/>
+        </linearGradient>
+        <linearGradient id="f" x1="20.461%" x2="154.165%" y1="44.207%" y2="67.767%">
+            <stop offset="0%" stop-color="#2ED9FF"/>
+            <stop offset="100%" stop-color="#0B6DDE"/>
+        </linearGradient>
+    </defs>
+    <g fill="none" fill-rule="evenodd" transform="translate(-.977)">
+        <mask id="c" fill="#fff">
+            <use xlink:href="#a"/>
+        </mask>
+        <path fill="url(#b)" d="M352.38 438.004L27.447 275.276l.121 330.502z" mask="url(#c)" transform="rotate(35 189.913 440.527)"/>
+        <path fill="#0D3958" fill-opacity=".2" fill-rule="nonzero" d="M149.465 685.397L78.397 446.754l32.658 264.894z" mask="url(#c)" transform="rotate(49 113.931 579.201)"/>
+        <path fill="#0D3958" fill-opacity=".2" fill-rule="nonzero" d="M291.808 181.646L-11.1 271.075l24.546 26.409z" mask="url(#c)" transform="rotate(59 140.355 239.565)"/>
+        <path fill="url(#d)" d="M470.216 1136.425c.679-.406 298.505-144.71 298.777-144.846 4.07-2.44 6.377-3.12 6.514-10.303l.033-561.408C649.353 482.932 471.742 571.493 456.41 579.63c-4.885 2.712-5.564 5.017-5.565 8.54l-.16 533.758c-.14 12.064.671 23.99 19.531 14.497z" mask="url(#c)" transform="rotate(-25 613.107 779.865)"/>
+        <path fill="url(#e)" d="M1056.796 91.55l16.625 317.474S454.31 138.211 432.813 128.483c-14.29-6.578-14.65-13.48-1.155-22.058 12.452-7.845 250.839-143.02 287.39-163.798 4.747-2.42 6.232-2.498 10.645-.966L1050.21 82.124c4.569 1.932 6.032 4.026 6.586 9.425z" mask="url(#c)"/>
+        <path fill="url(#f)" fill-rule="nonzero" d="M714.165 704v-50.045H596.512v-30.027L697.686 448l36.407 20.788-85.078 146.67h65.15v-56.974h42.539v56.975h30.659v38.496h-30.659V704h-42.54zm200.293 4c-57.785 0-98.118-52.886-98.118-128s40.333-128 98.118-128c57.396 0 97.73 52.886 97.73 128s-40.334 128-97.73 128zm.994-39c32.206 0 50.771-37.515 50.771-90.5s-18.565-90.5-50.77-90.5c-32.585 0-51.15 37.515-51.15 90.5s18.565 90.5 51.15 90.5zm242.366 35v-50.045h-117.653v-30.027L1141.34 448l36.408 20.788-85.079 146.67h65.15v-56.974h42.54v56.975h30.658v38.496h-30.659V704h-42.539z" mask="url(#c)" opacity=".591"/>
+    </g>
+</svg>

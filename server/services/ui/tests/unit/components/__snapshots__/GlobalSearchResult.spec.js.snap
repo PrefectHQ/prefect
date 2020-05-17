@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GlobalSearch should match snapshot 1`] = `
+<div
+  class="search-result"
+>
+  <v-list-item-content-stub>
+    <v-list-item-subtitle-stub>
+      Flow
+    </v-list-item-subtitle-stub>
+     
+    <v-list-item-title-stub />
+     
+    <v-list-item-subtitle-stub
+      class="id-subtitle"
+    >
+      
+      a45619e1 - 64ee - 49ac - a121 - b75fbfe5f375
+    
+    </v-list-item-subtitle-stub>
+  </v-list-item-content-stub>
+</div>
+`;

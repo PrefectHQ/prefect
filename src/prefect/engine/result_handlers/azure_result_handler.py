@@ -55,7 +55,9 @@ class AzureResultHandler(ResultHandler):
         import azure.storage.blob
 
         kwargs = dict()
-        if self.azure_credentials_secret:
+        if self.connection_string:
+            kwargs["connection_string"] = self.connection_string
+        else:
             azure_credentials = Secret(self.azure_credentials_secret).get()
             if isinstance(azure_credentials, str):
                 azure_credentials = json.loads(azure_credentials)
@@ -63,8 +65,6 @@ class AzureResultHandler(ResultHandler):
             kwargs["account_name"] = azure_credentials["ACCOUNT_NAME"]
             kwargs["account_key"] = azure_credentials.get("ACCOUNT_KEY")
             kwargs["sas_token"] = azure_credentials.get("SAS_TOKEN")
-        else:
-            kwargs["connection_string"] = self.connection_string
 
         blob_service = azure.storage.blob.BlockBlobService(**kwargs)
         self.service = blob_service
@@ -99,7 +99,7 @@ class AzureResultHandler(ResultHandler):
         Returns:
             - str: the Blob URI
         """
-        date = pendulum.now("utc").format("Y/M/D")
+        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
 

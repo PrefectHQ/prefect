@@ -48,7 +48,13 @@ def run_with_heartbeat(
                     api_url = prefect.context.config.cloud.get("api")
                     current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
                     current_env.setdefault("PREFECT__CLOUD__API", api_url)
-                    p = subprocess.Popen(self.heartbeat_cmd, env=current_env)
+                    clean_env = {k: v for k, v in current_env.items() if v is not None}
+                    p = subprocess.Popen(
+                        self.heartbeat_cmd,
+                        env=clean_env,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
             except Exception as exc:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
@@ -56,6 +62,10 @@ def run_with_heartbeat(
             return runner_method(self, *args, **kwargs)
         finally:
             if p is not None:
+                exit_code = p.poll()
+                if exit_code is not None:
+                    msg = "Heartbeat process died with exit code {}".format(exit_code)
+                    self.logger.error(msg)
                 p.kill()
 
     return inner

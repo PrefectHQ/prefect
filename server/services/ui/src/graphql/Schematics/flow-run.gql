@@ -1,0 +1,50 @@
+query FlowRun($id: uuid!) {
+  flow_run(where: { id: { _eq: $id } }) {
+    id
+    name
+    state
+    duration
+    start_time
+
+    task_runs {
+      id
+      state
+      state_message
+      state_timestamp
+      start_time
+      duration
+      map_index
+
+      task {
+        id
+        mapped
+        name
+        max_retries
+        retry_delay
+        trigger
+        type
+
+        upstream_edges {
+          upstream_task {
+            id
+            name
+          }
+          downstream_task {
+            id
+            name
+          }
+        }
+        downstream_edges {
+          upstream_task {
+            id
+            name
+          }
+          downstream_task {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+}

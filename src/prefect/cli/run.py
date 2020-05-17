@@ -19,16 +19,17 @@ def run():
 
     \b
     Arguments:
-        cloud   Run flows in Prefect Cloud
+        cloud   Run flows with Prefect Cloud
+        server  Run flows with Prefect Server
 
     \b
     Examples:
         $ prefect run cloud --name Test-Flow --project My-Project
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
 
     \b
         $ prefect run cloud --name Test-Flow --project My-Project --watch
-        Flow Run ID: 2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
+        Flow Run: https://cloud.prefect.io/myslug/flow-run/2ba3rrfd-411c-4d99-bb2a-f64a6dea78f9
         Scheduled -> Submitted -> Running -> Success
     """
 
@@ -66,11 +67,25 @@ def run():
 @click.option(
     "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
 )
+@click.option(
+    "--no-url",
+    is_flag=True,
+    help="Only output flow run id instead of link.",
+    hidden=True,
+)
 def cloud(
-    name, project, version, parameters_file, parameters_string, run_name, watch, logs
+    name,
+    project,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    no_url,
 ):
     """
-    Run a registered flow in Prefect Cloud.
+    Run a registered flow with Prefect Cloud
 
     \b
     Options:
@@ -82,6 +97,7 @@ def cloud(
         --run-name, -rn             TEXT        A name to assign for this run
         --watch, -w                             Watch current state of the flow run, stream output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
+        --no-url                                Only output the flow run id instead of a link
 
     \b
     If both `--parameters-file` and `--parameters-string` are provided then the values passed
@@ -92,26 +108,127 @@ def cloud(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
+    
+    Returns:
+        - flow_run_id (str): the flow run ID if the flow run completes
+        - None: if flow or flow run canot be found
     """
+    return _run_flow(
+        name=name,
+        project=project,
+        version=version,
+        parameters_file=parameters_file,
+        parameters_string=parameters_string,
+        run_name=run_name,
+        watch=watch,
+        logs=logs,
+        no_url=no_url,
+    )
 
+
+@run.command(hidden=True)
+@click.option(
+    "--name", "-n", required=True, help="The name of a flow to run.", hidden=True
+)
+@click.option("--version", "-v", type=int, help="A flow version to run.", hidden=True)
+@click.option(
+    "--parameters-file",
+    "-pf",
+    help="A parameters JSON file.",
+    hidden=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--parameters-string", "-ps", help="A parameters JSON string.", hidden=True
+)
+@click.option("--run-name", "-rn", help="A name to assign for this run.", hidden=True)
+@click.option(
+    "--watch",
+    "-w",
+    is_flag=True,
+    help="Watch current state of the flow run.",
+    hidden=True,
+)
+@click.option(
+    "--logs", "-l", is_flag=True, help="Live logs of the flow run.", hidden=True
+)
+@click.option(
+    "--no-url",
+    is_flag=True,
+    help="Only output flow run id instead of link.",
+    hidden=True,
+)
+def server(
+    name, version, parameters_file, parameters_string, run_name, watch, logs, no_url,
+):
+    """
+    Run a registered flow with Prefect Server
+
+    \b
+    Options:
+        --name, -n                  TEXT        The name of a flow to run                                       [required]
+        --version, -v               INTEGER     A flow version to run
+        --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
+        --parameters-string, -ps    TEXT        A string of JSON parameters
+        --run-name, -rn             TEXT        A name to assign for this run
+        --watch, -w                             Watch current state of the flow run, stream output to stdout
+        --logs, -l                              Get logs of the flow run, stream output to stdout
+        --no-url                                Only output the flow run id instead of a link
+
+    \b
+    If both `--parameters-file` and `--parameters-string` are provided then the values passed
+    in through the string will override the values provided from the file.
+
+    \b
+    e.g.
+    File contains:  {"a": 1, "b": 2}
+    String:         '{"a": 3}'
+    Parameters passed to the flow run: {"a": 3, "b": 2}
+    
+    Returns:
+        - flow_run_id (str): the flow run ID if the flow run completes
+        - None: if flow or flow run canot be found
+    """
+    return _run_flow(
+        name=name,
+        version=version,
+        parameters_file=parameters_file,
+        parameters_string=parameters_string,
+        run_name=run_name,
+        watch=watch,
+        logs=logs,
+        no_url=no_url,
+    )
+
+
+def _run_flow(
+    name,
+    version,
+    parameters_file,
+    parameters_string,
+    run_name,
+    watch,
+    logs,
+    no_url,
+    project=None,
+):
     if watch and logs:
         click.secho(
             "Streaming state and logs not currently supported together.", fg="red"
         )
         return
 
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+
+    if project:
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),
@@ -147,7 +264,12 @@ def cloud(
     flow_run_id = client.create_flow_run(
         flow_id=flow_id, parameters={**file_params, **string_params}, run_name=run_name
     )
-    click.echo("Flow Run ID: {}".format(flow_run_id))
+
+    if no_url:
+        click.echo("Flow Run ID: {}".format(flow_run_id))
+    else:
+        flow_run_url = client.get_cloud_url("flow-run", flow_run_id)
+        click.echo("Flow Run: {}".format(flow_run_url))
 
     if watch:
         current_states = []
@@ -173,7 +295,7 @@ def cloud(
                         click.echo("{} -> ".format(state), nl=False)
                     else:
                         click.echo(state)
-                        return
+                        return flow_run_id
 
                     current_states.append(state)
 
@@ -187,6 +309,7 @@ def cloud(
                 "logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}
             ): {"timestamp": True, "message": True, "level": True},
             "start_time": True,
+            "state": True,
         }
 
         query = {
@@ -237,18 +360,9 @@ def cloud(
                     tabulate(output, tablefmt="plain", numalign="left", stralign="left")
                 )
 
-            # Check if state is either Success or Failed, exit if it is
-            pk_query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {"state": True}
-                }
-            }
-            result = client.graphql(pk_query)
-
-            if (
-                result.data.flow_run_by_pk.state == "Success"
-                or result.data.flow_run_by_pk.state == "Failed"
-            ):
-                return
+            if new_run.state == "Success" or new_run.state == "Failed":
+                return flow_run_id
 
             time.sleep(3)
+
+    return flow_run_id

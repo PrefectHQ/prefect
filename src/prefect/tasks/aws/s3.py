@@ -1,10 +1,8 @@
 import io
 import uuid
 
-import boto3
-
 from prefect import Task
-from prefect.client import Secret
+from prefect.utilities.aws import get_boto_client
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -13,42 +11,34 @@ class S3Download(Task):
     Task for downloading data from an S3 bucket and returning it as a string.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    For authentication, there are two options: you can set a Prefect Secret containing
+    For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret containing
     your AWS access keys which will be passed directly to the `boto3` client, or you can
     [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
 
     Args:
-        - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            that stores your AWS credentials; this Secret must be a JSON string
-            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-            passed directly to `boto3`.  If not provided, `boto3`
-            will fall back on standard AWS rules for authentication.
         - bucket (str, optional): the name of the S3 Bucket to download from
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(
-        self, aws_credentials_secret: str = None, bucket: str = None, **kwargs
-    ):
-        self.aws_credentials_secret = aws_credentials_secret
+    def __init__(self, bucket: str = None, **kwargs):
         self.bucket = bucket
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("aws_credentials_secret", "bucket")
+    @defaults_from_attrs("bucket")
     def run(
-        self, key: str, aws_credentials_secret: str = None, bucket: str = None,
+        self, key: str, credentials: str = None, bucket: str = None,
     ):
         """
         Task run method.
 
         Args:
             - key (str): the name of the Key within this bucket to retrieve
-            - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your AWS credentials; this Secret must be a JSON string
+            - credentials (dict, optional): your AWS credentials passed from an upstream
+                Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-                passed directly to `boto3`.  If not provided, `boto3`
+                passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to download from
 
@@ -58,18 +48,7 @@ class S3Download(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        ## get AWS credentials
-        aws_access_key = None
-        aws_secret_access_key = None
-        if aws_credentials_secret:
-            aws_credentials = Secret(aws_credentials_secret).get()
-            aws_access_key = aws_credentials["ACCESS_KEY"]
-            aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-        )
+        s3_client = get_boto_client("s3", credentials=credentials)
 
         stream = io.BytesIO()
 
@@ -93,30 +72,18 @@ class S3Upload(Task):
     for `boto3`.
 
     Args:
-        - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            that stores your AWS credentials; this Secret must be a JSON string
-            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-            passed directly to `boto3`.  If not provided, `boto3`
-            will fall back on standard AWS rules for authentication.
         - bucket (str, optional): the name of the S3 Bucket to upload to
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(
-        self, aws_credentials_secret: str = None, bucket: str = None, **kwargs
-    ):
-        self.aws_credentials_secret = aws_credentials_secret
+    def __init__(self, bucket: str = None, **kwargs):
         self.bucket = bucket
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("aws_credentials_secret", "bucket")
+    @defaults_from_attrs("bucket")
     def run(
-        self,
-        data: str,
-        key: str = None,
-        aws_credentials_secret: str = "AWS_CREDENTIALS",
-        bucket: str = None,
+        self, data: str, key: str = None, credentials: dict = None, bucket: str = None,
     ):
         """
         Task run method.
@@ -125,10 +92,10 @@ class S3Upload(Task):
             - data (str): the data payload to upload
             - key (str, optional): the Key to upload the data under; if not
                 provided, a random `uuid` will be created
-            - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your AWS credentials; this Secret must be a JSON string
+            - credentials (dict, optional): your AWS credentials passed from an upstream
+                Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-                passed directly to `boto3`.  If not provided, `boto3`
+                passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
             - bucket (str, optional): the name of the S3 Bucket to upload to
 
@@ -138,18 +105,7 @@ class S3Upload(Task):
         if bucket is None:
             raise ValueError("A bucket name must be provided.")
 
-        ## get AWS credentials
-        aws_access_key = None
-        aws_secret_access_key = None
-        if aws_credentials_secret:
-            aws_credentials = Secret(aws_credentials_secret).get()
-            aws_access_key = aws_credentials["ACCESS_KEY"]
-            aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-        )
+        s3_client = get_boto_client("s3", credentials=credentials)
 
         ## prepare data
         try:

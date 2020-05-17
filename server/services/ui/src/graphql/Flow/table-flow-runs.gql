@@ -1,0 +1,28 @@
+query TableFlowRuns(
+  $flowId: uuid
+  $name: String
+  $limit: Int
+  $offset: Int
+  $orderBy: [flow_run_order_by!]
+  $heartbeat: timestamptz
+) {
+  flow_run(
+    where: {
+      flow_id: { _eq: $flowId }
+      name: { _ilike: $name }
+      heartbeat: { _gte: $heartbeat }
+      state: { _neq: "Scheduled" }
+    }
+    order_by: $orderBy
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    name
+    duration
+    end_time
+    scheduled_start_time
+    start_time
+    state
+  }
+}

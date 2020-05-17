@@ -1,0 +1,22 @@
+query TableTasks(
+  $flowId: uuid
+  $name: String
+  $limit: Int
+  $offset: Int
+  $orderBy: [task_order_by!]
+) {
+  task(
+    where: { flow_id: { _eq: $flowId }, name: { _ilike: $name } }
+    order_by: $orderBy
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    name
+    mapped
+    max_retries
+    retry_delay
+    type
+    trigger
+  }
+}

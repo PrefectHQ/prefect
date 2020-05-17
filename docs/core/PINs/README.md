@@ -71,3 +71,27 @@ A proposal for a new way of building schedules that captures a wider variety of 
 A proposal for a way to loop over single tasks with arbitrary control logic and all Prefect semantics intact
 
 **Status:** Proposed
+
+## [PIN 12: Environment Callbacks](PIN-12-Environment-Callbacks.md)
+
+A proposal to introduce user-provided callbacks for `Environments` which users can use to specify additional behavior before a Flow is run and after a FlowRun has ended.
+
+**Status:** Accepted
+
+## [PIN 13: Universal Cloud Deploys](PIN-13-Universal-Deploy.md)
+
+A proposal to run Flows from Prefect Cloud with local Python resources and packages.
+
+**Status:** Accepted
+
+## [PIN-14: Event-Driven Flow Execution via Listeners](PIN-14-Listener-Flows-2.md)
+
+A proposal to enable starting a Flow based on events from user provided sources by leveraging the existing Schedule features.
+
+**Status:** Proposed; supersedes [PIN 8](PIN-08-Listener-Flows.html).
+
+## [PIN-15: Skip state as Finished + Control Flow Conditional](PIN-15-Skip-as-Finished-and-Conditionals.md)
+
+A proposal to interpret `Skip` states as `Finished` instead of `Success`ful while also introducing more conditional control flow constructs.
+
+**Status:** Proposed

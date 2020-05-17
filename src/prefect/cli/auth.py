@@ -182,17 +182,17 @@ def switch_tenants(id, slug):
 
 @auth.command(hidden=True)
 @click.option("--name", "-n", required=True, help="A token name.", hidden=True)
-@click.option("--role", "-r", required=True, help="A token role.", hidden=True)
-def create_token(name, role):
+@click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
+def create_token(name, scope):
     """
     Create a Prefect Cloud API token.
 
-    For more info on API tokens visit https://docs.prefect.io/cloud/concepts/api.html
+    For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
 
     \b
     Options:
         --name, -n      TEXT    A name to give the generated token
-        --role, -r      TEXT    A role for the token
+        --scope, -r     TEXT    A scope for the token
     """
     check_override_auth_token()
 
@@ -200,18 +200,18 @@ def create_token(name, role):
 
     output = client.graphql(
         query={
-            "mutation($input: createAPITokenInput!)": {
-                "createAPIToken(input: $input)": {"token"}
+            "mutation($input: create_api_token_input!)": {
+                "create_api_token(input: $input)": {"token"}
             }
         },
-        variables=dict(input=dict(name=name, role=role)),
+        variables=dict(input=dict(name=name, scope=scope)),
     )
 
     if not output.get("data", None):
         click.secho("Issue creating API token", fg="red")
         return
 
-    click.echo(output.data.createAPIToken.token)
+    click.echo(output.data.create_api_token.token)
 
 
 @auth.command(hidden=True)
@@ -260,14 +260,14 @@ def revoke_token(id):
 
     output = client.graphql(
         query={
-            "mutation($input: deleteAPITokenInput!)": {
-                "deleteAPIToken(input: $input)": {"success"}
+            "mutation($input: delete_api_token_input!)": {
+                "delete_api_token(input: $input)": {"success"}
             }
         },
-        variables=dict(input=dict(tokenId=id)),
+        variables=dict(input=dict(token_id=id)),
     )
 
-    if not output.get("data", None) or not output.data.deleteAPIToken.success:
+    if not output.get("data", None) or not output.data.delete_api_token.success:
         click.secho("Unable to revoke token with ID {}".format(id), fg="red")
         return
 
