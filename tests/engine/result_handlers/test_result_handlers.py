@@ -4,7 +4,6 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import cloudpickle
-import pandas as pd
 import pendulum
 import pytest
 
@@ -124,83 +123,6 @@ class TestLocalHandler:
         handler = LocalResultHandler(dir="root")
         new = cloudpickle.loads(cloudpickle.dumps(handler))
         assert isinstance(new, LocalResultHandler)
-
-
-@pytest.mark.xfail(raises=ImportError, reason="Pandas not installed.")
-class TestPandasHandler:
-    @pytest.fixture(scope="class")
-    def tmp_dir(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            yield tmp
-
-    @patch("prefect.engine.result_handlers.pandas_result_handler.pd")
-    def test_matching_io_handlers_are_found(self, mock_pandas):
-        dummy_io_func = lambda x: x
-        mock_pandas.read_thing = dummy_io_func
-        mock_pandas.DataFrame.to_thing = dummy_io_func
-
-        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
-
-        expected_read_io_ops = {"thing": dummy_io_func}
-        expected_write_io_ops = {"thing": "to_thing"}
-
-        assert expected_read_io_ops == read_io_ops
-        assert expected_write_io_ops == write_io_ops
-
-    @patch("prefect.engine.result_handlers.pandas_result_handler.pd")
-    def test_read_only_handler_not_returned(self, mock_pandas):
-        mock_pandas.read_thing = lambda x: x
-
-        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
-
-        expected_read_io_ops = {}
-        expected_write_io_ops = {}
-
-        assert expected_read_io_ops == read_io_ops
-        assert expected_write_io_ops == write_io_ops
-
-    @patch("prefect.engine.result_handlers.pandas_result_handler.pd")
-    def test_write_only_handler_not_returned(self, mock_pandas):
-        mock_pandas.DataFrame.to_thing = lambda x: x
-
-        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
-
-        expected_read_io_ops = {}
-        expected_write_io_ops = {}
-
-        assert expected_read_io_ops == read_io_ops
-        assert expected_write_io_ops == write_io_ops
-
-    def test_all_read_handlers_have_matching_write_handlers(self):
-        read_io_ops, write_io_ops = PandasResultHandler._generate_pandas_io_methods()
-        assert sorted(list(read_io_ops.keys())) == sorted(list(write_io_ops.keys()))
-
-    def test_read_write_works_csv(self, tmp_dir):
-        filename = os.path.join(tmp_dir, "test.csv")
-        handler = PandasResultHandler(filename, "csv", write_kwargs={"index": False})
-
-        data = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
-        handler.write(data)
-        read_data = handler.read("")
-        pd.testing.assert_frame_equal(data, read_data)
-
-    def test_read_write_works_json(self, tmp_dir):
-        filename = os.path.join(tmp_dir, "test.json")
-        handler = PandasResultHandler(filename, "json")
-
-        data = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
-        handler.write(data)
-        read_data = handler.read("")
-        pd.testing.assert_frame_equal(data, read_data)
-
-    def test_read_write_extension_case_insensitive(self, tmp_dir):
-        filename = os.path.join(tmp_dir, "test.csv")
-        handler = PandasResultHandler(filename, "CsV", write_kwargs={"index": False})
-
-        data = pd.DataFrame({"one": [1, 2, 3], "two": [4, 5, 6]})
-        handler.write(data)
-        read_data = handler.read("")
-        pd.testing.assert_frame_equal(data, read_data)
 
 
 def test_result_handler_base_class_is_a_passthrough():
