@@ -339,8 +339,15 @@ def test_context_attributes():
     assert test_filter.called
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test randomly fails on Windows")
-def test_users_can_specify_additional_context_attributes(caplog):
+def test_users_can_specify_additional_context_attributes():
+    class MyHandler(logging.StreamHandler):
+        log_traces = []
+
+        def emit(self, record):
+            self.log_traces.append(getattr(record, "trace_id", None))
+
+    handler = MyHandler()
+
     items = {
         "flow_run_id": "fri",
         "flow_name": "fn",
@@ -354,15 +361,23 @@ def test_users_can_specify_additional_context_attributes(caplog):
         {"logging.log_attributes": '["trace_id"]'}
     ):
         logger = logging.getLogger("test-logger")
+        logger.addHandler(handler)
 
         with context(items):
             logger.critical("log entry!")
 
-    assert caplog.records[0].trace_id == "ID"
+    assert handler.log_traces[0] == "ID"
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Test randomly fails on Windows")
-def test_users_can_specify_additional_context_attributes_and_fails_gracefully(caplog):
+def test_users_can_specify_additional_context_attributes_and_fails_gracefully():
+    class MyHandler(logging.StreamHandler):
+        log_attrs = []
+
+        def emit(self, record):
+            data = dict(trace_id=record.trace_id, foo=record.foo)
+            self.log_attrs.append(data)
+
+    handler = MyHandler()
     items = {
         "flow_run_id": "fri",
         "flow_name": "fn",
@@ -376,12 +391,13 @@ def test_users_can_specify_additional_context_attributes_and_fails_gracefully(ca
         {"logging.log_attributes": '["trace_id", "foo"]'}
     ):
         logger = logging.getLogger("test-logger")
+        logger.addHandler(handler)
 
         with context(items):
             logger.critical("log entry!")
 
-    assert caplog.records[0].foo is None
-    assert caplog.records[0].trace_id == "ID"
+    assert handler.log_attrs[0]["foo"] is None
+    assert handler.log_attrs[0]["trace_id"] == "ID"
 
 
 def test_context_only_specified_attributes():
