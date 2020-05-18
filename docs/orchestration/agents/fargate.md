@@ -139,6 +139,7 @@ We have also added the ability to select items to the `containerDefinitions` kwa
 environments               list
 secrets                    list
 mountPoints                list
+logConfiguration           dict
 ```
 
 Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.  
@@ -183,7 +184,16 @@ agent = FargateAgent(
             "sourceVolume": "myEfsVolume",
             "containerPath": "/data",
             "readOnly": False
-        }]
+        }],
+        "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+                "awslogs-group": "/my/log/group",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "prefect-flow-runs",
+                "awslogs-create-group": "true",
+            },
+        },
     }],
     volumes=[
         {
