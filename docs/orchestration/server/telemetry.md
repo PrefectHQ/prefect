@@ -9,4 +9,4 @@ To opt-out of telemetry, add the following to a user configuration file on the s
 enabled = false
 ```
 
-See [configuration](../../core/concepts/configuration.md) for a complete overview of configuration.
+See [configuration](/core/concepts/configuration.md) for a complete overview of configuration.
