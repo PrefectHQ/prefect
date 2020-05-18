@@ -9,10 +9,4 @@ To opt-out of telemetry, add the following to your user configuration file (see 
 enabled = false
 ```
 
-As an environment variable this would be:
-
-```bash
-export PREFECT_SERVER__TELEMETRY__ENABLED=false
-```
-
 See [configuration](../../core/concepts/configuration.md) for more details.
