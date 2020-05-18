@@ -22,22 +22,49 @@ We recommend following [Chris Beam's style guide](https://chris.beams.io/posts/g
 
 ### Changelog
 
-It's important to update Prefect's [changelog](/api/latest/changelog.html) with any adjustments to the project. Each release has four sections:
+It's important to update Prefect's [changelog](/api/latest/changelog.html) with
+any adjustments to the project. Each release has a few sections:
 
 - Features: headline additions to the system
 - Enhancements: improvements to existing functionality, or minor additions
+- Server: improvements to Prefect Server
 - Task Library: additions to Prefect's task library
 - Fixes: adjustments that fix bugs or other conditions
+- Deprecations: any deprecated functionality
 - Breaking Changes: any changes that break Prefect's backwards-compatibility
 
-Each entry consists of a brief description and a link to the relevant GitHub issue(s) or PR(s). For example:
+To avoid merge conflicts, Prefect tracks changelog entries as separate files in
+the `changes/` directory. To add a new entry:
 
-```
-### Enhancements
+1. Create a new file in the `changes/` directory. The file name doesn't matter
+   as long as it is unique (we recommend using the issue or PR number e.g.
+   `issue1234.yaml` or `pr1234.yaml`).
 
-- Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)
-- Use timezone-aware dates throughout Prefect - [#325](https://github.com/PrefectHQ/prefect/pull/325)
-- Add `description` and `tags` arguments to `Parameters` - [#318](https://github.com/PrefectHQ/prefect/pull/318)
+2. Choose one (or more if a PR encompasses multiple changes) of the following
+   headers:
+    - `feature`
+    - `enhancement`
+    - `server`
+    - `task`
+    - `fix`
+    - `deprecation`
+    - `breaking`
+
+3. Fill in one (or more) bullet points under the heading, describing the
+   change. Markdown syntax may be used. Each entry should consist of a brief
+   description and a link to the relevant GitHub issue(s) or PR(s).
+
+4. If you would like to be credited as helping with this release, add a
+   contributor section with your name and github username.
+
+Here's an example of a PR that adds an enhancement
+
+```yaml
+enhancement:
+  - "Add new `TimedOut` state for task execution timeouts - [#255](https://github.com/PrefectHQ/prefect/issues/255)"
+
+contributor:
+  - "[Chris White](https://github.com/cicdw)"
 ```
 
 ### Tests

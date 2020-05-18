@@ -25,7 +25,8 @@ To create a new change file:
     - `breaking` (for breaking changes)
 
 - Fill in one (or more) bullet points under the heading, describing the change.
-  Markdown syntax may be used.
+  Markdown syntax may be used. Each entry should consist of a brief description
+  and a link to the relevant GitHub issue(s) or PR(s).
 
 - If you would like to be credited as helping with this release, add a
   contributor section with your name and github username.
