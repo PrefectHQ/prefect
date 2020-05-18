@@ -1,2 +1,0 @@
-fix:
-  - Fix bug in Kubernetes agent ``deployment.yaml`` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)

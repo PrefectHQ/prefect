@@ -1,2 +1,0 @@
-breaking:
-  - Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)

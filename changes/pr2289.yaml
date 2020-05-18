@@ -1,2 +1,0 @@
-breaking:
-  - "Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)"

@@ -1,5 +1,0 @@
-enhancement:
-  - "`flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)"
-
-contributor:
-  - "[Alvin Goh](https://github.com/chuehsien)"
