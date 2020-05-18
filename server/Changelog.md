@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add unified CRUD operations for simple row-by-row operations
+
 ### Features
 
 - Open source!

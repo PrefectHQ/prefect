@@ -8,14 +8,14 @@ import uuid
 from typing import List
 
 import pendulum
+import prefect
 import pydantic
 import pytest
 from box import Box
-
-import prefect
-from prefect.utilities.graphql import EnumValue
 from prefect.engine.state import Running, Scheduled
 from prefect.serialization.state import StateSchema
+from prefect.utilities.graphql import EnumValue
+
 from prefect_server import api
 from prefect_server.database import hasura
 from prefect_server.database import models as m
@@ -136,6 +136,62 @@ class TestFields:
             "dt": str(t1),
             "p": str((t1 - t2).total_seconds()),
         }
+
+
+class TestCRUDMixin:
+    def test_query_by_id_raises_error_without_id(self):
+        with pytest.raises(TypeError):
+            query = m.Flow.query_by_id()
+
+        with pytest.raises(ValueError):
+            query = m.Flow.query_by_id(None)
+
+    def test_query_by_id_returns_query(self):
+        query = m.Flow.query_by_id("hello, world!")
+        assert query.model == m.Flow
+        assert query.where == {"id": {"_eq": "hello, world!"}}
+
+    async def test_create(self):
+        id = await m.Flow.create(name="test")
+        assert uuid.UUID(id)
+
+        assert await m.Flow.where().count() == 1
+
+    async def test_create_bad_values(self):
+        with pytest.raises(ValueError):
+            id = await m.Flow.create()
+
+    async def test_update_by_id(self):
+        id = await m.Flow.create(name="test")
+        update = {"name": "test_update_by_id"}
+        updated_successfully = await m.Flow.update_by_id(id=id, set=update,)
+        assert updated_successfully
+
+    async def test_update_by_id_bad_id(self):
+        update = {"name": "test_update_by_id"}
+        update_failed = await m.Flow.update_by_id(id=str(uuid.uuid4()), set=update,)
+        assert not update_failed
+
+    async def test_get_by_id(self):
+        id = await m.Flow.create(name="test_get_by_id")
+        flow_with_name = await m.Flow.get_by_id(id, selection_set={"name", "id"})
+        assert flow_with_name.name == "test_get_by_id"
+        assert flow_with_name.id == id
+
+    async def test_get_by_id_not_found(self):
+
+        flow_with_name = await m.Flow.get_by_id(str(uuid.uuid4()), {"name"})
+        assert flow_with_name is None
+
+    async def test_delete_by_id(self, flow_id: str):
+        assert await m.Flow.where().count() == 1
+        assert await m.Flow.delete_by_id(flow_id) is True
+        assert await m.Flow.where().count() == 0
+
+    async def test_delete_by_id_bad_id(self, flow_id: str):
+        assert await m.Flow.where().count() == 1
+        assert await m.Flow.delete_by_id(str(uuid.uuid4())) is False
+        assert await m.Flow.where().count() == 1
 
 
 class TestORM:

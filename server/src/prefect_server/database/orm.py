@@ -2,20 +2,20 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import ujson
 import datetime
 import uuid
-from typing import List, Union, cast
+from typing import Any, List, Optional, Union, cast
 
 import pendulum
-from box import Box
-
 import psycopg2
-import prefect
-from prefect.utilities.graphql import with_args
+import pydantic
+import ujson
+from box import Box
 from prefect_server import config
 from prefect_server.database.hasura import GQLObjectTypes, HasuraClient
-import pydantic
+
+import prefect
+from prefect.utilities.graphql import with_args
 
 hasura_client = HasuraClient()
 sentinel = object()
@@ -56,7 +56,104 @@ def _as_timedelta(value: Union[str, datetime.timedelta]) -> datetime.timedelta:
     return value
 
 
-class HasuraModel(pydantic.BaseModel):
+class CRUDMixin:
+    """
+    A mixin utility for having a simple, consistent,
+    and opinionated API for row-by-row CRUD operations.
+    """
+
+    @classmethod
+    async def create(cls, **kwargs: Any):
+        """
+        Convenience method for creating an object in the database.
+
+        This is typically used when an entity needs to be created
+        in the database and the value does not need to be referenced
+        again.
+
+        Args:
+            - kwargs (Any): Dict to populate the instance with
+        
+        Returns:
+            - str: ID of the newly created record
+        """
+        instance = cls(**kwargs)
+        return await instance.insert()
+
+    @classmethod
+    async def get_by_id(
+        cls, id: str, selection_set: GQLObjectTypes
+    ) -> Optional["HasuraModel"]:
+        """
+        Convenience method for fetching a database entity based on its primary
+        key's value.
+
+        Args:
+            - id (str): The value of the entity's ID
+            - selection_set (GQLObjectTypes): Fields to populate on the
+                instance after the query.
+
+        Returns:
+            - Optional["HasuraModel"]: The result if found
+        """
+        query = cls.query_by_id(id)
+        return await query.first(selection_set=selection_set)
+
+    @classmethod
+    async def update_by_id(cls, id: str, set: GQLObjectTypes,) -> bool:
+        """
+        Convenience method for updating one record in the database
+        by it's primary key value.
+
+        Args:
+            - id (str): The value of the entity's ID
+        
+        Returns:
+            - bool: Flag indicating update success
+        """
+        query = cls.query_by_id(id)
+        result = await query.update(set=set, selection_set={"affected_rows"})
+
+        return bool(result.affected_rows)
+
+    @classmethod
+    async def delete_by_id(cls, id: str) -> bool:
+        """
+        Convenience method for deleting an entity based on its ID.
+
+        Args:
+            - id (str): The table's `id` value
+        
+        Returns:
+            - bool: Flag indicating whether delete success.
+        """
+        query = cls.query_by_id(id)
+        result = await query.delete(selection_set={"affected_rows"})
+
+        return bool(result.affected_rows)
+
+    @classmethod
+    def query_by_id(cls, id: str) -> "ModelQuery":
+        """
+        Convenience method for constructing a query based on its primary
+        key's value.
+
+        Args:
+            - id (str): The table's `id` value
+
+        Raises:
+            - ValueError: If the `id` provided is `None`.
+        
+        Returns:
+            - ModelQuery: Query having searched for the object
+        """
+        if id is None:
+            raise ValueError("No ID provided to locate the instance.")
+        where = {"id": {"_eq": id}}
+        return ModelQuery(cls, where=where)
+
+
+class HasuraModel(pydantic.BaseModel, CRUDMixin):
     """
     An ORM class for working with Hasura objects
     """
