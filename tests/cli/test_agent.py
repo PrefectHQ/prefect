@@ -24,10 +24,7 @@ def test_agent_help():
     assert "Manage Prefect agents." in result.output
 
 
-def test_agent_start_fails_no_token(monkeypatch, cloud_api):
-    start = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.LocalAgent.start", start)
-
+def test_agent_start_fails_no_token(cloud_api):
     runner = CliRunner()
     result = runner.invoke(agent, ["start"])
     assert result.exit_code == 1
