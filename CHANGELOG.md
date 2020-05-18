@@ -11,7 +11,6 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 ### Enhancements
 
 - Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
-- Create `initialize_task()` method for abstracting initialization logic across new task instances and copies - [#2590](https://github.com/PrefectHQ/prefect/pull/2590)
 
 ### Server
 
@@ -26,6 +25,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
 - Fix type for Dask Security in RemoteDaskEnvironment - [#2571](https://github.com/PrefectHQ/prefect/pull/2571)
 - Fix issue with `log_stdout` not correctly storing returned data on the task run state - [#2585](https://github.com/PrefectHQ/prefect/pull/2585)
+- Ensure result locations are updated from targets when copying tasks with `task_args` - [#2590](https://github.com/PrefectHQ/prefect/pull/2590)
 
 ### Deprecations
 
