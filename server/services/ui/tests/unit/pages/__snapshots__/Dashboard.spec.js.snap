@@ -89,6 +89,10 @@ exports[`Dashboard should match snapshot 1`] = `
         <errorstile-stub
           fullheight="true"
         />
+         
+        <apihealthtile-stub
+          fullheight="true"
+        />
       </tilelayout-stub>
     </v-tab-item-stub>
      
@@ -200,6 +204,10 @@ exports[`Dashboard should properly mount 1`] = `
         <flowrunheartbeattile-stub />
          
         <errorstile-stub
+          fullheight="true"
+        />
+         
+        <apihealthtile-stub
           fullheight="true"
         />
       </tilelayout-stub>
