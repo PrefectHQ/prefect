@@ -284,10 +284,11 @@ class Task(metaclass=SignatureValidator):
                 and self.result.location != self.target
             ):
                 warnings.warn(
-                    "Both `result.location` and `target` were provided. The `target` value will be used."
+                    "Both `result.location` and `target` were provided. "
+                    "The `target` value will be used."
                 )
             self.result = self.result.copy()
-            self.result.location = target
+            self.result.location = self.target
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
