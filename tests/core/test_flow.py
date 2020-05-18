@@ -2765,3 +2765,19 @@ def test_results_write_to_formatted_locations(tmpdir):
         "1.txt",
         "3.txt",
     }
+
+
+def test_run_agent_passes_environment_labels(monkeypatch):
+    agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
+
+    f = Flow(
+        "test",
+        environment=prefect.environments.LocalEnvironment(
+            labels=["test", "test", "test2"]
+        ),
+    )
+    f.run_agent()
+
+    assert type(agent.call_args[1]["labels"]) is list
+    assert set(agent.call_args[1]["labels"]) == set(["test", "test2"])

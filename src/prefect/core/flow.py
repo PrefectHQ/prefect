@@ -1360,7 +1360,7 @@ class Flow:
             "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
-            labels = self.environment.labels
+            labels = list(self.environment.labels) if self.environment.labels else []
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
