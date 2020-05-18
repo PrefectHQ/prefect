@@ -10,9 +10,20 @@ from typing import Any, Callable
 import prefect
 
 
+class _DocProxy(object):
+    def __init__(self, source):
+        self._source = source
+
+    def __get__(self, obj, cls):
+        if obj is None:
+            return self._source
+        else:
+            return obj.run.__doc__
+
+
 class FunctionTask(prefect.Task):
-    """
-    A convenience Task for functionally creating Task instances with
+    __doc__ = _DocProxy(
+        """A convenience Task for functionally creating Task instances with
     arbitrary callable `run` methods.
 
     Args:
@@ -33,6 +44,7 @@ class FunctionTask(prefect.Task):
         result = task(42)
     ```
     """
+    )
 
     def __init__(self, fn: Callable, name: str = None, **kwargs: Any):
         if not callable(fn):
