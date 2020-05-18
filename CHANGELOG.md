@@ -30,6 +30,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 - Fix `S3Result` exists function handling of `NoSuchKey` error - [#2585](https://github.com/PrefectHQ/prefect/issues/2585)
 - Fix confusing language in Telemetry documentation - [#2593](https://github.com/PrefectHQ/prefect/pull/2593)
 - Fix `LocalAgent` not registering with Cloud using default labels - [#2587](https://github.com/PrefectHQ/prefect/issues/2587)
+- Fix flow's `run_agent` function passing a `set` of labels to Agent instead of a `list` - [#2600](https://github.com/PrefectHQ/prefect/pull/2600)
 
 ### Deprecations
 
