@@ -12,6 +12,7 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Allow log configuration in Fargate Agent - [#2589](https://github.com/PrefectHQ/prefect/pull/2589)
 - Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
+- Show a warning when tasks are created in a flow context but not added to a flow - [#2584](https://github.com/PrefectHQ/prefect/pull/2584)
 
 ### Server
 

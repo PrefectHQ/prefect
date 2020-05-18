@@ -693,6 +693,48 @@ def test_key_states_raises_error_if_not_iterable():
             f.set_reference_tasks(t1)
 
 
+def test_warning_raised_if_tasks_are_created_but_not_added_to_flow():
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            tracker = prefect.context._new_task_tracker
+            assert len(tracker) == 0
+            x = Parameter("x")
+            assert len(tracker) == 1
+            assert x in tracker
+        assert "_new_task_tracker" not in prefect.context
+
+
+def test_warning_raised_if_tasks_are_created_but_not_added_to_nested_flow():
+    # only one warning for nested flows
+    with pytest.warns(None) as record:
+        with Flow(name="test"):
+            tracker_1 = prefect.context._new_task_tracker
+            with Flow(name="test2"):
+                tracker_2 = prefect.context._new_task_tracker
+                x = Parameter("x")
+                assert x in tracker_2
+                assert x not in tracker_1
+
+    assert len(record) == 1
+
+
+def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            f.add_task(x)
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
+    x = Parameter("x")
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            x.copy("x2")
+
+
 def test_context_is_scoped_to_flow_context():
     with Flow(name="f"):
         prefect.context.name = "f"
