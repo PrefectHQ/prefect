@@ -419,13 +419,6 @@ class TestTaskCopy:
         assert t.slug == "test"
         assert t2.slug == "test-2"
 
-    def test_copy_calls_initialize_task(self, monkeypatch):
-        t = Task()
-        mock = MagicMock()
-        monkeypatch.setattr("prefect.Task.initialize_task", mock)
-        t.copy()
-        mock.assert_called_once()
-
     def test_copy_appropriately_sets_result_target_if_target_provided(self):
         # https://github.com/PrefectHQ/prefect/issues/2588
         @task(target="target", result=LocalResult(dir="."))
