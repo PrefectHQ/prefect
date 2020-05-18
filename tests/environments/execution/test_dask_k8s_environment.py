@@ -269,7 +269,7 @@ def test_populate_job_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
@@ -319,7 +319,7 @@ def test_populate_worker_pod_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
@@ -393,7 +393,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
@@ -435,7 +435,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):

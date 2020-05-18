@@ -79,7 +79,7 @@ class TestS3Result:
         import botocore
 
         exc = botocore.exceptions.ClientError(
-            {"Error": {"Code": "404"}}, "list_objects"
+            {"Error": {"Code": "NoSuchKey"}}, "list_objects"
         )
 
         class _client:
@@ -98,7 +98,7 @@ class TestS3Result:
         import botocore
 
         exc = botocore.exceptions.ClientError(
-            {"Error": {"Code": "404"}}, "list_objects"
+            {"Error": {"Code": "NoSuchKey"}}, "list_objects"
         )
 
         class _client:

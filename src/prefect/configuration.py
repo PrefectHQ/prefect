@@ -43,7 +43,7 @@ def string_to_type(val: str) -> Union[bool, int, float, str]:
         - "true" (any capitalization) to `True`
         - "false" (any capitalization) to `False`
         - any other valid literal Python syntax interpretable by ast.literal_eval
-        
+
     Arguments:
         - val (str): the string value of an environment variable
 
@@ -229,7 +229,10 @@ def interpolate_config(config: dict, env_var_prefix: str = None) -> Config:
 
     # interpolate any env vars referenced
     for k, v in list(flat_config.items()):
-        flat_config[k] = interpolate_env_vars(v)
+        val = interpolate_env_vars(v)
+        if isinstance(val, str):
+            val = string_to_type(val)
+        flat_config[k] = val
 
     # --------------------- Interpolate other config keys -----------------
     # TOML doesn't support references to other keys... but we do!
