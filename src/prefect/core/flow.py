@@ -328,7 +328,7 @@ class Flow:
         """
         When entering a flow context, the Prefect context is modified to include:
             - `flow`: the flow itself
-            - `_new_task_tracker`: a set of all tasks created while the context is 
+            - `_new_task_tracker`: a set of all tasks created while the context is
                 open, in order to provide user friendly warnings if they aren't added
                 to the flow itself. This is purely for user experience.
         """
@@ -337,7 +337,13 @@ class Flow:
         with prefect.context(flow=self, _new_task_tracker=new_task_tracker):
             yield self
 
-        if new_task_tracker.difference(self.tasks):
+        # constants are not tracked at the flow level
+        new_tasks = {
+            t
+            for t in new_task_tracker
+            if not isinstance(t, prefect.tasks.core.constants.Constant)
+        }
+        if new_tasks.difference(self.tasks):
             warnings.warn(
                 "Tasks were created but not added to the flow: "
                 f"{new_task_tracker.difference(self.tasks)}. This can occur "
