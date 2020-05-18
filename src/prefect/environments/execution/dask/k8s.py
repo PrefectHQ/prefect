@@ -1,4 +1,3 @@
-from ast import literal_eval
 import base64
 import json
 import uuid
@@ -334,7 +333,7 @@ class DaskKubernetesEnvironment(Environment):
             "distributed.deploy.adaptive",
             "kubernetes",
         ]
-        config_extra_loggers = literal_eval(prefect.config.logging.extra_loggers)
+        config_extra_loggers = prefect.config.logging.extra_loggers
 
         extra_loggers = [*config_extra_loggers, *cluster_loggers]
 

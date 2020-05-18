@@ -14,7 +14,7 @@ The CLI is being built to comply with user demands on what is deemed useful. The
 
 ## Interacting with the CLI
 
-// TODO: Update with new CLI changes
+<!-- TODO: Update with new CLI changes -->
 
 Once you have Prefect installed (either through `pip` or `conda`) you may begin working with the CLI directly in your terminal. To see the CLI run `prefect` from the command line and you should see an output similar to the one below:
 
