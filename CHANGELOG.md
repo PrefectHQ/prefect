@@ -22,9 +22,9 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
-- Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
 - Fix type for Dask Security in RemoteDaskEnvironment - [#2571](https://github.com/PrefectHQ/prefect/pull/2571)
 - Fix issue with `log_stdout` not correctly storing returned data on the task run state - [#2585](https://github.com/PrefectHQ/prefect/pull/2585)
+- Fix `S3Result` exists function handling of `NoSuchKey` error - [#2585](https://github.com/PrefectHQ/prefect/issues/2585)
 
 ### Deprecations
 
