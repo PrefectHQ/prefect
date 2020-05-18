@@ -16,7 +16,7 @@ RUN apt-get -qq -y update && apt-get -qq -y install --no-install-recommends --no
 ARG PREFECT_VERSION=master
 ENV PREFECT_VERSION=$PREFECT_VERSION
 
-RUN pip install git+https://github.com/PrefectHQ/prefect.git@${PREFECT_VERSION}#egg=prefect[kubernetes]
+RUN pip install git+https://github.com/PrefectHQ/prefect.git@${PREFECT_VERSION}#egg=prefect
 
 COPY . /prefect-server
 
