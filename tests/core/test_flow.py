@@ -728,6 +728,18 @@ def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
     assert len(record) == 0
 
 
+def test_warning_not_raised_for_constant_tasks():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            tt = Task()[0]
+
+    # confirm tasks were added
+    assert len(f.tasks) == 2
+
+    # no warnings
+    assert len(record) == 0
+
+
 def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
     x = Parameter("x")
     with pytest.warns(UserWarning, match="Tasks were created but not added"):
