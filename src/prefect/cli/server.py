@@ -48,7 +48,7 @@ def make_env(fname=None):
         POSTGRES_USER=config.server.database.username,
         POSTGRES_PASSWORD=config.server.database.password,
         POSTGRES_DB=config.server.database.name,
-        POSTGRES_DATA_PATH=config.server.database.data_path,
+        POSTGRES_DATA_PATH=config.server.database.volume_path,
     )
 
     UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
