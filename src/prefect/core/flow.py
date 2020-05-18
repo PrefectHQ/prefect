@@ -341,8 +341,8 @@ class Flow:
             warnings.warn(
                 "Tasks were created but not added to the flow: "
                 f"{new_task_tracker.difference(self.tasks)}. This can occur "
-                "when `Task` classes including `Parameters` are instantiated "
-                "inside a `with Flow:` block but not added to the flow either "
+                "when `Task` classes, including `Parameters`, are instantiated "
+                "inside a `with flow:` block but not added to the flow either "
                 "explicitly or as the input to another task. For more information, "
                 "see https://docs.prefect.io/core/advanced_tutorials/task-guide.html#adding-tasks-to-flows."
             )
