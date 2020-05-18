@@ -377,6 +377,12 @@ class Task(metaclass=SignatureValidator):
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
 
+        # if new task creations are being tracked, add this task
+        # this makes it possible to give guidance to users that forget
+        # to add tasks to a flow
+        if "_new_task_tracker" in prefect.context:
+            prefect.context._new_task_tracker.add(new)
+
         return new
 
     def __call__(

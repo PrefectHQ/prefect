@@ -728,6 +728,13 @@ def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
     assert len(record) == 0
 
 
+def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
+    x = Parameter("x")
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            x.copy("x2")
+
+
 def test_context_is_scoped_to_flow_context():
     with Flow(name="f"):
         prefect.context.name = "f"
