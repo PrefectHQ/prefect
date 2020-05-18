@@ -116,7 +116,7 @@ def test_agent_log_level_debug(runner_token):
 
 def test_agent_fails_no_auth_token(cloud_api):
     with pytest.raises(AuthorizationError):
-        agent = Agent()
+        agent = Agent().start()
 
 
 def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
@@ -134,7 +134,7 @@ def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     monkeypatch.setattr("requests.Session", session)
 
     with pytest.raises(AuthorizationError):
-        agent = Agent()
+        agent = Agent().start()
 
 
 def test_query_flow_runs(monkeypatch, runner_token, cloud_api):
@@ -506,7 +506,8 @@ def test_agent_registration_and_id(monkeypatch, cloud_api):
         "prefect.agent.agent.Client.register_agent", MagicMock(return_value="ID")
     )
 
-    agent = Agent()
+    agent = Agent(max_polls=1)
+    agent.start()
     assert agent._register_agent() == "ID"
     assert agent.client._attached_headers == {"X-PREFECT-AGENT-ID": "ID"}
 
