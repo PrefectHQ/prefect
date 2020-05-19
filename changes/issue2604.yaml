@@ -1,0 +1,2 @@
+fix:
+  - Fix error when adding `Parameter` to flow under `case` statement - [#2608](https://github.com/PrefectHQ/prefect/pull/2608)
