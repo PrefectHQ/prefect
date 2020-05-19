@@ -10,6 +10,7 @@ import sys
 import warnings
 
 import cloudpickle
+import prefect
 
 
 def system_check(python_version: str):
@@ -42,16 +43,27 @@ def cloudpickle_deserialization_check(flow_file_paths: str):
     return flows
 
 
-def result_handler_check(flows: list):
-    for flow in flows:
-        if flow.result_handler is not None:
-            continue
+def _check_mapped_result_templates(flow: "prefect.Flow"):
+    if not any(edge.key and edge.mapped for edge in flow.edges):
+        return
 
-        ## test for tasks which are checkpointed with no result handler
-        if any([(t.checkpoint and t.result_handler is None) for t in flow.tasks]):
-            raise ValueError(
-                "Some tasks request to be checkpointed but do not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details."
-            )
+    for edge in flow.edges:
+        if edge.mapped and edge.key:
+            result = edge.downstream_task.result or flow.result
+            location = getattr(result, "location", None)
+            if location is None:
+                continue
+            if "{filename}" not in location:
+                raise ValueError(
+                    "Mapped tasks with custom result locations must include {filename} as a template in their location - see https://docs.prefect.io/core/advanced_tutorials/using-results.html#specifying-a-location-for-mapped-or-looped-tasks"
+                )
+
+
+def result_check(flows: list):
+    for flow in flows:
+        _check_mapped_result_templates(flow)
+        if flow.result is not None:
+            continue
 
         ## test for tasks which might retry without upstream result handlers
         retry_tasks = [t for t in flow.tasks if t.max_retries > 0]
@@ -59,13 +71,13 @@ def result_handler_check(flows: list):
         for task in retry_tasks:
             if any(
                 [
-                    e.upstream_task.result_handler is None
+                    e.upstream_task.result is None
                     for e in upstream_edges[task]
                     if e.key is not None
                 ]
             ):
                 raise ValueError(
-                    "Task {} has retry settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
+                    "Task {} has retry settings but some upstream dependencies do not have result types. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )
@@ -73,25 +85,25 @@ def result_handler_check(flows: list):
         ## test for tasks which request caching with no result handler or no upstream result handlers
         cached_tasks = [t for t in flow.tasks if t.cache_for is not None]
         for task in cached_tasks:
-            if task.result_handler is None:
+            if task.result is None:
                 raise ValueError(
-                    "Task {} has cache settings but does not have a result handler. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
+                    "Task {} has cache settings but does not have a result type. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )
             if any(
                 [
-                    e.upstream_task.result_handler is None
+                    e.upstream_task.result is None
                     for e in upstream_edges[task]
                     if e.key is not None
                 ]
             ):
                 raise ValueError(
-                    "Task {} has cache settings but some upstream dependencies do not have result handlers. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
+                    "Task {} has cache settings but some upstream dependencies do not have result types. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
                         task
                     )
                 )
-    print("Result Handler check: OK")
+    print("Result check: OK")
 
 
 def environment_dependency_check(flows: list):
@@ -121,6 +133,6 @@ if __name__ == "__main__":
     print("Beginning health checks...")
     system_check(python_version)
     flows = cloudpickle_deserialization_check(flow_file_path)
-    result_handler_check(flows)
+    result_check(flows)
     environment_dependency_check(flows)
     print("All health checks passed.")

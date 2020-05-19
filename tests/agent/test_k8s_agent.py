@@ -1,5 +1,3 @@
-from os import path
-import tempfile
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,7 +8,6 @@ import yaml
 
 import prefect
 from prefect.agent.kubernetes import KubernetesAgent
-from prefect.agent.kubernetes.agent import check_heartbeat
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -122,7 +119,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -136,7 +133,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         job = agent.replace_job_spec_yaml(flow_run)
 
         assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "id"
+        assert job["metadata"]["labels"]["flow_id"] == "new_id"
         assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
@@ -147,9 +144,10 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == "default"
-        assert env[4]["value"] == "[]"
-        assert env[5]["value"] == "true"
+        assert env[3]["value"] == "new_id"
+        assert env[4]["value"] == "default"
+        assert env[5]["value"] == "[]"
+        assert env[6]["value"] == "true"
 
         user_vars = [
             dict(name="AUTH_THING", value="foo"),
@@ -176,7 +174,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -190,7 +188,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         job = agent.replace_job_spec_yaml(flow_run)
 
         assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "id"
+        assert job["metadata"]["labels"]["flow_id"] == "new_id"
         assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
@@ -201,9 +199,10 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         assert env[0]["value"] == "https://api.prefect.io"
         assert env[1]["value"] == "token"
         assert env[2]["value"] == "id"
-        assert env[3]["value"] == "default"
-        assert env[4]["value"] == "[]"
-        assert env[5]["value"] == "true"
+        assert env[3]["value"] == "new_id"
+        assert env[4]["value"] == "default"
+        assert env[5]["value"] == "[]"
+        assert env[6]["value"] == "true"
 
         assert (
             job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
@@ -231,7 +230,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -239,13 +238,10 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
         }
     )
 
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": flag}
-    ):
-        agent = KubernetesAgent()
-        job = agent.replace_job_spec_yaml(flow_run)
-        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        assert env[5]["value"] == str(flag).lower()
+    agent = KubernetesAgent(no_cloud_logs=flag)
+    job = agent.replace_job_spec_yaml(flow_run)
+    env = job["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert env[6]["value"] == str(not flag).lower()
 
 
 def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
@@ -283,7 +279,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "id": "id",
+                    "id": "new_id",
                 }
             ),
             "id": "id",
@@ -293,7 +289,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     agent = KubernetesAgent(labels=["foo", "bar"])
     job = agent.replace_job_spec_yaml(flow_run)
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-    assert env[4]["value"] == "['foo', 'bar']"
+    assert env[5]["value"] == "['foo', 'bar']"
 
 
 def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
@@ -306,6 +302,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
         api="test_api",
         namespace="test_namespace",
         resource_manager_enabled=True,
+        backend="backend-test",
     )
 
     deployment = yaml.safe_load(deployment)
@@ -318,10 +315,44 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
+    assert agent_env[9]["value"] == "backend-test"
 
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"
     assert resource_manager_env[3]["value"] == "test_namespace"
+
+
+def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml(
+        env_vars={"test1": "test2", "test3": "test4"}
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert agent_env[11]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
+    assert agent_env[11]["value"] == "test2"
+    assert agent_env[12]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
+    assert agent_env[12]["value"] == "test4"
+
+
+def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    agent = KubernetesAgent()
+    deployment = agent.generate_deployment_yaml()
+
+    deployment = yaml.safe_load(deployment)
+
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+
+    assert agent_env[9]["value"] == "server"
 
 
 @pytest.mark.parametrize(
@@ -510,73 +541,6 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
             assert "rbac" in document["apiVersion"]
             assert document["metadata"]["namespace"] == "test_namespace"
             assert document["metadata"]["name"] == "prefect-agent-rbac"
-
-
-def test_k8s_agent_heartbeat_creates_file(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-        agent.heartbeat()
-
-        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
-
-
-def test_k8s_agent_heartbeat_modifies(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-        agent.heartbeat()
-
-        assert path.exists("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        first = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        # Wait one second until next heartbeat
-        import time
-
-        time.sleep(1)
-
-        agent.heartbeat()
-        second = path.getmtime("{}/.prefect/agent/heartbeat".format(tempdir))
-
-        assert second > first
-
-
-def test_k8s_agent_heartbeat_check(monkeypatch, runner_token):
-    k8s_config = MagicMock()
-    monkeypatch.setattr("kubernetes.config", k8s_config)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-
-        monkeypatch.setattr(
-            "prefect.agent.kubernetes.agent.AGENT_DIRECTORY",
-            "{}/.prefect/agent".format(tempdir),
-        )
-
-        agent = KubernetesAgent()
-
-        # Verify no exit codes of status `1` were raised
-        agent.heartbeat()
-        assert not check_heartbeat()
-
-        agent.heartbeat()
-        assert not check_heartbeat()
 
 
 def test_k8s_agent_start_max_polls(monkeypatch, runner_token):

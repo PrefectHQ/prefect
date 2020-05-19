@@ -1,9 +1,7 @@
 import json
-import warnings
 from typing import Any, List
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -18,7 +16,6 @@ class OpenGitHubIssue(Task):
         - body (str, optional): the contents of the issue; can also be provided to the `run` method
         - labels (List[str], optional): a list of labels to apply to the newly opened issues; can also
             be provided to the `run` method
-        - token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your GitHub Access Token
         - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
     """
 
@@ -28,20 +25,12 @@ class OpenGitHubIssue(Task):
         title: str = None,
         body: str = None,
         labels: List[str] = None,
-        token_secret: str = None,
         **kwargs: Any
     ):
         self.repo = repo
         self.title = title
         self.body = body
         self.labels = labels or []
-        if token_secret is not None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-        self.token_secret = token_secret
         super().__init__(**kwargs)
 
     @defaults_from_attrs("repo", "title", "body", "labels")
@@ -75,15 +64,6 @@ class OpenGitHubIssue(Task):
         """
         if repo is None:
             raise ValueError("A GitHub repository must be provided.")
-
-        ## prepare the request
-        if token is None:
-            warnings.warn(
-                "The `token` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-            )
-            token = Secret(self.token_secret).get()
 
         # 'import requests' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low

@@ -99,6 +99,7 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 - aws_secret_access_key (str, optional): AWS secret access key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SECRET_ACCESS_KEY`.
 - aws_session_token (str, optional): AWS session key for connecting the boto3 client. Defaults to the value set in the environment variable `AWS_SESSION_TOKEN`.
 - region_name (str, optional): AWS region name for connecting the boto3 client. Defaults to the value set in the environment variable `REGION_NAME`.
+- botocore_config (dict, optional): [botocore configuration](https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html) options to be passed to the boto3 client.
 
 - enable_task_revisions (bool, optional): Enable registration of task definitions using revisions.
   When enabled, task definitions will use flow name as opposed to flow id and each new version will be a
@@ -130,6 +131,93 @@ pidMode                     string
 ipcMode                     string
 proxyConfiguration          dict
 inferenceAccelerators       list
+```
+
+We have also added the ability to select items to the `containerDefinitions` kwarg of `register_task_definition`:
+
+```
+environments               list
+secrets                    list
+mountPoints                list
+logConfiguration           dict
+```
+
+Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.  
+You should continue to use the `env_vars` kwarg to pass agent level environment variables to your tasks.
+
+This adds support for Native AWS Secrets Manager and/or Parameter Store in your flows.
+
+Given that you running your Fargate tasks on `platformVersion` 1.4.0 or higher, you can also leverage `volumes` and `mountPoints` to attach an EFS backed volume on to your tasks.
+In order to use `mountPoints` you will need to include the proper `volumes` kwarg as shown below.
+
+Here is an example of what kwargs would look like with `containerDefinitions` via Python:
+
+```python
+from prefect.agent.fargate import FargateAgent
+
+agent = FargateAgent(
+    launch_type="FARGATE",
+    aws_access_key_id="MY_ACCESS",
+    aws_secret_access_key="MY_SECRET",
+    aws_session_token="MY_SESSION",
+    region_name="MY_REGION",
+    networkConfiguration={
+        "awsvpcConfiguration": {
+            "assignPublicIp": "ENABLED",
+            "subnets": ["my_subnet_id"],
+            "securityGroups": []
+        }
+    },
+    cpu="256",
+    memory="512",
+    platformVersion="1.4.0",
+    containerDefinitions=[{
+        "environment": [{
+            "name": "TEST_ENV",
+            "value": "Success!"
+        }],
+        "secrets": [{
+            "name": "TEST_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+        }],
+        "mountPoints": [{
+            "sourceVolume": "myEfsVolume",
+            "containerPath": "/data",
+            "readOnly": False
+        }],
+        "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+                "awslogs-group": "/my/log/group",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "prefect-flow-runs",
+                "awslogs-create-group": "true",
+            },
+        },
+    }],
+    volumes=[
+        {
+          "name": "myEfsVolume",
+          "efsVolumeConfiguration": {
+            "fileSystemId": "my_efs_id",
+            "transitEncryption": "ENABLED",
+            "authorizationConfig": {
+                "accessPointId": "my_efs_access_point",
+                "iam": "ENABLED"
+            }
+          }
+        }
+      ]
+    ),
+
+agent.start()
+```
+
+You can also pass these in using environment variables with the format of `containerDefinitions_<key>`, for example:
+```
+containerDefinitions_environment
+containerDefinitions_secrets
+containerDefinitions_mountPoints
 ```
 
 Accepted kwargs for [`run_task`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task):
@@ -180,6 +268,8 @@ By default, all of the kwargs mentioned above are passed in to the Agent configu
 
 When enabled, the Agent will check for the existence of an external kwargs file from a bucket in S3. In order to use this feature you must also provide `external_kwargs_s3_bucket` and `external_kwargs_s3_key` to your Agent. If a file exists matching a set S3 key path, the Agent will apply these kwargs to the boto3 `register_task_definition` and `run_task` functions.
 
+External kwargs must be in `json` format.
+
 The S3 key path that will be used when fetching files is:
 
 ```
@@ -228,6 +318,53 @@ This functionality requires the agent have a proper IAM policy for fetching obje
             "Resource": "<s3 bucket kwargs path>"
         }
     ]
+}
+```
+
+External kwargs also support `containerDefinitions` mentioned above, which makes it easier support different environment variables, secrets, and mounted EFS volumes for different flows.
+
+Here is an example of the external kwargs json:
+
+```json
+{
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "assignPublicIp": "ENABLED",
+            "subnets": ["my_subnet_id"],
+            "securityGroups": []
+        }
+    },
+    "cpu": "256",
+    "memory"": "512",
+    "platformVersion": "1.4.0",
+    "containerDefinitions": [{
+        "environment": [{
+            "name": "TEST_ENV",
+            "value": "Success!"
+        }],
+        "secrets": [{
+            "name": "TEST_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:123456789101:parameter/test/test"
+        }],
+        "mountPoints": [{
+            "sourceVolume": "myEfsVolume",
+            "containerPath": "/data",
+            "readOnly": false
+        }]
+    }],
+    "volumes": [
+        {
+          "name": "myEfsVolume",
+          "efsVolumeConfiguration": {
+            "fileSystemId": "my_efs_id",
+            "transitEncryption": "ENABLED",
+            "authorizationConfig": {
+                "accessPointId": "my_efs_access_point",
+                "iam": "ENABLED"
+        }
+      }
+    }
+  ]
 }
 ```
 

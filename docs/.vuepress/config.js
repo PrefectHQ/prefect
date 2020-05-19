@@ -1,12 +1,13 @@
 const sidebar81 = require('../api/0.8.1/sidebar')
 const sidebar98 = require('../api/0.9.8/sidebar')
+const sidebar107 = require('../api/0.10.7/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
-    .map((path) => {
+    .map(path => {
       // remove "parent_path" and ".md"
       path = path.slice(parent_path.length + 1, -3)
       // remove README
@@ -73,7 +74,8 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.10.4)', link: '/api/latest/' },
+          { text: 'Latest (0.11.2)', link: '/api/latest/' },
+          { text: '0.10.7', link: '/api/0.10.7/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -87,6 +89,7 @@ module.exports = {
     sidebar: {
       '/api/0.8.1/': sidebar81.sidebar,
       '/api/0.9.8/': sidebar98.sidebar,
+      '/api/0.10.7/': sidebar107.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
@@ -166,6 +169,7 @@ module.exports = {
             'concepts/projects',
             'concepts/flows',
             'concepts/flow_runs',
+            'concepts/cloud_hooks',
             'concepts/secrets',
             'concepts/services',
             'concepts/tokens',
@@ -193,6 +197,7 @@ module.exports = {
             'execution/storage_options',
             'execution/remote_environment',
             'execution/remote_dask_environment',
+            'execution/dask_cloud_provider_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
             'execution/fargate_task_environment',
@@ -215,11 +220,17 @@ module.exports = {
           collapsable: true,
           children: [
             'recipes/deployment',
+            'recipes/third_party_auth',
             'recipes/configuring_storage',
             'recipes/multi_flow_storage',
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
           ]
+        },
+        {
+          title: 'Server',
+          collapsable: true,
+          children: ['server/telemetry']
         },
         {
           title: 'FAQ',
@@ -300,6 +311,7 @@ module.exports = {
             'development/sprints'
           ]
         },
+        '/core/idioms/idioms',
         '/core/faq',
         '/core/community',
         '/core/code_of_conduct'

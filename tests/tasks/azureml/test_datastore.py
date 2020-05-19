@@ -181,14 +181,14 @@ class TestDatastoreUpload:
 
         assert task.relative_root == relative_root
 
-    def test_missing_datastore_raises_error(self):
+    def test_missing_datastore_path_raises_error(self):
         path = ""
         task = DatastoreUpload(path=path)
 
         with pytest.raises(ValueError, match="A datastore must be provided."):
             task.run()
 
-    def test_missing_datastore_raises_error(self):
+    def test_missing_datastore_datastore_raises_error(self):
         datastore = MagicMock()
         task = DatastoreUpload(datastore=datastore)
 

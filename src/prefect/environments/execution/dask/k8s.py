@@ -1,4 +1,3 @@
-from ast import literal_eval
 import base64
 import json
 import uuid
@@ -296,9 +295,15 @@ class DaskKubernetesEnvironment(Environment):
             ) as f:
                 flow = cloudpickle.load(f)
 
-                executor = DaskExecutor(address=cluster.scheduler_address)
-                runner_cls = get_default_flow_runner_class()
-                runner_cls(flow=flow).run(executor=executor)
+                ## populate global secrets
+                secrets = prefect.context.get("secrets", {})
+                for secret in flow.storage.secrets:
+                    secrets[secret.name] = secret.run()
+
+                with prefect.context(secrets=secrets):
+                    executor = DaskExecutor(address=cluster.scheduler_address)
+                    runner_cls = get_default_flow_runner_class()
+                    runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
@@ -328,7 +333,7 @@ class DaskKubernetesEnvironment(Environment):
             "distributed.deploy.adaptive",
             "kubernetes",
         ]
-        config_extra_loggers = literal_eval(prefect.config.logging.extra_loggers)
+        config_extra_loggers = prefect.config.logging.extra_loggers
 
         extra_loggers = [*config_extra_loggers, *cluster_loggers]
 

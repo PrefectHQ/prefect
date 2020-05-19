@@ -18,12 +18,12 @@ whose value is `None`.
 """
 import base64
 import copy
-import datetime
+import pendulum
+import uuid
 from typing import Any, Callable, Iterable, Union
 
 import cloudpickle
 
-from prefect.engine.cache_validators import duration_only
 from prefect.engine.result_handlers import ResultHandler
 from prefect.utilities import logging
 
@@ -80,12 +80,6 @@ class Result(ResultInterface):
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
             the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - cache_for (timedelta, optional): The amount of time to maintain a cache
-            of this result.  Useful for situations where the containing Flow
-            will be rerun multiple times, but this task doesn't need to be.
-        - cache_validator (Callable, optional): Validator that will determine
-            whether the cache for this result is still valid (only required if `cache_for`
-            is provided; defaults to `prefect.engine.cache_validators.duration_only`)
         - location (str, optional): Possibly templated location to be used for saving the
             result to the destination.
     """
@@ -96,19 +90,13 @@ class Result(ResultInterface):
         result_handler: ResultHandler = None,
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
-        cache_for: datetime.timedelta = None,
-        cache_validator: Callable = None,
-        location: str = "",
+        location: str = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        if cache_for is not None and cache_validator is None:
-            cache_validator = duration_only
-        self.cache_for = cache_for
-        self.cache_validator = cache_validator
         self.location = location
         self.logger = logging.get_logger(type(self).__name__)
 
@@ -128,19 +116,20 @@ class Result(ResultInterface):
                 value=value, result_handler=self.result_handler
             )
 
-    def populate_result(self, result: "Result") -> "Result":
+    def from_value(self, value: Any) -> "Result":
         """
-        Given another Result instance, uses `self.location` to create a fully hydrated `Result`
-        using the logic of the provided result.  This method is mainly intended to be used
-        by `TaskRunner` methods to hydrate deserialized Cloud results into fully functional `Result` instances.
+        Create a new copy of the result object with the provided value.
 
         Args:
-            - result (Result): the result instance to hydrate with `self.location`
+            - value (Any): the value to use
 
         Returns:
-            - Result: a new result instance
+            - Result: a new Result instance with the given value
         """
-        return result.read(self.location)
+        new = self.copy()
+        new.location = None
+        new.value = value
+        return new
 
     def validate(self) -> bool:
         """
@@ -201,6 +190,12 @@ class Result(ResultInterface):
         """
         return cloudpickle.loads(base64.b64decode(serialized_value))
 
+    @property
+    def default_location(self) -> str:
+        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
+        location = f"{date}/{uuid.uuid4()}.prefect_result"
+        return location
+
     def format(self, **kwargs: Any) -> "Result":
         """
         Takes a set of string format key-value pairs and renders the result.location to a final location string
@@ -212,10 +207,14 @@ class Result(ResultInterface):
             - Result: a new result instance with the appropriately formatted location
         """
         new = self.copy()
-        new.location = new.location.format(**kwargs)
+        if new.location is not None:
+            assert new.location is not None
+            new.location = new.location.format(**kwargs)
+        else:
+            new.location = new.default_location
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists.
 
@@ -225,11 +224,14 @@ class Result(ResultInterface):
             - location (str, optional): Location of the result in the specific result target.
                 If provided, will check whether the provided location exists;
                 otherwise, will use `self.location`
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def read(self, location: str) -> "Result":
         """
@@ -241,7 +243,9 @@ class Result(ResultInterface):
         Returns:
             - Any: The value saved to the result.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def write(self, value: Any, **kwargs: Any) -> "Result":
         """
@@ -256,7 +260,9 @@ class Result(ResultInterface):
         Returns:
             - Result: a new result object with the appropriately formatted location destination
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
 
 class SafeResult(ResultInterface):
@@ -304,6 +310,7 @@ class NoResultType(SafeResult):
     """
 
     def __init__(self) -> None:
+        self.location = None
         super().__init__(value=None, result_handler=ResultHandler())
 
     def __eq__(self, other: Any) -> bool:

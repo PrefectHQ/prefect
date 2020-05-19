@@ -97,11 +97,11 @@ class TestPrefectResult:
     def test_instantiates_with_value(self):
         result = PrefectResult(value=5)
         assert result.value == 5
-        assert result.location == ""
+        assert result.location is None
 
         result = PrefectResult(value=10)
         assert result.value == 10
-        assert result.location == ""
+        assert result.location is None
 
     def test_read_returns_new_result(self):
         result = PrefectResult(value="hello world")
@@ -117,7 +117,7 @@ class TestPrefectResult:
         new_result = result.write(99)
 
         assert result.value == 42
-        assert result.location == ""
+        assert result.location is None
 
         assert new_result.value == 99
         assert new_result.location == "99"
@@ -140,7 +140,7 @@ class TestLocalResult:
     def test_local_result_initializes_with_no_args(self):
         result = LocalResult()
         assert result.dir == os.path.join(config.home_dir, "results")
-        assert result.value == None
+        assert result.value is None
 
     def test_local_result_initializes_with_dir(self):
         root_dir = os.path.abspath(os.sep)
@@ -151,6 +151,13 @@ class TestLocalResult:
         result = LocalResult(dir=tmp_dir, location="{thing}.txt")
         new_result = result.write("so-much-data", thing=42)
         assert new_result.location == "42.txt"
+        assert new_result.value == "so-much-data"
+
+    def test_local_result_creates_necessary_dirs(self, tmp_dir):
+        os_independent_template = os.path.join("mydir", "mysubdir", "{thing}.txt")
+        result = LocalResult(dir=tmp_dir, location=os_independent_template)
+        new_result = result.write("so-much-data", thing=42)
+        assert new_result.location == os.path.join("mydir", "mysubdir", "42.txt")
         assert new_result.value == "so-much-data"
 
     def test_local_result_cleverly_redirects_prefect_defaults(self):

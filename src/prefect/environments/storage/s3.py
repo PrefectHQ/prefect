@@ -5,7 +5,7 @@ import cloudpickle
 import pendulum
 from slugify import slugify
 
-from prefect.engine.result_handlers import S3ResultHandler
+from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -26,41 +26,29 @@ class S3(Storage):
 
     Args:
         - bucket (str): the name of the S3 Bucket to store Flows
-        - aws_access_key_id (str, optional): AWS access key id for connecting to S3.
-            Defaults to the value set in the environment variable
-            `AWS_ACCESS_KEY_ID` or `None`
-        - aws_secret_access_key (str, optional): AWS secret access key for connecting to S3.
-            Defaults to the value set in the environment variable
-            `AWS_SECRET_ACCESS_KEY` or `None`
-        - aws_session_token (str, optional): AWS session key for connecting to S3
-            Defaults to the value set in the environment variable
-            `AWS_SESSION_TOKEN` or `None`
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
     def __init__(
         self,
         bucket: str,
-        aws_access_key_id: str = None,
-        aws_secret_access_key: str = None,
-        aws_session_token: str = None,
         client_options: dict = None,
         key: str = None,
+        secrets: List[str] = None,
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.bucket = bucket
         self.key = key
 
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
-        self.aws_session_token = aws_session_token
         self.client_options = client_options
 
-        result_handler = S3ResultHandler(bucket=bucket)
-        super().__init__(result_handler=result_handler)
+        result = S3Result(bucket=bucket)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:
@@ -189,12 +177,9 @@ class S3(Storage):
 
     @property
     def _boto3_client(self):  # type: ignore
-        from boto3 import client as boto3_client
+        from prefect.utilities.aws import get_boto_client
 
-        return boto3_client(
-            "s3",
-            **(self.client_options or {}),
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
+        kwargs = self.client_options or {}
+        return get_boto_client(
+            resource="s3", credentials=None, use_session=False, **kwargs
         )

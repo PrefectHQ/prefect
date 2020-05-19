@@ -1,4 +1,4 @@
-from typing import Callable, List, Type
+from typing import Callable, List
 
 from distributed.security import Security
 
@@ -21,19 +21,23 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     f = Flow("dummy flow", environment=env)
     ```
 
+    If using the Security object then it should be filled out like this:
+
+    ```python
+    security = Security(tls_ca_file='cluster_ca.pem',
+                        tls_client_cert='cli_cert.pem',
+                        tls_client_key='cli_key.pem',
+                        require_encryption=True)
+    ```
+
+    For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
+
+
     Args:
         - address (str): an address of the scheduler of a Dask cluster in URL form,
             e.g. `tcp://172.33.17.28:8786`
-        - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
-            Use this to connect to a Dask cluster that is enabled with TLS encryption. Fill out the Security
-            object like this:
-            ```
-                security = Security(tls_ca_file='cluster_ca.pem',
-                                    tls_client_cert='cli_cert.pem',
-                                    tls_client_key='cli_key.pem',
-                                    require_encryption=True)
-            ```
-            For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
+        - security (Security, optional): a Dask Security object from `distributed.security.Security`.
+            Use this to connect to a Dask cluster that is enabled with TLS encryption.
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
@@ -45,16 +49,19 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     def __init__(
         self,
         address: str,
-        security: Type[Security] = None,
+        security: Security = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
+        self.address = address
         dask_executor_kwargs = executor_kwargs or dict()
         dask_executor_kwargs["address"] = address
+
         if security:
             dask_executor_kwargs["security"] = security
+
         super().__init__(
             executor="prefect.engine.executors.DaskExecutor",
             executor_kwargs=dask_executor_kwargs,

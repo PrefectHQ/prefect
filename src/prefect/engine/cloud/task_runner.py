@@ -1,15 +1,13 @@
 import datetime
 import time
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pendulum
 
 import prefect
 from prefect.client import Client
 from prefect.core import Edge, Task
-from prefect.engine.cloud.utilities import prepare_state_for_cloud
 from prefect.engine.result import Result
-from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import (
     Cached,
@@ -42,19 +40,25 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result_handler (ResultHandler, optional): the handler to use for
-            retrieving and storing state results during execution (if the Task doesn't already have one)
+        - result (Result, optional): the result instance used to retrieve and store task results during execution;
+            if not provided, will default to the one on the provided Task
+        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
+            during execution (to be used on upstream inputs if they don't provide their own results)
     """
 
     def __init__(
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result_handler: ResultHandler = None,
+        result: Result = None,
+        default_result: Result = None,
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task, state_handlers=state_handlers, result_handler=result_handler
+            task=task,
+            state_handlers=state_handlers,
+            result=result,
+            default_result=default_result,
         )
 
     def _heartbeat(self) -> bool:
@@ -111,7 +115,7 @@ class CloudTaskRunner(TaskRunner):
         version = prefect.context.get("task_run_version")
 
         try:
-            cloud_state = prepare_state_for_cloud(new_state)
+            cloud_state = new_state
             state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
                 version=version,
@@ -197,6 +201,15 @@ class CloudTaskRunner(TaskRunner):
         Raises:
             - ENDRUN: if the task is not ready to run
         """
+        if state.is_cached() is True:
+            assert isinstance(state, Cached)  # mypy assert
+            sanitized_inputs = {key: res.value for key, res in inputs.items()}
+            if self.task.cache_validator(
+                state, sanitized_inputs, prefect.context.get("parameters")
+            ):
+                state = state.load_result(self.result)
+                return state
+
         if self.task.cache_for is not None:
             oldest_valid_cache = datetime.datetime.utcnow() - self.task.cache_for
             cached_states = self.client.get_latest_cached_states(
@@ -221,18 +234,12 @@ class CloudTaskRunner(TaskRunner):
 
             for candidate_state in cached_states:
                 assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.cached_inputs = {
-                    key: res.to_result(inputs[key].result_handler)  # type: ignore
-                    for key, res in (candidate_state.cached_inputs or {}).items()
-                }
+                candidate_state.load_cached_results(inputs)
                 sanitized_inputs = {key: res.value for key, res in inputs.items()}
                 if self.task.cache_validator(
                     candidate_state, sanitized_inputs, prefect.context.get("parameters")
                 ):
-                    candidate_state._result = candidate_state._result.to_result(
-                        self.task.result_handler
-                    )
-                    return candidate_state
+                    return candidate_state.load_result(self.result)
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
@@ -242,6 +249,89 @@ class CloudTaskRunner(TaskRunner):
                 )
 
         return state
+
+    def load_results(
+        self, state: State, upstream_states: Dict[Edge, State]
+    ) -> Tuple[State, Dict[Edge, State]]:
+        """
+        Given the task's current state and upstream states, populates all relevant result objects for this task run.
+
+        Args:
+            - state (State): the task's current state.
+            - upstream_states (Dict[Edge, State]): the upstream state_handlers
+
+        Returns:
+            - Tuple[State, dict]: a tuple of (state, upstream_states)
+
+        """
+        upstream_results = {}
+
+        try:
+            for edge, upstream_state in upstream_states.items():
+                upstream_states[edge] = upstream_state.load_result(
+                    edge.upstream_task.result or self.default_result
+                )
+                if edge.key is not None:
+                    upstream_results[edge.key] = (
+                        edge.upstream_task.result or self.default_result
+                    )
+
+            state.load_cached_results(upstream_results)
+            return state, upstream_states
+        except Exception as exc:
+            new_state = Failed(
+                message=f"Failed to retrieve task results: {exc}", result=exc
+            )
+            final_state = self.handle_state_change(old_state=state, new_state=new_state)
+            raise ENDRUN(final_state)
+
+    def get_task_inputs(
+        self, state: State, upstream_states: Dict[Edge, State]
+    ) -> Dict[str, Result]:
+        """
+        Given the task's current state and upstream states, generates the inputs for this task.
+        Upstream state result values are used. If the current state has `cached_inputs`, they
+        will override any upstream values.
+
+        Args:
+            - state (State): the task's current state.
+            - upstream_states (Dict[Edge, State]): the upstream state_handlers
+
+        Returns:
+            - Dict[str, Result]: the task inputs
+
+        """
+        task_inputs = super().get_task_inputs(state, upstream_states)
+
+        try:
+            ## for mapped tasks, we need to take extra steps to store the cached_inputs;
+            ## this is because in the event of a retry we don't want to have to load the
+            ## entire upstream array that is being mapped over, instead we need store the
+            ## individual pieces of data separately for more efficient retries
+            map_index = prefect.context.get("map_index")
+            if map_index not in [-1, None]:
+                for edge, upstream_state in upstream_states.items():
+                    if (
+                        edge.key
+                        and edge.mapped
+                        and edge.upstream_task.checkpoint is not False
+                    ):
+                        try:
+                            task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
+                                task_inputs[edge.key].value,
+                                filename=f"{edge.key}-{map_index}",
+                                **prefect.context,
+                            )
+                        except NotImplementedError:
+                            pass
+        except Exception as exc:
+            new_state = Failed(
+                message=f"Failed to save inputs for mapped task: {exc}", result=exc
+            )
+            final_state = self.handle_state_change(old_state=state, new_state=new_state)
+            raise ENDRUN(final_state)
+
+        return task_inputs
 
     @tail_recursive
     def run(
@@ -278,7 +368,7 @@ class CloudTaskRunner(TaskRunner):
             executor=executor,
         )
         while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
+            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, (Retrying, Queued))
             naptime = max(

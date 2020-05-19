@@ -25,6 +25,7 @@ class AzureResult(Result):
             will be used
         - connection_string_secret (str, optional): the name of a Prefect Secret
             which stores your Azure connection tring
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
     def __init__(
@@ -141,7 +142,7 @@ class AzureResult(Result):
             raise exc
         return new
 
-    def exists(self, location: str) -> bool:
+    def exists(self, location: str, **kwargs: Any) -> bool:
         """
         Checks whether the target result exists.
 
@@ -150,6 +151,7 @@ class AzureResult(Result):
         Args:
             - location (str): Location of the result in the specific result target.
                 Will check whether the provided location exists
+            - **kwargs (Any): string format arguments for `location`
 
         Returns:
             - bool: whether or not the target result exists.
@@ -157,7 +159,9 @@ class AzureResult(Result):
         from azure.core.exceptions import ResourceNotFoundError
 
         # initialize client and download
-        client = self.service.get_blob_client(container=self.container, blob=location)
+        client = self.service.get_blob_client(
+            container=self.container, blob=location.format(**kwargs)
+        )
 
         # Catch exception because Azure python bindings do not yet have an exists method
         # https://github.com/Azure/azure-sdk-for-python/issues/9507

@@ -376,7 +376,7 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     because they won't pass their upstream checks
     """
 
-    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=2))
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=20))
     def error():
         1 / 0
 
@@ -577,7 +577,7 @@ def test_deep_map_with_a_retry(monkeypatch):
         t3 = plus_one.map(t2)
 
     t2.max_retries = 1
-    t2.retry_delay = datetime.timedelta(seconds=100)
+    t2.retry_delay = datetime.timedelta(minutes=100)
 
     monkeypatch.setattr("requests.Session", MagicMock())
     monkeypatch.setattr("requests.post", MagicMock())

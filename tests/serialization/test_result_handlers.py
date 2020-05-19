@@ -189,7 +189,7 @@ class TestGCSResultHandler:
 class TestSecretResultHandler:
     @pytest.fixture
     def secret_task(self):
-        return prefect.tasks.secrets.Secret(name="foo")
+        return prefect.tasks.secrets.PrefectSecret(name="foo")
 
     def test_serialize(self, secret_task):
         serialized = ResultHandlerSchema().dump(SecretResultHandler(secret_task))

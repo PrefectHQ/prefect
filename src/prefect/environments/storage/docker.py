@@ -57,7 +57,7 @@ class Docker(Storage):
         - files (dict, optional): a dictionary of files to copy into the image
             when building
         - base_url: (str, optional): a URL of a Docker daemon to use when for
-            Docker related functionality
+            Docker related functionality.  Defaults to DOCKER_HOST env var if not set
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
@@ -65,8 +65,10 @@ class Docker(Storage):
         - local_image (bool, optional): an optional flag whether or not to use a
             local docker image, if True then a pull will not be attempted
         - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
-            are not added to the Dockerfile. If False (default), healthchecks 
+            are not added to the Dockerfile. If False (default), healthchecks
             are included.
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -87,14 +89,13 @@ class Docker(Storage):
         prefect_version: str = None,
         local_image: bool = False,
         ignore_healthchecks: bool = False,
+        secrets: List[str] = None,
     ) -> None:
         self.registry_url = registry_url
-
         if sys.platform == "win32":
             default_url = "npipe:////./pipe/docker_engine"
         else:
             default_url = "unix://var/run/docker.sock"
-
         self.image_name = image_name
         self.image_tag = image_tag
         self.python_dependencies = python_dependencies or []
@@ -102,13 +103,13 @@ class Docker(Storage):
 
         self.env_vars = env_vars or {}
         self.env_vars.setdefault(
-            "PREFECT__USER_CONFIG_PATH", "/root/.prefect/config.toml"
+            "PREFECT__USER_CONFIG_PATH", "/opt/prefect/config.toml"
         )
 
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = base_url or default_url
+        self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
@@ -123,7 +124,7 @@ class Docker(Storage):
             python_version = "{}.{}".format(
                 sys.version_info.major, sys.version_info.minor
             )
-            if re.match("^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
+            if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) != None:
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
@@ -158,7 +159,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
-        super().__init__()
+        super().__init__(secrets=secrets)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """
@@ -216,7 +217,7 @@ class Docker(Storage):
                     flow.name
                 )
             )
-        flow_path = "/root/.prefect/flows/{}.prefect".format(slugify(flow.name))
+        flow_path = "/opt/prefect/flows/{}.prefect".format(slugify(flow.name))
         self.flows[flow.name] = flow_path
         self._flows[flow.name] = flow  # needed prior to build
         return flow_path
@@ -307,6 +308,10 @@ class Docker(Storage):
             dir="." if self.dockerfile else None
         ) as tempdir:
 
+            if sys.platform == "win32":
+                # problem with docker and relative paths only on windows
+                tempdir = os.path.abspath(tempdir)
+
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -368,12 +373,12 @@ class Docker(Storage):
         Dockerfile that it can use to define the container. This function takes the
         specified arguments then writes them to a temporary file called Dockerfile.
 
-        *Note*: if `files` are added to this container, they will be copied to this 
+        *Note*: if `files` are added to this container, they will be copied to this
         directory as well.
 
         Args:
-            - directory (str, optional): A directory where the Dockerfile will be 
-                created, if no directory is specified is will be created in the 
+            - directory (str, optional): A directory where the Dockerfile will be
+                created, if no directory is specified is will be created in the
                 current working directory
 
         Returns:
@@ -389,7 +394,7 @@ class Docker(Storage):
         env_vars = ""
         if self.env_vars:
             white_space = " " * 20
-            env_vars = "ENV " + " \ \n{}".format(white_space).join(
+            env_vars = "ENV " + " \\ \n{}".format(white_space).join(
                 "{k}={v}".format(k=k, v=v) for k, v in self.env_vars.items()
             )
 
@@ -452,9 +457,9 @@ class Docker(Storage):
             {extra_commands}
             {pip_installs}
 
-            RUN mkdir -p /root/.prefect/
+            RUN mkdir -p /opt/prefect/
             {copy_flows}
-            COPY {healthcheck_loc} /root/.prefect/healthcheck.py
+            COPY {healthcheck_loc} /opt/prefect/healthcheck.py
             {copy_files}
 
             {env_vars}
@@ -475,8 +480,8 @@ class Docker(Storage):
         if not self.ignore_healthchecks:
             file_contents += textwrap.dedent(
                 """
-                
-                RUN python /root/.prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
+
+                RUN python /opt/prefect/healthcheck.py '[{flow_file_paths}]' '{python_version}'
                 """.format(
                     flow_file_paths=", ".join(
                         ['"{}"'.format(k) for k in self.flows.values()]

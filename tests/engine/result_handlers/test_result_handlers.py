@@ -499,7 +499,7 @@ class TestAzureResultHandler:
 class TestSecretHandler:
     @pytest.fixture
     def secret_task(self):
-        return prefect.tasks.secrets.Secret(name="test")
+        return prefect.tasks.secrets.PrefectSecret(name="test")
 
     def test_secret_handler_requires_secret_task_at_init(self):
         with pytest.raises(TypeError, match="missing 1 required position"):
@@ -507,7 +507,7 @@ class TestSecretHandler:
 
     def test_secret_handler_initializes_with_secret_task(self, secret_task):
         handler = SecretResultHandler(secret_task=secret_task)
-        assert isinstance(handler.secret_task, prefect.tasks.secrets.Secret)
+        assert isinstance(handler.secret_task, prefect.tasks.secrets.PrefectSecret)
         assert handler.secret_task.name == "test"
 
     @pytest.mark.parametrize("res", [42, "stringy", None, dict(blah=lambda x: None)])
@@ -525,7 +525,7 @@ class TestSecretHandler:
         assert final == res
 
     def test_secret_handler_can_use_any_secret_type(self):
-        class MySecret(prefect.tasks.secrets.Secret):
+        class MySecret(prefect.tasks.secrets.PrefectSecret):
             def run(self):
                 return "boo"
 

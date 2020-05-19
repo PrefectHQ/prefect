@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
+import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
@@ -37,6 +38,9 @@ def make_env(fname=None):
             port=config.server.graphql.port
         ),
         APOLLO_HOST_PORT=config.server.host_port,
+        PREFECT_SERVER__TELEMETRY__ENABLED=(
+            "true" if config.server.telemetry.enabled is True else "false"
+        ),
     )
 
     POSTGRES_ENV = dict(
@@ -90,8 +94,6 @@ def server():
     "--version",
     "-v",
     help="The server image versions to use (for example, '0.10.0' or 'master')",
-    # TODO: update this default to use prefect.__version__ logic
-    default="latest",
     hidden=True,
 )
 @click.option(
@@ -198,7 +200,7 @@ def start(
     \b
     Options:
         --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
-                                Defaults to 'latest'
+                                Defaults to the current installed Prefect version.
         --skip-pull             Flag to skip pulling new images (if available)
         --no-upgrade, -n        Flag to avoid running a database upgrade when the database spins up
         --no-ui, -u             Flag to avoid starting the UI
@@ -267,17 +269,24 @@ def start(
     # Temporary config set for port allocation
     with set_temporary_config(
         {
-            "server.database.host_port": postgres_port,
-            "server.hasura.host_port": hasura_port,
-            "server.graphql.host_port": graphql_port,
-            "server.ui.host_port": ui_port,
-            "server.host_port": server_port,
+            "server.database.host_port": str(postgres_port),
+            "server.hasura.host_port": str(hasura_port),
+            "server.graphql.host_port": str(graphql_port),
+            "server.ui.host_port": str(ui_port),
+            "server.host_port": str(server_port),
         }
     ):
         env = make_env()
 
     if "PREFECT_SERVER_TAG" not in env:
-        env.update(PREFECT_SERVER_TAG=version)
+        env.update(
+            PREFECT_SERVER_TAG=version
+            or (
+                "master"
+                if len(prefect.__version__.split("+")) > 1
+                else prefect.__version__
+            )
+        )
     if "PREFECT_SERVER_DB_CMD" not in env:
         cmd = (
             "prefect-server database upgrade -y"

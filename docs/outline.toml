@@ -156,6 +156,11 @@ title = "Results"
 module = "prefect.engine.result"
 classes = ["Result", "SafeResult", "NoResultType"]
 
+[pages.engine.results]
+title = "Result Subclasses"
+module = "prefect.engine.results"
+classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult", "SecretResult", "ConstantResult"]
+
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
@@ -174,12 +179,12 @@ classes = ["Docker", "Local", "S3", "GCS", "Azure"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
+classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
 module = "prefect.tasks.control_flow"
-classes = ["FilterTask"]
+classes = ["FilterTask", "case"]
 functions = ["switch", "ifelse", "merge"]
 
 [pages.tasks.airtable]
@@ -212,9 +217,9 @@ classes = ["DatasetCreateFromDelimitedFiles",
            "DatastoreGet",
            "DatastoreUpload"]
 
-[pages.tasks.cloud]
-title = "Cloud Tasks"
-module = "prefect.tasks.cloud"
+[pages.tasks.prefect]
+title = "Prefect Tasks"
+module = "prefect.tasks.prefect"
 classes = ["FlowRunTask"]
 
 [pages.tasks.github]
@@ -251,6 +256,11 @@ classes = [
         "ReadNamespacedService",
         "ReplaceNamespacedService"
         ]
+
+[pages.tasks.dbt]
+title = "DBT Tasks"
+module = "prefect.tasks.dbt"
+classes = ["DbtShellTask"]
 
 [pages.tasks.docker]
 title = "Docker Tasks"
@@ -289,10 +299,15 @@ classes = [
         "CreateBigQueryTable"
         ]
 
+[pages.tasks.jira]
+title = "Jira Tasks"
+module = "prefect.tasks.jira"
+classes = ["JiraTask", "JiraServiceDeskTask"]
+
 [pages.tasks.notifications]
 title = "Notification Tasks"
 module = "prefect.tasks.notifications"
-classes = ["EmailTask", "SlackTask"]
+classes = ["EmailTask", "SlackTask", "PushbulletTask"]
 
 [pages.tasks.postgres]
 title = "Postgres Tasks"

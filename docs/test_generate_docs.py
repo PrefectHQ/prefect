@@ -35,7 +35,6 @@ except ImportError:
 
 
 pytest.mark.skipif(sys.version_info < (3, 6))
-pytestmark = pytest.mark.formatting
 
 
 def consistency_check(obj, obj_name):

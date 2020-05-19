@@ -120,7 +120,7 @@ def test_list_tenants(patch_post):
         assert "name" in result.output
 
 
-def test_switch_tenants(monkeypatch):
+def test_switch_tenants_success(monkeypatch):
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         monkeypatch.setattr("prefect.cli.auth.Client", MagicMock())
 
@@ -130,7 +130,7 @@ def test_switch_tenants(monkeypatch):
         assert "Tenant switched" in result.output
 
 
-def test_switch_tenants(monkeypatch):
+def test_switch_tenants_failed(monkeypatch):
     with set_temporary_config({"cloud.graphql": "http://my-cloud.foo"}):
         client = MagicMock()
         client.return_value.login_to_tenant = MagicMock(return_value=False)

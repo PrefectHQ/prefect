@@ -1,6 +1,6 @@
 # Local Agent
 
-The local agent is designed to operate in any environment in which Prefect is installed. Common use cases for the local agent include testing flows on personal machines, running in virtual boxes that don't use external tools such as Docker or Kubernetes, or quickly getting acclimated with the Prefect API. While the local agent is fully capable of executing flows in conjunction with the Prefect API, we using one of our other agents to help with modularity and scale.
+The local agent is designed to operate in any environment in which Prefect is installed. Common use cases for the local agent include testing flows on personal machines, running in virtual boxes that don't use external tools such as Docker or Kubernetes, or quickly getting acclimated with the Prefect API. While the local agent is fully capable of executing flows in conjunction with the Prefect API, we generally recommend using one of the other agents to help with modularity and scale.
 
 [[toc]]
 

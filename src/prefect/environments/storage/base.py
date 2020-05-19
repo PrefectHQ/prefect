@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, List
 
 import prefect
-from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.result import Result
 from prefect.environments.storage import _healthcheck
 from prefect.utilities import logging as prefect_logging
 
@@ -16,12 +16,15 @@ class Storage(metaclass=ABCMeta):
     Base interface for Storage objects.
 
     Args:
-        - result_handler (ResultHandler, optional): a default result handler to use for
+        - result (Result, optional): a default result to use for
             all flows which utilize this storage class
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
-    def __init__(self, result_handler: ResultHandler = None) -> None:
-        self.result_handler = result_handler
+    def __init__(self, result: Result = None, secrets: List[str] = None,) -> None:
+        self.result = result
+        self.secrets = secrets or []
 
     @property
     def labels(self) -> List[str]:
@@ -117,4 +120,4 @@ class Storage(metaclass=ABCMeta):
         if not hasattr(self, "_flows"):
             return
 
-        _healthcheck.result_handler_check(self._flows.values())  # type: ignore
+        _healthcheck.result_check(self._flows.values())  # type: ignore

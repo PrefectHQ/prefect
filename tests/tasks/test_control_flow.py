@@ -4,7 +4,8 @@ import prefect
 from prefect import Flow, Task, task
 from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
-from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch
+from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
+from prefect.tasks.control_flow.conditional import CompareValue
 from prefect.tasks.core.constants import Constant
 
 
@@ -36,6 +37,23 @@ def test_ifelse(condition_value):
     )
     assert isinstance(
         state.result[false_branch], Success if condition_value is False else Skipped
+    )
+
+
+@pytest.mark.parametrize("condition_value", [True, False])
+def test_ifelse_doesnt_add_None_task(condition_value):
+    condition = Condition()
+    true_branch = SuccessTask(name="true branch")
+
+    with Flow(name="test") as flow:
+        cnd = ifelse(condition, true_branch, None)
+        assert len(flow.tasks) == 4
+
+    with prefect.context(CONDITION=condition_value):
+        state = flow.run()
+
+    assert isinstance(
+        state.result[true_branch], Success if condition_value is True else Skipped
     )
 
 
@@ -307,3 +325,192 @@ class TestFilterTask:
         res = task.run([NoResult, NoResult, 0, 1, 5, "", exc])
         assert len(res) == 6
         assert res == [NoResult, NoResult, 0, 1, "", exc]
+
+
+@task
+def identity(x):
+    return x
+
+
+@task
+def inc(x):
+    return x + 1
+
+
+class TestCase:
+    def test_case_errors(self):
+        with Flow("test"):
+            with pytest.raises(TypeError, match="`value` cannot be a task"):
+                with case(identity(True), identity(False)):
+                    pass
+
+    def test_empty_case_block_no_tasks(self):
+        with Flow("test") as flow:
+            cond = identity(True)
+            with case(cond, True):
+                pass
+
+        # No tasks added if case block is empty
+        assert flow.tasks == {cond}
+
+    def test_case_sets_and_clears_context(self):
+        with Flow("test"):
+            c1 = case(identity(True), True)
+            c2 = case(identity(False), True)
+            assert "case" not in prefect.context
+            with c1:
+                assert prefect.context["case"] is c1
+                with c2:
+                    assert prefect.context["case"] is c2
+                assert prefect.context["case"] is c1
+            assert "case" not in prefect.context
+
+    def test_case_upstream_tasks(self):
+        with Flow("test") as flow:
+            a = identity(0)
+            with case(identity(True), True):
+                b = inc(a)
+                c = inc(b)
+                d = identity(1)
+                e = inc(d)
+                f = inc(e)
+
+        compare_values = [t for t in flow.tasks if isinstance(t, CompareValue)]
+        assert len(compare_values) == 1
+        comp = compare_values[0]
+
+        assert flow.upstream_tasks(a) == set()
+        assert flow.upstream_tasks(b) == {comp, a}
+        assert flow.upstream_tasks(c) == {b}
+        assert flow.upstream_tasks(d) == {comp}
+        assert flow.upstream_tasks(e) == {d}
+        assert flow.upstream_tasks(f) == {e}
+
+    @pytest.mark.parametrize("branch", ["a", "b", "c"])
+    def test_case_execution(self, branch):
+        with Flow("test") as flow:
+            cond = identity(branch)
+            with case(cond, "a"):
+                a = identity(1)
+                b = inc(a)
+
+            with case(cond, "b"):
+                c = identity(3)
+                d = inc(c)
+
+            e = merge(b, d)
+
+        state = flow.run()
+
+        if branch == "a":
+            assert state.result[a].result == 1
+            assert state.result[b].result == 2
+            assert state.result[c].is_skipped()
+            assert state.result[d].is_skipped()
+            assert state.result[e].result == 2
+        elif branch == "b":
+            assert state.result[a].is_skipped()
+            assert state.result[b].is_skipped()
+            assert state.result[c].result == 3
+            assert state.result[d].result == 4
+            assert state.result[e].result == 4
+        elif branch == "c":
+            for t in [a, b, c, d, e]:
+                assert state.result[t].is_skipped()
+
+    @pytest.mark.parametrize("branch1", [True, False])
+    @pytest.mark.parametrize("branch2", [True, False])
+    def test_nested_case_execution(self, branch1, branch2):
+        with Flow("test") as flow:
+            cond1 = identity(branch1)
+
+            a = identity(0)
+            with case(cond1, True):
+                cond2 = identity(branch2)
+                b = identity(10)
+                with case(cond2, True):
+                    c = inc(a)
+                    d = inc(c)
+                with case(cond2, False):
+                    e = inc(b)
+                    f = inc(e)
+
+                g = merge(d, f)
+
+            with case(cond1, False):
+                h = identity(3)
+                i = inc(h)
+
+            j = merge(g, i)
+
+        state = flow.run()
+
+        sol = {a: 0, cond1: branch1}
+        if branch1:
+            sol[cond2] = branch2
+            sol[b] = 10
+            if branch2:
+                sol[c] = 1
+                sol[d] = sol[g] = sol[j] = 2
+            else:
+                sol[e] = 11
+                sol[f] = sol[g] = sol[j] = 12
+        else:
+            sol[h] = 3
+            sol[i] = sol[j] = 4
+
+        for t in [cond1, cond2, a, b, c, d, e, f, g, h, i, j]:
+            if t in sol:
+                assert state.result[t].result == sol[t]
+            else:
+                assert state.result[t].is_skipped()
+
+    def test_case_imperative_errors(self):
+        flow = Flow("test")
+        flow2 = Flow("test2")
+        cond = identity.copy()
+        a = identity.copy()
+        with pytest.raises(ValueError, match="Multiple flows"):
+            with case(cond, True):
+                flow.add_task(a)
+                flow2.add_task(a)
+
+    @pytest.mark.parametrize("branch", ["a", "b", "c"])
+    def test_case_imperative_api(self, branch):
+        flow = Flow("test")
+
+        cond = identity.copy()
+        a = identity.copy()
+        b = inc.copy()
+        c = identity.copy()
+        d = inc.copy()
+
+        cond.bind(branch, flow=flow)
+        flow.add_task(cond)
+        with case(cond, "a"):
+            a.bind(1, flow=flow)
+            b.bind(a, flow=flow)
+            flow.add_task(a)
+            flow.add_task(b)
+
+        with case(cond, "b"):
+            c.bind(3, flow=flow)
+            d.bind(c, flow=flow)
+            flow.add_task(c)
+            flow.add_task(d)
+
+        state = flow.run()
+
+        if branch == "a":
+            assert state.result[a].result == 1
+            assert state.result[b].result == 2
+            assert state.result[c].is_skipped()
+            assert state.result[d].is_skipped()
+        elif branch == "b":
+            assert state.result[a].is_skipped()
+            assert state.result[b].is_skipped()
+            assert state.result[c].result == 3
+            assert state.result[d].result == 4
+        elif branch == "c":
+            for t in [a, b, c, d]:
+                assert state.result[t].is_skipped()

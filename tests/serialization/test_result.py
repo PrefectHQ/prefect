@@ -27,12 +27,6 @@ def test_basic_noresult_serializes():
     assert handled == {}
 
 
-def test_basic_result_doesnt_serialize():
-    r = Result(3)
-    handled = StateResultSchema().dump(r)
-    assert handled[1]["_schema"] == "Unsupported object type: Result"
-
-
 def test_basic_safe_result_deserializes():
     r = SafeResultSchema().load(
         {"value": "3", "result_handler": {"type": "JSONResultHandler"}}

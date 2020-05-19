@@ -2,7 +2,7 @@
 
 ## Black formatting
 
-Prefect's code is formatted using the [black](https://github.com/ambv/black) style. Merges to master are prevented if code does not conform, and this is checked both as a unit test and a separate CI step, for clarity.
+Prefect's code is formatted using the [black](https://github.com/ambv/black) style. This style is checked in a CI step, and merges to master are prevented if code does not conform.
 
 To apply black to your code, run black from the root Prefect directory:
 
@@ -114,13 +114,13 @@ class Class:
 
 ## Mypy typing
 
-Prefect's code is statically-typed using [mypy](http://mypy-lang.org/). Merges to master are prevented if code does not pass type checks, and this test is performed both as a unit test and a separate CI step, for clarity.
+Prefect's code is statically-typed using [mypy](http://mypy-lang.org/). Type checking is validated as a CI step, and merges to master are prevented if code does not pass type checks.
 
-While we would prefer for all of Prefect's code to be typed, that creates an undesirable friction for new contributors. Therefore, mypy is only _required_ for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy only against required files, invoke it as a unit test:
+While we would prefer for all of Prefect's code to be typed, that creates an undesirable friction for new contributors. Therefore, mypy is only _required_ for "important" code (generally, files in the `core/` and `engine/` directories), but encouraged elsewhere. Test files are never checked for typing. To run mypy locally:
 
 ```bash
 cd prefect
-pytest -k "mypy"
+mypy src
 ```
 
 As a general rule, mypy typing requires all function arguments and return values to be annotated.

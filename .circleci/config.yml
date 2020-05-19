@@ -77,6 +77,10 @@ jobs:
           command: pip install black mypy mypy_extensions autoflake profimp
 
       - run:
+          name: Quick installation of Prefect
+          command: pip install -e .
+
+      - run:
           name: Run Black
           command: black --check .
 
@@ -92,10 +96,6 @@ jobs:
               cat .unused-imports.txt
               exit 2
             fi
-
-      - run:
-          name: Quick installation of Prefect
-          command: pip install -e .
 
       - run:
           name: Ensure 'import prefect' is under 1 second
@@ -126,7 +126,7 @@ jobs:
 
       - run:
           name: Run documentation tests
-          command: pytest -vvrfEsx -k "generate_docs"
+          command: pytest docs -vvrfEsx
 
   check_ui_formatting:
     docker:
@@ -170,7 +170,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -202,7 +202,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -238,7 +238,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -269,7 +269,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx .
+          command: pytest tests -vvrfEsx
 
   test_38:
     docker:
@@ -295,7 +295,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx .
+          command: pytest tests -vvrfEsx
 
   test_server:
     executor: docker-prefect-server
@@ -426,6 +426,7 @@ jobs:
             docker build \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+              --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               -t prefecthq/prefect:master \
               .
