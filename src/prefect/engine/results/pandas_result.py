@@ -9,7 +9,6 @@ except ImportError:
 
 from slugify import slugify
 
-from prefect import config
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult
 
