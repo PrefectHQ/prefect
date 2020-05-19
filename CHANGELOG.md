@@ -1,41 +1,5 @@
 # Changelog
 
-## Unreleased <Badge text="beta" type="success"/>
-
-These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
-
-### Features
-
-- None
-
-### Enhancements
-
-- None
-
-### Server
-
-- None
-
-### Task Library
-
-- None
-
-### Fixes
-
-- None
-
-### Deprecations
-
-- None
-
-### Breaking Changes
-
-- None
-
-### Contributors
-
-- None
-
 ## 0.11.2 <Badge text="beta" type="success"/>
 
 Released on May 19, 2020.
