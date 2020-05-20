@@ -197,7 +197,7 @@ def start(
 ):
     """
     This command spins up all infrastructure and services for the Prefect Core server
-    Branch testing, please ignore
+
     \b
     Options:
         --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
