@@ -1495,9 +1495,10 @@ class TestCheckScheduledStep:
         )
 
     @pytest.mark.parametrize(
-        "state", [Scheduled(start_time=None), Retrying(start_time=None)]
+        "state", [Scheduled(start_time=None), Retrying(start_time=None), Paused()]
     )
     def test_scheduled_states_without_start_time(self, state):
+        assert state.start_time is None
         assert (
             TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
         )

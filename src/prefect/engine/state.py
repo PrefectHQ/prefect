@@ -418,8 +418,6 @@ class Paused(Scheduled):
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
-        if start_time is None:
-            start_time = pendulum.now().add(years=10)
 
         super().__init__(
             message=message,
@@ -428,6 +426,11 @@ class Paused(Scheduled):
             cached_inputs=cached_inputs,
             context=context,
         )
+
+        # override default logic to set start_time = now();
+        # have indefinite start_time instead
+        if start_time is None:
+            self.start_time = None
 
 
 class _MetaState(State):

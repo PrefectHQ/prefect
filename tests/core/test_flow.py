@@ -1697,6 +1697,37 @@ class TestFlowRunMethod:
         f.run()
         assert t.call_count == 2
 
+    def test_flow_dot_run_with_paused_states_hangs(self, monkeypatch):
+        """
+        https://github.com/PrefectHQ/prefect/issues/2615
+        """
+
+        @task
+        def task_1():
+            return 1
+
+        @task(trigger=prefect.triggers.manual_only)
+        def add_one(x):
+            return x + 1
+
+        with Flow("example") as flow:
+            t1 = task_1()
+            t2 = add_one(x=t1)
+
+        sleep_counter = 10
+
+        def sleep(naptime):
+            nonlocal sleep_counter
+            sleep_counter += 1
+            if sleep_counter > 10:
+                raise ValueError("Slept a lot...")
+
+        mock = MagicMock(side_effect=sleep)
+        monkeypatch.setattr("time.sleep", mock)
+
+        with pytest.raises(ValueError, match="Slept a lot..."):
+            assert flow.run()
+
     def test_flow_dot_run_passes_scheduled_parameters(self):
         a = prefect.schedules.clocks.DatesClock(
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
