@@ -5,10 +5,9 @@ try:
     from prefect.tasks.gsheets.gsheets import (
         GsheetUpdates,
         GsheetResponse,
-        AuthenticateGsheets,
         WriteGsheetRow,
         ReadGsheetRow,
-        gsheet_helper
+        gsheet_helper,
     )
 except ImportError:
     raise ImportError(

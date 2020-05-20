@@ -27,23 +27,6 @@ class GsheetResponse(TypedDict):
     updates: GsheetUpdates
 
 
-class AuthenticateGsheets(SecretBase):
-    """
-    A Secret Task for creating the Google Client object needed to perform operations
-    with `gspread`.  Presumes that you'll be interacting with Sheets via a Service
-    Account: https://gspread.readthedocs.io/en/latest/oauth2.html#for-bots-using-service-account
-    Args:
-        - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
-    """
-
-    def __init__(self, credentials_filename: Union[str, pathlib.Path], **kwargs: Any):
-        self.credentials_filename = credentials_filename
-        super().__init__(**kwargs)
-
-    def run(self) -> gspread.client.Client:
-        return gspread.service_account(filename=self.credentials_filename)
-
-
 class WriteGsheetRow(Task):
     """
     A task for writing a row to a Google Sheet.
@@ -85,7 +68,7 @@ class WriteGsheetRow(Task):
         Returns:
             - a dictionary containing information about the successful insert
         """
-        client = AuthenticateGsheets(credentials_filename).run()
+        client = gspread.service_account(filename=self.credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.append_row(data)
@@ -132,7 +115,7 @@ class ReadGsheetRow(Task):
         Returns:
             - a list of values from the row 
         """
-        client = AuthenticateGsheets(credentials_filename).run()
+        client = gspread.service_account(filename=self.credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.row_values(row)
@@ -161,7 +144,7 @@ def gsheet_helper(fn: Callable):
         Args: 
             - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
         """
-        client = AuthenticateGsheets(credentials_filename).run()
+        client = gspread.service_account(filename=self.credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return fn(worksheet)
