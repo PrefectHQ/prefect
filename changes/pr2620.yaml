@@ -1,0 +1,2 @@
+enhancement:
+  - "Raise more informative error when Cloud Secret doesn't exist - [#2620](https://github.com/PrefectHQ/prefect/pull/2620)"
