@@ -469,9 +469,12 @@ class Flow:
             self.tasks.add(task)
             self._cache.clear()
 
-            case = prefect.context.get("case", None)
-            if case is not None:
-                case.add_task(task, self)
+            # Parameters must be root tasks
+            # All other new tasks should be added to the current case (if any)
+            if not isinstance(task, Parameter):
+                case = prefect.context.get("case", None)
+                if case is not None:
+                    case.add_task(task, self)
 
         return task
 
