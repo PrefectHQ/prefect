@@ -373,6 +373,7 @@ class Scheduled(Pending):
     """
 
     color = "#ffab00"
+    start_time: Optional[datetime.datetime]
 
     def __init__(
         self,
