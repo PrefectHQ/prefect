@@ -1,4 +1,3 @@
-
 """
 A collection of tasks for interacting with Google Sheets.
 """
@@ -9,6 +8,7 @@ try:
         AuthenticateGsheets,
         WriteGsheetRow,
         ReadGsheetRow,
+        gsheet_helper
     )
 except ImportError:
     raise ImportError(

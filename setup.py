@@ -47,6 +47,7 @@ extras = {
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",
     ],
+    "gspread": ["gspread >= 3.6.0"],
     "jira": ["jira >= 2.0.0"],
     "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2", "dask-kubernetes >= 0.8.0"],
     "postgres": ["psycopg2-binary >= 2.8.2"],

@@ -8,20 +8,25 @@ from prefect.tasks.secrets import PrefectSecret
 import pathlib
 from pathlib import Path
 
+
 class GsheetUpdates(TypedDict):
     """A Typed Dict to describe one of the dictionary elements returned after writing Rows"""
+
     spreadsheetId: str
     updatedRange: str
     updatedRows: int
     updatedColumns: int
     updatedCells: int
 
+
 class GsheetResponse(TypedDict):
     """A Typed Dict to describe what's returned after writing Rows"""
+
     spreadsheetId: str
     tableRange: str
     updates: GsheetUpdates
-        
+
+
 class AuthenticateGsheets(SecretBase):
     """
     A Secret Task for creating the Google Client object needed to perform operations
@@ -30,12 +35,14 @@ class AuthenticateGsheets(SecretBase):
     Args:
         - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
     """
+
     def __init__(self, credentials_filename: Union[str, pathlib.Path], **kwargs: Any):
         self.credentials_filename = credentials_filename
         super().__init__(**kwargs)
 
     def run(self) -> gspread.client.Client:
         return gspread.service_account(filename=self.credentials_filename)
+
 
 class WriteGsheetRow(Task):
     """
@@ -82,7 +89,8 @@ class WriteGsheetRow(Task):
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.append_row(data)
-    
+
+
 class ReadGsheetRow(Task):
     """
     A task for reading a row from a Google Sheet.
@@ -140,6 +148,7 @@ def gsheet_helper(fn: Callable):
         - worksheet_name (str): The worksheet to target
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
+
     @task
     def inner(
         credentials_filename: Union[str, pathlib.Path] = None,
