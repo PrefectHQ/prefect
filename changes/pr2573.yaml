@@ -1,4 +1,4 @@
-enhancement:
+server:
   - "Clear cache, remove kubernetes dependencies to cut size of server container - [#2573](https://github.com/PrefectHQ/prefect/pull/2573)"
 
 contributor:
