@@ -1,4 +1,3 @@
-import ast
 import functools
 import logging
 import math
@@ -98,9 +97,8 @@ class Agent:
         no_cloud_logs: bool = False,
     ) -> None:
         self.name = name or config.cloud.agent.get("name", "agent")
-        self.labels = list(
-            labels or ast.literal_eval(config.cloud.agent.get("labels", "[]"))
-        )
+
+        self.labels = labels or list(config.cloud.agent.get("labels", []))
         self.env_vars = env_vars or config.cloud.agent.get("env_vars", dict())
         self.max_polls = max_polls
         self.log_to_cloud = False if no_cloud_logs else True
@@ -135,9 +133,6 @@ class Agent:
         self.logger.debug(f"Prefect backend: {config.backend}")
 
         self.client = Client(api_token=token)
-        if config.backend == "cloud":
-            self._verify_token(token)
-            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
 
     def _verify_token(self, token: str) -> None:
         """
@@ -166,7 +161,7 @@ class Agent:
             - The agent ID as a string
         """
         agent_id = self.client.register_agent(
-            agent_type=type(self).__name__, name=self.name, labels=self.labels
+            agent_type=type(self).__name__, name=self.name, labels=self.labels  # type: ignore
         )
 
         self.logger.debug(f"Agent ID: {agent_id}")
@@ -178,6 +173,10 @@ class Agent:
         The main entrypoint to the agent. This function loops and constantly polls for
         new flow runs to deploy
         """
+        if config.backend == "cloud":
+            self._verify_token(self.client.get_auth_token())
+            self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
+
         try:
             self.setup()
 

@@ -693,6 +693,70 @@ def test_key_states_raises_error_if_not_iterable():
             f.set_reference_tasks(t1)
 
 
+def test_warning_raised_if_tasks_are_created_but_not_added_to_flow():
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            tracker = prefect.context._new_task_tracker
+            assert len(tracker) == 0
+            x = Parameter("x")
+            assert len(tracker) == 1
+            assert x in tracker
+        assert "_new_task_tracker" not in prefect.context
+
+
+def test_warning_raised_if_tasks_are_created_but_not_added_to_nested_flow():
+    # only one warning for nested flows
+    with pytest.warns(None) as record:
+        with Flow(name="test"):
+            tracker_1 = prefect.context._new_task_tracker
+            with Flow(name="test2"):
+                tracker_2 = prefect.context._new_task_tracker
+                x = Parameter("x")
+                assert x in tracker_2
+                assert x not in tracker_1
+
+    assert len(record) == 1
+
+
+def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            f.add_task(x)
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_not_raised_for_constant_tasks():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            tt = Task()[0]
+
+    # confirm tasks were added
+    assert len(f.tasks) == 2
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
+    x = Parameter("x")
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            x.copy("x2")
+
+
+def test_context_is_scoped_to_flow_context():
+    with Flow(name="f"):
+        prefect.context.name = "f"
+        with Flow(name="g"):
+            prefect.context.name = "g"
+            assert prefect.context.name == "g"
+        assert prefect.context.name == "f"
+    assert "name" not in prefect.context
+
+
 class TestEquality:
     def test_equality_based_on_tasks(self):
         f1 = Flow(name="test")
@@ -1903,7 +1967,9 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
-    def test_flow_dot_run_handles_cached_states_across_runs(self, repeat_schedule):
+    def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(
+        self, repeat_schedule
+    ):
         schedule = repeat_schedule(3)
 
         class StatefulTask(Task):
@@ -2711,3 +2777,19 @@ def test_results_write_to_formatted_locations(tmpdir):
         "1.txt",
         "3.txt",
     }
+
+
+def test_run_agent_passes_environment_labels(monkeypatch):
+    agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
+
+    f = Flow(
+        "test",
+        environment=prefect.environments.LocalEnvironment(
+            labels=["test", "test", "test2"]
+        ),
+    )
+    f.run_agent()
+
+    assert type(agent.call_args[1]["labels"]) is list
+    assert set(agent.call_args[1]["labels"]) == set(["test", "test2"])

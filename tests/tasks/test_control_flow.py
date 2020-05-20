@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect import Flow, Task, task
+from prefect import Flow, Task, task, Parameter
 from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
@@ -514,3 +514,16 @@ class TestCase:
         elif branch == "c":
             for t in [a, b, c, d]:
                 assert state.result[t].is_skipped()
+
+    def test_case_with_parameters(self):
+        with Flow("test") as flow:
+            x = Parameter("x")
+            cond = identity(True)
+            with case(cond, True):
+                y1 = x + 1
+            with case(cond, False):
+                y2 = x - 1
+
+        state = flow.run(x=1)
+        assert state.result[y1].result == 2
+        assert state.result[y2].is_skipped()

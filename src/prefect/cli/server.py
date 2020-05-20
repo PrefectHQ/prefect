@@ -293,11 +293,11 @@ def start(
     # Temporary config set for port allocation
     with set_temporary_config(
         {
-            "server.database.host_port": postgres_port,
-            "server.hasura.host_port": hasura_port,
-            "server.graphql.host_port": graphql_port,
-            "server.ui.host_port": ui_port,
-            "server.host_port": server_port,
+            "server.database.host_port": str(postgres_port),
+            "server.hasura.host_port": str(hasura_port),
+            "server.graphql.host_port": str(graphql_port),
+            "server.ui.host_port": str(ui_port),
+            "server.host_port": str(server_port),
             "server.database.volume_path": volume_path,
         }
     ):

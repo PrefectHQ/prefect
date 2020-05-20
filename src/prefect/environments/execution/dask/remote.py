@@ -1,4 +1,4 @@
-from typing import Callable, List, Type
+from typing import Callable, List
 
 from distributed.security import Security
 
@@ -36,7 +36,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     Args:
         - address (str): an address of the scheduler of a Dask cluster in URL form,
             e.g. `tcp://172.33.17.28:8786`
-        - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
+        - security (Security, optional): a Dask Security object from `distributed.security.Security`.
             Use this to connect to a Dask cluster that is enabled with TLS encryption.
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
@@ -49,7 +49,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     def __init__(
         self,
         address: str,
-        security: Type[Security] = None,
+        security: Security = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,

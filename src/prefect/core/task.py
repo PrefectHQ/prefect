@@ -125,33 +125,40 @@ class Task(metaclass=SignatureValidator):
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
         - timeout (int, optional): The amount of time (in seconds) to wait while
-            running this task before a timeout occurs; note that sub-second resolution is not supported
-        - trigger (callable, optional): a function that determines whether the task should run, based
-                on the states of any upstream tasks.
+            running this task before a timeout occurs; note that sub-second
+            resolution is not supported
+        - trigger (callable, optional): a function that determines whether the
+            task should run, based on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
-                upstream tasks are skipped, this task will automatically be skipped as well,
-                regardless of trigger. By default, this prevents tasks from attempting to use either state or data
-                from tasks that didn't run. If `False`, the task's trigger will be called as normal,
-                with skips considered successes. Defaults to `True`.
+            upstream tasks are skipped, this task will automatically be skipped as
+            well, regardless of trigger. By default, this prevents tasks from
+            attempting to use either state or data from tasks that didn't run. If
+            `False`, the task's trigger will be called as normal, with skips
+            considered successes. Defaults to `True`.
         - cache_for (timedelta, optional, DEPRECATED): The amount of time to maintain a cache
             of the outputs of this task.  Useful for situations where the containing Flow
             will be rerun multiple times, but this task doesn't need to be.
         - cache_validator (Callable, optional, DEPRECATED): Validator that will determine
             whether the cache for this task is still valid (only required if `cache_for`
             is provided; defaults to `prefect.engine.cache_validators.duration_only`)
-        - cache_key (str, optional, DEPRECATED): if provided, a `cache_key` serves as a unique identifier for this Task's cache, and can
-            be shared across both Tasks _and_ Flows; if not provided, the Task's _name_ will be used if running locally, or the
-            Task's database ID if running in Cloud
+        - cache_key (str, optional, DEPRECATED): if provided, a `cache_key`
+            serves as a unique identifier for this Task's cache, and can be shared
+            across both Tasks _and_ Flows; if not provided, the Task's _name_ will
+            be used if running locally, or the Task's database ID if running in
+            Cloud 
         - checkpoint (bool, optional): if this Task is successful, whether to
-            store its result using the `result_handler` available during the run; Also note that
-            checkpointing will only occur locally if `prefect.config.flows.checkpointing` is set to `True`
-        - result_handler (ResultHandler, optional, DEPRECATED): the handler to use for
-            retrieving and storing state results during execution; if not provided, will default to the
-            one attached to the Flow
-        - result (Result, optional): the result instance used to retrieve and store task results during execution
-        - target (str, optional): location to check for task Result. If a result exists at that location then
-            the task run will enter a cached state.  `target` strings can be templated formatting strings which will be formatted
-            at runtime with values from `prefect.context`
+            store its result using the `result_handler` available during the run;
+            Also note that checkpointing will only occur locally if
+            `prefect.config.flows.checkpointing` is set to `True`
+        - result_handler (ResultHandler, optional, DEPRECATED): the handler to
+            use for retrieving and storing state results during execution; if not
+            provided, will default to the one attached to the Flow
+        - result (Result, optional): the result instance used to retrieve and
+            store task results during execution
+        - target (str, optional): location to check for task Result. If a result
+            exists at that location then the task run will enter a cached state.
+            `target` strings can be templated formatting strings which will be
+            formatted at runtime with values from `prefect.context`
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -160,8 +167,9 @@ class Task(metaclass=SignatureValidator):
                 `state_handler(task: Task, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - on_failure (Callable, optional): A function with signature `fn(task: Task, state: State) -> None`
-            with will be called anytime this Task enters a failure state
+        - on_failure (Callable, optional): A function with signature 
+            `fn(task: Task, state: State) -> None` that will be called anytime this 
+            Task enters a failure state
         - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
             the Prefect logger. Defaults to `False`.
 
@@ -268,14 +276,19 @@ class Task(metaclass=SignatureValidator):
 
         self.target = target
 
-        if target and result:
-            self.result = result.copy()  # type: ignore
-            self.result.location = target
-
-            if getattr(result, "location", None):
+        # if both a target and a result were provided, update the result location
+        # to point at the target
+        if self.target and self.result:
+            if (
+                getattr(self.result, "location", None)
+                and self.result.location != self.target
+            ):
                 warnings.warn(
-                    "Both `result.location` and `target` set on task. Task result will use target as location."
+                    "Both `result.location` and `target` were provided. "
+                    "The `target` value will be used."
                 )
+            self.result = self.result.copy()
+            self.result.location = self.target
 
         if state_handlers and not isinstance(state_handlers, collections.abc.Sequence):
             raise TypeError("state_handlers should be iterable.")
@@ -287,6 +300,12 @@ class Task(metaclass=SignatureValidator):
         self.auto_generated = False
 
         self.log_stdout = log_stdout
+
+        # if new task creations are being tracked, add this task
+        # this makes it possible to give guidance to users that forget
+        # to add tasks to a flow
+        if "_new_task_tracker" in prefect.context:
+            prefect.context._new_task_tracker.add(self)
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -367,9 +386,29 @@ class Task(metaclass=SignatureValidator):
             else:
                 setattr(new, attr, val)
 
+        # if both a target and a result were provided, update the result location
+        # to point at the target
+        if new.target and new.result:
+            if (
+                getattr(new.result, "location", None)
+                and new.result.location != new.target
+            ):
+                warnings.warn(
+                    "Both `result.location` and `target` were provided. "
+                    "The `target` value will be used."
+                )
+            new.result = new.result.copy()
+            new.result.location = new.target
+
         new.tags = copy.deepcopy(self.tags).union(set(new.tags))
         tags = set(prefect.context.get("tags", set()))
         new.tags.update(tags)
+
+        # if new task creations are being tracked, add this task
+        # this makes it possible to give guidance to users that forget
+        # to add tasks to a flow
+        if "_new_task_tracker" in prefect.context:
+            prefect.context._new_task_tracker.add(new)
 
         return new
 

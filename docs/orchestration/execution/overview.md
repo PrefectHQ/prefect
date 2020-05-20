@@ -60,7 +60,7 @@ f.register("My First Project", build=False)
 
 ## Environments
 
-While Storage objects provide a way to save and retrieve Flows, [Environments](https://docs.prefect.io/api/latest/environments/execution.html) specify _how your Flow should be run_ e.g., which executor to and whether there are any auxiliary infrastructure requirements for your Flow's execution. For example, if you want to run your Flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
+While Storage objects provide a way to save and retrieve Flows, [Environments](https://docs.prefect.io/api/latest/environments/execution.html) specify _how your Flow should be run_ e.g., which executor to use and whether there are any auxiliary infrastructure requirements for your Flow's execution. For example, if you want to run your Flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
 
 ### How Environments are Used
 
