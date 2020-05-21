@@ -11,7 +11,7 @@ Author: Chris White
 
 ## Status
 
-Proposed; supersedes [PIN 8](PIN-08-Listener-Flows.html).
+**Paused**; supersedes [PIN 8](PIN-08-Listener-Flows.html).
 
 ## Context
 
