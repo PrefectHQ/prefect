@@ -165,7 +165,7 @@ class S3Result(Result):
         try:
             self.client.get_object(
                 Bucket=self.bucket, Key=location.format(**kwargs)
-            ).load()
+            )
         except botocore.exceptions.ClientError as exc:
             if exc.response["Error"]["Code"] == "NoSuchKey":
                 return False
