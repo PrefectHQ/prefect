@@ -1,0 +1,2 @@
+fix:
+  - Fix `S3Result` attempting to load data when checking existence - [#2623](https://github.com/PrefectHQ/prefect/issues/2623)
