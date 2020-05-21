@@ -2,15 +2,12 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import functools
 import json
 import textwrap
-from typing import Any, Callable, Dict, Union
+from typing import Any, Dict, Union
 
 import ariadne
-import graphql
 import httpx
-import re
 from box import Box
 
 import prefect_server

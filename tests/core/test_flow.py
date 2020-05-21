@@ -7,7 +7,6 @@ import random
 import sys
 import tempfile
 import time
-import uuid
 from unittest.mock import MagicMock, patch
 
 import cloudpickle

@@ -4,8 +4,6 @@ import sys
 import threading
 import tempfile
 import time
-from datetime import timedelta
-from unittest.mock import MagicMock
 
 import pytest
 

@@ -1,9 +1,7 @@
-from unittest.mock import MagicMock
-import json
 import logging
 import uuid
 from datetime import timedelta
-from typing import Any, Union
+from typing import Any
 
 import pytest
 

@@ -3,7 +3,6 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from datetime import timedelta
 
 import pytest
 

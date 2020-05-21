@@ -1,4 +1,3 @@
-import json
 import os
 import tempfile
 from os import path

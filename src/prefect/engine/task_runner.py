@@ -3,18 +3,13 @@ from contextlib import redirect_stdout
 import itertools
 import json
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Iterable,
-    List,
     NamedTuple,
     Optional,
     Set,
-    Sized,
-    Tuple,
-    Union,
 )
 
 import pendulum

@@ -1,10 +1,8 @@
-import os
 import socket
 from unittest.mock import MagicMock
 
 import pytest
 from marshmallow.exceptions import ValidationError
-from testfixtures.mock import call
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
