@@ -42,6 +42,7 @@ def test_make_env_config_vars():
             "server.database.password": "password",
             "server.database.name": "db",
             "server.hasura.host_port": "7",
+            "server.database.volume_path": "test/path",
         }
     ):
         env = make_env()
@@ -59,6 +60,7 @@ def test_make_env_config_vars():
         assert env["POSTGRES_PASSWORD"] == "password"
         assert env["POSTGRES_DB"] == "db"
         assert env["HASURA_HOST_PORT"] == "7"
+        assert env["POSTGRES_DATA_PATH"] == "test/path"
 
 
 def test_server_start(monkeypatch, macos_platform):
@@ -263,3 +265,27 @@ def test_server_start_linux_host(monkeypatch, linux_platform):
         assert call_arg["services"][svc]["extra_hosts"] == [
             "host.docker.internal:172.17.0.1"
         ]
+
+
+def test_server_start_volume_options(monkeypatch, macos_platform):
+    check_call = MagicMock()
+    popen = MagicMock(side_effect=KeyboardInterrupt())
+    check_output = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+    monkeypatch.setattr("subprocess.check_call", check_call)
+    monkeypatch.setattr("subprocess.check_output", check_output)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        server, ["start", "--use-volume", "--volume-path", "test/path"],
+    )
+    assert result.exit_code == 1
+
+    assert check_call.called
+    assert popen.called
+    assert check_output.called
+
+    assert popen.call_args[0][0] == ["docker-compose", "up"]
+    assert popen.call_args[1].get("cwd")
+    assert popen.call_args[1].get("env")
+    assert popen.call_args[1]["env"].get("POSTGRES_DATA_PATH") == "test/path"

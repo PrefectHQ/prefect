@@ -1,0 +1,4 @@
+
+enhancement:
+  - "The `start_time` of a `Paused` state defaults to `None` - [#2617](https://github.com/PrefectHQ/prefect/pull/2617)"
+

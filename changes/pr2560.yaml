@@ -1,0 +1,5 @@
+server:
+  - "Add option to set volumes on `server start` CLI command - [#2560](https://github.com/PrefectHQ/prefect/pull/2560)"
+
+contributor:
+  - "[Bartek Roszak](https://github.com/BartekRoszak)"

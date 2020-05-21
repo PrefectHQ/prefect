@@ -2,6 +2,9 @@ import os
 import tempfile
 
 import cloudpickle
+import pytest
+
+pytest.importorskip("dask_cloudprovider")
 
 from distributed.deploy import Cluster
 

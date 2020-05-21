@@ -21,6 +21,7 @@ endpoint = "${server.host}:${server.port}"
     # set to "" to generate a random password each time the database starts
     password = "test-password"
     connection_url = "postgresql://${server.database.username}:${server.database.password}@${server.database.host}:${server.database.port}/${server.database.name}"
+    volume_path = "${home_dir}/pg_data"
 
     [server.graphql]
     host = "0.0.0.0"

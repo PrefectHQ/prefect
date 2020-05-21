@@ -1495,20 +1495,26 @@ class TestCheckScheduledStep:
         )
 
     @pytest.mark.parametrize(
-        "state", [Scheduled(start_time=None), Retrying(start_time=None)]
+        "state", [Scheduled(start_time=None), Retrying(start_time=None),],
     )
-    def test_scheduled_states_without_start_time(self, state):
+    def test_scheduled_states_with_default_start_time(self, state):
+        assert state.start_time is not None
         assert (
             TaskRunner(task=Task()).check_task_reached_start_time(state=state) is state
         )
+
+    @pytest.mark.parametrize(
+        "state", [Paused(start_time=None),],
+    )
+    def test_scheduled_states_with_none_start_time(self, state):
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_reached_start_time(state=state)
 
     @pytest.mark.parametrize(
         "state",
         [
             Scheduled(start_time=pendulum.now("utc").add(minutes=10)),
             Retrying(start_time=pendulum.now("utc").add(minutes=10)),
-            Paused(),
-            Paused(start_time=None),
             Paused(start_time=pendulum.now("utc").add(minutes=10)),
         ],
     )
@@ -2167,10 +2173,14 @@ def test_task_runner_logs_stdout(caplog):
     class MyTask(Task):
         def run(self):
             print("TEST_HERE")
+            return 42
 
     task = MyTask(log_stdout=True)
-    TaskRunner(task=task).run()
+    state = TaskRunner(task=task).run()
 
+    # there was a bug previously with log_stdout where
+    # data was not being passed on correctly
+    assert state.result == 42
     logs = [r.message for r in caplog.records]
     assert logs[1] == "TEST_HERE"
 

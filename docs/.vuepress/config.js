@@ -74,7 +74,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.11.1)', link: '/api/latest/' },
+          { text: 'Latest (0.11.2)', link: '/api/latest/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },

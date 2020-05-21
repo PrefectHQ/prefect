@@ -5,7 +5,8 @@ const graphqlMocks = [
   '@/graphql/Dashboard/flows.gql',
   '@/graphql/Dashboard/flow-count.gql',
   '@/graphql/Dashboard/upcoming-flow-runs.gql',
-  '@/graphql/Dashboard/flow-failures.gql'
+  '@/graphql/Dashboard/flow-failures.gql',
+  '@/graphql/Dashboard/hello.gql'
 ]
 
 // Use jest to mock the graphql data

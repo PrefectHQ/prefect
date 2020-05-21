@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import json
 import logging
 import uuid
@@ -10,7 +11,7 @@ import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
 from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
-from prefect.engine.results import PrefectResult
+from prefect.engine.results import PrefectResult, LocalResult
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.tasks import task
 
@@ -417,6 +418,23 @@ class TestTaskCopy:
         t2 = t.copy(slug="test-2")
         assert t.slug == "test"
         assert t2.slug == "test-2"
+
+    def test_copy_appropriately_sets_result_target_if_target_provided(self):
+        # https://github.com/PrefectHQ/prefect/issues/2588
+        @task(target="target", result=LocalResult(dir="."))
+        def X():
+            pass
+
+        @task
+        def Y():
+            pass
+
+        with Flow("test"):
+            x = X()
+            y = Y(task_args=dict(target="target", result=LocalResult(dir=".")))
+
+        assert x.result.location == "target"
+        assert y.result.location == "target"
 
 
 def test_task_has_slug():
