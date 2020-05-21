@@ -74,6 +74,11 @@ class LocalAgent(Agent):
             no_cloud_logs=no_cloud_logs,
         )
         hostname = socket.gethostname()
+
+        # Resolve common Docker hostname by using IP
+        if hostname == "docker-desktop":
+            hostname = socket.gethostbyname(hostname)
+
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
