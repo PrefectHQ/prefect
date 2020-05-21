@@ -1,16 +1,16 @@
-# Dask Cloud Provider Environment <Badge text="Cloud"/>
+# Dask Cloud Provider Environment
 
 [[toc]]
 
 
 ## Overview
 
-The Dask Cloud Provider Environment executes each Flow run on a dynamically created Dask cluster. It uses 
+The Dask Cloud Provider Environment executes each Flow run on a dynamically created Dask cluster. It uses
 the [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a Dask scheduler and
-workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very 
+workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very
 easy way to achieve high scalability without the complexity of Kubernetes.
 
-:::tip AWS Only    
+:::tip AWS Only
 Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
 Support for AzureML is [coming soon](https://github.com/dask/dask-cloudprovider/pull/67).
 :::
@@ -28,8 +28,8 @@ network traffic. Please be conscious of security issues if you test this environ
 #### Initialization
 
 The `DaskCloudProviderEnvironment` serves largely to pass kwargs through to the specific class
-from the Dask Cloud Provider project that you're using. You can find the list of 
-available arguments in the Dask Cloud Provider 
+from the Dask Cloud Provider project that you're using. You can find the list of
+available arguments in the Dask Cloud Provider
 [API documentation](https://cloudprovider.dask.org/en/latest/api.html).
 
 ```python
@@ -63,21 +63,21 @@ time. `DaskCloudProviderEnvironment` is a particularly good fit for automated
 deployment of scheduled Flows in a CI/CD pipeline where the infrastructure for each Flow
 should be as independent as possible, e.g. each Flow could have its own docker
 image, dynamically create the Dask cluster for each Flow run, etc. However, for
-development and interactive testing, either using ECS (instead of Fargate) or 
-creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using 
-`RemoteDaskEnvironment` or just `DaskExecutor` with your flows will result 
+development and interactive testing, either using ECS (instead of Fargate) or
+creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using
+`RemoteDaskEnvironment` or just `DaskExecutor` with your flows will result
 in a much better and faster development experience.
 :::
 
 #### Requirements
 
 The Dask Cloud Provider environment requires sufficient privileges with your cloud provider
-in order to run Docker containers for the Dask scheduler and workers. It's a good idea to 
-test Dask Cloud Provider directly and confirm that it's working properly before using 
+in order to run Docker containers for the Dask scheduler and workers. It's a good idea to
+test Dask Cloud Provider directly and confirm that it's working properly before using
 `DaskCloudProviderEnvironment`. See [this documentation](https://cloudprovider.dask.org/)
 for more details.
 
-Here's an example of creating a Dask cluster using Dask Cloud Provider directly, 
+Here's an example of creating a Dask cluster using Dask Cloud Provider directly,
 running a Flow on it, and then closing the cluster to tear down all cloud resoures
 that were created.
 
@@ -96,12 +96,12 @@ cluster = FargateCluster(
     scheduler_mem=512,
     worker_cpu=256,
     worker_mem=512,
-    scheduler_timeout="15 minutes",  
-)         
-# Be aware of scheduler_timeout. In this case, if no Dask client (e.g. Prefect 
-# Dask Executor) has connected to the Dask scheduler in 15 minutes, the Dask 
+    scheduler_timeout="15 minutes",
+)
+# Be aware of scheduler_timeout. In this case, if no Dask client (e.g. Prefect
+# Dask Executor) has connected to the Dask scheduler in 15 minutes, the Dask
 # cluster will terminate. For development, you may want to increase this timeout.
-        
+
 
 @task
 def times_two(x):
@@ -112,17 +112,17 @@ def times_two(x):
 def get_sum(x_list):
     return sum(x_list)
 
-                        
+
 with Flow("Dask Cloud Provider Test") as flow:
     x = Parameter("x", default=[1, 2, 3])
     y = times_two.map(x)
     results = get_sum(y)
 
-flow.run(executor=DaskExecutor(cluster.scheduler.address), 
+flow.run(executor=DaskExecutor(cluster.scheduler.address),
          parameters={"x": list(range(10))})
 
 # Tear down the Dask cluster. If you're developing and testing your flow you would
-# not do this after each Flow run, but when you're done developing and testing. 
+# not do this after each Flow run, but when you're done developing and testing.
 cluster.close()
 ```
 
@@ -147,13 +147,13 @@ The Dask Cloud Provider environment has no setup step because it has no infrastr
 
 Create a new cluster consisting of one Dask scheduler and one or more Dask workers on your
 cloud provider. By default, `DaskCloudProviderEnvironment` will use the same Docker image
-as your Flow for the Dask scheduler and worker. This ensures that the Dask workers have the 
-same dependencies (python modules, etc.) as the environment where the Flow runs. This drastically 
+as your Flow for the Dask scheduler and worker. This ensures that the Dask workers have the
+same dependencies (python modules, etc.) as the environment where the Flow runs. This drastically
 simplifies dependency management and avoids the need for separately distributing softare
 to Dask workers.
 
-Following creation of the Dask cluster, the Flow will be run using the 
-[Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointed 
+Following creation of the Dask cluster, the Flow will be run using the
+[Dask Executor](/api/latest/engine/executors.html#daskexecutor) pointed
 to the newly-created Dask cluster. All Task execution will take place on the
 Dask workers.
 
@@ -163,9 +163,9 @@ Dask workers.
 
 The following example will execute your Flow on a cluster that uses Dask's adaptive scaling
 to dynamically select the number of workers based on load of the Flow. The cluster
-will start with a single worker and dynamically scale up to five workers as needed. 
+will start with a single worker and dynamically scale up to five workers as needed.
 
-:::tip Dask Adaptive Mode vs. Fixed Number of Workers    
+:::tip Dask Adaptive Mode vs. Fixed Number of Workers
 While letting Dask dynamically choose the number of workers with adaptive mode is
 attractive, the slow startup time of Fargate workers may cause Dask to quickly request
 the maximum number of workers. You may find that manually specifying the number of
@@ -203,7 +203,7 @@ def times_two(x):
 def get_sum(x_list):
     return sum(x_list)
 
-                        
+
 with Flow("Dask Cloud Provider Test", environment=environment) as flow:
     x = Parameter("x", default=[1, 2, 3])
     y = times_two.map(x)
@@ -220,7 +220,7 @@ that will get passed to the constructor of the provider class from Dask Cloud Pr
 
 - TLS ecryption requires that the cert, key, and CA files are available in the Flow's Docker image
 
-- The `scheduler_extra_args` and `worker_extra_args` kwargs are not yet available in Dask Cloud Provider, 
+- The `scheduler_extra_args` and `worker_extra_args` kwargs are not yet available in Dask Cloud Provider,
 but there is an [open pull request](https://github.com/dask/dask-cloudprovider/pull/91) to include them.
 
 ```python
@@ -291,7 +291,7 @@ def times_two(x):
 def get_sum(x_list):
     return sum(x_list)
 
-                        
+
 with Flow("DaskCloudProviderEnvironment Test", environment=environment) as flow:
     x = Parameter("x", default=list(range(10)))
     y = times_two.map(x)
