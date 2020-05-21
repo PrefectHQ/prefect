@@ -32,10 +32,13 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+tests/
 
 # cache
 .mypy_cache/
 .pytest_cache/
+__pycache__/
+*.pyc
 
 # Flask stuff:
 instance/
@@ -54,3 +57,6 @@ instance/
 env/
 venv/
 ENV/
+
+# documentation
+*.md

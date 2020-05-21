@@ -139,6 +139,22 @@ def test_scheduled_states_have_default_times():
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
 
 
+def test_paused_state_has_no_default_start_time():
+    state = Paused()
+    assert state.start_time is None
+
+
+def test_passing_none_to_paused_state_has_no_default_start_time():
+    state = Paused(start_time=None)
+    assert state.start_time is None
+
+
+def test_paused_state_can_have_start_time():
+    dt = pendulum.now().add(years=1)
+    state = Paused(start_time=dt)
+    assert state.start_time == dt
+
+
 def test_queued_states_have_start_times():
     now = pendulum.now("utc")
     assert now - Queued().start_time < datetime.timedelta(seconds=0.1)
@@ -389,6 +405,9 @@ class TestStateHierarchy:
 
     def test_validation_failed_is_failed(self):
         assert issubclass(ValidationFailed, Failed)
+
+    def test_paused_is_scheduled(self):
+        assert issubclass(Paused, Scheduled)
 
 
 @pytest.mark.parametrize(

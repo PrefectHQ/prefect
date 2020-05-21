@@ -321,7 +321,12 @@ class FargateAgent(Agent):
             "propagateTags",
         ]
 
-        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment"]
+        container_definitions_kwarg_list = [
+            "mountPoints",
+            "secrets",
+            "environment",
+            "logConfiguration",
+        ]
 
         task_definition_kwargs = {}
         definition_kwarg_list_eval = {
@@ -593,6 +598,7 @@ class FargateAgent(Agent):
                 ],
                 "secrets": [],
                 "mountPoints": [],
+                "logConfiguration": {},
                 "essential": True,
             }
         ]
@@ -621,6 +627,9 @@ class FargateAgent(Agent):
         )
         container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
             "mountPoints", []
+        )
+        container_definitions[0]["logConfiguration"] = container_definitions_kwargs.get(
+            "logConfiguration", {}
         )
 
         # Register task definition

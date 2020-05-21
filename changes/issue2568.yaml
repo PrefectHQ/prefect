@@ -1,0 +1,2 @@
+enhancement:
+  - Add `case` to top-level namespace - [#2609](https://github.com/PrefectHQ/prefect/pull/2609)

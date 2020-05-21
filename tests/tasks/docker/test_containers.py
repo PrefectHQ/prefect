@@ -212,6 +212,7 @@ class TestGetContainerLogsTask(DockerLoggingTestingUtilityMixin):
             side_effect=docker.errors.DockerException("A docker specific exception")
         )
         api.return_value.logs = get_container_logs_mock
+        monkeypatch.setattr("docker.APIClient", api)
 
         self.assert_logs_once_on_docker_api_failure(task, caplog)
 
