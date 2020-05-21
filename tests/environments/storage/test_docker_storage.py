@@ -74,7 +74,7 @@ def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     assert not storage.files
     assert storage.prefect_version
     assert storage.base_url == url
-    assert not storage.tls_config
+    assert storage.tls_config == False
     assert not storage.local_image
     assert not storage.ignore_healthchecks
 

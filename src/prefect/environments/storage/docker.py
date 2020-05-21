@@ -9,7 +9,7 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Union
 
 import cloudpickle
 import pendulum
@@ -69,7 +69,7 @@ class Docker(Storage):
             for each flow run.  Used primarily for providing authentication credentials.
         - base_url: (str, optional): a URL of a Docker daemon to use when for
             Docker related functionality.  Defaults to DOCKER_HOST env var if not set
-        - tls_config: (docker.tls.TLSConfig, optional): a TLS configuration to pass to the Docker
+        - tls_config: (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
             client. https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig
 
     Raises:
@@ -92,7 +92,7 @@ class Docker(Storage):
         ignore_healthchecks: bool = False,
         secrets: List[str] = None,
         base_url: str = None,
-        tls_config: "docker.tls.TLSConfig" = None,
+        tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
     ) -> None:
         self.registry_url = registry_url
         if sys.platform == "win32":
