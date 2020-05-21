@@ -1,0 +1,2 @@
+deprecation:
+  - Deprecate `private_registry` and `docker_secret` options on `DaskKubernetesEnvironment` - [#2630](https://github.com/PrefectHQ/prefect/pull/2630)
