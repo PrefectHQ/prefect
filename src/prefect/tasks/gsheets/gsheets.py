@@ -1,12 +1,8 @@
 from prefect.utilities.tasks import defaults_from_attrs
 import gspread
-from typing import Dict, List, Tuple, Union, Any, TypedDict, Callable
-import prefect
-from prefect import task, Flow, Parameter, Task
-from prefect.tasks.secrets.base import SecretBase
-from prefect.tasks.secrets import PrefectSecret
+from typing import List, Union, Any, TypedDict, Callable
+from prefect import task, Task
 import pathlib
-from pathlib import Path
 
 
 class GsheetUpdates(TypedDict):
@@ -68,7 +64,7 @@ class WriteGsheetRow(Task):
         Returns:
             - a dictionary containing information about the successful insert
         """
-        client = gspread.service_account(filename=self.credentials_filename)
+        client = gspread.service_account(filename=credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.append_row(data)
@@ -115,7 +111,7 @@ class ReadGsheetRow(Task):
         Returns:
             - a list of values from the row 
         """
-        client = gspread.service_account(filename=self.credentials_filename)
+        client = gspread.service_account(filename=credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.row_values(row)
@@ -144,7 +140,7 @@ def gsheet_helper(fn: Callable):
         Args: 
             - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
         """
-        client = gspread.service_account(filename=self.credentials_filename)
+        client = gspread.service_account(filename=credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return fn(worksheet)
