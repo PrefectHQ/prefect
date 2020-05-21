@@ -1,0 +1,2 @@
+enhancement:
+  - Use host IP for `hostname` label in cases where `LocalAgent` is in container using host network - [#2618](https://github.com/PrefectHQ/prefect/issues/2618)
