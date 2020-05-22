@@ -1,2 +1,5 @@
 fix:
   - Kubernetes agent resource manager is more strict about what resources it manages - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+
+breaking:
+  - Kubernetes labels associated with Prefect flow runs now have a `prefect.io/` prefix (e.g. `prefect.io/identifier`) - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)

@@ -140,7 +140,6 @@ class KubernetesAgent(Agent):
 
         # Populate job metadata for identification
         k8s_labels = {
-            "prefect.io/app": job_name,
             "prefect.io/identifier": identifier,
             "prefect.io/flow_run_id": flow_run.id,  # type: ignore
             "prefect.io/flow_id": flow_run.flow.id,  # type: ignore
