@@ -313,11 +313,12 @@ def test_populate_job_yaml():
         assert len(yaml_obj["metadata"]["name"]) == 25
 
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 
@@ -374,11 +375,12 @@ def test_populate_job_yaml_no_defaults():
                 )
 
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 
@@ -442,11 +444,12 @@ def test_populate_job_yaml_multiple_containers():
                 )
 
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 

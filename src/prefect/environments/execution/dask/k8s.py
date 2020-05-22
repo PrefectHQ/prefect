@@ -351,6 +351,14 @@ class DaskKubernetesEnvironment(Environment):
     # Default YAML Spec Manipulation
     ################################
 
+    def _set_prefect_labels(self, obj: dict) -> None:
+        flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        obj.setdefault("metadata", {}).setdefault("labels", {}).update(labels)
+
     def _populate_job_yaml(
         self, yaml_obj: dict, docker_name: str, flow_file_path: str
     ) -> dict:
@@ -372,11 +380,8 @@ class DaskKubernetesEnvironment(Environment):
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        self._set_prefect_labels(yaml_obj)
+        self._set_prefect_labels(yaml_obj["spec"]["template"])
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
@@ -410,10 +415,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
-            "flow_run_id", "unknown"
-        )
+        self._set_prefect_labels(yaml_obj)
 
         # set environment variables
         env = yaml_obj["spec"]["containers"][0]["env"]
@@ -459,12 +461,8 @@ class DaskKubernetesEnvironment(Environment):
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
-
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        self._set_prefect_labels(yaml_obj)
+        self._set_prefect_labels(yaml_obj["spec"]["template"])
 
         # Required Cloud environment variables
         env_values = [
@@ -523,10 +521,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
-            "flow_run_id", "unknown"
-        )
+        self._set_prefect_labels(yaml_obj)
 
         # Required Cloud environment variables
         env_values = [
