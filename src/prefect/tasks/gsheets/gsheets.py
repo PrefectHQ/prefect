@@ -27,6 +27,7 @@ class WriteGsheetRow(Task):
     """
     A task for writing a row to a Google Sheet.
     Note that _all_ initialization settings can be provided / overwritten at runtime.
+
     Args:
         - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
         - sheet_key (str): The key corresponding to the Google Sheet
@@ -56,11 +57,13 @@ class WriteGsheetRow(Task):
     ) -> GsheetResponse:
         """
         Appends a row of data to a Google Sheets worksheet
+
         Args:
             - data (list): the data to insert. This should be formatted as a list
             - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
             - sheet_key (str): The key corresponding to the Google Sheet
             - worksheet_name (str): The worksheet to target
+
         Returns:
             - a dictionary containing information about the successful insert
         """
@@ -74,6 +77,7 @@ class ReadGsheetRow(Task):
     """
     A task for reading a row from a Google Sheet.
     Note that _all_ initialization settings can be provided / overwritten at runtime.
+
     Args:
         - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
         - sheet_key (str): The key corresponding to the Google Sheet
@@ -103,11 +107,13 @@ class ReadGsheetRow(Task):
     ) -> List[Any]:
         """
         Appends a row of data to a Google Sheets worksheet
+
         Args:
             - data (list): the data to insert. This should be formatted as a list
             - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
             - sheet_key (str): The key corresponding to the Google Sheet
             - worksheet_name (str): The worksheet to target
+
         Returns:
             - a list of values from the row 
         """
@@ -121,6 +127,7 @@ def gsheet_helper(fn: Callable):
     """
     A 'factory' to make tasks out of various utility methods in Google Sheets that that `gspread`
     package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
+
     Args:
         - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
         - sheet_key (str): The key corresponding to the Google Sheet
@@ -137,6 +144,7 @@ def gsheet_helper(fn: Callable):
         """
         A 'factory' to make tasks out of various utility methods in Google Sheets that that `gspread`
         package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
+        
         Args: 
             - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
         """
