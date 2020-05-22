@@ -226,11 +226,12 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
 
         # Populate metadata label fields
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        k8s_labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        yaml_obj["metadata"]["labels"].update(k8s_labels)
+        yaml_obj["spec"]["template"]["metadata"]["labels"].update(k8s_labels)
 
         # Required Cloud environment variables
         env_values = [
