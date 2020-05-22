@@ -71,6 +71,14 @@ def test_local_agent_config_options_hostname(runner_token):
         }
 
 
+def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, runner_token):
+    monkeypatch.setattr("socket.gethostname", MagicMock(return_value="docker-desktop"))
+    monkeypatch.setattr("socket.gethostbyname", MagicMock(return_value="IP"))
+
+    agent = LocalAgent()
+    assert "IP" in agent.labels
+
+
 def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     with set_temporary_config(
         {
