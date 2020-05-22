@@ -139,16 +139,15 @@ class KubernetesAgent(Agent):
         job_name = "prefect-job-{}".format(identifier)
 
         # Populate job metadata for identification
+        k8s_labels = {
+            "prefect.io/app": job_name,
+            "prefect.io/identifier": identifier,
+            "prefect.io/flow_run_id": flow_run.id,  # type: ignore
+            "prefect.io/flow_id": flow_run.flow.id,  # type: ignore
+        }
         job["metadata"]["name"] = job_name
-        job["metadata"]["labels"]["app"] = job_name
-        job["metadata"]["labels"]["identifier"] = identifier
-        job["metadata"]["labels"]["flow_run_id"] = flow_run.id  # type: ignore
-        job["metadata"]["labels"]["flow_id"] = flow_run.flow.id  # type: ignore
-        job["spec"]["template"]["metadata"]["labels"]["app"] = job_name
-        job["spec"]["template"]["metadata"]["labels"][
-            "flow_run_id"
-        ] = flow_run.id  # type: ignore
-        job["spec"]["template"]["metadata"]["labels"]["identifier"] = identifier
+        job["metadata"]["labels"].update(**k8s_labels)
+        job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
         # Use flow storage image for job
         job["spec"]["template"]["spec"]["containers"][0]["image"] = (

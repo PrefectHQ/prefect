@@ -132,9 +132,12 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.replace_job_spec_yaml(flow_run)
 
-        assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "new_id"
-        assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
+        assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
+        assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
+        assert (
+            job["spec"]["template"]["metadata"]["labels"]["prefect.io/flow_run_id"]
+            == "id"
+        )
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
         )
@@ -187,9 +190,12 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         agent = KubernetesAgent()
         job = agent.replace_job_spec_yaml(flow_run)
 
-        assert job["metadata"]["labels"]["flow_run_id"] == "id"
-        assert job["metadata"]["labels"]["flow_id"] == "new_id"
-        assert job["spec"]["template"]["metadata"]["labels"]["flow_run_id"] == "id"
+        assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
+        assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
+        assert (
+            job["spec"]["template"]["metadata"]["labels"]["prefect.io/flow_run_id"]
+            == "id"
+        )
         assert (
             job["spec"]["template"]["spec"]["containers"][0]["image"] == "test/name:tag"
         )
