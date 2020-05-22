@@ -63,8 +63,6 @@ class ResourceManager:
                 self.logger.exception(exc)
             time.sleep(self.loop_interval)
 
-    # IDENTIFICATION
-
     def clean_resources(self) -> None:
         """
         Find jobs that are either completed or failed to delete from the cluster
@@ -94,45 +92,6 @@ class ResourceManager:
                     self.report_failed_job(identifier=identifier)
 
                 self.delete_job(name=name)
-                self.delete_pods(job_name=name, identifier=identifier)
-
-        if not jobs.items:
-            self.clean_extra_pods()
-
-    def clean_extra_pods(self) -> None:
-        """
-        Any runaway pods which failed due to unexpected reasons will be cleaned up here.
-        ImagePullBackoffs, Evictions, etc...
-        """
-        core_client = self.k8s_client.CoreV1Api()
-
-        try:
-            pods = core_client.list_namespaced_pod(namespace=self.namespace)
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to list pods in namespace {}".format(self.namespace)
-            )
-            return
-
-        for pod in pods.items:
-            phase = pod.status.phase
-            if phase != "Running":
-
-                name = pod.metadata.name
-
-                if phase == "Failed":
-                    self.report_failed_pod(pod=pod)
-
-                if phase == "Unknown":
-                    self.report_unknown_pod(pod=pod)
-
-                if phase == "Pending":
-                    if pod.status.container_statuses:
-                        self.report_pod_image_pull_error(pod=pod)
-
-                self.delete_extra_pod(name=name)
-
-    # DELETION
 
     def delete_job(self, name: str) -> None:
         """
@@ -153,68 +112,6 @@ class ResourceManager:
                     name, self.namespace
                 )
             )
-
-    def delete_pods(self, job_name: str, identifier: str) -> None:
-        """
-        Delete a pod based on the job name and identifier
-        """
-        core_client = self.k8s_client.CoreV1Api()
-        try:
-            pods = core_client.list_namespaced_pod(
-                namespace=self.namespace,
-                label_selector="identifier={}".format(identifier),
-            )
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to list pods in namespace {}".format(self.namespace)
-            )
-            return
-
-        if pods:
-            self.logger.info(
-                "Deleting {} pods for job {} in namespace {}".format(
-                    len(pods.items), job_name, self.namespace
-                )
-            )
-        for pod in pods.items:
-            name = pod.metadata.name
-
-            try:
-                core_client.delete_namespaced_pod(
-                    name=name,
-                    namespace=self.namespace,
-                    body=self.k8s_client.V1DeleteOptions(),
-                )
-            except self.k8s_client.rest.ApiException:
-                self.logger.exception(
-                    "Error attempting to delete pod {} in namespace {}".format(
-                        name, self.namespace
-                    )
-                )
-
-    def delete_extra_pod(self, name: str) -> None:
-        """
-        Delete a pod based on the name
-        """
-        core_client = self.k8s_client.CoreV1Api()
-        self.logger.info(
-            "Deleting extra pod {} in namespace {}".format(name, self.namespace)
-        )
-
-        try:
-            core_client.delete_namespaced_pod(
-                name=name,
-                namespace=self.namespace,
-                body=self.k8s_client.V1DeleteOptions(),
-            )
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to delete pod {} in namespace {}".format(
-                    name, self.namespace
-                )
-            )
-
-    # REPORTING
 
     def report_failed_job(self, identifier: str) -> None:
         """
