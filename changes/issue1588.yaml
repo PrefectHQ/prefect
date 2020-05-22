@@ -1,0 +1,2 @@
+fix:
+  - Kubernetes agent resource manager is more strict about what resources it manages - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
