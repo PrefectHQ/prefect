@@ -3,7 +3,6 @@
 
 
 import asyncio
-import uuid
 
 import pendulum
 import pytest

@@ -1,9 +1,7 @@
 import datetime
 import json
-import os
-import tempfile
 import uuid
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 
 import marshmallow
 import pendulum

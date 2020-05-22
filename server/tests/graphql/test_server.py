@@ -9,9 +9,7 @@ from typing import Any
 
 import ariadne
 import httpx
-import json
 import pytest
-import uuid
 from ariadne import make_executable_schema
 from ariadne.asgi import GraphQL
 from graphql import GraphQLResolveInfo

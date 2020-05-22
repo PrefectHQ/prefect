@@ -2,7 +2,6 @@ import datetime
 import os
 import sys
 import tempfile
-from unittest.mock import MagicMock
 
 import cloudpickle
 import pytest

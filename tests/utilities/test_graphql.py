@@ -1,5 +1,4 @@
 import json
-import sys
 import uuid
 from collections import OrderedDict
 from textwrap import dedent
