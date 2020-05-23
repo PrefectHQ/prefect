@@ -190,6 +190,8 @@ Mapped or looped tasks require special consideration when it comes to their resu
 
 When configuring results for a mapped pipeline, if you choose to configure the location it is required that you include `{filename}` as in your result location / target template.  When your task runs you will notice that two files will be written: one where `filename={edge.key}-{map_index}` and one where `filename=outputs`.  In non-mapped pipelines the output of the upstream task is identical to the input of the downstream task, so this distinction is unnecessary; the input to a _mapped_ task, on the other hand, is an manipulated version of the upstream output - in particular, it represents a single element indexed from the upstream's returned list-like object.  Consequently, Prefect stores the mapped input individually to avoid having to read in the entire list in the event of a retry / recovery from a failure.
 
+As a matter of clarity it is highly recommended that you use `{map_index}` in your location template as well to avoid duplicate writes to the same location.
+
 An example mapped task with {filename}:
 
 ```python
@@ -199,8 +201,6 @@ def mapped_task(x):
     return x + 1
 
 ```
-
-As a matter of clarity it is highly recommended that you use `{map_index}` in your location template as well to avoid duplicate writes to the same location.
 
 ### Looping
 
