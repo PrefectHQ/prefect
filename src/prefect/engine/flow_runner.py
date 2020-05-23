@@ -416,7 +416,7 @@ class FlowRunner(Runner):
                 ):
                     continue
 
-                upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
+                upstream_states = {}  # type: Dict[Edge, State]
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
@@ -489,7 +489,9 @@ class FlowRunner(Runner):
 
                     for idx, states in enumerate(list_of_upstream_states):
                         if isinstance(task_state, Mapped) and task_state.map_states:
-                            current_state = task_state.map_states[idx]
+                            current_state = task_state.map_states[
+                                idx
+                            ]  # type: Optional[State]
                         else:
                             current_state = task_state
                         with prefect.context(
@@ -509,7 +511,7 @@ class FlowRunner(Runner):
                                 )
                             )
                     if isinstance(task_states.get(task), Mapped):
-                        task_states[task].map_states = submitted_states
+                        task_states[task].map_states = submitted_states  # type: ignore
 
                 # -- run the task
                 else:

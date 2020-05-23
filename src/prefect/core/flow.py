@@ -853,7 +853,7 @@ class Flow:
 
             # if the task can be represented as a constant and we don't need to map over it
             # then we can optimize it out of the graph and into the special `constants` dict
-            if isinstance(t, prefect.tasks.core.constants.Constant):
+            if isinstance(t, prefect.tasks.core.constants.Constant) and not is_mapped:
                 self.constants[task].update({key: t.value})
             else:
                 self.add_edge(
