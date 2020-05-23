@@ -200,6 +200,7 @@ class TaskRunner(Runner):
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
+        mapped_parent: bool = False,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -230,12 +231,6 @@ class TaskRunner(Runner):
         if executor is None:
             executor = prefect.engine.get_default_executor_class()()
 
-        # if mapped is true, this task run is going to generate a Mapped state. It won't
-        # actually run, but rather spawn children tasks to map over its inputs. We
-        # detect this case by checking for:
-        #   - upstream edges that are `mapped`
-        #   - no `map_index` (which indicates that this is the child task, not the parent)
-        mapped = any([e.mapped for e in upstream_states]) and map_index is None
         task_inputs = {}  # type: Dict[str, Any]
 
         try:
@@ -267,6 +262,11 @@ class TaskRunner(Runner):
                 state = self.check_upstream_skipped(
                     state, upstream_states=upstream_states
                 )
+
+                if mapped_parent:
+                    state = self.check_task_ready_to_map(
+                        state, upstream_states=upstream_states
+                    )
 
                 # populate / hydrate all result objects
                 state, upstream_states = self.load_results(
@@ -422,6 +422,36 @@ class TaskRunner(Runner):
                 )
             )
         return state
+
+    @call_state_handlers
+    def check_task_ready_to_map(
+        self, state: State, upstream_states: Dict[Edge, State]
+    ) -> State:
+        """
+        Checks if the parent task is ready to proceed with mapping.
+
+        Args:
+            - state (State): the current state of this task
+            - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
+
+        Returns:
+            - State: the state of the task after running the check
+
+        Raises:
+            - ENDRUN: if upstream tasks are not finished.
+        """
+        ## we can't map if there are no success states with iterables upstream
+        if not any(
+            [
+                edge.mapped and state.is_successful()
+                for edge, state in upstream_states.items()
+            ]
+        ):
+            new_state = Failed("No upstream states can be mapped over.")
+            raise ENDRUN(new_state)
+        else:
+            new_state = Mapped("Ready to proceed with mapping.")
+            raise ENDRUN(new_state)
 
     @call_state_handlers
     def check_task_trigger(

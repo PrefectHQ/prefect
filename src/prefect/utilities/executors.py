@@ -291,6 +291,12 @@ def prepare_upstream_states_for_mapping(
         - ENDRUN: if the current state is not `Running`
     """
 
+    ## if the current state is failed / skipped or otherwise
+    ## in a state that signifies we should not continue with mapping,
+    ## we return an empty list
+    if state.is_failed() or state.is_skipped():
+        return []
+
     map_upstream_states = []
 
     # we don't know how long the iterables are, but we want to iterate until we reach
