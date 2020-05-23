@@ -440,10 +440,11 @@ class FlowRunner(Runner):
                 # can detect second layer by finding edge.mapped + mapped state!
                 if any([edge.mapped for edge in upstream_states.keys()]):
 
-                    # if any upstream edges + states are mapped, this tells us
-                    # we are working on the second level of a mapped pipeline;
-                    # the upstream's Mapped state can tell us the width without waiting
-                    if not any(
+                    # if not all upstream edges + states are mapped, this tells us
+                    # we are working on the first level of a mapped pipeline;
+                    # in this case we want to wait for the mapped upstreams to complete
+                    # so that we can determine the width of the mapped pipeline
+                    if not all(
                         [
                             edge.mapped and isinstance(state, Mapped)
                             for edge, state in upstream_states.items()
@@ -452,8 +453,8 @@ class FlowRunner(Runner):
                         upstream_states.update(
                             executor.wait(
                                 {
-                                    e: task_states.get(e.upstream_task)
-                                    for e in upstream_states.keys()
+                                    e: task_states.get(e.upstream_task, s)
+                                    for e, s in upstream_states.items()
                                 }
                             )
                         )
