@@ -12,7 +12,6 @@ from typing import (
 )
 
 import pendulum
-
 import prefect
 from prefect.core import Edge, Flow, Task
 from prefect.engine.result import Result
@@ -30,7 +29,10 @@ from prefect.engine.state import (
     Success,
 )
 from prefect.utilities.collections import flatten_seq
-from prefect.utilities.executors import run_with_heartbeat
+from prefect.utilities.executors import (
+    run_with_heartbeat,
+    prepare_upstream_states_for_mapping,
+)
 
 FlowRunnerInitializeResult = NamedTuple(
     "FlowRunnerInitializeResult",
@@ -434,18 +436,76 @@ class FlowRunner(Runner):
                         result=ConstantResult(value=val),
                     )
 
-                # -- run the task
+                # handle first level of mapping
+                # can detect second layer by finding edge.mapped + mapped state!
+                if any([edge.mapped for edge in upstream_states.keys()]):
 
-                with prefect.context(task_full_name=task.name, task_tags=task.tags):
-                    task_states[task] = executor.submit(
-                        self.run_task,
-                        task=task,
-                        state=task_state,
-                        upstream_states=upstream_states,
-                        context=dict(prefect.context, **task_contexts.get(task, {})),
-                        task_runner_state_handlers=task_runner_state_handlers,
-                        executor=executor,
+                    # if any upstream edges + states are mapped, this tells us
+                    # we are working on the second level of a mapped pipeline;
+                    # the upstream's Mapped state can tell us the width without waiting
+                    if not any(
+                        [
+                            edge.mapped and isinstance(state, Mapped)
+                            for edge, state in upstream_states.items()
+                        ]
+                    ):
+                        upstream_states.update(
+                            executor.wait(
+                                {
+                                    e: task_states.get(e.upstream_task)
+                                    for e in upstream_states.keys()
+                                }
+                            )
+                        )
+
+                    list_of_upstream_states = prepare_upstream_states_for_mapping(
+                        task_state if isinstance(task_state, State) else State(),
+                        upstream_states,
                     )
+
+                    submitted_states = []
+
+                    for idx, states in enumerate(list_of_upstream_states):
+                        if isinstance(task_state, Mapped):
+                            current_state = task_state.map_states[idx]
+                        else:
+                            current_state = task_state
+                        with prefect.context(
+                            task_full_name=task.name, task_tags=task.tags
+                        ):
+                            submitted_states.append(
+                                executor.submit(
+                                    self.run_task,
+                                    task=task,
+                                    state=current_state,
+                                    upstream_states=states,
+                                    context=dict(
+                                        prefect.context, **task_contexts.get(task, {})
+                                    ),
+                                    task_runner_state_handlers=task_runner_state_handlers,
+                                    executor=executor,
+                                )
+                            )
+
+                    task_states[task] = Mapped(
+                        f"Successfully submitted {len(submitted_states)} child tasks.",
+                        map_states=submitted_states,
+                    )
+
+                # -- run the task
+                else:
+                    with prefect.context(task_full_name=task.name, task_tags=task.tags):
+                        task_states[task] = executor.submit(
+                            self.run_task,
+                            task=task,
+                            state=task_state,
+                            upstream_states=upstream_states,
+                            context=dict(
+                                prefect.context, **task_contexts.get(task, {})
+                            ),
+                            task_runner_state_handlers=task_runner_state_handlers,
+                            executor=executor,
+                        )
 
             # ---------------------------------------------
             # Collect results
