@@ -434,14 +434,11 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
             - upstream_states (Dict[Edge, Union[State, List[State]]]): the upstream states
 
-        Returns:
-            - State: the state of the task after running the check
-
         Raises:
-            - ENDRUN: if upstream tasks are not finished.
+            - ENDRUN: either way, we dont continue past this point
         """
         ## we can't map if there are no success states with iterables upstream
-        if not any(
+        if upstream_states and not any(
             [
                 edge.mapped and state.is_successful()
                 for edge, state in upstream_states.items()

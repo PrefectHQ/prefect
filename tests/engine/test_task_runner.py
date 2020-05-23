@@ -278,7 +278,8 @@ def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping()
     """after mapping, an ENDRUN is raised"""
     with raise_on_exception():
         state = TaskRunner(Task()).run(
-            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])}
+            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])},
+            mapped_parent=True,
         )
     assert state.is_mapped()
 
@@ -1675,17 +1676,17 @@ class TestTaskRunnerStateHandlers:
         assert isinstance(state, TriggerFailed)
         assert task_runner_handler.call_count == 1
 
-    def test_task_runner_handlers_are_called_on_mapped(self):
+    def test_task_runner_handlers_are_called_on_mapped_parent(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
 
         runner = TaskRunner(task=Task(), state_handlers=[task_runner_handler])
         state = runner.run(
-            upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+            upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
+            mapped_parent=True,
         )
-        # the parent task changed state two times: Pending -> Mapped -> Mapped
-        # the child task changed state one time: Pending -> Running -> Success
+        # the parent task changed state one time: Pending -> Mapped
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 4
+        assert task_runner_handler.call_count == 1
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1733,104 +1734,34 @@ class TestTaskRunnerStateHandlers:
         assert state.is_failed()
 
 
-class TestRunMappedStep:
-    def test_run_mapped_with_empty_upstream_states(self):
-        """
-        Ensure infinite loop is avoided
-        """
-        state = TaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
-            upstream_states={},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-
+class TestCheckTaskReadyToMapStep:
     @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
     def test_run_mapped_returns_mapped(self, state):
-        state = TaskRunner(task=Task()).run_mapped_task(
-            state=state,
-            upstream_states={},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-        assert state.is_mapped()
-
-    def test_run_mapped_preserves_result_objects(self):
-        @prefect.task(cache_for=timedelta(minutes=10))
-        def tt(foo):
-            pass
-
-        with prefect.context(checkpointing=True, caches={}):
-            state = TaskRunner(task=tt).run_mapped_task(
-                state=Pending(),
-                upstream_states={
-                    Edge(Task(), tt, key="foo", mapped=True): Success(
-                        result=Result([1, 2], result_handler=JSONResultHandler())
-                    )
-                },
-                context={},
-                executor=prefect.engine.executors.LocalExecutor(),
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=state, upstream_states={},
             )
-        assert state.is_mapped()
+        assert exc.value.state.is_mapped()
 
-        one, two = state.map_states
-        assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
-        assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
-
-    def test_run_mapped_preserves_context(self):
-        @prefect.task
-        def ctx():
-            return prefect.context.get("special_thing")
-
-        with prefect.context(special_thing="FOOBARRR"):
-            runner = TaskRunner(task=ctx)
-
-        state = runner.run_mapped_task(
-            state=Pending(),
-            upstream_states={Edge(Task(), ctx, mapped=True): Success(result=[1, 2])},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-        assert state.is_mapped()
-        assert [s.result for s in state.map_states] == ["FOOBARRR"] * 2
+    def test_run_mapped_returns_failed_if_no_success_upstream(self):
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=Pending(),
+                upstream_states={Edge(Task(), Task(), mapped=True): Failed()},
+            )
+        assert exc.value.state.is_failed()
 
 
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_performs_mapping(executor):
-    add = AddTask()
-    ex = Edge(SuccessTask(), add, key="x")
-    ey = Edge(ListTask(), add, key="y", mapped=True)
-    runner = TaskRunner(add)
-    with executor.start():
-        res = runner.run(
-            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-            executor=executor,
-        )
-        res.map_states = executor.wait(res.map_states)
-    assert isinstance(res, Mapped)
-    assert [s.result for s in res.map_states] == [2, 3, 4]
-
-
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_children(
-    executor,
-):
+def test_task_runner_skips_upstream_check_for_parent_mapped_task():
     add = AddTask(trigger=prefect.triggers.all_failed)
     ex = Edge(SuccessTask(), add, key="x")
     ey = Edge(ListTask(), add, key="y", mapped=True)
     runner = TaskRunner(add)
-    with executor.start():
-        res = runner.run(
-            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-            executor=executor,
-        )
-        res.map_states = executor.wait(res.map_states)
-    assert isinstance(res, Mapped)
-    assert all([isinstance(s, TriggerFailed) for s in res.map_states])
+    res = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+        mapped_parent=True,
+    )
+    assert res.is_mapped()
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():
@@ -1882,13 +1813,10 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
         state_handlers=[task_runner_handler],
     )
     state = runner.run(
-        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
+        mapped_parent=True,
     )
-    # the parent task changed state two times: Pending -> Mapped -> Mapped
-    # the child task changed state one time: Pending -> TriggerFailed
-    assert isinstance(state, Mapped)
-    assert task_runner_handler.call_count == 3
-    assert isinstance(state.map_states[0], TriggerFailed)
+    assert state.is_mapped()
 
 
 def test_retry_has_updated_metadata():
