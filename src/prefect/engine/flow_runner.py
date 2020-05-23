@@ -452,10 +452,7 @@ class FlowRunner(Runner):
                     with prefect.context(task_full_name=task.name, task_tags=task.tags):
                         upstream_states.update(
                             executor.wait(
-                                {
-                                    e: task_states.get(e.upstream_task)
-                                    for e in upstream_states.keys()
-                                }
+                                {e: state for e, state in upstream_states.items()}
                             )
                         )
                         task_states[task] = executor.wait(
@@ -483,10 +480,18 @@ class FlowRunner(Runner):
                         upstream_states,
                     )
 
+                    if not list_of_upstream_states and isinstance(task_state, Mapped):
+                        list_of_upstream_states = [
+                            upstream_states for _ in range(len(task_state.map_states))
+                        ]
+
                     submitted_states = []
 
                     for idx, states in enumerate(list_of_upstream_states):
-                        current_state = task_state
+                        if isinstance(task_state, Mapped) and task_state.map_states:
+                            current_state = task_state.map_states[idx]
+                        else:
+                            current_state = task_state
                         with prefect.context(
                             task_full_name=task.name, task_tags=task.tags
                         ):

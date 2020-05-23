@@ -82,7 +82,7 @@ queue_interval = 30.0
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
-level = "INFO"
+level = "DEBUG"
 
 # The log format
 format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
