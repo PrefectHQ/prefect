@@ -19,8 +19,8 @@ class KubernetesJobEnvironment(Environment):
     When providing a custom YAML job spec the first container in the spec must be the
     container that the flow runner will be executed on.
 
-    These environment variables are required for cloud do not need to be included because
-    they are instead automatically added and populated during execution:
+    The following environment variables, required for cloud, do not need to be
+    included––they are automatically added and populated during execution:
 
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
@@ -39,6 +39,10 @@ class KubernetesJobEnvironment(Environment):
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
+        - unique_job_name (bool, optional): whether to use a unique name for each job created with this environment. Defaults
+            to `False`
+        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
+            the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -48,11 +52,15 @@ class KubernetesJobEnvironment(Environment):
     def __init__(
         self,
         job_spec_file: str = None,
+        unique_job_name: bool = False,
+        executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
+        self.unique_job_name = unique_job_name
+        self.executor_kwargs = executor_kwargs or dict()
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
@@ -160,9 +168,15 @@ class KubernetesJobEnvironment(Environment):
             ) as f:
                 flow = cloudpickle.load(f)
 
-                runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()()
-                runner_cls(flow=flow).run(executor=executor_cls)
+                ## populate global secrets
+                secrets = prefect.context.get("secrets", {})
+                for secret in flow.storage.secrets:
+                    secrets[secret.name] = secret.run()
+
+                with prefect.context(secrets=secrets):
+                    runner_cls = get_default_flow_runner_class()
+                    executor_cls = get_default_executor_class()(**self.executor_kwargs)
+                    runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
@@ -197,6 +211,11 @@ class KubernetesJobEnvironment(Environment):
         if not yaml_obj.get("metadata"):
             yaml_obj["metadata"] = {}
 
+        if self.unique_job_name:
+            yaml_obj["metadata"][
+                "name"
+            ] = f"{yaml_obj['metadata']['name']}-{str(uuid.uuid4())[:8]}"
+
         if not yaml_obj["metadata"].get("labels"):
             yaml_obj["metadata"]["labels"] = {}
 
@@ -207,11 +226,12 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
 
         # Populate metadata label fields
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        k8s_labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        yaml_obj["metadata"]["labels"].update(k8s_labels)
+        yaml_obj["spec"]["template"]["metadata"]["labels"].update(k8s_labels)
 
         # Required Cloud environment variables
         env_values = [
@@ -239,7 +259,7 @@ class KubernetesJobEnvironment(Environment):
             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                "value": prefect.config.logging.extra_loggers,
+                "value": str(prefect.config.logging.extra_loggers),
             },
         ]
 

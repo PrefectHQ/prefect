@@ -5,7 +5,7 @@ Author: Jeremiah Lowin
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 

@@ -6,6 +6,61 @@ references:
     attach_workspace:
       at: *workspace_root
 
+commands:
+  prep_server_database:
+    description: 'Run Prefect Server database migrations'
+    steps:
+      - run:
+          name: Run Prefect Server database migrations
+          command: prefect-server database upgrade --yes
+  prep_ui:
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - npm-dependencies-{{ arch }}-{{ checksum "package.json" }}
+            - npm-dependencies-{{ arch }}-
+            - npm-dependencies-
+      - run:
+          name: Install utilities
+          command: |
+            apt-get update
+            # official binaries for nodejs
+            curl -sL https://deb.nodesource.com/setup_11.x | bash -
+            apt-get install -y sudo nodejs netcat
+      - run:
+          name: NPM Install
+          command: cd server/services/ui && npm install
+      - save_cache:
+          paths:
+            - ./server/services/ui/node_modules
+          key: npm-dependencies-{{ arch }}-{{ checksum "package.json" }}
+
+executors:
+  docker-prefect-server:
+    docker:
+      - image: python:3.7
+        environment:
+          PREFECT_SERVER__DATABASE__NAME: prefect_server
+          PREFECT_SERVER__DATABASE__USERNAME: prefect
+          PREFECT_SERVER__DATABASE__PASSWORD: test-password
+          PREFECT_SERVER__HASURA__ADMIN_SECRET: 'hasura-secret-admin-secret'
+
+      - image: 'postgres:11'
+        environment:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: prefect_server
+        command: postgres -c max_connections=150
+
+      - image: 'hasura/graphql-engine:v1.1.0'
+        command: /bin/sh -c "sleep 5 && graphql-engine serve"
+        environment:
+          HASURA_GRAPHQL_DATABASE_URL: postgres://prefect:prefect@localhost:5432/prefect_server
+          HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+          HASURA_GRAPHQL_ADMIN_SECRET: 'hasura-secret-admin-secret'
+          HASURA_GRAPHQL_SERVER_PORT: '3000'
+
 jobs:
   # ----------------------------------
   # Check formatting
@@ -13,13 +68,17 @@ jobs:
 
   check_static_analysis:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - checkout
 
       - run:
           name: Install python packages for static analysis
           command: pip install black mypy mypy_extensions autoflake profimp
+
+      - run:
+          name: Quick installation of Prefect
+          command: pip install -e .
 
       - run:
           name: Run Black
@@ -37,10 +96,6 @@ jobs:
               cat .unused-imports.txt
               exit 2
             fi
-
-      - run:
-          name: Quick installation of Prefect
-          command: pip install -e .
 
       - run:
           name: Ensure 'import prefect' is under 1 second
@@ -61,42 +116,33 @@ jobs:
 
   check_documentation:
     docker:
-      - image: python:3.6
+      - image: python:3.7
     steps:
       - checkout
       - setup_remote_docker
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install -e ".[dev,test]"
 
       - run:
           name: Run documentation tests
-          command: pytest -vvrfEsx -k "generate_docs"
+          command: pytest docs -vvrfEsx
 
-  # test a standard install of prefect
-  # is importable in python 3.5.2
-  # there was a typing bug in 3.5.2 that this attempts to catch
-  test_py352_import_prefect:
+  check_ui_formatting:
     docker:
-      - image: python:3.5.2
-
+      - image: node:10.16.3
     steps:
-      - checkout
-      - setup_remote_docker
+      - prep_ui
       - run:
-          name: Install vanilla prefect
-          command: pip install .
-
-      - run:
-          name: Test Prefect imports cleanly
-          command: python -c "import prefect"
+          name: Lint
+          command: cd server/services/ui && npm run lint:ci
 
   # test a standard install of prefect
   # with all requriements pinned to their lowest allowed versions
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
-      - image: python:3.5.2
+      - image: python:3.6
 
     steps:
       - *attach_workspace
@@ -124,7 +170,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/lower-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -136,7 +182,7 @@ jobs:
   # caused by many package dependency options
   test_vanilla_prefect:
     docker:
-      - image: python:3.6
+      - image: python:3.7
 
     steps:
       - *attach_workspace
@@ -156,7 +202,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/vanilla-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -164,41 +210,8 @@ jobs:
             - coverage
 
   # ----------------------------------
-  # Run unit tests in Python 3.5-3.7
+  # Run unit tests in Python 3.6-3.8
   # ----------------------------------
-
-  test_35:
-    docker:
-      - image: python:3.5
-
-    steps:
-      - *attach_workspace
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
-
-      - run:
-          name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz
-
-      - run:
-          name: Upgrade pip
-          command: pip install -U pip
-
-      - run:
-          name: Install prefect
-          command: pip install ".[all_extras]"
-
-      - run:
-          name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python35-coverage.xml .
-
-      - persist_to_workspace:
-          root: *workspace_root
-          paths:
-            - coverage
 
   test_36:
     docker:
@@ -220,12 +233,12 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx --skip-formatting --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml .
+          command: pytest tests -vvrfEsx --cov=prefect --cov-report=xml:/tmp/workspace/coverage/python36-coverage.xml
 
       - persist_to_workspace:
           root: *workspace_root
@@ -251,12 +264,12 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx .
+          command: pytest tests -vvrfEsx
 
   test_38:
     docker:
@@ -277,12 +290,41 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install prefect
+          name: Install Prefect
           command: pip install ".[all_extras]"
 
       - run:
           name: Run tests
-          command: pytest -vvrfEsx .
+          command: pytest tests -vvrfEsx
+
+  test_server:
+    executor: docker-prefect-server
+    steps:
+      - checkout
+
+      - run:
+          name: Install Prefect
+          command: pip install ".[all_extras]"
+
+      - run:
+          name: Install Prefect Server (editable)
+          command: pip install -e ./server
+
+      - prep_server_database
+      - prep_ui
+
+      - run:
+          name: Run server tests
+          command: cd server && pytest -vvrfEsx .
+
+  test_ui:
+    docker:
+      - image: node:10.16.3
+    steps:
+      - prep_ui
+      - run:
+          name: UI Unit Test
+          command: cd server/services/ui && npm run test:unit
 
   upload_coverage:
     docker:
@@ -384,6 +426,7 @@ jobs:
             docker build \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+              --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               -t prefecthq/prefect:master \
               .
@@ -432,21 +475,23 @@ jobs:
           name: Upload Package to PyPI
           command: twine upload dist/*
 
+orbs:
+  docker: circleci/docker@1.0.0
+
 workflows:
   version: 2
 
   'Run tests':
     jobs:
-      - test_35
       - test_36
       - test_37
       - test_38
       - test_lower_prefect
       - test_vanilla_prefect
-      - test_py352_import_prefect
+      - test_server
+      - test_ui
       - upload_coverage:
           requires:
-            - test_35
             - test_36
             - test_37
             - test_38
@@ -456,6 +501,7 @@ workflows:
     jobs:
       - check_static_analysis
       - check_documentation
+      - check_ui_formatting
 
   'Build and publish development artifacts':
     jobs:
@@ -467,13 +513,6 @@ workflows:
 
   'Build and publish release artifacts':
     jobs:
-      - build_docker_image:
-          python_version: '3.5'
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.6'
           filters:
@@ -497,6 +536,76 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+
+  'Build and publish development server artifacts':
+    jobs:
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/apollo'
+          path: 'server/services/apollo'
+          tag: master
+          filters:
+            branches:
+              only: master
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/server'
+          path: 'server'
+          tag: master
+          filters:
+            branches:
+              only: master
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/ui'
+          path: 'server/services/ui'
+          tag: master
+          filters:
+            branches:
+              only: master
+
+  'Build and publish versioned server artifacts':
+    jobs:
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/apollo'
+          path: 'server/services/apollo'
+          tag: $CIRCLE_TAG,latest
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/server'
+          path: 'server'
+          tag: $CIRCLE_TAG,latest
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+
+      - docker/publish:
+          docker-password: DOCKER_HUB_PW
+          docker-username: DOCKER_HUB_USER
+          image: 'prefecthq/ui'
+          path: 'server/services/ui'
+          tag: $CIRCLE_TAG,latest
           filters:
             branches:
               ignore: /.*/

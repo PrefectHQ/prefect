@@ -1,0 +1,47 @@
+{
+  "license": "MIT",
+  "scripts": {
+    "build": "babel src --out-dir dist",
+    "lint": "eslint . --fix",
+    "serve": "node dist/index.js",
+    "start": "nodemon --exec babel-node src/index.js",
+    "test": "jest"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "src",
+      "../../src"
+    ],
+    "ext": "js,mjs,coffee,litcoffee,json,py"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.2.5",
+    "apollo-fetch": "^0.7.0",
+    "apollo-link-context": "^1.0.10",
+    "apollo-link-http": "^1.5.4",
+    "apollo-server": "^2.9.7",
+    "apollo-utilities": "^1.2.1",
+    "graphql": "^0.13.2",
+    "graphql-depth-limit": "^1.1.0",
+    "graphql-tools": "^3.0.4",
+    "jsonwebtoken": "^8.5.1",
+    "node-fetch": "^2.3.0",
+    "uuid": "^8.0.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.2.3",
+    "@babel/core": "^7.2.2",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.2.3",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-eslint": "^8.2.6",
+    "babel-jest": "^23.6.0",
+    "eslint": "^4.19.1",
+    "eslint-config-prettier": "^3.3.0",
+    "eslint-plugin-jest": "^22.1.2",
+    "eslint-plugin-prettier": "^3.0.1",
+    "jest": "^23.6.0",
+    "nodemon": "^1.18.9",
+    "prettier": "^1.15.3"
+  }
+}

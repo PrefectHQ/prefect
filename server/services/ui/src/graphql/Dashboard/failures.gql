@@ -1,0 +1,31 @@
+query Failures($heartbeat: timestamptz) {
+  flow_run(
+    where: {
+      heartbeat: { _gte: $heartbeat }
+      logs: { level: { _in: ["CRITICAL", "ERROR"] } }
+    }
+    distinct_on: flow_id
+    order_by: [{ flow_id: asc }, { heartbeat: desc }]
+  ) {
+    id
+    name
+    logs(
+      limit: 1
+      where: {
+        level: { _in: ["CRITICAL", "ERROR"] }
+        timestamp: { _gte: $heartbeat }
+      }
+    ) {
+      id
+      level
+      message
+      name
+      timestamp
+    }
+
+    flow {
+      id
+      name
+    }
+  }
+}

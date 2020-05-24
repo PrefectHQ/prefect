@@ -1,8 +1,5 @@
-import boto3
-
 from prefect import Task
-from prefect.client import Secret
-from prefect.utilities.tasks import defaults_from_attrs
+from prefect.utilities.aws import get_boto_client
 
 
 class StepActivate(Task):
@@ -16,9 +13,6 @@ class StepActivate(Task):
             your AWS account, region, and state machine for 90 days
         - execution_input (str, optional): string that contains the JSON input data for
             the execution
-        - aws_credentials_secret (str, optional): the name of the Prefect Secret
-            that stores your AWS credentials; this Secret must be a JSON string
-            with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -28,38 +22,29 @@ class StepActivate(Task):
         state_machine_arn: str,
         execution_name: str,
         execution_input: str = "{}",
-        aws_credentials_secret: str = "AWS_CREDENTIALS",
         **kwargs
     ):
         self.state_machine_arn = state_machine_arn
         self.execution_name = execution_name
         self.execution_input = execution_input
-        self.aws_credentials_secret = aws_credentials_secret
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("aws_credentials_secret")
-    def run(self, aws_credentials_secret: str = "AWS_CREDENTIALS"):
+    def run(self, credentials: dict = None):
         """
         Task run method. Activates AWS Step function.
 
         Args:
-            - aws_credentials_secret (str, optional): the name of the Prefect Secret
-                that stores your AWS credentials; this Secret must be a JSON string
-                with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY`
+            - credentials (dict, optional): your AWS credentials passed from an upstream
+                Secret task; this Secret must be a JSON string
+                with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
+                passed directly to `boto3`.  If not provided here or in context, `boto3`
+                will fall back on standard AWS rules for authentication.
 
         Returns:
             - dict: response from AWS StartExecution endpoint
         """
 
-        ## get AWS credentials
-        aws_credentials = Secret(aws_credentials_secret).get()
-        aws_access_key = aws_credentials["ACCESS_KEY"]
-        aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
-        step_client = boto3.client(
-            "stepfunctions",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-        )
+        step_client = get_boto_client("stepfunctions", credentials=credentials)
 
         response = step_client.start_execution(
             stateMachineArn=self.state_machine_arn,

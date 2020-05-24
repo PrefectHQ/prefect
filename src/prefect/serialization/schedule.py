@@ -79,9 +79,7 @@ class DatesClockSchema(ObjectSchema):
     class Meta:
         object_class = prefect.schedules.clocks.DatesClock
 
-    start_date = DateTimeTZ(allow_none=True)
-    end_date = DateTimeTZ(allow_none=True)
-    dates = DateTimeTZ(required=True, many=True)
+    dates = fields.List(DateTimeTZ(), required=True)
     parameter_defaults = fields.Dict(
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )

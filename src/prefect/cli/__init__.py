@@ -4,6 +4,7 @@
 import click
 
 import prefect
+from prefect.utilities import backend as backend_util
 
 from .agent import agent as _agent
 from .auth import auth as _auth
@@ -12,6 +13,7 @@ from .describe import describe as _describe
 from .execute import execute as _execute
 from .get import get as _get
 from .run import run as _run
+from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
 
 
@@ -43,6 +45,8 @@ def cli():
     \b
     Setup Commands:
         auth        Handle Prefect Cloud authorization
+        backend     Switch between `server` and `cloud` backends
+        server      Interact with the Prefect Server
 
     \b
     Miscellaneous Commands:
@@ -60,6 +64,7 @@ cli.add_command(_describe)
 cli.add_command(_execute)
 cli.add_command(_get)
 cli.add_command(_run)
+cli.add_command(_server)
 cli.add_command(_heartbeat)
 
 
@@ -102,3 +107,17 @@ def diagnostics(include_secret_names):
             include_secret_names=bool(include_secret_names)
         )
     )
+
+
+@cli.command(hidden=True)
+@click.argument("api")
+def backend(api):
+    """
+    Switch Prefect API backend to either `server` or `cloud`
+    """
+    if api not in ["server", "cloud"]:
+        click.secho("{} is not a valid backend API".format(api), fg="red")
+        return
+
+    backend_util.save_backend(api)
+    click.secho("Backend switched to {}".format(api), fg="green")

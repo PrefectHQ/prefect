@@ -175,3 +175,46 @@ It's possible to create state-dependencies with Prefect's functional API, as wel
 ::: tip Mix-and-match
 You can switch between the functional API and the imperative API at any time. For example, half way through the previous code block, we could have called `with flow:` and entered a flow context in which the functional API was available. At a minimum, this would remove the need to pass `flow=flow` to each bind instruction. You can choose whichever style you prefer.
 :::
+
+## Orchestrating flows
+
+Prefect's Core Python API is a powerful tool to describe task dependencies and even to run flows right from your Python shell, notebook, or a long-running Python script. However, you can also leverage a ready-to-use state database and UI backend that already works perfectly to orchestrate any of your Prefect flows and make monitoring and orchestration easy.
+
+Prefect Core ships with an open source, lightweight version of our highly-available, production-ready backend product Prefect Cloud.
+
+Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/orchestration/README.md).
+
+After [starting and configuring Core's server](installation.html#running-the-local-server-and-ui), navigate to `http://localhost:8080` to see the Prefect UI:
+
+![](/orchestration/server/new-server-dashboard.png)
+
+::: warning Backend configuration
+Before registering your flow with your local backend make sure you have called `prefect backend server` from the CLI to configure Prefect for local orchestration.
+:::
+
+[Register](/orchestration/concepts/flows.md#registration) any of your flows; they will register with your local backend:
+
+```python
+>>> flow.register()
+Flow: http://localhost:8080/flow/796f7ad4-26c8-4e5d-bab1-dc687691da88
+```
+You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect server's UI:
+
+![](/orchestration/server/first-flow-registered-server.png)
+
+Start a [local agent](/orchestration/agents/local.md) that can communicate between the server and your flow code.
+
+```bash
+prefect agent start
+```
+
+And then trigger your flow from the UI using the ["Run" button](/orchestration/ui/flow.md#run)! You will see the agent pick up your work:
+
+```
+[2020-03-28 19:40:49,985] INFO - agent | Found 1 flow run(s) to submit for execution.
+[2020-03-28 19:40:50,021] INFO - agent | Deploying flow run 86f3c550-34d4-4f1a-945b-803eb20ca36f
+```
+
+And the UI will be updated with the state of the flow run:
+
+![](/orchestration/server/completed-flow-run-server.png)

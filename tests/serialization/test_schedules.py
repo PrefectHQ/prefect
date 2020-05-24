@@ -1,7 +1,6 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import marshmallow
 import pendulum
 import pytest
 
@@ -14,6 +13,13 @@ from prefect.serialization.schedule import ScheduleSchema
 def serialize_and_deserialize(schedule: schedules.Schedule):
     schema = ScheduleSchema()
     return schema.load(json.loads(json.dumps(schema.dump(schedule))))
+
+
+def test_serialize_schedule_with_dateclock():
+    dt = pendulum.datetime(2099, 1, 1)
+    s = schedules.Schedule(clocks=[clocks.DatesClock(dates=[dt, dt.add(days=1)])])
+    s2 = serialize_and_deserialize(s)
+    assert s2.next(2) == [dt, dt.add(days=1)]
 
 
 def test_serialize_schedule_with_parameters():

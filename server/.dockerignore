@@ -1,0 +1,62 @@
+# Licensed under the Prefect Community License, available at
+# https://www.prefect.io/legal/prefect-community-license
+
+# docker
+Dockerfile
+.dockerignore
+*/docker-compose.yml
+
+# UI code
+./services/ui/*
+#
+# git
+.git
+
+# General
+*.DS_Store
+
+
+# python
+__pycache__/
+*.py[cod]
+.Python
+env
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+tests/
+
+# cache
+.mypy_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# documentation
+*.md

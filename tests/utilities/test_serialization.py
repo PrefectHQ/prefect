@@ -1,5 +1,4 @@
 import datetime
-import itertools
 import uuid
 
 import marshmallow
@@ -236,7 +235,6 @@ class TestStatefulFunctionReferenceField:
         assert not serialized["f"]["kwargs"]
 
     def test_serialize_outer_with_state(self):
-        """Have to account for order because of Python 3.5"""
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
         assert serialized["f"]["fn"] == "tests.utilities.test_serialization.outer"
         assert serialized["f"]["kwargs"] == {"x": 1, "y": 2, "z": 99}
@@ -263,6 +261,13 @@ class TestStatefulFunctionReferenceField:
         )
         assert deserialized["f"](100) == outer(x=1, y=2, z=99)(100)
 
+    def test_deserialize_outer_with_state_doesnt_mutate_payload(self):
+        payload = self.Schema().dump(dict(f=outer(x=1, y=2, z=datetime.time(4))))
+        deserialized = self.Schema().load(payload)
+        assert payload["f"]["kwargs"]["x"] == 1
+        assert payload["f"]["kwargs"]["y"] == 2
+        assert isinstance(payload["f"]["kwargs"]["z"], str)
+
     def test_deserialize_invalid_fn(self):
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"f": {"fn": "hello"}})
@@ -272,6 +277,14 @@ class TestStatefulFunctionReferenceField:
             dict(f_allow_invalid=dict(fn="tests.utilities.test_serialization.fn2"))
         )
         assert deserialized["f_allow_invalid"] is None
+
+    def test_serialize_non_function_good_error(self):
+        class Foo(object):
+            def __call__(self, a, b):
+                return a + b
+
+        with pytest.raises(marshmallow.ValidationError, match="function required"):
+            self.Schema().dump(dict(f=Foo()))
 
     def test_serialize_none(self):
         with pytest.raises(marshmallow.ValidationError):

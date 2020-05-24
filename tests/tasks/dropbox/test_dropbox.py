@@ -36,7 +36,7 @@ class TestCredentials:
 
         assert dbx.call_args[0][0] == "HI"
 
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
+    def test_non_dropbox_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
         task = DropboxDownload(path="test", access_token_secret="DROPBOX_ACCESS_TOKEN")
 
         dbx = MagicMock()

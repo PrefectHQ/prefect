@@ -1,0 +1,12 @@
+query($flowRunId: uuid, $taskIds: _uuid) {
+  utility_downstream_tasks(args: { start_task_ids: $taskIds }) {
+    depth
+    task {
+      task_runs(where: { flow_run_id: { _eq: $flowRunId } }) {
+        id
+        version
+      }
+    }
+    task_id
+  }
+}

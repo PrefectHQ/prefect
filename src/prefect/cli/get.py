@@ -2,6 +2,7 @@ import click
 import pendulum
 from tabulate import tabulate
 
+from prefect import config
 from prefect.client import Client
 from prefect.utilities.graphql import EnumValue, with_args
 
@@ -9,7 +10,7 @@ from prefect.utilities.graphql import EnumValue, with_args
 @click.group(hidden=True)
 def get():
     """
-    Get commands that refer to querying Prefect Cloud metadata.
+    Get commands that refer to querying Prefect API metadata.
 
     \b
     Usage:
@@ -70,18 +71,27 @@ def flows(name, version, project, limit, all_versions):
     if all_versions:
         distinct_on = None
 
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+
+    query_results = {
+        "name": True,
+        "version": True,
+        "created": True,
+    }
+
+    headers = ["NAME", "VERSION", "AGE"]
+
+    if config.backend == "cloud":
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+        query_results["project"] = {"name": True}
+        headers.append("PROJECT NAME")
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),
@@ -89,12 +99,7 @@ def flows(name, version, project, limit, all_versions):
                     "distinct_on": distinct_on,
                     "limit": limit,
                 },
-            ): {
-                "name": True,
-                "version": True,
-                "project": {"name": True},
-                "created": True,
-            }
+            ): query_results
         }
     }
 
@@ -104,22 +109,19 @@ def flows(name, version, project, limit, all_versions):
 
     output = []
     for item in flow_data:
-        output.append(
-            [
-                item.name,
-                item.version,
-                item.project.name,
-                pendulum.parse(item.created).diff_for_humans(),
-            ]
-        )
+        result_output = [
+            item.name,
+            item.version,
+            pendulum.parse(item.created).diff_for_humans(),
+        ]
+        if project:
+            result_output.append(item.project.name,)
+
+        output.append(result_output)
 
     click.echo(
         tabulate(
-            output,
-            headers=["NAME", "VERSION", "PROJECT NAME", "AGE"],
-            tablefmt="plain",
-            numalign="left",
-            stralign="left",
+            output, headers=headers, tablefmt="plain", numalign="left", stralign="left",
         )
     )
 
@@ -213,23 +215,20 @@ def flow_runs(limit, flow, project, started):
 
         where = {
             "_and": {
-                "flow": {
-                    "_and": {
-                        "name": {"_eq": flow},
-                        "project": {"name": {"_eq": project}},
-                    }
-                },
+                "flow": {"_and": {"name": {"_eq": flow},}},
                 "start_time": {"_is_null": False},
             }
         }
+
+        if config.backend == "cloud":
+            where["_and"]["flow"]["_and"]["project"] = {"name": {"_eq": project}}
     else:
         order = {"created": EnumValue("desc")}
 
-        where = {
-            "flow": {
-                "_and": {"name": {"_eq": flow}, "project": {"name": {"_eq": project}}}
-            }
-        }
+        where = {"flow": {"_and": {"name": {"_eq": flow},}}}
+
+        if config.backend == "cloud":
+            where["flow"]["_and"]["project"] = {"name": {"_eq": project}}
 
     query = {
         "query": {
@@ -302,21 +301,22 @@ def tasks(name, flow_name, flow_version, project, limit):
         --limit, -l         INTEGER A limit amount of tasks to query, defaults to 10
     """
 
+    where_clause = {
+        "_and": {
+            "name": {"_eq": name},
+            "flow": {"name": {"_eq": flow_name}, "version": {"_eq": flow_version},},
+        }
+    }
+
+    if config.backend == "cloud":
+        where_clause["_and"]["flow"]["project"] = {"name": {"_eq": project}}
+
     query = {
         "query": {
             with_args(
                 "task",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "flow": {
-                                "name": {"_eq": flow_name},
-                                "project": {"name": {"_eq": project}},
-                                "version": {"_eq": flow_version},
-                            },
-                        }
-                    },
+                    "where": where_clause,
                     "limit": limit,
                     "order_by": {"created": EnumValue("desc")},
                 },

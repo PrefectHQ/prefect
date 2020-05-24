@@ -1,0 +1,10 @@
+query FlowRunMetadata($id: uuid!) {
+  flow_run_by_pk(id: $id) {
+    id
+    name
+    flow {
+      id
+      name
+    }
+  }
+}

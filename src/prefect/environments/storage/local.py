@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 from slugify import slugify
 
 import prefect
-from prefect.engine.result_handlers import LocalResultHandler
+from prefect.engine.results import LocalResult
 from prefect.environments.storage import Storage
 
 if TYPE_CHECKING:
@@ -29,9 +29,13 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
+        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
+            for each flow run.  Used primarily for providing authentication credentials.
     """
 
-    def __init__(self, directory: str = None, validate: bool = True) -> None:
+    def __init__(
+        self, directory: str = None, validate: bool = True, secrets: List[str] = None,
+    ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
@@ -44,8 +48,8 @@ class Local(Storage):
             abs_directory = directory
 
         self.directory = abs_directory
-        result_handler = LocalResultHandler(self.directory, validate=validate)
-        super().__init__(result_handler=result_handler)
+        result = LocalResult(self.directory, validate_dir=validate)
+        super().__init__(result=result, secrets=secrets)
 
     @property
     def labels(self) -> List[str]:

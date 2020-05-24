@@ -176,7 +176,7 @@ An unfortunately frequent outcome for Airflow novices is that they kill their me
 
 ### Prefect
 
-Prefect elevates dataflow to a first class operation. Tasks can receive inputs and return outputs, and Prefect manages this dependency in a transparent way. Additionally, Prefect almost never writes this data into its database; instead, the storage of results (only when required) is managed by secure “result handlers” that users can easily configure. This provides many benefits:
+Prefect elevates dataflow to a first class operation. Tasks can receive inputs and return outputs, and Prefect manages this dependency in a transparent way. Additionally, Prefect almost never writes this data into its database; instead, the storage of results (only when required) is managed by secure result logic that users can easily configure. This provides many benefits:
 
 - users can write code using familiar Python patterns
 - dependencies cannot be sidestepped, because they are known to the engine. This provide a more transparent debugging experience
@@ -321,7 +321,7 @@ One of the most popular aspects of Airflow is its web interface. From the UI, yo
 
 From day one, we designed Prefect to support a beautiful, real-time UI. We didn't want to follow Airflow's model of simply exposing database views, but rather take advantage of best practices to immediately surface the answers to our users' most pressing questions: What is the health of my system; and, if something is wrong, how quickly can I identify it? 
 
-![](/cloud/ui/cloud-ui.gif)
+![](/orchestration/ui/cloud-ui.gif)
 
 The Prefect UI supports:
 

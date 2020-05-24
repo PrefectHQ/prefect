@@ -1,5 +1,4 @@
 import datetime
-import json
 
 import pytest
 
@@ -43,6 +42,21 @@ def test_deserialize_schedule():
     serialized = FlowSchema().dump(f)
     deserialized = FlowSchema().load(serialized)
     assert deserialized.schedule.next(5) == f.schedule.next(5)
+
+
+def test_deserialize_schedule_doesnt_mutate_original():
+    schedule = prefect.schedules.Schedule(
+        clocks=[],
+        filters=[
+            prefect.schedules.filters.between_times(datetime.time(1), datetime.time(2))
+        ],
+    )
+    f = Flow(name="test", schedule=schedule)
+    serialized = FlowSchema().dump(f)
+    deserialized = FlowSchema().load(serialized)
+    kwargs = serialized["schedule"]["filters"][0]["kwargs"]
+    assert isinstance(kwargs["start"], str)
+    assert isinstance(kwargs["end"], str)
 
 
 def test_deserialize_tasks():
@@ -134,8 +148,8 @@ def test_serialize_container_environment():
     assert deserialized.storage.registry_url == storage.registry_url
 
 
-def test_deserialize_serialized_flow_after_build():
-    flow = Flow(name="test", storage=prefect.environments.storage.Memory())
+def test_deserialize_serialized_flow_after_build(tmpdir):
+    flow = Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
     serialized_flow = flow.serialize(build=True)
     deserialized = FlowSchema().load(serialized_flow)
     assert isinstance(deserialized, Flow)

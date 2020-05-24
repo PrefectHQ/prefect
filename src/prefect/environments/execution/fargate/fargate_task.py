@@ -18,8 +18,8 @@ class FargateTaskEnvironment(Environment):
     When providing a custom container definition spec the first container in the spec must be the
     container that the flow runner will be executed on.
 
-    These environment variables are required for cloud but do not need to be included because
-    they are instead automatically added and populated during execution:
+    The following environment variables, required for cloud, do not need to be
+    included––they are automatically added and populated during execution:
 
     - `PREFECT__CLOUD__GRAPHQL`
     - `PREFECT__CLOUD__AUTH_TOKEN`
@@ -49,6 +49,10 @@ class FargateTaskEnvironment(Environment):
     are not serialized and will only ever exist on this object.
 
     Args:
+        - launch_type (str, optional): either FARGATE or EC2, defaults to FARGATE
+        - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
+            client. Defaults to the value set in the environment variable
+            `AWS_ACCESS_KEY_ID` or `None`
         - aws_access_key_id (str, optional): AWS access key id for connecting the boto3
             client. Defaults to the value set in the environment variable
             `AWS_ACCESS_KEY_ID` or `None`
@@ -60,6 +64,8 @@ class FargateTaskEnvironment(Environment):
             `AWS_SESSION_TOKEN` or `None`
         - region_name (str, optional): AWS region name for connecting the boto3 client.
             Defaults to the value set in the environment variable `REGION_NAME` or `None`
+        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
+            the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -70,15 +76,18 @@ class FargateTaskEnvironment(Environment):
 
     def __init__(  # type: ignore
         self,
+        launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
         aws_session_token: str = None,
         region_name: str = None,
+        executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
         **kwargs
     ) -> None:
+        self.launch_type = launch_type
         # Not serialized, only stored on the object
         self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key or os.getenv(
@@ -90,6 +99,7 @@ class FargateTaskEnvironment(Environment):
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
+        self.executor_kwargs = executor_kwargs or dict()
         super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     def _parse_kwargs(self, user_kwargs: dict) -> tuple:
@@ -194,7 +204,7 @@ class FargateTaskEnvironment(Environment):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                    "value": config.logging.extra_loggers,
+                    "value": str(config.logging.extra_loggers),
                 },
             ]
 
@@ -282,7 +292,7 @@ class FargateTaskEnvironment(Environment):
 
         boto3_c.run_task(
             overrides={"containerOverrides": container_overrides},
-            launchType="FARGATE",
+            launchType=self.launch_type,
             **self.task_run_kwargs
         )
 
@@ -311,7 +321,7 @@ class FargateTaskEnvironment(Environment):
                 flow = cloudpickle.load(f)
 
                 runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()()
+                executor_cls = get_default_executor_class()(**self.executor_kwargs)
                 runner_cls(flow=flow).run(executor=executor_cls)
         except Exception as exc:
             self.logger.exception(

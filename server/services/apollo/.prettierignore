@@ -1,0 +1,7 @@
+node_modules
+package.json
+README.md
+deployment.yaml
+Dockerfile
+.babelrc
+.nvmrc

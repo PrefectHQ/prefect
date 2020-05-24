@@ -4,8 +4,6 @@ import sys
 import threading
 import tempfile
 import time
-from datetime import timedelta
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,7 +11,6 @@ import prefect
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.executors import (
     timeout_handler,
-    run_with_heartbeat,
     tail_recursive,
     RecursiveCall,
 )

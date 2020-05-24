@@ -1,7 +1,5 @@
 import datetime
 import time
-import uuid
-from box import Box
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -11,7 +9,9 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
+from prefect.engine.signals import LOOP
 from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.result_handlers import (
     ConstantResultHandler,
     JSONResultHandler,
@@ -387,14 +387,17 @@ def test_heartbeat_traps_errors_caused_by_client(caplog, monkeypatch):
     assert "Heartbeat failed for Flow 'bad'" in log.message
 
 
-def test_flow_runner_heartbeat_sets_command(monkeypatch):
+@pytest.mark.parametrize("setting_available", [True, False])
+def test_flow_runner_heartbeat_sets_command(monkeypatch, setting_available):
     client = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
-    client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-        disable_heartbeat=False
+
+    client.graphql.return_value.data.flow_run_by_pk.flow.settings = (
+        dict(heartbeat_enabled=True) if setting_available else {}
     )
+
     runner = CloudFlowRunner(flow=prefect.Flow(name="test"))
     with prefect.context(flow_run_id="foo"):
         res = runner._heartbeat()
@@ -409,7 +412,7 @@ def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
     client.graphql.return_value.data.flow_run_by_pk.flow.settings = dict(
-        disable_heartbeat=True
+        heartbeat_enabled=False
     )
 
     # set up the CloudFlowRunner
@@ -419,7 +422,7 @@ def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -431,18 +434,15 @@ def test_task_failure_caches_inputs_automatically(client):
     state = CloudFlowRunner(flow=f).run(return_tasks=[res], parameters=dict(p=3))
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
-    exp_res = Result(3, result_handler=JSONResultHandler())
-    assert not state.result[res].cached_inputs["p"] == exp_res
-    exp_res.store_safe_value()
-    assert state.result[res].cached_inputs["p"] == exp_res
+    assert state.result[res].cached_inputs["p"].location == "3"
 
     last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
     assert isinstance(last_state, Retrying)
-    assert last_state.cached_inputs["p"] == exp_res
+    assert last_state.cached_inputs["p"].location == "3"
 
 
 def test_task_failure_caches_constant_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -453,27 +453,26 @@ def test_task_failure_caches_constant_inputs_automatically(client):
     state = CloudFlowRunner(flow=f).run(return_tasks=[res])
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
-    exp_res = Result(3, result_handler=ConstantResultHandler(3))
-    assert not state.result[res].cached_inputs["p"] == exp_res
-    exp_res.store_safe_value()
-    assert state.result[res].cached_inputs["p"] == exp_res
+
+    assert state.result[res].cached_inputs["p"].value == 3
+    assert state.result[res].cached_inputs["p"].location is None
 
     last_state = client.set_task_run_state.call_args_list[-1][-1]["state"]
     assert isinstance(last_state, Retrying)
-    assert last_state.cached_inputs["p"] == exp_res
+    assert last_state.cached_inputs["p"].location is None
 
 
 def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recompute_if_necessary(
     client,
 ):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
         return p
 
-    with prefect.Flow("test", result_handler=JSONResultHandler()) as f:
-        p = prefect.tasks.secrets.Secret("p")
+    with prefect.Flow("test", result=PrefectResult()) as f:
+        p = prefect.tasks.secrets.PrefectSecret("p")
         res = is_p_three(p)
 
     with prefect.context(secrets=dict(p=3)):
@@ -482,16 +481,13 @@ def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recomp
     assert state.is_running()
     assert isinstance(state.result[res], Retrying)
 
-    exp_res = Result(3, result_handler=SecretResultHandler(p))
-    assert not state.result[res].cached_inputs["p"] == exp_res
-    exp_res.store_safe_value()
-    assert state.result[res].cached_inputs["p"] == exp_res
+    assert state.result[res].cached_inputs["p"].location is None
 
-    ## here we set the result of the secret to a saferesult, ensuring
+    ## here we set the result of the secret to an empty result, ensuring
     ## it will get converted to a "true" result;
     ## we expect that the upstream value will actually get recomputed from context
     ## through the SecretResultHandler
-    safe = SafeResult("p", result_handler=SecretResultHandler(p))
+    safe = SecretResult(p)
     state.result[p] = Success(result=safe)
     state.result[res].start_time = pendulum.now("utc")
     state.result[res].cached_inputs = dict(p=safe)
@@ -591,7 +587,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             ):
                 return super().run_task(*args, **kwargs)
 
-    @prefect.task(result_handler=JSONResultHandler())
+    @prefect.task(result=PrefectResult())
     def log_stuff():
         logger = prefect.context.get("logger")
         logger.critical("important log right here")
@@ -611,7 +607,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
         def get_flow_run_info(self, *args, **kwargs):
             return MagicMock(
-                id="flowRunID",
+                id="flow_run_id",
                 task_runs=[MagicMock(task_slug=log_stuff.slug, id="TESTME")],
             )
 
@@ -638,14 +634,14 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     time.sleep(0.75)
     logs = [log for call in calls for log in call[0]]
-    assert len(logs) == 6  # actual number of logs
+    assert len(logs) >= 6  # actual number of logs
 
     loggers = [c["name"] for c in logs]
     assert set(loggers) == {
         "prefect.CloudTaskRunner",
         "prefect.CustomFlowRunner",
-        "prefect.Task: log_stuff",
+        "prefect.log_stuff",
     }
 
-    task_run_ids = [c["taskRunId"] for c in logs if c["taskRunId"]]
-    assert task_run_ids == ["TESTME"] * 3
+    task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]
+    assert set(task_run_ids) == {"TESTME"}

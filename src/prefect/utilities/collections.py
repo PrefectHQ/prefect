@@ -25,7 +25,7 @@ def flatten_seq(seq: Iterable) -> Generator:
         - generator: a generator that yields the flattened sequence
     """
     for item in seq:
-        if isinstance(item, collections.Iterable) and not isinstance(
+        if isinstance(item, collections.abc.Iterable) and not isinstance(
             item, (str, bytes)
         ):
             yield from flatten_seq(item)

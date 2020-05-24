@@ -1,0 +1,99 @@
+# Licensed under the Prefect Community License, available at
+# https://www.prefect.io/legal/prefect-community-license
+ 
+
+env = "local"
+
+# debug mode
+debug = false
+
+# the max number of runs returned by get_runs_in_queue
+queued_runs_returned_limit = 25
+
+
+[database]
+
+host = "localhost"
+port = 5432
+name = "prefect_server"
+username = "prefect"
+# set to "" to generate a random password each time the database starts
+password = "test-password"
+connection_url = "postgresql://${database.username}:${database.password}@${database.host}:${database.port}/${database.name}"
+
+
+[hasura]
+
+host = "localhost"
+port = 3000
+admin_secret = "" # a string. One will be automatically generated if not provided.
+claims_namespace = "hasura-claims"
+graphql_url = "http://${hasura.host}:${hasura.port}/v1alpha1/graphql"
+ws_url = "ws://${hasura.host}:${hasura.port}/v1alpha1/graphql"
+execute_retry_seconds = 10
+
+
+[logging]
+
+# The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
+level = "DEBUG"
+
+# The log format
+format = "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
+
+[services]
+
+    host = "${environments.${env}.services_host}"
+
+    [services.apollo]
+    host = "${services.host}"
+    port = 4200
+
+    [services.graphql]
+    host = "${services.host}"
+    port = 4201
+    debug = false
+    path = "/graphql/"
+
+    [services.ui]
+    graphql_url = "http://localhost:4200/graphql"
+
+    [services.scheduler]
+    # run scheduler every 5 minutes
+    scheduler_loop_seconds = 300
+
+    [services.trigger]
+    host = "${services.host}"
+    port = 4203
+
+
+[environments]
+
+    [environments.local]
+        services_host = "0.0.0.0"
+        url = "http://localhost:8080"
+        api_url = "http://localhost:${services.graphql.port}"
+
+
+# UI Colors corresponding to run states
+[state_colors]
+
+    Failed = "#eb0000"
+    Pending = "#b9dcff"
+    Scheduled = "#ffbe1e"
+    Retrying = "#fc7b09"
+    Resuming = "#ffa617"
+    Queued = "#fff9c2"
+    Submitted = "#fff499"
+    Paused = "#d4dadf"
+    Running = "#27b1ff"
+    Listening = "#93d8ff"
+    Finished = "#003483"
+    Success = "#2cbe4e"
+    Cancelled = "#bdbdbd"
+    Cached = "#74c367"
+    TriggerFailed = "#c42800"
+    Skipped = "#607583"
+    TimedOut = "#dc370b"
+    Mapped = "#4067a2"
+    Looped = "#4c4cff"

@@ -1,0 +1,9 @@
+# Licensed under the Prefect Community License, available at
+# https://www.prefect.io/legal/prefect-community-license
+
+include src/prefect_server/config.toml
+include src/prefect_server/licenses/*.toml
+include versioneer.py
+include src/prefect_server/_version.py
+graft services
+include alembic.ini

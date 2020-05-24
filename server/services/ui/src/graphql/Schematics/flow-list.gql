@@ -1,0 +1,9 @@
+query Flows {
+  flow(
+    order_by: { created: desc }
+    where: { archived: { _eq: false }, name: { _neq: "Welcome Flow" } }
+  ) {
+    id
+    name
+  }
+}

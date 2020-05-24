@@ -1,0 +1,2 @@
+enhancement:
+  - Add option to set TLS configuration on client created by Docker storage - [#2626](hhttps://github.com/PrefectHQ/prefect/issues/2626)

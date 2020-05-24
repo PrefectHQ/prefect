@@ -1,0 +1,32 @@
+query Flow($id: uuid!) {
+  flow_by_pk(id: $id) {
+    id
+    name
+    description
+    created
+    archived
+    settings
+    storage
+    parameters
+    version
+    version_group_id
+    schedules {
+      id
+      active
+      schedule
+      schedule_start
+      schedule_end
+    }
+    flow_runs(
+      where: { state: { _neq: "Scheduled" } }
+      order_by: { scheduled_start_time: desc }
+      limit: 1
+    ) {
+      id
+      name
+      state
+    }
+    environment
+    core_version
+  }
+}

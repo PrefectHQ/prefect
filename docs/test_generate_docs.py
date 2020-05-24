@@ -1,4 +1,3 @@
-import inspect
 import re
 import sys
 import textwrap
@@ -22,7 +21,6 @@ try:
         format_subheader,
         get_call_signature,
         get_class_methods,
-        get_source,
         patch_imports,
     )
 
@@ -35,7 +33,6 @@ except ImportError:
 
 
 pytest.mark.skipif(sys.version_info < (3, 6))
-pytestmark = pytest.mark.formatting
 
 
 def consistency_check(obj, obj_name):

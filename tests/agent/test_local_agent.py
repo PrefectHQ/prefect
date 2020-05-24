@@ -1,10 +1,8 @@
-import os
 import socket
 from unittest.mock import MagicMock
 
 import pytest
 from marshmallow.exceptions import ValidationError
-from testfixtures.mock import call
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
@@ -40,7 +38,7 @@ def test_local_agent_config_options(runner_token):
         assert agent.client.get_auth_token() == "TEST_TOKEN"
         assert agent.logger
         assert agent.log_to_cloud is True
-        assert agent.processes == []
+        assert agent.processes == set()
         assert agent.import_paths == ["test_path"]
         assert set(agent.labels) == {
             "azure-flow-storage",
@@ -52,13 +50,13 @@ def test_local_agent_config_options(runner_token):
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_local_agent_responds_to_logging_config(runner_token, flag):
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": flag}
-    ):
-        agent = LocalAgent()
-        assert agent.log_to_cloud is flag
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id", "name": "name"}))
-        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(flag).lower()
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = LocalAgent(no_cloud_logs=flag)
+        assert agent.log_to_cloud is not flag
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
+        assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
 def test_local_agent_config_options_hostname(runner_token):
@@ -73,6 +71,14 @@ def test_local_agent_config_options_hostname(runner_token):
         }
 
 
+def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, runner_token):
+    monkeypatch.setattr("socket.gethostname", MagicMock(return_value="docker-desktop"))
+    monkeypatch.setattr("socket.gethostbyname", MagicMock(return_value="IP"))
+
+    agent = LocalAgent()
+    assert "IP" in agent.labels
+
+
 def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     with set_temporary_config(
         {
@@ -83,9 +89,28 @@ def test_populate_env_vars_uses_user_provided_env_vars(runner_token):
     ):
         agent = LocalAgent(env_vars=dict(AUTH_THING="foo"))
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
     assert env_vars["AUTH_THING"] == "foo"
+
+
+def test_populate_env_vars_uses_user_provided_env_vars_removes_nones(runner_token):
+    with set_temporary_config(
+        {
+            "cloud.api": "api",
+            "logging.log_to_cloud": True,
+            "cloud.agent.auth_token": "token",
+        }
+    ):
+        agent = LocalAgent(env_vars=dict(MISSING_VAR=None))
+
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
+
+    assert "MISSING_VAR" not in env_vars
 
 
 def test_populate_env_vars(runner_token):
@@ -98,7 +123,9 @@ def test_populate_env_vars(runner_token):
     ):
         agent = LocalAgent()
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
@@ -112,6 +139,7 @@ def test_populate_env_vars(runner_token):
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -132,7 +160,9 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
     ):
         agent = LocalAgent(labels=["42", "marvin"])
 
-        env_vars = agent.populate_env_vars(GraphQLResult({"id": "id"}))
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+        )
 
         expected_vars = {
             "PREFECT__CLOUD__API": "api",
@@ -148,6 +178,7 @@ def test_populate_env_vars_includes_agent_labels(runner_token):
                 ]
             ),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
+            "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -167,7 +198,9 @@ def test_local_agent_deploy_processes_local_storage(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -186,7 +219,9 @@ def test_local_agent_deploy_processes_gcs_storage(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": GCS(bucket="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -205,7 +240,9 @@ def test_local_agent_deploy_processes_s3_storage(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": S3(bucket="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -224,7 +261,9 @@ def test_local_agent_deploy_processes_azure_storage(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Azure(container="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": GCS(bucket="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -246,7 +285,7 @@ def test_local_agent_deploy_storage_raises_not_supported_storage(
     with pytest.raises(ValueError):
         agent.deploy_flow(
             flow_run=GraphQLResult(
-                {"flow": GraphQLResult({"storage": Docker().serialize()}), "id": "id"}
+                {"id": "id", "flow": {"storage": Docker().serialize(), "id": "foo"}},
             )
         )
 
@@ -269,7 +308,11 @@ def test_local_agent_deploy_storage_fails_none(monkeypatch, runner_token):
     with pytest.raises(ValidationError):
         agent.deploy_flow(
             flow_run=GraphQLResult(
-                {"flow": GraphQLResult({"storage": None}), "id": "id", "version": 1}
+                {
+                    "flow": GraphQLResult({"storage": None, "id": "foo"}),
+                    "id": "id",
+                    "version": 1,
+                }
             )
         )
 
@@ -287,7 +330,9 @@ def test_local_agent_deploy_import_paths(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -308,7 +353,9 @@ def test_local_agent_deploy_keep_existing_python_path(monkeypatch, runner_token)
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -332,7 +379,9 @@ def test_local_agent_deploy_no_existing_python_path(monkeypatch, runner_token):
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
@@ -362,10 +411,7 @@ def test_generate_supervisor_conf(runner_token):
         (
             1,
             False,
-            (
-                ("agent", "INFO", "Process PID 1234 returned non-zero exit code"),
-                ("agent", "INFO", "awesome output!blerg, eRroR!"),
-            ),
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
         ),
         (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
     ),
@@ -388,13 +434,15 @@ def test_local_agent_heartbeat(
     agent.deploy_flow(
         flow_run=GraphQLResult(
             {
-                "flow": GraphQLResult({"storage": Local(directory="test").serialize()}),
+                "flow": GraphQLResult(
+                    {"storage": Local(directory="test").serialize(), "id": "foo"}
+                ),
                 "id": "id",
             }
         )
     )
 
-    process = agent.processes[0]
+    process = list(agent.processes)[0]
     process_call = process.root_call
 
     with LogCapture() as logcap:
@@ -422,3 +470,65 @@ def test_local_agent_heartbeat(
     # the heartbeat should stop tracking upon exit
     compare(process.returncode, returncode)
     assert len(agent.processes) == 0
+
+
+def test_local_agent_start_max_polls(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=1)
+    agent.start()
+
+    assert agent_process.called
+    assert heartbeat.called
+
+
+def test_local_gent_start_max_polls_count(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=2)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 2
+    assert heartbeat.call_count == 2
+
+
+def test_local_agent_start_max_polls_zero(monkeypatch, runner_token):
+    on_shutdown = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
+
+    agent_process = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
+
+    agent_connect = MagicMock(return_value="id")
+    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
+
+    heartbeat = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
+
+    agent = LocalAgent(max_polls=0)
+    agent.start()
+
+    assert on_shutdown.call_count == 1
+    assert agent_process.call_count == 0
+    assert heartbeat.call_count == 0

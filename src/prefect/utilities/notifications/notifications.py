@@ -131,24 +131,37 @@ def slack_message_formatter(
     if value is not None:
         fields.append({"title": "Message", "value": value, "short": False})
 
-    data = {
-        "attachments": [
-            {
-                "fallback": "State change notification",
-                "color": state.color,
-                "author_name": "Prefect",
-                "author_link": "https://www.prefect.io/",
-                "author_icon": "https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png",
-                "title": type(state).__name__,
-                "fields": fields,
-                #                "title_link": "https://www.prefect.io/",
-                "text": "{0} is now in a {1} state".format(
-                    tracked_obj.name, type(state).__name__
-                ),
-                "footer": "Prefect notification",
-            }
-        ]
+    notification_payload = {
+        "fallback": "State change notification",
+        "color": state.color,
+        "author_name": "Prefect",
+        "author_link": "https://www.prefect.io/",
+        "author_icon": "https://emoji.slack-edge.com/TAN3D79AL/prefect/2497370f58500a5a.png",
+        "title": type(state).__name__,
+        "fields": fields,
+        #                "title_link": "https://www.prefect.io/",
+        "text": "{0} is now in a {1} state".format(
+            tracked_obj.name, type(state).__name__
+        ),
+        "footer": "Prefect notification",
     }
+
+    if prefect.context.get("flow_run_id"):
+        url = None
+
+        if isinstance(tracked_obj, prefect.Flow):
+            url = prefect.client.Client().get_cloud_url(
+                "flow-run", prefect.context["flow_run_id"], as_user=False
+            )
+        elif isinstance(tracked_obj, prefect.Task):
+            url = prefect.client.Client().get_cloud_url(
+                "task-run", prefect.context.get("task_run_id", ""), as_user=False
+            )
+
+        if url:
+            notification_payload.update(title_link=url)
+
+    data = {"attachments": [notification_payload]}
     return data
 
 

@@ -13,7 +13,7 @@ To set a Secret in Prefect Cloud, you can use `prefect.Client.set_secret`, or se
 
 ```graphql
 mutation {
-  setSecret(input: { name: "KEY", value: "VALUE" }) {
+  set_secret(input: { name: "KEY", value: "VALUE" }) {
     success
   }
 }
@@ -41,6 +41,10 @@ or specify the secret via environment variable:
 export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 ```
 
+::: tip Default secrets
+Special default secret names can be used to authenticate to third-party systems in a installation-wide way. Read more about this in our [Secrets concept documentation](/core/concepts/secrets.md#default-secrets).
+:::
+
 ::: tip
 When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
 :::
@@ -52,6 +56,7 @@ from typing import Any, Optional
 
 import prefect
 from prefect.client.client import Client
+from prefect.utilities.exceptions import ClientError
 
 
 class Secret:
@@ -90,7 +95,7 @@ class Secret:
         if self.name in secrets:
             return True
         elif prefect.context.config.cloud.use_local_secrets is False:
-            cloud_secrets = self.client.graphql("query{secretNames}").data.secretNames
+            cloud_secrets = self.client.graphql("query{secret_names}").data.secret_names
             if self.name in cloud_secrets:
                 return True
         return False
@@ -109,7 +114,8 @@ class Secret:
         Raises:
             - ValueError: if `.get()` is called within a Flow building context, or if `use_local_secrets=True`
                 and your Secret doesn't exist
-            - ClientError: if `use_local_secrets=False` and the Client fails to retrieve your secret
+            - KeyError: if `use_local_secrets=False` and the Client fails to retrieve your secret
+            - ClientError: if the client experiences an unexpected error communicating with the backend
         """
         if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
             raise ValueError(
@@ -121,18 +127,26 @@ class Secret:
             value = secrets[self.name]
         except KeyError:
             if prefect.context.config.cloud.use_local_secrets is False:
-                result = self.client.graphql(
-                    """
-                    query($name: String!) {
-                        secretValue(name: $name)
-                    }
-                    """,
-                    variables=dict(name=self.name),
-                )
+                try:
+                    result = self.client.graphql(
+                        """
+                        query($name: String!) {
+                            secret_value(name: $name)
+                        }
+                        """,
+                        variables=dict(name=self.name),
+                    )
+                except ClientError as exc:
+                    if "No value found for the requested key" in str(exc):
+                        raise KeyError(
+                            f"The secret {self.name} was not found.  Please ensure that it was set correctly in your tenant: https://docs.prefect.io/orchestration/concepts/secrets.html"
+                        )
+                    else:
+                        raise exc
                 # the result object is a Box, so we recursively restore builtin
                 # dict/list classes
                 result_dict = result.to_dict()
-                value = result_dict["data"]["secretValue"]
+                value = result_dict["data"]["secret_value"]
             else:
                 raise ValueError(
                     'Local Secret "{}" was not found.'.format(self.name)

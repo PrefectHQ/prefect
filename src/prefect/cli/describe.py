@@ -1,3 +1,5 @@
+import json
+
 import click
 
 from prefect.client import Client
@@ -21,7 +23,7 @@ def describe():
 
     \b
     Examples:
-        $ prefect describe flows --name My-Flow --version 2
+        $ prefect describe flows --name My-Flow --version 2 -o json
         {
             "name": "My-Flow",
             "version": 2,
@@ -54,7 +56,8 @@ def describe():
 @click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
 @click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
 @click.option("--project", "-p", help="The name of a project to query.", hidden=True)
-def flows(name, version, project):
+@click.option("--output", "-o", type=click.Choice(["json"]), hidden=True)
+def flows(name, version, project, output):
     """
     Describe a Prefect flow.
 
@@ -63,45 +66,50 @@ def flows(name, version, project):
         --name, -n      TEXT    A flow name to query                [required]
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
+        --output, -o    TEXT    Output style, currently supports `json`.
+                                Defaults to Python dictionary format.
     """
+
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    query_results = {
+        "name": True,
+        "version": True,
+        "created": True,
+        "description": True,
+        "parameters": True,
+        "archived": True,
+        "storage": True,
+        "environment": True,
+    }
+
+    if project:
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+        query_results["project"] = {"name": True}
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),
                     },
                     "distinct_on": EnumValue("name"),
                 },
-            ): {
-                "name": True,
-                "version": True,
-                "project": {"name": True},
-                "created": True,
-                "description": True,
-                "parameters": True,
-                "archived": True,
-                "storage": True,
-                "environment": True,
-            }
+            ): query_results
         }
     }
 
     result = Client().graphql(query)
 
     flow_data = result.data.flow
-
     if flow_data:
-        click.echo(flow_data[0])
+        if output == "json":
+            click.echo(json.dumps(flow_data[0]))
+        else:
+            click.echo(flow_data[0])
     else:
         click.secho("{} not found".format(name), fg="red")
 
@@ -110,7 +118,8 @@ def flows(name, version, project):
 @click.option("--name", "-n", required=True, help="A flow name to query.", hidden=True)
 @click.option("--version", "-v", type=int, help="A flow version to query.", hidden=True)
 @click.option("--project", "-p", help="The name of a project to query.", hidden=True)
-def tasks(name, version, project):
+@click.option("--output", "-o", type=click.Choice(["json"]), hidden=True)
+def tasks(name, version, project, output):
     """
     Describe tasks from a Prefect flow. This command is similar to `prefect describe flow`
     but instead of flow metadata it outputs task metadata.
@@ -120,19 +129,21 @@ def tasks(name, version, project):
         --name, -n      TEXT    A flow name to query                [required]
         --version, -v   INTEGER A flow version to query
         --project, -p   TEXT    The name of a project to query
+        --output, -o    TEXT    Output style, currently supports `json`.
+                                Defaults to Python dictionary format.
     """
+
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+
+    if project:
+        where_clause["_and"]["project"] = {"name": {"_eq": project}}
+
     query = {
         "query": {
             with_args(
                 "flow",
                 {
-                    "where": {
-                        "_and": {
-                            "name": {"_eq": name},
-                            "version": {"_eq": version},
-                            "project": {"name": {"_eq": project}},
-                        }
-                    },
+                    "where": where_clause,
                     "order_by": {
                         "name": EnumValue("asc"),
                         "version": EnumValue("desc"),
@@ -165,7 +176,10 @@ def tasks(name, version, project):
 
     if task_data:
         for item in task_data:
-            click.echo(item)
+            if output == "json":
+                click.echo(json.dumps(item))
+            else:
+                click.echo(item)
     else:
         click.secho("No tasks found for flow {}".format(name), fg="red")
 
@@ -175,7 +189,8 @@ def tasks(name, version, project):
     "--name", "-n", required=True, help="A flow run name to query", hidden=True
 )
 @click.option("--flow-name", "-fn", help="A flow name to query", hidden=True)
-def flow_runs(name, flow_name):
+@click.option("--output", "-o", type=click.Choice(["json"]), hidden=True)
+def flow_runs(name, flow_name, output):
     """
     Describe a Prefect flow run.
 
@@ -183,6 +198,8 @@ def flow_runs(name, flow_name):
     Options:
         --name, -n          TEXT    A flow run name to query            [required]
         --flow-name, -fn    TEXT    A flow name to query
+        --output, -o    TEXT    Output style, currently supports `json`.
+                                Defaults to Python dictionary format.
     """
     query = {
         "query": {
@@ -217,6 +234,9 @@ def flow_runs(name, flow_name):
     flow_run_data = result.data.flow_run
 
     if flow_run_data:
-        click.echo(flow_run_data[0])
+        if output == "json":
+            click.echo(json.dumps(flow_run_data[0]))
+        else:
+            click.echo(flow_run_data[0])
     else:
         click.secho("{} not found".format(name), fg="red")

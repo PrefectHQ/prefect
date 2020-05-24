@@ -1,0 +1,27 @@
+query TaskRun($id: uuid!) {
+  task_run_by_pk(id: $id) {
+    id
+    created
+    duration
+    end_time
+    flow_run {
+      id
+      name
+    }
+    heartbeat
+    map_index
+    run_count
+    start_time
+    state
+    state_message
+    state_result
+    task {
+      id
+      name
+      description
+      max_retries
+      retry_delay
+    }
+    version
+  }
+}

@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import time
@@ -26,6 +27,20 @@ def test_root_logger_level_responds_to_config():
         logger.handlers = []
 
 
+@pytest.mark.parametrize("datefmt", ["%Y", "%Y -- %D"])
+def test_root_logger_datefmt_responds_to_config(caplog, datefmt):
+    try:
+        with utilities.configuration.set_temporary_config({"logging.datefmt": datefmt}):
+            logger = utilities.logging.configure_logging(testing=True)
+            logger.error("badness")
+            logs = [r for r in caplog.records if r.levelname == "ERROR"]
+            assert logs[0].asctime == datetime.datetime.utcnow().strftime(datefmt)
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
 def test_remote_handler_is_configured_for_cloud():
     try:
         with utilities.configuration.set_temporary_config(
@@ -36,6 +51,25 @@ def test_remote_handler_is_configured_for_cloud():
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
+def test_diagnostic_logger_has_no_cloud_handler():
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger = utilities.logging.create_diagnostic_logger(name="diagnostic-test")
+            assert logger.handlers
+            assert all(
+                [
+                    not isinstance(h, utilities.logging.CloudHandler)
+                    for h in logger.handlers
+                ]
+            )
+    finally:
+        # reset logger
+        logger = utilities.logging.create_diagnostic_logger(name="diagnostic-test")
         logger.handlers = []
 
 
@@ -86,7 +120,7 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
@@ -95,6 +129,32 @@ def test_remote_handler_captures_tracebacks(caplog, monkeypatch):
             assert '1 + "2"' in logged_msg
             assert "unexpected error" in logged_msg
 
+    finally:
+        # reset root_logger
+        logger = utilities.logging.configure_logging(testing=True)
+        logger.handlers = []
+
+
+def test_cloud_handler_formats_messages_and_removes_args(caplog, monkeypatch):
+    monkeypatch.setattr("prefect.client.Client", MagicMock)
+    client = MagicMock()
+    try:
+        with utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": True}
+        ):
+            logger = utilities.logging.configure_logging(testing=True)
+            assert hasattr(logger.handlers[-1], "client")
+            logger.handlers[-1].client = client
+
+            child_logger = logger.getChild("sub-test")
+            child_logger.info("Here's a number: %d", 42)
+
+            time.sleep(0.75)
+
+            cloud_logs = client.write_run_logs.call_args[0][0]
+            assert len(cloud_logs) == 1
+            assert cloud_logs[0]["message"] == "Here's a number: 42"
+            assert "args" not in cloud_logs[0]["info"]
     finally:
         # reset root_logger
         logger = utilities.logging.configure_logging(testing=True)
@@ -122,7 +182,7 @@ def test_remote_handler_ships_json_payloads(caplog, monkeypatch):
 
             time.sleep(0.75)
             error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
-            assert len(error_logs) == 1
+            assert len(error_logs) >= 1
 
             cloud_logs = client.write_run_logs.call_args[0][0]
             assert len(cloud_logs) == 1
@@ -229,7 +289,7 @@ def test_make_error_log(caplog):
 
     with context({"flow_run_id": "f_id", "task_run_id": "t_id"}):
         log = utilities.logging.CloudHandler()._make_error_log("test_message")
-        assert log["flowRunId"] == "f_id"
+        assert log["flow_run_id"] == "f_id"
         assert log["timestamp"]
         assert log["name"] == "CloudHandler"
         assert log["message"] == "test_message"
@@ -278,6 +338,67 @@ def test_context_attributes():
     assert test_filter.called
 
 
+def test_users_can_specify_additional_context_attributes():
+    class MyHandler(logging.StreamHandler):
+        log_traces = []
+
+        def emit(self, record):
+            self.log_traces.append(getattr(record, "trace_id", None))
+
+    handler = MyHandler()
+
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+        "task_name": "tn",
+        "task_slug": "ts",
+        "trace_id": "ID",
+    }
+
+    with utilities.configuration.set_temporary_config(
+        {"logging.log_attributes": ["trace_id"]}
+    ):
+        logger = logging.getLogger("test-logger")
+        logger.addHandler(handler)
+
+        with context(items):
+            logger.critical("log entry!")
+
+    assert handler.log_traces[0] == "ID"
+
+
+def test_users_can_specify_additional_context_attributes_and_fails_gracefully():
+    class MyHandler(logging.StreamHandler):
+        log_attrs = []
+
+        def emit(self, record):
+            data = dict(trace_id=record.trace_id, foo=record.foo)
+            self.log_attrs.append(data)
+
+    handler = MyHandler()
+    items = {
+        "flow_run_id": "fri",
+        "flow_name": "fn",
+        "task_run_id": "tri",
+        "task_name": "tn",
+        "task_slug": "ts",
+        "trace_id": "ID",
+    }
+
+    with utilities.configuration.set_temporary_config(
+        {"logging.log_attributes": ["trace_id", "foo"]}
+    ):
+        logger = logging.getLogger("test-logger")
+        logger.addHandler(handler)
+
+        with context(items):
+            logger.critical("log entry!")
+
+    assert handler.log_attrs[0]["foo"] is None
+    assert handler.log_attrs[0]["trace_id"] == "ID"
+
+
 def test_context_only_specified_attributes():
     items = {
         "flow_run_id": "fri",
@@ -311,7 +432,7 @@ def test_context_only_specified_attributes():
     assert test_filter.called
 
     with utilities.configuration.set_temporary_config(
-        {"logging.extra_loggers": "['extra_logger']"}
+        {"logging.extra_loggers": ["extra_logger"]}
     ):
         utilities.logging.configure_extra_loggers()
         assert (

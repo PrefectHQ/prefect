@@ -1,0 +1,7 @@
+query FlowRunStatesAggregate($where: flow_run_state_bool_exp) {
+  flow_run_state_aggregate(where: $where) {
+    aggregate {
+      count
+    }
+  }
+}

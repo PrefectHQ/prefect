@@ -1,7 +1,7 @@
 import os
 import socket
 import sys
-from subprocess import PIPE, STDOUT, Popen
+from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 
 from prefect import config
@@ -36,6 +36,11 @@ class LocalAgent(Agent):
             Agents when polling for work
         - env_vars (dict, optional): a dictionary of environment variables and values that will be set
             on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
+            defaults to infinite
+        - agent_address (str, optional):  Address to serve internal api at. Currently this is
+            just health checks for use by an orchestration layer. Leave blank for no api server (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
         - import_paths (List[str], optional): system paths which will be provided to each Flow's runtime environment;
             useful for Flows which import from locally hosted scripts or packages
         - show_flow_logs (bool, optional): a boolean specifying whether the agent should re-route Flow run logs
@@ -53,12 +58,27 @@ class LocalAgent(Agent):
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
         hostname_label: bool = True,
+        max_polls: int = None,
+        agent_address: str = None,
+        no_cloud_logs: bool = False,
     ) -> None:
-        self.processes = []  # type: list
+        self.processes = set()
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
-        super().__init__(name=name, labels=labels, env_vars=env_vars)
+        super().__init__(
+            name=name,
+            labels=labels,
+            env_vars=env_vars,
+            max_polls=max_polls,
+            agent_address=agent_address,
+            no_cloud_logs=no_cloud_logs,
+        )
         hostname = socket.gethostname()
+
+        # Resolve common Docker hostname by using IP
+        if hostname == "docker-desktop":
+            hostname = socket.gethostbyname(hostname)
+
         if hostname_label and (hostname not in self.labels):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
@@ -66,17 +86,17 @@ class LocalAgent(Agent):
             ["azure-flow-storage", "gcs-flow-storage", "s3-flow-storage"]
         )
 
+        self.logger.debug(f"Import paths: {self.import_paths}")
+        self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
+
     def heartbeat(self) -> None:
-        for idx, process in enumerate(self.processes):
+        for process in list(self.processes):
             if process.poll() is not None:
-                self.processes.pop(idx)
+                self.processes.remove(process)
                 if process.returncode:
                     self.logger.info(
                         "Process PID {} returned non-zero exit code".format(process.pid)
                     )
-                    if not self.show_flow_logs:
-                        for raw_line in iter(process.stdout.readline, b""):
-                            self.logger.info(raw_line.decode("utf-8").rstrip())
         super().heartbeat()
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
@@ -119,7 +139,7 @@ class LocalAgent(Agent):
 
         current_env["PYTHONPATH"] = ":".join(python_path)
 
-        stdout = sys.stdout if self.show_flow_logs else PIPE
+        stdout = sys.stdout if self.show_flow_logs else DEVNULL
 
         # note: we will allow these processes to be orphaned if the agent were to exit
         # before the flow runs have completed. The lifecycle of the agent should not
@@ -133,7 +153,7 @@ class LocalAgent(Agent):
             env=current_env,
         )
 
-        self.processes.append(p)
+        self.processes.add(p)
         self.logger.debug(
             "Submitted flow run {} to process PID {}".format(flow_run.id, p.pid)
         )
@@ -150,11 +170,12 @@ class LocalAgent(Agent):
         Returns:
             - dict: a dictionary representing the populated environment variables
         """
-        return {
+        all_vars = {
             "PREFECT__CLOUD__API": config.cloud.api,
             "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
             "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
+            "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             "PREFECT__LOGGING__LEVEL": "DEBUG",
@@ -162,6 +183,7 @@ class LocalAgent(Agent):
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             **self.env_vars,
         }
+        return {k: v for k, v in all_vars.items() if v is not None}
 
     @staticmethod
     def generate_supervisor_conf(

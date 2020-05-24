@@ -100,6 +100,9 @@ def at_time(t: time) -> Callable[[datetime], bool]:
     """
     Filter that allows events that match a specific time.
 
+    For example, `at_time(datetime.time(4))` would only allow runs at 4 AM
+    in the given timezone.
+
     Args:
         - t (time): the time to match
 
@@ -116,6 +119,9 @@ def at_time(t: time) -> Callable[[datetime], bool]:
 def between_times(start: time, end: time) -> Callable[[datetime], bool]:
     """
     Filter that allows events between a start time and end time
+
+    For example, `between_times(start=datetime.time(14), end=datetime.time(16))` would only
+    allow runs between the hours of 2 PM and 4 PM in the given timezone.
 
     Args:
         - start (time): the start time

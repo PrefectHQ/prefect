@@ -1,13 +1,10 @@
-import datetime
 import logging
 import random
 import sys
-import tempfile
 import time
 from unittest.mock import MagicMock
 
 import cloudpickle
-import dask
 import distributed
 import pytest
 
@@ -62,6 +59,10 @@ class TestSyncExecutor:
 
 
 class TestLocalDaskExecutor:
+    def test_scheduler_defaults_to_threads(self):
+        e = LocalDaskExecutor()
+        assert e.scheduler == "threads"
+
     def test_responds_to_kwargs(self):
         e = LocalDaskExecutor(scheduler="threads")
         assert e.scheduler == "threads"

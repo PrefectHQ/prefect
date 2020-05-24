@@ -1,0 +1,18 @@
+query TableTasks(
+  $flowId: uuid
+  $name: String
+  $limit: Int
+  $offset: Int
+  $orderBy: [task_order_by!]
+) {
+  task_aggregate(
+    where: { flow_id: { _eq: $flowId }, name: { _ilike: $name } }
+    order_by: $orderBy
+    limit: $limit
+    offset: $offset
+  ) {
+    aggregate {
+      count
+    }
+  }
+}

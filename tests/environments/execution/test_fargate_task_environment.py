@@ -15,10 +15,17 @@ from botocore.exceptions import ClientError
 def test_create_fargate_task_environment():
     environment = FargateTaskEnvironment()
     assert environment
+    assert environment.executor_kwargs == {}
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
     assert environment.logger.name == "prefect.FargateTaskEnvironment"
+
+
+def test_create_fargate_task_environment_with_executor_kwargs():
+    environment = FargateTaskEnvironment(executor_kwargs={"test": "here"})
+    assert environment
+    assert environment.executor_kwargs == {"test": "here"}
 
 
 def test_create_fargate_task_environment_labels():
@@ -401,12 +408,17 @@ def test_execute_run_task_agent_token(monkeypatch):
 
 
 def test_run_flow(monkeypatch):
-    environment = FargateTaskEnvironment()
+    environment = FargateTaskEnvironment(executor_kwargs={"test": "here"})
 
     flow_runner = MagicMock()
     monkeypatch.setattr(
         "prefect.engine.get_default_flow_runner_class",
         MagicMock(return_value=flow_runner),
+    )
+
+    executor = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_executor_class", MagicMock(return_value=executor),
     )
 
     with tempfile.TemporaryDirectory() as directory:
@@ -423,6 +435,7 @@ def test_run_flow(monkeypatch):
                 environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "test"
+        assert executor.call_args[1] == {"test": "here"}
 
 
 def test_run_flow_calls_callbacks(monkeypatch):

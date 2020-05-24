@@ -2,7 +2,7 @@
 sidebarDepth: 0
 ---
 
-# Using Result Handlers
+# Using Result Handlers <Badge text="Deprecated in 0.11.0"/>
 
 Let's take a look at using result handlers. As introduced in the concept documentation ["Results and Result Handlers"](../concepts/results.md), Prefect tasks associate their return value with a `Result` object attached to a task's `State`, and they can be extended with `ResultHandler`s that, when enabled, persist results to storage as a pickle into one of the supported storage backends.
 

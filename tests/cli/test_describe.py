@@ -1,12 +1,8 @@
-import sys
+import json
 from unittest.mock import MagicMock
 
-import click
-import pytest
-import requests
 from click.testing import CliRunner
 
-import prefect
 from prefect.cli.describe import describe
 from prefect.utilities.configuration import set_temporary_config
 
@@ -31,9 +27,6 @@ def test_describe_help():
     )
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_describe_flows(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -48,24 +41,26 @@ def test_describe_flows(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(describe, ["flows", "--name", "flow"])
+        result = runner.invoke(
+            describe, ["flows", "--name", "flow", "--project", "proj"]
+        )
         assert result.exit_code == 0
         assert "name" in result.output
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: "proj" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 name
                 version
-                project {
-                    name
-                }
                 created
                 description
                 parameters
                 archived
                 storage
                 environment
+                project {
+                    name
+                }
             }
         }
         """
@@ -91,9 +86,6 @@ def test_describe_flows_not_found(monkeypatch):
         assert "flow not found" in result.output
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_describe_flows_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -119,15 +111,15 @@ def test_describe_flows_populated(monkeypatch):
             flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: 2 }, project: { name: { _eq: "project" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 name
                 version
-                project {
-                    name
-                }
                 created
                 description
                 parameters
                 archived
                 storage
                 environment
+                project {
+                    name
+                }
             }
         }
         """
@@ -136,9 +128,29 @@ def test_describe_flows_populated(monkeypatch):
         assert post.call_args[1]["json"]["query"].split() == query.split()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
+def test_describe_flows_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow=[{"name": "flow"}])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe,
+            ["flows", "--name", "flow", "--project", "proj", "--output", "json"],
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "flow"}
+
+
 def test_describe_tasks(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -155,13 +167,15 @@ def test_describe_tasks(monkeypatch):
         {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         runner = CliRunner()
-        result = runner.invoke(describe, ["tasks", "--name", "flow"])
+        result = runner.invoke(
+            describe, ["tasks", "--name", "flow", "--project", "proj"]
+        )
         assert result.exit_code == 0
         assert "name" in result.output
 
         query = """
         query {
-            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: null } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
+            flow(where: { _and: { name: { _eq: "flow" }, version: { _eq: null }, project: { name: { _eq: "proj" } } } }, order_by: { name: asc, version: desc }, distinct_on: name) {
                 tasks {
                     name
                     created
@@ -216,9 +230,31 @@ def test_describe_tasks_not_found(monkeypatch):
         assert "No tasks found for flow flow" in result.output
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
+def test_describe_tasks_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(data=dict(flow=[{"tasks": [{"name": "task"}]}]))
+            )
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe,
+            ["tasks", "--name", "flow", "--project", "proj", "--output", "json"],
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "task"}
+
+
 def test_describe_flow_runs(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -282,9 +318,6 @@ def test_describe_flow_runs_not_found(monkeypatch):
         assert "flow-run not found" in result.output
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 6), reason="3.5 does not preserve dictionary order"
-)
 def test_describe_flow_runs_populated(monkeypatch):
     post = MagicMock(
         return_value=MagicMock(
@@ -328,3 +361,27 @@ def test_describe_flow_runs_populated(monkeypatch):
 
         assert post.called
         assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_describe_flow_runs_json_output(monkeypatch):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(data=dict(flow_run=[{"name": "flow-run"}]))
+            )
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config(
+        {"cloud.graphql": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            describe, ["flow-runs", "--name", "flow-run", "--output", "json"]
+        )
+        assert result.exit_code == 0
+
+        assert json.loads(result.output) == {"name": "flow-run"}

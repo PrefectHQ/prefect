@@ -1,0 +1,231 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Dashboard should match snapshot 1`] = `
+<v-sheet-stub
+  color="appBackground"
+  tag="div"
+>
+  <subpagenav-stub>
+    <span>
+      Dashboard
+    </span>
+     
+    <span
+      style="height: 28px; overflow: hidden;"
+    >
+      <span
+        style="text-transform: capitalize;"
+      >
+        
+        overview
+      
+      </span>
+    </span>
+  </subpagenav-stub>
+   
+  <v-tabs-stub
+    activeclass=""
+    class="px-6 mx-auto tabs-border-bottom"
+    light="true"
+    mobilebreakpoint="1264"
+    nexticon="$next"
+    previcon="$prev"
+    slidersize="2"
+    style="max-width: 1440px;"
+    value="overview"
+  >
+    <v-tabs-slider-stub
+      color="blue"
+    />
+     
+    <v-tab-stub
+      data-cy="dashboard-overview-tab"
+      href="#overview"
+      ripple="true"
+    >
+      <v-icon-stub
+        left=""
+        size="medium"
+      >
+        view_quilt
+      </v-icon-stub>
+      
+      Overview
+    
+    </v-tab-stub>
+    <v-tab-stub
+      data-cy="dashboard-flows-tab"
+      href="#flows"
+      ripple="true"
+    >
+      <v-icon-stub
+        left=""
+        size="medium"
+      >
+        timeline
+      </v-icon-stub>
+      
+      Flows
+    
+    </v-tab-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height pa-0"
+      value="overview"
+    >
+      <tilelayout-stub>
+        <summarytile-stub
+          fullheight="true"
+        />
+         
+        <failurestile-stub />
+         
+        <upcomingrunstile-stub
+          fullheight="true"
+        />
+         
+        <flowrunheartbeattile-stub />
+         
+        <errorstile-stub
+          fullheight="true"
+        />
+         
+        <apihealthchecktile-stub />
+      </tilelayout-stub>
+    </v-tab-item-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height"
+      value="flows"
+    >
+      <!---->
+    </v-tab-item-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height"
+      value="analytics"
+    >
+      
+      Nothing to see here :)
+    
+    </v-tab-item-stub>
+  </v-tabs-stub>
+   
+  <!---->
+</v-sheet-stub>
+`;
+
+exports[`Dashboard should properly mount 1`] = `
+<v-sheet-stub
+  color="appBackground"
+  tag="div"
+>
+  <subpagenav-stub>
+    <span>
+      Dashboard
+    </span>
+     
+    <span
+      style="height: 28px; overflow: hidden;"
+    >
+      <span
+        style="text-transform: capitalize;"
+      >
+        
+        overview
+      
+      </span>
+    </span>
+  </subpagenav-stub>
+   
+  <v-tabs-stub
+    activeclass=""
+    class="px-6 mx-auto tabs-border-bottom"
+    light="true"
+    mobilebreakpoint="1264"
+    nexticon="$next"
+    previcon="$prev"
+    slidersize="2"
+    style="max-width: 1440px;"
+    value="overview"
+  >
+    <v-tabs-slider-stub
+      color="blue"
+    />
+     
+    <v-tab-stub
+      data-cy="dashboard-overview-tab"
+      href="#overview"
+      ripple="true"
+    >
+      <v-icon-stub
+        left=""
+        size="medium"
+      >
+        view_quilt
+      </v-icon-stub>
+      
+      Overview
+    
+    </v-tab-stub>
+    <v-tab-stub
+      data-cy="dashboard-flows-tab"
+      href="#flows"
+      ripple="true"
+    >
+      <v-icon-stub
+        left=""
+        size="medium"
+      >
+        timeline
+      </v-icon-stub>
+      
+      Flows
+    
+    </v-tab-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height pa-0"
+      value="overview"
+    >
+      <tilelayout-stub>
+        <summarytile-stub
+          fullheight="true"
+        />
+         
+        <failurestile-stub />
+         
+        <upcomingrunstile-stub
+          fullheight="true"
+        />
+         
+        <flowrunheartbeattile-stub />
+         
+        <errorstile-stub
+          fullheight="true"
+        />
+         
+        <apihealthchecktile-stub />
+      </tilelayout-stub>
+    </v-tab-item-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height"
+      value="flows"
+    >
+      <!---->
+    </v-tab-item-stub>
+     
+    <v-tab-item-stub
+      class="tab-full-height"
+      value="analytics"
+    >
+      
+      Nothing to see here :)
+    
+    </v-tab-item-stub>
+  </v-tabs-stub>
+   
+  <!---->
+</v-sheet-stub>
+`;

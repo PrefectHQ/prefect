@@ -1,14 +1,12 @@
 import datetime
-import tempfile
-import uuid
-from collections import defaultdict
+import json
 
-import cloudpickle
 import pendulum
 import pytest
 
 import prefect
 from prefect.engine.result import NoResult, Result, SafeResult
+from prefect.engine.results import PrefectResult
 from prefect.engine.result_handlers import JSONResultHandler, LocalResultHandler
 from prefect.engine.state import (
     Cancelled,
@@ -31,6 +29,7 @@ from prefect.engine.state import (
     Success,
     TimedOut,
     TriggerFailed,
+    ValidationFailed,
     _MetaState,
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
@@ -53,6 +52,7 @@ def test_create_state_with_no_args(cls):
     state = cls()
     assert state.message is None
     assert state.result is None
+    assert state._result == NoResult
     assert state.context == dict()
     assert state.cached_inputs == dict()
 
@@ -122,6 +122,7 @@ def test_create_state_with_tags_in_context(cls):
         state = cls()
     assert state.message is None
     assert state.result is None
+    assert state._result == NoResult
     assert state.context == dict(tags=list(set("abcdef")))
 
     with prefect.context(task_tags=set("abcdef")):
@@ -133,6 +134,22 @@ def test_scheduled_states_have_default_times():
     now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
+
+
+def test_paused_state_has_no_default_start_time():
+    state = Paused()
+    assert state.start_time is None
+
+
+def test_passing_none_to_paused_state_has_no_default_start_time():
+    state = Paused(start_time=None)
+    assert state.start_time is None
+
+
+def test_paused_state_can_have_start_time():
+    dt = pendulum.now().add(years=1)
+    state = Paused(start_time=dt)
+    assert state.start_time == dt
 
 
 def test_queued_states_have_start_times():
@@ -221,7 +238,7 @@ def test_states_have_color(cls):
 def test_serialize_and_deserialize_on_raw_cached_state():
     now = pendulum.now("utc")
     state = Cached(
-        cached_inputs=dict(x=Result(99), p=Result("p")),
+        cached_inputs=dict(x=PrefectResult(value=99), p=PrefectResult(value="p")),
         result=dict(hi=5, bye=6),
         cached_result_expiration=now,
     )
@@ -231,14 +248,14 @@ def test_serialize_and_deserialize_on_raw_cached_state():
     assert new_state.color == state.color
     assert new_state.result is None
     assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
 
 
 def test_serialize_and_deserialize_on_mixed_cached_state():
-    safe_dct = SafeResult(dict(hi=5, bye=6), result_handler=JSONResultHandler())
+    safe_dct = PrefectResult(location=json.dumps(dict(hi=5, bye=6)))
     now = pendulum.now("utc")
     state = Cached(
-        cached_inputs=dict(x=Result(2), p=Result("p")),
+        cached_inputs=dict(x=PrefectResult(value=2), p=PrefectResult(value="p")),
         result=safe_dct,
         cached_result_expiration=now,
     )
@@ -246,9 +263,9 @@ def test_serialize_and_deserialize_on_mixed_cached_state():
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, Cached)
     assert new_state.color == state.color
-    assert new_state.result == dict(hi=5, bye=6)
+    assert new_state._result.location == json.dumps(dict(hi=5, bye=6))
     assert new_state.cached_result_expiration == state.cached_result_expiration
-    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], NoResult)
+    assert new_state.cached_inputs == dict.fromkeys(["x", "p"], PrefectResult())
 
 
 def test_serialize_and_deserialize_on_safe_cached_state():
@@ -281,12 +298,12 @@ def test_serialization_of_cached_inputs_with_safe_values(cls):
 
 @pytest.mark.parametrize("cls", [s for s in all_states if s.__name__ != "State"])
 def test_serialization_of_cached_inputs_with_unsafe_values(cls):
-    unsafe5 = Result(5, result_handler=JSONResultHandler())
+    unsafe5 = PrefectResult(value=5)
     state = cls(cached_inputs=dict(hi=unsafe5, bye=unsafe5))
     serialized = state.serialize()
     new_state = State.deserialize(serialized)
     assert isinstance(new_state, cls)
-    assert new_state.cached_inputs == dict(hi=NoResult, bye=NoResult)
+    assert new_state.cached_inputs == dict(hi=PrefectResult(), bye=PrefectResult())
 
 
 def test_state_equality():
@@ -383,6 +400,12 @@ class TestStateHierarchy:
     def test_trigger_failed_is_failed(self):
         assert issubclass(TriggerFailed, Failed)
 
+    def test_validation_failed_is_failed(self):
+        assert issubclass(ValidationFailed, Failed)
+
+    def test_paused_is_scheduled(self):
+        assert issubclass(Paused, Scheduled)
+
 
 @pytest.mark.parametrize(
     "state_check",
@@ -410,6 +433,7 @@ class TestStateHierarchy:
         dict(state=Success(), assert_true={"is_finished", "is_successful"}),
         dict(state=TimedOut(), assert_true={"is_finished", "is_failed"}),
         dict(state=TriggerFailed(), assert_true={"is_finished", "is_failed"}),
+        dict(state=ValidationFailed(), assert_true={"is_finished", "is_failed"}),
     ],
 )
 def test_state_is_methods(state_check):
@@ -457,3 +481,157 @@ def test_children_method_on_leaf_state_returns_hierarchy():
 
 def test_parents_method_on_success():
     assert set(Success.parents()) == {Finished, State}
+
+
+class TestResultInterface:
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_calls_read(self, cls):
+        """
+        This test ensures that the read logic of the provided result is
+        used instead of self._result; this is important when "hydrating" JSON
+        representations of Results objects that come from Cloud.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = 42
+                return self
+
+        state = cls(result=Result(location=""))
+        assert state.message is None
+        assert state.result is None
+
+        new_state = state.load_result(MyResult(location=""))
+        assert new_state.result == 42
+        assert new_state._result.location == "foo"
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_doesnt_call_read_if_value_present(self, cls):
+        """
+        This test ensures that multiple calls to `load_result` will not result in
+        multiple redundant reads from the remote result location.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result(value=42))
+        assert state.message is None
+        assert state.result == 42
+
+        new_state = state.load_result(MyResult())
+        assert new_state.result == 42
+        assert new_state._result.location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_doesnt_call_read_if_location_is_none(self, cls):
+        """
+        If both the value and location information are None, we assume that None is the
+        correct return value and perform no action.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result())
+        assert state.message is None
+        assert state.result is None
+        assert state._result.location is None
+
+        new_state = state.load_result(MyResult())
+        assert new_state.message is None
+        assert new_state.result is None
+        assert new_state._result.location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_result_reads_if_location_is_provided(self, cls):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = "bar"
+                return self
+
+        state = cls(result=Result())
+        assert state.message is None
+        assert state.result is None
+        assert state._result.location is None
+
+        new_state = state.load_result(MyResult(location="foo"))
+        assert new_state.message is None
+        assert new_state.result == "bar"
+        assert new_state._result.location == "foo"
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_cached_results_calls_read(self, cls):
+        """
+        This test ensures that the read logic of the provided result is
+        used instead of self._result; this is important when "hydrating" JSON
+        representations of Results objects that come from Cloud.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = 42
+                return self
+
+        state = cls(cached_inputs=dict(x=Result()))
+        new_state = state.load_cached_results(dict(x=MyResult(location="")))
+
+        assert new_state.cached_inputs["x"].value == 42
+        assert new_state.cached_inputs["x"].location == "foo"
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_cached_results_doesnt_call_read_if_value_present(self, cls):
+        """
+        This test ensures that multiple calls to `load_result` will not result in
+        multiple redundant reads from the remote result location.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(cached_inputs=dict(x=Result(value=42)))
+
+        new_state = state.load_cached_results(dict(x=MyResult()))
+        assert new_state.cached_inputs["x"].value == 42
+        assert new_state.cached_inputs["x"].location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_cached_results_doesnt_call_read_if_location_is_none(self, cls):
+        """
+        If both the value and location information are None, we assume that None is the
+        correct return value and perform no action.
+        """
+
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.location = "foo"
+                self.value = "bar"
+                return self
+
+        state = cls(cached_inputs=dict(x=Result()))
+        new_state = state.load_cached_results(dict(x=MyResult()))
+        assert new_state.cached_inputs["x"].value is None
+        assert new_state.cached_inputs["x"].location is None
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_state_load_cached_results_reads_if_location_is_provided(self, cls):
+        class MyResult(Result):
+            def read(self, *args, **kwargs):
+                self.value = "bar"
+                return self
+
+        state = cls(cached_inputs=dict(y=Result()))
+        new_state = state.load_cached_results(dict(y=MyResult(location="foo")))
+        assert new_state.cached_inputs["y"].value == "bar"
+        assert new_state.cached_inputs["y"].location == "foo"

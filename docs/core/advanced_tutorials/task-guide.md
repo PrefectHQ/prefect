@@ -35,7 +35,7 @@ When the run method of your task is called, it is executed as Python code. Conse
 There are still a few considerations though:
 
 - if you utilize timeouts, this sometimes relies on multiprocessing / multithreading which can interfere with how resource intensive your Task can be
-- make sure that you understand the possible retrictions on [Task inputs and outputs](#task-inputs-and-outputs)
+- make sure that you understand the possible restrictions on [Task inputs and outputs](#task-inputs-and-outputs)
   :::
 
 Generally speaking, there are two preferred methods for creating your own Prefect Tasks: using the `@task` decorator on a function, or subclassing the Prefect `Task` class. Let's take a look at an example of each of these individually by writing a custom task which adds two numbers together.
@@ -144,7 +144,7 @@ If you're interested in testing your Task as Prefect sees it, using a `TaskRunne
 - are the upstream tasks in an appropriate state, as specified by your Task's trigger?
 - is your Task mapped, and should it spawn multiple copies of itself?
 - is your Task running on Cloud, and should it set its state in the Cloud database?
-- does your Task have result handlers or state handlers that need to be called?
+- does your Task have result persistence configured, or state handlers that need to be called?
 - what State should your Task run be in after it has run?
 
 To see this in action, let's run a Task which requires no inputs.
@@ -201,7 +201,7 @@ In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, whic
 
 ## Task Inputs and Outputs
 
-In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Sucessful"). In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.
+In many workflow systems, individual "Tasks" are only allowed to report a minimal set of information about their state (for example, "Finished", "Failed" or "Successful"). In Prefect, we encourage Tasks to actually exchange richer information, including "arbitrary" data objects.
 
 However, there _can_ be restrictions on what tasks can receive as inputs and return as outputs. In particular, Prefect's most popular executor is the `DaskExecutor`, which allows users to execute tasks on a cluster; because each machine is running a different Python process, Dask must convert Python objects to bytecode that can be shared between different processes. Consequently, the data that is passed around the Prefect platform must be compatible with this serialization protocol. Specifically, tasks must operate on objects that are serializable by the [`cloudpickle` library](https://github.com/cloudpipe/cloudpickle).
 
@@ -256,7 +256,7 @@ So far, so good - our Flow now consists of a single task. How might we add a sin
 - the task is _called_ within a Flow context _or_
 - the task is called as a dependency of another task
 
-In this case, because we have a single Task and no dependencies, we must resort to _calling_ the instantiatied Task:
+In this case, because we have a single Task and no dependencies, we must resort to _calling_ the instantiated Task:
 
 ```python
 with Flow("example-v2") as f:
@@ -333,7 +333,7 @@ flow.tasks
 #  <Task: do_nothing>}
 ```
 
-This can be burdensome for deeply nested Python collections. To prevent this granular auto-generation from occuring, you can always wrap Python objects in a `Constant` Task:
+This can be burdensome for deeply nested Python collections. To prevent this granular auto-generation from occurring, you can always wrap Python objects in a `Constant` Task:
 
 ```python
 from prefect.tasks.core.constants import Constant
@@ -570,7 +570,7 @@ with Flow("add-with-default") as f:
 We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
-Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, result handlers, etc.
+Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, results, etc.
 :::
 
 ## State Handlers

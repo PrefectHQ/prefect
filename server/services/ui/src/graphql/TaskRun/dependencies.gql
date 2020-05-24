@@ -1,0 +1,32 @@
+query Dependencies($taskRunId: uuid!, $flowRunId: uuid!) {
+  task_run_by_pk(id: $taskRunId) {
+    id
+    state
+    task {
+      id
+      name
+      upstream_edges {
+        id
+        upstream_task {
+          id
+          name
+          task_runs(where: { flow_run_id: { _eq: $flowRunId } }) {
+            id
+            state
+          }
+        }
+      }
+      downstream_edges {
+        id
+        downstream_task {
+          id
+          name
+          task_runs(where: { flow_run_id: { _eq: $flowRunId } }) {
+            id
+            state
+          }
+        }
+      }
+    }
+  }
+}

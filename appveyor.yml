@@ -12,7 +12,7 @@ init:
 
 install:
   - "%PYTHON%/Scripts/pip.exe install -r test-requirements.txt"
-  - "%PYTHON%/Scripts/pip.exe install .[all_extras]"
+  - "%PYTHON%/Scripts/pip.exe install ."
 
 test_script:
-  - "%PYTHON%/Scripts/pytest . -vv --skip-formatting"
+  - "%PYTHON%/Scripts/pytest tests -vv"

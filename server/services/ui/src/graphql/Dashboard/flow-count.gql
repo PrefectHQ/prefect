@@ -1,0 +1,9 @@
+query FlowCount($archived: Boolean, $searchParams: [flow_bool_exp!]) {
+  flowCount: flow_aggregate(
+    where: { archived: { _eq: $archived }, _or: $searchParams }
+  ) {
+    aggregate {
+      count
+    }
+  }
+}

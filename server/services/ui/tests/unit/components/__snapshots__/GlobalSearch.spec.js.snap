@@ -1,0 +1,83 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GlobalSearch should match snapshot 1`] = `
+<v-autocomplete-stub
+  allowoverflow="true"
+  appendicon="$dropdown"
+  backgroundcolor=""
+  class="global-search"
+  clearable="true"
+  clearicon="close"
+  dark="true"
+  dense="true"
+  errorcount="1"
+  errormessages=""
+  filter="function () { [native code] }"
+  itemcolor="primary"
+  itemdisabled="disabled"
+  items=""
+  itemtext="name"
+  itemvalue="value"
+  label="Search"
+  loaderheight="2"
+  menuprops="[object Object]"
+  messages=""
+  nodatatext="$vuetify.noDataText"
+  openonclear="true"
+  placeholder="Search"
+  prependinnericon="search"
+  rules=""
+  singleline="true"
+  successmessages=""
+  type="text"
+  valuecomparator="function deepEqual(a, b) {
+  if (a === b) return true;
+
+  if (a instanceof Date && b instanceof Date) {
+    // If the values are Date, they were convert to timestamp with getTime and compare it
+    if (a.getTime() !== b.getTime()) return false;
+  }
+
+  if (a !== Object(a) || b !== Object(b)) {
+    // If the values aren't objects, they were already checked for equality
+    return false;
+  }
+
+  var props = Object.keys(a);
+
+  if (props.length !== Object.keys(b).length) {
+    // Different number of props, don't bother to check
+    return false;
+  }
+
+  return props.every(function (p) {
+    return deepEqual(a[p], b[p]);
+  });
+}"
+>
+  <v-list-item-stub
+    activeclass=""
+    tag="div"
+  >
+    <v-list-item-title-stub>
+      
+        Type to search for a 
+      <strong>
+        Flow
+      </strong>
+      , 
+      <strong>
+        Task
+      </strong>
+      , or
+        
+      <strong>
+        Run
+      </strong>
+    </v-list-item-title-stub>
+  </v-list-item-stub>
+  <!---->
+   
+  <!---->
+</v-autocomplete-stub>
+`;
