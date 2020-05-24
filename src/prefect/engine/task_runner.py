@@ -216,6 +216,8 @@ class TaskRunner(Runner):
             - context (dict, optional): prefect Context to use for execution
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
+            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+                mapped task
 
         Returns:
             - `State` object representing the final post-run state of the Task

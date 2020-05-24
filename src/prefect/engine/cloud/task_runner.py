@@ -340,6 +340,7 @@ class CloudTaskRunner(TaskRunner):
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
         executor: "prefect.engine.executors.Executor" = None,
+        mapped_parent: bool = False,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -356,6 +357,8 @@ class CloudTaskRunner(TaskRunner):
             - context (dict, optional): prefect Context to use for execution
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
+            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+                mapped task
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -366,6 +369,7 @@ class CloudTaskRunner(TaskRunner):
             upstream_states=upstream_states,
             context=context,
             executor=executor,
+            mapped_parent=mapped_parent,
         )
         while (end_state.is_retrying() or end_state.is_queued()) and (
             end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
@@ -389,5 +393,6 @@ class CloudTaskRunner(TaskRunner):
                 upstream_states=upstream_states,
                 context=context,
                 executor=executor,
+                mapped_parent=mapped_parent,
             )
         return end_state

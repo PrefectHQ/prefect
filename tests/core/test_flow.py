@@ -2185,7 +2185,10 @@ class TestFlowRunMethod:
         assert flow_state.is_successful()
         assert all([s.is_successful() for s in flow_state.result[res].map_states])
         assert res.call_count == 4
-        assert len(state_history) == 11
+        # Pending -> Mapped (parent)
+        # Pending -> Running -> Failed -> Retrying -> Running -> Successful (failed child)
+        # (Pending -> Running -> Success) * 2 (others)
+        assert len(state_history) == 10
 
     def test_flow_run_accepts_state_kwarg(self):
         f = Flow(name="test")

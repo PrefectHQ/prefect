@@ -147,16 +147,9 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
         Edge(Task(), Task(), key="foo", mapped=True): Success(result=[1, 2])
     }
 
-    class MyExecutor(prefect.engine.executors.LocalExecutor):
-        def map(self, *args, **kwargs):
-            raise SyntaxError("oops")
-
-    with pytest.raises(SyntaxError):
-        CloudTaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
-            upstream_states=upstream_states,
-            context={},
-            executor=MyExecutor(),
+    with pytest.raises(ENDRUN) as exc:
+        CloudTaskRunner(task=Task()).check_task_ready_to_map(
+            state=Pending(), upstream_states=upstream_states,
         )
 
     ## assertions
@@ -165,9 +158,7 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
     assert client.get_latest_cached_states.call_count == 0
 
     last_set_state = client.set_task_run_state.call_args_list[-1][1]["state"]
-    assert last_set_state.map_states == [None, None]
     assert last_set_state.is_mapped()
-    assert "Preparing to submit 2" in last_set_state.message
 
 
 def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(

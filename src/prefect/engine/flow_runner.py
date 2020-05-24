@@ -643,6 +643,8 @@ class FlowRunner(Runner):
                 state.
             - executor (Executor): executor to use when performing
                 computation; defaults to the executor provided in your prefect configuration
+            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+                mapped task
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
