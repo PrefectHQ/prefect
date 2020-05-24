@@ -263,15 +263,15 @@ class TaskRunner(Runner):
                     state, upstream_states=upstream_states
                 )
 
-                if mapped_parent:
-                    state = self.check_task_ready_to_map(
-                        state, upstream_states=upstream_states
-                    )
-
                 # populate / hydrate all result objects
                 state, upstream_states = self.load_results(
                     state=state, upstream_states=upstream_states
                 )
+
+                if mapped_parent:
+                    state = self.check_task_ready_to_map(
+                        state, upstream_states=upstream_states
+                    )
 
                 # retrieve task inputs from upstream and also explicitly passed inputs
                 task_inputs = self.get_task_inputs(
@@ -440,8 +440,19 @@ class TaskRunner(Runner):
         ## we can't map if there are no success states with iterables upstream
         if upstream_states and not any(
             [
-                edge.mapped and state.is_successful()
+                edge.mapped
+                and state.is_successful()
+                and hasattr(state.result, "__getitem__")
                 for edge, state in upstream_states.items()
+            ]
+        ):
+            new_state = Failed("No upstream states can be mapped over.")  # type: State
+            raise ENDRUN(new_state)
+        elif not all(
+            [
+                edge.mapped and hasattr(state.result, "__getitem__")
+                for edge, state in upstream_states.items()
+                if state.is_successful()
             ]
         ):
             new_state = Failed("No upstream states can be mapped over.")  # type: State

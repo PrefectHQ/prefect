@@ -473,11 +473,7 @@ class FlowRunner(Runner):
                     ## either way, we should now have enough resolved states to restructure
                     ## the upstream states into a list of upstream state dictionaries to iterate over
                     list_of_upstream_states = prepare_upstream_states_for_mapping(
-                        task_states.get(
-                            task,
-                            task_state if isinstance(task_state, State) else State(),
-                        ),
-                        upstream_states,
+                        task_states[task], upstream_states,
                     )
 
                     if not list_of_upstream_states and isinstance(task_state, Mapped):
@@ -488,7 +484,10 @@ class FlowRunner(Runner):
                     submitted_states = []
 
                     for idx, states in enumerate(list_of_upstream_states):
-                        if isinstance(task_state, Mapped) and task_state.map_states:
+                        if (
+                            isinstance(task_state, Mapped)
+                            and len(task_state.map_states) >= idx + 1
+                        ):
                             current_state = task_state.map_states[
                                 idx
                             ]  # type: Optional[State]
@@ -504,7 +503,9 @@ class FlowRunner(Runner):
                                     state=current_state,
                                     upstream_states=states,
                                     context=dict(
-                                        prefect.context, **task_contexts.get(task, {})
+                                        prefect.context,
+                                        **task_contexts.get(task, {}),
+                                        map_index=idx,
                                     ),
                                     task_runner_state_handlers=task_runner_state_handlers,
                                     executor=executor,

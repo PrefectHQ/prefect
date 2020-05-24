@@ -295,7 +295,7 @@ def prepare_upstream_states_for_mapping(
     ## if the current state is failed / skipped or otherwise
     ## in a state that signifies we should not continue with mapping,
     ## we return an empty list
-    if state.is_failed() or state.is_skipped():
+    if state.is_pending() or state.is_failed() or state.is_skipped():
         return []
 
     map_upstream_states = []
