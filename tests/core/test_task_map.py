@@ -118,6 +118,7 @@ def test_map_composition(executor):
 
     with raise_on_exception():
         s = f.run(executor=executor)
+
     m1 = s.result[r1]
     m2 = s.result[r2]
     assert s.is_successful()

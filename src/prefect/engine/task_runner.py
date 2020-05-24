@@ -437,12 +437,13 @@ class TaskRunner(Runner):
         Raises:
             - ENDRUN: either way, we dont continue past this point
         """
+        if state.is_mapped():
+            raise ENDRUN(state)
+
         ## we can't map if there are no success states with iterables upstream
         if upstream_states and not any(
             [
-                edge.mapped
-                and state.is_successful()
-                and hasattr(state.result, "__getitem__")
+                edge.mapped and state.is_successful()
                 for edge, state in upstream_states.items()
             ]
         ):
@@ -450,9 +451,9 @@ class TaskRunner(Runner):
             raise ENDRUN(new_state)
         elif not all(
             [
-                edge.mapped and hasattr(state.result, "__getitem__")
+                hasattr(state.result, "__getitem__")
                 for edge, state in upstream_states.items()
-                if state.is_successful()
+                if state.is_successful() and not state.is_mapped() and edge.mapped
             ]
         ):
             new_state = Failed("No upstream states can be mapped over.")  # type: State
