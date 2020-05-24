@@ -2033,43 +2033,6 @@ class TestLooping:
         assert state.is_successful()
         assert state.result == 2
 
-    def test_looping_works_with_mapping(self):
-        @prefect.task
-        def my_task(i):
-            if prefect.context.get("task_loop_count", 1) < 3:
-                raise signals.LOOP(
-                    result=prefect.context.get("task_loop_result", i) + 3
-                )
-            return prefect.context.get("task_loop_result")
-
-        runner = TaskRunner(my_task)
-        state = runner.run(
-            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
-        )
-
-        assert state.is_mapped()
-        assert [s.result for s in state.map_states] == [7, 26]
-
-    def test_looping_works_with_mapping_and_individual_retries(self):
-        @prefect.task(max_retries=1, retry_delay=timedelta(seconds=0))
-        def my_task(i):
-            if prefect.context.get("task_loop_result") == 4:
-                raise ValueError("Can't do 4")
-            if prefect.context.get("task_loop_count", 1) < 3:
-                raise signals.LOOP(
-                    result=prefect.context.get("task_loop_result", i) + 3
-                )
-            return prefect.context.get("task_loop_result")
-
-        runner = TaskRunner(my_task)
-        state = runner.run(
-            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
-        )
-
-        assert state.is_mapped()
-        state.map_states[0].is_retrying()
-        state.map_states[1].is_successful()
-
 
 def test_failure_caches_inputs():
     @prefect.task

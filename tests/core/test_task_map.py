@@ -926,3 +926,67 @@ def test_mapping_over_constants():
         flow_state = f.run()
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [2, 3, 4, 5]
+
+
+class TestLooping:
+    def test_looping_works_with_mapping(self):
+        @prefect.task
+        def my_task(i):
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise prefect.engine.signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            return prefect.context.get("task_loop_result")
+
+        with Flow("looping-mapping") as flow:
+            output = my_task.map(i=[1, 20])
+
+        flow_state = flow.run()
+
+        assert flow_state.is_successful()
+
+        state = flow_state.result[output]
+        assert state.is_mapped()
+        assert [s.result for s in state.map_states] == [7, 26]
+
+    def test_looping_works_with_mapping_and_individual_retries(self):
+        state_history = []
+
+        def handler(task, old, new):
+            state_history.append(new)
+
+        @prefect.task(
+            max_retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            state_handlers=[handler],
+        )
+        def my_task(i):
+            if prefect.context.get("task_loop_count", 1) < 3:
+                raise prefect.engine.signals.LOOP(
+                    result=prefect.context.get("task_loop_result", i) + 3
+                )
+            if (
+                prefect.context.get("task_loop_count", 1) == 3
+                and prefect.context.get("task_run_count", 0) <= 1
+            ):
+                raise ValueError("Can't do it")
+            return prefect.context.get("task_loop_result")
+
+        with Flow("looping-mapping") as flow:
+            output = my_task.map(i=[1, 20])
+
+        flow_state = flow.run()
+
+        assert flow_state.is_successful()
+
+        state = flow_state.result[output]
+        assert state.is_mapped()
+        assert state.map_states[0].is_successful()
+        assert state.map_states[1].is_successful()
+        assert state.map_states[0].result == 1 + 3 + 3
+        assert state.map_states[1].result == 20 + 3 + 3
+
+        # finally assert that retries actually ocurred correctly
+        # Pending -> Mapped (parent)
+        # (Pending -> (Running -> Looped) * 2 -> Running -> Failed -> Retrying -> Running -> Successful) * 2
+        assert len(state_history) == 19

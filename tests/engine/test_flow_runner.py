@@ -1237,24 +1237,6 @@ class TestMapping:
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True
     )
-    def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
-
-        with Flow(name="test") as flow:
-            res = ReturnTask().map([1, 1])
-
-        state = FlowRunner(flow=flow).run(
-            return_tasks=[res],
-            executor=executor,
-            task_states={res: Mapped(map_states=[Success(result=100)])},
-        )
-        assert state.is_failed()
-        assert state.result[res].map_states[0].is_successful()
-        assert state.result[res].map_states[0].result == 100
-        assert state.result[res].map_states[1].is_failed()
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
-    )
     def test_mapped_tasks_dont_run_if_upstream_pending(self, executor):
 
         with Flow(name="test") as flow:
