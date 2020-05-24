@@ -20,7 +20,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Union,
     cast,
 )
 
@@ -469,9 +468,12 @@ class Flow:
             self.tasks.add(task)
             self._cache.clear()
 
-            case = prefect.context.get("case", None)
-            if case is not None:
-                case.add_task(task, self)
+            # Parameters must be root tasks
+            # All other new tasks should be added to the current case (if any)
+            if not isinstance(task, Parameter):
+                case = prefect.context.get("case", None)
+                if case is not None:
+                    case.add_task(task, self)
 
         return task
 
@@ -941,7 +943,11 @@ class Flow:
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
                 earliest_start = min(
-                    [s.start_time for s in task_states if s.is_scheduled()],
+                    [
+                        s.start_time
+                        for s in task_states
+                        if s.is_scheduled() and s.start_time is not None
+                    ],
                     default=pendulum.now("utc"),
                 )
 

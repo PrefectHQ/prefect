@@ -3,12 +3,9 @@
 
 
 import argparse
-import uuid
 from pathlib import Path
-from typing import Iterator
 
 import click
-import requests
 from click.testing import CliRunner
 
 import prefect

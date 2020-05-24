@@ -1,11 +1,9 @@
 import json
 import os
 import re
-import sys
 import tempfile
 from unittest.mock import MagicMock
 
-import click
 import pytest
 import requests
 from click.testing import CliRunner

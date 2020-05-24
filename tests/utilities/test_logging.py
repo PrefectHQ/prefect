@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import sys
 import time
 from unittest.mock import MagicMock
 

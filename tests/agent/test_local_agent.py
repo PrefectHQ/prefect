@@ -1,10 +1,8 @@
-import os
 import socket
 from unittest.mock import MagicMock
 
 import pytest
 from marshmallow.exceptions import ValidationError
-from testfixtures.mock import call
 from testfixtures.popen import MockPopen
 from testfixtures import compare, LogCapture
 
@@ -71,6 +69,14 @@ def test_local_agent_config_options_hostname(runner_token):
             "s3-flow-storage",
             "gcs-flow-storage",
         }
+
+
+def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch, runner_token):
+    monkeypatch.setattr("socket.gethostname", MagicMock(return_value="docker-desktop"))
+    monkeypatch.setattr("socket.gethostbyname", MagicMock(return_value="IP"))
+
+    agent = LocalAgent()
+    assert "IP" in agent.labels
 
 
 def test_populate_env_vars_uses_user_provided_env_vars(runner_token):

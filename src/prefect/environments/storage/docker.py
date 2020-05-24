@@ -9,7 +9,7 @@ import textwrap
 import uuid
 import warnings
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Union
 
 import cloudpickle
 import pendulum
@@ -56,8 +56,6 @@ class Docker(Storage):
             use when building
         - files (dict, optional): a dictionary of files to copy into the image
             when building
-        - base_url: (str, optional): a URL of a Docker daemon to use when for
-            Docker related functionality.  Defaults to DOCKER_HOST env var if not set
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
@@ -69,6 +67,10 @@ class Docker(Storage):
             are included.
         - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
             for each flow run.  Used primarily for providing authentication credentials.
+        - base_url: (str, optional): a URL of a Docker daemon to use when for
+            Docker related functionality.  Defaults to DOCKER_HOST env var if not set
+        - tls_config: (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
+            client. https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -85,11 +87,12 @@ class Docker(Storage):
         image_tag: str = None,
         env_vars: dict = None,
         files: dict = None,
-        base_url: str = None,
         prefect_version: str = None,
         local_image: bool = False,
         ignore_healthchecks: bool = False,
         secrets: List[str] = None,
+        base_url: str = None,
+        tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
     ) -> None:
         self.registry_url = registry_url
         if sys.platform == "win32":
@@ -109,10 +112,12 @@ class Docker(Storage):
         self.files = files or {}
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
-        self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.local_image = local_image
         self.extra_commands = []  # type: List[str]
         self.ignore_healthchecks = ignore_healthchecks
+
+        self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
+        self.tls_config = tls_config
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -505,7 +510,9 @@ class Docker(Storage):
         # the 'import prefect' time low
         import docker
 
-        return docker.APIClient(base_url=self.base_url, version="auto")
+        return docker.APIClient(
+            base_url=self.base_url, version="auto", tls=self.tls_config
+        )
 
     def pull_image(self) -> None:
         """Pull the image specified so it can be built.

@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-import cloudpickle
 import pytest
 
 from prefect import Flow

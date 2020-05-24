@@ -1,2 +1,5 @@
 # global owners
-*   @jlowin @cicdw @joshmeek @lauralorenz
+*   @joshmeek @lauralorenz @jcrist
+
+# UI
+/server/services/ui/ @znicholasbrown

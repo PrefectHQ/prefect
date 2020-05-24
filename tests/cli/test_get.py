@@ -1,7 +1,5 @@
-import sys
 from unittest.mock import MagicMock
 
-import click
 import pytest
 import requests
 from click.testing import CliRunner

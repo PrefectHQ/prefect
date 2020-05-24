@@ -2,9 +2,7 @@ import collections
 import datetime
 import queue
 import random
-import sys
 import time
-from distutils.version import LooseVersion
 from unittest.mock import MagicMock
 
 import cloudpickle

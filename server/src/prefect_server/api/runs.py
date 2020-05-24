@@ -2,9 +2,8 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import ujson
 import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable, List
 
 import pendulum
 
