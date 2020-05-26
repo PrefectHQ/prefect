@@ -510,7 +510,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"] = {}
+            env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image
@@ -566,7 +570,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["containers"][0]["env"] = {}
+            env = yaml_obj["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image
