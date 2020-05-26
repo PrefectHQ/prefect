@@ -27,6 +27,7 @@ def test_create_dask_environment():
     assert environment.on_start is None
     assert environment.on_exit is None
     assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
+    assert environment.image_pull_secret is None
 
 
 def test_create_dask_environment_args():
@@ -37,6 +38,7 @@ def test_create_dask_environment_args():
         scheduler_logs=True,
         private_registry=True,
         docker_secret="docker",
+        image_pull_secret="secret",
     )
     assert environment
     assert environment.min_workers == 5
@@ -45,6 +47,7 @@ def test_create_dask_environment_args():
     assert environment.scheduler_logs is True
     assert environment.private_registry is True
     assert environment.docker_secret == "docker"
+    assert environment.image_pull_secret == "secret"
 
 
 def test_create_dask_environment_labels():
@@ -363,6 +366,25 @@ def test_populate_worker_pod_yaml_with_private_registry():
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
     yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
+
+
+def test_populate_worker_pod_yaml_with_image_pull_secret():
+    environment = DaskKubernetesEnvironment(image_pull_secret="mysecret")
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(
+            flow_run_id="id_test", image="my_image", namespace="foo-man"
+        ):
+            yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
+
+    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
 
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
