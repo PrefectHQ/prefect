@@ -31,8 +31,8 @@ class DaskExecutor(Executor):
             Defaults to `False`.
         - debug (bool, optional): whether to operate in debug mode; `debug=True`
             will produce many additional dask logs. Defaults to the `debug` value in your Prefect configuration
-        - **kwargs (dict, optional): additional kwargs to be passed to the [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client) upon 
-            initialization (e.g., `n_workers`, `security`, etc.), which will also pass any unmatched kwargs down to child objects such as 
+        - **kwargs (dict, optional): additional kwargs to be passed to the [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client) upon
+            initialization (e.g., `n_workers`, `security`, etc.), which will also pass any unmatched kwargs down to child objects such as
             [`distributed.deploy.local.LocalCluster`](https://docs.dask.org/en/latest/setup/single-distributed.html#distributed.deploy.local.LocalCluster).
             Please see the Dask docs to see all of the options that child objects will respond to.
     """
@@ -144,41 +144,6 @@ class DaskExecutor(Executor):
         fire_and_forget(future)
         return future
 
-    def map(self, fn: Callable, *args: Any, **kwargs: Any) -> List["Future"]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-            - **kwargs (Any): additional keyword arguments that will be passed to the Dask Client
-
-        Returns:
-            - List[Future]: a list of Future-like objects that represent each computation of
-                fn(*a), where a = zip(*args)[i]
-
-        """
-        if not args:
-            return []
-
-        # import dask functions here to decrease our import times
-        from distributed import fire_and_forget, worker_client
-
-        dask_kwargs = self._prep_dask_kwargs()
-        kwargs.update(dask_kwargs)
-
-        if self.is_started and hasattr(self, "client"):
-            futures = self.client.map(fn, *args, **kwargs)
-        elif self.is_started:
-            with worker_client(separate_thread=True) as client:
-                futures = client.map(fn, *args, **kwargs)
-                return client.gather(futures)
-        else:
-            raise ValueError("This executor has not been started.")
-
-        fire_and_forget(futures)
-        return futures
-
     def wait(self, futures: Any) -> Any:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
@@ -205,8 +170,6 @@ class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable dask scheduler.  Note that
     this executor is known to occasionally run tasks twice when using multi-level mapping.
-
-    Prefect's mapping feature will not work in conjunction with setting `scheduler="processes"`.
 
     Args:
         - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "threads".
@@ -247,28 +210,6 @@ class LocalDaskExecutor(Executor):
         import dask
 
         return dask.delayed(fn)(*args, **kwargs)
-
-    def map(self, fn: Callable, *args: Any) -> List["dask.delayed"]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-
-        Returns:
-            - List[dask.delayed]: the result of computating the function over the arguments
-
-        """
-        if self.scheduler == "processes":
-            raise RuntimeError(
-                "LocalDaskExecutor cannot map if scheduler='processes'. Please set to either 'synchronous' or 'threads'."
-            )
-
-        results = []
-        for args_i in zip(*args):
-            results.append(self.submit(fn, *args_i))
-        return results
 
     def wait(self, futures: Any) -> Any:
         """

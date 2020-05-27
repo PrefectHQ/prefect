@@ -305,10 +305,7 @@ def test_task_runner_accepts_dictionary_of_edges():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_timeout_actually_stops_execution(executor):
+def test_timeout_actually_stops_execution():
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -337,7 +334,7 @@ def test_timeout_actually_stops_execution(executor):
         assert not os.path.exists(FILE)
 
         start_time = time()
-        state = TaskRunner(slow_fn).run(executor=executor)
+        state = TaskRunner(slow_fn).run()
         stop_time = time()
         sleep(max(0, 3 - (stop_time - start_time)))
 
@@ -1028,17 +1025,13 @@ class TestSetTaskRunning:
 class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
-        new_state = TaskRunner(task=Task()).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=Task()).get_task_run_state(state=state, inputs={})
         assert new_state.is_successful()
 
     @pytest.mark.parametrize("state", [Pending(), Cached(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).get_task_run_state(
-                state=state, inputs={}, timeout_handler=None
-            )
+            TaskRunner(task=Task()).get_task_run_state(state=state, inputs={})
 
     def test_raise_success_signal(self):
         @prefect.task
@@ -1046,9 +1039,7 @@ class TestRunTaskStep:
             raise signals.SUCCESS()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_successful()
 
     def test_raise_fail_signal(self):
@@ -1057,9 +1048,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_failed()
 
     def test_raise_loop_signal(self):
@@ -1068,9 +1057,7 @@ class TestRunTaskStep:
             raise signals.LOOP(result=1)
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_looped()
         assert new_state.result == 1
         assert new_state.loop_count == 1
@@ -1082,9 +1069,7 @@ class TestRunTaskStep:
             raise signals.LOOP(message="My message")
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_looped()
         assert "LOOP" in new_state.result
         assert new_state.loop_count == 1
@@ -1096,9 +1081,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert isinstance(new_state, Skipped)
 
     def test_raise_pause_signal(self):
@@ -1107,9 +1090,7 @@ class TestRunTaskStep:
             raise signals.PAUSE()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert isinstance(new_state, Paused)
 
     def test_run_with_error(self):
@@ -1118,9 +1099,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_failed()
         assert isinstance(new_state.result, ZeroDivisionError)
 
@@ -1131,7 +1110,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"x": Result(1)}, timeout_handler=None
+            state=state, inputs={"x": Result(1)},
         )
         assert new_state.is_successful()
         assert new_state.result == 2
@@ -1143,24 +1122,20 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": Result(1)}, timeout_handler=None
+            state=state, inputs={"y": Result(1)},
         )
         assert new_state.is_failed()
 
     def test_returns_success_with_hydrated_result_obj(self):
         runner = TaskRunner(task=Task())
-        state = runner.get_task_run_state(
-            state=Running(), inputs={}, timeout_handler=None
-        )
+        state = runner.get_task_run_state(state=Running(), inputs={},)
         assert state.is_successful()
         assert isinstance(state._result, Result)
         assert state._result == Result(value=None)
 
     def test_returns_success_with_correct_result_type(self):
         runner = TaskRunner(task=Task(result=PrefectResult()))
-        state = runner.get_task_run_state(
-            state=Running(), inputs={}, timeout_handler=None
-        )
+        state = runner.get_task_run_state(state=Running(), inputs={},)
         assert state.is_successful()
         assert isinstance(state._result, PrefectResult)
 
@@ -1171,7 +1146,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
@@ -1198,7 +1173,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(2)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(2)},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "3"
@@ -1212,14 +1187,14 @@ class TestRunTaskStep:
         ## checkpointing allows users to toggle behavior for local testing
         with prefect.context(checkpointing=False):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "1"
@@ -1228,7 +1203,7 @@ class TestRunTaskStep:
         p = prefect.Parameter("p", default=2)
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "2"
@@ -1248,7 +1223,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
@@ -1267,7 +1242,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
 

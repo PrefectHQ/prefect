@@ -1698,7 +1698,7 @@ class TestFlowRunMethod:
 
     def test_flow_dot_run_with_paused_states_hangs(self, monkeypatch):
         """
-        Tests that running a flow with a Paused state hangs forever... 
+        Tests that running a flow with a Paused state hangs forever...
         not recommended behavior but possible.
         https://github.com/PrefectHQ/prefect/issues/2615
         """

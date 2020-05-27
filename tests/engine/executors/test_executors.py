@@ -23,10 +23,6 @@ class TestBaseExecutor:
         with pytest.raises(NotImplementedError):
             Executor().submit(lambda: 1)
 
-    def test_map_raises_notimplemented(self):
-        with pytest.raises(NotImplementedError):
-            Executor().map(lambda: 1)
-
     def test_wait_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
             Executor().wait([1])
@@ -100,51 +96,6 @@ class TestLocalDaskExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalDaskExecutor)
 
-    def test_map_iterates_over_multiple_args(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        e = LocalDaskExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn))
-        assert res == []
-
-    def test_map_with_synchronous_scheduler(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="synchronous")
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_with_threads_scheduler(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="threads")
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_fails_with_processes_executor(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="processes")
-        with pytest.raises(RuntimeError):
-            with e.start():
-                res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-
 
 class TestLocalExecutor:
     def test_submit(self):
@@ -170,24 +121,6 @@ class TestLocalExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
 
-    def test_map_iterates_over_multiple_args(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn))
-        assert res == []
-
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
 def test_submit_does_not_assume_pure_functions(executor):
@@ -199,21 +132,6 @@ def test_submit_does_not_assume_pure_functions(executor):
         two = executor.wait(executor.submit(random_fun))
 
     assert one != two
-
-
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
-def test_executor_has_compatible_timeout_handler(executor):
-    slow_fn = lambda: time.sleep(3)
-    with executor.start():
-        with pytest.raises(TimeoutError):
-            executor.wait(executor.submit(executor.timeout_handler, slow_fn, timeout=1))
-
-
-def test_dask_processes_executor_handles_timeouts(mproc):
-    slow_fn = lambda: time.sleep(2)
-    with mproc.start():
-        with pytest.raises(TimeoutError, match="Execution timed out"):
-            mproc.wait(mproc.submit(mproc.timeout_handler, slow_fn, timeout=1))
 
 
 class TestDaskExecutor:
@@ -286,16 +204,6 @@ class TestDaskExecutor:
         kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
         assert kwargs["key"].startswith("FISH!")
 
-    def test_task_names_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_full_name="FISH![0]"):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
-        assert kwargs["key"].startswith("FISH![0]")
-
     def test_context_tags_are_passed_to_submit(self, monkeypatch):
         client = MagicMock()
         monkeypatch.setattr(distributed, "Client", client)
@@ -304,16 +212,6 @@ class TestDaskExecutor:
             with prefect.context(task_tags=["dask-resource:GPU=1"]):
                 executor.submit(lambda: None)
         kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
-
-    def test_context_tags_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
         assert kwargs["resources"] == {"GPU": 1.0}
 
     def test_debug_is_converted_to_silence_logs(self, monkeypatch):
@@ -343,21 +241,3 @@ class TestDaskExecutor:
     def test_is_pickleable_after_start(self, executor):
         post = cloudpickle.loads(cloudpickle.dumps(executor))
         assert isinstance(post, DaskExecutor)
-
-    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-    def test_map_iterates_over_multiple_args(self, executor):
-        def map_fn(x, y):
-            return x + y
-
-        with executor.start():
-            res = executor.wait(executor.map(map_fn, [1, 2], [1, 3]))
-            assert res == [2, 5]
-
-    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-    def test_map_doesnt_do_anything_for_empty_list_input(self, executor):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        with executor.start():
-            res = executor.wait(executor.map(map_fn))
-        assert res == []

@@ -194,7 +194,6 @@ class TaskRunner(Runner):
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
-        executor: "prefect.engine.executors.Executor" = None,
         mapped_parent: bool = False,
     ) -> State:
         """
@@ -209,8 +208,6 @@ class TaskRunner(Runner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor specified in your prefect configuration
             - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
                 mapped task
 
@@ -224,9 +221,6 @@ class TaskRunner(Runner):
             name=self.task.name,
             index=("" if map_index is None else "[{}]".format(map_index)),
         )
-
-        if executor is None:
-            executor = prefect.engine.get_default_executor_class()()
 
         task_inputs = {}  # type: Dict[str, Any]
 
@@ -291,9 +285,7 @@ class TaskRunner(Runner):
                 state = self.set_task_to_running(state, inputs=task_inputs)
 
                 # run the task
-                state = self.get_task_run_state(
-                    state, inputs=task_inputs, timeout_handler=executor.timeout_handler
-                )
+                state = self.get_task_run_state(state, inputs=task_inputs)
 
                 # cache the output, if appropriate
                 state = self.cache_result(state, inputs=task_inputs)
@@ -306,7 +298,6 @@ class TaskRunner(Runner):
                     inputs=task_inputs,
                     upstream_states=upstream_states,
                     context=context,
-                    executor=executor,
                 )
 
         # for pending signals, including retries and pauses we need to make sure the
@@ -741,25 +732,6 @@ class TaskRunner(Runner):
         return state or Pending("Cache was invalid; ready to run.")
 
     @call_state_handlers
-    def wait_for_mapped_task(
-        self, state: State, executor: "prefect.engine.executors.Executor"
-    ) -> State:
-        """
-        Blocks until a mapped state's children have finished running.
-
-        Args:
-            - state (State): the current `Mapped` state
-            - executor (Executor): the run's executor
-
-        Returns:
-            - State: the new state
-        """
-        if state.is_mapped():
-            assert isinstance(state, Mapped)  # mypy assert
-            state.map_states = executor.wait(state.map_states)
-        return state
-
-    @call_state_handlers
     def set_task_to_running(self, state: State, inputs: Dict[str, Result]) -> State:
         """
         Sets the task to running
@@ -789,12 +761,7 @@ class TaskRunner(Runner):
 
     @run_with_heartbeat
     @call_state_handlers
-    def get_task_run_state(
-        self,
-        state: State,
-        inputs: Dict[str, Result],
-        timeout_handler: Optional[Callable] = None,
-    ) -> State:
+    def get_task_run_state(self, state: State, inputs: Dict[str, Result],) -> State:
         """
         Runs the task and traps any signals or errors it raises.
         Also checkpoints the result of a successful task, if `task.checkpoint` is `True`.
@@ -803,9 +770,6 @@ class TaskRunner(Runner):
             - state (State): the current state of this task
             - inputs (Dict[str, Result], optional): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-            - timeout_handler (Callable, optional): function for timing out
-                task execution, with call signature `handler(fn, *args, **kwargs)`. Defaults to
-                `prefect.utilities.executors.timeout_handler`
 
         Returns:
             - State: the state of the task after running the check
@@ -831,9 +795,7 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            timeout_handler = (
-                timeout_handler or prefect.utilities.executors.timeout_handler
-            )
+            timeout_handler = prefect.utilities.executors.timeout_handler
             raw_inputs = {k: r.value for k, r in inputs.items()}
 
             if getattr(self.task, "log_stdout", False):
@@ -990,7 +952,6 @@ class TaskRunner(Runner):
         inputs: Dict[str, Result] = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
-        executor: "prefect.engine.executors.Executor" = None,
     ) -> State:
         """
         Checks to see if the task is in a `Looped` state and if so, rerun the pipeline with an incremeneted `loop_count`.
@@ -1004,8 +965,6 @@ class TaskRunner(Runner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor specified in your prefect configuration
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -1028,7 +987,6 @@ class TaskRunner(Runner):
                 new_state,
                 upstream_states=upstream_states,
                 context=context,
-                executor=executor,
             )
 
         return state

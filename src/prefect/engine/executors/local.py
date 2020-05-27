@@ -23,23 +23,6 @@ class LocalExecutor(Executor):
         """
         return fn(*args, **kwargs)
 
-    def map(self, fn: Callable, *args: Any) -> List[Any]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-
-        Returns:
-            - List[Any]: the result of computating the function over the arguments
-
-        """
-        results = []
-        for args_i in zip(*args):
-            results.append(fn(*args_i))
-        return results
-
     def wait(self, futures: Any) -> Any:
         """
         Returns the results of the provided futures.

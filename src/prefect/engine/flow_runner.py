@@ -497,7 +497,7 @@ class FlowRunner(Runner):
                                     map_index=idx,
                                 ),
                                 task_runner_state_handlers=task_runner_state_handlers,
-                                executor=executor, # TODO: stop passing executor around
+                                executor=executor,  # TODO: stop passing executor around
                             )
                         )
                     if isinstance(task_states.get(task), Mapped):
@@ -510,9 +510,7 @@ class FlowRunner(Runner):
                         task=task,
                         state=task_state,
                         upstream_states=upstream_states,
-                        context=dict(
-                            prefect.context, **task_contexts.get(task, {})
-                        ),
+                        context=dict(prefect.context, **task_contexts.get(task, {})),
                         task_runner_state_handlers=task_runner_state_handlers,
                         executor=executor,
                     )
@@ -663,6 +661,5 @@ class FlowRunner(Runner):
                 state=state,
                 upstream_states=upstream_states,
                 context=context,
-                executor=executor,
                 mapped_parent=mapped_parent,
             )
