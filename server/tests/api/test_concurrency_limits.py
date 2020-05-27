@@ -101,6 +101,71 @@ class TestCreateFlowConcurrencyLimit:
         assert newest_concurrency_limit_count == new_concurrency_limit_count
 
 
+class TestUpdateFlowConcurrencyLimit:
+    async def test_updates_existing_limit(
+        self, flow_concurrency_limit: models.FlowConcurrencyLimit
+    ):
+
+        assert flow_concurrency_limit.limit == 1
+        concurrency_id = await api.concurrency_limits.update_flow_concurrency_limit(
+            flow_concurrency_limit.name, 2
+        )
+        assert concurrency_id == flow_concurrency_limit.id
+
+        refreshed_limit = await models.FlowConcurrencyLimit.where(
+            id=flow_concurrency_limit.id
+        ).first({"limit"})
+
+        assert refreshed_limit.limit == 2
+
+    async def test_creates_if_not_exists(self):
+
+        created_id = await api.concurrency_limits.update_flow_concurrency_limit(
+            "doesn't exist yet", limit=5
+        )
+        created_limit = await models.FlowConcurrencyLimit.where(id=created_id).first(
+            {"id", "name", "limit"}
+        )
+        assert created_limit.id == created_id
+        assert created_limit.name == "doesn't exist yet"
+        assert created_limit.limit == 5
+
+        assert await models.FlowConcurrencyLimit.where().count() == 1
+
+    @pytest.mark.parametrize("limit", [-1, 0])
+    async def test_cant_create_with_bad_limit(self, limit: int):
+        with pytest.raises(ValueError):
+            await api.concurrency_limits.update_flow_concurrency_limit(
+                "name doesn't matter", limit=limit
+            )
+
+    @pytest.mark.parametrize("limit", [-1, 0])
+    async def test_cant_update_with_bad_limit(
+        self, flow_concurrency_limit: models.FlowConcurrencyLimit, limit: int
+    ):
+        with pytest.raises(ValueError):
+            await api.concurrency_limits.update_flow_concurrency_limit(
+                name=flow_concurrency_limit.name, limit=limit
+            )
+
+    async def test_doesnt_update_existing_on_new_name(
+        self, flow_concurrency_limit: models.FlowConcurrencyLimit
+    ):
+        old_limits = await models.FlowConcurrencyLimit.where().count()
+        assert old_limits == 1
+        assert flow_concurrency_limit.limit == 1
+        created_id = await api.concurrency_limits.update_flow_concurrency_limit(
+            "not a valid limit name", 2
+        )
+        # Making sure we create a new one, not operating on existing
+        assert created_id != flow_concurrency_limit.id
+        refreshed_limit = await models.FlowConcurrencyLimit.where(
+            id=flow_concurrency_limit.id
+        ).first({"limit"})
+        assert await models.FlowConcurrencyLimit.where().count() == (old_limits + 1)
+        assert refreshed_limit.limit == 1
+
+
 class TestDeleteFlowConcurrencyLimit:
     async def test_delete_existing(
         self, flow_concurrency_limit: models.FlowConcurrencyLimit
@@ -120,7 +185,7 @@ class TestDeleteFlowConcurrencyLimit:
 
         assert concurrency_limit_count == (new_concurrency_limit_count + 1)
 
-    async def test_delete_bad_id(
+    async def test_delete_bad_limit_name(
         self, flow_concurrency_limit: models.FlowConcurrencyLimit
     ):
 

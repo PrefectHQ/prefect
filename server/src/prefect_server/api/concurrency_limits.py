@@ -34,7 +34,9 @@ async def create_flow_concurrency_limit(
 ) -> str:
     """
     Creates a new flow concurrency limit based on
-    an execution environment's label.
+    an execution environment's label. This is typically
+    used from `update_flow_concurrency_limit` to act
+    as part of the "upsert".
 
     Args:
         - name (str): Name of the execution environment's label.
@@ -63,21 +65,63 @@ async def create_flow_concurrency_limit(
     return flow_concurrency_limit_id
 
 
-async def delete_flow_concurrency_limit(flow_concurrency_limit_id: str) -> bool:
+async def update_flow_concurrency_limit(name: str, limit: int) -> str:
+    """
+    Set's the limit with name `name` to have concurrency limit `limit`.
+
+    If the flow concurrency limit object does not exist, this acts
+    as an upsert and creates it.
+
+    Args:
+        - name (str): Name of the flow_concurrency_limit object.
+        - limit (int): Number of concurrent flows to set the limit to.
+
+    Returns:
+        - str: The ID of the object operated on.
+
+    Raises:
+        - ValueError: If too low of a limit is requested
+    """
+    if limit <= 0:
+        raise ValueError(
+            f"Invalid limit specification for new flow concurrency limit {name}.\
+                Expected > 0 for being able to limit runs properly."
+        )
+
+    filter_clause = {"name": {"_eq": name}}
+
+    existing = await models.FlowConcurrencyLimit.where(filter_clause).first(
+        {"id", "name", "limit"}
+    )
+
+    # Doesn't exist, need to create
+    if not existing:
+        return await create_flow_concurrency_limit(name=name, limit=limit)
+
+    # Already matching, no need to overwrite
+    if existing.limit == limit:
+        return existing.id
+
+    # Do an update since the database doesn't match the requested
+    result = await models.FlowConcurrencyLimit.where(filter_clause).update(
+        set={"limit": limit}, selection_set={"returning": {"id"}}
+    )
+    return result.returning[0].id
+
+
+async def delete_flow_concurrency_limit(id: str) -> bool:
     """
     Deletes the flow concurrency limit with the given ID. If
     no flow concurrency limit is found with the given ID, False is returned.
 
     Args:
-        - flow_concurrency_limit_id (str): ID of the flow_concurrency_limit object.
+        - id (str): ID of the flow_concurrency_limit object.
 
     Returns:
         - bool: Whether the delete was succcessful.
     """
 
-    result = await models.FlowConcurrencyLimit.where(
-        id=flow_concurrency_limit_id
-    ).delete()
+    result = await models.FlowConcurrencyLimit.where(id=id).delete()
     return bool(result.affected_rows)
 
 
@@ -113,6 +157,12 @@ async def get_available_flow_concurrency(
 
     # Only count the resource as taken if the flow run is currently
     # in a running state and also is tagged with the environment tag.
+
+    # These queries are done individually because Hasura doesn't
+    # handle {"labels": [name, name, name]} in a way that's
+    # easily able to be sent as one query. There are tests
+    # verifying how Hasura handles these nested arrays in JSONB fields
+    # due to how it doesn't behave how you'd expect at first glance.
 
     utilized_slots = {
         limit.name: await models.FlowRun.where(
