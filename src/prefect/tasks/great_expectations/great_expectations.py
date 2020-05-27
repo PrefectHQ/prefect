@@ -9,41 +9,41 @@ except ImportError:
     pass
 
 
-class GreatExpectationsTask(Task):
-    def __init__(self, validation_operator_name: str = None, datasource: str = None, **kwargs):
+class RunGreatExpectationsCheckpoint(Task):
+    def __init__(self, checkpoint_name: str = None,
+    context_root_dir: str = None,
+    runtime_environment: dict = {}, **kwargs):
+        self.checkpoint_name = checkpoint_name
+        self.context_root_dir = context_root_dir
+        self.runtime_environment = runtime_environment
 
-        self.validation_operator_name = validation_operator_name
-        self.datasource = datasource
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("validation_operator_name", "datasource")
-    def run(self, validation_operator_name: str = None, datasource: str = None, **kwargs):
+    @defaults_from_attrs("checkpoint_name", "context_root_dir", "runtime_environment")
+    def run(self, checkpoint_name: str = None,
+     context_root_dir: str = None,
+    runtime_environment: dict = {},
+    **kwargs):
 
-        if validation_operator_name is None:
-            raise ValueError("You must provide an operator name that matches one in your great expectations configuration file.")
-        if datasource is None:
-            raise ValueError("You must provide a datasource name that matches one in your great expectations configuration.")
+        if checkpoint_name is None:
+            raise ValueError('You must provide the checkpoint name.')
+        
+        context = ge.DataContext(context_root_dir=context_root_dir,
+        runtime_environment=runtime_environment)
+        checkpoint = context.get_checkpoint(checkpoint_name)
 
-        context = ge.DataContext()
-
-        #####
-        # datasource = context.get_datasource(datasource)
-        # batch_kwargs_generator_name = datasource.list_batch_kwargs_generators()[0]['name']
-        # batch_kwargs_generator = datasource.get_batch_kwargs_generator(name=batch_kwargs_generator_name)
-        # data_asset_name = datasource.get_available_data_asset_names()[batch_kwargs_generator_name]['names'][0][0]
-        # batch_kwargs = datasource.build_batch_kwargs(batch_kwargs_generator_name, data_asset_name=data_asset_name)
-        # batch = datasource.get_batch(batch_kwargs=batch_kwargs)
-
-    
-        batch_kwargs = {'path': 'data/npidata/npidata_pfile_20190902-20190908.csv', 'datasource': datasource}
-        expectation_suite_name = 'npidata_pfile_20190902-20190908.warning'
-        tup = (batch_kwargs, expectation_suite_name)
+        batches_to_validate = []
+        for batch in checkpoint["batches"]:
+            batch_kwargs = batch["batch_kwargs"]
+            for suite_name in batch["expectation_suite_names"]:
+                suite = context.get_expectation_suite(suite_name)
+                batch = context.get_batch(batch_kwargs, suite)
+                batches_to_validate.append(batch)
 
         results = context.run_validation_operator(
-            validation_operator_name,
-            assets_to_validate=[tup],
-            run_id=prefect.context.get('task_id'),
-            base_expectation_suite_name='npidata_pfile_20190902-20190908'
+            checkpoint["validation_operator_name"],
+            assets_to_validate=batches_to_validate,
+            run_id=prefect.context.get('task_id')
         )
 
         if not results['success']:
