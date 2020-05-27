@@ -1,0 +1,2 @@
+enhancements:
+  - Update GraphQL endpoint to `/graphql` - [#2651](https://github.com/PrefectHQ/prefect/pull/2651)
