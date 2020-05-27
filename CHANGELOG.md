@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.11.3 <Badge text="beta" type="success">
+
+Released on May 27, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Add option to set volumes on `server start` CLI command - [#2560](https://github.com/PrefectHQ/prefect/pull/2560)
+- Add `case` to top-level namespace - [#2609](https://github.com/PrefectHQ/prefect/pull/2609)
+- Use host IP for `hostname` label in cases where `LocalAgent` is in container using host network - [#2618](https://github.com/PrefectHQ/prefect/issues/2618)
+- Add option to set TLS configuration on client created by Docker storage - [#2626](hhttps://github.com/PrefectHQ/prefect/issues/2626)
+- The `start_time` of a `Paused` state defaults to `None` - [#2617](https://github.com/PrefectHQ/prefect/pull/2617)
+- Raise more informative error when Cloud Secret doesn't exist - [#2620](https://github.com/PrefectHQ/prefect/pull/2620)
+- Update GraphQL endpoint to `/graphql` - [#2651](https://github.com/PrefectHQ/prefect/pull/2651)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Kubernetes agent resource manager is more strict about what resources it manages - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+- Fix error when adding `Parameter` to flow under `case` statement - [#2608](https://github.com/PrefectHQ/prefect/pull/2608)
+- Fix `S3Result` attempting to load data when checking existence - [#2623](https://github.com/PrefectHQ/prefect/issues/2623)
+
+### Deprecations
+
+- Deprecate `private_registry` and `docker_secret` options on `DaskKubernetesEnvironment` - [#2630](https://github.com/PrefectHQ/prefect/pull/2630)
+
+### Breaking Changes
+
+- Kubernetes labels associated with Prefect flow runs now have a `prefect.io/` prefix (e.g. `prefect.io/identifier`) - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+
+### Contributors
+
+- [Bartek Roszak](https://github.com/BartekRoszak)
+- [James Lamb](https://github.com/jameslamb)
+
 ## 0.11.2 <Badge text="beta" type="success"/>
 
 Released on May 19, 2020.
