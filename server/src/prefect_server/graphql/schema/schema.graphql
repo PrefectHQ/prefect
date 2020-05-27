@@ -1,12 +1,10 @@
 # Licensed under the Prefect Community License, available at
 # https://www.prefect.io/legal/prefect-community-license
- 
 
 type Query {
   hello: String
 }
 type Mutation {
-
   # ------------------------------------------------------
   # flows
   # ------------------------------------------------------
@@ -60,6 +58,20 @@ type Mutation {
 
   "Create a new flow run."
   create_flow_run(input: create_flow_run_input!): flow_run_id_payload
+
+  # ------------------------------------------------------
+  # flow concurrency limits
+  # ------------------------------------------------------
+
+  "Creates or updates an execution environment's flow concurrency limit"
+  update_flow_concurrency_limit(
+    input: update_flow_concurrency_limit_input!
+  ): flow_concurrency_limit_id_payload
+
+  "Deletes an execution environment's flow concurrency limit"
+  delete_flow_concurrency_limit(
+    input: delete_flow_concurrency_limit_input!
+  ): success_payload
 
   """
   Create a new task run, if it doesn't exist already. This is useful when dealing with dynamic
@@ -155,6 +167,20 @@ input enable_flow_heartbeat_input {
 input disable_flow_heartbeat_input {
   "The ID of the flow to update"
   flow_id: UUID!
+}
+
+# ------------------------------------------------------
+# flow concurrency inputs
+# ------------------------------------------------------
+input update_flow_concurrency_limit_input {
+  "Execution environment label to limit"
+  name: String!
+  "The number of concurrent flows allowed"
+  limit: Int!
+}
+
+input delete_flow_concurrency_limit_input {
+  flow_concurrency_limit_id: UUID!
 }
 
 # ------------------------------------------------------
@@ -277,6 +303,10 @@ type flow_id_payload {
 }
 
 type flow_run_id_payload {
+  id: UUID
+}
+
+type flow_concurrency_limit_id_payload {
   id: UUID
 }
 
