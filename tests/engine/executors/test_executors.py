@@ -2,7 +2,6 @@ import logging
 import random
 import sys
 import time
-from unittest.mock import MagicMock
 
 import cloudpickle
 import distributed
@@ -203,10 +202,11 @@ def test_submit_does_not_assume_pure_functions(executor):
 
 @pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
 def test_executor_has_compatible_timeout_handler(executor):
-    slow_fn = lambda: time.sleep(3)
     with executor.start():
         with pytest.raises(TimeoutError):
-            executor.wait(executor.submit(executor.timeout_handler, slow_fn, timeout=1))
+            executor.wait(
+                executor.submit(executor.timeout_handler, time.sleep, 3, timeout=1)
+            )
 
 
 def test_dask_processes_executor_handles_timeouts(mproc):
@@ -276,7 +276,7 @@ class TestDaskExecutor:
             assert res == 2
 
     def test_cluster_class_and_kwargs(self):
-        pytest.importorskip("distributed.deploy.spec.SpecCluster")
+        pytest.importorskip("distributed.deploy.spec")
         executor = DaskExecutor(
             cluster_class="distributed.deploy.spec.SpecCluster",
             cluster_kwargs={"some_kwarg": "some_val"},
@@ -346,45 +346,12 @@ class TestDaskExecutor:
                 address="localhost:8787", cluster_class=distributed.LocalCluster,
             )
 
-    def test_task_names_are_passed_to_submit(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
+    def test_prep_dask_kwargs(self):
         executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_full_name="FISH!"):
-                executor.submit(lambda: None)
-        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["key"].startswith("FISH!")
-
-    def test_task_names_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_full_name="FISH![0]"):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
-        assert kwargs["key"].startswith("FISH![0]")
-
-    def test_context_tags_are_passed_to_submit(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.submit(lambda: None)
-        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
-
-    def test_context_tags_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
+        with prefect.context(task_full_name="FISH!", task_tags=["dask-resource:GPU=1"]):
+            kwargs = executor._prep_dask_kwargs()
+            assert kwargs["key"].startswith("FISH!")
+            assert kwargs["resources"] == {"GPU": 1.0}
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
