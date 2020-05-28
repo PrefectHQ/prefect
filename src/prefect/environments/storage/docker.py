@@ -71,7 +71,7 @@ class Docker(Storage):
             Docker related functionality.  Defaults to DOCKER_HOST env var if not set
         - tls_config (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
             client. [Documentation](https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig)
-        - **kwargs (dict, optional): Additional keyword arguments to pass to Docker's build step.
+        - **kwargs (Any, optional): Additional keyword arguments to pass to Docker's build step.
             [Documentation](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.build.BuildApiMixin.build)
 
     Raises:
@@ -95,7 +95,7 @@ class Docker(Storage):
         secrets: List[str] = None,
         base_url: str = None,
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         self.registry_url = registry_url
         if sys.platform == "win32":
