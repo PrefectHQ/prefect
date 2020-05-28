@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 from prefect import config, context
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
+from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
@@ -325,24 +326,41 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        storage = StorageSchema().load(flow_run.flow.storage)
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
+        image = None
+        registry_url = False
+
+        # First check if `image` found in environment metadata, then default to storage
+        environment = EnvironmentSchema().load(flow_run.flow.environment)
+        if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
+            image = environment.metadata.get("image")
+            if len(image.split("/")) > 1:
+                registry_url = True
+        else:
+            storage = StorageSchema().load(flow_run.flow.storage)
+            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+                self.logger.error(
+                    "Storage for flow run {} is not of type Docker and environment has no `image` attribute in the metadata field.".format(
+                        flow_run.id
+                    )
+                )
+                raise ValueError(
+                    "Storage type is incompatable and `image` not found in environment metadata."
+                )
+
+            if storage.registry_url:
+                registry_url = True
+
+            image = storage.name
 
         env_vars = self.populate_env_vars(flow_run=flow_run)
 
-        if not self.no_pull and storage.registry_url:
-            self.logger.info("Pulling image {}...".format(storage.name))
+        if not self.no_pull and registry_url:
+            self.logger.info("Pulling image {}...".format(image))
 
-            pull_output = self.docker_client.pull(
-                storage.name, stream=True, decode=True
-            )
+            pull_output = self.docker_client.pull(image, stream=True, decode=True)
             for line in pull_output:
                 self.logger.debug(line)
-            self.logger.info("Successfully pulled image {}...".format(storage.name))
+            self.logger.info("Successfully pulled image {}...".format(image))
 
         # Create any named volumes (if they do not already exist)
         for named_volume_name in self.named_volumes:
@@ -357,7 +375,7 @@ class DockerAgent(Agent):
                 )
 
         # Create a container
-        self.logger.debug("Creating Docker container {}".format(storage.name))
+        self.logger.debug("Creating Docker container {}".format(image))
 
         host_config = {"auto_remove": True}  # type: dict
         container_mount_paths = self.container_mount_paths
@@ -375,7 +393,7 @@ class DockerAgent(Agent):
             )
 
         container = self.docker_client.create_container(
-            storage.name,
+            image,
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,

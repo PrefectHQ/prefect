@@ -9,6 +9,7 @@ import prefect
 from prefect import config
 from prefect.agent import Agent
 from prefect.environments.storage import Docker
+from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.storage import StorageSchema
 from prefect.utilities.graphql import GraphQLResult
 
@@ -102,14 +103,27 @@ class KubernetesAgent(Agent):
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
 
-        # Require Docker storage
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
+        image = None
 
-        job_spec = self.replace_job_spec_yaml(flow_run)
+        # First check if `image` found in environment metadata, then default to storage
+        environment = EnvironmentSchema().load(flow_run.flow.environment)
+        if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
+            image = environment.metadata.get("image")
+        else:
+            storage = StorageSchema().load(flow_run.flow.storage)
+            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+                self.logger.error(
+                    "Storage for flow run {} is not of type Docker and environment has no `image` attribute in the metadata field.".format(
+                        flow_run.id
+                    )
+                )
+                raise ValueError(
+                    "Storage type is incompatable and `image` not found in environment metadata."
+                )
+
+            image = storage.name
+
+        job_spec = self.replace_job_spec_yaml(flow_run, image)
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -122,12 +136,13 @@ class KubernetesAgent(Agent):
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
+    def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
         """
         Populate metadata and variables in the job_spec.yaml file for flow runs
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str): The full name of an image to use for the job
 
         Returns:
             - dict: a dictionary representing the populated yaml object
@@ -148,16 +163,10 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
-        # Use flow storage image for job
-        job["spec"]["template"]["spec"]["containers"][0]["image"] = (
-            StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-        )
+        # Use provided image for job
+        job["spec"]["template"]["spec"]["containers"][0]["image"] = image
 
-        self.logger.debug(
-            "Using image {} for job".format(
-                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-            )
-        )
+        self.logger.debug("Using image {} for job".format(image))
 
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]

@@ -17,6 +17,7 @@ class LocalEnvironment(Environment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
     def __init__(
@@ -24,8 +25,11 @@ class LocalEnvironment(Environment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
     ) -> None:
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     @property
     def dependencies(self) -> list:

@@ -26,6 +26,7 @@ def test_create_dask_cloud_provider_environment():
     assert environment._on_execute is None
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata is None
     assert environment.logger.name == "prefect.DaskCloudProviderEnvironment"
 
 

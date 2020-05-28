@@ -14,6 +14,7 @@ def test_create_remote_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata is None
     assert environment.logger.name == "prefect.RemoteDaskEnvironment"
 
 

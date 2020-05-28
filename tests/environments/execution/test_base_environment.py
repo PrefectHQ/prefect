@@ -10,6 +10,7 @@ def test_create_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata is None
     assert environment.logger.name == "prefect.Environment"
 
 
@@ -18,6 +19,12 @@ def test_create_environment_converts_labels_to_set():
     assert environment
     assert environment.labels == set(["a", "b"])
     assert environment.logger.name == "prefect.Environment"
+
+
+def test_create_environment_metadata():
+    environment = Environment(metadata={"test": "here"})
+    assert environment
+    assert environment.metadata == {"test": "here"}
 
 
 def test_create_environment_callbacks():
