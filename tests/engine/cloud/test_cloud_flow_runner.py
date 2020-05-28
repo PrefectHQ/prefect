@@ -566,7 +566,6 @@ def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
         upstream_states=dict(),
         context=dict(),
         task_runner_state_handlers=[],
-        executor=None,
     )
 
 

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     import prefect.engine.runner
     import prefect.engine.state
     from prefect.core.edge import Edge
+    from prefect.core.task import Task
     from prefect.engine.state import State  # pylint: disable=W0611
 
 StateList = Union["State", List["State"]]
@@ -277,7 +278,9 @@ def tail_recursive(func: Callable) -> Callable:
 
 
 def prepare_upstream_states_for_mapping(
-    state: "State", upstream_states: Dict["Edge", "State"],
+    state: "State",
+    upstream_states: Dict["Edge", "State"],
+    mapped_children: Dict["Task", list],
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -323,7 +326,7 @@ def prepare_upstream_states_for_mapping(
                 # Note that these "states" might actually be futures at this time; we aren't
                 # blocking until they finish.
                 elif edge.mapped and upstream_state.is_mapped():
-                    states[edge] = upstream_state.map_states[i]  # type: ignore
+                    states[edge] = mapped_children[edge.upstream_task][i]  # type: ignore
 
                 # Otherwise, we are mapping over the result of a "vanilla" task. In this
                 # case, we create a copy of the upstream state but set the result to the
