@@ -1,6 +1,6 @@
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, List
+from typing import Any, Callable, Iterator
 
 
 class Executor:
