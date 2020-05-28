@@ -348,7 +348,7 @@ class Docker(Storage):
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
                 forcerm=True,
-                **self.build_kwargs
+                **self.build_kwargs,
             )
             self._parse_generator_output(output)
 
