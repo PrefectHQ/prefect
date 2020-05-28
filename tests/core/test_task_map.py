@@ -887,6 +887,25 @@ def test_task_map_with_no_upstream_results_and_a_mapped_state(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
+def test_unmapped_on_mapped(executor):
+    @prefect.task
+    def add_one(x):
+        if isinstance(x, list):
+            return x + x
+        return x + 1
+
+    with Flow("wild") as flow:
+        res = add_one.map(unmapped(add_one.map([1, 2, 3])))
+
+    flow_state = flow.run(executor=executor)
+
+    assert flow_state.is_successful()
+    assert flow_state.result[res].result == [2, 3, 4, 2, 3, 4]
+
+
+@pytest.mark.parametrize(
+    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+)
 def test_all_tasks_only_called_once(capsys, executor):
     """
     See https://github.com/PrefectHQ/prefect/issues/556

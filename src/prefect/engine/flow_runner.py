@@ -464,16 +464,9 @@ class FlowRunner(Runner):
                         task_states[task], upstream_states,
                     )
 
-                    ## TODO: add comment explaining this block
-                    if not list_of_upstream_states and isinstance(task_state, Mapped):
-                        list_of_upstream_states = [
-                            upstream_states for _ in range(len(task_state.map_states))
-                        ]
-
                     submitted_states = []
 
                     for idx, states in enumerate(list_of_upstream_states):
-                        ## TODO: add comment about retries
                         if (
                             isinstance(task_state, Mapped)
                             and len(task_state.map_states) >= idx + 1
