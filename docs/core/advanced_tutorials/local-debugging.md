@@ -52,10 +52,9 @@ You can set the `LocalDaskExecutor` to be the default executor on your local mac
 
 #### `DaskExecutor`
 
-Lastly, if your issue is actually related to parallelism, you'll _need_ to use the `DaskExecutor`. There are two initialization keyword arguments that are useful to know about when debugging:
-
-- `local_processes`, which is a boolean specifying whether you want to use multiprocessing or not. The default for this flag is `False`. Try toggling it to see if your issue is related to multiprocessing or multithreading!
-- `debug`, which is another boolean for setting the logging level of `dask.distributed`; the default value is set from your Prefect configuration file and should be `True` to get the most verbose output from `dask`'s logs.
+Lastly, if your issue is actually related to parallelism, you'll _need_ to use
+the `DaskExecutor`. By default prefect silences the Dask logs, to reenable
+them, pass `debug=True`.
 
 ### Raising Exceptions in realtime
 
