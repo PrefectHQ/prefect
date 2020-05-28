@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Union
 
 from prefect import context
 from prefect.engine.executors.base import Executor
-from prefect.utilities.serialization import from_qualified_name
+from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
     import dask
@@ -127,7 +127,7 @@ class DaskExecutor(Executor):
             if cluster_class is None:
                 cluster_class = context.config.engine.executor.dask.cluster_class
             if isinstance(cluster_class, str):
-                cluster_class = from_qualified_name(cluster_class)
+                cluster_class = import_object(cluster_class)
             if cluster_kwargs is None:
                 cluster_kwargs = {}
             else:

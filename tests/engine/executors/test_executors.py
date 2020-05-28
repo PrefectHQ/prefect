@@ -276,6 +276,7 @@ class TestDaskExecutor:
             assert res == 2
 
     def test_cluster_class_and_kwargs(self):
+        pytest.importorskip("distributed.deploy.spec.SpecCluster")
         executor = DaskExecutor(
             cluster_class="distributed.deploy.spec.SpecCluster",
             cluster_kwargs={"some_kwarg": "some_val"},
