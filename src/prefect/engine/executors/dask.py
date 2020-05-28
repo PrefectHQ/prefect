@@ -52,6 +52,9 @@ class DaskExecutor(Executor):
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
         - cluster_kwargs (dict, optional): addtional kwargs to pass to the
            `cluster_class` when creating a temporary dask cluster.
+        - adapt_kwargs (dict, optional): additional kwargs to pass to ``cluster.adapt`
+            when creating a temporary dask cluster. Note that adaptive scaling
+            is only enabled if `adapt_kwargs` are provided.
         - client_kwargs (dict, optional): additional kwargs to use when creating a
             [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
         - debug (bool, optional): When running with a local cluster, setting
@@ -73,7 +76,11 @@ class DaskExecutor(Executor):
     ```python
     executor = DaskExecutor(
         cluster_class="dask_cloudprovider.FargateCluster",
-        cluster_kwargs={"image": "prefecthq/prefect:latest", ...},
+        cluster_kwargs={
+            "image": "prefecthq/prefect:latest",
+            "n_workers": 5,
+            ...
+        },
     )
     ```
 
@@ -89,6 +96,7 @@ class DaskExecutor(Executor):
         address: str = None,
         cluster_class: Union[str, Callable] = None,
         cluster_kwargs: dict = None,
+        adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
         **kwargs: Any
@@ -152,6 +160,9 @@ class DaskExecutor(Executor):
                     for k in for_cluster:
                         cluster_kwargs[k] = kwargs.pop(k)
 
+            if adapt_kwargs is None:
+                adapt_kwargs = {}
+
         if client_kwargs is None:
             client_kwargs = {}
         if kwargs:
@@ -165,6 +176,7 @@ class DaskExecutor(Executor):
         self.is_started = False
         self.cluster_class = cluster_class
         self.cluster_kwargs = cluster_kwargs
+        self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
 
         super().__init__()
@@ -187,6 +199,8 @@ class DaskExecutor(Executor):
                     yield self.client
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
+                    if self.adapt_kwargs:
+                        cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
                         self.client = client
                         self.is_started = True

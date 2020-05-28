@@ -275,6 +275,30 @@ class TestDaskExecutor:
             res = executor.wait(executor.submit(lambda x: x + 1, 1))
             assert res == 2
 
+    def test_local_cluster_adapt(self):
+        adapt_kwargs = {"minimum": 1, "maximum": 1}
+        called_with = None
+
+        class MyCluster(distributed.LocalCluster):
+            def adapt(self, **kwargs):
+                nonlocal called_with
+                called_with = kwargs
+                super().adapt(**kwargs)
+
+        executor = DaskExecutor(
+            cluster_class=MyCluster,
+            cluster_kwargs={"processes": False, "n_workers": 0},
+            adapt_kwargs=adapt_kwargs,
+        )
+
+        assert executor.adapt_kwargs == adapt_kwargs
+
+        with executor.start():
+            res = executor.wait(executor.submit(lambda x: x + 1, 1))
+            assert res == 2
+
+        assert called_with == adapt_kwargs
+
     def test_cluster_class_and_kwargs(self):
         pytest.importorskip("distributed.deploy.spec")
         executor = DaskExecutor(
