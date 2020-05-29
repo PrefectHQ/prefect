@@ -275,12 +275,12 @@ def start(
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
 
-            if platform_is_linux():
-                docker_internal_ip = get_docker_ip()
-                for service in list(y["services"]):
-                    y["services"][service]["extra_hosts"] = [
-                        "host.docker.internal:{}".format(docker_internal_ip)
-                    ]
+            # if platform_is_linux():
+            #     docker_internal_ip = get_docker_ip()
+            #     for service in list(y["services"]):
+            #         y["services"][service]["extra_hosts"] = [
+            #             "host.docker.internal:{}".format(docker_internal_ip)
+            #         ]
 
             if not use_volume:
                 del y["services"]["postgres"]["volumes"]
