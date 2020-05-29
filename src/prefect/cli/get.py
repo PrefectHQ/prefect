@@ -77,14 +77,15 @@ def flows(name, version, project, limit, all_versions):
         "name": True,
         "version": True,
         "created": True,
+        "id": True,
     }
 
-    headers = ["NAME", "VERSION", "AGE"]
+    headers = ["NAME", "VERSION", "AGE", "ID"]
 
     if config.backend == "cloud":
         where_clause["_and"]["project"] = {"name": {"_eq": project}}
         query_results["project"] = {"name": True}
-        headers.append("PROJECT NAME")
+        headers.insert(3, "PROJECT NAME")
 
     query = {
         "query": {
@@ -113,9 +114,12 @@ def flows(name, version, project, limit, all_versions):
             item.name,
             item.version,
             pendulum.parse(item.created).diff_for_humans(),
+            item.id,
         ]
-        if project:
-            result_output.append(item.project.name,)
+        if config.backend == "cloud":
+            result_output.insert(
+                3, item.project.name,
+            )
 
         output.append(result_output)
 
@@ -236,6 +240,7 @@ def flow_runs(limit, flow, project, started):
                 "flow_run", {"where": where, "limit": limit, "order_by": order}
             ): {
                 "flow": {"name": True},
+                "id": True,
                 "created": True,
                 "state": True,
                 "name": True,
@@ -264,13 +269,22 @@ def flow_runs(limit, flow, project, started):
                 pendulum.parse(item.created).diff_for_humans(),
                 start_time,
                 item.duration,
+                item.id,
             ]
         )
 
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "FLOW NAME", "STATE", "AGE", "START TIME", "DURATION"],
+            headers=[
+                "NAME",
+                "FLOW NAME",
+                "STATE",
+                "AGE",
+                "START TIME",
+                "DURATION",
+                "ID",
+            ],
             tablefmt="plain",
             numalign="left",
             stralign="left",
