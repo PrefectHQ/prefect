@@ -360,18 +360,24 @@ def tasks(name, flow_name, flow_version, project, limit):
 
 @get.command(hidden=True)
 @click.option(
-    "--name", "-n", required=True, help="A flow run name to query", hidden=True
+    "--name", "-n", required=False, help="A flow run name to query", hidden=True
 )
+@click.option("--id", required=False, help="A flow run ID to query", hidden=True)
 @click.option(
     "--info", "-i", is_flag=True, help="Retrieve detailed logging info", hidden=True
 )
-def logs(name, info):
+def logs(name, id, info):
     """
     Query logs for a flow run.
 
+    Note: at least one of `name` or `id` must be specified. If only `name` is set then
+    the most recent flow run with that name will be queried.
+
+
     \b
     Options:
-        --name, -n      TEXT    A flow run name to query        [required]
+        --name, -n      TEXT    A flow run name to query
+        --id            TEXT    A flow run ID to query
         --info, -i              Retrieve detailed logging info
     """
     log_query = {
@@ -395,7 +401,7 @@ def logs(name, info):
             with_args(
                 "flow_run",
                 {
-                    "where": {"name": {"_eq": name}},
+                    "where": {"name": {"_eq": name}, "id": {"_eq": id}},
                     "order_by": {EnumValue("start_time"): EnumValue("desc")},
                 },
             ): log_query
