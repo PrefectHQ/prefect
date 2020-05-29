@@ -380,6 +380,10 @@ def logs(name, id, info):
         --id            TEXT    A flow run ID to query
         --info, -i              Retrieve detailed logging info
     """
+    if not name and not id:
+        click.secho("Either --name or --id must be provided", fg="red")
+        return
+
     log_query = {
         with_args("logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}): {
             "timestamp": True,
