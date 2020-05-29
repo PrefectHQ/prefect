@@ -143,7 +143,7 @@ def test_initialized_docker_storage(no_docker_host_var):
         tls_config={"tls": "here"},
         prefect_version="my-branch",
         local_image=True,
-        nocache=True,
+        build_kwargs={"nocache": True},
     )
 
     assert storage.registry_url == "test1"
