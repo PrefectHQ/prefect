@@ -24,7 +24,7 @@ from prefect.engine.executors import DaskExecutor
 flow.run(executor=DaskExecutor())
 ```
 
-This will spin up a [Local Dask Cluster](http://distributed.dask.org/en/latest/local-cluster.html) on your system to parallelize the tasks. If you already have a Dask Cluster deployed elsewhere, you can leverage that cluster by specifying the address in the `DaskExecutor` constructor:
+This will spin up a [Local Dask Cluster](https://distributed.dask.org/en/latest/api.html#cluster) on your system to parallelize the tasks. If you already have a Dask Cluster deployed elsewhere, you can leverage that cluster by specifying the address in the `DaskExecutor` constructor:
 
 ```python{3}
 flow.run(
