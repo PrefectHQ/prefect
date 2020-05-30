@@ -572,20 +572,42 @@ class Flow:
             )
         return edges
 
-    def update(self, flow: "Flow", validate: bool = None) -> None:
+    def update(self, flow: "Flow", validate: bool = None, method: str = None) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow
 
         Args:
             - flow (Flow): A flow which is used to update this flow
             - validate (bool, optional): Whether or not to check the validity of the flow
+            - method (str, optional): Method to update the flow
+                - None: No duplicate tasks. Returns duplicate slug name exception
+                - disjoint: All duplicate tasks are given a new name and slug
+                - merge_p: removes duplicate parameters from input flow. FIFO 
 
         Returns:
             - None
         """
+        
         for task in flow.tasks:
-            if task not in self.tasks:
-                self.add_task(task)
+            if method is not None:
+                fl1_tsk = self.get_tasks(task.name)
+                
+                # Check for duplicate names
+                if len(fl1_tsk)>0:
+
+                    duped_task = fl1_tsk[0]
+
+                    print(f"Duplicate task {duped_task}")
+                    if method=="disjoint":
+                        task.name = f"{flow.name}-{task.name}"
+                        task.slug = f"{flow.name}-{task.name}"
+
+                        duped_task.name = f"{self.name}-{duped_task.name}"
+                        duped_task.slug = f"{self.name}-{duped_task.name}"
+                    # elif method=="merge_p":
+                    #     fl1_tsk.remove()
+            
+            self.add_task(task)
 
         for edge in flow.edges:
             if edge not in self.edges:
