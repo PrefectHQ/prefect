@@ -17,7 +17,6 @@ from prefect.utilities.serialization import (
     Nested,
     ObjectSchema,
     OneOfSchema,
-    CallableReference,
 )
 
 json_test_values = [
@@ -182,11 +181,17 @@ class TestCallableReferenceField_OLD:
 
     def test_serialize_fn(self):
         serialized = self.Schema().dump(dict(f=fn))
-        assert serialized["f"] == "tests.utilities.test_serialization.fn"
+        assert serialized["f"] == {
+            "fn": "tests.utilities.test_serialization.fn",
+            "kwargs": None,
+        }
 
     def test_serialize_invalid_fn_without_validation(self):
         serialized = self.Schema().dump(dict(f_none=fn2))
-        assert serialized["f_none"] == "tests.utilities.test_serialization.fn2"
+        assert serialized["f_none"] == {
+            "fn": "tests.utilities.test_serialization.fn2",
+            "kwargs": None,
+        }
 
     def test_deserialize_fn(self):
         deserialized = self.Schema().load(self.Schema().dump(dict(f=fn)))
@@ -200,7 +205,7 @@ class TestCallableReferenceField_OLD:
         deserialized = self.Schema().load(
             dict(f_none="tests.utilities.test_serialization.fn2")
         )
-        assert deserialized["f_none"] == "tests.utilities.test_serialization.fn2"
+        assert deserialized["f_none"] is None
 
     def test_serialize_none(self):
         with pytest.raises(marshmallow.ValidationError):

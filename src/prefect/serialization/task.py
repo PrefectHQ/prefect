@@ -9,7 +9,6 @@ from prefect.utilities.serialization import (
     JSONCompatible,
     ObjectSchema,
     OneOfSchema,
-    CallableReference,
     from_qualified_name,
     to_qualified_name,
 )

@@ -384,7 +384,7 @@ class CallableReference(fields.Field):
 
         # retrieve the callable
         try:
-            fn = from_qualified_name(value["fn"])
+            fn = self.whitelist[value["fn"]]
 
         except ValueError:
             return None
