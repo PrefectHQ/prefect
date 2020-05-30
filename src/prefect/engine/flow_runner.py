@@ -399,7 +399,6 @@ class FlowRunner(Runner):
         with executor.start():
 
             for task in self.flow.sorted_tasks():
-
                 task_state = task_states.get(task)
                 if task_state is None and isinstance(
                     task, prefect.tasks.core.constants.Constant
@@ -481,6 +480,8 @@ class FlowRunner(Runner):
                             current_state = task_state.map_states[
                                 idx
                             ]  # type: Optional[State]
+                        elif isinstance(task_state, Mapped):
+                            current_state = None
                         else:
                             current_state = task_state
 
@@ -629,6 +630,8 @@ class FlowRunner(Runner):
                 state.
             - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
                 mapped task
+            - upstream_mapped_states (Dict[Edge, list]): dictionary of upstream states corresponding to
+                mapped children dependencies
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
