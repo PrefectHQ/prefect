@@ -126,8 +126,6 @@ def test_deserialize_parameter_requires_name():
         prefect.triggers.all_failed,
         prefect.triggers.any_successful,
         prefect.triggers.any_failed,
-        prefect.triggers.some_failed,
-        prefect.triggers.some_successful,
     ],
 )
 def test_trigger(trigger):
@@ -152,8 +150,8 @@ def test_stateful_trigger(trigger, bounds):
     assert set(serialized["trigger"]["kwargs"].values()) == set(bounds)
 
     t2 = TaskSchema().load(serialized)
-    assert t2.trigger is not trigger  # the trigger is not the factory function
-    assert to_qualified_name(t2.trigger) == to_qualified_name(trigger(*bounds))
+    assert t2.trigger is not trigger
+    assert to_qualified_name(type(t2.trigger)) == to_qualified_name(trigger)
 
 
 def test_unknown_trigger():
@@ -171,8 +169,6 @@ def test_unknown_trigger():
         prefect.engine.cache_validators.duration_only,
         prefect.engine.cache_validators.all_inputs,
         prefect.engine.cache_validators.all_parameters,
-        prefect.engine.cache_validators.partial_inputs_only,
-        prefect.engine.cache_validators.partial_parameters_only,
     ],
 )
 def test_cache_validator(cache_validator):
@@ -209,12 +205,8 @@ def test_stateful_validators(validator, validate_on):
 
     with pytest.warns(UserWarning):
         t2 = TaskSchema().load(serialized)
-    assert (
-        t2.cache_validator is not validator
-    )  # the validator is not the factory function
-    assert to_qualified_name(t2.cache_validator) == to_qualified_name(
-        validator(validate_on)
-    )
+    assert t2.cache_validator is not validator
+    assert to_qualified_name(type(t2.cache_validator)) == to_qualified_name(validator)
 
 
 def test_unknown_cache_validator():

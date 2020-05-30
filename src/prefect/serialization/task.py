@@ -5,11 +5,11 @@ from marshmallow import fields, post_load
 import prefect
 from prefect.utilities.serialization import (
     UUID,
-    FunctionReference,
+    CallableReference,
     JSONCompatible,
     ObjectSchema,
     OneOfSchema,
-    StatefulFunctionReference,
+    CallableReference,
     from_qualified_name,
     to_qualified_name,
 )
@@ -81,8 +81,8 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     inputs = fields.Method("load_inputs", allow_none=True)
     outputs = fields.Method("load_outputs", allow_none=True)
     timeout = fields.Integer(allow_none=True)
-    trigger = StatefulFunctionReference(
-        valid_functions=[
+    trigger = CallableReference(
+        whitelist=[
             prefect.triggers.all_finished,
             prefect.triggers.manual_only,
             prefect.triggers.always_run,
@@ -100,8 +100,8 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     skip_on_upstream_skip = fields.Boolean(allow_none=True)
     cache_for = fields.TimeDelta(allow_none=True)
     cache_key = fields.String(allow_none=True)
-    cache_validator = StatefulFunctionReference(
-        valid_functions=[
+    cache_validator = CallableReference(
+        whitelist=[
             prefect.engine.cache_validators.never_use,
             prefect.engine.cache_validators.duration_only,
             prefect.engine.cache_validators.all_inputs,

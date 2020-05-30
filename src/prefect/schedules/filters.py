@@ -11,62 +11,54 @@ from typing import Callable
 import pendulum
 
 
-def on_datetime(dt: datetime) -> Callable[[datetime], bool]:
+class on_datetime:
     """
     Filter that allows events that match a specific datetime.
 
     Args:
         - dt (datetime): the datetime to match
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt_2: datetime) -> bool:
-        return dt_2 == dt
+    def __init__(self, dt: datetime):
+        self.kwargs = dict(dt=dt)
 
-    return _filter_fn
+    def __call__(self, dt: datetime) -> bool:
+        return dt == self.kwargs["dt"]
 
 
-def between_datetimes(start: datetime, end: datetime) -> Callable[[datetime], bool]:
+class between_datetimes:
     """
     Filter that allows events between a start time and end time
 
     Args:
         - start (datetime): the start datetime
         - end (datetime): the end datetime
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt: datetime) -> bool:
-        return dt >= start and dt <= end
+    def __init__(self, start: datetime, end: datetime):
+        self.kwargs = dict(start=start, end=end)
 
-    return _filter_fn
+    def __call__(self, dt: datetime) -> bool:
+        return dt >= self.kwargs["start"] and dt <= self.kwargs["end"]
 
 
-def on_date(month: int, day: int) -> Callable[[datetime], bool]:
+class on_date:
     """
     Filter that allows events that match a specific date in any year
 
     Args:
         - month (int): the month as a number (1 = January)
         - day (int): the day as a number
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt: datetime) -> bool:
-        return (dt.month, dt.day) == (month, day)
+    def __init__(self, month: int, day: int):
+        self.kwargs = dict(month=month, day=day)
 
-    return _filter_fn
+    def __call__(self, dt: datetime) -> bool:
+        return (dt.month, dt.day) == (self.kwargs["month"], self.kwargs["day"])
 
 
-def between_dates(
-    start_month: int, start_day: int, end_month: int, end_day: int
-) -> Callable[[datetime], bool]:
+class between_dates:
     """
     Filter that allows events between specific dates in each year.
 
@@ -78,25 +70,34 @@ def between_dates(
         - start_day (int): the starting day, as a number
         - end_month (int): the ending month, as a number
         - end_day (int): the ending day, as a number
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt: datetime) -> bool:
+    def __init__(self, start_month: int, start_day: int, end_month: int, end_day: int):
+        self.kwargs = dict(
+            start_month=start_month,
+            start_day=start_day,
+            end_month=end_month,
+            end_day=end_day,
+        )
+
+    def __call__(self, dt: datetime) -> bool:
         date = (dt.month, dt.day)
 
         # if the start is before the end, then these reflect dates in the same year
-        if start_month <= end_month:
-            return date >= (start_month, start_day) and date <= (end_month, end_day)
+        if self.kwargs["start_month"] <= self.kwargs["end_month"]:
+            return date >= (
+                self.kwargs["start_month"],
+                self.kwargs["start_day"],
+            ) and date <= (self.kwargs["end_month"], self.kwargs["end_day"],)
         # otherwise they represent dates across two years
         else:
-            return date >= (start_month, start_day) or date <= (end_month, end_day)
+            return date >= (
+                self.kwargs["start_month"],
+                self.kwargs["start_day"],
+            ) or date <= (self.kwargs["end_month"], self.kwargs["end_day"],)
 
-    return _filter_fn
 
-
-def at_time(t: time) -> Callable[[datetime], bool]:
+class at_time:
     """
     Filter that allows events that match a specific time.
 
@@ -105,18 +106,16 @@ def at_time(t: time) -> Callable[[datetime], bool]:
 
     Args:
         - t (time): the time to match
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt: datetime) -> bool:
-        return dt.time() == t
+    def __init__(self, t: time):
+        self.kwargs = dict(t=t)
 
-    return _filter_fn
+    def __call__(self, dt: datetime) -> bool:
+        return dt.time() == self.kwargs["t"]
 
 
-def between_times(start: time, end: time) -> Callable[[datetime], bool]:
+class between_times:
     """
     Filter that allows events between a start time and end time
 
@@ -126,21 +125,19 @@ def between_times(start: time, end: time) -> Callable[[datetime], bool]:
     Args:
         - start (time): the start time
         - end (time): the end time
-
-    Returns:
-        - Callable[[datetime], bool]: a filter function
     """
 
-    def _filter_fn(dt: datetime) -> bool:
+    def __init__(self, start: time, end: time):
+        self.kwargs = dict(start=start, end=end)
+
+    def __call__(self, dt: datetime) -> bool:
 
         # if the start is before the end, these represents times in the same day
-        if start <= end:
-            return dt.time() >= start and dt.time() <= end
+        if self.kwargs["start"] <= self.kwargs["end"]:
+            return dt.time() >= self.kwargs["start"] and dt.time() <= self.kwargs["end"]
         # otherwise they represent times across two days
         else:
-            return dt.time() >= start or dt.time() <= end
-
-    return _filter_fn
+            return dt.time() >= self.kwargs["start"] or dt.time() <= self.kwargs["end"]
 
 
 def is_weekday(dt: datetime) -> bool:

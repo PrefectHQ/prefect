@@ -9,7 +9,7 @@ from prefect.utilities.serialization import (
     JSONCompatible,
     ObjectSchema,
     OneOfSchema,
-    StatefulFunctionReference,
+    CallableReference,
     to_qualified_name,
 )
 
@@ -108,26 +108,10 @@ class NewScheduleSchema(ObjectSchema):
         object_class = prefect.schedules.Schedule
 
     clocks = fields.Nested(ClockSchema, required=True, many=True)
-    filters = fields.List(
-        StatefulFunctionReference(
-            valid_functions=FILTERS, reject_invalid=True, allow_none=True
-        )
-    )
-    or_filters = fields.List(
-        StatefulFunctionReference(
-            valid_functions=FILTERS, reject_invalid=True, allow_none=True
-        )
-    )
-    not_filters = fields.List(
-        StatefulFunctionReference(
-            valid_functions=FILTERS, reject_invalid=True, allow_none=True
-        )
-    )
-    adjustments = fields.List(
-        StatefulFunctionReference(
-            valid_functions=ADJUSTMENTS, reject_invalid=True, allow_none=True
-        )
-    )
+    filters = fields.List(CallableReference(whitelist=FILTERS, allow_none=True))
+    or_filters = fields.List(CallableReference(whitelist=FILTERS, allow_none=True))
+    not_filters = fields.List(CallableReference(whitelist=FILTERS, allow_none=True))
+    adjustments = fields.List(CallableReference(whitelist=ADJUSTMENTS, allow_none=True))
 
 
 class ScheduleSchema(OneOfSchema):

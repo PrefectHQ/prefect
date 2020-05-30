@@ -11,21 +11,19 @@ import pendulum
 import prefect.schedules.filters
 
 
-def add(interval: timedelta) -> Callable[[datetime], datetime]:
+class add:
     """
     Adjustment that adds a specified interval to the date.
 
     Args:
         - interval (timedelta): the amount of time to add
-
-    Returns:
-        - Callable[[datetime], bool]: the adjustment function
     """
 
-    def _adjustment_fn(dt: datetime) -> datetime:
-        return pendulum.instance(dt) + interval
+    def __init__(self, interval: timedelta):
+        self.kwargs = dict(interval=interval)
 
-    return _adjustment_fn
+    def __call__(self, dt: datetime) -> datetime:
+        return pendulum.instance(dt) + self.kwargs["interval"]
 
 
 def next_weekday(dt: datetime) -> datetime:

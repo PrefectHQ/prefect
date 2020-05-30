@@ -12,12 +12,12 @@ from prefect.utilities.serialization import (
     UUID,
     Bytes,
     DateTimeTZ,
-    FunctionReference,
+    CallableReference,
     JSONCompatible,
     Nested,
     ObjectSchema,
     OneOfSchema,
-    StatefulFunctionReference,
+    CallableReference,
 )
 
 json_test_values = [
@@ -169,23 +169,18 @@ def fn2():
     return -1
 
 
-class TestFunctionReferenceField:
+class TestCallableReferenceField:
     class Schema(marshmallow.Schema):
-        f = FunctionReference(valid_functions=[fn])
-        f_allow_invalid = FunctionReference(valid_functions=[fn], reject_invalid=False)
-        f_none = FunctionReference(valid_functions=[fn], allow_none=True)
+        f = CallableReference(whitelist=[fn])
+        f_none = CallableReference(whitelist=[fn], allow_none=True)
 
     def test_serialize_fn(self):
         serialized = self.Schema().dump(dict(f=fn))
         assert serialized["f"] == "tests.utilities.test_serialization.fn"
 
-    def test_serialize_invalid_fn(self):
-        with pytest.raises(marshmallow.ValidationError):
-            self.Schema().dump(dict(f=fn2))
-
     def test_serialize_invalid_fn_without_validation(self):
-        serialized = self.Schema().dump(dict(f_allow_invalid=fn2))
-        assert serialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2"
+        serialized = self.Schema().dump(dict(f_none=fn2))
+        assert serialized["f_none"] == "tests.utilities.test_serialization.fn2"
 
     def test_deserialize_fn(self):
         deserialized = self.Schema().load(self.Schema().dump(dict(f=fn)))
@@ -197,11 +192,9 @@ class TestFunctionReferenceField:
 
     def test_deserialize_invalid_fn_without_validation(self):
         deserialized = self.Schema().load(
-            dict(f_allow_invalid="tests.utilities.test_serialization.fn2")
+            dict(f_none="tests.utilities.test_serialization.fn2")
         )
-        assert (
-            deserialized["f_allow_invalid"] == "tests.utilities.test_serialization.fn2"
-        )
+        assert deserialized["f_none"] == "tests.utilities.test_serialization.fn2"
 
     def test_serialize_none(self):
         with pytest.raises(marshmallow.ValidationError):
@@ -214,25 +207,24 @@ class TestFunctionReferenceField:
         assert self.Schema().load({"f_none": None})["f_none"] is None
 
 
-def outer(x, y, z):
-    def inner(q):
-        return x + y + z + q
+class outer:
+    def __init__(self, x, y, z):
+        self.kwargs = dict(x=x, y=y, z=z)
 
-    return inner
+    def __call__(self, q):
+        return self.kwargs["x"] + self.kwargs["y"] + self.kwargs["z"] + q
 
 
-class TestStatefulFunctionReferenceField:
+class TestCallableReferenceField:
     class Schema(marshmallow.Schema):
-        f = StatefulFunctionReference(valid_functions=[outer])
-        f_allow_invalid = StatefulFunctionReference(
-            valid_functions=[outer], reject_invalid=False
-        )
-        f_none = StatefulFunctionReference(valid_functions=[outer], allow_none=True)
+        f = CallableReference(whitelist=[outer])
+        f_none = CallableReference(whitelist=[outer], allow_none=True)
 
     def test_serialize_outer_no_state(self):
-        serialized = self.Schema().dump(dict(f=outer))
-        assert serialized["f"]["fn"] == "tests.utilities.test_serialization.outer"
-        assert not serialized["f"]["kwargs"]
+        with pytest.raises(
+            marshmallow.ValidationError, match="must have a `kwargs` attribute"
+        ):
+            self.Schema().dump(dict(f=outer))
 
     def test_serialize_outer_with_state(self):
         serialized = self.Schema().dump(dict(f=outer(x=1, y=2, z=99)))
@@ -240,20 +232,21 @@ class TestStatefulFunctionReferenceField:
         assert serialized["f"]["kwargs"] == {"x": 1, "y": 2, "z": 99}
 
     def test_serialize_invalid_fn(self):
+        serialized = self.Schema().dump(dict(f=fn2))
+        assert serialized["f"]["fn"] == "tests.utilities.test_serialization.fn2"
         with pytest.raises(marshmallow.ValidationError):
-            self.Schema().dump(dict(f=fn2))
+            deserialized = self.Schema().load(serialized)
 
-    def test_serialize_invalid_fn_without_validation(self):
-        serialized = self.Schema().dump(dict(f_allow_invalid=fn2))
-        assert (
-            serialized["f_allow_invalid"]["fn"]
-            == "tests.utilities.test_serialization.fn2"
-        )
-        assert not serialized["f_allow_invalid"]["kwargs"]
+    def test_serialize_invalid_fn_with_none_allowed(self):
+        serialized = self.Schema().dump(dict(f_none=fn2))
+        assert serialized["f_none"]["fn"] == "tests.utilities.test_serialization.fn2"
+        assert not serialized["f_none"]["kwargs"]
 
     def test_deserialize_outer_no_state(self):
-        deserialized = self.Schema().load(self.Schema().dump(dict(f=outer)))
-        assert deserialized["f"] is outer
+        deserialized = self.Schema().load(
+            self.Schema().dump(dict(f=outer(x=1, y=2, z=3)))
+        )
+        assert type(deserialized["f"]) is outer
 
     def test_deserialize_outer_with_state(self):
         deserialized = self.Schema().load(
@@ -274,16 +267,18 @@ class TestStatefulFunctionReferenceField:
 
     def test_deserialize_invalid_fn_without_validation(self):
         deserialized = self.Schema().load(
-            dict(f_allow_invalid=dict(fn="tests.utilities.test_serialization.fn2"))
+            dict(f_none=dict(fn="tests.utilities.test_serialization.fn2"))
         )
-        assert deserialized["f_allow_invalid"] is None
+        assert deserialized["f_none"] is None
 
     def test_serialize_non_function_good_error(self):
         class Foo(object):
             def __call__(self, a, b):
                 return a + b
 
-        with pytest.raises(marshmallow.ValidationError, match="function required"):
+        with pytest.raises(
+            marshmallow.ValidationError, match="must have a `kwargs` attribute"
+        ):
             self.Schema().dump(dict(f=Foo()))
 
     def test_serialize_none(self):

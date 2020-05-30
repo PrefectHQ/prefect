@@ -171,9 +171,7 @@ def any_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     return True
 
 
-def some_failed(
-    at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
+class some_failed:
     """
     Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -189,16 +187,21 @@ def some_failed(
             absolute number.
     """
 
-    def _some_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
-        """
-        The underlying trigger function.
+    def __init__(
+        self, at_least: Union[int, float] = None, at_most: Union[int, float] = None
+    ):
+        self.kwargs = dict(at_least=at_least, at_most=at_most)
 
+    def __call__(self, upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+        """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states
 
         Returns:
             - bool: whether the trigger thresolds were met
         """
+        at_least, at_most = self.kwargs["at_least"], self.kwargs["at_most"]
+
         if not upstream_states:
             return True
 
@@ -222,12 +225,8 @@ def some_failed(
             )
         return True
 
-    return _some_failed
 
-
-def some_successful(
-    at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
+class some_successful:
     """
     Runs if some amount of upstream tasks succeed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -243,16 +242,21 @@ def some_successful(
             absolute number.
     """
 
-    def _some_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
-        """
-        The underlying trigger function.
+    def __init__(
+        self, at_least: Union[int, float] = None, at_most: Union[int, float] = None
+    ):
+        self.kwargs = dict(at_least=at_least, at_most=at_most)
 
+    def __call__(self, upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+        """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states
 
         Returns:
             - bool: whether the trigger thresolds were met
         """
+        at_least, at_most = self.kwargs["at_least"], self.kwargs["at_most"]
+
         if not upstream_states:
             return True
 
@@ -275,8 +279,6 @@ def some_successful(
                 'Trigger was "some_successful" but thresholds were not met.'
             )
         return True
-
-    return _some_successful
 
 
 def not_all_skipped(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
