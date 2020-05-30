@@ -372,6 +372,10 @@ class CallableReference(fields.Field):
         if value is None and self.allow_none:
             return None
 
+        # for backwards compatibility with the old FunctionReference field
+        if isinstance(value, str):
+            value = {"fn": value, "kwargs": {}}
+
         if value["fn"] not in self.whitelist:
             if self.allow_none:
                 return None

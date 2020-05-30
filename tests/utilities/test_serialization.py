@@ -169,7 +169,13 @@ def fn2():
     return -1
 
 
-class TestCallableReferenceField:
+class TestCallableReferenceField_OLD:
+    """ 
+    These tests USED to be for the old FunctionReference field; they are
+    maintained for legacy and backwards compatibility
+
+    """
+
     class Schema(marshmallow.Schema):
         f = CallableReference(whitelist=[fn])
         f_none = CallableReference(whitelist=[fn], allow_none=True)
@@ -205,6 +211,38 @@ class TestCallableReferenceField:
         with pytest.raises(marshmallow.ValidationError):
             self.Schema().load({"f": None})
         assert self.Schema().load({"f_none": None})["f_none"] is None
+
+
+class TestCallableReferenceField_BackwardsCompatibility:
+    """ 
+    These tests USED to be for the old FunctionReference field; they are
+    maintained for legacy and backwards compatibility.
+
+    FunctionReference stored a reference to an importable function as a string.
+
+    """
+
+    class Schema(marshmallow.Schema):
+        f = CallableReference(whitelist=[fn])
+        f_none = CallableReference(whitelist=[fn], allow_none=True)
+
+    def test_deserialize_fn(self):
+        deserialized = self.Schema().load(
+            {"f": "tests.utilities.test_serialization.fn"}
+        )
+        assert deserialized["f"] is fn
+
+    def test_deserialize_invalid_fn(self):
+        with pytest.raises(marshmallow.ValidationError, match="not whitelisted"):
+            deserialized = self.Schema().load(
+                {"f": "tests.utilities.test_serialization.fn2"}
+            )
+
+    def test_deserialize_invalid_fn_with_none_fallback(self):
+        deserialized = self.Schema().load(
+            {"f_none": "tests.utilities.test_serialization.fn2"}
+        )
+        assert deserialized["f_none"] is None
 
 
 class outer:
