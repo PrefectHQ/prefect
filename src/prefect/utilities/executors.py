@@ -316,6 +316,10 @@ def prepare_upstream_states_for_mapping(
 
             for edge, upstream_state in upstream_states.items():
 
+                # ensure we are working with populated result objects
+                if edge.key in state.cached_inputs:
+                    upstream_state._result = state.cached_inputs[edge.key]
+
                 # if the edge is not mapped over, then we take its state
                 if not edge.mapped:
                     states[edge] = upstream_state

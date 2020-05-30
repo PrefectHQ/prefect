@@ -259,15 +259,15 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
-                if mapped_parent:
-                    state = self.check_task_ready_to_map(
-                        state, upstream_states=upstream_states
-                    )
-
                 # retrieve task inputs from upstream and also explicitly passed inputs
                 task_inputs = self.get_task_inputs(
                     state=state, upstream_states=upstream_states
                 )
+
+                if mapped_parent:
+                    state = self.check_task_ready_to_map(
+                        state, upstream_states=upstream_states
+                    )
 
                 if self.task.target:
                     # check to see if there is a Result at the task's target
