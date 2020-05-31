@@ -481,7 +481,7 @@ class FlowRunner(Runner):
                             ),
                             task_runner_state_handlers=task_runner_state_handlers,
                             upstream_mapped_states=upstream_mapped_states,
-                            mapped_parent=True,
+                            is_mapped_parent=True,
                         )
                     )
 
@@ -636,7 +636,7 @@ class FlowRunner(Runner):
         upstream_states: Dict[Edge, State],
         context: Dict[str, Any],
         task_runner_state_handlers: Iterable[Callable],
-        mapped_parent: bool = False,
+        is_mapped_parent: bool = False,
         upstream_mapped_states: Dict[Edge, list] = None,
     ) -> State:
         """
@@ -653,7 +653,7 @@ class FlowRunner(Runner):
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
                 handlers that will be provided to the task_runner, and called whenever a task changes
                 state.
-            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
                 mapped task
             - upstream_mapped_states (Dict[Edge, list]): dictionary of upstream states corresponding to
                 mapped children dependencies
@@ -691,5 +691,5 @@ class FlowRunner(Runner):
                 state=state,
                 upstream_states=upstream_states,
                 context=context,
-                mapped_parent=mapped_parent,
+                is_mapped_parent=is_mapped_parent,
             )

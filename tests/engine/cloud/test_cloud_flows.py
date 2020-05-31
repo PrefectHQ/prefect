@@ -418,8 +418,7 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     assert client.call_count["set_task_run_state"] == 3
 
 
-@pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-def test_simple_map(monkeypatch, executor):
+def test_simple_map(monkeypatch):
 
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
@@ -442,7 +441,7 @@ def test_simple_map(monkeypatch, executor):
 
     with prefect.context(flow_run_id=flow_run_id):
         state = CloudFlowRunner(flow=flow).run(
-            return_tasks=flow.tasks, executor=executor
+            return_tasks=flow.tasks, executor=LocalExecutor()
         )
 
     assert state.is_successful()

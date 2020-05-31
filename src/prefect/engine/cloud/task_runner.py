@@ -339,7 +339,7 @@ class CloudTaskRunner(TaskRunner):
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
-        mapped_parent: bool = False,
+        is_mapped_parent: bool = False,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -354,7 +354,7 @@ class CloudTaskRunner(TaskRunner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
                 mapped task
 
         Returns:
@@ -365,7 +365,7 @@ class CloudTaskRunner(TaskRunner):
             state=state,
             upstream_states=upstream_states,
             context=context,
-            mapped_parent=mapped_parent,
+            is_mapped_parent=is_mapped_parent,
         )
         while (end_state.is_retrying() or end_state.is_queued()) and (
             end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
@@ -388,6 +388,6 @@ class CloudTaskRunner(TaskRunner):
                 state=end_state,
                 upstream_states=upstream_states,
                 context=context,
-                mapped_parent=mapped_parent,
+                is_mapped_parent=is_mapped_parent,
             )
         return end_state

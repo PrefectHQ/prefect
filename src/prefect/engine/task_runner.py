@@ -194,7 +194,7 @@ class TaskRunner(Runner):
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
-        mapped_parent: bool = False,
+        is_mapped_parent: bool = False,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -208,7 +208,7 @@ class TaskRunner(Runner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
                 mapped task
 
         Returns:
@@ -264,7 +264,7 @@ class TaskRunner(Runner):
                     state=state, upstream_states=upstream_states
                 )
 
-                if mapped_parent:
+                if is_mapped_parent:
                     state = self.check_task_ready_to_map(
                         state, upstream_states=upstream_states
                     )

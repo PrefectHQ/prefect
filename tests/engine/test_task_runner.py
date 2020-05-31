@@ -279,7 +279,7 @@ def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping()
     with raise_on_exception():
         state = TaskRunner(Task()).run(
             upstream_states={Edge(1, 2, mapped=True): Success(result=[1])},
-            mapped_parent=True,
+            is_mapped_parent=True,
         )
     assert state.is_mapped()
 
@@ -1663,7 +1663,7 @@ class TestTaskRunnerStateHandlers:
         runner = TaskRunner(task=Task(), state_handlers=[task_runner_handler])
         state = runner.run(
             upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
-            mapped_parent=True,
+            is_mapped_parent=True,
         )
         # the parent task changed state one time: Pending -> Mapped
         assert isinstance(state, Mapped)
@@ -1740,7 +1740,7 @@ def test_task_runner_skips_upstream_check_for_parent_mapped_task():
     runner = TaskRunner(add)
     res = runner.run(
         upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-        mapped_parent=True,
+        is_mapped_parent=True,
     )
     assert res.is_mapped()
 
@@ -1795,7 +1795,7 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
     )
     state = runner.run(
         upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
-        mapped_parent=True,
+        is_mapped_parent=True,
     )
     assert state.is_mapped()
 
