@@ -732,3 +732,82 @@ def test_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
         if tr.task_slug == t2.slug and tr.map_index == 0
     )
     assert t2_0.state.is_successful()
+
+
+def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
+    """
+    Ensures that retries longer than 10 minutes properly "hydrate" upstream states
+    so that mapped tasks retry correctly - for mapped tasks, even non-data dependencies
+    can affect the number of children spawned.
+    """
+
+    @prefect.task
+    def return_list():
+        return [1, 2, 3]
+
+    @prefect.task(max_retries=1, retry_delay=datetime.timedelta(minutes=20))
+    def fail_once():
+        if prefect.context.get("task_run_count", 0) < 2:
+            raise SyntaxError("bad")
+        else:
+            return 100
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+
+    with prefect.Flow(name="test-retries", result=LocalResult(dir=tmpdir)) as flow:
+        t1 = fail_once.map(upstream_tasks=[return_list])
+
+    monkeypatch.setattr("requests.Session", MagicMock())
+    monkeypatch.setattr("requests.post", MagicMock())
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_2, task_slug=return_list.slug, flow_run_id=flow_run_id
+            ),
+        ]
+        + [
+            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1, return_list]
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
+
+    assert client.flow_runs[flow_run_id].state.is_running()
+    assert client.task_runs[task_run_id_1].state.is_mapped()
+    assert client.task_runs[task_run_id_2].state.is_successful()
+
+    # there should be a total of 4 task runs corresponding to each mapped task
+    assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
+
+    # t1's first child task should be retrying
+    assert all(
+        [
+            isinstance(tr.state, Retrying)
+            for tr in client.task_runs.values()
+            if (tr.task_slug == t1.slug and tr.map_index != -1)
+        ]
+    )
+
+    # RUN A SECOND TIME with an artificially updated start time
+    # and remove all in-memory data
+    for idx, tr in client.task_runs.items():
+        if tr.task_slug == t1.slug and tr.map_index != -1:
+            tr.state.start_time = pendulum.now("UTC")
+
+    for idx, tr in client.task_runs.items():
+        tr.state._result.value = None
+
+    with prefect.context(flow_run_id=flow_run_id):
+        CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
+
+    assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
+    assert all([tr.state.is_successful() for tr in client.task_runs.values()])
