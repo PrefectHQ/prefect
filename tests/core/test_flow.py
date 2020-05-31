@@ -727,7 +727,7 @@ def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
     assert len(record) == 0
 
 
-def test_warning_not_raised_for_constant_tasks():
+def test_warning_not_raised_for_constant_tasks_as_indices():
     with pytest.warns(None) as record:
         with Flow(name="test") as f:
             tt = Task()[0]
@@ -739,11 +739,40 @@ def test_warning_not_raised_for_constant_tasks():
     assert len(record) == 0
 
 
+def test_warning_not_raised_for_constant_tasks_as_inputs():
+    @task
+    def add_one(x):
+        return x + 1
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            tt = add_one(10)
+
+    # confirm tasks were added
+    assert len(f.tasks) == 1
+    assert f.constants[tt]["x"] == 10
+
+    # no warnings
+    assert len(record) == 0
+
+
 def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
     x = Parameter("x")
     with pytest.warns(UserWarning, match="Tasks were created but not added"):
         with Flow(name="test"):
             x.copy("x2")
+
+
+def test_warning_not_raised_for_tasks_defined_in_flow_context():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as flow:
+            x = task(lambda: 10)
+            result = task(lambda x, y, z: x + y + z)(x, x(), 1)
+
+    # no warnings
+    assert len(record) == 0
 
 
 def test_context_is_scoped_to_flow_context():

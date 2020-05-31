@@ -403,8 +403,11 @@ class Task(metaclass=SignatureValidator):
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
-        # to add tasks to a flow
+        # to add tasks to a flow. We also remove the original task,
+        # as it has been "interacted" with and don't want spurious
+        # warnings
         if "_new_task_tracker" in prefect.context:
+            prefect.context._new_task_tracker.remove(self)
             prefect.context._new_task_tracker.add(new)
 
         return new
