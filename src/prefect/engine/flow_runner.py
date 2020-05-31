@@ -383,6 +383,10 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
+        # this dictionary is used for tracking the states of "children" mapped tasks;
+        # when running on Dask, we want to avoid serializing futures, so instead
+        # of storing child task states in the `map_states` attribute we instead store
+        # in this dictionary and only after they are resolved do we attach them to the Mapped state
         mapped_children = dict()  # type: Dict[Task, list]
 
         if not state.is_running():
@@ -400,12 +404,18 @@ class FlowRunner(Runner):
 
             for task in self.flow.sorted_tasks():
                 task_state = task_states.get(task)
+
+                # if a task is a constant task, we already know its return value
+                # no need to use up resources by running it through a task runner
                 if task_state is None and isinstance(
                     task, prefect.tasks.core.constants.Constant
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
                 # if the state is finished, don't run the task, just use the provided state
+                # if the state is cached / mapped, we still want to run the task runner pipeline steps
+                # to either ensure the cache is still valid / or to recreate the mapped pipeline for
+                # possible retries
                 if (
                     isinstance(task_state, State)
                     and task_state.is_finished()
@@ -415,6 +425,10 @@ class FlowRunner(Runner):
                     continue
 
                 upstream_states = {}  # type: Dict[Edge, State]
+
+                # this dictionary is used exclusively for "reduce" tasks
+                # in particular we store the states / futures corresponding to
+                # the upstream children, and if running on Dask, let Dask resolve them at the appropriate time
                 upstream_mapped_states = {}  # type: Dict[Edge, list]
 
                 # -- process each edge to the task
@@ -423,6 +437,8 @@ class FlowRunner(Runner):
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
 
+                    # this checks whether the task is a "reduce" task for a mapped pipeline
+                    # and if so, collects the appropriate upstream children
                     if not edge.mapped and isinstance(upstream_states[edge], Mapped):
                         upstream_mapped_states[edge] = mapped_children.get(
                             edge.upstream_task, []
@@ -444,11 +460,16 @@ class FlowRunner(Runner):
                 if any([edge.mapped for edge in upstream_states.keys()]):
 
                     ## wait on upstream states to determine the width of the pipeline
+                    ## this is the key to depth-first execution
                     upstream_states.update(
                         executor.wait(
                             {e: state for e, state in upstream_states.items()}
                         )
                     )
+
+                    ## we submit the task to the task runner to determine if
+                    ## we can proceed with mapping - if the new task state is not a Mapped
+                    ## state then we don't proceed
                     task_states[task] = executor.wait(
                         executor.submit(
                             self.run_task,
@@ -473,6 +494,9 @@ class FlowRunner(Runner):
                     submitted_states = []
 
                     for idx, states in enumerate(list_of_upstream_states):
+                        ## if we are on a future rerun of a partially complete flow run,
+                        ## there might be mapepd children in a retrying state; this check
+                        ## looks into the current task state's map_states for such info
                         if (
                             isinstance(task_state, Mapped)
                             and len(task_state.map_states) >= idx + 1
@@ -485,7 +509,7 @@ class FlowRunner(Runner):
                         else:
                             current_state = task_state
 
-                        ## TODO: add comment that this is where the work begins
+                        ## this is where each child is submitted for actual work
                         submitted_states.append(
                             executor.submit(
                                 self.run_task,
@@ -540,6 +564,7 @@ class FlowRunner(Runner):
             all_final_states = final_states.copy()
             for t, s in list(final_states.items()):
                 if s.is_mapped():
+                    # ensure we wait for any mapped children to complete
                     s.map_states = executor.wait(mapped_children.get(t) or s.map_states)
                     s.result = [ms.result for ms in s.map_states]
                     all_final_states[t] = s.map_states

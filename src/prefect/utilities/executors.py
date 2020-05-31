@@ -286,13 +286,12 @@ def prepare_upstream_states_for_mapping(
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
 
     Args:
-        - upstream_states (Dict[Edge, State]): the upstream states
+        - state (State): the parent task's current state
+        - upstream_states (Dict[Edge, State]): the upstream states to this task
+        - mapped_children (Dict[Task, List[State]]): any mapped children upstream of this task
 
     Returns:
-        - State: the state of the task after running the check
-
-    Raises:
-        - ENDRUN: if the current state is not `Running`
+        - List: a restructured list of upstream states correponding to each new mapped child task
     """
 
     ## if the current state is failed / skipped or otherwise
