@@ -31,14 +31,21 @@ class Local(Storage):
             absolute path and created.  Defaults to `True`
         - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
             for each flow run.  Used primarily for providing authentication credentials.
+        - add_hostname_label (bool): if `True`, include the current host's hostname
+            as a label for storage. Defaults to `True`.
     """
 
     def __init__(
-        self, directory: str = None, validate: bool = True, secrets: List[str] = None,
+        self,
+        directory: str = None,
+        validate: bool = True,
+        secrets: List[str] = None,
+        add_hostname_label: bool = True,
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "prefect.core.flow.Flow"]
+        self.add_hostname_label = add_hostname_label
 
         if validate:
             abs_directory = os.path.abspath(os.path.expanduser(directory))
@@ -53,7 +60,10 @@ class Local(Storage):
 
     @property
     def labels(self) -> List[str]:
-        return [socket.gethostname()]
+        if self.add_hostname_label:
+            return [socket.gethostname()]
+        else:
+            return []
 
     def get_flow(self, flow_location: str) -> "Flow":
         """
