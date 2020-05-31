@@ -784,6 +784,21 @@ def test_warning_not_raised_for_tasks_defined_in_flow_context():
     assert len(record) == 0
 
 
+def test_warning_raised_for_tasks_defined_in_flow_context_and_unused():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test") as flow:
+
+            @task
+            def ten():
+                return 10
+
+            @task
+            def add(x, y):
+                return x + y
+
+
 def test_warning_not_raised_for_lambda_tasks_defined_in_flow_context():
     # https://github.com/PrefectHQ/prefect/issues/2677
 
@@ -794,6 +809,13 @@ def test_warning_not_raised_for_lambda_tasks_defined_in_flow_context():
 
     # no warnings
     assert len(record) == 0
+
+
+def test_warning_raised_for_lambda_tasks_defined_in_flow_context_and_unused():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test") as flow:
+            x = task(lambda: 10)
 
 
 def test_context_is_scoped_to_flow_context():
