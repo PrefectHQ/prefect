@@ -6,7 +6,6 @@ Filters have the signature `Callable[[datetime], bool]`.
 """
 
 from datetime import datetime, time
-from typing import Callable
 
 import pendulum
 

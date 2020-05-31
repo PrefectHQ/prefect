@@ -4,7 +4,6 @@ Schedule adjustments are functions that accept a `datetime` and modify it in som
 Adjustments have the signature `Callable[[datetime], datetime]`.
 """
 from datetime import datetime, timedelta
-from typing import Callable
 
 import pendulum
 
