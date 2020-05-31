@@ -1,0 +1,5 @@
+fix:
+  - 'Fix broken import path in docs for LocalResult'
+
+contributor:
+  - '[Alex Cano](https://github.com/alexisprince1994)'
