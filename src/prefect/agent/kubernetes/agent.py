@@ -8,9 +8,6 @@ import yaml
 import prefect
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.environment import EnvironmentSchema
-from prefect.serialization.storage import StorageSchema
 from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
 

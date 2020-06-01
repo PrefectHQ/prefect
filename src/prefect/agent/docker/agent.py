@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.environment import EnvironmentSchema
-from prefect.serialization.storage import StorageSchema
 from prefect.utilities.agent import get_flow_image
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
