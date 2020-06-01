@@ -495,7 +495,7 @@ class FlowRunner(Runner):
 
                     for idx, states in enumerate(list_of_upstream_states):
                         ## if we are on a future rerun of a partially complete flow run,
-                        ## there might be mapepd children in a retrying state; this check
+                        ## there might be mapped children in a retrying state; this check
                         ## looks into the current task state's map_states for such info
                         if (
                             isinstance(task_state, Mapped)
