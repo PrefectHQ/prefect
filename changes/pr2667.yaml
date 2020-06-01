@@ -1,0 +1,6 @@
+enhancement:
+  - "Support creating temporary dask clusters from within a `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)"
+  
+deprecation:
+  - "Deprecate `local_processes` and `**kwargs` arguments for `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)"
+  - "Deprecate `address='local'` for `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)"
