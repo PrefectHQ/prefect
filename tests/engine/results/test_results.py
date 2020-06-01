@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import tempfile
 from typing import Union
 
@@ -198,3 +199,8 @@ class TestLocalResult:
         new_result = result.write("so-much-data", thing=44)
         assert result.exists("44.txt") is True
         assert result.exists(os.path.join(tmp_dir, "44.txt")) is True
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows specific test")
+    def test_local_init_with_different_drive_works_on_windows(self):
+        result = LocalResult(dir="E:/location", validate=False)
+        assert result.dir == "E:/location"

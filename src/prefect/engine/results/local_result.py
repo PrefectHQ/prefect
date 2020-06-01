@@ -30,10 +30,14 @@ class LocalResult(Result):
         self, dir: str = None, validate_dir: bool = True, **kwargs: Any
     ) -> None:
         full_prefect_path = os.path.abspath(config.home_dir)
+        try:
+            common_path = os.path.commonpath([full_prefect_path, os.path.abspath(dir)])
+        except ValueError:
+            # ValueError is raised if comparing two paths in Windows from different drives, e.g., E:/ and C:/
+            common_path = ""
         if (
             dir is None
-            or os.path.commonpath([full_prefect_path, os.path.abspath(dir)])
-            == full_prefect_path
+            common_path == full_prefect_path
         ):
             directory = os.path.join(config.home_dir, "results")
         else:
