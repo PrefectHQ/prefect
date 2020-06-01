@@ -301,8 +301,9 @@ class Task(metaclass=SignatureValidator):
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
         # to add tasks to a flow
-        if "_new_task_tracker" in prefect.context:
-            prefect.context._new_task_tracker.add(self)
+        if "_unused_task_tracker" in prefect.context:
+            if not isinstance(self, prefect.tasks.core.constants.Constant):
+                prefect.context._unused_task_tracker.add(self)
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -403,9 +404,14 @@ class Task(metaclass=SignatureValidator):
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
-        # to add tasks to a flow
-        if "_new_task_tracker" in prefect.context:
-            prefect.context._new_task_tracker.add(new)
+        # to add tasks to a flow. We also remove the original task,
+        # as it has been "interacted" with and don't want spurious
+        # warnings
+        if "_unused_task_tracker" in prefect.context:
+            if self in prefect.context._unused_task_tracker:
+                prefect.context._unused_task_tracker.remove(self)
+            if not isinstance(new, prefect.tasks.core.constants.Constant):
+                prefect.context._unused_task_tracker.add(new)
 
         return new
 

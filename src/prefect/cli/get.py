@@ -77,14 +77,15 @@ def flows(name, version, project, limit, all_versions):
         "name": True,
         "version": True,
         "created": True,
+        "id": True,
     }
 
-    headers = ["NAME", "VERSION", "AGE"]
+    headers = ["NAME", "VERSION", "AGE", "ID"]
 
     if config.backend == "cloud":
         where_clause["_and"]["project"] = {"name": {"_eq": project}}
         query_results["project"] = {"name": True}
-        headers.append("PROJECT NAME")
+        headers.insert(3, "PROJECT NAME")
 
     query = {
         "query": {
@@ -113,9 +114,12 @@ def flows(name, version, project, limit, all_versions):
             item.name,
             item.version,
             pendulum.parse(item.created).diff_for_humans(),
+            item.id,
         ]
-        if project:
-            result_output.append(item.project.name,)
+        if config.backend == "cloud":
+            result_output.insert(
+                3, item.project.name,
+            )
 
         output.append(result_output)
 
@@ -236,6 +240,7 @@ def flow_runs(limit, flow, project, started):
                 "flow_run", {"where": where, "limit": limit, "order_by": order}
             ): {
                 "flow": {"name": True},
+                "id": True,
                 "created": True,
                 "state": True,
                 "name": True,
@@ -264,13 +269,22 @@ def flow_runs(limit, flow, project, started):
                 pendulum.parse(item.created).diff_for_humans(),
                 start_time,
                 item.duration,
+                item.id,
             ]
         )
 
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "FLOW NAME", "STATE", "AGE", "START TIME", "DURATION"],
+            headers=[
+                "NAME",
+                "FLOW NAME",
+                "STATE",
+                "AGE",
+                "START TIME",
+                "DURATION",
+                "ID",
+            ],
             tablefmt="plain",
             numalign="left",
             stralign="left",
@@ -360,20 +374,30 @@ def tasks(name, flow_name, flow_version, project, limit):
 
 @get.command(hidden=True)
 @click.option(
-    "--name", "-n", required=True, help="A flow run name to query", hidden=True
+    "--name", "-n", required=False, help="A flow run name to query", hidden=True
 )
+@click.option("--id", required=False, help="A flow run ID to query", hidden=True)
 @click.option(
     "--info", "-i", is_flag=True, help="Retrieve detailed logging info", hidden=True
 )
-def logs(name, info):
+def logs(name, id, info):
     """
     Query logs for a flow run.
 
+    Note: at least one of `name` or `id` must be specified. If only `name` is set then
+    the most recent flow run with that name will be queried.
+
+
     \b
     Options:
-        --name, -n      TEXT    A flow run name to query        [required]
+        --name, -n      TEXT    A flow run name to query
+        --id            TEXT    A flow run ID to query
         --info, -i              Retrieve detailed logging info
     """
+    if not name and not id:
+        click.secho("Either --name or --id must be provided", fg="red")
+        return
+
     log_query = {
         with_args("logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}): {
             "timestamp": True,
@@ -395,7 +419,7 @@ def logs(name, info):
             with_args(
                 "flow_run",
                 {
-                    "where": {"name": {"_eq": name}},
+                    "where": {"name": {"_eq": name}, "id": {"_eq": id}},
                     "order_by": {EnumValue("start_time"): EnumValue("desc")},
                 },
             ): log_query
