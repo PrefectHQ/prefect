@@ -32,23 +32,6 @@ if TYPE_CHECKING:
     from prefect.core import Edge  # pylint: disable=W0611
 
 VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
-EXTRA_CALL_PARAMETERS = [
-    inspect.Parameter(
-        "mapped", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool
-    ),
-    inspect.Parameter(
-        "task_args", inspect.Parameter.KEYWORD_ONLY, default=None, annotation=dict
-    ),
-    inspect.Parameter(
-        "upstream_tasks",
-        inspect.Parameter.KEYWORD_ONLY,
-        default=None,
-        annotation=Iterable[Any],
-    ),
-    inspect.Parameter(
-        "flow", inspect.Parameter.KEYWORD_ONLY, default=None, annotation="Flow",
-    ),
-]
 
 
 def _validate_run_signature(run: Callable) -> None:
@@ -433,7 +416,7 @@ class Task(metaclass=SignatureValidator):
         return new
 
     @property
-    def __signature__(self):
+    def __signature__(self) -> inspect.Signature:
         """Dynamically generate the signature, replacing ``*args``/``**kwargs``
         with parameters from ``run``"""
         if not hasattr(self, "_cached_signature"):
@@ -1200,3 +1183,12 @@ class Parameter(Task):
             - dict representing this parameter
         """
         return prefect.serialization.task.ParameterSchema().dump(self)
+
+
+# All keyword-only arguments to Task.__call__, used for dynamically generating
+# Signature objects for Task objects
+EXTRA_CALL_PARAMETERS = [
+    p
+    for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
+    if p.kind == inspect.Parameter.KEYWORD_ONLY
+]

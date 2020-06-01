@@ -1,8 +1,8 @@
 """
 The tasks in this module can be used to represent arbitrary functions.
 
-In general, users will not instantiate these tasks by hand; they will automatically be
-applied when users apply the `@task` decorator.
+In general, users will not instantiate these tasks by hand; they will
+automatically be applied when users apply the `@task` decorator.
 """
 
 from typing import Any, Callable
@@ -11,19 +11,23 @@ import prefect
 
 
 class _DocProxy(object):
-    def __init__(self, source):
-        self._source = source
+    """A descriptor that proxies through the docstring for the wrapped task as
+    the docstring for a `FunctionTask` instance."""
+
+    def __init__(self, cls_doc):
+        self._cls_doc = cls_doc
 
     def __get__(self, obj, cls):
         if obj is None:
-            return self._source
+            return self._cls_doc
         else:
-            return obj.run.__doc__
+            return getattr(obj.run, "__doc__", None) or self._cls_doc
 
 
 class FunctionTask(prefect.Task):
     __doc__ = _DocProxy(
-        """A convenience Task for functionally creating Task instances with
+        """
+    A convenience Task for functionally creating Task instances with
     arbitrary callable `run` methods.
 
     Args:
@@ -58,3 +62,8 @@ class FunctionTask(prefect.Task):
         self.run = fn
 
         super().__init__(name=name, **kwargs)
+
+    @property
+    def __wrapped__(self):
+        """Propogates information about the wrapped function"""
+        return self.run
