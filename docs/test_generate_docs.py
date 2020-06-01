@@ -56,22 +56,20 @@ def consistency_check(obj, obj_name):
         .union(varkwargs)
     )
 
-    # Strip `**kwargs` to allow forwarding kwargs to underlying implementations,
-    # or deprecating existing functionality
-    undocumented = actual_args.difference(doc_args).difference({"**kwargs"})
+    undocumented = actual_args.difference(doc_args)
     # If the sig contains **kwargs, any keyword is valid
     if any(k.startswith("**") for k in actual_args):
-        non_existant = {}
+        non_existent = {}
     else:
-        non_existant = doc_args.difference(actual_args)
+        non_existent = doc_args.difference(actual_args)
 
     if undocumented:
         undoc_args = ", ".join(undocumented)
         raise ValueError(
             f"{obj_name} has arguments without documentation: {undoc_args}"
         )
-    elif non_existant:
-        undoc_args = ", ".join(non_existant)
+    elif non_existent:
+        undoc_args = ", ".join(non_existent)
         raise ValueError(
             f"{obj_name} has documentation for arguments that aren't real: {undoc_args}"
         )

@@ -61,6 +61,7 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
+        - **kwargs: DEPRECATED
 
     Example:
 
@@ -102,9 +103,7 @@ class DaskExecutor(Executor):
         **kwargs: Any
     ):
         if address is None:
-            address = context.config.engine.executor.dask.address
-        if not address:
-            address = None
+            address = context.config.engine.executor.dask.address or None
         # XXX: deprecated
         if address == "local":
             warnings.warn(
