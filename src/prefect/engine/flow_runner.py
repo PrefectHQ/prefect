@@ -565,7 +565,8 @@ class FlowRunner(Runner):
             for t, s in list(final_states.items()):
                 if s.is_mapped():
                     # ensure we wait for any mapped children to complete
-                    s.map_states = executor.wait(mapped_children.get(t) or s.map_states)
+                    if t in mapped_children:
+                        s.map_states = executor.wait(mapped_children[t])
                     s.result = [ms.result for ms in s.map_states]
                     all_final_states[t] = s.map_states
 
@@ -673,7 +674,6 @@ class FlowRunner(Runner):
                 default_result=self.flow.result,
             )
 
-            # TODO: wait elsewhere
             # if this task reduces over a mapped state, make sure its children have finished
             for edge, upstream_state in upstream_states.items():
 
