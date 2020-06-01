@@ -10,15 +10,16 @@ from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
 
 class DaskGatewayEnvironment(RemoteDaskEnvironment):
     """
-    DaskGatewayEnvironment creates Dask clusters using the Dask Gateway
-    project. For each flow run, a new Dask cluster will be dynamically created and the
+    The DaskGatewayEnvironment dynamically creates Dask clusters via a Dask Gateway instance. 
+    For each flow run, a new Dask cluster will be created and the
     flow will run using a `RemoteDaskEnvironment` with the Dask scheduler address
     from the newly created Dask cluster. You can specify the number of Dask workers
     manually (for example, passing the kwarg `n_workers`) or enable adaptive mode by
     passing `adaptive_min_workers` and, optionally, `adaptive_max_workers`. This
     environment aims to provide a very easy path to Dask scalability for users of Dask Gateway.
     **NOTE:** Cluster startup time can be slow, depending
-    on docker image size. Total startup time for a Dask scheduler and workers can
+    on docker image size and the possibility of having to wait for a new node to spin up
+    if using auto-scaling. Total startup time for a Dask scheduler and workers can
     be several minutes. This environment is a much better fit for production
     deployments of scheduled Flows where there's little sensitivity to startup
     time. `DaskGatewayEnvironment` is a particularly good fit for automated
@@ -28,10 +29,10 @@ class DaskGatewayEnvironment(RemoteDaskEnvironment):
     development and interactive testing, creating a Dask cluster manually with Dask Gateway and then using `DaskExecutor`
     with your flows will result in a much better development experience.
     **NOTE**: This environment will leave the cluster up if something on the Dask side
-    breaks (this is NOT the case if it is just a Prefect task failure)
+    breaks to assist in debugging (this is NOT the case if it is just a Prefect task failure).
     Args:
         - gateway_address (str): The hostname for the Dask Gateway instance
-        - auth (BasicAuth, optional): a Dask Gateway security object. Currently only supports the BasicAuth method.
+        - auth (BasicAuth, optional): a Dask Gateway authentication object. Currently only supports the BasicAuth method.
         - adaptive_min_workers (int, optional): Minimum number of workers for adaptive
             mode. If this value is None, then adaptive mode will not be used and you
             should pass `n_workers` or the appropriate kwarg for the provider class you
@@ -40,6 +41,8 @@ class DaskGatewayEnvironment(RemoteDaskEnvironment):
             mode.
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
+        - image: (str, optional): the Docker image to be used when creating the scheduler + workers. If this value
+            none, then the image will be set based on the storage metadata of the Flow.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_execute (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function callback which will
