@@ -409,7 +409,7 @@ class Paused(Scheduled):
             should be JSON compatible
     """
 
-    color = "#cfd8dc"
+    color = "#99a8e8"
 
     def __init__(
         self,
@@ -564,7 +564,7 @@ class Resume(Scheduled):
             should be JSON compatible
     """
 
-    color = "#fb8532"
+    color = "#f58c0c"
 
 
 class Retrying(Scheduled):
@@ -803,7 +803,7 @@ class Cancelled(Finished):
             should be JSON compatible
     """
 
-    color = "#c42800"
+    color = "#bdbdbd"
 
 
 class Failed(Finished):
