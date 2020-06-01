@@ -26,8 +26,7 @@ class _DocProxy(object):
 
 class FunctionTask(prefect.Task):
     __doc__ = _DocProxy(
-        """
-    A convenience Task for functionally creating Task instances with
+        """A convenience Task for functionally creating Task instances with
     arbitrary callable `run` methods.
 
     Args:
@@ -63,7 +62,7 @@ class FunctionTask(prefect.Task):
 
         super().__init__(name=name, **kwargs)
 
-    @property
-    def __wrapped__(self):
-        """Propogates information about the wrapped function"""
-        return self.run
+    def __getattr__(self, k):
+        if k == "__wrapped__":
+            return self.run
+        raise AttributeError(f"'FunctionTask' object has no attribute {k}")

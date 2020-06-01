@@ -69,6 +69,7 @@ class TestFunctionTask:
 
         t = FunctionTask(fn=my_fn)
         assert t.__wrapped__ == my_fn
+        assert not hasattr(FunctionTask, "__wrapped__")
 
 
 class TestCollections:
