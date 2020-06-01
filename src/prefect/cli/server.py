@@ -11,7 +11,6 @@ import yaml
 import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
