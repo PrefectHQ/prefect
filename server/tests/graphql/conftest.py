@@ -3,7 +3,6 @@
 
 
 import httpx
-import pendulum
 import pytest
 from box import Box
 

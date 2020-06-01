@@ -3,7 +3,6 @@ from contextlib import redirect_stdout
 import itertools
 import json
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -12,9 +11,7 @@ from typing import (
     NamedTuple,
     Optional,
     Set,
-    Sized,
     Tuple,
-    Union,
 )
 
 import pendulum
@@ -559,7 +556,9 @@ class TaskRunner(Runner):
     def check_task_reached_start_time(self, state: State) -> State:
         """
         Checks if a task is in a Scheduled state and, if it is, ensures that the scheduled
-        time has been reached. Note: Scheduled states include Retry states.
+        time has been reached. Note: Scheduled states include Retry states. Scheduled
+        states with no start time (`start_time = None`) are never considered ready;
+        they must be manually placed in another state.
 
         Args:
             - state (State): the current state of this task
@@ -571,13 +570,24 @@ class TaskRunner(Runner):
             - ENDRUN: if the task is Scheduled with a future scheduled time
         """
         if isinstance(state, Scheduled):
-            if state.start_time and state.start_time > pendulum.now("utc"):
+            # handle case where no start_time is set
+            if state.start_time is None:
+                self.logger.debug(
+                    "Task '{name}' is scheduled without a known start_time; ending run.".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+                raise ENDRUN(state)
+
+            # handle case where start time is in the future
+            elif state.start_time and state.start_time > pendulum.now("utc"):
                 self.logger.debug(
                     "Task '{name}': start_time has not been reached; ending run.".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
                 raise ENDRUN(state)
+
         return state
 
     def get_task_inputs(
@@ -597,7 +607,6 @@ class TaskRunner(Runner):
 
         """
         task_inputs = {}  # type: Dict[str, Result]
-        results = {}  # type: Dict[str, Result]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs

@@ -49,8 +49,11 @@ class LocalEnvironment(Environment):
 
         env = kwargs.pop("env", dict())
         try:
-            runner = storage.get_flow(flow_location)
-            runner.run(**kwargs)
+            from prefect.engine import get_default_flow_runner_class
+
+            flow = storage.get_flow(flow_location)
+            runner_cls = get_default_flow_runner_class()
+            runner_cls(flow=flow).run(**kwargs)
         except NotImplementedError:
             env_runner = storage.get_env_runner(flow_location)
             current_env = os.environ.copy()

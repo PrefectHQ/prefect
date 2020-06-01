@@ -1,7 +1,6 @@
 import datetime
-import sys
 import uuid
-from collections import Counter, namedtuple
+from collections import Counter
 from unittest.mock import MagicMock
 
 import pendulum

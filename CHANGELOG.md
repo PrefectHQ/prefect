@@ -1,8 +1,57 @@
 # Changelog
 
-## Unreleased <Badge text="beta" type="success"/>
+## 0.11.4 <Badge text="beta" type="success">
 
-These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+Released on May 27, 2020.
+
+### Fixes
+
+- Revert GraphQL endpoint change - [#2660](https://github.com/PrefectHQ/prefect/pull/2660)
+
+## 0.11.3 <Badge text="beta" type="success">
+
+Released on May 27, 2020.
+
+### Features
+
+- None
+
+### Enhancements
+
+- Add option to set volumes on `server start` CLI command - [#2560](https://github.com/PrefectHQ/prefect/pull/2560)
+- Add `case` to top-level namespace - [#2609](https://github.com/PrefectHQ/prefect/pull/2609)
+- Use host IP for `hostname` label in cases where `LocalAgent` is in container using host network - [#2618](https://github.com/PrefectHQ/prefect/issues/2618)
+- Add option to set TLS configuration on client created by Docker storage - [#2626](hhttps://github.com/PrefectHQ/prefect/issues/2626)
+- The `start_time` of a `Paused` state defaults to `None` - [#2617](https://github.com/PrefectHQ/prefect/pull/2617)
+- Raise more informative error when Cloud Secret doesn't exist - [#2620](https://github.com/PrefectHQ/prefect/pull/2620)
+- Update GraphQL endpoint to `/graphql` - [#2651](https://github.com/PrefectHQ/prefect/pull/2651)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Kubernetes agent resource manager is more strict about what resources it manages - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+- Fix error when adding `Parameter` to flow under `case` statement - [#2608](https://github.com/PrefectHQ/prefect/pull/2608)
+- Fix `S3Result` attempting to load data when checking existence - [#2623](https://github.com/PrefectHQ/prefect/issues/2623)
+
+### Deprecations
+
+- Deprecate `private_registry` and `docker_secret` options on `DaskKubernetesEnvironment` - [#2630](https://github.com/PrefectHQ/prefect/pull/2630)
+
+### Breaking Changes
+
+- Kubernetes labels associated with Prefect flow runs now have a `prefect.io/` prefix (e.g. `prefect.io/identifier`) - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+
+### Contributors
+
+- [Bartek Roszak](https://github.com/BartekRoszak)
+- [James Lamb](https://github.com/jameslamb)
+
+## 0.11.2 <Badge text="beta" type="success"/>
+
+Released on May 19, 2020.
 
 ### Features
 
@@ -12,10 +61,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Allow log configuration in Fargate Agent - [#2589](https://github.com/PrefectHQ/prefect/pull/2589)
 - Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
+- Show a warning when tasks are created in a flow context but not added to a flow - [#2584](https://github.com/PrefectHQ/prefect/pull/2584)
 
 ### Server
 
-- None
+- Add API healthcheck tile to the UI - [#2395](https://github.com/PrefectHQ/prefect/issues/2395)
 
 ### Task Library
 
@@ -25,9 +75,11 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 - Fix type for Dask Security in RemoteDaskEnvironment - [#2571](https://github.com/PrefectHQ/prefect/pull/2571)
 - Fix issue with `log_stdout` not correctly storing returned data on the task run state - [#2585](https://github.com/PrefectHQ/prefect/pull/2585)
+- Ensure result locations are updated from targets when copying tasks with `task_args` - [#2590](https://github.com/PrefectHQ/prefect/pull/2590)
 - Fix `S3Result` exists function handling of `NoSuchKey` error - [#2585](https://github.com/PrefectHQ/prefect/issues/2585)
 - Fix confusing language in Telemetry documentation - [#2593](https://github.com/PrefectHQ/prefect/pull/2593)
 - Fix `LocalAgent` not registering with Cloud using default labels - [#2587](https://github.com/PrefectHQ/prefect/issues/2587)
+- Fix flow's `run_agent` function passing a `set` of labels to Agent instead of a `list` - [#2600](https://github.com/PrefectHQ/prefect/pull/2600)
 
 ### Deprecations
 

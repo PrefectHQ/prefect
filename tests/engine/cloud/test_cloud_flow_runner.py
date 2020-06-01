@@ -1,7 +1,5 @@
 import datetime
 import time
-import uuid
-from box import Box
 from datetime import timedelta
 from unittest.mock import MagicMock
 

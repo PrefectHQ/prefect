@@ -8,7 +8,6 @@ import uuid
 from typing import List, Union, cast
 
 import pendulum
-from box import Box
 
 import psycopg2
 import prefect

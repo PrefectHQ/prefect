@@ -1,5 +1,4 @@
 import os
-import sys
 import tempfile
 from unittest.mock import MagicMock
 
@@ -8,7 +7,7 @@ from distributed import Client
 
 import prefect
 from prefect.engine.executors import DaskExecutor, LocalDaskExecutor, LocalExecutor
-from prefect.utilities import configuration, debug
+from prefect.utilities import configuration
 
 
 @pytest.fixture(autouse=True)

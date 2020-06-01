@@ -5,7 +5,6 @@
 import os
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 
 import click

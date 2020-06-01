@@ -1,4 +1,3 @@
-import inspect
 import re
 import sys
 import textwrap
@@ -22,7 +21,6 @@ try:
         format_subheader,
         get_call_signature,
         get_class_methods,
-        get_source,
         patch_imports,
     )
 
