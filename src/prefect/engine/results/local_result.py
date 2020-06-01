@@ -35,10 +35,7 @@ class LocalResult(Result):
         except ValueError:
             # ValueError is raised if comparing two paths in Windows from different drives, e.g., E:/ and C:/
             common_path = ""
-        if (
-            dir is None
-            common_path == full_prefect_path
-        ):
+        if dir is None or common_path == full_prefect_path:
             directory = os.path.join(config.home_dir, "results")
         else:
             directory = dir
