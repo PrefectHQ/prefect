@@ -1,0 +1,2 @@
+fix:
+  - "Remove unnecessary volume mount from dev infrastructure Docker compose - [#2676](https://github.com/PrefectHQ/prefect/issues/2676)"
