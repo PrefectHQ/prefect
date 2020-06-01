@@ -37,7 +37,7 @@ extras = {
         "azure-cosmos >= 3.1.1, <3.2",
     ],
     "dask_cloudprovider": ["dask_cloudprovider >= 0.2.0, < 1.0"],
-    "dask_gateway": ["dask_gateway>=0.7.1"]
+    "dask_gateway": ["dask_gateway>=0.7.1"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "gcp": [
