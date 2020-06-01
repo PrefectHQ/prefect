@@ -11,6 +11,7 @@ from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -417,9 +418,6 @@ class FargateAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
@@ -455,25 +453,7 @@ class FargateAgent(Agent):
                 flow_run.flow.id[:8]  # type: ignore
             )  # type: ignore
 
-        image = None
-
-        # First check if `image` found in environment metadata, then default to storage
-        environment = EnvironmentSchema().load(flow_run.flow.environment)
-        if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
-            image = environment.metadata.get("image")
-        else:
-            storage = StorageSchema().load(flow_run.flow.storage)
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker and environment has no `image` attribute in the metadata field.".format(
-                        flow_run.id
-                    )
-                )
-                raise ValueError(
-                    "Storage type is incompatable and `image` not found in environment metadata."
-                )
-
-            image = storage.name
+        image = get_flow_image(flow_run=flow_run)
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")

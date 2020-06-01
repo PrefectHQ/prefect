@@ -11,6 +11,7 @@ from prefect.agent import Agent
 from prefect.environments.storage import Docker
 from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
@@ -314,9 +315,6 @@ class DockerAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
@@ -326,35 +324,10 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        image = None
-        registry_url = False
-
-        # First check if `image` found in environment metadata, then default to storage
-        environment = EnvironmentSchema().load(flow_run.flow.environment)
-        if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
-            image = environment.metadata.get("image")
-            if len(image.split("/")) > 1:
-                registry_url = True
-        else:
-            storage = StorageSchema().load(flow_run.flow.storage)
-            if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-                self.logger.error(
-                    "Storage for flow run {} is not of type Docker and environment has no `image` attribute in the metadata field.".format(
-                        flow_run.id
-                    )
-                )
-                raise ValueError(
-                    "Storage type is incompatable and `image` not found in environment metadata."
-                )
-
-            if storage.registry_url:
-                registry_url = True
-
-            image = storage.name
-
+        image = get_flow_image(flow_run=flow_run)
         env_vars = self.populate_env_vars(flow_run=flow_run)
 
-        if not self.no_pull and registry_url:
+        if not self.no_pull and len(image.split("/")) > 1:
             self.logger.info("Pulling image {}...".format(image))
 
             pull_output = self.docker_client.pull(image, stream=True, decode=True)
