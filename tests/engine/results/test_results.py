@@ -202,5 +202,5 @@ class TestLocalResult:
 
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows specific test")
     def test_local_init_with_different_drive_works_on_windows(self):
-        result = LocalResult(dir="E:/location", validate=False)
+        result = LocalResult(dir="E:/location", validate_dir=False)
         assert result.dir == "E:/location"
