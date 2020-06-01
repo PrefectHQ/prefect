@@ -165,5 +165,5 @@ def test_labels_includes_hostname():
 
 def test_opt_out_of_hostname_label():
     with tempfile.TemporaryDirectory() as tmpdir:
-        s = Local(directory=tmpdir, add_hostname_label=False)
+        s = Local(directory=tmpdir, add_default_labels=False)
         assert socket.gethostname() not in s.labels

@@ -65,12 +65,11 @@ class Docker(Storage):
         - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
             are not added to the Dockerfile. If False (default), healthchecks
             are included.
-        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
-            for each flow run.  Used primarily for providing authentication credentials.
         - base_url: (str, optional): a URL of a Docker daemon to use when for
             Docker related functionality.  Defaults to DOCKER_HOST env var if not set
         - tls_config: (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
             client. https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig
+        - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
         - ValueError: if both `base_image` and `dockerfile` are provided
@@ -90,9 +89,9 @@ class Docker(Storage):
         prefect_version: str = None,
         local_image: bool = False,
         ignore_healthchecks: bool = False,
-        secrets: List[str] = None,
         base_url: str = None,
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
+        **kwargs: Any
     ) -> None:
         self.registry_url = registry_url
         if sys.platform == "win32":
@@ -164,7 +163,7 @@ class Docker(Storage):
                     ", ".join(not_absolute)
                 )
             )
-        super().__init__(secrets=secrets)
+        super().__init__(**kwargs)
 
     def get_env_runner(self, flow_location: str) -> Callable[[Dict[str, str]], None]:
         """

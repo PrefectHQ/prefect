@@ -20,14 +20,42 @@ class Storage(metaclass=ABCMeta):
             all flows which utilize this storage class
         - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
             for each flow run.  Used primarily for providing authentication credentials.
+        - labels (List[str], optional): a list of labels to associate with this `Storage`.
+        - add_default_labels (bool): If `True`, adds the storage specific default label (if applicable)
+            to the storage labels. Defaults to `True`.
     """
 
-    def __init__(self, result: Result = None, secrets: List[str] = None,) -> None:
+    def __init__(
+        self,
+        result: Result = None,
+        secrets: List[str] = None,
+        labels: List[str] = None,
+        add_default_labels: bool = True,
+    ) -> None:
         self.result = result
         self.secrets = secrets or []
+        self._labels = labels or []
+        self.add_default_labels = add_default_labels
 
     @property
     def labels(self) -> List[str]:
+        """
+        Concatenates user provided labels and optionally the storage's
+        default labels.
+        """
+        if not self.add_default_labels:
+            return self._labels
+
+        all_labels = set(self._labels)
+        all_labels.update(self.default_labels)
+
+        return list(all_labels)
+
+    @property
+    def default_labels(self) -> List[str]:
+        """
+        Holds the default storage labels for a given storage.
+        """
         return []
 
     def __repr__(self) -> str:
