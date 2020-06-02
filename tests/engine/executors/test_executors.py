@@ -169,16 +169,6 @@ class TestDaskExecutor:
         assert a_start < b_end
         assert b_start < a_end
 
-    def test_context_tags_are_passed_to_submit(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.submit(lambda: None)
-        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
-
     def test_connect_to_running_cluster(self):
         with distributed.Client(processes=False, set_as_default=False) as client:
             executor = DaskExecutor(address=client.scheduler.address)
