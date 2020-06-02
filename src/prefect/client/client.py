@@ -317,6 +317,12 @@ class Client:
         # Check if request returned a successful status
         response.raise_for_status()
 
+        # check if request returned an error key in the response
+        # response_json = response.json()
+        # if "errors" in response_json:
+        #     if response_json["errors"].get("code") == "API_ERROR":
+        #         pass
+
         return response
 
     def attach_headers(self, headers: dict) -> None:
