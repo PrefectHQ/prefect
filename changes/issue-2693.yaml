@@ -1,0 +1,2 @@
+enhancement:
+  - "Allow for manual approval of locally Paused tasks - [#2693](https://github.com/PrefectHQ/prefect/issues/2693)"
