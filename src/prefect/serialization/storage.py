@@ -14,8 +14,6 @@ class AzureSchema(ObjectSchema):
     blob_name = fields.String(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
-    labels = fields.List(fields.Str(), allow_none=True)
-    add_default_labels = fields.Bool(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Azure:
@@ -40,8 +38,6 @@ class DockerSchema(ObjectSchema):
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     prefect_version = fields.String(allow_none=False)
     secrets = fields.List(fields.Str(), allow_none=True)
-    labels = fields.List(fields.Str(), allow_none=True)
-    add_default_labels = fields.Bool(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -60,8 +56,6 @@ class GCSSchema(ObjectSchema):
     project = fields.Str(allow_none=True)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
-    labels = fields.List(fields.Str(), allow_none=True)
-    add_default_labels = fields.Bool(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> GCS:
@@ -78,8 +72,6 @@ class LocalSchema(ObjectSchema):
     directory = fields.Str(allow_none=False)
     flows = fields.Dict(key=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
-    labels = fields.List(fields.Str(), allow_none=True)
-    add_default_labels = fields.Bool(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> Docker:
@@ -101,8 +93,6 @@ class S3Schema(ObjectSchema):
         key=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     secrets = fields.List(fields.Str(), allow_none=True)
-    labels = fields.List(fields.Str(), allow_none=True)
-    add_default_labels = fields.Bool(allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> S3:

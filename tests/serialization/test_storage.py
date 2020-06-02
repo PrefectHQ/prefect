@@ -36,8 +36,6 @@ def test_docker_empty_serialize():
     assert not serialized["image_tag"]
     assert not serialized["registry_url"]
     assert serialized["secrets"] == []
-    assert serialized["labels"] == []
-    assert serialized["add_default_labels"] == True
 
 
 def test_docker_full_serialize():
@@ -60,8 +58,6 @@ def test_docker_full_serialize():
     assert serialized["flows"] == dict()
     assert serialized["prefect_version"] == "0.5.2"
     assert serialized["secrets"] == ["bar", "creds"]
-    assert serialized["labels"] == ["foo"]
-    assert serialized["add_default_labels"] == False
 
 
 def test_docker_serialize_with_flows():
@@ -94,8 +90,6 @@ def test_s3_empty_serialize():
     assert serialized["bucket"]
     assert not serialized["key"]
     assert serialized["secrets"] == []
-    assert serialized["labels"] == ["s3-flow-storage"]
-    assert serialized["add_default_labels"] == True
 
 
 def test_s3_full_serialize():
@@ -113,8 +107,6 @@ def test_s3_full_serialize():
     assert serialized["bucket"] == "bucket"
     assert serialized["key"] == "key"
     assert serialized["secrets"] == ["hidden", "auth"]
-    assert serialized["labels"] == ["foo", "bar"]
-    assert serialized["add_default_labels"] == False
 
 
 def test_s3_serialize_with_flows():
@@ -143,8 +135,6 @@ def test_azure_empty_serialize():
     assert serialized["container"] == "container"
     assert serialized["blob_name"] is None
     assert serialized["secrets"] == []
-    assert serialized["labels"] == ["azure-flow-storage"]
-    assert serialized["add_default_labels"] == True
 
 
 def test_azure_full_serialize():
@@ -163,8 +153,6 @@ def test_azure_full_serialize():
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
     assert serialized["secrets"] == ["foo"]
-    assert serialized["labels"] == ["bar", "baz"]
-    assert serialized["add_default_labels"] == False
 
 
 def test_azure_creds_not_serialized():
@@ -212,8 +200,6 @@ def test_local_empty_serialize():
     assert serialized["flows"] == dict()
     assert serialized["directory"].endswith(os.path.join(".prefect", "flows"))
     assert serialized["secrets"] == []
-    assert serialized["labels"] == [socket.gethostname()]
-    assert serialized["add_default_labels"] == True
 
 
 def test_local_roundtrip():
@@ -250,8 +236,6 @@ def test_gcs_empty_serialize():
     assert serialized["bucket"]
     assert not serialized["key"]
     assert serialized["secrets"] == []
-    assert serialized["labels"] == ["gcs-flow-storage"]
-    assert serialized["add_default_labels"] == True
 
 
 def test_gcs_full_serialize():
@@ -271,8 +255,6 @@ def test_gcs_full_serialize():
     assert serialized["key"] == "key"
     assert serialized["project"] == "project"
     assert serialized["secrets"] == ["CREDS"]
-    assert serialized["labels"] == ["foo", "bar"]
-    assert serialized["add_default_labels"] == False
 
 
 def test_gcs_serialize_with_flows():
