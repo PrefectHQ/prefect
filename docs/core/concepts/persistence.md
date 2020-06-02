@@ -21,7 +21,7 @@ Input caching is an automatic caching. Prefect will automatically apply it whene
 
 Sometimes, it's desirable to cache the output of a task to avoid recomputing it in the future. Common examples of this pattern include expensive or time-consuming computations that are unlikely to change. In this case, users can indicate that a task should be cached for a certain duration or as long as certain conditions are met.
 
-This mechanism is sometimes called "Time Travel" because it makes results computed in one flow run available to other runs.
+Prefect even supports caching output by a a shared key, which can be accessed between flow runs. This mechanism is sometimes called "Time Travel" because it makes results computed in one flow run available to other runs.
 
 Output caching is controlled with three `Task` arguments: `cache_for`, `cache_validator` and `cache_key`.
 
@@ -65,7 +65,7 @@ class_task = MyTask(
 
 
 # create a task via the task decorator
-@task(checkpoint=True, result_handler=LocalResult(dir="~/.prefect"))
+@task(checkpoint=True, result=LocalResult(dir="~/.prefect"))
 def func_task():
     return 99
 ```
@@ -88,7 +88,7 @@ from prefect import task, Task
 
 
 # create a task via the task decorator
-@task(target="func_task_target.txt", checkpoint=True, result_handler=LocalResult(dir="~/.prefect"))
+@task(target="func_task_target.txt", checkpoint=True, result=LocalResult(dir="~/.prefect"))
 def func_task():
     return 99
 ```
@@ -102,7 +102,7 @@ from prefect import task, Task
 
 
 # create a task via the task decorator
-@task(target="{date:%A}/{task_name}.txt", checkpoint=True, result_handler=LocalResult(dir="~/.prefect"))
+@task(target="{date:%A}/{task_name}.txt", checkpoint=True, result=LocalResult(dir="~/.prefect"))
 def func_task():
     return 99
 ```
