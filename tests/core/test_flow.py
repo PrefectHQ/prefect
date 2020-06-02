@@ -1770,7 +1770,7 @@ class TestFlowRunMethod:
 
     def test_flow_dot_run_with_paused_states_hangs(self, monkeypatch):
         """
-        Tests that running a flow with a Paused state hangs forever... 
+        Tests that running a flow with a Paused state hangs forever...
         not recommended behavior but possible.
         https://github.com/PrefectHQ/prefect/issues/2615
         """
@@ -2880,6 +2880,30 @@ def test_results_write_to_formatted_locations(tmpdir):
         "0.txt",
         "1.txt",
         "3.txt",
+    }
+
+
+def test_results_write_to_custom_formatters(tmpdir):
+    result = LocalResult(dir=tmpdir, location="{map_index}-{x}-{param}.txt")
+
+    with Flow(
+        "results", result=result, tasks=[Parameter("param", default="book")]
+    ) as flow:
+
+        @task()
+        def return_x(x):
+            return x
+
+        vals = return_x.map(x=[1, 42, None, "string-type"])
+
+    with set_temporary_config({"flows.checkpointing": True}):
+        flow_state = flow.run()
+
+    assert flow_state.is_successful()
+    assert set(os.listdir(tmpdir)) == {
+        "0-1-book.txt",
+        "1-42-book.txt",
+        "3-string-type-book.txt",
     }
 
 
