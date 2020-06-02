@@ -80,8 +80,10 @@ class Result(ResultInterface):
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
             the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - location (str, optional): Possibly templated location to be used for saving the
-            result to the destination.
+        - location (Union[str, Callable], optional): Possibly templated location to be used for saving the
+            result to the destination. If a callable function is provided, it should have signature `callable(**kwargs) -> str`
+            and at write time all formatting kwargs will be passed and a fully formatted location is expected
+            as the return value.  Can be used for string formatting logic that `.format(**kwargs)` doesn't support
     """
 
     def __init__(
