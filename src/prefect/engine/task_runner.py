@@ -986,8 +986,8 @@ class TaskRunner(Runner):
                 result = self.result.write(
                     value,
                     filename="output",
-                    **raw_inputs,
                     **prefect.context.get("parameters", {}),
+                    **raw_inputs,
                     **prefect.context,
                 )
             except NotImplementedError:
