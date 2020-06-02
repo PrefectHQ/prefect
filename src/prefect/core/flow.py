@@ -571,8 +571,8 @@ class Flow:
         # TODO: Learn edges. Can lead to merging of merge params and disjoint
         #  - merge_p: removes duplicate parameters from input flow. FIFO
 
+        # remove_flow = self.copy()
         flow_task_lst = list(flow.tasks)
-        
         for task in flow_task_lst:
 
             # fl1_parameter = self.get_tasks(parameter.name, task_type=Parameter)
@@ -580,8 +580,6 @@ class Flow:
 
             # duped_param_list = list()
             if len(task1) > 0:
-
-
 
                 print(f"Duplicate Parameter {task1}")
                 duped_task = task1[0]
@@ -617,7 +615,7 @@ class Flow:
 
         This is useful in two cases:
         1. When two disparate flows can be run in one enviroment.
-        2. When one flow is dependent on a task in another flow with no data dependencies.
+        2. When one flow is dependent on another flow with no data dependencies.
 
         Args:
             - flow (Flow): A flow which is used to update this flow
@@ -632,7 +630,7 @@ class Flow:
 
             fl1_tsk = self.get_tasks(task.name)
 
-            # Check for duplicate tasks based on names
+            # Check for duplicate names
             if len(fl1_tsk) > 0:
 
                 duped_task = fl1_tsk[0]
@@ -658,6 +656,8 @@ class Flow:
                 )
 
         self.constants.update(flow.constants or {})
+
+        # self.update(flow, validate)
 
     def update(self, flow: "Flow", validate: bool = None) -> None:
         """
