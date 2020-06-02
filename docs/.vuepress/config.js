@@ -4,7 +4,7 @@ const sidebar107 = require('../api/0.10.7/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
