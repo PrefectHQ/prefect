@@ -1035,6 +1035,18 @@ class Flow:
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
+
+                # handle Paused states
+                for t, s in filter(
+                    lambda tup: isinstance(tup[1], prefect.engine.state.Paused),
+                    flow_state.result.items(),
+                ):
+                    approve = input(f"{t} is currently Paused; enter 'y' to resume:\n")
+                    if approve.strip().lower() == "y":
+                        flow_state.result[t] = prefect.engine.state.Resume(
+                            "Approval given to resume."
+                        )
+
                 earliest_start = min(
                     [
                         s.start_time

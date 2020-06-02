@@ -1,3 +1,0 @@
-enhancement:
-  - "Add flow run ID option to `get logs` CLI command - [#2671](https://github.com/PrefectHQ/prefect/pull/2671)"
-  - "Add ID to output of `get` command for `flows` and `flow-runs` - [#2671](https://github.com/PrefectHQ/prefect/pull/2671)"

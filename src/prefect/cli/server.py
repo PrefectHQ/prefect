@@ -11,7 +11,6 @@ import yaml
 import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
@@ -250,7 +249,6 @@ def start(
         or no_graphql_port
         or no_ui_port
         or no_server_port
-        or platform_is_linux()
         or not use_volume
     ):
         temp_dir = tempfile.gettempdir()
@@ -274,13 +272,6 @@ def start(
 
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
-
-            if platform_is_linux():
-                docker_internal_ip = get_docker_ip()
-                for service in list(y["services"]):
-                    y["services"][service]["extra_hosts"] = [
-                        "host.docker.internal:{}".format(docker_internal_ip)
-                    ]
 
             if not use_volume:
                 del y["services"]["postgres"]["volumes"]
