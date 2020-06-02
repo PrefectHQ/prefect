@@ -40,25 +40,18 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result (Result, optional): the result instance used to retrieve and store task results during execution;
-            if not provided, will default to the one on the provided Task
-        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
-            during execution (to be used on upstream inputs if they don't provide their own results)
+        - flow_result: the result instance configured for the flow (if any)
     """
 
     def __init__(
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result: Result = None,
-        default_result: Result = None,
+        flow_result: Result = None,
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task,
-            state_handlers=state_handlers,
-            result=result,
-            default_result=default_result,
+            task=task, state_handlers=state_handlers, flow_result=flow_result,
         )
 
     def _heartbeat(self) -> bool:

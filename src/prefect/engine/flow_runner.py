@@ -88,7 +88,6 @@ class FlowRunner(Runner):
         task_runner_cls: type = None,
         state_handlers: Iterable[Callable] = None,
     ):
-        self.context = prefect.context.to_dict()
         self.flow = flow
         if task_runner_cls is None:
             task_runner_cls = prefect.engine.get_default_task_runner_class()
@@ -461,10 +460,11 @@ class FlowRunner(Runner):
 
                     ## wait on upstream states to determine the width of the pipeline
                     ## this is the key to depth-first execution
-                    upstream_states.update(
-                        executor.wait(
-                            {e: state for e, state in upstream_states.items()}
-                        )
+                    upstream_states = executor.wait(
+                        {e: state for e, state in upstream_states.items()}
+                    )
+                    _set_upstream_states_map_states(
+                        upstream_states, upstream_mapped_states
                     )
 
                     ## we submit the task to the task runner to determine if
@@ -472,15 +472,16 @@ class FlowRunner(Runner):
                     ## state then we don't proceed
                     task_states[task] = executor.wait(
                         executor.submit(
-                            self.run_task,
+                            run_task,
                             task=task,
                             state=task_state,  # original state
                             upstream_states=upstream_states,
                             context=dict(
                                 prefect.context, **task_contexts.get(task, {})
                             ),
+                            flow_result=self.flow.result,
+                            task_runner_cls=self.task_runner_cls,
                             task_runner_state_handlers=task_runner_state_handlers,
-                            upstream_mapped_states=upstream_mapped_states,
                             is_mapped_parent=True,
                         )
                     )
@@ -512,7 +513,7 @@ class FlowRunner(Runner):
                         ## this is where each child is submitted for actual work
                         submitted_states.append(
                             executor.submit(
-                                self.run_task,
+                                run_task,
                                 task=task,
                                 state=current_state,
                                 upstream_states=states,
@@ -521,23 +522,27 @@ class FlowRunner(Runner):
                                     **task_contexts.get(task, {}),
                                     map_index=idx,
                                 ),
+                                flow_result=self.flow.result,
+                                task_runner_cls=self.task_runner_cls,
                                 task_runner_state_handlers=task_runner_state_handlers,
-                                upstream_mapped_states=upstream_mapped_states,
                             )
                         )
                     if isinstance(task_states.get(task), Mapped):
                         mapped_children[task] = submitted_states  # type: ignore
 
-                # -- run the task
                 else:
+                    _set_upstream_states_map_states(
+                        upstream_states, upstream_mapped_states
+                    )
                     task_states[task] = executor.submit(
-                        self.run_task,
+                        run_task,
                         task=task,
                         state=task_state,
                         upstream_states=upstream_states,
                         context=dict(prefect.context, **task_contexts.get(task, {})),
+                        flow_result=self.flow.result,
+                        task_runner_cls=self.task_runner_cls,
                         task_runner_state_handlers=task_runner_state_handlers,
-                        upstream_mapped_states=upstream_mapped_states,
                     )
 
             # ---------------------------------------------
@@ -630,66 +635,56 @@ class FlowRunner(Runner):
 
         return state
 
-    def run_task(
-        self,
-        task: Task,
-        state: State,
-        upstream_states: Dict[Edge, State],
-        context: Dict[str, Any],
-        task_runner_state_handlers: Iterable[Callable],
-        is_mapped_parent: bool = False,
-        upstream_mapped_states: Dict[Edge, list] = None,
-    ) -> State:
-        """
 
-        Runs a specific task. This method is intended to be called by submitting it to
-        an executor.
-
-        Args:
-            - task (Task): the task to run
-            - state (State): starting state for the Flow. Defaults to
-                `Pending`
-            - upstream_states (Dict[Edge, State]): dictionary of upstream states
-            - context (Dict[str, Any]): a context dictionary for the task run
-            - task_runner_state_handlers (Iterable[Callable]): A list of state change
-                handlers that will be provided to the task_runner, and called whenever a task changes
-                state.
-            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
-                mapped task
-            - upstream_mapped_states (Dict[Edge, list]): dictionary of upstream states corresponding to
-                mapped children dependencies
-
-        Returns:
-            - State: `State` representing the final post-run state of the `Flow`.
-
-        """
-        upstream_mapped_states = upstream_mapped_states or {}
-
-        with prefect.context(self.context):
-            default_result = task.result or self.flow.result
-            task_runner = self.task_runner_cls(
-                task=task,
-                state_handlers=task_runner_state_handlers,
-                result=default_result or Result(),
-                default_result=self.flow.result,
+def _set_upstream_states_map_states(upstream_states, upstream_mapped_states):
+    # TODO: this is gross
+    for edge, upstream_state in upstream_states.items():
+        if not edge.mapped and upstream_state.is_mapped():
+            assert isinstance(upstream_state, Mapped)  # mypy assert
+            upstream_state.map_states = upstream_mapped_states.get(
+                edge, upstream_state.map_states
             )
+            upstream_state.result = [s.result for s in upstream_state.map_states]
 
-            # if this task reduces over a mapped state, make sure its children have finished
-            for edge, upstream_state in upstream_states.items():
 
-                # if the upstream state is Mapped, wait until its results are all available
-                if not edge.mapped and upstream_state.is_mapped():
-                    assert isinstance(upstream_state, Mapped)  # mypy assert
-                    upstream_state.map_states = upstream_mapped_states.get(
-                        edge, upstream_state.map_states
-                    )
-                    upstream_state.result = [
-                        s.result for s in upstream_state.map_states
-                    ]
+def run_task(
+    task: Task,
+    state: State,
+    upstream_states: Dict[Edge, State],
+    context: Dict[str, Any],
+    flow_result: Result,
+    task_runner_cls: Callable,
+    task_runner_state_handlers: Iterable[Callable],
+    is_mapped_parent: bool = False,
+) -> State:
+    """
+    Runs a specific task. This method is intended to be called by submitting it to
+    an executor.
 
-            return task_runner.run(
-                state=state,
-                upstream_states=upstream_states,
-                context=context,
-                is_mapped_parent=is_mapped_parent,
-            )
+    Args:
+        - task (Task): the task to run
+        - state (State): starting state for the Flow. Defaults to `Pending`
+        - task_runner_cls (Callable): the `TaskRunner` class to use
+        - upstream_states (Dict[Edge, State]): dictionary of upstream states
+        - context (Dict[str, Any]): a context dictionary for the task run
+        - flow_result (Result): the `Result` associated with the flow (if any)
+        - task_runner_state_handlers (Iterable[Callable]): A list of state change
+            handlers that will be provided to the task_runner, and called whenever a task changes
+            state.
+        - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+            mapped task
+
+    Returns:
+        - State: `State` representing the final post-run state of the `Flow`.
+    """
+    with prefect.context(context):
+        task_runner = task_runner_cls(
+            task=task,
+            state_handlers=task_runner_state_handlers,
+            flow_result=flow_result,
+        )
+        return task_runner.run(
+            state=state,
+            upstream_states=upstream_states,
+            is_mapped_parent=is_mapped_parent,
+        )
