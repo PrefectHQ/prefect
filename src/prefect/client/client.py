@@ -239,7 +239,7 @@ class Client:
             self.logger.debug(f"Preparing request to {url}")
             clean_headers = {
                 head: re.sub("Bearer .*", "Bearer XXXX", val)
-                for head, val in headers.items()
+                for head, val in headers.items()  # type: ignore
             }
             self.logger.debug(f"Headers: {clean_headers}")
             self.logger.debug(f"Request: {params}")
