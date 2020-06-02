@@ -1221,6 +1221,21 @@ class TestRunTaskStep:
         assert new_state.is_successful()
         assert new_state._result.location.endswith("12.txt")
 
+    def test_result_formatting_with_templated_inputs(self, tmpdir):
+        result = LocalResult(dir=tmpdir, location="{x}.txt")
+
+        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        def fn(x):
+            return x + 1
+
+        edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state._result.location.endswith("2.txt")
+
     @pytest.mark.parametrize("checkpoint", [True, None])
     def test_success_state_with_checkpointing_in_context(self, checkpoint):
         @prefect.task(checkpoint=checkpoint, result=PrefectResult())
