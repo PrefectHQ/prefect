@@ -983,12 +983,15 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
+                formatting_kwargs = prefect.context.get("parameters", {}).copy()
+                formatting_kwargs.update(
+                    raw_inputs
+                )  # inputs take precedence over flow-level parameters
+                formatting_kwargs.update(
+                    prefect.context
+                )  # context has ultimate precedence
                 result = self.result.write(
-                    value,
-                    filename="output",
-                    **prefect.context.get("parameters", {}),
-                    **raw_inputs,
-                    **prefect.context,
+                    value, filename="output", **formatting_kwargs,
                 )
             except NotImplementedError:
                 result = self.result.from_value(value=value)
