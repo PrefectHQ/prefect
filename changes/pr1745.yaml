@@ -1,0 +1,6 @@
+enhancement:
+  - "Method to form a disjoint union of two flows.  A step to address chaining, joining, and merging flows  - [#1745](https://github.com/PrefectHQ/prefect/issues/1745)"
+breaking:
+  - None 
+contributor:
+  - "[Itay Livni](https://github.com/gryBox)"
