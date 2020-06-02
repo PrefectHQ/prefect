@@ -415,6 +415,19 @@ class Task(metaclass=SignatureValidator):
 
         return new
 
+    @property
+    def __signature__(self) -> inspect.Signature:
+        """Dynamically generate the signature, replacing ``*args``/``**kwargs``
+        with parameters from ``run``"""
+        if not hasattr(self, "_cached_signature"):
+            sig = inspect.Signature.from_callable(self.run)
+            parameters = list(sig.parameters.values())
+            parameters.extend(EXTRA_CALL_PARAMETERS)
+            self._cached_signature = inspect.Signature(
+                parameters=parameters, return_annotation="Task"
+            )
+        return self._cached_signature
+
     def __call__(
         self,
         *args: Any,
@@ -1170,3 +1183,12 @@ class Parameter(Task):
             - dict representing this parameter
         """
         return prefect.serialization.task.ParameterSchema().dump(self)
+
+
+# All keyword-only arguments to Task.__call__, used for dynamically generating
+# Signature objects for Task objects
+EXTRA_CALL_PARAMETERS = [
+    p
+    for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
+    if p.kind == inspect.Parameter.KEYWORD_ONLY
+]

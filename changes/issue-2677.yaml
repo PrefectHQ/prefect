@@ -1,2 +1,0 @@
-fix:
-  - "Don't warn about unused tasks defined inline and copied - [#2677](https://github.com/PrefectHQ/prefect/issues/2677)"

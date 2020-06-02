@@ -1250,24 +1250,6 @@ class TestMapping:
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True
     )
-    def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
-
-        with Flow(name="test") as flow:
-            res = ReturnTask().map([1, 1])
-
-        state = FlowRunner(flow=flow).run(
-            return_tasks=[res],
-            executor=executor,
-            task_states={res: Mapped(map_states=[Success(result=100)])},
-        )
-        assert state.is_failed()
-        assert state.result[res].map_states[0].is_successful()
-        assert state.result[res].map_states[0].result == 100
-        assert state.result[res].map_states[1].is_failed()
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
-    )
     def test_mapped_tasks_dont_run_if_upstream_pending(self, executor):
 
         with Flow(name="test") as flow:
@@ -1591,8 +1573,8 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [100] * 10
 
-    ## only add task was submitted; the list task is a constant
-    assert len(calls) == 1
+    ## the add task was submitted 11 times: one for the parent and 10 times for each child
+    assert len(calls) == 11
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0

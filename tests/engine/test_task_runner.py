@@ -278,7 +278,8 @@ def test_task_runner_does_not_raise_on_exception_when_endrun_raised_by_mapping()
     """after mapping, an ENDRUN is raised"""
     with raise_on_exception():
         state = TaskRunner(Task()).run(
-            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])}
+            upstream_states={Edge(1, 2, mapped=True): Success(result=[1])},
+            is_mapped_parent=True,
         )
     assert state.is_mapped()
 
@@ -304,10 +305,7 @@ def test_task_runner_accepts_dictionary_of_edges():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_timeout_actually_stops_execution(executor):
+def test_timeout_actually_stops_execution():
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -336,7 +334,7 @@ def test_timeout_actually_stops_execution(executor):
         assert not os.path.exists(FILE)
 
         start_time = time()
-        state = TaskRunner(slow_fn).run(executor=executor)
+        state = TaskRunner(slow_fn).run()
         stop_time = time()
         sleep(max(0, 3 - (stop_time - start_time)))
 
@@ -1027,17 +1025,13 @@ class TestSetTaskRunning:
 class TestRunTaskStep:
     def test_running_state(self):
         state = Running()
-        new_state = TaskRunner(task=Task()).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=Task()).get_task_run_state(state=state, inputs={})
         assert new_state.is_successful()
 
     @pytest.mark.parametrize("state", [Pending(), Cached(), Success(), Skipped()])
     def test_not_running_state(self, state):
         with pytest.raises(ENDRUN):
-            TaskRunner(task=Task()).get_task_run_state(
-                state=state, inputs={}, timeout_handler=None
-            )
+            TaskRunner(task=Task()).get_task_run_state(state=state, inputs={})
 
     def test_raise_success_signal(self):
         @prefect.task
@@ -1045,9 +1039,7 @@ class TestRunTaskStep:
             raise signals.SUCCESS()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={})
         assert new_state.is_successful()
 
     def test_raise_fail_signal(self):
@@ -1056,9 +1048,7 @@ class TestRunTaskStep:
             raise signals.FAIL()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_failed()
 
     def test_raise_loop_signal(self):
@@ -1067,9 +1057,7 @@ class TestRunTaskStep:
             raise signals.LOOP(result=1)
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_looped()
         assert new_state.result == 1
         assert new_state.loop_count == 1
@@ -1081,9 +1069,7 @@ class TestRunTaskStep:
             raise signals.LOOP(message="My message")
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_looped()
         assert "LOOP" in new_state.result
         assert new_state.loop_count == 1
@@ -1095,9 +1081,7 @@ class TestRunTaskStep:
             raise signals.SKIP()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert isinstance(new_state, Skipped)
 
     def test_raise_pause_signal(self):
@@ -1106,9 +1090,7 @@ class TestRunTaskStep:
             raise signals.PAUSE()
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert isinstance(new_state, Paused)
 
     def test_run_with_error(self):
@@ -1117,9 +1099,7 @@ class TestRunTaskStep:
             1 / 0
 
         state = Running()
-        new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={}, timeout_handler=None
-        )
+        new_state = TaskRunner(task=fn).get_task_run_state(state=state, inputs={},)
         assert new_state.is_failed()
         assert isinstance(new_state.result, ZeroDivisionError)
 
@@ -1130,7 +1110,7 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"x": Result(1)}, timeout_handler=None
+            state=state, inputs={"x": Result(1)},
         )
         assert new_state.is_successful()
         assert new_state.result == 2
@@ -1142,24 +1122,20 @@ class TestRunTaskStep:
 
         state = Running()
         new_state = TaskRunner(task=fn).get_task_run_state(
-            state=state, inputs={"y": Result(1)}, timeout_handler=None
+            state=state, inputs={"y": Result(1)},
         )
         assert new_state.is_failed()
 
     def test_returns_success_with_hydrated_result_obj(self):
         runner = TaskRunner(task=Task())
-        state = runner.get_task_run_state(
-            state=Running(), inputs={}, timeout_handler=None
-        )
+        state = runner.get_task_run_state(state=Running(), inputs={},)
         assert state.is_successful()
         assert isinstance(state._result, Result)
         assert state._result == Result(value=None)
 
     def test_returns_success_with_correct_result_type(self):
         runner = TaskRunner(task=Task(result=PrefectResult()))
-        state = runner.get_task_run_state(
-            state=Running(), inputs={}, timeout_handler=None
-        )
+        state = runner.get_task_run_state(state=Running(), inputs={},)
         assert state.is_successful()
         assert isinstance(state._result, PrefectResult)
 
@@ -1170,7 +1146,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
@@ -1244,7 +1220,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(2)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(2)},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "3"
@@ -1258,14 +1234,14 @@ class TestRunTaskStep:
         ## checkpointing allows users to toggle behavior for local testing
         with prefect.context(checkpointing=False):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location is None
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "1"
@@ -1274,7 +1250,7 @@ class TestRunTaskStep:
         p = prefect.Parameter("p", default=2)
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=p).get_task_run_state(
-                state=Running(), inputs={}, timeout_handler=None
+                state=Running(), inputs={},
             )
         assert new_state.is_successful()
         assert new_state._result.location == "2"
@@ -1294,7 +1270,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_failed()
         assert "SyntaxError" in new_state.message
@@ -1313,7 +1289,7 @@ class TestRunTaskStep:
 
         with prefect.context(checkpointing=True):
             new_state = TaskRunner(task=fn).get_task_run_state(
-                state=Running(), inputs={"x": Result(1)}, timeout_handler=None
+                state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
 
@@ -1728,17 +1704,17 @@ class TestTaskRunnerStateHandlers:
         assert isinstance(state, TriggerFailed)
         assert task_runner_handler.call_count == 1
 
-    def test_task_runner_handlers_are_called_on_mapped(self):
+    def test_task_runner_handlers_are_called_on_mapped_parent(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
 
         runner = TaskRunner(task=Task(), state_handlers=[task_runner_handler])
         state = runner.run(
-            upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+            upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
+            is_mapped_parent=True,
         )
-        # the parent task changed state two times: Pending -> Mapped -> Mapped
-        # the child task changed state one time: Pending -> Running -> Success
+        # the parent task changed state one time: Pending -> Mapped
         assert isinstance(state, Mapped)
-        assert task_runner_handler.call_count == 4
+        assert task_runner_handler.call_count == 1
 
     def test_multiple_task_runner_handlers_are_called(self):
         task_runner_handler = MagicMock(side_effect=lambda t, o, n: n)
@@ -1786,104 +1762,34 @@ class TestTaskRunnerStateHandlers:
         assert state.is_failed()
 
 
-class TestRunMappedStep:
-    def test_run_mapped_with_empty_upstream_states(self):
-        """
-        Ensure infinite loop is avoided
-        """
-        state = TaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
-            upstream_states={},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-
+class TestCheckTaskReadyToMapStep:
     @pytest.mark.parametrize("state", [Pending(), Mapped(), Scheduled()])
     def test_run_mapped_returns_mapped(self, state):
-        state = TaskRunner(task=Task()).run_mapped_task(
-            state=state,
-            upstream_states={},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-        assert state.is_mapped()
-
-    def test_run_mapped_preserves_result_objects(self):
-        @prefect.task(cache_for=timedelta(minutes=10))
-        def tt(foo):
-            pass
-
-        with prefect.context(checkpointing=True, caches={}):
-            state = TaskRunner(task=tt).run_mapped_task(
-                state=Pending(),
-                upstream_states={
-                    Edge(Task(), tt, key="foo", mapped=True): Success(
-                        result=Result([1, 2], result_handler=JSONResultHandler())
-                    )
-                },
-                context={},
-                executor=prefect.engine.executors.LocalExecutor(),
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=state, upstream_states={},
             )
-        assert state.is_mapped()
+        assert exc.value.state.is_mapped()
 
-        one, two = state.map_states
-        assert one.cached_inputs["foo"] == Result(1, result_handler=JSONResultHandler())
-        assert two.cached_inputs["foo"] == Result(2, result_handler=JSONResultHandler())
-
-    def test_run_mapped_preserves_context(self):
-        @prefect.task
-        def ctx():
-            return prefect.context.get("special_thing")
-
-        with prefect.context(special_thing="FOOBARRR"):
-            runner = TaskRunner(task=ctx)
-
-        state = runner.run_mapped_task(
-            state=Pending(),
-            upstream_states={Edge(Task(), ctx, mapped=True): Success(result=[1, 2])},
-            context={},
-            executor=prefect.engine.executors.LocalExecutor(),
-        )
-        assert state.is_mapped()
-        assert [s.result for s in state.map_states] == ["FOOBARRR"] * 2
+    def test_run_mapped_returns_failed_if_no_success_upstream(self):
+        with pytest.raises(ENDRUN) as exc:
+            TaskRunner(task=Task()).check_task_ready_to_map(
+                state=Pending(),
+                upstream_states={Edge(Task(), Task(), mapped=True): Failed()},
+            )
+        assert exc.value.state.is_failed()
 
 
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_performs_mapping(executor):
-    add = AddTask()
-    ex = Edge(SuccessTask(), add, key="x")
-    ey = Edge(ListTask(), add, key="y", mapped=True)
-    runner = TaskRunner(add)
-    with executor.start():
-        res = runner.run(
-            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-            executor=executor,
-        )
-        res.map_states = executor.wait(res.map_states)
-    assert isinstance(res, Mapped)
-    assert [s.result for s in res.map_states] == [2, 3, 4]
-
-
-@pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
-)
-def test_task_runner_skips_upstream_check_for_parent_mapped_task_but_not_children(
-    executor,
-):
+def test_task_runner_skips_upstream_check_for_parent_mapped_task():
     add = AddTask(trigger=prefect.triggers.all_failed)
     ex = Edge(SuccessTask(), add, key="x")
     ey = Edge(ListTask(), add, key="y", mapped=True)
     runner = TaskRunner(add)
-    with executor.start():
-        res = runner.run(
-            upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
-            executor=executor,
-        )
-        res.map_states = executor.wait(res.map_states)
-    assert isinstance(res, Mapped)
-    assert all([isinstance(s, TriggerFailed) for s in res.map_states])
+    res = runner.run(
+        upstream_states={ex: Success(result=1), ey: Success(result=[1, 2, 3])},
+        is_mapped_parent=True,
+    )
+    assert res.is_mapped()
 
 
 def test_task_runner_converts_pause_signal_to_paused_state_for_manual_only_triggers():
@@ -1935,13 +1841,10 @@ def test_mapped_tasks_parents_and_children_respond_to_individual_triggers():
         state_handlers=[task_runner_handler],
     )
     state = runner.run(
-        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])}
+        upstream_states={Edge(Task(), Task(), mapped=True): Success(result=[1])},
+        is_mapped_parent=True,
     )
-    # the parent task changed state two times: Pending -> Mapped -> Mapped
-    # the child task changed state one time: Pending -> TriggerFailed
-    assert isinstance(state, Mapped)
-    assert task_runner_handler.call_count == 3
-    assert isinstance(state.map_states[0], TriggerFailed)
+    assert state.is_mapped()
 
 
 def test_retry_has_updated_metadata():
@@ -2157,43 +2060,6 @@ class TestLooping:
         state = runner.run(state=state)
         assert state.is_successful()
         assert state.result == 2
-
-    def test_looping_works_with_mapping(self):
-        @prefect.task
-        def my_task(i):
-            if prefect.context.get("task_loop_count", 1) < 3:
-                raise signals.LOOP(
-                    result=prefect.context.get("task_loop_result", i) + 3
-                )
-            return prefect.context.get("task_loop_result")
-
-        runner = TaskRunner(my_task)
-        state = runner.run(
-            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
-        )
-
-        assert state.is_mapped()
-        assert [s.result for s in state.map_states] == [7, 26]
-
-    def test_looping_works_with_mapping_and_individual_retries(self):
-        @prefect.task(max_retries=1, retry_delay=timedelta(seconds=0))
-        def my_task(i):
-            if prefect.context.get("task_loop_result") == 4:
-                raise ValueError("Can't do 4")
-            if prefect.context.get("task_loop_count", 1) < 3:
-                raise signals.LOOP(
-                    result=prefect.context.get("task_loop_result", i) + 3
-                )
-            return prefect.context.get("task_loop_result")
-
-        runner = TaskRunner(my_task)
-        state = runner.run(
-            upstream_states={Edge(1, 2, key="i", mapped=True): Success(result=[1, 20])}
-        )
-
-        assert state.is_mapped()
-        state.map_states[0].is_retrying()
-        state.map_states[1].is_successful()
 
 
 def test_failure_caches_inputs():
