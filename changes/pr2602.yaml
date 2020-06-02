@@ -1,0 +1,3 @@
+enhancement:
+  - "Task instances define a `__signature__` attribute, for improved introspection and tab-completion - [#2602](https://github.com/PrefectHQ/prefect/pull/2602)"
+  - "Tasks created with `@task` forward the wrapped function's docstring - [#2602](https://github.com/PrefectHQ/prefect/pull/2602)"

@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue with instantiating LocalResult on Windows with dir from other drive - [#2683](https://github.com/PrefectHQ/prefect/issues/2683)"
