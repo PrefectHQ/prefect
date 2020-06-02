@@ -75,6 +75,7 @@ def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     assert storage.prefect_version
     assert storage.base_url == url
     assert storage.tls_config == False
+    assert storage.build_kwargs == {}
     assert not storage.local_image
     assert not storage.ignore_healthchecks
 
@@ -142,6 +143,7 @@ def test_initialized_docker_storage(no_docker_host_var):
         tls_config={"tls": "here"},
         prefect_version="my-branch",
         local_image=True,
+        build_kwargs={"nocache": True},
     )
 
     assert storage.registry_url == "test1"
@@ -155,6 +157,7 @@ def test_initialized_docker_storage(no_docker_host_var):
     }
     assert storage.base_url == "test_url"
     assert storage.tls_config == {"tls": "here"}
+    assert storage.build_kwargs == {"nocache": True}
     assert storage.prefect_version == "my-branch"
     assert storage.local_image
 
