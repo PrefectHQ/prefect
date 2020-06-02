@@ -88,7 +88,6 @@ class DaskExecutor(Executor):
     ```python
     executor = DaskExecutor(address="192.0.2.255:8786")
     ```
->>>>>>> master
     """
 
     def __init__(
