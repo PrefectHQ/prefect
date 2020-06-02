@@ -1,0 +1,5 @@
+feature:
+  - "Add a Dask Gateway environment - [#2687](https://github.com/PrefectHQ/prefect/pull/2687)"
+
+contributor:
+  - "[Thomas La Piana](https://github.com/ThomasLaPiana)"
