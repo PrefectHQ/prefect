@@ -72,8 +72,8 @@ class DaskGatewayEnvironment(RemoteDaskEnvironment):
     ) -> None:
         self._gateway_address = gateway_address
         self._auth = auth
-        self._adaptive_min_workers = adaptive_min_workers
-        self._adaptive_max_workers = adaptive_max_workers
+        self._adaptive_min_workers = adaptive_min_workers or 1
+        self._adaptive_max_workers = adaptive_max_workers or self._adaptive_min_workers
         self._image = image
         self._on_execute = on_execute
         self.cluster = None
