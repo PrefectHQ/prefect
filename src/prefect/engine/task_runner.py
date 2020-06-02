@@ -619,7 +619,6 @@ class TaskRunner(Runner):
 
         """
         task_inputs = {}  # type: Dict[str, Result]
-        results = {}  # type: Dict[str, Result]
 
         for edge, upstream_state in upstream_states.items():
             # construct task inputs

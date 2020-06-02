@@ -36,6 +36,10 @@ Released on {date}.
 
 {task}
 
+### Server
+
+{server}
+
 ### Fixes
 
 {fix}

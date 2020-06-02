@@ -17,8 +17,8 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.runner
     import prefect.engine.state
-    from prefect.core.edge import Edge
-    from prefect.core.task import Task
+    from prefect.core.edge import Edge  # pylint: disable=W0611
+    from prefect.core.task import Task  # pylint: disable=W0611
     from prefect.engine.state import State  # pylint: disable=W0611
 
 StateList = Union["State", List["State"]]

@@ -118,6 +118,8 @@ with Flow("Dask Cloud Provider Test") as flow:
     y = times_two.map(x)
     results = get_sum(y)
 
+# cluser.scheduler.address is the private ip 
+# use cluster.scheduler_address if connecting on the public ip
 flow.run(executor=DaskExecutor(cluster.scheduler.address),
          parameters={"x": list(range(10))})
 

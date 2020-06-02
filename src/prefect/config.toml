@@ -139,11 +139,11 @@ checkpointing = false
     default_class = "prefect.engine.executors.LocalExecutor"
 
         [engine.executor.dask]
-        # the default scheduler address for the DaskExecutor. Set to "local" to configure
-        # a LocalCluster
-        address = "local"
-        # whether to use multiprocessing or not (only applied if address is "local")
-        local_processes = false
+        # the default scheduler address for the DaskExecutor.
+        address = ""
+
+        # the default Cluster class to use to create a temporary dask cluster
+        cluster_class = "distributed.deploy.local.LocalCluster"
 
     [engine.flow_runner]
     # the default flow runner, specified using a full path
