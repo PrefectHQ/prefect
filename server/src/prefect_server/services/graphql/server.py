@@ -10,7 +10,7 @@ from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 
 import prefect_server
 from prefect_server.utilities.graphql import mutation, query
@@ -44,8 +44,8 @@ app_version = os.environ.get("SERVER_VERSION") or "UNKNOWN"
 
 
 @app.route("/health", methods=["GET"])
-def health(request: Request) -> UJSONResponse:
-    return UJSONResponse(dict(status="ok", version=app_version))
+def health(request: Request) -> JSONResponse:
+    return JSONResponse(dict(status="ok", version=app_version))
 
 
 if __name__ == "__main__":
