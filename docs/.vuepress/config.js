@@ -4,7 +4,7 @@ const sidebar107 = require('../api/0.10.7/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -198,6 +198,7 @@ module.exports = {
             'execution/remote_environment',
             'execution/remote_dask_environment',
             'execution/dask_cloud_provider_environment',
+            'execution/dask_gateway_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
             'execution/fargate_task_environment',
