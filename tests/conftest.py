@@ -60,7 +60,7 @@ def sync():
 def mproc():
     "Multi-processing executor"
     with Client(processes=True) as client:
-        yield DaskExecutor(client.scheduler.address, local_processes=True)
+        yield DaskExecutor(client.scheduler.address)
         try:
             client.shutdown()
         except:
