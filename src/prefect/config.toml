@@ -115,7 +115,8 @@ checkpointing = false
 
     [flows.defaults]
         [flows.defaults.storage]
-
+        # Whether to inclu
+        add_default_labels = true
         # the default storage class, specified using a full path
         default_class = "prefect.environments.storage.Local"
 

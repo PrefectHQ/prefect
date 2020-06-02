@@ -5,6 +5,7 @@ import pytest
 
 import prefect
 from prefect.environments.storage import Storage
+from prefect.utilities.configuration import set_temporary_config
 
 
 @pytest.fixture
@@ -63,3 +64,19 @@ class TestStorageLabels:
 
     def test_no_default_labels(self, inst):
         assert inst.default_labels == []
+
+    @pytest.mark.parametrize("flag", [True, False])
+    def test_uses_provided_default_label_flag(self, sub, flag: bool):
+        inst = sub(add_default_labels=flag)
+        assert inst.add_default_labels == flag
+
+    @pytest.mark.parametrize("config_value", [True, "test", "hello, world!"])
+    def test_uses_config_value_if_not_provided(self, sub, config_value):
+        with set_temporary_config(
+            {"flows.defaults.storage.add_default_labels": config_value}
+        ):
+            inst = sub()
+            assert inst.add_default_labels == config_value
+
+    def test_add_default_labels_default_true(self, inst):
+        assert inst.add_default_labels == True
