@@ -97,7 +97,12 @@ class Result(ResultInterface):
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        self.location = location
+        if isinstance(location, (str, type(None))):
+            self.location = location
+            self._formatter = None
+        else:
+            self._formatter = location
+            self.location = None
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -207,9 +212,11 @@ class Result(ResultInterface):
             - Result: a new result instance with the appropriately formatted location
         """
         new = self.copy()
-        if new.location is not None:
+        if isinstance(new.location, str):
             assert new.location is not None
             new.location = new.location.format(**kwargs)
+        elif new._formatter is not None:
+            new.location = new._formatter(**kwargs)
         else:
             new.location = new.default_location
         return new

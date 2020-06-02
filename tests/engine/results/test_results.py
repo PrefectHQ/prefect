@@ -151,14 +151,14 @@ class TestLocalResult:
     def test_local_result_writes_using_rendered_template_name(self, tmp_dir):
         result = LocalResult(dir=tmp_dir, location="{thing}.txt")
         new_result = result.write("so-much-data", thing=42)
-        assert new_result.location == "42.txt"
+        assert new_result.location.endswith("42.txt")
         assert new_result.value == "so-much-data"
 
     def test_local_result_creates_necessary_dirs(self, tmp_dir):
         os_independent_template = os.path.join("mydir", "mysubdir", "{thing}.txt")
         result = LocalResult(dir=tmp_dir, location=os_independent_template)
         new_result = result.write("so-much-data", thing=42)
-        assert new_result.location == os.path.join("mydir", "mysubdir", "42.txt")
+        assert new_result.location.endswith(os.path.join("mydir", "mysubdir", "42.txt"))
         assert new_result.value == "so-much-data"
 
     def test_local_result_cleverly_redirects_prefect_defaults(self):
@@ -170,7 +170,7 @@ class TestLocalResult:
         result = LocalResult(dir=tmp_dir, location="test.txt")
         fpath = result.write(res).location
         assert isinstance(fpath, str)
-        assert fpath == "test.txt"
+        assert fpath.endswith("test.txt")
 
         with open(os.path.join(tmp_dir, fpath), "rb") as f:
             val = f.read()
@@ -204,3 +204,17 @@ class TestLocalResult:
     def test_local_init_with_different_drive_works_on_windows(self):
         result = LocalResult(dir="E:/location", validate_dir=False)
         assert result.dir == "E:/location"
+
+
+class TestResultFormatting:
+    def test_result_accepts_callable_for_location(self, tmpdir):
+        result = LocalResult(dir=tmpdir, location=lambda **kwargs: "special_val")
+        assert result.location is None
+        new_result = result.format()
+        assert new_result.location.endswith("special_val")
+
+    def test_result_callable_accepts_kwargs(self, tmpdir):
+        result = LocalResult(dir=tmpdir, location=lambda **kwargs: kwargs["key"])
+        assert result.location is None
+        new_result = result.format(key="42")
+        assert new_result.location.endswith("42")
