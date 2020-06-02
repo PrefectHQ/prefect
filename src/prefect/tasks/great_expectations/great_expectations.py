@@ -10,9 +10,23 @@ except ImportError:
 
 
 class RunGreatExpectationsCheckpoint(Task):
-    def __init__(self, checkpoint_name: str = None,
-    context_root_dir: str = None,
-    runtime_environment: dict = {}, **kwargs):
+    """
+    Task for running a Great Expectations checkpoint. For this task to run properly, it must be run above your great_expectations directory 
+    or configured with the `context_root_dir` for your great_expectations directory on the local file system of the worker process.
+
+    Args:
+        - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
+        - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
+        - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+    """
+
+    def __init__(
+        self,
+        checkpoint_name: str = None,
+        context_root_dir: str = None,
+        runtime_environment: dict = {},
+        **kwargs
+    ):
         self.checkpoint_name = checkpoint_name
         self.context_root_dir = context_root_dir
         self.runtime_environment = runtime_environment
@@ -20,16 +34,33 @@ class RunGreatExpectationsCheckpoint(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("checkpoint_name", "context_root_dir", "runtime_environment")
-    def run(self, checkpoint_name: str = None,
-     context_root_dir: str = None,
-    runtime_environment: dict = {},
-    **kwargs):
+    def run(
+        self,
+        checkpoint_name: str = None,
+        context_root_dir: str = None,
+        runtime_environment: dict = {},
+        **kwargs
+    ):
+        """
+        Task run method.
 
+        Args:
+            - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
+            - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
+            - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+
+        Raises:
+            - 'signals.VALIDATIONFAIL' if the validation was not a success
+        Returns:
+            - result (dict): The result metadata dictionary representing the validation operation
+
+        """
         if checkpoint_name is None:
-            raise ValueError('You must provide the checkpoint name.')
-        
-        context = ge.DataContext(context_root_dir=context_root_dir,
-        runtime_environment=runtime_environment)
+            raise ValueError("You must provide the checkpoint name.")
+
+        context = ge.DataContext(
+            context_root_dir=context_root_dir, runtime_environment=runtime_environment
+        )
         checkpoint = context.get_checkpoint(checkpoint_name)
 
         batches_to_validate = []
@@ -43,8 +74,10 @@ class RunGreatExpectationsCheckpoint(Task):
         results = context.run_validation_operator(
             checkpoint["validation_operator_name"],
             assets_to_validate=batches_to_validate,
-            run_id=prefect.context.get('task_id')
+            run_id=prefect.context.get("task_id"),
         )
 
-        if not results['success']:
-            raise signals.VALIDATIONFAIL
+        if not results["success"]:
+            raise signals.VALIDATIONFAIL(result=results)
+
+        return results
