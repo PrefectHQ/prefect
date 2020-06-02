@@ -236,37 +236,6 @@ def test_server_start_disable_port_mapping(monkeypatch, macos_platform):
     assert check_output.call_args[1].get("env")
 
 
-def test_server_start_linux_host(monkeypatch, linux_platform):
-    popen = MagicMock(side_effect=KeyboardInterrupt())
-    check_output = MagicMock()
-    monkeypatch.setattr("subprocess.Popen", popen)
-    monkeypatch.setattr("subprocess.check_output", check_output)
-
-    sys_platform = MagicMock()
-    sys_platform.return_value = "linux"
-    monkeypatch.setattr("sys.platform", sys_platform)
-
-    get_docker_ip = MagicMock()
-    get_docker_ip.return_value = "172.17.0.1"
-    monkeypatch.setattr("prefect.cli.server.get_docker_ip", get_docker_ip)
-
-    yaml_dump = MagicMock()
-    monkeypatch.setattr("yaml.safe_dump", yaml_dump)
-
-    runner = CliRunner()
-    result = runner.invoke(server, ["start", "--skip-pull",],)
-    assert result.exit_code == 1
-
-    assert popen.called
-    assert check_output.called
-
-    call_arg = yaml_dump.call_args[0][0]
-    for svc in ("postgres", "hasura", "graphql", "apollo", "scheduler", "ui"):
-        assert call_arg["services"][svc]["extra_hosts"] == [
-            "host.docker.internal:172.17.0.1"
-        ]
-
-
 def test_server_start_volume_options(monkeypatch, macos_platform):
     check_call = MagicMock()
     popen = MagicMock(side_effect=KeyboardInterrupt())
