@@ -571,8 +571,105 @@ class Flow:
                 )
             )
         return edges
+    
+  
+    def merge_params(self, flow: "Flow", validate: bool = True) -> None:
+        # TODO: Learn edges. Can lead to merging of merge params and disjoint
+        #  - merge_p: removes duplicate parameters from input flow. FIFO 
 
-    def update(self, flow: "Flow", validate: bool = None, method: str = None) -> None:
+        #remove_flow = self.copy()
+        flow_task_lst = list(flow.tasks)
+        for task in flow_task_lst:
+ 
+            # fl1_parameter = self.get_tasks(parameter.name, task_type=Parameter)
+            task1 = self.get_tasks(name=task.name)
+            
+            #duped_param_list = list()
+            if len(task1)>0:
+                
+                print(f"Duplicate Parameter {task1}")
+                duped_task = task1[0]
+                if isinstance(task, Parameter):
+
+                    # Add parameter to reappend
+                    #duped_param_list.append(task)
+
+                    # Remove the task from both
+                    flow.tasks.remove(task)
+                    flow._cache.clear()
+
+                    self.tasks.remove(duped_task)
+                    self._cache.clear()
+
+                elif isinstance(task, Task):
+
+                    task.name = f"{flow.name}-{task.name}"
+                    task.slug = f"{flow.name}-{task.slug}"
+
+                    duped_task.name = f"{self.name}-{duped_task.name}"
+                    duped_task.slug = f"{self.name}-{duped_task.slug}"
+            
+        self.update(flow, validate)
+
+
+        return
+
+
+    def disjoint(self, flow: "Flow", validate: bool = True) -> None:
+        """
+        Take all tasks and edges in another flow and makes a disjointed flow.
+        Duplicate parameters and tasks are given a new slug and name.  Using the 
+        template `{flow.name}-{task.slug}`.
+
+        This is useful in two cases:
+        1. When two disparate flows can be run in one enviroment.
+        2. When one flow is dependent on another flow with no data dependencies.
+
+        Args:
+            - flow (Flow): A flow which is used to update this flow
+            - validate (bool, optional): Default True. Whether or not to check the validity of the flow
+                      
+
+        Returns:
+            - None
+        """
+
+        for task in flow.tasks:
+ 
+            fl1_tsk = self.get_tasks(task.name)
+            
+            # Check for duplicate names
+            # TODO: Change check to compare slugs
+            if len(fl1_tsk)>0:
+
+                duped_task = fl1_tsk[0]
+
+                print(f"Duplicate task {duped_task}")
+       
+                task.name = f"{flow.name}-{task.name}"
+                task.slug = f"{flow.name}-{task.slug}"
+
+                duped_task.name = f"{self.name}-{duped_task.name}"
+                duped_task.slug = f"{self.name}-{duped_task.slug}"
+            
+            self.add_task(task)
+
+        for edge in flow.edges:
+            if edge not in self.edges:
+                self.add_edge(
+                    upstream_task=edge.upstream_task,
+                    downstream_task=edge.downstream_task,
+                    key=edge.key,
+                    mapped=edge.mapped,
+                    validate=validate,
+                )
+
+        self.constants.update(flow.constants or {})
+
+        #self.update(flow, validate)
+
+
+    def update(self, flow: "Flow", validate: bool = None) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow
 
@@ -589,25 +686,8 @@ class Flow:
         """
         
         for task in flow.tasks:
-            if method is not None:
-                fl1_tsk = self.get_tasks(task.name)
-                
-                # Check for duplicate names
-                if len(fl1_tsk)>0:
-
-                    duped_task = fl1_tsk[0]
-
-                    print(f"Duplicate task {duped_task}")
-                    if method=="disjoint":
-                        task.name = f"{flow.name}-{task.name}"
-                        task.slug = f"{flow.name}-{task.name}"
-
-                        duped_task.name = f"{self.name}-{duped_task.name}"
-                        duped_task.slug = f"{self.name}-{duped_task.name}"
-                    # elif method=="merge_p":
-                    #     fl1_tsk.remove()
-            
-            self.add_task(task)
+            if task not in self.tasks:
+                self.add_task(task)
 
         for edge in flow.edges:
             if edge not in self.edges:
