@@ -1,2 +1,0 @@
-fix:
-  - "Fix invalid IP address error when running `server start` on Ubuntu using rootless Docker - [#2691](https://github.com/PrefectHQ/prefect/pull/2691)"
