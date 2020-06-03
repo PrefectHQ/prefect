@@ -1,4 +1,4 @@
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 from prefect.engine.executors.base import Executor
 
@@ -22,23 +22,6 @@ class LocalExecutor(Executor):
             - Any: the result of `fn(*args, **kwargs)`
         """
         return fn(*args, **kwargs)
-
-    def map(self, fn: Callable, *args: Any) -> List[Any]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-
-        Returns:
-            - List[Any]: the result of computating the function over the arguments
-
-        """
-        results = []
-        for args_i in zip(*args):
-            results.append(fn(*args_i))
-        return results
 
     def wait(self, futures: Any) -> Any:
         """

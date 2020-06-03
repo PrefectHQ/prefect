@@ -3,7 +3,6 @@
 
 
 import httpx
-import pendulum
 import pytest
 from box import Box
 
@@ -18,8 +17,7 @@ GRAPHQL_URL = config.services.graphql.path
 
 @pytest.fixture
 async def client():
-    async with httpx.Client(app=app, base_url="http://prefect.io") as client:
-        yield client
+    yield httpx.AsyncClient(app=app, base_url="http://prefect.io")
 
 
 @pytest.fixture

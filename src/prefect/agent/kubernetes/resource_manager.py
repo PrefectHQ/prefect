@@ -63,8 +63,6 @@ class ResourceManager:
                 self.logger.exception(exc)
             time.sleep(self.loop_interval)
 
-    # IDENTIFICATION
-
     def clean_resources(self) -> None:
         """
         Find jobs that are either completed or failed to delete from the cluster
@@ -72,7 +70,9 @@ class ResourceManager:
         batch_client = self.k8s_client.BatchV1Api()
 
         try:
-            jobs = batch_client.list_namespaced_job(namespace=self.namespace)
+            jobs = batch_client.list_namespaced_job(
+                namespace=self.namespace, label_selector="prefect.io/identifier",
+            )
         except self.k8s_client.rest.ApiException:
             self.logger.exception(
                 "Error attempting to list jobs in namespace {}".format(self.namespace)
@@ -82,7 +82,7 @@ class ResourceManager:
         for job in jobs.items:
             if job.status.succeeded or job.status.failed:
 
-                identifier = job.metadata.labels.get("identifier")
+                identifier = job.metadata.labels.get("prefect.io/identifier")
                 name = job.metadata.name
 
                 if job.status.failed:
@@ -94,45 +94,6 @@ class ResourceManager:
                     self.report_failed_job(identifier=identifier)
 
                 self.delete_job(name=name)
-                self.delete_pods(job_name=name, identifier=identifier)
-
-        if not jobs.items:
-            self.clean_extra_pods()
-
-    def clean_extra_pods(self) -> None:
-        """
-        Any runaway pods which failed due to unexpected reasons will be cleaned up here.
-        ImagePullBackoffs, Evictions, etc...
-        """
-        core_client = self.k8s_client.CoreV1Api()
-
-        try:
-            pods = core_client.list_namespaced_pod(namespace=self.namespace)
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to list pods in namespace {}".format(self.namespace)
-            )
-            return
-
-        for pod in pods.items:
-            phase = pod.status.phase
-            if phase != "Running":
-
-                name = pod.metadata.name
-
-                if phase == "Failed":
-                    self.report_failed_pod(pod=pod)
-
-                if phase == "Unknown":
-                    self.report_unknown_pod(pod=pod)
-
-                if phase == "Pending":
-                    if pod.status.container_statuses:
-                        self.report_pod_image_pull_error(pod=pod)
-
-                self.delete_extra_pod(name=name)
-
-    # DELETION
 
     def delete_job(self, name: str) -> None:
         """
@@ -154,68 +115,6 @@ class ResourceManager:
                 )
             )
 
-    def delete_pods(self, job_name: str, identifier: str) -> None:
-        """
-        Delete a pod based on the job name and identifier
-        """
-        core_client = self.k8s_client.CoreV1Api()
-        try:
-            pods = core_client.list_namespaced_pod(
-                namespace=self.namespace,
-                label_selector="identifier={}".format(identifier),
-            )
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to list pods in namespace {}".format(self.namespace)
-            )
-            return
-
-        if pods:
-            self.logger.info(
-                "Deleting {} pods for job {} in namespace {}".format(
-                    len(pods.items), job_name, self.namespace
-                )
-            )
-        for pod in pods.items:
-            name = pod.metadata.name
-
-            try:
-                core_client.delete_namespaced_pod(
-                    name=name,
-                    namespace=self.namespace,
-                    body=self.k8s_client.V1DeleteOptions(),
-                )
-            except self.k8s_client.rest.ApiException:
-                self.logger.exception(
-                    "Error attempting to delete pod {} in namespace {}".format(
-                        name, self.namespace
-                    )
-                )
-
-    def delete_extra_pod(self, name: str) -> None:
-        """
-        Delete a pod based on the name
-        """
-        core_client = self.k8s_client.CoreV1Api()
-        self.logger.info(
-            "Deleting extra pod {} in namespace {}".format(name, self.namespace)
-        )
-
-        try:
-            core_client.delete_namespaced_pod(
-                name=name,
-                namespace=self.namespace,
-                body=self.k8s_client.V1DeleteOptions(),
-            )
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to delete pod {} in namespace {}".format(
-                    name, self.namespace
-                )
-            )
-
-    # REPORTING
-
     def report_failed_job(self, identifier: str) -> None:
         """
         Report jobs that failed for reasons outside of a flow run
@@ -224,7 +123,7 @@ class ResourceManager:
         try:
             pods = core_client.list_namespaced_pod(
                 namespace=self.namespace,
-                label_selector="identifier={}".format(identifier),
+                label_selector="prefect.io/identifier={}".format(identifier),
             )
         except self.k8s_client.rest.ApiException:
             self.logger.exception(
@@ -270,7 +169,7 @@ class ResourceManager:
             self.client.write_run_logs(
                 [
                     dict(
-                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
+                        flow_run_id=pod.metadata.labels.get("prefect.io/flow_run_id"),
                         timestamp=pendulum.now("UTC").isoformat(),
                         name="resource-manager",
                         message=logs,
@@ -281,71 +180,6 @@ class ResourceManager:
             )
         except HTTPError as exc:
             self.logger.exception(exc)
-
-    def report_unknown_pod(self, pod: "kubernetes.client.V1Pod") -> None:
-        """
-        Write cloud log of pods that entered unknonw states
-        """
-        # deferred import to reduce import time for prefect
-        from requests.exceptions import HTTPError
-
-        name = pod.metadata.name
-        self.logger.info(
-            "Reporting unknown pod {} in namespace {}".format(name, self.namespace)
-        )
-
-        try:
-            self.client.write_run_logs(
-                [
-                    dict(
-                        flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                        timestamp=pendulum.now("UTC").isoformat(),
-                        name="resource-manager",
-                        message="Flow run pod {} entered an unknown state in namespace {}".format(
-                            name, self.namespace
-                        ),
-                        level="ERROR",
-                        info={},
-                    )
-                ]
-            )
-        except HTTPError as exc:
-            self.logger.exception(exc)
-
-    def report_pod_image_pull_error(self, pod: "kubernetes.client.V1Pod") -> None:
-        """
-        Write cloud log of pods that ahd image pull errors
-        """
-        # deferred import to reduce import time for prefect
-        from requests.exceptions import HTTPError
-
-        for status in pod.status.container_statuses:
-            waiting = status.state.waiting
-
-            if waiting and waiting.reason == "ImagePullBackoff":
-                self.logger.info(
-                    "Reporting image pull error for pod {} in namespace {}".format(
-                        pod.metadata.name, self.namespace
-                    )
-                )
-
-                try:
-                    self.client.write_run_logs(
-                        [
-                            dict(
-                                flow_run_id=pod.metadata.labels.get("flow_run_id"),
-                                timestamp=pendulum.now("UTC").isoformat(),
-                                name="resource-manager",
-                                message="Flow run image pull error for pod {} in namespace {}".format(
-                                    pod.metadata.name, self.namespace
-                                ),
-                                level="ERROR",
-                                info={},
-                            )
-                        ]
-                    )
-                except HTTPError as exc:
-                    self.logger.exception(exc)
 
 
 if __name__ == "__main__":

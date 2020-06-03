@@ -101,7 +101,10 @@ from prefect.engine.executors import DaskExecutor
 
 gateway = Gateway()
 cluster = gateway.new_cluster()
-executor = DaskExecutor(address=cluster.scheduler_address, security=cluster.security)
+executor = DaskExecutor(
+    address=cluster.scheduler_address,
+    client_kwargs={"security": cluster.security}
+)
 flow.run(executor=executor)
 ```
 
@@ -114,7 +117,10 @@ from prefect.engine.executors import DaskExecutor
 # ...flow definition...
 
 security = GatewaySecurity(tls_cert="path-to-cert", tls_key="path-to-key")
-executor = DaskExecutor(address="a-scheduler-address", security=security)
+executor = DaskExecutor(
+    address="a-scheduler-address",
+    client_kwargs={"security": security}
+)
 flow.run(executor=executor)
 ```
 

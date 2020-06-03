@@ -6,8 +6,6 @@ import asyncio
 import copy
 import uuid
 
-import pendulum
-
 import prefect
 from prefect.engine.state import Finished
 from prefect.utilities.graphql import EnumValue, with_args
@@ -15,8 +13,6 @@ from prefect.utilities.serialization import to_qualified_name
 from prefect_server import api, config
 from prefect_server.database import hasura, models
 from prefect_server.utilities import context
-
-import warnings
 
 
 async def _update_flow_setting(flow_id: str, key: str, value: any) -> bool:

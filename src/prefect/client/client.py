@@ -227,6 +227,44 @@ class Client:
         else:
             return GraphQLResult(result)  # type: ignore
 
+    def _send_request(
+        self,
+        session: "requests.Session",
+        method: str,
+        url: str,
+        params: Dict[str, JSONLike] = None,
+        headers: dict = None,
+    ) -> "requests.models.Response":
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            self.logger.debug(f"Preparing request to {url}")
+            clean_headers = {
+                head: re.sub("Bearer .*", "Bearer XXXX", val)
+                for head, val in headers.items()  # type: ignore
+            }
+            self.logger.debug(f"Headers: {clean_headers}")
+            self.logger.debug(f"Request: {params}")
+            start_time = time.time()
+
+        if method == "GET":
+            response = session.get(url, headers=headers, params=params, timeout=30)
+        elif method == "POST":
+            response = session.post(url, headers=headers, json=params, timeout=30)
+        elif method == "DELETE":
+            response = session.delete(url, headers=headers, timeout=30)
+        else:
+            raise ValueError("Invalid method: {}".format(method))
+
+        if prefect.context.config.cloud.get("diagnostics") is True:
+            end_time = time.time()
+            self.logger.debug(f"Response: {response.json()}")
+            self.logger.debug(
+                f"Request duration: {round(end_time - start_time, 4)} seconds"
+            )
+
+        # Check if request returned a successful status
+        response.raise_for_status()
+        return response
+
     def _request(
         self,
         method: str,
@@ -287,35 +325,27 @@ class Client:
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+        response = self._send_request(
+            session=session, method=method, url=url, params=params, headers=headers
+        )
 
-        if prefect.context.config.cloud.get("diagnostics") is True:
-            self.logger.debug(f"Preparing request to {url}")
-            clean_headers = {
-                head: re.sub("Bearer .*", "Bearer XXXX", val)
-                for head, val in headers.items()
-            }
-            self.logger.debug(f"Headers: {clean_headers}")
-            self.logger.debug(f"Request: {params}")
-            start_time = time.time()
-
-        if method == "GET":
-            response = session.get(url, headers=headers, params=params, timeout=30)
-        elif method == "POST":
-            response = session.post(url, headers=headers, json=params, timeout=30)
-        elif method == "DELETE":
-            response = session.delete(url, headers=headers, timeout=30)
-        else:
-            raise ValueError("Invalid method: {}".format(method))
-
-        if prefect.context.config.cloud.get("diagnostics") is True:
-            end_time = time.time()
-            self.logger.debug(f"Response: {response.json()}")
-            self.logger.debug(
-                f"Request duration: {round(end_time - start_time, 4)} seconds"
-            )
-
-        # Check if request returned a successful status
-        response.raise_for_status()
+        # check if there was an API_ERROR code in the response
+        if "API_ERROR" in str(response.json().get("errors")):
+            success, retry_count = False, 0
+            # retry up to six times
+            while success is False and retry_count < 6:
+                response = self._send_request(
+                    session=session,
+                    method=method,
+                    url=url,
+                    params=params,
+                    headers=headers,
+                )
+                if "API_ERROR" in str(response.json().get("errors")):
+                    retry_count += 1
+                    time.sleep(0.1 * (2 ** (retry_count - 1)))
+                else:
+                    success = True
 
         return response
 
