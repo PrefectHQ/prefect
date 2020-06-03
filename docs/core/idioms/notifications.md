@@ -47,10 +47,12 @@ slack_task.set_upstream(value, key="message", flow=flow)
 :::
 ::::
 
+In this example the `SlackTask` notification will execute every time the upstream task is successful. To enable a different behavior where this task runs due to different upstream task states attach a [trigger](/api/latest/triggers.html#triggers) to the task. For example, you could execute this task in certain situations such as upstream failures using an `any_failed` trigger.
+
 ### State handlers
 
-Another common pattern for sending notifications is through [state handlers](/core/concepts/notifications.html#state-handlers). State handlers are a way of reacting to specific state changes on a task and Prefect ships with a [few state handlers](/api/latest/utilities/notifications.html) for working with different services. Outside of those default handlers it is straightforward to make completely custom handlers! For more information on this take a look at the relevant [concept documentation](/core/concepts/notifications.html).
+Another common pattern for sending notifications is through [state handlers](/core/concepts/notifications.html#state-handlers). State handlers are a way of reacting to specific state changes on a task and Prefect ships with a [few state handlers](/api/latest/utilities/notifications.html) for working with different services. Outside of those default handlers it is straightforward to make completely custom handlers! State handlers can be set on individual tasks and on entire flows. This means that you can receive notifications for both task state changes as well as state changes for the flow. For more information on this take a look at the relevant [concept documentation](/core/concepts/notifications.html).
 
 ### Cloud hooks <Badge text="Cloud"/>
 
-Users of Prefect Cloud have access to something called Cloud Hooks which is a way of configuring notifications based on state changes without having to write any code for the tasks or flow itself. For more information on Cloud Hooks visit the [documentation](/orchestration/concepts/cloud_hooks.html).
+Users of Prefect Cloud have access to something called Cloud Hooks which is a way of configuring notifications based on state changes without having to write any code for the tasks or flow itself. Cloud Hooks are the only *guaranteed* way of getting notifications because they have no reliance on your code and are managed entirely on the Prefect Cloud side. For more information on Cloud Hooks visit the [documentation](/orchestration/concepts/cloud_hooks.html).
