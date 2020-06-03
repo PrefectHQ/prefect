@@ -29,9 +29,9 @@ class TestInitialization:
     def test_raises_if_checkpoint_not_provided(self, monkeypatch):
         task = RunGreatExpectationsCheckpoint()
         client = MagicMock()
-        jira = MagicMock(client=client)
+        great_expectations = MagicMock(client=client)
         monkeypatch.setattr(
-            "prefect.tasks.great_expectations.checkpoints", great_expectations
+            "prefect.tasks.great_expectations", great_expectations
         )
         with pytest.raises(ValueError, match="checkpoint"):
             task.run()

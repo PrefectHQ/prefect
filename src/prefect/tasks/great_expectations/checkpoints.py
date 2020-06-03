@@ -25,6 +25,7 @@ class RunGreatExpectationsCheckpoint(Task):
         - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
         - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
         - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
     def __init__(
@@ -55,11 +56,12 @@ class RunGreatExpectationsCheckpoint(Task):
             - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
             - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
             - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
         Raises:
             - 'signals.VALIDATIONFAIL' if the validation was not a success
         Returns:
-            - result (dict): The result metadata dictionary representing the validation operation
+            - result ('great_expectations.validation_operators.types.validation_operator_result.ValidationOperatorResult'): The Great Expectations metadata returned from the validation
 
         """
 
