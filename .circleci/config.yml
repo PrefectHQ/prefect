@@ -290,8 +290,8 @@ jobs:
           command: pip install -U pip
 
       - run:
-          name: Install Prefect
-          command: pip install ".[all_extras]"
+          name: Install base Prefect
+          command: pip install .
 
       - run:
           name: Run tests
