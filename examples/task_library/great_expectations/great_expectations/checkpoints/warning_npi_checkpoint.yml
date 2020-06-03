@@ -14,7 +14,7 @@ validation_operator_name: action_list_operator
 # Great Expectations in your pipelines easy!
 batches:
   - batch_kwargs:
-      path: /Users/laura/Development/prefect/examples/task_library/great_expectations/great_expectations/../data/npidata/npidata_pfile_20190902-20190908.csv
+      path: data/npidata/npidata_pfile_20190902-20190908.csv
       datasource: npidata__dir
       data_asset_name: npidata_pfile_20190902-20190908
     expectation_suite_names: # one or more suites may validate against a single batch
