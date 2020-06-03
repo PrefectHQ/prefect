@@ -62,6 +62,7 @@ class RunGreatExpectationsCheckpoint(Task):
             - result (dict): The result metadata dictionary representing the validation operation
 
         """
+
         if checkpoint_name is None:
             raise ValueError("You must provide the checkpoint name.")
 
@@ -81,10 +82,10 @@ class RunGreatExpectationsCheckpoint(Task):
         results = context.run_validation_operator(
             checkpoint["validation_operator_name"],
             assets_to_validate=batches_to_validate,
-            run_id=prefect.context.get("task_id"),
+            run_id={"run_name": prefect.context.get("task_id")},
         )
 
-        if not results.get("success"):
+        if not results["success"]:
             raise signals.VALIDATIONFAIL(result=results)
 
         return results
