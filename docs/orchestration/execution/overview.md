@@ -136,7 +136,7 @@ with Flow("Callback-Example", environment=environment) as flow:
 
 ### Labels
 
-Environments expose a configurable list of `labels`, allowing you to label your Flows and determine where they are executed. This works in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agents/overview.html#flow-affinity:-labels), as well as the [Flow Concurrency Limits](#limiting-flow-run-execution).
+Environments expose a configurable list of `labels`, allowing you to label your Flows and determine where they are executed. This works in conjunction with the list of `labels` you may provide on your [Prefect Agents](../agents/overview.html#flow-affinity:-labels), as well as the [Flow Concurrency Limits](../concepts/flow-concurrency-limiting.md).
 
 #### Agent Label Example
 
@@ -177,57 +177,3 @@ LocalAgent(labels=["dev"]).start()
 :::tip Empty Labels
 An empty label list is effectively considered a label. This means that if you register a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
 :::
-
-### Limiting Flow Run Execution
-While managing your infrastructure that run your flows, you may run into an issue where too many flows are trying to be run at once. To help mitigate this occuring, you can choose to limit the number of conccurent flows running in an environment based on its `labels`. Each flow run in the `Running` state occupies one slot of concurrency in that `environment`. If an `environment` has multiple `labels` with multiple concurrency limits, there must be at least one slot available per concurrency limit. By default, any `label` that isn't explicitely given a concurrency limit allows an unlimited number of flows to be `Running` at any given time.
-
-#### Creating Flow Concurrency Limits
-To create a `Flow Concurrency Limit`, the only current supported method of doing so is from the GraphQL API. Creating one can be done by executing the following mutation:
-
-```graphql
-mutation {
-  update_flow_concurrency_limit(input: { name: "my env label", limit: 5 }) {
-    id
-  }
-}
-```
-
-The mutation `update_flow_concurrency_limit` will update that limit if it already exists or will create a new concurrency limit for you if one with that name does not exist.
-
-#### Behavior
-Limiting the number of flow runs in an environment is an opt-in feature. By default, if an environment has no labels, or there aren't set concurrency limits for those labels, it allows an unlimited number of flow runs. In order for a flow run to start `Running` in an environment, all labels on that environment must either have concurrency slots available or not have concurrency limits set. If an environment has multiple labels with varying concurrency limits, the flows running in that environment are limited by the strictest combination of concurrency limits.
-
-#### Flow Concurrency Limiting Example
-Assuming you issue the following mutations to create concurrency limits, the expected behavior is that any `Environment` tagged with `"prod"` will have at most 10 flows running, while `"dev"` has at most 5. If any environment is tagged as both, the limiting takes the stricter of the two, only allowing 5 flows to run at once.
-
-```graphql
-mutation {
-  update_flow_concurrency_limit(input: { name: "prod", limit: 10 }) {
-    id
-  }
-}
-
-mutation {
-  update_flow_concurrency_limit(input: { name: "dev", limit: 5 }) {
-    id
-  }
-}
-```
-
-
-Since the flows below are both tagged as `["dev"]`, the environment in which they execute will at most have 5 flow runs running at once.
-```python
-from prefect import Flow
-from prefect.environments import RemoteEnvironment
-
-first_dev_flow = Flow("concurrency-limited-example", environment=RemoteEnvironment(labels=["dev"]))
-second_dev_flow = Flow("other-limited-example", environment=RemoteEnvironment(labels=["dev"]))
-```
-
-The flow has one label, `"reporting"`, that does not have a concurrency limit associated with it. In this case, this label is ignored for the purposes of concurrency checks, and only is limited by the capacity of `"prod"`.
-```python
-from prefect import Flow
-from prefect.environments import RemoteEnvironment
-
-prod_flow = Flow("concurrency-limited-prod-example", environment=RemoteEnvironment(labels=["prod", "reporting"]))
-```
