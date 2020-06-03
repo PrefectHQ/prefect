@@ -1,0 +1,2 @@
+task:
+  - Adds a task to expose Great Expectations checkpoints as a node in a Prefect pipeline - [#2489](https://github.com/PrefectHQ/prefect/issues/2489)
