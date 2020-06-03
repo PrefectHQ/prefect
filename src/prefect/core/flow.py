@@ -591,9 +591,19 @@ class Flow:
                     # Remove the task from both
                     flow.tasks.remove(task)
                     flow._cache.clear()
+                    
+                    affected_edges = {e for e in flow.edges if task in e.tasks}
+                    
+                    for edge in affected_edges:
+                        self.add_edge(
+                            upstream_task=edge.upstream_task,
+                            downstream_task=edge.downstream_task,
+                            key=edge.key,
+                            mapped=edge.mapped,
+                            validate=False,
+                        )
 
-                    self.tasks.remove(duped_task)
-                    self._cache.clear()
+
 
                 elif isinstance(task, Task):
 
