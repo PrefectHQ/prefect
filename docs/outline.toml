@@ -299,6 +299,13 @@ classes = [
         "CreateBigQueryTable"
         ]
 
+[pages.tasks.great_expectations]
+title = "Great Expectations Task"
+module = "prefect.tasks.great_expectations"
+classes = [
+        "RunGreatExpectationsCheckpoint",
+        ]
+
 [pages.tasks.jira]
 title = "Jira Tasks"
 module = "prefect.tasks.jira"

@@ -1,3 +1,10 @@
+"""
+Great Expectations checkpoints are combinations of data source, expectation suite, and validation operators configuration that can be used to run Great Expectations actions. 
+Checkpoints are the preferred deployment of this configuration; you can read more about setting up checkpoints 
+[at the Great Expectation docs](https://docs.greatexpectations.io/en/latest/tutorials/getting_started/set_up_your_first_checkpoint.html#set-up-your-first-checkpoint).
+
+You can use these task library tasks to interact with your Great Expectations checkpoint from a Prefect flow.
+"""
 import prefect
 from prefect import Task
 from prefect.engine import signals
@@ -77,7 +84,7 @@ class RunGreatExpectationsCheckpoint(Task):
             run_id=prefect.context.get("task_id"),
         )
 
-        if not results["success"]:
+        if not results.get("success"):
             raise signals.VALIDATIONFAIL(result=results)
 
         return results
