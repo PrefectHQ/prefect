@@ -10,7 +10,6 @@ import sys
 import warnings
 
 import cloudpickle
-import prefect
 
 
 def system_check(python_version: str):
