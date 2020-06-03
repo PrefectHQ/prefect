@@ -20,7 +20,7 @@ Released on June 2, 2020.
 
 ### Task Library
 
-- Fix PostgresExecute task auto commit when commit is set to `False` - [#2658](https://github.com/PrefectHQ/prefect/issue/2658)
+- None
 
 ### Server
 

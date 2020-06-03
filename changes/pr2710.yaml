@@ -1,0 +1,3 @@
+### Task Library
+
+- Fix PostgresExecute task auto commit when commit is set to `False` - [#2658](https://github.com/PrefectHQ/prefect/issue/2658)
