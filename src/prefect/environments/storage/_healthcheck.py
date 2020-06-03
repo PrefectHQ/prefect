@@ -43,25 +43,8 @@ def cloudpickle_deserialization_check(flow_file_paths: str):
     return flows
 
 
-def _check_mapped_result_templates(flow: "prefect.Flow"):
-    if not any(edge.key and edge.mapped for edge in flow.edges):
-        return
-
-    for edge in flow.edges:
-        if edge.mapped and edge.key:
-            result = edge.downstream_task.result or flow.result
-            location = getattr(result, "location", None)
-            if location is None:
-                continue
-            if "{filename}" not in location:
-                raise ValueError(
-                    "Mapped tasks with custom result locations must include {filename} as a template in their location - see https://docs.prefect.io/core/advanced_tutorials/using-results.html#specifying-a-location-for-mapped-or-looped-tasks"
-                )
-
-
 def result_check(flows: list):
     for flow in flows:
-        _check_mapped_result_templates(flow)
         if flow.result is not None:
             continue
 

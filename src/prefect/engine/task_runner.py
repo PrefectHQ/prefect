@@ -838,7 +838,7 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
-                result = self.result.write(value, filename="output", **prefect.context)
+                result = self.result.write(value, **prefect.context)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
