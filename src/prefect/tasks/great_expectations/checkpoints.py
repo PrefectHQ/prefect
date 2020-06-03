@@ -94,7 +94,7 @@ class RunGreatExpectationsCheckpoint(Task):
             run_id={"run_name": prefect.context.get("task_slug")},
         )
 
-        if not results["success"]:
+        if results.success is False:
             raise signals.VALIDATIONFAIL(result=results)
 
         return results
