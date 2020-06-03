@@ -18,6 +18,7 @@ install_requires = [
     "gunicorn >= 19.9,< 20.1",
     "httpx >= 0.13.0, < 0.14.0",
     "pendulum >= 2.0, < 3.0",
+    "psycopg2-binary >= 2.7, < 3.0",
     "pydantic >= 1.5, < 2.0",
     "python-box >= 3.4, < 5.0",
     "starlette >= 0.13, < 0.14",
