@@ -2,7 +2,7 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import ujson
+import json
 import datetime
 import uuid
 from typing import List, Union, cast
@@ -114,7 +114,7 @@ class HasuraModel(pydantic.BaseModel):
         return super().json(**kwargs)
 
     def to_hasura_dict(self, is_insert: bool = False, **kwargs) -> dict:
-        data = ujson.loads(self.json(**kwargs))
+        data = json.loads(self.json(**kwargs))
         data = self._format_hasura_dict(data, is_insert=is_insert)
         return data
 
