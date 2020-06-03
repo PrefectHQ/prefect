@@ -65,10 +65,12 @@ class Docker(Storage):
         - ignore_healthchecks (bool, optional): if True, the Docker healthchecks
             are not added to the Dockerfile. If False (default), healthchecks
             are included.
-        - base_url: (str, optional): a URL of a Docker daemon to use when for
+        - base_url (str, optional): a URL of a Docker daemon to use when for
             Docker related functionality.  Defaults to DOCKER_HOST env var if not set
-        - tls_config: (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
-            client. https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig
+        - tls_config (Union[bool, docker.tls.TLSConfig], optional): a TLS configuration to pass to the Docker
+            client. [Documentation](https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig)
+        - build_kwargs (dict, optional): Additional keyword arguments to pass to Docker's build step.
+            [Documentation](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.build.BuildApiMixin.build)
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
@@ -91,6 +93,7 @@ class Docker(Storage):
         ignore_healthchecks: bool = False,
         base_url: str = None,
         tls_config: Union[bool, "docker.tls.TLSConfig"] = False,
+        build_kwargs: dict = None,
         **kwargs: Any
     ) -> None:
         self.registry_url = registry_url
@@ -117,6 +120,7 @@ class Docker(Storage):
 
         self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.tls_config = tls_config
+        self.build_kwargs = build_kwargs or {}
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
@@ -343,6 +347,7 @@ class Docker(Storage):
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
                 forcerm=True,
+                **self.build_kwargs,
             )
             self._parse_generator_output(output)
 

@@ -301,8 +301,9 @@ class Task(metaclass=SignatureValidator):
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
         # to add tasks to a flow
-        if "_new_task_tracker" in prefect.context:
-            prefect.context._new_task_tracker.add(self)
+        if "_unused_task_tracker" in prefect.context:
+            if not isinstance(self, prefect.tasks.core.constants.Constant):
+                prefect.context._unused_task_tracker.add(self)
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
@@ -403,11 +404,29 @@ class Task(metaclass=SignatureValidator):
 
         # if new task creations are being tracked, add this task
         # this makes it possible to give guidance to users that forget
-        # to add tasks to a flow
-        if "_new_task_tracker" in prefect.context:
-            prefect.context._new_task_tracker.add(new)
+        # to add tasks to a flow. We also remove the original task,
+        # as it has been "interacted" with and don't want spurious
+        # warnings
+        if "_unused_task_tracker" in prefect.context:
+            if self in prefect.context._unused_task_tracker:
+                prefect.context._unused_task_tracker.remove(self)
+            if not isinstance(new, prefect.tasks.core.constants.Constant):
+                prefect.context._unused_task_tracker.add(new)
 
         return new
+
+    @property
+    def __signature__(self) -> inspect.Signature:
+        """Dynamically generate the signature, replacing ``*args``/``**kwargs``
+        with parameters from ``run``"""
+        if not hasattr(self, "_cached_signature"):
+            sig = inspect.Signature.from_callable(self.run)
+            parameters = list(sig.parameters.values())
+            parameters.extend(EXTRA_CALL_PARAMETERS)
+            self._cached_signature = inspect.Signature(
+                parameters=parameters, return_annotation="Task"
+            )
+        return self._cached_signature
 
     def __call__(
         self,
@@ -1164,3 +1183,12 @@ class Parameter(Task):
             - dict representing this parameter
         """
         return prefect.serialization.task.ParameterSchema().dump(self)
+
+
+# All keyword-only arguments to Task.__call__, used for dynamically generating
+# Signature objects for Task objects
+EXTRA_CALL_PARAMETERS = [
+    p
+    for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
+    if p.kind == inspect.Parameter.KEYWORD_ONLY
+]
