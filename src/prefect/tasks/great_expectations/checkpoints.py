@@ -25,6 +25,7 @@ class RunGreatExpectationsCheckpoint(Task):
         - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
         - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
         - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+        - run_name (str): the name of this Great Expectation validation run; defaults to the task slug
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -33,20 +34,25 @@ class RunGreatExpectationsCheckpoint(Task):
         checkpoint_name: str = None,
         context_root_dir: str = None,
         runtime_environment: dict = {},
+        run_name: str = None,
         **kwargs
     ):
         self.checkpoint_name = checkpoint_name
         self.context_root_dir = context_root_dir
         self.runtime_environment = runtime_environment
+        self.run_name = run_name
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("checkpoint_name", "context_root_dir", "runtime_environment")
+    @defaults_from_attrs(
+        "checkpoint_name", "context_root_dir", "runtime_environment", "run_name"
+    )
     def run(
         self,
         checkpoint_name: str = None,
         context_root_dir: str = None,
         runtime_environment: dict = {},
+        run_name: str = None,
         **kwargs
     ):
         """
@@ -56,6 +62,7 @@ class RunGreatExpectationsCheckpoint(Task):
             - checkpoint_name (str): the name of the checkpoint; should match the filename of the checkpoint without .py
             - context_root_dir (str): the absolute or relative path to the directory holding your `great_expectations.yml`
             - runtime_environment (dict): a dictionary of great expectation config key-value pairs to overwrite your config in `great_expectations.yml`
+            - run_name (str): the name of this  Great Expectation validation run; defaults to the task slug
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
         Raises:
@@ -84,7 +91,7 @@ class RunGreatExpectationsCheckpoint(Task):
         results = context.run_validation_operator(
             checkpoint["validation_operator_name"],
             assets_to_validate=batches_to_validate,
-            run_id={"run_name": prefect.context.get("task_id")},
+            run_id={"run_name": prefect.context.get("task_slug")},
         )
 
         if not results["success"]:

@@ -5,9 +5,9 @@ ge_task = RunGreatExpectationsCheckpoint()
 
 with Flow("great expectations example flow") as flow:
     checkpoint_name = Parameter("checkpoint_name")
-
-    good_validation = ge_task(checkpoint_name)
-    bad_validation = ge_task("guaranteed_failure_npi_checkpoint")
+    validations = ge_task.map(checkpoint_name)
 
 if __name__ == "__main__":
-    flow.run(checkpoint_name="warning_npi_checkpoint")
+    flow.run(
+        checkpoint_name=["warning_npi_checkpoint", "guaranteed_failure_npi_checkpoint"]
+    )
