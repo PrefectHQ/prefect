@@ -795,9 +795,7 @@ class TaskRunner(Runner):
                     name=prefect.context.get("task_full_name", self.task.name)
                 )
             )
-            timeout_handler = (
-                timeout_handler or prefect.utilities.executors.timeout_handler
-            )
+            timeout_handler = prefect.utilities.executors.timeout_handler
             if getattr(self.task, "log_stdout", False):
                 with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
                     value = timeout_handler(
