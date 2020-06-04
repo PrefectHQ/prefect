@@ -4,7 +4,7 @@ sidebarDepth: 0
 
 ## Flow Operators
 
-Often times data pipelines are to large to develop as one `Flow`.  Flow operators allow developers to work on flows independently and then join them using flow operators.
+Often times data pipelines are to large to develop as one `Flow`.  Flow operators allow developers to work on flows independently and then join them using flow operators. 
 
 :::warning Unintended Consequences
 1. Target locations can change.
@@ -12,7 +12,7 @@ Often times data pipelines are to large to develop as one `Flow`.  Flow operator
 :::
 
 ### Disjoint Union
-Flow disjoint allows users to create one flow from two flows.  Where the flows have no shared tasks or edges.  Flows that share names or slugs are renamed by appending the name of the flow.  
+Flow disjoint allows users to create a new flow from two other flows.  Where the flows have no shared tasks or edges.  Flows that share names or slugs are renamed by appending the name of the flow.  Taken from (networkx)[https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.operators.binary.disjoint_union.html#networkx.algorithms.operators.binary.disjoint_union]
 
 ![underlying flow graph](docs/assets/operator_viz/disjoint_union.svg){.viz-xs .viz-padded}
 
@@ -37,7 +37,7 @@ with Flow("Add") as add_fl:
     
     print_result(the_result)
 
-@task
+@task(log_stdout=True)
 def sub_one(a_number: int):
     return a_number - 1
 
