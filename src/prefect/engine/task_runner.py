@@ -842,9 +842,7 @@ class TaskRunner(Runner):
                     **raw_inputs,
                     **prefect.context,
                 }
-                result = self.result.write(
-                    value, **formatting_kwargs,
-                )
+                result = self.result.write(value, **formatting_kwargs,)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
