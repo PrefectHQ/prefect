@@ -1,6 +1,7 @@
 import prefect
 from prefect import Flow
 from prefect.utilities import logging
+
 """
 This module contains methods to combine multiple flows. It is a limited adaptation of networkx operators.
 
@@ -10,6 +11,7 @@ Dan Schult <dschult@colgate.edu>
 Pieter Swart <swart@lanl.gov>
 All rights reserved.
 """
+
 
 def disjoint_union(G: "Flow", H: "Flow", validate: bool = True) -> Flow:
     """
@@ -50,7 +52,6 @@ def disjoint_union(G: "Flow", H: "Flow", validate: bool = True) -> Flow:
             duped_task.slug = f"{flow1.name}-{duped_task.slug}"
 
         flow1.add_task(task)
-
 
     for edge in flow2.edges:
         if edge not in flow1.edges:
