@@ -31,7 +31,7 @@ class PostgresExecute(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.db_name = db_name
         self.user = user
@@ -125,7 +125,7 @@ class PostgresFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.db_name = db_name
         self.user = user
