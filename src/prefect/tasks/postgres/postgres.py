@@ -31,7 +31,7 @@ class PostgresExecute(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.db_name = db_name
         self.user = user
@@ -82,6 +82,8 @@ class PostgresExecute(Task):
                     executed = cursor.execute(query=query, vars=data)
                     if commit:
                         conn.commit()
+                    else:
+                        conn.rollback()
 
             conn.close()
             return executed
@@ -123,7 +125,7 @@ class PostgresFetch(Task):
         query: str = None,
         data: tuple = None,
         commit: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.db_name = db_name
         self.user = user

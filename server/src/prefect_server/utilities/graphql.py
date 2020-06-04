@@ -7,12 +7,11 @@ import textwrap
 from typing import Any, Dict, Union
 
 import ariadne
-import httpx
 from box import Box
 
 import prefect_server
 from prefect.utilities.graphql import parse_graphql
-
+from prefect_server.utilities.http import httpx_client
 
 # define common objects for binding resolvers
 query = ariadne.QueryType()
@@ -59,7 +58,7 @@ class GraphQLClient:
             ariadne.gql(query)
 
         # timeout of 30 seconds
-        response = await httpx.post(
+        response = await httpx_client.post(
             self.url,
             json=dict(query=query, variables=variables or {}),
             headers=headers or self.headers,
