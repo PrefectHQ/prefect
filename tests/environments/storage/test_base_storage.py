@@ -1,17 +1,29 @@
-from typing import Type
+from typing import List, Type
 from unittest.mock import PropertyMock
 
 import pytest
 
 import prefect
-from prefect.environments.storage import Storage
+from prefect.environments.storage import Local, Storage
 from prefect.utilities.configuration import set_temporary_config
 
 
 @pytest.fixture
 def sub() -> Type[Storage]:
-    class Subclass(Storage):
+    class Subclass(Local):
+        """
+        Subclassing `Local` storage instead of `Base` to avoid
+        other test failures that ensure all subclasses of the `Base`
+        have an accompanying serialization Schema.
+
+        The goal of this subclass is to test all methods of `Base`
+        that don't require actual implementation details, so
+        we override those methods to ensure we don't interact
+        with the external world.
+        """
+
         def __contains__(self, other):
+
             return False
 
         def add_flow(self, flow):
@@ -19,6 +31,10 @@ def sub() -> Type[Storage]:
 
         def build(self, flow):
             pass
+
+        @property
+        def default_labels(self) -> List[str]:
+            return []
 
     return Subclass
 
