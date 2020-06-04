@@ -101,6 +101,9 @@ class State:
         Returns:
             - State: the current state with a fully hydrated Result attached
         """
+        if self.is_mapped():
+            return self
+
         result_reader = result or self._result
 
         known_location = self._result.location or getattr(result, "location", None)  # type: ignore
