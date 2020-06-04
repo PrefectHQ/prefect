@@ -149,10 +149,12 @@ class FlowRunner(Runner):
         """
 
         # overwrite context parameters one-by-one
-        if parameters:
-            context_params = context.setdefault("parameters", {})
-            for param, value in parameters.items():
-                context_params[param] = value
+        context_params = context.setdefault("parameters", {})
+        for p in self.flow.parameters():
+            if not p.required:
+                context_params.setdefault(p.name, p.default)
+        for param, value in (parameters or {}).items():
+            context_params[param] = value
 
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
