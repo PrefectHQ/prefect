@@ -2886,6 +2886,30 @@ def test_results_write_to_formatted_locations(tmpdir):
     }
 
 
+def test_results_write_to_custom_formatters(tmpdir):
+    result = LocalResult(dir=tmpdir, location="{map_index}-{x}-{param}.txt")
+
+    with Flow("results", result=result) as flow:
+
+        p = Parameter("param", default="book")
+
+        @task()
+        def return_x(x, param):
+            return x
+
+        vals = return_x.map(x=[1, 42, None, "string-type"], param=unmapped(p))
+
+    with set_temporary_config({"flows.checkpointing": True}):
+        flow_state = flow.run()
+
+    assert flow_state.is_successful()
+    assert set(os.listdir(tmpdir)) == {
+        "0-1-book.txt",
+        "1-42-book.txt",
+        "3-string-type-book.txt",
+    }
+
+
 def test_run_agent_passes_environment_labels(monkeypatch):
     agent = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)

@@ -788,6 +788,7 @@ class TaskRunner(Runner):
             raise ENDRUN(state)
 
         value = None
+        raw_inputs = {k: r.value for k, r in inputs.items()}
         try:
             self.logger.debug(
                 "Task '{name}': Calling task.run() method...".format(
@@ -795,8 +796,6 @@ class TaskRunner(Runner):
                 )
             )
             timeout_handler = prefect.utilities.executors.timeout_handler
-            raw_inputs = {k: r.value for k, r in inputs.items()}
-
             if getattr(self.task, "log_stdout", False):
                 with redirect_stdout(prefect.utilities.logging.RedirectToLog(self.logger)):  # type: ignore
                     value = timeout_handler(
@@ -838,7 +837,15 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
-                result = self.result.write(value, filename="output", **prefect.context)
+                # precedence for keys is task context > task inputs > flow parameters
+                formatting_kwargs = {
+                    **prefect.context.get("parameters", {}).copy(),
+                    **raw_inputs,
+                    **prefect.context,
+                }
+                result = self.result.write(
+                    value, filename="output", **formatting_kwargs,
+                )
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
