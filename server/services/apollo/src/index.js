@@ -212,7 +212,7 @@ async function send_telemetry_event(event) {
         type: event,
         payload: { id: TELEMETRY_ID }
       })
-      log(`Sending telemetry to Prefect Technnologies, Inc.: ${body}`)
+      log(`Sending telemetry to Prefect Technologies, Inc.: ${body}`)
 
       fetch('https://sens-o-matic.prefect.io/', {
         method: 'post',
