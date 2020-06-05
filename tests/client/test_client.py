@@ -11,7 +11,7 @@ import requests
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.state import Pending
+from prefect.engine.state import Pending, State
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult, decompress
@@ -670,10 +670,11 @@ def test_set_flow_run_state(patch_post):
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    result = client.set_flow_run_state(
-        flow_run_id="74-salt", version=0, state=Pending()
-    )
-    assert result is None
+
+    state = Pending()
+    result = client.set_flow_run_state(flow_run_id="74-salt", version=0, state=state)
+    assert isinstance(result, State)
+    assert isinstance(result, Pending)
 
 
 def test_set_flow_run_state_with_error(patch_post):
