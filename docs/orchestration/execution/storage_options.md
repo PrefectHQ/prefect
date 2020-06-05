@@ -148,6 +148,10 @@ This example flow can now be run using an agent that orchestrates containerized 
 prefect agent start kubernetes -l s3-flow-storage
 ```
 
+::: tip Default Labels
+The addition of these default labels can be disabled by passing `add_default_labels=False` to the flow's storage option. If this is set then the agents can ignore having to also set these labels. For more information on labels visit [the documentation](/orchestration/execution/overview.html#labels).
+:::
+
 #### Authentication for using Cloud Storage with Containerized Environments
 
 One thing to keep in mind when using cloud storage options in conjunction with containerized environments is authentication. Since the flow is being retrieved from inside a container then that container must be authenticated to pull the flow from whichever cloud storage it has set. This means that at runtime the container needs to have the proper authentication.
