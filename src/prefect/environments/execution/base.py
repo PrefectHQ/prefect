@@ -49,7 +49,7 @@ class Environment:
         self.labels = set(labels) if labels else set()
         self.on_start = on_start
         self.on_exit = on_exit
-        self.metadata = metadata
+        self.metadata = metadata or {}
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:
