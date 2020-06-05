@@ -837,15 +837,12 @@ class TaskRunner(Runner):
             and value is not None
         ):
             try:
-                # precedence for keys is task context > task inputs > flow parameters
                 formatting_kwargs = {
                     **prefect.context.get("parameters", {}).copy(),
                     **raw_inputs,
                     **prefect.context,
                 }
-                result = self.result.write(
-                    value, filename="output", **formatting_kwargs,
-                )
+                result = self.result.write(value, **formatting_kwargs,)
             except NotImplementedError:
                 result = self.result.from_value(value=value)
         else:
