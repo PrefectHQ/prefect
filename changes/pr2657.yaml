@@ -1,0 +1,5 @@
+enhancement:
+  - "Add option to set `image_pull_secret` directly on `DaskKubernetesEnvironment` - [#2657](https://github.com/PrefectHQ/prefect/pull/2657)"
+
+fix:
+  - "Fix `DaskKubernetesEnvironment` requiring that an `env` block is set when using custom specs - [#2657](https://github.com/PrefectHQ/prefect/pull/2657)"
