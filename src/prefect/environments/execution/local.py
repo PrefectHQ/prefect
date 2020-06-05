@@ -20,17 +20,6 @@ class LocalEnvironment(Environment):
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
-    def __init__(
-        self,
-        labels: List[str] = None,
-        on_start: Callable = None,
-        on_exit: Callable = None,
-        metadata: dict = None,
-    ) -> None:
-        super().__init__(
-            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
-        )
-
     @property
     def dependencies(self) -> list:
         return []
