@@ -152,6 +152,14 @@ mutation {
 }
 ```
 
+::: warning Dask Work Stealing with Version Locking
+**If you are using Dask**, you might consider turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) if you enable version locking. In rare occasions work stealing can result in tasks attempting to run twice. Though the version locking feature will prevent this from happening, you may experience a lot of log noise and inefficient re-submissions of the flow run when it occurs.
+
+You can turn off Dask worker stealing via an environment variable in your Dask Cluster:
+
+```DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive```
+:::
+
 ## Scheduling
 
 If a flow has a `schedule` attached, then the Prefect API can [automatically](services.html#scheduler) create new flow runs according to that schedule. In addition, if any of the schedule's clocks have `parameter_defaults` set they will be passed to each flow run generated from that clock (see the corresponding [Schedule documentation here](../../core/concepts/schedules.html#varying-parameter-values)).

@@ -10,7 +10,6 @@ from typing import (
 )
 
 import pendulum
-
 import prefect
 from prefect.core import Edge, Flow, Task
 from prefect.engine.result import Result
@@ -28,7 +27,10 @@ from prefect.engine.state import (
     Success,
 )
 from prefect.utilities.collections import flatten_seq
-from prefect.utilities.executors import run_with_heartbeat
+from prefect.utilities.executors import (
+    run_with_heartbeat,
+    prepare_upstream_states_for_mapping,
+)
 
 FlowRunnerInitializeResult = NamedTuple(
     "FlowRunnerInitializeResult",
@@ -147,10 +149,12 @@ class FlowRunner(Runner):
         """
 
         # overwrite context parameters one-by-one
-        if parameters:
-            context_params = context.setdefault("parameters", {})
-            for param, value in parameters.items():
-                context_params[param] = value
+        context_params = context.setdefault("parameters", {})
+        for p in self.flow.parameters():
+            if not p.required:
+                context_params.setdefault(p.name, p.default)
+        for param, value in (parameters or {}).items():
+            context_params[param] = value
 
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
@@ -381,6 +385,11 @@ class FlowRunner(Runner):
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
+        # this dictionary is used for tracking the states of "children" mapped tasks;
+        # when running on Dask, we want to avoid serializing futures, so instead
+        # of storing child task states in the `map_states` attribute we instead store
+        # in this dictionary and only after they are resolved do we attach them to the Mapped state
+        mapped_children = dict()  # type: Dict[Task, list]
 
         if not state.is_running():
             self.logger.info("Flow is not in a Running state.")
@@ -396,14 +405,19 @@ class FlowRunner(Runner):
         with executor.start():
 
             for task in self.flow.sorted_tasks():
-
                 task_state = task_states.get(task)
+
+                # if a task is a constant task, we already know its return value
+                # no need to use up resources by running it through a task runner
                 if task_state is None and isinstance(
                     task, prefect.tasks.core.constants.Constant
                 ):
                     task_states[task] = task_state = Success(result=task.value)
 
                 # if the state is finished, don't run the task, just use the provided state
+                # if the state is cached / mapped, we still want to run the task runner pipeline steps
+                # to either ensure the cache is still valid / or to recreate the mapped pipeline for
+                # possible retries
                 if (
                     isinstance(task_state, State)
                     and task_state.is_finished()
@@ -412,13 +426,25 @@ class FlowRunner(Runner):
                 ):
                     continue
 
-                upstream_states = {}  # type: Dict[Edge, Union[State, Iterable]]
+                upstream_states = {}  # type: Dict[Edge, State]
+
+                # this dictionary is used exclusively for "reduce" tasks
+                # in particular we store the states / futures corresponding to
+                # the upstream children, and if running on Dask, let Dask resolve them at the appropriate time
+                upstream_mapped_states = {}  # type: Dict[Edge, list]
 
                 # -- process each edge to the task
                 for edge in self.flow.edges_to(task):
                     upstream_states[edge] = task_states.get(
                         edge.upstream_task, Pending(message="Task state not available.")
                     )
+
+                    # this checks whether the task is a "reduce" task for a mapped pipeline
+                    # and if so, collects the appropriate upstream children
+                    if not edge.mapped and isinstance(upstream_states[edge], Mapped):
+                        upstream_mapped_states[edge] = mapped_children.get(
+                            edge.upstream_task, []
+                        )
 
                 # augment edges with upstream constants
                 for key, val in self.flow.constants[task].items():
@@ -432,9 +458,80 @@ class FlowRunner(Runner):
                         result=ConstantResult(value=val),
                     )
 
-                # -- run the task
+                # handle mapped tasks
+                if any([edge.mapped for edge in upstream_states.keys()]):
 
-                with prefect.context(task_full_name=task.name, task_tags=task.tags):
+                    ## wait on upstream states to determine the width of the pipeline
+                    ## this is the key to depth-first execution
+                    upstream_states.update(
+                        executor.wait(
+                            {e: state for e, state in upstream_states.items()}
+                        )
+                    )
+
+                    ## we submit the task to the task runner to determine if
+                    ## we can proceed with mapping - if the new task state is not a Mapped
+                    ## state then we don't proceed
+                    task_states[task] = executor.wait(
+                        executor.submit(
+                            self.run_task,
+                            task=task,
+                            state=task_state,  # original state
+                            upstream_states=upstream_states,
+                            context=dict(
+                                prefect.context, **task_contexts.get(task, {})
+                            ),
+                            task_runner_state_handlers=task_runner_state_handlers,
+                            upstream_mapped_states=upstream_mapped_states,
+                            is_mapped_parent=True,
+                        )
+                    )
+
+                    ## either way, we should now have enough resolved states to restructure
+                    ## the upstream states into a list of upstream state dictionaries to iterate over
+                    list_of_upstream_states = prepare_upstream_states_for_mapping(
+                        task_states[task], upstream_states, mapped_children
+                    )
+
+                    submitted_states = []
+
+                    for idx, states in enumerate(list_of_upstream_states):
+                        ## if we are on a future rerun of a partially complete flow run,
+                        ## there might be mapped children in a retrying state; this check
+                        ## looks into the current task state's map_states for such info
+                        if (
+                            isinstance(task_state, Mapped)
+                            and len(task_state.map_states) >= idx + 1
+                        ):
+                            current_state = task_state.map_states[
+                                idx
+                            ]  # type: Optional[State]
+                        elif isinstance(task_state, Mapped):
+                            current_state = None
+                        else:
+                            current_state = task_state
+
+                        ## this is where each child is submitted for actual work
+                        submitted_states.append(
+                            executor.submit(
+                                self.run_task,
+                                task=task,
+                                state=current_state,
+                                upstream_states=states,
+                                context=dict(
+                                    prefect.context,
+                                    **task_contexts.get(task, {}),
+                                    map_index=idx,
+                                ),
+                                task_runner_state_handlers=task_runner_state_handlers,
+                                upstream_mapped_states=upstream_mapped_states,
+                            )
+                        )
+                    if isinstance(task_states.get(task), Mapped):
+                        mapped_children[task] = submitted_states  # type: ignore
+
+                # -- run the task
+                else:
                     task_states[task] = executor.submit(
                         self.run_task,
                         task=task,
@@ -442,7 +539,7 @@ class FlowRunner(Runner):
                         upstream_states=upstream_states,
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         task_runner_state_handlers=task_runner_state_handlers,
-                        executor=executor,
+                        upstream_mapped_states=upstream_mapped_states,
                     )
 
             # ---------------------------------------------
@@ -469,7 +566,9 @@ class FlowRunner(Runner):
             all_final_states = final_states.copy()
             for t, s in list(final_states.items()):
                 if s.is_mapped():
-                    s.map_states = executor.wait(s.map_states)
+                    # ensure we wait for any mapped children to complete
+                    if t in mapped_children:
+                        s.map_states = executor.wait(mapped_children[t])
                     s.result = [ms.result for ms in s.map_states]
                     all_final_states[t] = s.map_states
 
@@ -540,7 +639,8 @@ class FlowRunner(Runner):
         upstream_states: Dict[Edge, State],
         context: Dict[str, Any],
         task_runner_state_handlers: Iterable[Callable],
-        executor: "prefect.engine.executors.Executor",
+        is_mapped_parent: bool = False,
+        upstream_mapped_states: Dict[Edge, list] = None,
     ) -> State:
         """
 
@@ -556,13 +656,17 @@ class FlowRunner(Runner):
             - task_runner_state_handlers (Iterable[Callable]): A list of state change
                 handlers that will be provided to the task_runner, and called whenever a task changes
                 state.
-            - executor (Executor): executor to use when performing
-                computation; defaults to the executor provided in your prefect configuration
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+                mapped task
+            - upstream_mapped_states (Dict[Edge, list]): dictionary of upstream states corresponding to
+                mapped children dependencies
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
 
         """
+        upstream_mapped_states = upstream_mapped_states or {}
+
         with prefect.context(self.context):
             default_result = task.result or self.flow.result
             task_runner = self.task_runner_cls(
@@ -578,7 +682,9 @@ class FlowRunner(Runner):
                 # if the upstream state is Mapped, wait until its results are all available
                 if not edge.mapped and upstream_state.is_mapped():
                     assert isinstance(upstream_state, Mapped)  # mypy assert
-                    upstream_state.map_states = executor.wait(upstream_state.map_states)
+                    upstream_state.map_states = upstream_mapped_states.get(
+                        edge, upstream_state.map_states
+                    )
                     upstream_state.result = [
                         s.result for s in upstream_state.map_states
                     ]
@@ -587,5 +693,5 @@ class FlowRunner(Runner):
                 state=state,
                 upstream_states=upstream_states,
                 context=context,
-                executor=executor,
+                is_mapped_parent=is_mapped_parent,
             )
