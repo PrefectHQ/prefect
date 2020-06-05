@@ -20,11 +20,9 @@ class DaskKubernetesEnvironment(Environment):
     on Kubernetes by spinning up a temporary Dask Cluster (using [dask-kubernetes](https://kubernetes.dask.org/en/latest/))
     and running the Prefect `DaskExecutor` on this cluster.
 
-    If pulling from a private docker registry, `setup` will ensure the appropriate
-    kubernetes secret exists; `execute` creates a single job that has the role
-    of spinning up a dask executor and running the flow. The job created in the execute
-    function does have the requirement in that it needs to have an `identifier_label`
-    set with a UUID so resources can be cleaned up independently of other deployments.
+    When running your flows that are registered with a private container registry, you
+    should either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment`
+    or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
 
     It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
     `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
@@ -64,6 +62,8 @@ class DaskKubernetesEnvironment(Environment):
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
         - worker_spec_file (str, optional): Path to a worker spec YAML file
+        - image_pull_secret (str, optional): optional name of an `imagePullSecret` to use for the scheduler and worker
+            pods. For more information go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
     """
 
     def __init__(
@@ -79,6 +79,7 @@ class DaskKubernetesEnvironment(Environment):
         on_exit: Callable = None,
         scheduler_spec_file: str = None,
         worker_spec_file: str = None,
+        image_pull_secret: str = None,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -96,6 +97,7 @@ class DaskKubernetesEnvironment(Environment):
             self.docker_secret = None  # type: ignore
         self.scheduler_spec_file = scheduler_spec_file
         self.worker_spec_file = worker_spec_file
+        self.image_pull_secret = image_pull_secret
 
         # Load specs from file if path given, store on object
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
@@ -385,10 +387,13 @@ class DaskKubernetesEnvironment(Environment):
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        pod_spec = yaml_obj["spec"]["template"]["spec"]
         if self.private_registry:
-            pod_spec = yaml_obj["spec"]["template"]["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+        elif self.image_pull_secret:
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
 
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
@@ -425,11 +430,14 @@ class DaskKubernetesEnvironment(Environment):
         env[2]["value"] = prefect.context.get("flow_run_id", "")
         env[11]["value"] = self._extra_loggers()
 
+        pod_spec = yaml_obj["spec"]
         if self.private_registry:
             namespace = prefect.context.get("namespace", "default")
-            pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+        elif self.image_pull_secret:
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
@@ -502,7 +510,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"] = []
+            env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image
@@ -558,7 +570,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["containers"][0]["env"] = []
+            env = yaml_obj["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image
