@@ -29,16 +29,11 @@ class S3(Storage):
         - key (str, optional): a unique key to use for uploading a Flow to S3. This
             is only useful when storing a single Flow using this storage object.
         - client_options (dict, optional): Additional options for the `boto3` client.
-        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
-            for each flow run.  Used primarily for providing authentication credentials.
+        - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self,
-        bucket: str,
-        client_options: dict = None,
-        key: str = None,
-        secrets: List[str] = None,
+        self, bucket: str, client_options: dict = None, key: str = None, **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -48,10 +43,10 @@ class S3(Storage):
         self.client_options = client_options
 
         result = S3Result(bucket=bucket)
-        super().__init__(result=result, secrets=secrets)
+        super().__init__(result=result, **kwargs)
 
     @property
-    def labels(self) -> List[str]:
+    def default_labels(self) -> List[str]:
         return ["s3-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
