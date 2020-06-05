@@ -6,6 +6,7 @@ from google.cloud.exceptions import NotFound
 import prefect
 from prefect.tasks.gcp import (
     BigQueryLoadGoogleCloudStorage,
+    BigQueryLoadFile,
     BigQueryStreamingInsert,
     BigQueryTask,
     CreateBigQueryTable,
@@ -117,6 +118,38 @@ class TestBigQueryLoadGoogleCloudStorageInitialization:
         task = BigQueryLoadGoogleCloudStorage(**{attr: "some-value"})
         with pytest.raises(ValueError) as exc:
             task.run(uri=None)
+        assert attr in str(exc.value)
+        assert "must be provided" in str(exc.value)
+
+
+class TestBigQueryLoadFileInitialization:
+    def test_initializes_with_nothing_and_sets_defaults(self):
+        task = BigQueryLoadFile()
+        assert task.project is None
+        assert task.location == "US"
+        assert task.dataset_id is None
+        assert task.table is None
+        assert task.file is None
+        assert task.rewind is False
+        assert task.num_retries == 6
+        assert task.size is None
+
+    def test_additional_kwargs_passed_upstream(self):
+        task = BigQueryLoadFile(name="test-task", checkpoint=True, tags=["bob"])
+        assert task.name == "test-task"
+        assert task.checkpoint is True
+        assert task.tags == {"bob"}
+
+    @pytest.mark.parametrize("attr", ["project", "location", "dataset_id", "table"])
+    def test_initializes_attr_from_kwargs(self, attr):
+        task = BigQueryLoadFile(**{attr: "my-value"})
+        assert getattr(task, attr) == "my-value"
+
+    @pytest.mark.parametrize("attr", ["dataset_id", "table"])
+    def test_dataset_dest_and_table_dest_are_required_together_eventually(self, attr):
+        task = BigQueryLoadFile(**{attr: "some-value"})
+        with pytest.raises(ValueError) as exc:
+            task.run(file=None)
         assert attr in str(exc.value)
         assert "must be provided" in str(exc.value)
 

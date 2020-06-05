@@ -39,6 +39,8 @@ class KubernetesJobEnvironment(Environment):
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
+        - unique_job_name (bool, optional): whether to use a unique name for each job created with this environment. Defaults
+            to `False`
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
@@ -50,12 +52,14 @@ class KubernetesJobEnvironment(Environment):
     def __init__(
         self,
         job_spec_file: str = None,
+        unique_job_name: bool = False,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
+        self.unique_job_name = unique_job_name
         self.executor_kwargs = executor_kwargs or dict()
 
         # Load specs from file if path given, store on object
@@ -207,6 +211,11 @@ class KubernetesJobEnvironment(Environment):
         if not yaml_obj.get("metadata"):
             yaml_obj["metadata"] = {}
 
+        if self.unique_job_name:
+            yaml_obj["metadata"][
+                "name"
+            ] = f"{yaml_obj['metadata']['name']}-{str(uuid.uuid4())[:8]}"
+
         if not yaml_obj["metadata"].get("labels"):
             yaml_obj["metadata"]["labels"] = {}
 
@@ -217,11 +226,12 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
 
         # Populate metadata label fields
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        k8s_labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        yaml_obj["metadata"]["labels"].update(k8s_labels)
+        yaml_obj["spec"]["template"]["metadata"]["labels"].update(k8s_labels)
 
         # Required Cloud environment variables
         env_values = [
@@ -249,7 +259,7 @@ class KubernetesJobEnvironment(Environment):
             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
             {
                 "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                "value": prefect.config.logging.extra_loggers,
+                "value": str(prefect.config.logging.extra_loggers),
             },
         ]
 

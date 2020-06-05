@@ -25,6 +25,7 @@ class AzureResult(Result):
             will be used
         - connection_string_secret (str, optional): the name of a Prefect Secret
             which stores your Azure connection tring
+        - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
     def __init__(

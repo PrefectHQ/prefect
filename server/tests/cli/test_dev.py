@@ -5,7 +5,6 @@
 import os
 import tempfile
 
-import click
 import pytest
 from click.testing import CliRunner
 

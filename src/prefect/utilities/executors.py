@@ -1,3 +1,5 @@
+import copy
+import itertools
 import multiprocessing
 import os
 import signal
@@ -8,13 +10,15 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
 
 import prefect
 
 if TYPE_CHECKING:
     import prefect.engine.runner
     import prefect.engine.state
+    from prefect.core.edge import Edge  # pylint: disable=W0611
+    from prefect.core.task import Task  # pylint: disable=W0611
     from prefect.engine.state import State  # pylint: disable=W0611
 
 StateList = Union["State", List["State"]]
@@ -271,3 +275,99 @@ def tail_recursive(func: Callable) -> Callable:
 
     setattr(wrapper, "__wrapped_func__", func)
     return wrapper
+
+
+def prepare_upstream_states_for_mapping(
+    state: "State",
+    upstream_states: Dict["Edge", "State"],
+    mapped_children: Dict["Task", list],
+) -> list:
+    """
+    If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
+
+    Args:
+        - state (State): the parent task's current state
+        - upstream_states (Dict[Edge, State]): the upstream states to this task
+        - mapped_children (Dict[Task, List[State]]): any mapped children upstream of this task
+
+    Returns:
+        - List: a restructured list of upstream states correponding to each new mapped child task
+    """
+
+    ## if the current state is failed / skipped or otherwise
+    ## in a state that signifies we should not continue with mapping,
+    ## we return an empty list
+    if state.is_pending() or state.is_failed() or state.is_skipped():
+        return []
+
+    map_upstream_states = []
+
+    # we don't know how long the iterables are, but we want to iterate until we reach
+    # the end of the shortest one
+    counter = itertools.count()
+
+    # infinite loop, if upstream_states has any entries
+    while True and upstream_states:
+        i = next(counter)
+        states = {}
+
+        try:
+
+            for edge, upstream_state in upstream_states.items():
+
+                # ensure we are working with populated result objects
+                if edge.key in state.cached_inputs:
+                    upstream_state._result = state.cached_inputs[edge.key]
+
+                # if the edge is not mapped over, then we take its state
+                if not edge.mapped:
+                    states[edge] = upstream_state
+
+                # if the edge is mapped and the upstream state is Mapped, then we are mapping
+                # over a mapped task. In this case, we take the appropriately-indexed upstream
+                # state from the upstream tasks's `Mapped.map_states` array.
+                # Note that these "states" might actually be futures at this time; we aren't
+                # blocking until they finish.
+                elif edge.mapped and upstream_state.is_mapped():
+                    states[edge] = mapped_children[edge.upstream_task][i]  # type: ignore
+
+                # Otherwise, we are mapping over the result of a "vanilla" task. In this
+                # case, we create a copy of the upstream state but set the result to the
+                # appropriately-indexed item from the upstream task's `State.result`
+                # array.
+                else:
+                    states[edge] = copy.copy(upstream_state)
+
+                    # if the current state is already Mapped, then we might be executing
+                    # a re-run of the mapping pipeline. In that case, the upstream states
+                    # might not have `result` attributes (as any required results could be
+                    # in the `cached_inputs` attribute of one of the child states).
+                    # Therefore, we only try to get a result if EITHER this task's
+                    # state is not already mapped OR the upstream result is not None.
+                    if (
+                        not state.is_mapped()
+                        or upstream_state._result != prefect.engine.result.NoResult
+                    ):
+                        if not hasattr(upstream_state.result, "__getitem__"):
+                            raise TypeError(
+                                "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                                    t=type(upstream_state.result),
+                                    preview=repr(upstream_state.result)[:10],
+                                )
+                            )
+                        upstream_result = upstream_state._result.from_value(  # type: ignore
+                            upstream_state.result[i]
+                        )
+                        states[edge].result = upstream_result
+                    elif state.is_mapped():
+                        if i >= len(state.map_states):  # type: ignore
+                            raise IndexError()
+
+            # only add this iteration if we made it through all iterables
+            map_upstream_states.append(states)
+
+        # index error means we reached the end of the shortest iterable
+        except IndexError:
+            break
+
+    return map_upstream_states

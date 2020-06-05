@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect import Flow, Task, task
+from prefect import Flow, Task, task, Parameter
 from prefect.engine.result import NoResult
 from prefect.engine.state import Skipped, Success
 from prefect.tasks.control_flow import FilterTask, ifelse, merge, switch, case
@@ -464,3 +464,66 @@ class TestCase:
                 assert state.result[t].result == sol[t]
             else:
                 assert state.result[t].is_skipped()
+
+    def test_case_imperative_errors(self):
+        flow = Flow("test")
+        flow2 = Flow("test2")
+        cond = identity.copy()
+        a = identity.copy()
+        with pytest.raises(ValueError, match="Multiple flows"):
+            with case(cond, True):
+                flow.add_task(a)
+                flow2.add_task(a)
+
+    @pytest.mark.parametrize("branch", ["a", "b", "c"])
+    def test_case_imperative_api(self, branch):
+        flow = Flow("test")
+
+        cond = identity.copy()
+        a = identity.copy()
+        b = inc.copy()
+        c = identity.copy()
+        d = inc.copy()
+
+        cond.bind(branch, flow=flow)
+        flow.add_task(cond)
+        with case(cond, "a"):
+            a.bind(1, flow=flow)
+            b.bind(a, flow=flow)
+            flow.add_task(a)
+            flow.add_task(b)
+
+        with case(cond, "b"):
+            c.bind(3, flow=flow)
+            d.bind(c, flow=flow)
+            flow.add_task(c)
+            flow.add_task(d)
+
+        state = flow.run()
+
+        if branch == "a":
+            assert state.result[a].result == 1
+            assert state.result[b].result == 2
+            assert state.result[c].is_skipped()
+            assert state.result[d].is_skipped()
+        elif branch == "b":
+            assert state.result[a].is_skipped()
+            assert state.result[b].is_skipped()
+            assert state.result[c].result == 3
+            assert state.result[d].result == 4
+        elif branch == "c":
+            for t in [a, b, c, d]:
+                assert state.result[t].is_skipped()
+
+    def test_case_with_parameters(self):
+        with Flow("test") as flow:
+            x = Parameter("x")
+            cond = identity(True)
+            with case(cond, True):
+                y1 = x + 1
+            with case(cond, False):
+                y2 = x - 1
+
+        state = flow.run(x=1)
+        assert state.result[y1].result == 2
+        assert state.result[y2].is_skipped()

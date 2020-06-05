@@ -17,7 +17,7 @@ Docker provides an excellent industry-standard abstraction for shipping code alo
 Whenever you call `flow.register` or build a [Docker storage object](../../api/latest/environments/storage.html#docker) yourself, Prefect will perform the following actions:
 
 - calls `cloudpickle.dumps(flow)` on your Flow object to convert it to serialized bytes
-- stores these bytes inside the Docker image in the `/root/.prefect/` directory
+- stores these bytes inside the Docker image in the `/opt/prefect/` directory
 - runs various health checks on your Flow inside the image to try and catch any issues
 
 ::: warning cloudpickle
@@ -53,11 +53,11 @@ Prefect's Docker storage abstraction also exposes the ability to set environment
 
 Data can be exchanged between Prefect Tasks as a first class operation. This is achieved by creating tasks which accept inputs and return values (using Python's standard `return` statement). Note that this section is _only_ focused on this type of data exchange. Prefect does not track data which is handled _within_ your tasks (e.g., if your task extracts data from some third-party location or writes to some persisted storage but never returns this data).
 
-### Result Handlers
+### Result Persistence
 
-During normal execution, the data exchanged between tasks is usually passed in memory. However, there are [many situations](../dataflow.html#when-is-data-persisted) in which this data needs to be _persisted_ somewhere. Data is only persisted in Prefect Cloud using a [Result Handler](../../core/concepts/results.html). Note that unless you turn [checkpointing](../../core/concepts/persistence.html#checkpointing) on for your local Core flows, Result Handlers are never exercised in Core.
+During normal execution, the data exchanged between tasks is usually passed in memory. However, there are [many situations](../dataflow.html#when-is-data-persisted) in which this data needs to be _persisted_ somewhere. Data is only persisted in Prefect Cloud using a [Result](../../core/concepts/results.html). Note that unless you turn [checkpointing](../../core/concepts/persistence.html#persisting-output) on for your local Core flows, Results are never exercised in Core.
 
-You want to choose a result handler that matches both your Task's data type as well as your preferred location for tracking the data. For example, the `JSONResultHandler` is only capable of handling JSON-compatible data, whereas the `GCSResultHandler` can handle any `cloudpickle`-able Python object. You can also always write a completely custom handler for your Flows and Tasks to use.
+You want to choose a result subclass that matches both your Task's data type as well as your preferred location for tracking the data. For example, the `PrefectResult` is only capable of handling JSON-compatible data, whereas the `GCSResult` can handle any `cloudpickle`-able Python object. You can also always write a completely custom handler for your Flows and Tasks to use.
 
 ::: tip Debugging
 If you experience a Task failure with the message:

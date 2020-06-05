@@ -11,7 +11,6 @@ import yaml
 import prefect
 from prefect import config
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.docker_util import platform_is_linux, get_docker_ip
 
 
 def make_env(fname=None):
@@ -38,6 +37,9 @@ def make_env(fname=None):
             port=config.server.graphql.port
         ),
         APOLLO_HOST_PORT=config.server.host_port,
+        PREFECT_SERVER__TELEMETRY__ENABLED=(
+            "true" if config.server.telemetry.enabled is True else "false"
+        ),
     )
 
     POSTGRES_ENV = dict(
@@ -45,6 +47,7 @@ def make_env(fname=None):
         POSTGRES_USER=config.server.database.username,
         POSTGRES_PASSWORD=config.server.database.password,
         POSTGRES_DB=config.server.database.name,
+        POSTGRES_DATA_PATH=config.server.database.volume_path,
     )
 
     UI_ENV = dict(GRAPHQL_URL=config.server.ui.graphql_url)
@@ -175,6 +178,19 @@ def server():
     is_flag=True,
     hidden=True,
 )
+@click.option(
+    "--use-volume",
+    help="Enable the use of a volume for the postgres service",
+    is_flag=True,
+    hidden=True,
+)
+@click.option(
+    "--volume-path",
+    help="A path to use for the postgres volume",
+    default=config.server.database.volume_path,
+    type=str,
+    hidden=True,
+)
 def start(
     version,
     skip_pull,
@@ -190,31 +206,37 @@ def start(
     no_graphql_port,
     no_ui_port,
     no_server_port,
+    use_volume,
+    volume_path,
 ):
     """
     This command spins up all infrastructure and services for the Prefect Core server
 
     \b
     Options:
-        --version, -v   TEXT    The server image versions to use (for example, '0.10.0' or 'master')
-                                Defaults to the current installed Prefect version.
-        --skip-pull             Flag to skip pulling new images (if available)
-        --no-upgrade, -n        Flag to avoid running a database upgrade when the database spins up
-        --no-ui, -u             Flag to avoid starting the UI
+        --version, -v       TEXT    The server image versions to use (for example, '0.10.0' or 'master')
+                                    Defaults to the current installed Prefect version.
+        --skip-pull                 Flag to skip pulling new images (if available)
+        --no-upgrade, -n            Flag to avoid running a database upgrade when the database spins up
+        --no-ui, -u                 Flag to avoid starting the UI
 
     \b
-        --postgres-port TEXT    Port used to serve Postgres, defaults to '5432'
-        --hasura-port   TEXT    Port used to serve Hasura, defaults to '3001'
-        --graphql-port  TEXT    Port used to serve the GraphQL API, defaults to '4001'
-        --ui-port       TEXT    Port used to serve the UI, defaults to '8080'
-        --server-port   TEXT    Port used to serve the Core server, defaults to '4200'
+        --postgres-port     TEXT    Port used to serve Postgres, defaults to '5432'
+        --hasura-port       TEXT    Port used to serve Hasura, defaults to '3001'
+        --graphql-port      TEXT    Port used to serve the GraphQL API, defaults to '4001'
+        --ui-port           TEXT    Port used to serve the UI, defaults to '8080'
+        --server-port       TEXT    Port used to serve the Core server, defaults to '4200'
 
     \b
-        --no-postgres-port      Disable port map of Postgres to host
-        --no-hasura-port        Disable port map of Hasura to host
-        --no-graphql-port       Disable port map of the GraphQL API to host
-        --no-ui-port            Disable port map of the UI to host
-        --no-server-port        Disable port map of the Core server to host
+        --no-postgres-port          Disable port map of Postgres to host
+        --no-hasura-port            Disable port map of Hasura to host
+        --no-graphql-port           Disable port map of the GraphQL API to host
+        --no-ui-port                Disable port map of the UI to host
+        --no-server-port            Disable port map of the Core server to host
+
+    \b
+        --use-volume                Enable the use of a volume for the Postgres service
+        --volume-path       TEXT    A path to use for the Postgres volume, defaults to '~/.prefect/pg_data'
     """
 
     docker_dir = Path(__file__).parents[0]
@@ -227,7 +249,7 @@ def start(
         or no_graphql_port
         or no_ui_port
         or no_server_port
-        or platform_is_linux()
+        or not use_volume
     ):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, "docker-compose.yml")
@@ -251,12 +273,8 @@ def start(
             if no_server_port:
                 del y["services"]["apollo"]["ports"]
 
-            if platform_is_linux():
-                docker_internal_ip = get_docker_ip()
-                for service in list(y["services"]):
-                    y["services"][service]["extra_hosts"] = [
-                        "host.docker.internal:{}".format(docker_internal_ip)
-                    ]
+            if not use_volume:
+                del y["services"]["postgres"]["volumes"]
 
         with open(temp_path, "w") as f:
             y = yaml.safe_dump(y, f)
@@ -266,11 +284,12 @@ def start(
     # Temporary config set for port allocation
     with set_temporary_config(
         {
-            "server.database.host_port": postgres_port,
-            "server.hasura.host_port": hasura_port,
-            "server.graphql.host_port": graphql_port,
-            "server.ui.host_port": ui_port,
-            "server.host_port": server_port,
+            "server.database.host_port": str(postgres_port),
+            "server.hasura.host_port": str(hasura_port),
+            "server.graphql.host_port": str(graphql_port),
+            "server.ui.host_port": str(ui_port),
+            "server.host_port": str(server_port),
+            "server.database.volume_path": volume_path,
         }
     ):
         env = make_env()

@@ -1,7 +1,5 @@
-import sys
 from unittest.mock import MagicMock
 
-import click
 import pytest
 import requests
 from click.testing import CliRunner
@@ -48,6 +46,7 @@ def test_get_flows_server(monkeypatch, server_api):
             name
             version
             created
+            id
         }
     }
     """
@@ -81,6 +80,7 @@ def test_get_flows_cloud(monkeypatch, cloud_api):
                 name
                 version
                 created
+                id
                 project {
                     name
                 }
@@ -125,6 +125,7 @@ def test_get_flows_populated(monkeypatch, cloud_api):
                 name
                 version
                 created
+                id
                 project {
                     name
                 }
@@ -235,6 +236,7 @@ def test_get_flow_runs_server(monkeypatch, server_api):
                 flow {
                     name
                 }
+                id
                 created
                 state
                 name
@@ -277,6 +279,7 @@ def test_get_flow_runs_cloud(monkeypatch, cloud_api):
                 flow {
                     name
                 }
+                id
                 created
                 state
                 name
@@ -323,6 +326,7 @@ def test_get_flow_runs_populated(monkeypatch, cloud_api):
                 flow {
                     name
                 }
+                id
                 created
                 state
                 name
@@ -501,7 +505,7 @@ def test_get_logs(monkeypatch, cloud_api):
 
         query = """
         query {
-            flow_run(where: { name: { _eq: "flow_run" } }, order_by: { start_time: desc }) {
+            flow_run(where: { name: { _eq: "flow_run" }, id: { _eq: null } }, order_by: { start_time: desc }) {
                 logs(order_by: { timestamp: asc }) {
                     timestamp
                     message
@@ -536,7 +540,7 @@ def test_get_logs_info(monkeypatch, cloud_api):
 
         query = """
         query {
-            flow_run(where: { name: { _eq: "flow_run" } }, order_by: { start_time: desc }) {
+            flow_run(where: { name: { _eq: "flow_run" }, id: { _eq: null } }, order_by: { start_time: desc }) {
                 logs(order_by: { timestamp: asc }) {
                     timestamp
                     info
@@ -565,3 +569,74 @@ def test_get_logs_fails(monkeypatch, cloud_api):
         result = runner.invoke(get, ["logs", "--name", "flow_run"])
         assert result.exit_code == 0
         assert "flow_run not found" in result.output
+
+
+def test_get_logs_by_id(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(
+                return_value=dict(
+                    data=dict(
+                        flow_run=[
+                            dict(
+                                logs=[
+                                    {
+                                        "timestamp": "timestamp",
+                                        "level": "level",
+                                        "message": "message",
+                                    }
+                                ]
+                            )
+                        ]
+                    )
+                )
+            )
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        runner = CliRunner()
+        result = runner.invoke(get, ["logs", "--id", "id"])
+        assert result.exit_code == 0
+        assert (
+            "TIMESTAMP" in result.output
+            and "LEVEL" in result.output
+            and "MESSAGE" in result.output
+            and "level" in result.output
+        )
+
+        query = """
+        query {
+            flow_run(where: { name: { _eq: null }, id: { _eq: "id" } }, order_by: { start_time: desc }) {
+                logs(order_by: { timestamp: asc }) {
+                    timestamp
+                    message
+                    level
+                }
+                start_time
+            }
+        }
+        """
+
+        assert post.called
+        assert post.call_args[1]["json"]["query"].split() == query.split()
+
+
+def test_get_logs_fails_no_name_or_id(monkeypatch, cloud_api):
+    post = MagicMock(
+        return_value=MagicMock(
+            json=MagicMock(return_value=dict(data=dict(flow_run=[])))
+        )
+    )
+    session = MagicMock()
+    session.return_value.post = post
+    monkeypatch.setattr("requests.Session", session)
+
+    with set_temporary_config({"cloud.auth_token": "secret_token"}):
+        runner = CliRunner()
+        result = runner.invoke(get, ["logs"])
+        assert result.exit_code == 0
+        assert "must be provided" in result.output

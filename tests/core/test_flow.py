@@ -7,7 +7,6 @@ import random
 import sys
 import tempfile
 import time
-import uuid
 from unittest.mock import MagicMock, patch
 
 import cloudpickle
@@ -517,6 +516,25 @@ def test_eager_cycle_detection_defaults_false():
         f.validate()
 
 
+def test_direct_cycles_are_always_detected_1():
+    # edge classes prevent tasks from connecting to themselves, so
+    # direct cycles should always be prevented
+    f = Flow(name="test")
+    t = Task()
+    with pytest.raises(ValueError):
+        f.add_edge(t, t)
+
+
+def test_direct_cycles_are_always_detected_2():
+    # edge classes prevent tasks from connecting to themselves, so
+    # direct cycles should always be prevented
+    f = Flow(name="test")
+    t = Task()
+    with f:
+        with pytest.raises(ValueError):
+            t.set_upstream(t)
+
+
 def test_eager_validation_is_off_by_default(monkeypatch):
     # https://github.com/PrefectHQ/prefect/issues/919
     assert not prefect.config.flows.eager_edge_validation
@@ -672,6 +690,142 @@ def test_key_states_raises_error_if_not_iterable():
         f.add_task(t1)
         with pytest.raises(TypeError):
             f.set_reference_tasks(t1)
+
+
+def test_warning_raised_if_tasks_are_created_but_not_added_to_flow():
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            tracker = prefect.context._unused_task_tracker
+            assert len(tracker) == 0
+            x = Parameter("x")
+            assert len(tracker) == 1
+            assert x in tracker
+        assert "_unused_task_tracker" not in prefect.context
+
+
+def test_warning_raised_if_tasks_are_created_but_not_added_to_nested_flow():
+    # only one warning for nested flows
+    with pytest.warns(None) as record:
+        with Flow(name="test"):
+            tracker_1 = prefect.context._unused_task_tracker
+            with Flow(name="test2"):
+                tracker_2 = prefect.context._unused_task_tracker
+                x = Parameter("x")
+                assert x in tracker_2
+                assert x not in tracker_1
+
+    assert len(record) == 1
+
+
+def test_warning_not_raised_if_tasks_are_created_and_added_to_flow():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            x = Parameter("x")
+            f.add_task(x)
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_not_raised_for_constant_tasks_as_indices():
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            tt = Task()[0]
+
+    # confirm tasks were added
+    assert len(f.tasks) == 2
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_not_raised_for_constant_tasks_as_inputs():
+    @task
+    def add_one(x):
+        return x + 1
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            tt = add_one(10)
+
+    # confirm tasks were added
+    assert len(f.tasks) == 1
+    assert f.constants[tt]["x"] == 10
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_raised_if_tasks_are_copied_but_not_added_to_flow():
+    x = Parameter("x")
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test"):
+            x.copy("x2")
+
+
+def test_warning_not_raised_for_tasks_defined_in_flow_context():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as flow:
+
+            @task
+            def ten():
+                return 10
+
+            @task
+            def add(x, y):
+                return x + y
+
+            x = ten()
+            result = add(x(), 1)
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_raised_for_tasks_defined_in_flow_context_and_unused():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test") as flow:
+
+            @task
+            def ten():
+                return 10
+
+            @task
+            def add(x, y):
+                return x + y
+
+
+def test_warning_not_raised_for_lambda_tasks_defined_in_flow_context():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as flow:
+            x = task(lambda: 10)
+            result = task(lambda x, y, z: x + y + z)(x, x(), 1)
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_raised_for_lambda_tasks_defined_in_flow_context_and_unused():
+    # https://github.com/PrefectHQ/prefect/issues/2677
+    with pytest.warns(UserWarning, match="Tasks were created but not added"):
+        with Flow(name="test") as flow:
+            x = task(lambda: 10)
+
+
+def test_context_is_scoped_to_flow_context():
+    with Flow(name="f"):
+        prefect.context.name = "f"
+        with Flow(name="g"):
+            prefect.context.name = "g"
+            assert prefect.context.name == "g"
+        assert prefect.context.name == "f"
+    assert "name" not in prefect.context
 
 
 class TestEquality:
@@ -1614,6 +1768,39 @@ class TestFlowRunMethod:
         f.run()
         assert t.call_count == 2
 
+    def test_flow_dot_run_with_paused_states_hangs(self, monkeypatch):
+        """
+        Tests that running a flow with a Paused state hangs forever...
+        not recommended behavior but possible.
+        https://github.com/PrefectHQ/prefect/issues/2615
+        """
+
+        @task
+        def task_1():
+            return 1
+
+        @task(trigger=prefect.triggers.manual_only)
+        def add_one(x):
+            return x + 1
+
+        with Flow("example") as flow:
+            t1 = task_1()
+            t2 = add_one(x=t1)
+
+        sleep_counter = 10
+
+        def sleep(naptime):
+            nonlocal sleep_counter
+            sleep_counter += 1
+            if sleep_counter > 10:
+                raise ValueError("Slept a lot...")
+
+        mock = MagicMock(side_effect=sleep)
+        monkeypatch.setattr("time.sleep", mock)
+
+        with pytest.raises(ValueError, match="Slept a lot..."):
+            assert flow.run()
+
     def test_flow_dot_run_passes_scheduled_parameters(self):
         a = prefect.schedules.clocks.DatesClock(
             [pendulum.now("UTC").add(seconds=0.1)], parameter_defaults=dict(x=1)
@@ -1884,7 +2071,9 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
-    def test_flow_dot_run_handles_cached_states_across_runs(self, repeat_schedule):
+    def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(
+        self, repeat_schedule
+    ):
         schedule = repeat_schedule(3)
 
         class StatefulTask(Task):
@@ -2100,7 +2289,10 @@ class TestFlowRunMethod:
         assert flow_state.is_successful()
         assert all([s.is_successful() for s in flow_state.result[res].map_states])
         assert res.call_count == 4
-        assert len(state_history) == 13
+        # Pending -> Mapped (parent)
+        # Pending -> Running -> Failed -> Retrying -> Running -> Successful (failed child)
+        # (Pending -> Running -> Success) * 2 (others)
+        assert len(state_history) == 10
 
     def test_flow_run_accepts_state_kwarg(self):
         f = Flow(name="test")
@@ -2692,3 +2884,43 @@ def test_results_write_to_formatted_locations(tmpdir):
         "1.txt",
         "3.txt",
     }
+
+
+def test_results_write_to_custom_formatters(tmpdir):
+    result = LocalResult(dir=tmpdir, location="{map_index}-{x}-{param}.txt")
+
+    with Flow("results", result=result) as flow:
+
+        p = Parameter("param", default="book")
+
+        @task()
+        def return_x(x, param):
+            return x
+
+        vals = return_x.map(x=[1, 42, None, "string-type"], param=unmapped(p))
+
+    with set_temporary_config({"flows.checkpointing": True}):
+        flow_state = flow.run()
+
+    assert flow_state.is_successful()
+    assert set(os.listdir(tmpdir)) == {
+        "0-1-book.txt",
+        "1-42-book.txt",
+        "3-string-type-book.txt",
+    }
+
+
+def test_run_agent_passes_environment_labels(monkeypatch):
+    agent = MagicMock()
+    monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
+
+    f = Flow(
+        "test",
+        environment=prefect.environments.LocalEnvironment(
+            labels=["test", "test", "test2"]
+        ),
+    )
+    f.run_agent()
+
+    assert type(agent.call_args[1]["labels"]) is list
+    assert set(agent.call_args[1]["labels"]) == set(["test", "test2"])

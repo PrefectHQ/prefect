@@ -1,4 +1,4 @@
-# Dask Kubernetes Environment <Badge text="Cloud"/>
+# Dask Kubernetes Environment
 
 [[toc]]
 
@@ -75,6 +75,10 @@ roleRef:
 ```
 
 #### Setup
+
+::: warning Deprecated
+As of version `0.11.3` setting `docker_secret` and `private_registry` is deprecated. Image pull secrets should be set on custom YAML for the scheduler and worker pods. For more information on Kubernetes imagePullSecets go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret).
+:::
 
 The Dask Kubernetes environment setup step is responsible for checking the [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) for a provided `docker_secret` only if `private_registry=True`. If the Kubernetes Secret is not found then it will attempt to create one based off of the value set in the Prefect Secret matching the name specified for `docker_secret`.
 

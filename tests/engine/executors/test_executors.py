@@ -1,13 +1,9 @@
-import datetime
 import logging
 import random
 import sys
-import tempfile
 import time
-from unittest.mock import MagicMock
 
 import cloudpickle
-import dask
 import distributed
 import pytest
 
@@ -25,10 +21,6 @@ class TestBaseExecutor:
     def test_submit_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
             Executor().submit(lambda: 1)
-
-    def test_map_raises_notimplemented(self):
-        with pytest.raises(NotImplementedError):
-            Executor().map(lambda: 1)
 
     def test_wait_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
@@ -103,51 +95,6 @@ class TestLocalDaskExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalDaskExecutor)
 
-    def test_map_iterates_over_multiple_args(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        e = LocalDaskExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn))
-        assert res == []
-
-    def test_map_with_synchronous_scheduler(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="synchronous")
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_with_threads_scheduler(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="threads")
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_fails_with_processes_executor(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalDaskExecutor(scheduler="processes")
-        with pytest.raises(RuntimeError):
-            with e.start():
-                res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-
 
 class TestLocalExecutor:
     def test_submit(self):
@@ -173,24 +120,6 @@ class TestLocalExecutor:
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalExecutor)
 
-    def test_map_iterates_over_multiple_args(self):
-        def map_fn(x, y):
-            return x + y
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn, [1, 2], [1, 3]))
-        assert res == [2, 5]
-
-    def test_map_doesnt_do_anything_for_empty_list_input(self):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        e = LocalExecutor()
-        with e.start():
-            res = e.wait(e.map(map_fn))
-        assert res == []
-
 
 @pytest.mark.parametrize("executor", ["mproc", "mthread", "sync"], indirect=True)
 def test_submit_does_not_assume_pure_functions(executor):
@@ -204,29 +133,7 @@ def test_submit_does_not_assume_pure_functions(executor):
     assert one != two
 
 
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
-def test_executor_has_compatible_timeout_handler(executor):
-    slow_fn = lambda: time.sleep(3)
-    with executor.start():
-        with pytest.raises(TimeoutError):
-            executor.wait(executor.submit(executor.timeout_handler, slow_fn, timeout=1))
-
-
-def test_dask_processes_executor_handles_timeouts(mproc):
-    slow_fn = lambda: time.sleep(2)
-    with mproc.start():
-        with pytest.raises(TimeoutError, match="Execution timed out"):
-            mproc.wait(mproc.submit(mproc.timeout_handler, slow_fn, timeout=1))
-
-
 class TestDaskExecutor:
-    @pytest.fixture(scope="class")
-    def executors(self):
-        return {
-            "processes": DaskExecutor(local_processes=True),
-            "threads": DaskExecutor(local_processes=False),
-        }
-
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_submit_and_wait(self, executor):
         to_compute = {}
@@ -243,99 +150,150 @@ class TestDaskExecutor:
     )
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_runs_in_parallel(self, executor):
-        """This test is designed to have two tasks record and return their multiple execution times;
-        if the tasks run in parallel, we expect the times to be scrambled."""
         # related: "https://stackoverflow.com/questions/52121686/why-is-dask-distributed-not-parallelizing-the-first-run-of-my-workflow"
 
         def record_times():
-            res = []
-            pause = random.randint(0, 50)
-            for i in range(50):
-                if i == pause:
-                    time.sleep(0.1)  # add a little noise
-                res.append(time.time())
-            return res
+            start_time = time.time()
+            time.sleep(random.random() * 0.25 + 0.1)
+            end_time = time.time()
+            return start_time, end_time
 
-        with executor.start() as client:
-            a = client.submit(record_times)
-            b = client.submit(record_times)
-            res = client.gather([a, b])
-
-        times = [("alice", t) for t in res[0]] + [("bob", t) for t in res[1]]
-        names = [name for name, time in sorted(times, key=lambda x: x[1])]
-
-        alice_first = ["alice"] * 50 + ["bob"] * 50
-        bob_first = ["bob"] * 50 + ["alice"] * 50
-
-        assert names != alice_first
-        assert names != bob_first
-
-    def test_init_kwargs_are_passed_to_init(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor(test_kwarg="test_value")
         with executor.start():
+            a = executor.submit(record_times)
+            b = executor.submit(record_times)
+            a, b = executor.wait([a, b])
+
+        a_start, a_end = a
+        b_start, b_end = b
+
+        assert a_start < b_end
+        assert b_start < a_end
+
+    def test_connect_to_running_cluster(self):
+        with distributed.Client(processes=False, set_as_default=False) as client:
+            executor = DaskExecutor(address=client.scheduler.address)
+            assert executor.address == client.scheduler.address
+            assert executor.cluster_class is None
+            assert executor.cluster_kwargs is None
+            assert executor.client_kwargs == {}
+
+            with executor.start():
+                res = executor.wait(executor.submit(lambda x: x + 1, 1))
+                assert res == 2
+
+    def test_start_local_cluster(self):
+        executor = DaskExecutor(cluster_kwargs={"processes": False})
+        assert executor.cluster_class == distributed.LocalCluster
+        assert executor.cluster_kwargs == {
+            "processes": False,
+            "silence_logs": logging.CRITICAL,
+        }
+
+        with executor.start():
+            res = executor.wait(executor.submit(lambda x: x + 1, 1))
+            assert res == 2
+
+    def test_local_cluster_adapt(self):
+        adapt_kwargs = {"minimum": 1, "maximum": 1}
+        called_with = None
+
+        class MyCluster(distributed.LocalCluster):
+            def adapt(self, **kwargs):
+                nonlocal called_with
+                called_with = kwargs
+                super().adapt(**kwargs)
+
+        executor = DaskExecutor(
+            cluster_class=MyCluster,
+            cluster_kwargs={"processes": False, "n_workers": 0},
+            adapt_kwargs=adapt_kwargs,
+        )
+
+        assert executor.adapt_kwargs == adapt_kwargs
+
+        with executor.start():
+            res = executor.wait(executor.submit(lambda x: x + 1, 1))
+            assert res == 2
+
+        assert called_with == adapt_kwargs
+
+    def test_cluster_class_and_kwargs(self):
+        pytest.importorskip("distributed.deploy.spec")
+        executor = DaskExecutor(
+            cluster_class="distributed.deploy.spec.SpecCluster",
+            cluster_kwargs={"some_kwarg": "some_val"},
+            client_kwargs={"set_as_default": True},
+        )
+        assert executor.cluster_class == distributed.deploy.spec.SpecCluster
+        assert executor.cluster_kwargs == {"some_kwarg": "some_val"}
+        assert executor.client_kwargs == {"set_as_default": True}
+
+        class TestCluster(object):
             pass
-        assert client.called
-        assert client.call_args[-1]["test_kwarg"] == "test_value"
 
-    def test_task_names_are_passed_to_submit(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
+        executor = DaskExecutor(cluster_class=TestCluster)
+        assert executor.cluster_class == TestCluster
+
+    def test_deprecated_local_processes(self):
+        with pytest.warns(UserWarning, match="local_processes"):
+            executor = DaskExecutor(
+                cluster_class="distributed.LocalCluster",
+                client_kwargs={"set_as_default": True},
+                local_processes=True,
+            )
+        assert executor.cluster_class == distributed.LocalCluster
+        assert executor.cluster_kwargs == {
+            "processes": True,
+            "silence_logs": logging.CRITICAL,
+        }
+        assert executor.client_kwargs == {"set_as_default": True}
+
+        # When not using a LocalCluster, `local_processes` warns, but isn't
+        # added to the kwargs
+        with pytest.warns(UserWarning, match="local_processes"):
+
+            class TestCluster(object):
+                pass
+
+            executor = DaskExecutor(cluster_class=TestCluster, local_processes=True)
+
+        assert executor.cluster_class == TestCluster
+        assert executor.cluster_kwargs == {}
+        assert executor.client_kwargs == {}
+
+    def test_deprecated_client_kwargs(self):
+        with pytest.warns(UserWarning, match="client_kwargs"):
+            executor = DaskExecutor(
+                cluster_class="distributed.LocalCluster", set_as_default=True,
+            )
+        assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
+        assert executor.client_kwargs == {"set_as_default": True}
+
+    def test_local_address_deprecated(self):
+        with pytest.warns(UserWarning, match="local"):
+            executor = DaskExecutor(address="local")
+        assert executor.address is None
+        assert executor.cluster_class == distributed.LocalCluster
+        assert executor.cluster_kwargs == {"silence_logs": logging.CRITICAL}
+
+    @pytest.mark.parametrize("debug", [True, False])
+    def test_debug_is_converted_to_silence_logs(self, debug):
+        executor = DaskExecutor(debug=debug)
+        level = logging.WARNING if debug else logging.CRITICAL
+        assert executor.cluster_kwargs["silence_logs"] == level
+
+    def test_cant_specify_both_address_and_cluster_class(self):
+        with pytest.raises(ValueError):
+            DaskExecutor(
+                address="localhost:8787", cluster_class=distributed.LocalCluster,
+            )
+
+    def test_prep_dask_kwargs(self):
         executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_full_name="FISH!"):
-                executor.submit(lambda: None)
-        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["key"].startswith("FISH!")
-
-    def test_task_names_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_full_name="FISH![0]"):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
-        assert kwargs["key"].startswith("FISH![0]")
-
-    def test_context_tags_are_passed_to_submit(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.submit(lambda: None)
-        kwargs = client.return_value.__enter__.return_value.submit.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
-
-    def test_context_tags_are_passed_to_map(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-        executor = DaskExecutor()
-        with executor.start():
-            with prefect.context(task_tags=["dask-resource:GPU=1"]):
-                executor.map(lambda: None, [1, 2])
-        kwargs = client.return_value.__enter__.return_value.map.call_args[1]
-        assert kwargs["resources"] == {"GPU": 1.0}
-
-    def test_debug_is_converted_to_silence_logs(self, monkeypatch):
-        client = MagicMock()
-        monkeypatch.setattr(distributed, "Client", client)
-
-        # debug False
-        executor = DaskExecutor(debug=False)
-        with executor.start():
-            pass
-        assert client.called
-        assert client.call_args[-1]["silence_logs"] == logging.CRITICAL
-
-        # debug True
-        executor = DaskExecutor(debug=True)
-        with executor.start():
-            pass
-        assert client.called
-        assert client.call_args[-1]["silence_logs"] == logging.WARNING
+        with prefect.context(task_full_name="FISH!", task_tags=["dask-resource:GPU=1"]):
+            kwargs = executor._prep_dask_kwargs()
+            assert kwargs["key"].startswith("FISH!")
+            assert kwargs["resources"] == {"GPU": 1.0}
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
@@ -346,21 +304,3 @@ class TestDaskExecutor:
     def test_is_pickleable_after_start(self, executor):
         post = cloudpickle.loads(cloudpickle.dumps(executor))
         assert isinstance(post, DaskExecutor)
-
-    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-    def test_map_iterates_over_multiple_args(self, executor):
-        def map_fn(x, y):
-            return x + y
-
-        with executor.start():
-            res = executor.wait(executor.map(map_fn, [1, 2], [1, 3]))
-            assert res == [2, 5]
-
-    @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
-    def test_map_doesnt_do_anything_for_empty_list_input(self, executor):
-        def map_fn(*args):
-            raise ValueError("map_fn was called")
-
-        with executor.start():
-            res = executor.wait(executor.map(map_fn))
-        assert res == []

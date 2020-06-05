@@ -9,6 +9,18 @@ class TaskWithKey(Task):
         return a_key
 
 
+def test_edge_doesnt_allow_direct_cycles():
+    with pytest.raises(ValueError, match="Edges can not connect a task to itself"):
+        Edge(1, 1)
+
+    with pytest.raises(ValueError, match="Edges can not connect a task to itself"):
+        Edge(None, None)
+
+    with pytest.raises(ValueError, match="Edges can not connect a task to itself"):
+        t = Task()
+        Edge(t, t)
+
+
 def test_edge_key_must_be_valid():
     assert Edge(Task(), Task(), key=None)
     assert Edge(Task(), Task(), key="test")
@@ -70,7 +82,7 @@ def test_edge_equality():
     assert Edge(t1, t2, "key") == Edge(t1, t2, "key")
     assert Edge(t1, t2, "key", True) == Edge(t1, t2, "key", True)
 
-    assert Edge(t1, t2) != Edge(t1, t1)
+    assert Edge(t1, t2) != Edge(t2, t1)
     assert Edge(t1, t2, "key") != Edge(t1, t2, "other_key")
     assert Edge(t1, t2, "key", True) != Edge(t1, t2, "key", False)
 

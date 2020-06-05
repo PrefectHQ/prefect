@@ -204,7 +204,7 @@ class FargateTaskEnvironment(Environment):
                 {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                 {
                     "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                    "value": config.logging.extra_loggers,
+                    "value": str(config.logging.extra_loggers),
                 },
             ]
 

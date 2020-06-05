@@ -2,8 +2,6 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import os
-import pendulum
 import pytest
 
 import prefect
@@ -169,7 +167,7 @@ class TestSetTaskRunStates:
     """
 
     async def test_set_multiple_task_run_states(
-        self, run_query, task_run_id, task_run_id_2, task_run_id_3
+        self, run_query, running_flow_run_id, task_run_id, task_run_id_2, task_run_id_3
     ):
         result = await run_query(
             query=self.mutation,
@@ -264,7 +262,9 @@ class TestSetTaskRunStates:
         assert tr.version == 1
         assert tr.state == "Success"
 
-    async def test_set_task_run_state(self, run_query, task_run_id):
+    async def test_set_task_run_state(
+        self, run_query, running_flow_run_id, task_run_id
+    ):
         result = await run_query(
             query=self.mutation,
             variables=dict(

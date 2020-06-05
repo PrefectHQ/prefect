@@ -21,6 +21,7 @@ endpoint = "${server.host}:${server.port}"
     # set to "" to generate a random password each time the database starts
     password = "test-password"
     connection_url = "postgresql://${server.database.username}:${server.database.password}@${server.database.host}:${server.database.port}/${server.database.name}"
+    volume_path = "${home_dir}/pg_data"
 
     [server.graphql]
     host = "0.0.0.0"
@@ -45,6 +46,9 @@ endpoint = "${server.host}:${server.port}"
     host_port = "8080"
     endpoint = "${server.ui.host}:${server.ui.port}"
     graphql_url = "http://localhost:4200/graphql"
+
+    [server.telemetry]
+    enabled = true
 
 [cloud]
 api = "${${backend}.endpoint}"
@@ -135,11 +139,11 @@ checkpointing = false
     default_class = "prefect.engine.executors.LocalExecutor"
 
         [engine.executor.dask]
-        # the default scheduler address for the DaskExecutor. Set to "local" to configure
-        # a LocalCluster
-        address = "local"
-        # whether to use multiprocessing or not (only applied if address is "local")
-        local_processes = false
+        # the default scheduler address for the DaskExecutor.
+        address = ""
+
+        # the default Cluster class to use to create a temporary dask cluster
+        cluster_class = "distributed.deploy.local.LocalCluster"
 
     [engine.flow_runner]
     # the default flow runner, specified using a full path

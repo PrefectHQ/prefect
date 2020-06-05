@@ -8,9 +8,6 @@ for an Executor consists of the following methods:
     has completed running
 - `wait(object)`: resolves any objects returned by `executor.submit` to
     their values; this function _will_ block until execution of `object` is complete
-- `map(fn, *args, upstream_states, **kwargs)`: submit function to be mapped
-    over based on the edge information contained in `upstream_states`.  Any "mapped" Edge
-    will be converted into multiple function submissions, one for each value of the upstream mapped tasks.
 
 Currently, the available executor options are:
 

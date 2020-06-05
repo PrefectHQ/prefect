@@ -80,8 +80,10 @@ class Result(ResultInterface):
         - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
             the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - location (str, optional): Possibly templated location to be used for saving the
-            result to the destination.
+        - location (Union[str, Callable], optional): Possibly templated location to be used for saving the
+            result to the destination. If a callable function is provided, it should have signature `callable(**kwargs) -> str`
+            and at write time all formatting kwargs will be passed and a fully formatted location is expected
+            as the return value.  Can be used for string formatting logic that `.format(**kwargs)` doesn't support
     """
 
     def __init__(
@@ -97,7 +99,12 @@ class Result(ResultInterface):
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
-        self.location = location
+        if isinstance(location, (str, type(None))):
+            self.location = location
+            self._formatter = None
+        else:
+            self._formatter = location
+            self.location = None
         self.logger = logging.get_logger(type(self).__name__)
 
     def store_safe_value(self) -> None:
@@ -207,9 +214,11 @@ class Result(ResultInterface):
             - Result: a new result instance with the appropriately formatted location
         """
         new = self.copy()
-        if new.location is not None:
+        if isinstance(new.location, str):
             assert new.location is not None
             new.location = new.location.format(**kwargs)
+        elif new._formatter is not None:
+            new.location = new._formatter(**kwargs)
         else:
             new.location = new.default_location
         return new
@@ -229,7 +238,9 @@ class Result(ResultInterface):
         Returns:
             - bool: whether or not the target result exists.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def read(self, location: str) -> "Result":
         """
@@ -241,7 +252,9 @@ class Result(ResultInterface):
         Returns:
             - Any: The value saved to the result.
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
     def write(self, value: Any, **kwargs: Any) -> "Result":
         """
@@ -256,7 +269,9 @@ class Result(ResultInterface):
         Returns:
             - Result: a new result object with the appropriately formatted location destination
         """
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+        )
 
 
 class SafeResult(ResultInterface):

@@ -9,7 +9,8 @@
 ### Enhancements
 
 - new cli command--`prefect-server dev build` will build prefect server images from source locally - [#2227](https://github.com/PrefectHQ/prefect/pull/2227)
-
+- Upgrade `graphql-tools` - [#2709](https://github.com/PrefectHQ/prefect/pull/2709)
+ 
 ### Infrastructure
 
 - None

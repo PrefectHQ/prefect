@@ -60,7 +60,7 @@ f.visualize()
 ![output switch condition fail](/output_5_0.svg){.viz-md .viz-padded}
 
 From this visualization we can learn a lot about how Prefect is operating under the hood:
-- Constant inputs to Prefect tasks (e.g., `6` above) are not represented as tasks; instead they are stored on the flow object under the `constants` attribute; this attribute containts a dictionary relating tasks to which constant values they rely on
+- Constant inputs to Prefect tasks (e.g., `6` above) are not represented as tasks; instead they are stored on the flow object under the `constants` attribute; this attribute contains a dictionary relating tasks to which constant values they rely on
 - Some of Prefect's utility tasks (such as `switch` above) create multiple tasks under the hood; in this case `switch` created a new `CompareValue` task for each case we provided
 - Every type of operation on a task is itself represented by another task; above we can see that division resulted in a new `Div` task. This highlights a principle to remember when building your workflows: all runtime logic should be represented by a task
 - Some types of task dependencies rely on data (represented by labeled edges in the visualization) whereas others represent pure state dependencies (represented by unlabeled edges in the visualization)

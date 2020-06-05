@@ -3,15 +3,9 @@
 
 
 import datetime
-import inspect
-import uuid
-import warnings
-from box import Box
 
 import pendulum
 import pytest
-from asynctest import CoroutineMock
-from click.testing import CliRunner
 
 import prefect
 import prefect_server
@@ -112,6 +106,12 @@ async def edge_id(flow_id):
 @pytest.fixture
 async def flow_run_id(flow_id):
     return await api.runs.create_flow_run(flow_id=flow_id, parameters=dict(x=1))
+
+
+@pytest.fixture
+async def running_flow_run_id(flow_run_id):
+    await api.states.set_flow_run_state(flow_run_id, state=Running())
+    return flow_run_id
 
 
 @pytest.fixture
