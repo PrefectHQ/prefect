@@ -2457,7 +2457,16 @@ class TestFlowRegister:
 
         assert f.storage is None
         with set_temporary_config({"flows.defaults.storage.default_class": storage}):
-            f.register("My-project")
+            if "Docker" in storage:
+                f.register(
+                    "My-project",
+                    registry_url="FOO",
+                    image_name="BAR",
+                    image_tag="BIG",
+                    no_url=True,
+                )
+            else:
+                f.register("My-project")
 
         assert isinstance(f.storage, from_qualified_name(storage))
         assert f.result == from_qualified_name(storage)().result
@@ -2571,6 +2580,31 @@ class TestFlowRegister:
         assert isinstance(f.storage, prefect.environments.storage.Local)
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
+
+    def test_flow_register_passes_image_to_env_metadata(
+        self, monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="test")
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
+            }
+        ):
+            f.register(
+                "My-project",
+                registry_url="FOO",
+                image_name="BAR",
+                image_tag="BIG",
+                no_url=True,
+            )
+
+        assert f.environment.metadata == {"image": "FOO/BAR:BIG"}
+
+    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

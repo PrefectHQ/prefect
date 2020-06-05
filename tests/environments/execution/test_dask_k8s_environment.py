@@ -26,6 +26,7 @@ def test_create_dask_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
     assert environment.image_pull_secret is None
 
@@ -38,6 +39,7 @@ def test_create_dask_environment_args():
         scheduler_logs=True,
         private_registry=True,
         docker_secret="docker",
+        metadata={"test": "here"},
         image_pull_secret="secret",
     )
     assert environment
@@ -47,6 +49,7 @@ def test_create_dask_environment_args():
     assert environment.scheduler_logs is True
     assert environment.private_registry is True
     assert environment.docker_secret == "docker"
+    assert environment.metadata == {"test": "here"}
     assert environment.image_pull_secret == "secret"
 
 
