@@ -145,6 +145,25 @@ def test_merging_diamond_flow():
         assert isinstance(state.result[merge_task], Success)
 
 
+def test_merge_imperative_flow():
+    flow = Flow("test")
+
+    cond = identity.copy().bind(True, flow=flow)
+    with case(cond, True):
+        a = inc.copy().bind(1, flow=flow)
+
+    with case(cond, False):
+        b = inc.copy().bind(2, flow=flow)
+
+    c = merge(a, b, flow=flow)
+
+    state = flow.run()
+    assert state.result[cond].result == True
+    assert state.result[a].result == 2
+    assert state.result[b].is_skipped()
+    assert state.result[c].result == 2
+
+
 def test_merging_with_objects_that_cant_be_equality_compared():
     class SpecialObject:
         def __eq__(self, other):
