@@ -3,12 +3,12 @@
 Sometimes you have parts of a flow that you only want to run under certain
 conditions. To support this, Prefect provides several built-in [tasks for
 control-flow](/core/task_library/control_flow.html) that you can use to add
-conditional branches to your flow.  branching structure of your flow. 
+conditional branches to your flow.
 
 ## Running a task based on a condition
 
 Let's say you want to have a flow where different tasks are run based on the
-result of some conditional task.  In normal python code this logic might look
+result of some conditional task.  In normal Python code this logic might look
 like:
 
 ```python
