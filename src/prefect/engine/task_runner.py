@@ -1,4 +1,5 @@
 from contextlib import redirect_stdout
+from dask.base import tokenize
 import json
 from typing import (
     Any,
@@ -673,6 +674,7 @@ class TaskRunner(Runner):
                 new_res = result.read(target.format(**prefect.context))
                 cached_state = Cached(
                     result=new_res,
+                    hashed_inputs={key: tokenize(val) for key, val in inputs.items()},
                     cached_inputs=inputs,
                     cached_result_expiration=None,
                     cached_parameters=prefect.context.get("parameters"),
