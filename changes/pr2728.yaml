@@ -1,0 +1,6 @@
+enhancement:
+    - 'Convenience method to deep copy a flow in `Flow` class.
+  
+  contributor:
+    - '[Itay Livni](https://github.com/gryBox)'
+  
