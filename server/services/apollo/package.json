@@ -21,7 +21,7 @@
     "apollo-fetch": "^0.7.0",
     "apollo-link-context": "^1.0.20",
     "apollo-link-http": "^1.5.17",
-    "apollo-server": "^2.14.1",
+    "apollo-server": "^2.14.2",
     "apollo-utilities": "^1.3.4",
     "graphql": "^14.0.0",
     "graphql-depth-limit": "^1.1.0",
