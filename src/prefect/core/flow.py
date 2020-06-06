@@ -234,7 +234,7 @@ class Flow:
         """
         new = copy.deepcopy(self.copy())
         new.set_reference_tasks(self._reference_tasks)
-        
+
         return new
 
     # Identification -----------------------------------------------------------
