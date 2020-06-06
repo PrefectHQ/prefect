@@ -24,13 +24,16 @@ class Executor:
         """
         yield
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    def submit(
+        self, fn: Callable, *args: Any, executor_kwargs: dict = None, **kwargs: Any
+    ) -> Any:
         """
         Submit a function to the executor for execution. Returns a future-like object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - executor_kwargs (dict, optional): an optional dictionary of executor-specific keyword arguments
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

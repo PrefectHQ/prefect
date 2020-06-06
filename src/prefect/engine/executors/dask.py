@@ -2,7 +2,7 @@ import logging
 import uuid
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union
+from typing import Any, Callable, Iterator, Iterable, TYPE_CHECKING, Union
 
 from prefect import context
 from prefect.engine.executors.base import Executor
@@ -98,7 +98,7 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -206,19 +206,17 @@ class DaskExecutor(Executor):
             self.client = None
             self.is_started = False
 
-    def _prep_dask_kwargs(self) -> dict:
+    def _prep_dask_kwargs(self, task_name: str, task_tags: Iterable[str]) -> dict:
         dask_kwargs = {"pure": False}  # type: dict
 
         # set a key for the dask scheduler UI
-        if context.get("task_full_name"):
-            key = "{}-{}".format(context.get("task_full_name", ""), str(uuid.uuid4()))
+        if task_name:
+            key = f"{task_name}-{str(uuid.uuid4())}"
             dask_kwargs.update(key=key)
 
         # infer from context if dask resources are being utilized
         dask_resource_tags = [
-            tag
-            for tag in context.get("task_tags", [])
-            if tag.lower().startswith("dask-resource")
+            tag for tag in task_tags if tag.lower().startswith("dask-resource")
         ]
         if dask_resource_tags:
             resources = {}
@@ -238,13 +236,16 @@ class DaskExecutor(Executor):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "Future":
+    def submit(
+        self, fn: Callable, *args: Any, executor_kwargs: dict = None, **kwargs: Any
+    ) -> "Future":
         """
         Submit a function to the executor for execution. Returns a Future object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - executor_kwargs (dict, optional): an optional dictionary of executor-specific keyword arguments
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -253,7 +254,10 @@ class DaskExecutor(Executor):
         # import dask functions here to decrease our import times
         from distributed import fire_and_forget, worker_client
 
-        dask_kwargs = self._prep_dask_kwargs()
+        executor_kwargs = executor_kwargs or {}
+        task_name = executor_kwargs.get("task_full_name", "")
+        task_tags = executor_kwargs.get("task_tags", [])
+        dask_kwargs = self._prep_dask_kwargs(task_name=task_name, task_tags=task_tags)
         kwargs.update(dask_kwargs)
 
         if self.is_started and hasattr(self, "client"):
