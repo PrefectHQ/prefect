@@ -228,6 +228,15 @@ class Flow:
         new.set_reference_tasks(self._reference_tasks)
         return new
 
+    def deep_copy(self) -> "Flow":
+        """
+        Create a new deep copy of the current flow.
+        """
+        new = copy.deepcopy(self.copy())
+        new.set_reference_tasks(self._reference_tasks)
+        
+        return new
+
     # Identification -----------------------------------------------------------
 
     def get_tasks(
