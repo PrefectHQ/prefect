@@ -515,7 +515,7 @@ class FlowRunner(Runner):
                             current_state = task_state
 
                         ## this is where each child is submitted for actual work
-                        executor_kwargs.update(task_name=f"{task.name}[{map_index}]")
+                        executor_kwargs.update(task_name=f"{task.name}[{idx}]")
                         submitted_states.append(
                             executor.submit(
                                 self.run_task,

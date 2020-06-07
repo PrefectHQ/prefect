@@ -321,13 +321,16 @@ class LocalDaskExecutor(Executor):
         with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
             yield cfg
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "dask.delayed":
+    def submit(
+        self, fn: Callable, *args: Any, executor_kwargs: dict = None, **kwargs: Any
+    ) -> "dask.delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - executor_kwargs (dict, optional): an optional dictionary of executor-specific keyword arguments
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
