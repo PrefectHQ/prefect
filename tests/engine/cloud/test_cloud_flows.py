@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections import Counter
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -16,6 +16,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Pending,
+    Queued,
     Retrying,
     Running,
     Skipped,
@@ -78,6 +79,7 @@ def cloud_settings():
         {
             "cloud.graphql": "http://my-cloud.foo",
             "cloud.auth_token": "token",
+            "cloud.queue_interval": 0.5,
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
             "logging.level": "DEBUG",
@@ -184,6 +186,38 @@ class MockedCloudClient(MagicMock):
         else:
             raise ValueError("Invalid task run update")
         return state
+
+
+class QueueingMockCloudClient(MockedCloudClient):
+    """
+    Mock Cloud Client to be used when testing flow runs that
+    get put into the `Queued` state, which represent
+    a FlowRun that is being concurrency limited and is
+    waiting for available space to run.
+    """
+
+    def set_flow_run_state(self, flow_run_id, version, state, **kwargs):
+        """
+        Handles the typical flow run state transition, but always
+        queues the flow run twice before allowing it to continue
+        as planned.
+        """
+
+        new_state = super().set_flow_run_state(flow_run_id, version, state, **kwargs)
+        if self.call_count["set_flow_run_state"] <= 2:
+            fr = self.flow_runs[flow_run_id]
+            # We incremented the version on the super class call,
+            # so version - 1 should be the version used to check.
+            if fr.version == version + 1:
+                new_state = Queued(
+                    start_time=pendulum.now("UTC").add(
+                        seconds=prefect.config.cloud.queue_interval
+                    )
+                )
+            else:
+                raise ValueError("Error setting queued state")
+
+        return new_state
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
@@ -811,3 +845,45 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
 
     assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
     assert all([tr.state.is_successful() for tr in client.task_runs.values()])
+
+
+def test_can_queue_successfully_and_run(monkeypatch):
+    @prefect.task
+    def return_one():
+        return 1
+
+    with prefect.Flow("test-queues-work!") as flow:
+        t1 = return_one()
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+
+    client = QueueingMockCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+        ]
+        + [
+            TaskRun(id=str(uuid.uuid4()), task_slug=t1.slug, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1,]
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    mock_max = MagicMock(return_value=0.25)
+    # Monkeypatch fails to patch the builtin `max` function since it
+    # isn't imported or namespaced
+    with patch("prefect.engine.cloud.flow_runner.max", mock_max):
+        with prefect.context(flow_run_id=flow_run_id):
+            run_state = CloudFlowRunner(flow=flow).run(
+                executor=LocalExecutor(), return_tasks=flow.tasks
+            )
+
+    assert run_state.is_successful()
+    # Only decent way to ensure that the flow runner waits twice
+    assert mock_max.call_count == 2
+
+    # Pending -> Running -> Queued -> Success
+    # Calls with state transitions to the same state don't count
+    assert client.call_count["set_flow_run_state"] == 4
