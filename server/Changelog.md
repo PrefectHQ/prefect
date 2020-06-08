@@ -2,7 +2,6 @@
 
 ## Unreleased
 
-- Add unified CRUD operations for simple row-by-row operations
 
 ### Features
 
@@ -30,4 +29,4 @@
 - None
 
 ### Contributors
-- [Alex Cano](https://github.com/alexisprince1994)
+
