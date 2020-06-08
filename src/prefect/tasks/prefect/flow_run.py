@@ -1,5 +1,4 @@
 from typing import Any
-from urllib.parse import urlparse
 
 from prefect import config, Task
 from prefect.client import Client
@@ -14,8 +13,9 @@ class FlowRunTask(Task):
 
     Args:
         - flow_name (str, optional): the name of the flow to schedule; this value may also be provided at run time
-        - project_name (str, optional): the Cloud project in which the flow is located; this value may also be provided
-            at run time
+        - project_name (str, optional): if running with Cloud as a backend, this is the project in which the flow is
+            located; this value may also be provided at runtime. If running with Prefect Core's server as the backend,
+            this should not be provided.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled; this value may also
             be provided at run time
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -44,7 +44,8 @@ class FlowRunTask(Task):
             - flow_name (str, optional): the name of the flow to schedule; if not provided, this method will
                 use the flow name provided at initialization
             - project_name (str, optional): the Cloud project in which the flow is located; if not provided, this method
-                will use the project provided at initialization
+                will use the project provided at initialization. If running with Prefect Core's server as the backend,
+                this should not be provided.
             - parameters (dict, optional): the parameters to pass to the flow run being scheduled; if not provided,
                 this method will use the parameters provided at initialization
 
@@ -52,20 +53,21 @@ class FlowRunTask(Task):
             - str: the ID of the newly-scheduled flow run
 
         Raises:
-            - ValueError: if flow or project names were not provided, or if the flow provided cannot be found
+            - ValueError: if flow was not provided, cannot be found, or if a project name was not provided while using
+                Cloud as a backend
 
         Example:
             ```python
             from prefect.tasks.prefect.flow_run import FlowRunTask
 
-            kickoff_task = FlowRunTask(project_name="My Cloud Project", flow_name="My Cloud Flow")
+            kickoff_task = FlowRunTask(project_name="My Project", flow_name="My Cloud Flow")
             ```
 
         """
-        # verify that flow and project names were passed in some capacity or another
+        # verify that flow and project names were passed where necessary
         if flow_name is None:
             raise ValueError("Must provide a flow name.")
-        if project_name is None and "prefect.io" in urlparse(config.cloud.api).netloc:
+        if project_name is None and config.backend == "cloud":
             raise ValueError("Must provide a project name.")
 
         where_clause = {

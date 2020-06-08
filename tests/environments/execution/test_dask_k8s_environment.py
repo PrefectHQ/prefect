@@ -1,4 +1,3 @@
-import json
 import os
 import tempfile
 from os import path
@@ -27,7 +26,9 @@ def test_create_dask_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.DaskKubernetesEnvironment"
+    assert environment.image_pull_secret is None
 
 
 def test_create_dask_environment_args():
@@ -38,6 +39,8 @@ def test_create_dask_environment_args():
         scheduler_logs=True,
         private_registry=True,
         docker_secret="docker",
+        metadata={"test": "here"},
+        image_pull_secret="secret",
     )
     assert environment
     assert environment.min_workers == 5
@@ -46,6 +49,8 @@ def test_create_dask_environment_args():
     assert environment.scheduler_logs is True
     assert environment.private_registry is True
     assert environment.docker_secret == "docker"
+    assert environment.metadata == {"test": "here"}
+    assert environment.image_pull_secret == "secret"
 
 
 def test_create_dask_environment_labels():
@@ -269,7 +274,7 @@ def test_populate_job_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):
@@ -280,10 +285,13 @@ def test_populate_job_yaml():
     assert yaml_obj["metadata"]["name"] == "prefect-dask-job-{}".format(
         environment.identifier_label
     )
-    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
-    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
     assert (
-        yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+        yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+        == environment.identifier_label
+    )
+    assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
+    assert (
+        yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
         == environment.identifier_label
     )
 
@@ -319,14 +327,17 @@ def test_populate_worker_pod_yaml():
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
-    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
-    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+    assert (
+        yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+        == environment.identifier_label
+    )
+    assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
 
     env = yaml_obj["spec"]["containers"][0]["env"]
 
@@ -358,6 +369,25 @@ def test_populate_worker_pod_yaml_with_private_registry():
             yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
 
     yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="foo-man-docker")
+
+
+def test_populate_worker_pod_yaml_with_image_pull_secret():
+    environment = DaskKubernetesEnvironment(image_pull_secret="mysecret")
+
+    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
+
+    with open(path.join(file_path, "worker_pod.yaml")) as pod_file:
+        pod = yaml.safe_load(pod_file)
+
+    with set_temporary_config(
+        {"cloud.graphql": "gql_test", "cloud.auth_token": "auth_test"}
+    ):
+        with prefect.context(
+            flow_run_id="id_test", image="my_image", namespace="foo-man"
+        ):
+            yaml_obj = environment._populate_worker_pod_yaml(yaml_obj=pod)
+
+    yaml_obj["spec"]["imagePullSecrets"][0] == dict(name="mysecret")
 
 
 def test_initialize_environment_with_spec_populates(monkeypatch):
@@ -393,14 +423,17 @@ def test_populate_custom_worker_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", image="my_image"):
             yaml_obj = environment._populate_worker_spec_yaml(yaml_obj=pod)
 
-    assert yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
-    assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+    assert (
+        yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+        == environment.identifier_label
+    )
+    assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
 
     env = yaml_obj["spec"]["containers"][0]["env"]
 
@@ -435,7 +468,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
             "logging.log_to_cloud": log_flag,
-            "logging.extra_loggers": "['test_logger']",
+            "logging.extra_loggers": ["test_logger"],
         }
     ):
         with prefect.context(flow_run_id="id_test", namespace="namespace_test"):

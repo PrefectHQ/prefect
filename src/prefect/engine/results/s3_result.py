@@ -163,11 +163,9 @@ class S3Result(Result):
         import botocore
 
         try:
-            self.client.get_object(
-                Bucket=self.bucket, Key=location.format(**kwargs)
-            ).load()
+            self.client.get_object(Bucket=self.bucket, Key=location.format(**kwargs))
         except botocore.exceptions.ClientError as exc:
-            if exc.response["Error"]["Code"] == "404":
+            if exc.response["Error"]["Code"] == "NoSuchKey":
                 return False
             raise
         except Exception as exc:

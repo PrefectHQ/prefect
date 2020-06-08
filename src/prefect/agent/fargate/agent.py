@@ -8,8 +8,7 @@ from slugify import slugify
 
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -321,7 +320,12 @@ class FargateAgent(Agent):
             "propagateTags",
         ]
 
-        container_definitions_kwarg_list = ["mountPoints", "secrets", "environment"]
+        container_definitions_kwarg_list = [
+            "mountPoints",
+            "secrets",
+            "environment",
+            "logConfiguration",
+        ]
 
         task_definition_kwargs = {}
         definition_kwarg_list_eval = {
@@ -411,9 +415,6 @@ class FargateAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
@@ -449,22 +450,17 @@ class FargateAgent(Agent):
                 flow_run.flow.id[:8]  # type: ignore
             )  # type: ignore
 
-        # Require Docker storage
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
+        image = get_flow_image(flow_run=flow_run)
 
         # check if task definition exists
         self.logger.debug("Checking for task definition")
         if not self._verify_task_definition_exists(flow_run, task_definition_dict):
             self.logger.debug("No task definition found")
             self._create_task_definition(
-                flow_run,
-                flow_task_definition_kwargs,
-                flow_container_definitions_kwargs,
-                task_definition_dict["task_definition_name"],
+                image=image,
+                flow_task_definition_kwargs=flow_task_definition_kwargs,
+                container_definitions_kwargs=flow_container_definitions_kwargs,
+                task_definition_name=task_definition_dict["task_definition_name"],
             )
 
         # run task
@@ -540,7 +536,7 @@ class FargateAgent(Agent):
 
     def _create_task_definition(
         self,
-        flow_run: GraphQLResult,
+        image: str,
         flow_task_definition_kwargs: dict,
         container_definitions_kwargs: dict,
         task_definition_name: str,
@@ -550,22 +546,16 @@ class FargateAgent(Agent):
         is only called when a flow is run for the first time.
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - image (str): The full name of an image to use for this task definition
             - flow_task_definition_kwargs (dict): kwargs to use for registration
             - container_definitions_kwargs (dict): container definitions kwargs to use for registration
             - task_definition_name (str): task definition name to use
         """
-        self.logger.debug(
-            "Using image {} for task definition".format(
-                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-            )
-        )
+        self.logger.debug("Using image {} for task definition".format(image))
         container_definitions = [
             {
                 "name": "flow",
-                "image": StorageSchema()
-                .load(flow_run.flow.storage)  # type: ignore
-                .name,
+                "image": image,
                 "command": ["/bin/sh", "-c", "prefect execute cloud-flow"],
                 "environment": [
                     {
@@ -593,17 +583,18 @@ class FargateAgent(Agent):
                 ],
                 "secrets": [],
                 "mountPoints": [],
+                "logConfiguration": {},
                 "essential": True,
             }
         ]
 
         for key, value in self.env_vars.items():
-            container_definitions[0]["environment"].append(dict(name=key, value=value))
+            container_definitions[0]["environment"].append(dict(name=key, value=value))  # type: ignore
 
         # apply container definitions to "containerDefinitions" key of task definition
         # do not allow override of static envars from Prefect base task definition, which may include self.env_vars
 
-        base_envar_keys = [x["name"] for x in container_definitions[0]["environment"]]
+        base_envar_keys = [x["name"] for x in container_definitions[0]["environment"]]  # type: ignore
         self.logger.debug(
             "Removing static Prefect envars from container_definitions_kwargs if exists"
         )
@@ -613,7 +604,7 @@ class FargateAgent(Agent):
             if x["name"] not in base_envar_keys
         ]
 
-        container_definitions[0]["environment"].extend(
+        container_definitions[0]["environment"].extend(  # type: ignore
             container_definitions_environment
         )
         container_definitions[0]["secrets"] = container_definitions_kwargs.get(
@@ -621,6 +612,9 @@ class FargateAgent(Agent):
         )
         container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
             "mountPoints", []
+        )
+        container_definitions[0]["logConfiguration"] = container_definitions_kwargs.get(
+            "logConfiguration", {}
         )
 
         # Register task definition
@@ -648,7 +642,7 @@ class FargateAgent(Agent):
         Run a task using the flow run.
 
         Args:
-            - flow_runs (list): A list of GraphQLResult flow run objects
+            - flow_run (GraphQLResult): A GraphQLResult flow run object
             - flow_task_run_kwargs (dict): kwargs to use for task run
             - task_definition_name (str): task definition name to use
         """

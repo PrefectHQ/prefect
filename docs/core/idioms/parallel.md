@@ -1,6 +1,6 @@
 # Parallelism within a Prefect flow
 
-Prefect supports fully asynchronous / parallel running of a flow's tasks and the preferred method for doing this is using [Dask](https://dask.org/). By connecting to a Dask scheduler, a flow can begin executing its tasks on either local or remote Dask workers. Parallel execution is incredibly useful when executing many mapped tasks simultenously but for this example you will see a flow that has three pre-defined tasks at the same level that we want to execute asynchronously in order to better visualize it.
+Prefect supports fully asynchronous / parallel running of a flow's tasks and the preferred method for doing this is using [Dask](https://dask.org/). By connecting to a Dask scheduler, a flow can begin executing its tasks on either local or remote Dask workers. Parallel execution is incredibly useful when executing many mapped tasks simultaneously but for this example you will see a flow that has three pre-defined tasks at the same level that we want to execute asynchronously in order to better visualize it.
 
 ![Parallel Tasks](/faq/parallel.png)
 
@@ -89,7 +89,7 @@ By not specifying a scheduler address the Dask Executor will create a local Dask
 ```
 
 ```python
-flow.run(parameters={"stop": 5}, executor=DaskExecutor(address="tcp://10.0.0.41:8786))
+flow.run(parameters={"stop": 5}, executor=DaskExecutor(address="tcp://10.0.0.41:8786"))
 ```
 
 Now that you are using Dask for execution you should see the random number generation tasks in the flow execute asynchronously. For more information on execution with Dask check out [this document](/core/advanced_tutorials/dask-cluster.html).

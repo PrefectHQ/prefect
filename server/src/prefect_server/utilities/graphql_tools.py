@@ -6,12 +6,10 @@
 This module requires graphql-core-next
 """
 
-import itertools
 from typing import Any, Dict, List
 
 import ariadne
 import graphql
-import requests
 
 import prefect_server
 from prefect.utilities.graphql import parse_graphql, with_args

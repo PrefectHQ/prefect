@@ -25,10 +25,12 @@ def test_create_k8s_job_environment():
         )
         assert environment
         assert environment.job_spec_file == os.path.join(directory, "job.yaml")
+        assert environment.unique_job_name == False
         assert environment.executor_kwargs == {}
         assert environment.labels == set()
         assert environment.on_start is None
         assert environment.on_exit is None
+        assert environment.metadata == {}
         assert environment.logger.name == "prefect.KubernetesJobEnvironment"
 
 
@@ -285,7 +287,7 @@ def test_populate_job_yaml():
             file.write("job")
 
         environment = KubernetesJobEnvironment(
-            job_spec_file=os.path.join(directory, "job.yaml")
+            job_spec_file=os.path.join(directory, "job.yaml"), unique_job_name=True
         )
 
         file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
@@ -308,12 +310,16 @@ def test_populate_job_yaml():
                     flow_file_path="test4",
                 )
 
+        assert "prefect-dask-job-" in yaml_obj["metadata"]["name"]
+        assert len(yaml_obj["metadata"]["name"]) == 25
+
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 
@@ -370,11 +376,12 @@ def test_populate_job_yaml_no_defaults():
                 )
 
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 
@@ -438,11 +445,12 @@ def test_populate_job_yaml_multiple_containers():
                 )
 
         assert (
-            yaml_obj["metadata"]["labels"]["identifier"] == environment.identifier_label
+            yaml_obj["metadata"]["labels"]["prefect.io/identifier"]
+            == environment.identifier_label
         )
-        assert yaml_obj["metadata"]["labels"]["flow_run_id"] == "id_test"
+        assert yaml_obj["metadata"]["labels"]["prefect.io/flow_run_id"] == "id_test"
         assert (
-            yaml_obj["spec"]["template"]["metadata"]["labels"]["identifier"]
+            yaml_obj["spec"]["template"]["metadata"]["labels"]["prefect.io/identifier"]
             == environment.identifier_label
         )
 

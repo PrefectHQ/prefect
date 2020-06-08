@@ -1,12 +1,10 @@
-import datetime
 import json
 import os
 import tempfile
 import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 
-import marshmallow
 import pendulum
 import pytest
 import requests
@@ -106,17 +104,6 @@ class TestClientConfig:
                 client.save_api_token()
                 with path.open("r") as f:
                     assert toml.load(f)["api_token"] == "b"
-
-    def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
-        self, cloud_api
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp}):
-                client = Client(api_token="a")
-                client.save_api_token()
-
-                client = Client()
-                assert client._api_token == "a"
 
     def test_load_local_api_token_is_called_when_the_client_is_initialized_without_token(
         self, cloud_api

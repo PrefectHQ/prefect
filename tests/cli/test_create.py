@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 from click.testing import CliRunner
 
 from prefect.cli.create import create

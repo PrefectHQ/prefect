@@ -14,6 +14,7 @@ def test_create_remote_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.RemoteDaskEnvironment"
 
 
@@ -31,6 +32,7 @@ def test_create_remote_environment_populated():
     arbitrary_kwargs = {"arbitrary": "value"}
     environment = RemoteDaskEnvironment(
         address=address_kwargs["address"],
+        security=security,
         executor_kwargs=arbitrary_kwargs,
         labels=["foo", "bar", "good"],
         on_start=f,

@@ -1,4 +1,5 @@
 import os
+import socket
 import tempfile
 
 import pytest
@@ -44,6 +45,8 @@ def test_docker_full_serialize():
         image_tag="tag",
         prefect_version="0.5.2",
         secrets=["bar", "creds"],
+        labels=["foo"],
+        add_default_labels=False,
     )
     serialized = DockerSchema().dump(docker)
 
@@ -70,7 +73,7 @@ def test_docker_serialize_with_flows():
     assert serialized["image_name"] == "name"
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
-    assert serialized["flows"] == {"test": "/root/.prefect/flows/test.prefect"}
+    assert serialized["flows"] == {"test": "/opt/prefect/flows/test.prefect"}
     assert serialized["secrets"] == ["FOO"]
 
     deserialized = DockerSchema().load(serialized)
@@ -90,7 +93,13 @@ def test_s3_empty_serialize():
 
 
 def test_s3_full_serialize():
-    s3 = storage.S3(bucket="bucket", key="key", secrets=["hidden", "auth"],)
+    s3 = storage.S3(
+        bucket="bucket",
+        key="key",
+        secrets=["hidden", "auth"],
+        labels=["foo", "bar"],
+        add_default_labels=False,
+    )
     serialized = S3Schema().dump(s3)
 
     assert serialized
@@ -134,6 +143,8 @@ def test_azure_full_serialize():
         connection_string="conn",
         blob_name="name",
         secrets=["foo"],
+        labels=["bar", "baz"],
+        add_default_labels=False,
     )
     serialized = AzureSchema().dump(azure)
 
@@ -228,7 +239,14 @@ def test_gcs_empty_serialize():
 
 
 def test_gcs_full_serialize():
-    gcs = storage.GCS(bucket="bucket", key="key", project="project", secrets=["CREDS"])
+    gcs = storage.GCS(
+        bucket="bucket",
+        key="key",
+        project="project",
+        secrets=["CREDS"],
+        labels=["foo", "bar"],
+        add_default_labels=False,
+    )
     serialized = GCSSchema().dump(gcs)
 
     assert serialized

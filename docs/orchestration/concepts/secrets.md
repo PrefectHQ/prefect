@@ -91,7 +91,7 @@ Secrets can be used anywhere, at any time. This includes, but is not limited to:
 - tasks
 - state handlers
 - callbacks
-- result handlers
+- results
 
 Creating a secret and pulling its value is as simple as:
 

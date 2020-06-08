@@ -13,6 +13,10 @@ class LocalResult(Result):
     """
     Result that is written to and retrieved from the local file system.
 
+    **Note**: If this result raises a `PermissionError` that could mean it is attempting
+    to write results to a directory that it is not permissioned for. In that case it may be
+    helpful to specify a specific `dir` for that result instance.
+
     Args:
         - dir (str, optional): the _absolute_ path to a directory for storing
             all results; defaults to `${prefect.config.home_dir}/results`
@@ -26,11 +30,16 @@ class LocalResult(Result):
         self, dir: str = None, validate_dir: bool = True, **kwargs: Any
     ) -> None:
         full_prefect_path = os.path.abspath(config.home_dir)
-        if (
-            dir is None
-            or os.path.commonpath([full_prefect_path, os.path.abspath(dir)])
-            == full_prefect_path
-        ):
+        common_path = ""
+        try:
+            if dir is not None:
+                common_path = os.path.commonpath(
+                    [full_prefect_path, os.path.abspath(dir)]
+                )
+        except ValueError:
+            # ValueError is raised if comparing two paths in Windows from different drives, e.g., E:/ and C:/
+            pass
+        if dir is None or common_path == full_prefect_path:
             directory = os.path.join(config.home_dir, "results")
         else:
             directory = dir
@@ -95,9 +104,11 @@ class LocalResult(Result):
 
         full_path = os.path.join(self.dir, new.location)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
         with open(full_path, "wb") as f:
             f.write(cloudpickle.dumps(new.value))
 
+        new.location = full_path
         self.logger.debug("Finished uploading result to {}...".format(new.location))
 
         return new

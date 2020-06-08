@@ -2,9 +2,7 @@ import collections
 import datetime
 import queue
 import random
-import sys
 import time
-from distutils.version import LooseVersion
 from unittest.mock import MagicMock
 
 import cloudpickle
@@ -320,6 +318,21 @@ def test_parameters_are_placed_into_context():
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
     assert isinstance(flow_state, Success)
     assert flow_state.result[y].result == 42
+
+
+def test_parameters_are_placed_into_context_including_defaults():
+    @prefect.task
+    def whats_in_ctx():
+        return prefect.context.parameters
+
+    y = prefect.Parameter("y", default=99)
+    z = prefect.Parameter("z", default=19)
+    flow = Flow(name="test", tasks=[y, z, whats_in_ctx])
+    flow_state = FlowRunner(flow=flow).run(
+        return_tasks=[whats_in_ctx], parameters=dict(y=42)
+    )
+    assert isinstance(flow_state, Success)
+    assert flow_state.result[whats_in_ctx].result == dict(y=42, z=19)
 
 
 def test_parameters_are_placed_into_context_and_override_current_context():
@@ -1182,33 +1195,6 @@ def test_parameters_overwrite_context_only_if_key_matches():
         context={"parameters": {"x": 5, "y": 6}},
         return_tasks=[x, y],
     )
-
-
-def test_parameters_can_be_set_in_context_if_none_passed():
-    x = prefect.Parameter("x")
-    f = FlowRunner(Flow(name="test", tasks=[x]))
-    state = f.run(parameters={}, context={"parameters": {"x": 5}}, return_tasks=[x])
-    assert state.result[x].result == 5
-
-
-def test_parameters_overwrite_context():
-    x = prefect.Parameter("x")
-    f = FlowRunner(Flow(name="test", tasks=[x]))
-    state = f.run(
-        parameters={"x": 2}, context={"parameters": {"x": 5}}, return_tasks=[x]
-    )
-    assert state.result[x].result == 2
-
-
-def test_parameters_overwrite_context_only_if_key_matches():
-    x = prefect.Parameter("x")
-    y = prefect.Parameter("y")
-    f = FlowRunner(Flow(name="test", tasks=[x, y]))
-    state = f.run(
-        parameters={"x": 2},
-        context={"parameters": {"x": 5, "y": 6}},
-        return_tasks=[x, y],
-    )
     assert state.result[x].result == 2
     assert state.result[y].result == 6
 
@@ -1260,24 +1246,6 @@ class TestMapping:
         assert state.result[res].map_states[0].is_failed()
         assert state.result[res].map_states[1].is_successful()
         assert state.result[res].map_states[1].result == 100
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
-    )
-    def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
-
-        with Flow(name="test") as flow:
-            res = ReturnTask().map([1, 1])
-
-        state = FlowRunner(flow=flow).run(
-            return_tasks=[res],
-            executor=executor,
-            task_states={res: Mapped(map_states=[Success(result=100)])},
-        )
-        assert state.is_failed()
-        assert state.result[res].map_states[0].is_successful()
-        assert state.result[res].map_states[0].result == 100
-        assert state.result[res].map_states[1].is_failed()
 
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True
@@ -1605,8 +1573,8 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [100] * 10
 
-    ## only add task was submitted; the list task is a constant
-    assert len(calls) == 1
+    ## the add task was submitted 11 times: one for the parent and 10 times for each child
+    assert len(calls) == 11
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0

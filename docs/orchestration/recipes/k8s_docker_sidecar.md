@@ -31,8 +31,10 @@ spec:
             - name: DOCKER_HOST
               value: tcp://localhost:2375
         - name: dind-daemon
-          image: docker:18.09.4-dind
-          env: []
+          image: docker:stable-dind
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
           resources:
             requests:
               cpu: 20m

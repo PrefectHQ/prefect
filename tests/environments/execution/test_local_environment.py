@@ -22,6 +22,7 @@ def test_create_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
@@ -29,11 +30,14 @@ def test_create_environment_populated():
     def f():
         pass
 
-    environment = LocalEnvironment(labels=["test"], on_start=f, on_exit=f)
+    environment = LocalEnvironment(
+        labels=["test"], on_start=f, on_exit=f, metadata={"test": "here"}
+    )
     assert environment
     assert environment.labels == set(["test"])
     assert environment.on_start is f
     assert environment.on_exit is f
+    assert environment.metadata == {"test": "here"}
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
@@ -92,25 +96,6 @@ def test_environment_execute_with_env_runner():
 
     environment.execute(storage, flow_loc)
     assert global_dict.get("run") is True
-
-
-def test_environment_execute_with_kwargs():
-    global_dict = {}
-
-    @prefect.task
-    def add_to_dict(x):
-        global_dict["result"] = x
-
-    environment = LocalEnvironment()
-    storage = DummyStorage()
-    with prefect.Flow("test") as flow:
-        x = prefect.Parameter("x")
-        add_to_dict(x)
-
-    flow_loc = storage.add_flow(flow)
-
-    environment.execute(storage, flow_loc, x=42)
-    assert global_dict.get("result") == 42
 
 
 def test_environment_execute_with_env_runner_with_kwargs():

@@ -3,14 +3,13 @@
 
 
 import datetime
+import json
 import uuid
 from typing import Any, List, Optional, Union, cast
 
 import pendulum
 import psycopg2
 import pydantic
-import ujson
-from box import Box
 from prefect_server import config
 from prefect_server.database.hasura import GQLObjectTypes, HasuraClient
 
@@ -212,7 +211,7 @@ class HasuraModel(pydantic.BaseModel, CRUDMixin):
         return super().json(**kwargs)
 
     def to_hasura_dict(self, is_insert: bool = False, **kwargs) -> dict:
-        data = ujson.loads(self.json(**kwargs))
+        data = json.loads(self.json(**kwargs))
         data = self._format_hasura_dict(data, is_insert=is_insert)
         return data
 

@@ -1,48 +1,63 @@
 # Changelog
 
-## Unreleased release/0.11.0 <Badge text="beta" type="success"/>
+## 0.11.5 <Badge text="beta" type="success">
 
-These changes are available in the [release/0.11.0 branch](https://github.com/PrefectHQ/prefect).
+Released on June 2, 2020.
 
 ### Features
 
 - None
 
 ### Enhancements
+
+- Allow for manual approval of locally Paused tasks - [#2693](https://github.com/PrefectHQ/prefect/issues/2693)
+- Task instances define a `__signature__` attribute, for improved introspection and tab-completion - [#2602](https://github.com/PrefectHQ/prefect/pull/2602)
+- Tasks created with `@task` forward the wrapped function's docstring - [#2602](https://github.com/PrefectHQ/prefect/pull/2602)
+- Support creating temporary dask clusters from within a `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)
+- Add option for setting any build kwargs on Docker storage - [#2668](https://github.com/PrefectHQ/prefect/pull/2668)
+- Add flow run ID option to `get logs` CLI command - [#2671](https://github.com/PrefectHQ/prefect/pull/2671)
+- Add ID to output of `get` command for `flows` and `flow-runs` - [#2671](https://github.com/PrefectHQ/prefect/pull/2671)
+
+### Task Library
 
 - None
 
 ### Server
 
-- Add "cancellation-lite" semantic by preventing task runs from running if the flow run isn't running - [#2535](https://github.com/PrefectHQ/prefect/pull/2535)
-
-### Task Library
-
 - None
 
 ### Fixes
 
-- Fix bug in Kubernetes agent ``deployment.yaml`` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)
+- Fix issue with Google imports being tied together - [#2661](https://github.com/PrefectHQ/prefect/issues/2661)
+- Don't warn about unused tasks defined inline and copied - [#2677](https://github.com/PrefectHQ/prefect/issues/2677)
+- Remove unnecessary volume mount from dev infrastructure Docker compose - [#2676](https://github.com/PrefectHQ/prefect/issues/2676)
+- Fix issue with instantiating LocalResult on Windows with dir from other drive - [#2683](https://github.com/PrefectHQ/prefect/issues/2683)
+- Fix invalid IP address error when running `server start` on Ubuntu using rootless Docker - [#2691](https://github.com/PrefectHQ/prefect/pull/2691)
 
 ### Deprecations
 
-- None
+- Deprecate `local_processes` and `**kwargs` arguments for `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)
+- Deprecate `address='local'` for `DaskExecutor` - [#2667](https://github.com/PrefectHQ/prefect/pull/2667)
 
 ### Breaking Changes
 
-- Triggers now accept a dictionary of upstream edges and states instead of a set of states - [#2289](https://github.com/PrefectHQ/prefect/issues/2298)
-- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
-- Moved `prefect.tasks.cloud` to `prefect.tasks.prefect` - [#2404](https://github.com/PrefectHQ/prefect/pull/2404)
+- None
 
 ### Contributors
 
-- None
+- [Alex Cano](https://github.com/alexisprince1994)
 
-# Changelog
+## 0.11.4 <Badge text="beta" type="success">
 
-## Unreleased <Badge text="beta" type="success"/>
+Released on May 27, 2020.
 
-These changes are available in the [master branch](https://github.com/PrefectHQ/prefect).
+### Fixes
+
+- Revert GraphQL endpoint change - [#2660](https://github.com/PrefectHQ/prefect/pull/2660)
+
+## 0.11.3 <Badge text="beta" type="success">
+
+Released on May 27, 2020.
 
 ### Features
 
@@ -50,7 +65,13 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Enhancements
 
-- `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
+- Add option to set volumes on `server start` CLI command - [#2560](https://github.com/PrefectHQ/prefect/pull/2560)
+- Add `case` to top-level namespace - [#2609](https://github.com/PrefectHQ/prefect/pull/2609)
+- Use host IP for `hostname` label in cases where `LocalAgent` is in container using host network - [#2618](https://github.com/PrefectHQ/prefect/issues/2618)
+- Add option to set TLS configuration on client created by Docker storage - [#2626](hhttps://github.com/PrefectHQ/prefect/issues/2626)
+- The `start_time` of a `Paused` state defaults to `None` - [#2617](https://github.com/PrefectHQ/prefect/pull/2617)
+- Raise more informative error when Cloud Secret doesn't exist - [#2620](https://github.com/PrefectHQ/prefect/pull/2620)
+- Update GraphQL endpoint to `/graphql` - [#2651](https://github.com/PrefectHQ/prefect/pull/2651)
 
 ### Task Library
 
@@ -58,7 +79,54 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Fixes
 
+- Kubernetes agent resource manager is more strict about what resources it manages - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+- Fix error when adding `Parameter` to flow under `case` statement - [#2608](https://github.com/PrefectHQ/prefect/pull/2608)
+- Fix `S3Result` attempting to load data when checking existence - [#2623](https://github.com/PrefectHQ/prefect/issues/2623)
+
+### Deprecations
+
+- Deprecate `private_registry` and `docker_secret` options on `DaskKubernetesEnvironment` - [#2630](https://github.com/PrefectHQ/prefect/pull/2630)
+
+### Breaking Changes
+
+- Kubernetes labels associated with Prefect flow runs now have a `prefect.io/` prefix (e.g. `prefect.io/identifier`) - [#2641](https://github.com/PrefectHQ/prefect/pull/2641)
+
+### Contributors
+
+- [Bartek Roszak](https://github.com/BartekRoszak)
+- [James Lamb](https://github.com/jameslamb)
+
+## 0.11.2 <Badge text="beta" type="success"/>
+
+Released on May 19, 2020.
+
+### Features
+
 - None
+
+### Enhancements
+
+- Allow log configuration in Fargate Agent - [#2589](https://github.com/PrefectHQ/prefect/pull/2589)
+- Reuse `prefect.context` for opening `Flow` contexts - [#2581](https://github.com/PrefectHQ/prefect/pull/2581)
+- Show a warning when tasks are created in a flow context but not added to a flow - [#2584](https://github.com/PrefectHQ/prefect/pull/2584)
+
+### Server
+
+- Add API healthcheck tile to the UI - [#2395](https://github.com/PrefectHQ/prefect/issues/2395)
+
+### Task Library
+
+- None
+
+### Fixes
+
+- Fix type for Dask Security in RemoteDaskEnvironment - [#2571](https://github.com/PrefectHQ/prefect/pull/2571)
+- Fix issue with `log_stdout` not correctly storing returned data on the task run state - [#2585](https://github.com/PrefectHQ/prefect/pull/2585)
+- Ensure result locations are updated from targets when copying tasks with `task_args` - [#2590](https://github.com/PrefectHQ/prefect/pull/2590)
+- Fix `S3Result` exists function handling of `NoSuchKey` error - [#2585](https://github.com/PrefectHQ/prefect/issues/2585)
+- Fix confusing language in Telemetry documentation - [#2593](https://github.com/PrefectHQ/prefect/pull/2593)
+- Fix `LocalAgent` not registering with Cloud using default labels - [#2587](https://github.com/PrefectHQ/prefect/issues/2587)
+- Fix flow's `run_agent` function passing a `set` of labels to Agent instead of a `list` - [#2600](https://github.com/PrefectHQ/prefect/pull/2600)
 
 ### Deprecations
 
@@ -70,7 +138,71 @@ These changes are available in the [master branch](https://github.com/PrefectHQ/
 
 ### Contributors
 
+- [Joe Schmid](https://github.com/joeschmid)
+
+## 0.11.1 <Badge text="beta" type="success"/>
+
+Released on May 15, 2020.
+
+### Fixes
+
+- Fix duplicate agent label literal eval parsing - [#2569](https://github.com/PrefectHQ/prefect/issues/2569)
+
+## 0.11.0 <Badge text="beta" type="success"/>
+
+Released on May 14, 2020.
+
+### Features
+
+- Introducing new [Results](https://docs.prefect.io/core/concepts/results.html) interface for working with task results - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+
+### Enhancements
+
+- Allow slack_task to accept a dictionary for the message parameter to build a specially-structured JSON Block - [#2541](https://github.com/PrefectHQ/prefect/pull/2541)
+- Support using `case` for control flow with the imperative api - [#2546](https://github.com/PrefectHQ/prefect/pull/2546)
+- `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
+- Docker storage now writes flows to `/opt` dir to remove need for root permissions - [#2025](https://github.com/PrefectHQ/prefect/issues/2025)
+- Add option to [set secrets on Storage objects](https://docs.prefect.io/orchestration/recipes/third_party_auth.html#declaring-secrets-on-storage) - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Add reserved [default Secret names](https://docs.prefect.io/orchestration/recipes/third_party_auth.html#list-of-default-secret-names) and formats for working with cloud platforms - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Add unique naming option to the jobs created by the `KubernetesJobEnvironment` - [#2553](https://github.com/PrefectHQ/prefect/pull/2553)
+- Use `ast.literal_eval` for configuration values - [#2536](https://github.com/PrefectHQ/prefect/issues/2536)
+- Prevent local cycles even if flow validation is deferred - [#2565](https://github.com/PrefectHQ/prefect/pull/2565)
+
+### Server
+
+- Add "cancellation-lite" semantic by preventing task runs from running if the flow run isn't running - [#2535](https://github.com/PrefectHQ/prefect/pull/2535)
+- Add minimal telemetry to Prefect Server - [#2467](https://github.com/PrefectHQ/prefect/pull/2467)
+
+### Task Library
+
+- Add tasks to create issues for Jira and Jira Service Desk [#2431](https://github.com/PrefectHQ/prefect/pull/2431)
+- Add `DbtShellTask`, an extension of ShellTask for working with data build tool (dbt) - [#2526](https://github.com/PrefectHQ/prefect/pull/2526)
+- Add `prefect.tasks.gcp.bigquery.BigQueryLoadFile` - [#2423](https://github.com/PrefectHQ/prefect/issues/2423)
+
+### Fixes
+
+- Fix bug in Kubernetes agent `deployment.yaml` with a misconfigured liveness probe - [#2519](https://github.com/PrefectHQ/prefect/pull/2519)
+- Fix checkpointing feature not being able to be disabled when using server backend - [#2438](https://github.com/PrefectHQ/prefect/issues/2438)
+
+### Deprecations
+
+- Result Handlers are now deprecated in favor of the new Result interface - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+
+### Breaking Changes
+
+- Allow for setting docker daemon at build time using DOCKER_HOST env var to override base_url in docker storage - [#2482](https://github.com/PrefectHQ/prefect/pull/2482)
+- Ensure all calls to `flow.run()` use the same execution logic - [#1994](https://github.com/PrefectHQ/prefect/pull/1994)
+- Moved `prefect.tasks.cloud` to `prefect.tasks.prefect` - [#2404](https://github.com/PrefectHQ/prefect/pull/2404)
+- Trigger signature now accepts a dictionary of `[Edge, State]` to allow for more customizable trigger behavior - [#2298](https://github.com/PrefectHQ/prefect/issues/2298)
+- Remove all uses of `credentials_secret` from task library in favor of `PrefectSecret` tasks - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Remove `Bytes` and `Memory` storage objects - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+
+### Contributors
+
 - [Alvin Goh](https://github.com/chuehsien)
+- [Daniel Kapitan](https://github.com/dkapitan)
+- [Mark McDonald](https://github.com/mhmcdonald)
+- [Jie Lou](https://github.com/JLouSRM)
 
 ## 0.10.7 <Badge text="beta" type="success"/>
 

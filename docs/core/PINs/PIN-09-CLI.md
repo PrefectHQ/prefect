@@ -10,7 +10,7 @@ Author: Josh Meek
 
 ## Status
 
-Approved
+Accepted
 
 ## Context
 

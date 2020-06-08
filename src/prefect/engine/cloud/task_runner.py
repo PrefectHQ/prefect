@@ -285,61 +285,13 @@ class CloudTaskRunner(TaskRunner):
             final_state = self.handle_state_change(old_state=state, new_state=new_state)
             raise ENDRUN(final_state)
 
-    def get_task_inputs(
-        self, state: State, upstream_states: Dict[Edge, State]
-    ) -> Dict[str, Result]:
-        """
-        Given the task's current state and upstream states, generates the inputs for this task.
-        Upstream state result values are used. If the current state has `cached_inputs`, they
-        will override any upstream values.
-
-        Args:
-            - state (State): the task's current state.
-            - upstream_states (Dict[Edge, State]): the upstream state_handlers
-
-        Returns:
-            - Dict[str, Result]: the task inputs
-
-        """
-        task_inputs = super().get_task_inputs(state, upstream_states)
-
-        try:
-            ## for mapped tasks, we need to take extra steps to store the cached_inputs;
-            ## this is because in the event of a retry we don't want to have to load the
-            ## entire upstream array that is being mapped over, instead we need store the
-            ## individual pieces of data separately for more efficient retries
-            map_index = prefect.context.get("map_index")
-            if map_index not in [-1, None]:
-                for edge, upstream_state in upstream_states.items():
-                    if (
-                        edge.key
-                        and edge.mapped
-                        and edge.upstream_task.checkpoint is not False
-                    ):
-                        try:
-                            task_inputs[edge.key] = task_inputs[edge.key].write(  # type: ignore
-                                task_inputs[edge.key].value,
-                                filename=f"{edge.key}-{map_index}",
-                                **prefect.context,
-                            )
-                        except NotImplementedError:
-                            pass
-        except Exception as exc:
-            new_state = Failed(
-                message=f"Failed to save inputs for mapped task: {exc}", result=exc
-            )
-            final_state = self.handle_state_change(old_state=state, new_state=new_state)
-            raise ENDRUN(final_state)
-
-        return task_inputs
-
     @tail_recursive
     def run(
         self,
         state: State = None,
         upstream_states: Dict[Edge, State] = None,
         context: Dict[str, Any] = None,
-        executor: "prefect.engine.executors.Executor" = None,
+        is_mapped_parent: bool = False,
     ) -> State:
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
@@ -354,8 +306,8 @@ class CloudTaskRunner(TaskRunner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - executor (Executor, optional): executor to use when performing
-                computation; defaults to the executor specified in your prefect configuration
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
+                mapped task
 
         Returns:
             - `State` object representing the final post-run state of the Task
@@ -365,10 +317,10 @@ class CloudTaskRunner(TaskRunner):
             state=state,
             upstream_states=upstream_states,
             context=context,
-            executor=executor,
+            is_mapped_parent=is_mapped_parent,
         )
         while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=1)  # type: ignore
+            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, (Retrying, Queued))
             naptime = max(
@@ -388,6 +340,6 @@ class CloudTaskRunner(TaskRunner):
                 state=end_state,
                 upstream_states=upstream_states,
                 context=context,
-                executor=executor,
+                is_mapped_parent=is_mapped_parent,
             )
         return end_state

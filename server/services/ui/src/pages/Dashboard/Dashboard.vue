@@ -7,6 +7,7 @@ import UpcomingRunsTile from '@/pages/Dashboard/UpcomingRuns-Tile'
 import FailuresTile from '@/pages/Dashboard/Failures-Tile'
 import SubPageNav from '@/layouts/SubPageNav'
 import TileLayout from '@/layouts/TileLayout'
+import ApiHealthcheckTile from '@/pages/Dashboard/ApiHealthcheck-Tile'
 
 export default {
   components: {
@@ -17,7 +18,8 @@ export default {
     SubPageNav,
     SummaryTile,
     TileLayout,
-    UpcomingRunsTile
+    UpcomingRunsTile,
+    ApiHealthcheckTile
   },
   data() {
     return {
@@ -125,7 +127,9 @@ export default {
 
           <FlowRunHeartbeatTile slot="row-2-col-1-row-2-tile-1" />
 
-          <ErrorsTile slot="row-2-col-2-row-3-tile-1" full-height />
+          <ErrorsTile slot="row-2-col-2-row-2-tile-1" full-height />
+
+          <ApiHealthcheckTile slot="row-2-col-2-row-2-tile-2" />
         </TileLayout>
       </v-tab-item>
 

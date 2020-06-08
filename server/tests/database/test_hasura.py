@@ -40,7 +40,7 @@ class TestExecute:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     async def test_execute_accepts_gql(self):
         result = await hasura.execute("query { flow { id } }")
@@ -83,7 +83,7 @@ class TestExecute:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
         with pytest.raises(ValueError, match="Uniqueness violation"):
             await hasura.execute("query { hello }", variables=dict(x=1, y=dict(z=2)))
 
@@ -101,7 +101,7 @@ class TestExecute:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
         with pytest.raises(ValueError, match="Foreign key violation"):
             await hasura.execute("query { hello }", variables=dict(x=1, y=dict(z=2)))
 
@@ -119,7 +119,7 @@ class TestExecute:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
         with pytest.raises(exceptions.Unauthorized):
             await hasura.execute("query { hello }", variables=dict(x=1, y=dict(z=2)))
 
@@ -137,7 +137,7 @@ class TestExecute:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
         start_time = pendulum.now("utc")
         with set_temporary_config("hasura.execute_retry_seconds", 3):
             with pytest.raises(ValueError, match="Unable to connect to postgres"):
@@ -296,7 +296,7 @@ class TestInsert:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     @pytest.mark.parametrize("objects", [[1], (1,), {1}])
     async def test_objects_must_be_collection(self, objects):
@@ -427,7 +427,7 @@ class TestDelete:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     async def test_where_is_a_dict(self):
         assert await hasura.delete("flow", where={"x": 1})
@@ -607,7 +607,7 @@ class TestUpdate:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     async def test_where_must_be_provided(self):
         with pytest.raises(TypeError) as exc:
@@ -719,7 +719,7 @@ class TestRunMutationsInTransaction:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     async def test_run_one_mutation_in_transaction(self):
         insert_graphql = await hasura.insert(
@@ -825,16 +825,16 @@ class TestExecuteResult:
                 )
             )
         )
-        monkeypatch.setattr("httpx.post", post)
+        monkeypatch.setattr("prefect_server.utilities.http.httpx_client.post", post)
 
     async def test_execute_respects_as_box(self):
         result = await HasuraClient().execute("query { x }")
         assert isinstance(result, Box)
         assert result.data.x == 1
-        assert isinstance(result.data.y[0].a, Box)
+        assert isinstance(result.data.y[0], Box)
         assert result.data.y[0].a == 1
 
-    async def test_execute_respects_as_box(self):
+    async def test_execute_respects_not_as_box(self):
         result = await HasuraClient().execute("query { x }", as_box=False)
         assert isinstance(result, dict) and not isinstance(result, Box)
         assert result["data"]["x"] == 1

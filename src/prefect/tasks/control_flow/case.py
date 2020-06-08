@@ -1,7 +1,7 @@
 from typing import Any
 
 import prefect
-from prefect import Task
+from prefect import Task, Flow
 
 from .conditional import CompareValue
 
@@ -61,13 +61,21 @@ class case(object):
         self.task = task
         self.value = value
         self._tasks = set()
+        self._flow = None
 
-    def add_task(self, task: Task) -> None:
+    def add_task(self, task: Task, flow: Flow) -> None:
         """Add a new task under the case statement.
 
         Args:
             - task (Task): the task to add
+            - flow (Flow): the flow to use
         """
+        if self._flow is None:
+            self._flow = flow
+        elif self._flow is not flow:
+            raise ValueError(
+                "Multiple flows cannot be used with the same case statement"
+            )
         self._tasks.add(task)
 
     def __enter__(self):
@@ -81,17 +89,12 @@ class case(object):
             prefect.context.update(case=self.__prev_case)
 
         if self._tasks:
-
-            flow = prefect.context.get("flow", None)
-            if not flow:
-                raise ValueError("Could not infer an active Flow context.")
-
             cond = CompareValue(self.value, name=f"case({self.value})",).bind(
-                value=self.task
+                value=self.task, flow=self._flow
             )
 
             for child in self._tasks:
                 # If a task has no upstream tasks created in this case block,
                 # the case conditional should be set as an upstream task.
-                if not self._tasks.intersection(flow.upstream_tasks(child)):
-                    child.set_upstream(cond)
+                if not self._tasks.intersection(self._flow.upstream_tasks(child)):
+                    child.set_upstream(cond, flow=self._flow)
