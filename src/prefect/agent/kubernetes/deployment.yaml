@@ -41,6 +41,8 @@ spec:
               value: ""
             - name: JOB_CPU_LIMIT
               value: ""
+            - name: IMAGE_PULL_POLICY
+              value: ""
             - name: PREFECT__BACKEND
               value: "cloud"
             - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS

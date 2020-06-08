@@ -357,6 +357,8 @@ def test_agent_install_k8s_asses_args():
             "cpu_req",
             "--cpu-limit",
             "cpu_limt",
+            "--image-pull-policy",
+            "custom_policy",
             "--label",
             "test_label1",
             "-l",
@@ -380,6 +382,7 @@ def test_agent_install_k8s_asses_args():
     assert "mem_lim" in result.output
     assert "cpu_req" in result.output
     assert "cpu_lim" in result.output
+    assert "custom_policy" in result.output
     assert "secret-test" in result.output
     assert "test_label1" in result.output
     assert "test_label2" in result.output
