@@ -440,6 +440,58 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
+  build_storage_docker_image:
+    docker:
+      - image: docker
+    parameters:
+      python_version:
+        type: string
+    environment:
+      PYTHON_VERSION: << parameters.python_version >>
+      EXTRAS: << parameters.extras >>
+    steps:
+      - checkout
+      - run:
+          name: Master branch check
+          command: |
+            apk add git
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+              exit 1
+            fi
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build storage image
+          command: |
+            set -u
+            docker build \
+              --build-arg GIT_SHA=$CIRCLE_SHA1 \
+              --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+              --build-arg PREFECT_VERSION=$CIRCLE_TAG \
+              --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
+              -t prefecthq/prefect:storage-${CIRCLE_TAG} \
+              .
+      - run:
+          name: Test image
+          command: |
+            docker run -dit prefecthq/prefect:storage-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+      - run:
+          name: Push storage tag
+          command: |
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+            docker push prefecthq/prefect:storage-${CIRCLE_TAG}
+      - when:
+          condition: << parameters.tag_latest >>
+          steps:
+            - run:
+                name: Push latest tag
+                command: |
+                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+                  docker push prefecthq/prefect:storage
+
+
   release_to_pypi:
     docker:
       - image: python:3.7
@@ -536,6 +588,15 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_storage_docker_image:
+          python_version: '3.8'
+          extras: 'aws,azure,gcp'
+          tag_latest: true
           filters:
             branches:
               ignore: /.*/
