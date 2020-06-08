@@ -43,6 +43,8 @@ spec:
               value: ""
             - name: IMAGE_PULL_POLICY
               value: ""
+            - name: SERVICE_ACCOUNT_NAME
+              value: ""
             - name: PREFECT__BACKEND
               value: "cloud"
             - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS

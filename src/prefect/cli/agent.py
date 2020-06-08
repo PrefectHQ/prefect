@@ -342,6 +342,12 @@ def start(
     hidden=True,
 )
 @click.option(
+    "--service-account-name",
+    required=False,
+    help="Name of Service Account for Prefect init job",
+    hidden=True,
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -390,6 +396,7 @@ def install(
     cpu_request,
     cpu_limit,
     image_pull_policy,
+    service_account_name,
     label,
     env,
     import_path,
@@ -426,6 +433,7 @@ def install(
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
         --image-pull-policy         TEXT    imagePullPolicy for Prefect init job
+        --service-account-name      TEXT    Name of Service Account for Prefect init job
         --backend                   TEST    Prefect backend to use for this agent
                                             Defaults to the backend currently set in config.
 
@@ -466,6 +474,7 @@ def install(
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
             image_pull_policy=image_pull_policy,
+            service_account_name=service_account_name,
             labels=list(label),
             env_vars=env_vars,
             backend=backend,

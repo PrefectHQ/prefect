@@ -179,6 +179,10 @@ class KubernetesAgent(Agent):
             job["spec"]["template"]["spec"]["containers"][0][
                 "imagePullPolicy"
             ] = os.getenv("IMAGE_PULL_POLICY")
+        if os.getenv("SERVICE_ACCOUNT_NAME"):
+            job["spec"]["template"]["spec"]["serviceAccountName"] = os.getenv(
+                "SERVICE_ACCOUNT_NAME"
+            )
 
         return job
 
@@ -196,6 +200,7 @@ class KubernetesAgent(Agent):
         cpu_request: str = None,
         cpu_limit: str = None,
         image_pull_policy: str = None,
+        service_account_name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
@@ -223,6 +228,8 @@ class KubernetesAgent(Agent):
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
             - image_pull_policy (str, optional): imagePullPolicy to use for Prefect init job.
                 Job defaults to `IfNotPresent`.
+            - service_account_name (str, optional): Name of a service account to use for
+                Prefect init job. Job defaults to using `default` service account.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): additional environment variables to attach to all
@@ -244,6 +251,7 @@ class KubernetesAgent(Agent):
         cpu_request = cpu_request or ""
         cpu_limit = cpu_limit or ""
         image_pull_policy = image_pull_policy or ""
+        service_account_name = service_account_name or ""
         backend = backend or config.backend
 
         version = prefect.__version__.split("+")
@@ -264,7 +272,7 @@ class KubernetesAgent(Agent):
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
-        agent_env[10]["value"] = backend
+        agent_env[11]["value"] = backend
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request
@@ -272,6 +280,7 @@ class KubernetesAgent(Agent):
         agent_env[7]["value"] = cpu_request
         agent_env[8]["value"] = cpu_limit
         agent_env[9]["value"] = image_pull_policy
+        agent_env[10]["value"] = service_account_name
 
         if env_vars:
             for k, v in env_vars.items():
