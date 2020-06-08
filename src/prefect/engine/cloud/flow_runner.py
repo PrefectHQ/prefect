@@ -127,7 +127,7 @@ class CloudFlowRunner(FlowRunner):
             raise ENDRUN(state=new_state)
 
         if state.is_queued():
-            state.state = old_state
+            state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
         prefect.context.update(flow_run_version=version + 1)
@@ -193,7 +193,7 @@ class CloudFlowRunner(FlowRunner):
         # If start time is more than 10 minutes in the future,
         # we fail the run so Lazarus can pick it up and reschedule it.
         while end_state.is_queued() and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=10)
+            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
         ):
             assert isinstance(end_state, Queued)
             naptime = max(
@@ -251,7 +251,9 @@ class CloudFlowRunner(FlowRunner):
         """
 
         # load id from context
-        flow_run_id = prefect.context.get("flow_run_id") or context.get("flow_run_id")
+        flow_run_id = prefect.context.get("flow_run_id") or context.get(
+            "flow_run_id", ""
+        )  # type: str
 
         try:
             flow_run_info = self.client.get_flow_run_info(flow_run_id)
