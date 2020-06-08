@@ -21,6 +21,8 @@ all_states = sorted(
     key=lambda c: c.__name__,
 )
 
+from marshmallow import Schema
+
 
 def complex_states():
     res1 = SafeResult(1, result_handler=JSONResultHandler())
