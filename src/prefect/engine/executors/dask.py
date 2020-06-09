@@ -245,7 +245,7 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - extra_context (dict, optional): an optional dictionary of executor-specific keyword arguments
+            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -330,7 +330,7 @@ class LocalDaskExecutor(Executor):
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - extra_context (dict, optional): an optional dictionary of executor-specific keyword arguments
+            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
