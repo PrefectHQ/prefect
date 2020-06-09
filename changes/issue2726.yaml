@@ -1,0 +1,2 @@
+fix:
+  - "Fix flow.visualize cleanup of source files when using `filename` - [#2726](https://github.com/PrefectHQ/prefect/issues/2726)"
