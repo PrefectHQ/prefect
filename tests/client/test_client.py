@@ -358,6 +358,55 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
 
 
 @pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, tmpdir):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "create_flow_from_compressed_string": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+        }
+    post = patch_post(response)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(
+        name="test",
+        storage=prefect.environments.storage.Docker(image_name="test_image"),
+    )
+    flow.result = flow.storage.result
+
+    flow_id = client.register(
+        flow, project_name="my-default-project", compressed=compressed, build=True
+    )
+
+    ## extract POST info
+    if compressed:
+        serialized_flow = decompress(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serialized_flow"
+            ]
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serialized_flow"
+        ]
+    assert serialized_flow["storage"] is not None
+    assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
+
+
+@pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_optionally_avoids_building_flow(
     patch_post, compressed, monkeypatch
 ):
