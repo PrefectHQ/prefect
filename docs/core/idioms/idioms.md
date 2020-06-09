@@ -1,6 +1,6 @@
 # Prefect Idioms
 
-- [Creating (conditional) branches in a flow](branching.html)
+- [Using conditional logic in a flow](conditional.html)
 - [Use task mapping to map over a specific set of arguments](mapping.html)
 - [Parallelism within a Prefect flow](parallel.html)
 - [Logging configuration and usage](logging.html)

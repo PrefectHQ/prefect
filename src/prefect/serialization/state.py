@@ -57,7 +57,7 @@ class PendingSchema(BaseStateSchema):
 
 
 class MetaStateSchema(BaseStateSchema):
-    state = fields.Nested("StateSchema", allow_none=True)
+    state = fields.Nested("prefect.serialization.state.StateSchema", allow_none=True)
 
 
 class ClientFailedSchema(MetaStateSchema):
@@ -133,7 +133,7 @@ class MappedSchema(SuccessSchema):
         object_class = state.Mapped
 
     # though this field is excluded from serialization, it must be present in the schema
-    map_states = fields.Nested("StateSchema", many=True)
+    map_states = fields.Nested("prefect.serialization.state.StateSchema", many=True)
     n_map_states = fields.Integer()
 
     @post_load
