@@ -303,8 +303,6 @@ classes = [
 title = "Google Sheets Tasks"
 module = "prefect.tasks.gsheets"
 classes = [
-        "GsheetUpdates",
-        "GsheetResponse",
         "WriteGsheetRow",
         "ReadGsheetRow",
         ]

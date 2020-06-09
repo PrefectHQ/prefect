@@ -5,24 +5,6 @@ from prefect import task, Task
 import pathlib
 
 
-class GsheetUpdates(TypedDict):
-    """A Typed Dict to describe one of the dictionary elements returned after writing Rows"""
-
-    spreadsheetId: str
-    updatedRange: str
-    updatedRows: int
-    updatedColumns: int
-    updatedCells: int
-
-
-class GsheetResponse(TypedDict):
-    """A Typed Dict to describe what's returned after writing Rows"""
-
-    spreadsheetId: str
-    tableRange: str
-    updates: GsheetUpdates
-
-
 class WriteGsheetRow(Task):
     """
     A task for writing a row to a Google Sheet.
@@ -54,7 +36,7 @@ class WriteGsheetRow(Task):
         credentials_filename: Union[str, pathlib.Path] = None,
         sheet_key: str = None,
         worksheet_name: str = None,
-    ) -> GsheetResponse:
+    ) -> dict:
         """
         Appends a row of data to a Google Sheets worksheet
 

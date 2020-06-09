@@ -3,8 +3,6 @@ A collection of tasks for interacting with Google Sheets.
 """
 try:
     from prefect.tasks.gsheets.gsheets import (
-        GsheetUpdates,
-        GsheetResponse,
         WriteGsheetRow,
         ReadGsheetRow,
         gsheet_helper,
