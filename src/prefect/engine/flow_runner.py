@@ -405,7 +405,6 @@ class FlowRunner(Runner):
         with executor.start():
 
             for task in self.flow.sorted_tasks():
-                prefect.context['task_tags'] = task.tags
                 task_state = task_states.get(task)
 
                 # if a task is a constant task, we already know its return value
