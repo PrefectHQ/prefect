@@ -648,14 +648,8 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
-        try:
-            if isinstance(flow.storage, prefect.environments.storage.Docker):
-                flow.environment.metadata["image"] = flow.storage.name
-        except ValueError:
-            warnings.warn(
-                "Flow's Docker storage was not built so `image` will not be present in `environment.metadata`.",
-                UserWarning,
-            )
+        if isinstance(flow.storage, prefect.environments.storage.Docker):
+            flow.environment.metadata["image"] = flow.storage.name
 
         # verify that the serialized flow can be deserialized
         try:
