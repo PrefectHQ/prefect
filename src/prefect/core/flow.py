@@ -1428,9 +1428,6 @@ class Flow:
         if labels:
             self.environment.labels.update(labels)
 
-        if isinstance(self.storage, prefect.environments.storage.Docker):
-            self.environment.metadata["image"] = self.storage.name
-
         # register the flow with a default result handler if one not provided
         if not self.result:
             self.result = self.storage.result

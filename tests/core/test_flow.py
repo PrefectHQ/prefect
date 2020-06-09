@@ -2578,28 +2578,6 @@ class TestFlowRegister:
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
 
-    def test_flow_register_passes_image_to_env_metadata(
-        self, monkeypatch,
-    ):
-        monkeypatch.setattr("prefect.Client", MagicMock())
-        f = Flow(name="test")
-
-        assert f.storage is None
-        with set_temporary_config(
-            {
-                "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
-            }
-        ):
-            f.register(
-                "My-project",
-                registry_url="FOO",
-                image_name="BAR",
-                image_tag="BIG",
-                no_url=True,
-            )
-
-        assert f.environment.metadata == {"image": "FOO/BAR:BIG"}
-
     def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
         monkeypatch.setattr("prefect.Client", MagicMock())
 
