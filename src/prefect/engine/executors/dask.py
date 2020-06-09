@@ -237,7 +237,7 @@ class DaskExecutor(Executor):
         self.__dict__.update(state)
 
     def submit(
-        self, fn: Callable, *args: Any, executor_kwargs: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
     ) -> "Future":
         """
         Submit a function to the executor for execution. Returns a Future object.
@@ -245,7 +245,7 @@ class DaskExecutor(Executor):
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - executor_kwargs (dict, optional): an optional dictionary of executor-specific keyword arguments
+            - extra_context (dict, optional): an optional dictionary of executor-specific keyword arguments
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
@@ -254,9 +254,9 @@ class DaskExecutor(Executor):
         # import dask functions here to decrease our import times
         from distributed import fire_and_forget, worker_client
 
-        executor_kwargs = executor_kwargs or {}
-        task_name = executor_kwargs.get("task_full_name", "")
-        task_tags = executor_kwargs.get("task_tags", [])
+        extra_context = extra_context or {}
+        task_name = extra_context.get("task_full_name", "")
+        task_tags = extra_context.get("task_tags", [])
         dask_kwargs = self._prep_dask_kwargs(task_name=task_name, task_tags=task_tags)
         kwargs.update(dask_kwargs)
 
@@ -322,7 +322,7 @@ class LocalDaskExecutor(Executor):
             yield cfg
 
     def submit(
-        self, fn: Callable, *args: Any, executor_kwargs: dict = None, **kwargs: Any
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
     ) -> "dask.delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
@@ -330,7 +330,7 @@ class LocalDaskExecutor(Executor):
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
-            - executor_kwargs (dict, optional): an optional dictionary of executor-specific keyword arguments
+            - extra_context (dict, optional): an optional dictionary of executor-specific keyword arguments
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

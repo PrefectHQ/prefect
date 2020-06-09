@@ -458,7 +458,7 @@ class FlowRunner(Runner):
                         result=ConstantResult(value=val),
                     )
 
-                executor_kwargs = dict(task_name=task.name, task_tags=task.tags)
+                extra_context = dict(task_name=task.name, task_tags=task.tags)
 
                 # handle mapped tasks
                 if any([edge.mapped for edge in upstream_states.keys()]):
@@ -486,7 +486,7 @@ class FlowRunner(Runner):
                             task_runner_state_handlers=task_runner_state_handlers,
                             upstream_mapped_states=upstream_mapped_states,
                             is_mapped_parent=True,
-                            executor_kwargs=executor_kwargs,
+                            extra_context=extra_context,
                         )
                     )
 
@@ -515,7 +515,7 @@ class FlowRunner(Runner):
                             current_state = task_state
 
                         ## this is where each child is submitted for actual work
-                        executor_kwargs.update(task_name=f"{task.name}[{idx}]")
+                        extra_context.update(task_name=f"{task.name}[{idx}]")
                         submitted_states.append(
                             executor.submit(
                                 self.run_task,
@@ -529,7 +529,7 @@ class FlowRunner(Runner):
                                 ),
                                 task_runner_state_handlers=task_runner_state_handlers,
                                 upstream_mapped_states=upstream_mapped_states,
-                                executor_kwargs=executor_kwargs,
+                                extra_context=extra_context,
                             )
                         )
                     if isinstance(task_states.get(task), Mapped):
@@ -545,7 +545,7 @@ class FlowRunner(Runner):
                         context=dict(prefect.context, **task_contexts.get(task, {})),
                         task_runner_state_handlers=task_runner_state_handlers,
                         upstream_mapped_states=upstream_mapped_states,
-                        executor_kwargs=executor_kwargs,
+                        extra_context=extra_context,
                     )
 
             # ---------------------------------------------
