@@ -1211,12 +1211,8 @@ class TestFlowVisualize:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
-                graph = f.visualize(filename=tmp.name)
-            with open(tmp.name, "r") as f:
-                contents = f.read()
-
-        assert "label=a_nice_task" in contents
-        assert "shape=ellipse" in contents
+                graph = f.visualize(filename=tmp.name, format="png")
+            assert os.path.exists(f"{tmp.name}.png")
 
     def test_viz_reflects_mapping(self):
         ipython = MagicMock(
