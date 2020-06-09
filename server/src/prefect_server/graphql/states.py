@@ -5,14 +5,14 @@
 import asyncio
 from typing import Any
 
-from graphql import GraphQLResolveInfo
-
 import prefect
+from graphql import GraphQLResolveInfo
 from prefect.utilities.graphql import EnumValue
+
 from prefect_server import api, config
 from prefect_server.database import models
-from prefect_server.utilities.graphql import mutation
 from prefect_server.utilities import context, exceptions
+from prefect_server.utilities.graphql import mutation
 
 state_schema = prefect.serialization.state.StateSchema()
 

@@ -18,6 +18,7 @@ def test_create_remote_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.RemoteEnvironment"
 
 
@@ -31,6 +32,7 @@ def test_create_remote_environment_populated():
         labels=["foo", "bar", "good"],
         on_start=f,
         on_exit=f,
+        metadata={"test": "here"},
     )
     assert environment
     assert environment.executor == "prefect.engine.executors.DaskExecutor"
@@ -38,6 +40,7 @@ def test_create_remote_environment_populated():
     assert environment.labels == set(["foo", "bar", "good"])
     assert environment.on_start is f
     assert environment.on_exit is f
+    assert environment.metadata == {"test": "here"}
 
 
 def test_remote_environment_dependencies():

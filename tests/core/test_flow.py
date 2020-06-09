@@ -2457,7 +2457,16 @@ class TestFlowRegister:
 
         assert f.storage is None
         with set_temporary_config({"flows.defaults.storage.default_class": storage}):
-            f.register("My-project")
+            if "Docker" in storage:
+                f.register(
+                    "My-project",
+                    registry_url="FOO",
+                    image_name="BAR",
+                    image_tag="BIG",
+                    no_url=True,
+                )
+            else:
+                f.register("My-project")
 
         assert isinstance(f.storage, from_qualified_name(storage))
         assert f.result == from_qualified_name(storage)().result
@@ -2571,6 +2580,31 @@ class TestFlowRegister:
         assert isinstance(f.storage, prefect.environments.storage.Local)
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
+
+    def test_flow_register_passes_image_to_env_metadata(
+        self, monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.Client", MagicMock())
+        f = Flow(name="test")
+
+        assert f.storage is None
+        with set_temporary_config(
+            {
+                "flows.defaults.storage.default_class": "prefect.environments.storage.Docker"
+            }
+        ):
+            f.register(
+                "My-project",
+                registry_url="FOO",
+                image_name="BAR",
+                image_tag="BIG",
+                no_url=True,
+            )
+
+        assert f.environment.metadata == {"image": "FOO/BAR:BIG"}
+
+    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():
@@ -2883,6 +2917,30 @@ def test_results_write_to_formatted_locations(tmpdir):
         "0.txt",
         "1.txt",
         "3.txt",
+    }
+
+
+def test_results_write_to_custom_formatters(tmpdir):
+    result = LocalResult(dir=tmpdir, location="{map_index}-{x}-{param}.txt")
+
+    with Flow("results", result=result) as flow:
+
+        p = Parameter("param", default="book")
+
+        @task()
+        def return_x(x, param):
+            return x
+
+        vals = return_x.map(x=[1, 42, None, "string-type"], param=unmapped(p))
+
+    with set_temporary_config({"flows.checkpointing": True}):
+        flow_state = flow.run()
+
+    assert flow_state.is_successful()
+    assert set(os.listdir(tmpdir)) == {
+        "0-1-book.txt",
+        "1-42-book.txt",
+        "3-string-type-book.txt",
     }
 
 

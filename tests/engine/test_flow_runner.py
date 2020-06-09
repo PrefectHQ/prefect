@@ -320,6 +320,21 @@ def test_parameters_are_placed_into_context():
     assert flow_state.result[y].result == 42
 
 
+def test_parameters_are_placed_into_context_including_defaults():
+    @prefect.task
+    def whats_in_ctx():
+        return prefect.context.parameters
+
+    y = prefect.Parameter("y", default=99)
+    z = prefect.Parameter("z", default=19)
+    flow = Flow(name="test", tasks=[y, z, whats_in_ctx])
+    flow_state = FlowRunner(flow=flow).run(
+        return_tasks=[whats_in_ctx], parameters=dict(y=42)
+    )
+    assert isinstance(flow_state, Success)
+    assert flow_state.result[whats_in_ctx].result == dict(y=42, z=19)
+
+
 def test_parameters_are_placed_into_context_and_override_current_context():
     flow = Flow(name="test")
     y = prefect.Parameter("y", default=99)

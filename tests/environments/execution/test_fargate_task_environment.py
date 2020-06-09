@@ -19,6 +19,7 @@ def test_create_fargate_task_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.FargateTaskEnvironment"
 
 

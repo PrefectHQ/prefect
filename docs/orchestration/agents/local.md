@@ -19,7 +19,7 @@ import prefect
 from prefect import task, Flow
 
 @task
-def welcome():
+def welcome_logger():
     logger = prefect.context["logger"]
     logger.info("Welcome")
 
