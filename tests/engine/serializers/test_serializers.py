@@ -4,7 +4,13 @@ import json
 import cloudpickle
 import pendulum
 
-from prefect.engine.serializers import JSONSerializer, Serializer
+from prefect.engine.serializers import JSONSerializer, Serializer, DateTimeSerializer
+
+
+def test_equality():
+    assert Serializer() == Serializer()
+    assert JSONSerializer() == JSONSerializer()
+    assert Serializer() != JSONSerializer()
 
 
 class TestSerializer:
@@ -44,7 +50,31 @@ class TestJSONSerializer:
         assert serialized == json.dumps(value).encode()
 
 
-def test_equality():
-    assert Serializer() == Serializer()
-    assert JSONSerializer() == JSONSerializer()
-    assert Serializer() != JSONSerializer()
+class TestDateTimeSerializer:
+    def test_serialize_returns_bytes(self):
+        dt = pendulum.now()
+        serialized = DateTimeSerializer().serialize(dt)
+        assert isinstance(serialized, bytes)
+
+    def test_serialize_string(self):
+        serialized = DateTimeSerializer().serialize("2020-01-01")
+        assert serialized == b"2020-01-01T00:00:00Z"
+
+    def test_serialize_in_utc(self):
+        serialized = DateTimeSerializer().serialize(
+            pendulum.datetime(2020, 1, 1).in_tz("EST")
+        )
+        assert serialized == b"2020-01-01T00:00:00Z"
+
+    def test_serialize_none(self):
+        assert DateTimeSerializer().serialize(None) == b""
+
+    def test_deserialize_none(self):
+        serialized = DateTimeSerializer().serialize(None)
+        assert DateTimeSerializer().deserialize(serialized) is None
+
+    def test_deserialize_returns_objects(self):
+        dt = pendulum.now()
+        serialized = DateTimeSerializer().serialize(dt)
+        deserialized = DateTimeSerializer().deserialize(serialized)
+        assert deserialized == dt

@@ -1,10 +1,12 @@
+import pendulum
 import pytest
 
 import prefect
 from prefect.core.flow import Flow
 from prefect.core.task import Task
-from prefect.core.parameter import Parameter
+from prefect.core.parameter import Parameter, DateTimeParameter
 from prefect.tasks.core.function import FunctionTask
+
 
 
 def test_create_parameter():
@@ -99,3 +101,30 @@ def test_backwards_compatible_access():
     Can be removed once the backwards compatibility is no longer maintained.
     """
     assert prefect.core.task.Parameter is prefect.core.parameter.Parameter
+
+@prefect.task
+def return_value(x):
+    return x
+
+with Flow("test") as dt_flow:
+    dt = DateTimeParameter('dt', required=False)
+    x = return_value(dt)
+
+class TestDateTimeParameter:
+
+    def test_datetime_parameter_returns_datetimes_if_passed_datetimes(self):
+        now = pendulum.now()
+        state = dt_flow.run(dt=now)
+        assert state.result[dt].result == now
+        assert state.result[x].result == now
+
+    def test_datetime_parameter_returns_datetimes_if_passed_string(self):
+        now = pendulum.now()
+        state = dt_flow.run(dt=str(now))
+        assert state.result[dt].result == now
+        assert state.result[x].result == now
+    
+    def test_datetime_parameter_returns_none_if_passed_none(self):
+        state = dt_flow.run(dt=None)
+        assert state.result[dt].result is None
+        assert state.result[x].result is None

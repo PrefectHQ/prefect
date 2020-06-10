@@ -4,6 +4,7 @@ import prefect
 import prefect.engine.signals
 import prefect.triggers
 from prefect.core.task import Task
+
 from prefect.engine.results import PrefectResult
 
 if TYPE_CHECKING:
@@ -25,7 +26,8 @@ class Parameter(Task):
         - default (any, optional): A default value for the parameter. If the default
             is not None, the Parameter will not be required.
         - tags ([str], optional): A list of tags for this parameter
-
+        - serializer (prefect.engine.serializers.Serializer): A serializer for converting the Parameter value 
+            to and from a bytes representation. The default is JSONSerializer
     """
 
     def __init__(
@@ -34,6 +36,7 @@ class Parameter(Task):
         default: Any = None,
         required: bool = True,
         tags: Iterable[str] = None,
+        serializer: "prefect.engine.serializers.Serializer" = None,
     ):
         if default is not None:
             required = False
@@ -41,8 +44,12 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
+        if serializer is None:
+            serializer = prefect.engine.serializers.JSONSerializer()
+        result = PrefectResult(serializer=serializer)
+
         super().__init__(
-            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True,
+            name=name, slug=name, tags=tags, result=result, checkpoint=True,
         )
 
     def __repr__(self) -> str:
@@ -91,7 +98,17 @@ class Parameter(Task):
             raise prefect.engine.signals.FAIL(
                 'Parameter "{}" was required but not provided.'.format(self.name)
             )
-        return params.get(self.name, self.default)
+        parameter_value = params.get(self.name, self.default)
+
+        # if the parameter value is str or bytes (as would be the case if it were
+        # passed via API or config), then deserialize it using the appropriate
+        # Serializer.
+        if isinstance(parameter_value, (str, bytes)):
+            # mypy assert
+            assert self.result is not None
+            parameter_value = self.result.serializer.deserialize(parameter_value)
+
+        return parameter_value
 
     # Serialization ------------------------------------------------------------
 
@@ -103,3 +120,31 @@ class Parameter(Task):
             - dict representing this parameter
         """
         return prefect.serialization.task.ParameterSchema().dump(self)
+
+
+class DateTimeParameter(Parameter):
+    """
+    A DateTimeParameter that casts its input as a DateTime
+
+    Args:
+        - name (str): the Parameter name.
+        - required (bool, optional): If True, the Parameter is required and the default
+            value is ignored.
+        - default (any, optional): A default value for the parameter. If the default
+            is not None, the Parameter will not be required.
+        - tags ([str], optional): A list of tags for this parameter
+    """
+
+    def __init__(
+        self,
+        name: str,
+        default: Any = None,
+        required: bool = True,
+        tags: Iterable[str] = None,
+    ):
+        super().__init__(
+            name=name,
+            default=default,
+            required=required,
+            serializer=prefect.engine.serializers.DateTimeSerializer(),
+        )
