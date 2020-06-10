@@ -1243,7 +1243,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False, format=format)
+            graph.render(filename, view=False, format=format, cleanup=True)
         else:
             try:
                 from IPython import get_ipython

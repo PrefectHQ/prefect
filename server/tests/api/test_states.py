@@ -5,10 +5,9 @@
 import asyncio
 import uuid
 
+import prefect
 import pytest
 from box import Box
-
-import prefect
 from prefect.engine.result import Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.state import (
@@ -27,12 +26,19 @@ from prefect.engine.state import (
     TriggerFailed,
     _MetaState,
 )
+
 from prefect_server import api, config, utilities
 from prefect_server.api import runs, states
 from prefect_server.database import models
 
 
 class TestTaskRunStates:
+    async def test_returns_status_dict(
+        self, running_flow_run_id: str, task_run_id: str
+    ):
+        result = await states.set_task_run_state(task_run_id, state=Success())
+        assert result["status"] == "SUCCESS"
+
     @pytest.mark.parametrize(
         "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )
@@ -204,6 +210,10 @@ class TestTaskRunStates:
 
 
 class TestFlowRunStates:
+    async def test_returns_status_dict(self, flow_run_id: str):
+        result = await states.set_flow_run_state(flow_run_id, state=Success())
+        assert result["status"] == "SUCCESS"
+
     @pytest.mark.parametrize(
         "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )

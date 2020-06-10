@@ -290,10 +290,11 @@ class TestDaskExecutor:
 
     def test_prep_dask_kwargs(self):
         executor = DaskExecutor()
-        with prefect.context(task_full_name="FISH!", task_tags=["dask-resource:GPU=1"]):
-            kwargs = executor._prep_dask_kwargs()
-            assert kwargs["key"].startswith("FISH!")
-            assert kwargs["resources"] == {"GPU": 1.0}
+        kwargs = executor._prep_dask_kwargs(
+            task_name="FISH!", task_tags=["dask-resource:GPU=1"]
+        )
+        assert kwargs["key"].startswith("FISH!")
+        assert kwargs["resources"] == {"GPU": 1.0}
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
