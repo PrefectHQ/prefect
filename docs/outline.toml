@@ -83,7 +83,12 @@ classes = ["Flow"]
 [pages.core.task]
 title = "Task"
 module = "prefect.core.task"
-classes = ["Task", "Parameter"]
+classes = ["Task"]
+
+[pages.core.parameters]
+title = "Parameter"
+module = "prefect.core.parameter"
+classes = ["Parameter"]
 
 [pages.engine.cache_validators]
 title = "Cache Validators"

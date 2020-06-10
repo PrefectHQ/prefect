@@ -31,7 +31,8 @@ from slugify import slugify
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.result import NoResult, Result
 from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler

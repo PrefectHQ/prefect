@@ -17,7 +17,8 @@ import toml
 import prefect
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.engine.executors import LocalExecutor
 from prefect.engine.result import Result
