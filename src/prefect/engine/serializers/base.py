@@ -11,6 +11,9 @@ class Serializer:
     Python objects to and from bytes.
     """
 
+    def __eq__(self, other: Any) -> bool:
+        return type(self) == type(other)
+
     def serialize(self, value: Any) -> bytes:
         """
         Serialize an object to bytes.

@@ -42,3 +42,9 @@ class TestJSONSerializer:
         value = ["abc", 123]
         serialized = JSONSerializer().serialize(value)
         assert serialized == json.dumps(value).encode()
+
+
+def test_equality():
+    assert Serializer() == Serializer()
+    assert JSONSerializer() == JSONSerializer()
+    assert Serializer() != JSONSerializer()
