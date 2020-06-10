@@ -57,6 +57,10 @@ class TestSecretResult:
         with pytest.raises(ValueError):
             result.write("new")
 
+    def test_cant_pass_serializer_to_secret_result(self):
+        with pytest.raises(ValueError, match="Can't pass a serializer"):
+            SecretResult(PrefectSecret("foo"), serializer=None)
+
 
 class TestConstantResult:
     def test_instantiates_with_value(self):
@@ -92,6 +96,10 @@ class TestConstantResult:
         result_exists = result.exists("")
 
         assert result_exists is True
+
+    def test_cant_pass_serializer_to_constant_result(self):
+        with pytest.raises(ValueError, match="Can't pass a serializer"):
+            ConstantResult(serializer=None)
 
 
 class TestPrefectResult:
