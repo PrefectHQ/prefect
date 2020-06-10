@@ -76,7 +76,9 @@ class LocalResult(Result):
         self.logger.debug("Starting to read result from {}...".format(location))
 
         with open(os.path.join(self.dir, location), "rb") as f:
-            new.value = cloudpickle.loads(f.read())
+            value = f.read()
+
+        new.value = self.serializer.deserialize(value)
 
         self.logger.debug("Finished reading result from {}...".format(location))
 
@@ -105,8 +107,10 @@ class LocalResult(Result):
         full_path = os.path.join(self.dir, new.location)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
+        value = self.serializer.serialize(new.value)
+
         with open(full_path, "wb") as f:
-            f.write(cloudpickle.dumps(new.value))
+            f.write(value)
 
         new.location = full_path
         self.logger.debug("Finished uploading result to {}...".format(new.location))

@@ -94,7 +94,7 @@ class AzureResult(Result):
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
         ## prepare data
-        binary_data = new.serialize_to_bytes(new.value).decode()
+        binary_data = new.serializer.serialize(new.value).decode()
 
         # initialize client and upload
         client = self.service.get_blob_client(
@@ -129,7 +129,7 @@ class AzureResult(Result):
             content_string = client.download_blob()
 
             try:
-                new.value = new.deserialize_from_bytes(content_string)
+                new.value = new.serializer.deserialize(content_string)
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))

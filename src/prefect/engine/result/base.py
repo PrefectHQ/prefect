@@ -25,6 +25,7 @@ from typing import Any, Callable, Iterable, Union
 import cloudpickle
 
 from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.serializers import Serializer
 from prefect.utilities import logging
 
 
@@ -93,12 +94,16 @@ class Result(ResultInterface):
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         location: str = None,
+        serializer: Serializer = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
+        if serializer is None:
+            serializer = Serializer()
+        self.serializer = serializer
         if isinstance(location, (str, type(None))):
             self.location = location
             self._formatter = None
@@ -170,32 +175,6 @@ class Result(ResultInterface):
         Return a copy of the current result object.
         """
         return copy.copy(self)
-
-    @classmethod
-    def serialize_to_bytes(cls, value: Any) -> bytes:
-        """
-        Serializes the provided value into bytes.
-
-        Args:
-            - value (Any): the value to serialize to bytes
-
-        Returns:
-            - bytes: the serialized result value
-        """
-        return base64.b64encode(cloudpickle.dumps(value))
-
-    @classmethod
-    def deserialize_from_bytes(cls, serialized_value: Union[str, bytes]) -> Any:
-        """
-        Takes a given serialized result value and returns a deserialized value.
-
-        Args:
-            - serialized_value (str): The serialized result value
-
-        Returns:
-            - Any: the deserialized result value
-        """
-        return cloudpickle.loads(base64.b64decode(serialized_value))
 
     @property
     def default_location(self) -> str:

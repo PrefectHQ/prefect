@@ -38,7 +38,7 @@ def test_basic_conversion_json_result():
     result_handler = JSONResultHandler()
     result = ResultHandlerResult.from_result_handler(result_handler)
     assert isinstance(result, PrefectResult)
-    assert result.write(42).location == "42"
+    assert result.write(42).location == b"42"
 
 
 def test_basic_conversion_constant_result():
