@@ -1,20 +1,26 @@
 """
-Results represent Prefect Task inputs and outputs.  In particular, anytime a Task runs, its output
-is encapsulated in a `Result` object.  This object retains information about what the data is, and how to "handle" it
-if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed).
+Results represent Prefect Task inputs and outputs.  In particular, anytime a
+Task runs, its output is encapsulated in a `Result` object.  This object retains
+information about what the data is, and how to "handle" it if it needs to be
+saved / retrieved at a later time (for example, if this Task requests for its
+outputs to be cached or checkpointed).
 
 An instantiated Result object has the following attributes:
 
 - a `value`: the value of a Result represents a single piece of data
 - a `safe_value`: this attribute maintains a reference to a `SafeResult` object
-    which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
-    might be a URI or filename pointing to where the raw data lives
-- a `result_handler` that holds onto the `ResultHandler` used to read /
-    write the value to / from its handled representation
+    which contains a "safe" representation of the `value`; for example, the
+    `value` of a `SafeResult` might be a URI or filename pointing to where the
+    raw data lives
+- a `serializer`: an object that can serialize Python objects to bytes and
+  recover them later
+- a `result_handler` that holds onto the `ResultHandler` used to read / write
+    the value to / from its handled representation
 
-To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
-also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
-whose value is `None`.
+To distinguish between a Task that runs but does not return output from a Task
+that has yet to run, Prefect also provides a `NoResult` object representing the
+_absence_ of computation / data.  This is in contrast to a `Result` whose value
+is `None`.
 """
 import base64
 import copy
@@ -51,11 +57,13 @@ class ResultInterface:
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
-        If no result handler provided, returns self.  If a ResultHandler is provided, however,
-        it will become the new result handler for this result.
+        If no result handler provided, returns self.  If a ResultHandler is
+        provided, however, it will become the new result handler for this
+        result.
 
         Args:
-            - result_handler (optional): an optional result handler to override the current handler
+            - result_handler (optional): an optional result handler to override
+                the current handler
 
         Returns:
             - ResultInterface: a potentially new Result object
@@ -70,21 +78,29 @@ class ResultInterface:
 
 class Result(ResultInterface):
     """
-    A representation of the result of a Prefect task; this class contains information about
-    the value of a task's result, a result handler specifying how to serialize or store this value securely,
-    and a `safe_value` attribute which holds information about the current "safe" representation of this result.
+    A representation of the result of a Prefect task; this class contains
+    information about the value of a task's result, a result handler specifying
+    how to serialize or store this value securely, and a `safe_value` attribute
+    which holds information about the current "safe" representation of this
+    result.
 
     Args:
         - value (Any, optional): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
-            when storing / serializing this result's value; required if you intend on persisting this result in some way
-        - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
-            the result to ensure it is `valid`.
+            when storing / serializing this result's value; required if you intend
+            on persisting this result in some way
+        - validators (Iterable[Callable], optional): Iterable of validation
+            functions to apply to the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - location (Union[str, Callable], optional): Possibly templated location to be used for saving the
-            result to the destination. If a callable function is provided, it should have signature `callable(**kwargs) -> str`
-            and at write time all formatting kwargs will be passed and a fully formatted location is expected
-            as the return value.  Can be used for string formatting logic that `.format(**kwargs)` doesn't support
+        - location (Union[str, Callable], optional): Possibly templated location
+            to be used for saving the result to the destination. If a callable
+            function is provided, it should have signature `callable(**kwargs) ->
+            str` and at write time all formatting kwargs will be passed and a fully
+            formatted location is expected as the return value.  Can be used for
+            string formatting logic that `.format(**kwargs)` doesn't support
+        - serializer (Serializer): a Serializer that can transform Python
+            objects to bytes and recover them. The serializer is used whenever the
+            `Result` is writing to or reading from storage.
     """
 
     def __init__(
@@ -114,7 +130,8 @@ class Result(ResultInterface):
 
     def store_safe_value(self) -> None:
         """
-        Populate the `safe_value` attribute with a `SafeResult` using the result handler
+        Populate the `safe_value` attribute with a `SafeResult` using the result
+        handler
         """
         # don't bother with `None` values
         if self.value is None:

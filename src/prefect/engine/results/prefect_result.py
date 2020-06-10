@@ -15,10 +15,10 @@ class PrefectResult(Result):
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
-    def __init__(self, serializer: Serializer = None, **kwargs: Any) -> None:
-        if serializer is None:
-            serializer = JSONSerializer()
-        super().__init__(serializer=serializer, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        if "serializer" not in kwargs:
+            kwargs["serializer"] = JSONSerializer()
+        super().__init__(**kwargs)
 
     def read(self, location: str) -> Result:
         """
@@ -49,7 +49,7 @@ class PrefectResult(Result):
         """
         new = self.copy()
         new.value = value
-        new.location = self.serializer.serialize(new.value)
+        new.location = self.serializer.serialize(new.value).decode()
         return new
 
     def exists(self, location: str, **kwargs: Any) -> bool:
