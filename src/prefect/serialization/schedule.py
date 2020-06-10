@@ -109,9 +109,15 @@ class NewScheduleSchema(ObjectSchema):
 
     clocks = fields.Nested(ClockSchema, required=True, many=True)
     filters = fields.List(CallableReference(valid_functions=FILTERS, allow_none=True))
-    or_filters = fields.List(CallableReference(valid_functions=FILTERS, allow_none=True))
-    not_filters = fields.List(CallableReference(valid_functions=FILTERS, allow_none=True))
-    adjustments = fields.List(CallableReference(valid_functions=ADJUSTMENTS, allow_none=True))
+    or_filters = fields.List(
+        CallableReference(valid_functions=FILTERS, allow_none=True)
+    )
+    not_filters = fields.List(
+        CallableReference(valid_functions=FILTERS, allow_none=True)
+    )
+    adjustments = fields.List(
+        CallableReference(valid_functions=ADJUSTMENTS, allow_none=True)
+    )
 
 
 class ScheduleSchema(OneOfSchema):
