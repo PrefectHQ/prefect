@@ -674,7 +674,9 @@ class TaskRunner(Runner):
                 new_res = result.read(target.format(**prefect.context))
                 cached_state = Cached(
                     result=new_res,
-                    hashed_inputs={key: tokenize(val) for key, val in inputs.items()},
+                    hashed_inputs={
+                        key: tokenize(val.value) for key, val in inputs.items()
+                    },
                     cached_inputs=inputs,
                     cached_result_expiration=None,
                     cached_parameters=prefect.context.get("parameters"),
@@ -885,6 +887,7 @@ class TaskRunner(Runner):
             expiration = pendulum.now("utc") + self.task.cache_for
             cached_state = Cached(
                 result=state._result,
+                hashed_inputs={key: tokenize(val.value) for key, val in inputs.items()},
                 cached_inputs=inputs,
                 cached_result_expiration=expiration,
                 cached_parameters=prefect.context.get("parameters"),
