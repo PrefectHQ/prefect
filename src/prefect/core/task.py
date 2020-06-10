@@ -1090,7 +1090,6 @@ class Task(metaclass=SignatureValidator):
         return prefect.tasks.core.operators.LessThanOrEqual().bind(self, other)
 
 
-
 # All keyword-only arguments to Task.__call__, used for dynamically generating
 # Signature objects for Task objects
 EXTRA_CALL_PARAMETERS = [

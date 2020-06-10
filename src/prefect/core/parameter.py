@@ -8,7 +8,6 @@ from prefect.engine.results import PrefectResult
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
-    from prefect.engine.result import Result  # pylint: disable=W0611
 
 
 class Parameter(Task):
@@ -35,7 +34,6 @@ class Parameter(Task):
         default: Any = None,
         required: bool = True,
         tags: Iterable[str] = None,
-        result: "Result" = None,
     ):
         if default is not None:
             required = False
@@ -43,11 +41,8 @@ class Parameter(Task):
         self.required = required
         self.default = default
 
-        if result is None:
-            result = PrefectResult()
-
         super().__init__(
-            name=name, slug=name, tags=tags, result=result, checkpoint=True,
+            name=name, slug=name, tags=tags, result=PrefectResult(), checkpoint=True,
         )
 
     def __repr__(self) -> str:

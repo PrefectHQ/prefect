@@ -92,6 +92,7 @@ def test_copy_requires_name():
     with pytest.raises(TypeError, match="required positional argument"):
         x.copy()
 
+
 def test_backwards_compatible_access():
     """
     Deprecated test that asserts that backwards compatible access works after 0.12
