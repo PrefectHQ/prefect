@@ -1,0 +1,5 @@
+enhancement:
+  - "Move `Parameter` to a standalone module - [#2758](https://github.com/PrefectHQ/prefect/pull/2758)"
+
+deprecation:
+  - "Accessing `prefect.core.task.Parameter` is deprecated in favor of `prefect.core.parameter.Parameter` - [#2758](https://github.com/PrefectHQ/prefect/pull/2758)"
