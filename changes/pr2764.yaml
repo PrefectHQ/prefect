@@ -1,0 +1,2 @@
+fix:
+  - "Remove implicit payload size restriction from Apollo - [#2764](https://github.com/PrefectHQ/prefect/pull/2764)"
