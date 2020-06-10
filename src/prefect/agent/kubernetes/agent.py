@@ -8,8 +8,7 @@ import yaml
 import prefect
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
@@ -94,22 +93,14 @@ class KubernetesAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
 
-        # Require Docker storage
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
+        image = get_flow_image(flow_run=flow_run)
 
-        job_spec = self.replace_job_spec_yaml(flow_run)
+        job_spec = self.replace_job_spec_yaml(flow_run, image)
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -122,12 +113,13 @@ class KubernetesAgent(Agent):
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
+    def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
         """
         Populate metadata and variables in the job_spec.yaml file for flow runs
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str): The full name of an image to use for the job
 
         Returns:
             - dict: a dictionary representing the populated yaml object
@@ -148,16 +140,10 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
-        # Use flow storage image for job
-        job["spec"]["template"]["spec"]["containers"][0]["image"] = (
-            StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-        )
+        # Use provided image for job
+        job["spec"]["template"]["spec"]["containers"][0]["image"] = image
 
-        self.logger.debug(
-            "Using image {} for job".format(
-                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-            )
-        )
+        self.logger.debug("Using image {} for job".format(image))
 
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]

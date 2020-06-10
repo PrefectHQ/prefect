@@ -166,34 +166,6 @@ class TestResultCheck:
 
         assert healthchecks.result_check([f]) is None
 
-    def test_raises_for_mapped_tasks_with_poorly_specified_result_location(
-        self, tmpdir
-    ):
-        @task(result=LocalResult(dir=tmpdir, location="{task_name}.txt"))
-        def down(x):
-            pass
-
-        with Flow("upstream-test") as f:
-            result = down.map(x=[1, 2, 3])
-
-        with pytest.raises(ValueError, match="filename"):
-            healthchecks.result_check([f])
-
-    def test_raises_for_mapped_tasks_with_poorly_specified_result_location_on_flow(
-        self, tmpdir
-    ):
-        @task
-        def down(x):
-            pass
-
-        with Flow(
-            "upstream-test", result=LocalResult(dir=tmpdir, location="my_path.txt")
-        ) as f:
-            result = down.map(x=[1, 2, 3])
-
-        with pytest.raises(ValueError, match="filename"):
-            healthchecks.result_check([f])
-
     @pytest.mark.parametrize(
         "kwargs",
         [

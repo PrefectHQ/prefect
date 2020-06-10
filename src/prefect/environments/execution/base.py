@@ -36,6 +36,7 @@ class Environment:
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
     def __init__(
@@ -43,10 +44,12 @@ class Environment:
         labels: Iterable[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
     ) -> None:
         self.labels = set(labels) if labels else set()
         self.on_start = on_start
         self.on_exit = on_exit
+        self.metadata = metadata or {}
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:

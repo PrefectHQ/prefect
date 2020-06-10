@@ -503,8 +503,14 @@ class TestResultInterface:
         assert state.result is None
 
         new_state = state.load_result(MyResult(location=""))
-        assert new_state.result == 42
-        assert new_state._result.location == "foo"
+        # mapped states should never attempt to hydrate their results
+        # the Result interface is _not_ used for Mapped state results, only their children
+        if not new_state.is_mapped():
+            assert new_state.result == 42
+            assert new_state._result.location == "foo"
+        else:
+            assert new_state.result is None
+            assert not new_state._result.location
 
     @pytest.mark.parametrize("cls", all_states)
     def test_state_load_result_doesnt_call_read_if_value_present(self, cls):
@@ -564,8 +570,13 @@ class TestResultInterface:
 
         new_state = state.load_result(MyResult(location="foo"))
         assert new_state.message is None
-        assert new_state.result == "bar"
-        assert new_state._result.location == "foo"
+
+        if not new_state.is_mapped():
+            assert new_state.result == "bar"
+            assert new_state._result.location == "foo"
+        else:
+            assert new_state.result is None
+            assert not new_state._result.location
 
     @pytest.mark.parametrize("cls", all_states)
     def test_state_load_cached_results_calls_read(self, cls):

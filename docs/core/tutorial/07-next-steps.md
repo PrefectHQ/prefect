@@ -36,7 +36,7 @@ def load_reference_data(ref_data):
 In this particular Aircraft ETL example we did not have an explicit need to keep intermediate results at each step along the way. However, Prefect provides a `Result` abstraction that enables users to persist `Results` returned from each `Task` to a storage of choice:
 
 ```python{1,3}
-from prefect.engine.result import LocalResult
+from prefect.engine.results import LocalResult
 
 result = LocalResult(dir="./my-results")
 

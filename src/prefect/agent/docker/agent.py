@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
 
 from prefect import config, context
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.docker_util import get_docker_ip
 from prefect.utilities.graphql import GraphQLResult
 
@@ -313,9 +312,6 @@ class DockerAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
@@ -325,24 +321,16 @@ class DockerAgent(Agent):
         # the 'import prefect' time low
         import docker
 
-        storage = StorageSchema().load(flow_run.flow.storage)
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
-
+        image = get_flow_image(flow_run=flow_run)
         env_vars = self.populate_env_vars(flow_run=flow_run)
 
-        if not self.no_pull and storage.registry_url:
-            self.logger.info("Pulling image {}...".format(storage.name))
+        if not self.no_pull and len(image.split("/")) > 1:
+            self.logger.info("Pulling image {}...".format(image))
 
-            pull_output = self.docker_client.pull(
-                storage.name, stream=True, decode=True
-            )
+            pull_output = self.docker_client.pull(image, stream=True, decode=True)
             for line in pull_output:
                 self.logger.debug(line)
-            self.logger.info("Successfully pulled image {}...".format(storage.name))
+            self.logger.info("Successfully pulled image {}...".format(image))
 
         # Create any named volumes (if they do not already exist)
         for named_volume_name in self.named_volumes:
@@ -357,7 +345,7 @@ class DockerAgent(Agent):
                 )
 
         # Create a container
-        self.logger.debug("Creating Docker container {}".format(storage.name))
+        self.logger.debug("Creating Docker container {}".format(image))
 
         host_config = {"auto_remove": True}  # type: dict
         container_mount_paths = self.container_mount_paths
@@ -375,7 +363,7 @@ class DockerAgent(Agent):
             )
 
         container = self.docker_client.create_container(
-            storage.name,
+            image,
             command="prefect execute cloud-flow",
             environment=env_vars,
             volumes=container_mount_paths,

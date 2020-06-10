@@ -29,12 +29,11 @@ class Local(Storage):
         - validate (bool, optional): a boolean specifying whether to validate the
             provided directory path; if `True`, the directory will be converted to an
             absolute path and created.  Defaults to `True`
-        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
-            for each flow run.  Used primarily for providing authentication credentials.
+        - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, directory: str = None, validate: bool = True, secrets: List[str] = None,
+        self, directory: str = None, validate: bool = True, **kwargs: Any
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
@@ -49,11 +48,14 @@ class Local(Storage):
 
         self.directory = abs_directory
         result = LocalResult(self.directory, validate_dir=validate)
-        super().__init__(result=result, secrets=secrets)
+        super().__init__(result=result, **kwargs)
 
     @property
-    def labels(self) -> List[str]:
-        return [socket.gethostname()]
+    def default_labels(self) -> List[str]:
+        if self.add_default_labels:
+            return [socket.gethostname()]
+        else:
+            return []
 
     def get_flow(self, flow_location: str) -> "Flow":
         """

@@ -327,25 +327,20 @@ class Flow:
         """
         When entering a flow context, the Prefect context is modified to include:
             - `flow`: the flow itself
-            - `_new_task_tracker`: a set of all tasks created while the context is
+            - `_unused_task_tracker`: a set of all tasks created while the context is
                 open, in order to provide user friendly warnings if they aren't added
                 to the flow itself. This is purely for user experience.
         """
-        new_task_tracker = set()  # type: Set[Task]
+        unused_task_tracker = set()  # type: Set[Task]
 
-        with prefect.context(flow=self, _new_task_tracker=new_task_tracker):
+        with prefect.context(flow=self, _unused_task_tracker=unused_task_tracker):
             yield self
 
         # constants are not tracked at the flow level
-        new_tasks = {
-            t
-            for t in new_task_tracker
-            if not isinstance(t, prefect.tasks.core.constants.Constant)
-        }
-        if new_tasks.difference(self.tasks):
+        if unused_task_tracker.difference(self.tasks):
             warnings.warn(
                 "Tasks were created but not added to the flow: "
-                f"{new_task_tracker.difference(self.tasks)}. This can occur "
+                f"{unused_task_tracker.difference(self.tasks)}. This can occur "
                 "when `Task` classes, including `Parameters`, are instantiated "
                 "inside a `with flow:` block but not added to the flow either "
                 "explicitly or as the input to another task. For more information, "
@@ -942,6 +937,18 @@ class Flow:
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
+
+                # handle Paused states
+                for t, s in filter(
+                    lambda tup: isinstance(tup[1], prefect.engine.state.Paused),
+                    flow_state.result.items(),
+                ):
+                    approve = input(f"{t} is currently Paused; enter 'y' to resume:\n")
+                    if approve.strip().lower() == "y":
+                        flow_state.result[t] = prefect.engine.state.Resume(
+                            "Approval given to resume."
+                        )
+
                 earliest_start = min(
                     [
                         s.start_time
@@ -1236,7 +1243,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False, format=format)
+            graph.render(filename, view=False, format=format, cleanup=True)
         else:
             try:
                 from IPython import get_ipython

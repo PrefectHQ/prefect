@@ -32,16 +32,11 @@ class GCS(Storage):
             is only useful when storing a single Flow using this storage object.
         - project (str, optional): the google project where any GCS API requests are billed to;
             if not provided, the project will be inferred from your Google Cloud credentials.
-        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
-            for each flow run.  Used primarily for providing authentication credentials.
+        - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self,
-        bucket: str,
-        key: str = None,
-        project: str = None,
-        secrets: List[str] = None,
+        self, bucket: str, key: str = None, project: str = None, **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -51,10 +46,10 @@ class GCS(Storage):
         self.project = project
 
         result = GCSResult(bucket=bucket)
-        super().__init__(result=result, secrets=secrets)
+        super().__init__(result=result, **kwargs)
 
     @property
-    def labels(self) -> List[str]:
+    def default_labels(self) -> List[str]:
         return ["gcs-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
