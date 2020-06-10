@@ -129,7 +129,7 @@ class TestPrefectResult:
         assert result.location is None
 
         assert new_result.value == 99
-        assert new_result.location == b"99"
+        assert new_result.location == "99"
 
     @pytest.mark.parametrize(
         "value", [42, [0, 1], "x,y", (9, 10), dict(x=[55], y=None)]
