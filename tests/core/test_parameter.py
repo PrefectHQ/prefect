@@ -1,5 +1,6 @@
 import pytest
 
+import prefect
 from prefect.core.flow import Flow
 from prefect.core.task import Task
 from prefect.core.parameter import Parameter
@@ -90,3 +91,10 @@ def test_copy_requires_name():
     x = Parameter("x")
     with pytest.raises(TypeError, match="required positional argument"):
         x.copy()
+
+def test_backwards_compatible_access():
+    """
+    Deprecated test that asserts that backwards compatible access works after 0.12
+    Can be removed once the backwards compatibility is no longer maintained.
+    """
+    assert prefect.core.task.Parameter is prefect.core.parameter.Parameter
