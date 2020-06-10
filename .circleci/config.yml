@@ -440,7 +440,7 @@ jobs:
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
 
-  build_storage_docker_image:
+  build_all_extras_docker_image:
     docker:
       - image: docker
     parameters:
@@ -467,7 +467,7 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build storage image
+          name: Build all_extras image
           command: |
             set -u
             docker build \
@@ -476,17 +476,17 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:storage-${CIRCLE_TAG} \
+              -t prefecthq/prefect:all_extras-${CIRCLE_TAG} \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:storage-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:all_extras-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
       - run:
-          name: Push storage tag
+          name: Push all_extras tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:storage-${CIRCLE_TAG}
+            docker push prefecthq/prefect:all_extras-${CIRCLE_TAG}
       - when:
           condition: << parameters.tag_latest >>
           steps:
@@ -494,7 +494,7 @@ jobs:
                 name: Push latest tag
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:storage
+                  docker push prefecthq/prefect:all_extras
 
 
   release_to_pypi:
@@ -598,9 +598,9 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - build_storage_docker_image:
+      - build_all_extras_docker_image:
           python_version: '3.8'
-          extras: 'aws,azure,gcp'
+          extras: 'all_extras'
           tag_latest: true
           filters:
             branches:
