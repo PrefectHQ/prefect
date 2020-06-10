@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `Result` serializers - [#2755](https://github.com/PrefectHQ/prefect/pull/2755)"
