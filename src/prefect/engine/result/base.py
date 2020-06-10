@@ -22,13 +22,10 @@ that has yet to run, Prefect also provides a `NoResult` object representing the
 _absence_ of computation / data.  This is in contrast to a `Result` whose value
 is `None`.
 """
-import base64
 import copy
 import pendulum
 import uuid
-from typing import Any, Callable, Iterable, Union
-
-import cloudpickle
+from typing import Any, Callable, Iterable
 
 from prefect.engine.result_handlers import ResultHandler
 from prefect.engine.serializers import Serializer

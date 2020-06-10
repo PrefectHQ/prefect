@@ -2,7 +2,6 @@ import os
 from slugify import slugify
 from typing import Any
 
-import cloudpickle
 import pendulum
 
 from prefect import config

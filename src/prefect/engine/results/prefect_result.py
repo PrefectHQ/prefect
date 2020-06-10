@@ -3,7 +3,7 @@ import json
 from typing import Any
 
 from prefect.engine.result import Result
-from prefect.engine.serializers import Serializer, JSONSerializer
+from prefect.engine.serializers import JSONSerializer
 
 
 class PrefectResult(Result):
