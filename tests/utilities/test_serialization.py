@@ -176,8 +176,8 @@ class TestCallableReferenceField_OLD:
     """
 
     class Schema(marshmallow.Schema):
-        f = CallableReference(whitelist=[fn])
-        f_none = CallableReference(whitelist=[fn], allow_none=True)
+        f = CallableReference(valid_functions=[fn])
+        f_none = CallableReference(valid_functions=[fn], allow_none=True)
 
     def test_serialize_fn(self):
         serialized = self.Schema().dump(dict(f=fn))
@@ -228,8 +228,8 @@ class TestCallableReferenceField_BackwardsCompatibility:
     """
 
     class Schema(marshmallow.Schema):
-        f = CallableReference(whitelist=[fn])
-        f_none = CallableReference(whitelist=[fn], allow_none=True)
+        f = CallableReference(valid_functions=[fn])
+        f_none = CallableReference(valid_functions=[fn], allow_none=True)
 
     def test_deserialize_fn(self):
         deserialized = self.Schema().load(
@@ -238,7 +238,7 @@ class TestCallableReferenceField_BackwardsCompatibility:
         assert deserialized["f"] is fn
 
     def test_deserialize_invalid_fn(self):
-        with pytest.raises(marshmallow.ValidationError, match="not whitelisted"):
+        with pytest.raises(marshmallow.ValidationError, match="not valid_functionsed"):
             deserialized = self.Schema().load(
                 {"f": "tests.utilities.test_serialization.fn2"}
             )
@@ -260,8 +260,8 @@ class outer:
 
 class TestCallableReferenceField:
     class Schema(marshmallow.Schema):
-        f = CallableReference(whitelist=[outer])
-        f_none = CallableReference(whitelist=[outer], allow_none=True)
+        f = CallableReference(valid_functions=[outer])
+        f_none = CallableReference(valid_functions=[outer], allow_none=True)
 
     def test_serialize_outer_no_state(self):
         with pytest.raises(

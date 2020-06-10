@@ -319,15 +319,15 @@ class CallableReference(fields.Field):
     datetimes, times, and timedeltas.
     
     Args:
-        - whitelist (List[Callable]): a list of objects that are allowed to be
+        - valid_functions (List[Callable]): a list of objects that are allowed to be
             deserialized as fully hydrated references. Objects not on this list will
             still be serialized as strings but will be deserialized as `None`.
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
 
     """
 
-    def __init__(self, whitelist: list, **kwargs: Any):
-        self.whitelist = {to_qualified_name(w): w for w in whitelist or []}
+    def __init__(self, valid_functions: list, **kwargs: Any):
+        self.valid_functions = {to_qualified_name(w): w for w in valid_functions or []}
         super().__init__(**kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):  # type: ignore
@@ -375,15 +375,15 @@ class CallableReference(fields.Field):
         if isinstance(value, str):
             value = {"fn": value, "kwargs": {}}
 
-        if value["fn"] not in self.whitelist:
+        if value["fn"] not in self.valid_functions:
             if self.allow_none:
                 return None
             else:
-                raise ValidationError("Reference not whitelisted.")
+                raise ValidationError("Reference not valid.")
 
         # retrieve the callable
         try:
-            fn = self.whitelist[value["fn"]]
+            fn = self.valid_functions[value["fn"]]
 
         except ValueError:
             return None

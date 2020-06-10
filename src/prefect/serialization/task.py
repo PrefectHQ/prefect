@@ -81,7 +81,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     outputs = fields.Method("load_outputs", allow_none=True)
     timeout = fields.Integer(allow_none=True)
     trigger = CallableReference(
-        whitelist=[
+        valid_functions=[
             prefect.triggers.all_finished,
             prefect.triggers.manual_only,
             prefect.triggers.always_run,
@@ -100,7 +100,7 @@ class TaskSchema(TaskMethodsMixin, ObjectSchema):
     cache_for = fields.TimeDelta(allow_none=True)
     cache_key = fields.String(allow_none=True)
     cache_validator = CallableReference(
-        whitelist=[
+        valid_functions=[
             prefect.engine.cache_validators.never_use,
             prefect.engine.cache_validators.duration_only,
             prefect.engine.cache_validators.all_inputs,
