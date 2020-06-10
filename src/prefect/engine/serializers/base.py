@@ -25,7 +25,7 @@ class Serializer:
             - bytes: the serialized value
         """
         pickled = cloudpickle.dumps(value)
-        return base64.urlsafe_b64encode(pickled)
+        return base64.b64encode(pickled)
 
     def deserialize(self, value: Union[bytes, str]) -> Any:
         """
@@ -37,7 +37,7 @@ class Serializer:
         Returns:
             - Any: the deserialized value
         """
-        decoded = base64.urlsafe_b64decode(value)
+        decoded = base64.b64decode(value)
         return cloudpickle.loads(decoded)
 
 

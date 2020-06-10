@@ -22,7 +22,7 @@ class TestSerializer:
     def test_serialize_returns_base64_cloudpickle(self):
         value = ["abc", 123, pendulum.now()]
         serialized = Serializer().serialize(value)
-        deserialized = cloudpickle.loads(base64.urlsafe_b64decode(serialized))
+        deserialized = cloudpickle.loads(base64.b64decode(serialized))
         assert deserialized == value
 
 
