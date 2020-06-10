@@ -1,10 +1,10 @@
-version: '3.7'
+version: "3.7"
 
 services:
   postgres:
-    image: 'postgres:11'
+    image: "postgres:11"
     ports:
-      - '${POSTGRES_HOST_PORT:-5432}:5432'
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -13,31 +13,31 @@ services:
       - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     command:
-      - 'postgres'
+      - "postgres"
       # explicitly set max connections
-      - '-c'
-      - 'max_connections=150'
+      - "-c"
+      - "max_connections=150"
   hasura:
-    image: 'hasura/graphql-engine:v1.1.0'
+    image: "hasura/graphql-engine:v1.1.0"
     ports:
-      - '${HASURA_HOST_PORT:-3000}:3000'
-    command: 'graphql-engine serve'
+      - "${HASURA_HOST_PORT:-3000}:3000"
+    command: "graphql-engine serve"
     environment:
       HASURA_GRAPHQL_DATABASE_URL: ${DB_CONNECTION_URL}
-      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
-      HASURA_GRAPHQL_SERVER_PORT: '3000'
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_SERVER_PORT: "3000"
       HASURA_GRAPHQL_QUERY_PLAN_CACHE_SIZE: 100
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     depends_on:
       - postgres
   graphql:
-    image: 'prefecthq/server:${PREFECT_SERVER_TAG:-latest}'
+    image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - '${GRAPHQL_HOST_PORT:-4201}:4201'
+      - "${GRAPHQL_HOST_PORT:-4201}:4201"
     command: bash -c "${PREFECT_SERVER_DB_CMD} && python src/prefect_server/services/graphql/server.py"
     environment:
       PREFECT_SERVER_DB_CMD: ${PREFECT_SERVER_DB_CMD:-"echo 'DATABASE MIGRATIONS SKIPPED'"}
@@ -46,26 +46,25 @@ services:
       PREFECT_SERVER__HASURA__HOST: hasura
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     depends_on:
       - hasura
   scheduler:
-    image: 'prefecthq/server:${PREFECT_SERVER_TAG:-latest}'
-    command: 'python src/prefect_server/services/scheduler/scheduler.py'
+    image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
+    command: "python src/prefect_server/services/scheduler/scheduler.py"
     environment:
       PREFECT_SERVER__HASURA__ADMIN_SECRET: ${PREFECT_SERVER__HASURA__ADMIN_SECRET:-hasura-secret-admin-secret}
       PREFECT_SERVER__HASURA__HOST: hasura
-
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     depends_on:
       - graphql
   apollo:
-    image: 'prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}'
+    image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - '${APOLLO_HOST_PORT:-4200}:4200'
-    command: 'npm run serve'
+      - "${APOLLO_HOST_PORT:-4200}:4200"
+    command: "npm run serve"
     environment:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://graphql:4201/graphql/}
@@ -73,19 +72,19 @@ services:
       PREFECT_SERVER__TELEMETRY__ENABLED: ${PREFECT_SERVER__TELEMETRY__ENABLED:-true}
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     depends_on:
       - graphql
   ui:
-    image: 'prefecthq/ui:${PREFECT_SERVER_TAG:-latest}'
+    image: "prefecthq/ui:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - '${UI_HOST_PORT:-8080}:8080'
-    command: '/intercept.sh'
+      - "${UI_HOST_PORT:-8080}:8080"
+    command: "/intercept.sh"
     environment:
       PREFECT_SERVER__GRAPHQL_URL: ${GRAPHQL_URL:-http://localhost:4200/graphql}
     networks:
       - prefect-server
-    restart: 'always'
+    restart: "always"
     depends_on:
       - apollo
 
