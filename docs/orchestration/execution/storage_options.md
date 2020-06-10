@@ -159,7 +159,7 @@ One thing to keep in mind when using cloud storage options in conjunction with c
 Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secrets) which could be used for off-the-shelf authentication. Using the above snippet as an example it is possible to create an `AWS_CREDENTIALS` Prefect secret that will automatically be used to pull the flow from S3 storage at runtime without having to configure authentication in the image directly.
 
 ```python
-flow.storage = S3(bucket="my-prefect-flows", secrets=["AWS_CREDENTIALS"])
+flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
 
 flow.environment = RemoteEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
 ```
