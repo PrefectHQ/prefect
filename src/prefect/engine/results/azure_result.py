@@ -94,7 +94,7 @@ class AzureResult(Result):
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
         ## prepare data
-        binary_data = new.serializer.serialize(new.value).decode()
+        binary_data = new.serializer.serialize(new.value)
 
         # initialize client and upload
         client = self.service.get_blob_client(

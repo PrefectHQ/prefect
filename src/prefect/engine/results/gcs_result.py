@@ -68,7 +68,7 @@ class GCSResult(Result):
         new = self.format(**kwargs)
         new.value = value
         self.logger.debug("Starting to upload result to {}...".format(new.location))
-        binary_data = new.serializer.serialize(new.value).decode()
+        binary_data = new.serializer.serialize(new.value)
 
         self.gcs_bucket.blob(new.location).upload_from_string(binary_data)
         self.logger.debug("Finished uploading result to {}.".format(new.location))
