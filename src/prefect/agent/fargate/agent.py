@@ -735,7 +735,7 @@ class FargateAgent(Agent):
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
 
-        self.logger.info("Testing test task definition registration...")
+        self.logger.info("Testing task definition registration...")
         self.boto3_client.register_task_definition(
             family=task_name,
             containerDefinitions=container_definitions,
@@ -750,7 +750,7 @@ class FargateAgent(Agent):
         if self.launch_type:
             flow_task_run_kwargs["launchType"] = self.launch_type
 
-        self.logger.info("Testing test task run...")
+        self.logger.info("Testing task run...")
         task = self.boto3_client.run_task(
             taskDefinition=task_name,
             overrides={"containerOverrides": []},
