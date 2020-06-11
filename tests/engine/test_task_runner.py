@@ -1140,12 +1140,12 @@ class TestRunTaskStep:
         assert isinstance(state._result, PrefectResult)
 
     def test_success_state_without_checkpoint(self):
-        @prefect.task(checkpoint=False)
+        @prefect.task(checkpoint=False, result=PrefectResult())
         def fn(x):
             return x + 1
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
