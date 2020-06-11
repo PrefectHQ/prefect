@@ -648,7 +648,7 @@ def run_task(
     flow_result: Result,
     task_runner_cls: Callable,
     task_runner_state_handlers: Iterable[Callable],
-    upstream_mapped_states: Dict[Edge, list] = None,
+    upstream_mapped_states: Dict[Edge, list],
     is_mapped_parent: bool = False,
 ) -> State:
     """

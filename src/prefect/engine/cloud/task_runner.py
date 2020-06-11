@@ -262,11 +262,11 @@ class CloudTaskRunner(TaskRunner):
         try:
             for edge, upstream_state in upstream_states.items():
                 upstream_states[edge] = upstream_state.load_result(
-                    edge.upstream_task.result or self.default_result
+                    edge.upstream_task.result or self.flow_result
                 )
                 if edge.key is not None:
                     upstream_results[edge.key] = (
-                        edge.upstream_task.result or self.default_result
+                        edge.upstream_task.result or self.flow_result
                     )
 
             state.load_cached_results(upstream_results)

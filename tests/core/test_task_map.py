@@ -442,7 +442,7 @@ def test_map_tracks_non_mapped_upstream_tasks(executor):
 @pytest.mark.parametrize(
     "executor", ["local", "sync", "mproc", "mthread"], indirect=True
 )
-def test_map_preserves_flowrunners_initial_context(executor):
+def test_map_preserves_flowrunners_run_context(executor):
     @task
     def whats_id():
         return prefect.context.get("special_id")
@@ -452,8 +452,8 @@ def test_map_preserves_flowrunners_initial_context(executor):
 
     with prefect.context(special_id="FOOBAR"):
         runner = FlowRunner(flow=flow)
+        flow_state = runner.run(return_tasks=[result])
 
-    flow_state = runner.run(return_tasks=[result])
     assert flow_state.is_successful()
     assert flow_state.result[result].result == ["FOOBAR"] * 10
 
