@@ -93,7 +93,10 @@ class TaskRunner(Runner):
         else:
             self.result = Result().copy() if result is None else result.copy()
             if self.task.target:
-                self.result.location = self.task.target
+                if not isinstance(self.task.target, str):
+                    self.result.location = self.task.target(**prefect.context)
+                else:
+                    self.result.location = self.task.target
         self.default_result = default_result or Result()
         super().__init__(state_handlers=state_handlers)
 
@@ -670,6 +673,9 @@ class TaskRunner(Runner):
         target = self.task.target
 
         if result and target:
+            if not isinstance(target, str):
+                target = target(**prefect.context)
+
             if result.exists(target, **prefect.context):
                 new_res = result.read(target.format(**prefect.context))
                 cached_state = Cached(
