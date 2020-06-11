@@ -467,10 +467,6 @@ class FlowRunner(Runner):
                     upstream_states = executor.wait(
                         {e: state for e, state in upstream_states.items()}
                     )
-                    _set_upstream_states_map_states(
-                        upstream_states, upstream_mapped_states
-                    )
-
                     ## we submit the task to the task runner to determine if
                     ## we can proceed with mapping - if the new task state is not a Mapped
                     ## state then we don't proceed
@@ -486,6 +482,7 @@ class FlowRunner(Runner):
                             flow_result=self.flow.result,
                             task_runner_cls=self.task_runner_cls,
                             task_runner_state_handlers=task_runner_state_handlers,
+                            upstream_mapped_states=upstream_mapped_states,
                             is_mapped_parent=True,
                             extra_context=extra_context,
                         )
@@ -539,9 +536,6 @@ class FlowRunner(Runner):
                         mapped_children[task] = submitted_states  # type: ignore
 
                 else:
-                    _set_upstream_states_map_states(
-                        upstream_states, upstream_mapped_states
-                    )
                     task_states[task] = executor.submit(
                         run_task,
                         task=task,
@@ -646,17 +640,6 @@ class FlowRunner(Runner):
         return state
 
 
-def _set_upstream_states_map_states(upstream_states, upstream_mapped_states):
-    # TODO: this is gross
-    for edge, upstream_state in upstream_states.items():
-        if not edge.mapped and upstream_state.is_mapped():
-            assert isinstance(upstream_state, Mapped)  # mypy assert
-            upstream_state.map_states = upstream_mapped_states.get(
-                edge, upstream_state.map_states
-            )
-            upstream_state.result = [s.result for s in upstream_state.map_states]
-
-
 def run_task(
     task: Task,
     state: State,
@@ -665,6 +648,7 @@ def run_task(
     flow_result: Result,
     task_runner_cls: Callable,
     task_runner_state_handlers: Iterable[Callable],
+    upstream_mapped_states: Dict[Edge, list] = None,
     is_mapped_parent: bool = False,
 ) -> State:
     """
@@ -679,15 +663,25 @@ def run_task(
         - context (Dict[str, Any]): a context dictionary for the task run
         - flow_result (Result): the `Result` associated with the flow (if any)
         - task_runner_state_handlers (Iterable[Callable]): A list of state change
-            handlers that will be provided to the task_runner, and called whenever a task changes
-            state.
-        - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
-            mapped task
+            handlers that will be provided to the task_runner, and called
+            whenever a task changes state.
+        - upstream_mapped_states (Dict[Edge, list]): dictionary of upstream states
+            corresponding to mapped children dependencies
+        - is_mapped_parent (bool): a boolean indicating whether this task run is the
+            run of a parent mapped task
 
     Returns:
         - State: `State` representing the final post-run state of the `Flow`.
     """
     with prefect.context(context):
+        # Update upstream_states with info from upstream_mapped_states
+        for edge, upstream_state in upstream_states.items():
+            if not edge.mapped and upstream_state.is_mapped():
+                assert isinstance(upstream_state, Mapped)  # mypy assert
+                upstream_state.map_states = upstream_mapped_states.get(
+                    edge, upstream_state.map_states
+                )
+                upstream_state.result = [s.result for s in upstream_state.map_states]
         task_runner = task_runner_cls(
             task=task,
             state_handlers=task_runner_state_handlers,
