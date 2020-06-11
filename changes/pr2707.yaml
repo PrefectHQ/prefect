@@ -1,0 +1,2 @@
+enhancement:
+  - "Reduce size of serialized tasks when running on Dask - [#2707](https://github.com/PrefectHQ/prefect/pull/2707)"
