@@ -3,6 +3,7 @@ import json
 import os
 from ast import literal_eval
 from typing import Iterable
+import uuid
 
 from slugify import slugify
 
@@ -683,6 +684,45 @@ class FargateAgent(Agent):
 
         return task["tasks"][0].get("taskArn")
 
+    def test_configuration(self) -> None:
+        """"""
+        task_name = f"prefect-test-task-{str(uuid.uuid4())[:8]}"
+
+        container_definitions = [
+            {
+                "name": "test-container",
+                "image": "busybox",
+                "command": ["/bin/sh", "-c", "echo 'I am alive!'"],
+                "environment": [],
+                "secrets": [],
+                "mountPoints": [],
+                "logConfiguration": {},
+                "essential": True,
+            }
+        ]
+
+        flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
+
+        if self.launch_type:
+            flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
+
+        self.boto3_client.register_task_definition(
+            family=task_name,
+            containerDefinitions=container_definitions,
+            networkMode="awsvpc",
+            **flow_task_definition_kwargs,
+        )
+
+        flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
+
+        if self.launch_type:
+            flow_task_run_kwargs["launchType"] = self.launch_type
+
+        self.boto3_client.run_task(
+            taskDefinition=task_name,
+            overrides={"containerOverrides": []},
+            **flow_task_run_kwargs,
+        )
 
 if __name__ == "__main__":
     FargateAgent().start()
