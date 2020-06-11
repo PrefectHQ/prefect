@@ -7,7 +7,6 @@ from typing import Any, Iterable, List
 
 import pendulum
 import prefect
-import ujson
 from prefect.engine.state import Pending, Queued, Scheduled
 from prefect.serialization.task import ParameterSchema
 from prefect.utilities.graphql import EnumValue, parse_graphql_arguments, with_args

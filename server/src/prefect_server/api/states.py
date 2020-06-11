@@ -6,14 +6,14 @@ import asyncio
 from typing import Dict, Optional
 
 import pendulum
+import prefect
 from box import Box
+from prefect.engine.state import Failed, Queued, Running, State
+from prefect.utilities.graphql import EnumValue, with_args
+
 from prefect_server import api, config
 from prefect_server.database import hasura, models
 from prefect_server.utilities.logging import get_logger
-
-import prefect
-from prefect.engine.state import Failed, Queued, Running, State
-from prefect.utilities.graphql import EnumValue, with_args
 
 logger = get_logger("api")
 
@@ -51,6 +51,7 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
         {
             "id": True,
             "state": True,
+            "serialized_state": True,
             "name": True,
             "version": True,
             "flow": {"environment": True},
@@ -60,8 +61,18 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
     if not flow_run:
         raise ValueError(f"Invalid flow run ID: {flow_run_id}.")
 
-    # TODO: Figure out how to deal w/ feature flagging and only
-    # do the concurrency check when there plugin is enabled
+    status = "SUCCESS"
+
+    # Handle the situation where a Flow Run currently has a
+    # Queued state, and is requesting another queued state.
+    # This indicates a flow run attempted to enter the Running
+    # state, but couldn't due to concurrency limit checks,
+    # so is planning on waiting and trying again.
+    if isinstance(state, Queued):
+        existing_state = state_schema.load(flow_run.serialized_state)
+        if existing_state.is_queued():
+            return {"status": "QUEUED"}
+
     if isinstance(state, Running):
         # Check whether the environment is concurrency constrained
         # or not.
@@ -77,10 +88,12 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
                 # More details for better logging
                 unavailable_slots = [limit for limit in limits.values() if limit > 0]
 
-                raise ValueError(
-                    f"Unable to set flow run state to Running due \
-                        to concurrency limit on environments: {unavailable_slots}"
+                state = Queued(
+                    state=state,
+                    message=f"Queued by flow run concurrency limits on environments: {unavailable_slots}",
+                    start_time=pendulum.now("UTC").add(minutes=10),
                 )
+                status = "QUEUED"
 
     # --------------------------------------------------------
     # insert the new state in the database
@@ -98,7 +111,7 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
     )
 
     await flow_run_state.insert()
-    return {"status": "SUCCESS"}
+    return {"status": status}
 
 
 async def set_task_run_state(
