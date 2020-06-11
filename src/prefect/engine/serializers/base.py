@@ -1,4 +1,3 @@
-import base64
 import json
 from typing import Any, Union
 
@@ -24,8 +23,7 @@ class Serializer:
         Returns:
             - bytes: the serialized value
         """
-        pickled = cloudpickle.dumps(value)
-        return base64.b64encode(pickled)
+        return cloudpickle.dumps(value)
 
     def deserialize(self, value: Union[bytes, str]) -> Any:
         """
@@ -37,8 +35,7 @@ class Serializer:
         Returns:
             - Any: the deserialized value
         """
-        decoded = base64.b64decode(value)
-        return cloudpickle.loads(decoded)
+        return cloudpickle.loads(value)
 
 
 class JSONSerializer(Serializer):

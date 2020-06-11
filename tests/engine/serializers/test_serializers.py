@@ -1,4 +1,3 @@
-import base64
 import json
 
 import cloudpickle
@@ -19,10 +18,10 @@ class TestSerializer:
         deserialized = Serializer().deserialize(serialized)
         assert deserialized == value
 
-    def test_serialize_returns_base64_cloudpickle(self):
+    def test_serialize_returns_cloudpickle(self):
         value = ["abc", 123, pendulum.now()]
         serialized = Serializer().serialize(value)
-        deserialized = cloudpickle.loads(base64.b64decode(serialized))
+        deserialized = cloudpickle.loads(serialized)
         assert deserialized == value
 
 
