@@ -1973,3 +1973,44 @@ def test_fargate_agent_start_max_polls_zero(monkeypatch, runner_token):
     assert on_shutdown.call_count == 1
     assert agent_process.call_count == 0
     assert heartbeat.call_count == 0
+
+
+def test_agent_configuration_utility(monkeypatch, runner_token):
+    boto3_client = MagicMock()
+
+    boto3_client.run_task.return_value = {"tasks": [{"taskArn": "test"}]}
+
+    monkeypatch.setattr("boto3.client", MagicMock(return_value=boto3_client))
+
+    kwarg_dict = {
+        "cluster": "cluster",
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": ["subnet"],
+                "assignPublicIp": "DISABLED",
+                "securityGroups": ["security_group"],
+            }
+        },
+    }
+
+    agent = FargateAgent(
+        aws_access_key_id="id",
+        aws_secret_access_key="secret",
+        aws_session_token="token",
+        region_name="region",
+        **kwarg_dict
+    )
+    agent.validate_agent_configuration()
+
+    assert boto3_client.register_task_definition.called
+    assert boto3_client.run_task.called
+    assert boto3_client.run_task.call_args[1]["cluster"] == "cluster"
+    assert "prefect-test-task" in boto3_client.run_task.call_args[1]["taskDefinition"]
+    assert boto3_client.run_task.call_args[1]["launchType"] == "FARGATE"
+    assert boto3_client.run_task.call_args[1]["networkConfiguration"] == {
+        "awsvpcConfiguration": {
+            "subnets": ["subnet"],
+            "assignPublicIp": "DISABLED",
+            "securityGroups": ["security_group"],
+        }
+    }

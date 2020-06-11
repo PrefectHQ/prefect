@@ -684,7 +684,7 @@ class FargateAgent(Agent):
 
         return task["tasks"][0].get("taskArn")
 
-    def test_agent_configuration(self) -> None:
+    def validate_agent_configuration(self) -> None:
         """
         Utility function for testing Agent's configuration. This function is helpful in
         determining if the provided configuration for the Agent is able to register a
