@@ -4,7 +4,6 @@
 
 import uuid
 
-import pendulum
 import pytest
 
 import prefect

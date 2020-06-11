@@ -156,6 +156,11 @@ title = "Results"
 module = "prefect.engine.result"
 classes = ["Result", "SafeResult", "NoResultType"]
 
+[pages.engine.results]
+title = "Result Subclasses"
+module = "prefect.engine.results"
+classes = ["PrefectResult", "GCSResult", "LocalResult", "S3Result", "AzureResult", "SecretResult", "ConstantResult"]
+
 [pages.engine.result_handlers]
 title = "Result Handlers"
 module = "prefect.engine.result_handlers"
@@ -252,6 +257,11 @@ classes = [
         "ReplaceNamespacedService"
         ]
 
+[pages.tasks.dbt]
+title = "DBT Tasks"
+module = "prefect.tasks.dbt"
+classes = ["DbtShellTask"]
+
 [pages.tasks.docker]
 title = "Docker Tasks"
 module = "prefect.tasks.docker"
@@ -288,6 +298,18 @@ classes = [
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
         ]
+
+[pages.tasks.great_expectations]
+title = "Great Expectations Task"
+module = "prefect.tasks.great_expectations"
+classes = [
+        "RunGreatExpectationsCheckpoint",
+        ]
+
+[pages.tasks.jira]
+title = "Jira Tasks"
+module = "prefect.tasks.jira"
+classes = ["JiraTask", "JiraServiceDeskTask"]
 
 [pages.tasks.notifications]
 title = "Notification Tasks"

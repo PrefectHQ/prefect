@@ -1,16 +1,12 @@
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, List
-
-from prefect.utilities.executors import timeout_handler
+from typing import Any, Callable, Iterator
 
 
 class Executor:
     """
     Base Executor class that all other executors inherit from.
     """
-
-    timeout_handler = staticmethod(timeout_handler)
 
     def __init__(self) -> None:
         self.executor_id = type(self).__name__ + ": " + str(uuid.uuid4())
@@ -28,27 +24,16 @@ class Executor:
         """
         yield
 
-    def map(self, fn: Callable, *args: Any) -> List[Any]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-
-        Returns:
-            - List[Any]: the result of computating the function over the arguments
-
-        """
-        raise NotImplementedError()
-
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    def submit(
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
+    ) -> Any:
         """
         Submit a function to the executor for execution. Returns a future-like object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:

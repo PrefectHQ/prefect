@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, List
+from typing import Any
 
 from prefect.environments.execution.base import Environment
 from prefect.environments.storage import Storage
@@ -17,15 +17,8 @@ class LocalEnvironment(Environment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
-
-    def __init__(
-        self,
-        labels: List[str] = None,
-        on_start: Callable = None,
-        on_exit: Callable = None,
-    ) -> None:
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
 
     @property
     def dependencies(self) -> list:
@@ -49,8 +42,11 @@ class LocalEnvironment(Environment):
 
         env = kwargs.pop("env", dict())
         try:
-            runner = storage.get_flow(flow_location)
-            runner.run(**kwargs)
+            from prefect.engine import get_default_flow_runner_class
+
+            flow = storage.get_flow(flow_location)
+            runner_cls = get_default_flow_runner_class()
+            runner_cls(flow=flow).run(**kwargs)
         except NotImplementedError:
             env_runner = storage.get_env_runner(flow_location)
             current_env = os.environ.copy()

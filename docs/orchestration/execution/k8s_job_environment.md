@@ -1,4 +1,4 @@
-# Kubernetes Job Environment <Badge text="Cloud"/>
+# Kubernetes Job Environment
 
 [[toc]]
 

@@ -3,14 +3,12 @@
 
 
 import asyncio
-import json
 import uuid
 
 import pendulum
 import prefect
 import pytest
-from asynctest import CoroutineMock
-from prefect.engine.state import Finished, Running, Scheduled, Submitted, Success
+from prefect.engine.state import Running, Scheduled
 from prefect.utilities.graphql import EnumValue
 
 import prefect_server

@@ -1,4 +1,4 @@
-# Fargate Task Environment <Badge text="Cloud"/>
+# Fargate Task Environment
 
 [[toc]]
 

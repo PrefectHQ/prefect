@@ -1,17 +1,9 @@
 import datetime
 import json
-import os
-import sys
-import tempfile
-import time
-import uuid
 from unittest.mock import MagicMock
 
-import cloudpickle
 import pendulum
 import pytest
-import requests
-from box import Box
 
 import prefect
 from prefect.client import Client
@@ -147,16 +139,9 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
         Edge(Task(), Task(), key="foo", mapped=True): Success(result=[1, 2])
     }
 
-    class MyExecutor(prefect.engine.executors.LocalExecutor):
-        def map(self, *args, **kwargs):
-            raise SyntaxError("oops")
-
-    with pytest.raises(SyntaxError):
-        CloudTaskRunner(task=Task()).run_mapped_task(
-            state=Pending(),
-            upstream_states=upstream_states,
-            context={},
-            executor=MyExecutor(),
+    with pytest.raises(ENDRUN) as exc:
+        CloudTaskRunner(task=Task()).check_task_ready_to_map(
+            state=Pending(), upstream_states=upstream_states,
         )
 
     ## assertions
@@ -165,9 +150,7 @@ def test_task_runner_sets_mapped_state_prior_to_executor_mapping(client):
     assert client.get_latest_cached_states.call_count == 0
 
     last_set_state = client.set_task_run_state.call_args_list[-1][1]["state"]
-    assert last_set_state.map_states == [None, None]
     assert last_set_state.is_mapped()
-    assert "Preparing to submit 2" in last_set_state.message
 
 
 def test_task_runner_raises_endrun_if_client_cant_communicate_during_state_updates(
@@ -770,10 +753,7 @@ def test_task_runner_performs_retries_for_short_delays(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(4, 7)]
     res = CloudTaskRunner(task=noop).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     ## assertions
@@ -794,10 +774,7 @@ def test_task_runner_handles_looping(client):
         return prefect.context.get("task_loop_result")
 
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     ## assertions
@@ -818,10 +795,7 @@ def test_task_runner_handles_looping_with_no_result(client):
         return 42
 
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     ## assertions
@@ -853,10 +827,7 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     ## assertions
@@ -888,10 +859,7 @@ def test_task_runner_handles_looping_with_retries(client):
 
     client.get_task_run_info.side_effect = [MagicMock(version=i) for i in range(6, 9)]
     res = CloudTaskRunner(task=looper).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     ## assertions
@@ -921,10 +889,7 @@ def test_cloud_task_runner_respects_queued_states_from_cloud(client):
         pass
 
     res = CloudTaskRunner(task=tagged_task).run(
-        context={"task_run_version": 1},
-        state=None,
-        upstream_states={},
-        executor=prefect.engine.executors.LocalExecutor(),
+        context={"task_run_version": 1}, state=None, upstream_states={},
     )
 
     assert res.is_successful()
@@ -966,7 +931,6 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
         upstream_states={
             Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
         },
-        executor=prefect.engine.executors.LocalExecutor(),
     )
 
     assert res.is_successful()

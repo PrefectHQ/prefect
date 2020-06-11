@@ -1,4 +1,4 @@
-from typing import Callable, List, Type
+from typing import Callable, List
 
 from distributed.security import Security
 
@@ -36,7 +36,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
     Args:
         - address (str): an address of the scheduler of a Dask cluster in URL form,
             e.g. `tcp://172.33.17.28:8786`
-        - security (Type[Security], optional): a Dask Security object from `distributed.security.Security`.
+        - security (Security, optional): a Dask Security object from `distributed.security.Security`.
             Use this to connect to a Dask cluster that is enabled with TLS encryption.
         - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
             the executor; defaults to an empty dictionary
@@ -44,16 +44,18 @@ class RemoteDaskEnvironment(RemoteEnvironment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
     def __init__(
         self,
         address: str,
-        security: Type[Security] = None,
+        security: Security = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
     ) -> None:
         self.address = address
         dask_executor_kwargs = executor_kwargs or dict()
@@ -68,6 +70,7 @@ class RemoteDaskEnvironment(RemoteEnvironment):
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
+            metadata=metadata,
         )
 
     @property

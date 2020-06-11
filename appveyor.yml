@@ -15,4 +15,4 @@ install:
   - "%PYTHON%/Scripts/pip.exe install ."
 
 test_script:
-  - "%PYTHON%/Scripts/pytest . -vv --skip-formatting"
+  - "%PYTHON%/Scripts/pytest tests -vv"

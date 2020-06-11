@@ -1,7 +1,5 @@
 import datetime
 import time
-import uuid
-from box import Box
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -11,15 +9,15 @@ import pytest
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.engine.signals import LOOP
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.results import PrefectResult, SecretResult
 from prefect.engine.result_handlers import (
     ConstantResultHandler,
     JSONResultHandler,
     ResultHandler,
     SecretResultHandler,
 )
+from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cancelled,
     Failed,
@@ -54,7 +52,9 @@ def cloud_settings():
 def client(monkeypatch):
     cloud_client = MagicMock(
         get_flow_run_info=MagicMock(return_value=MagicMock(state=None, parameters={})),
-        set_flow_run_state=MagicMock(),
+        set_flow_run_state=MagicMock(
+            side_effect=lambda flow_run_id, version, state: state
+        ),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(
             side_effect=lambda task_run_id, version, state, cache_for: state
@@ -424,7 +424,7 @@ def test_flow_runner_does_not_have_heartbeat_if_disabled(monkeypatch):
 
 
 def test_task_failure_caches_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -444,7 +444,7 @@ def test_task_failure_caches_inputs_automatically(client):
 
 
 def test_task_failure_caches_constant_inputs_automatically(client):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -467,7 +467,7 @@ def test_task_failure_caches_constant_inputs_automatically(client):
 def test_task_failure_with_upstream_secrets_doesnt_store_secret_value_and_recompute_if_necessary(
     client,
 ):
-    @prefect.task(max_retries=2, retry_delay=timedelta(seconds=100))
+    @prefect.task(max_retries=2, retry_delay=timedelta(minutes=100))
     def is_p_three(p):
         if p == 3:
             raise ValueError("No thank you.")
@@ -542,7 +542,6 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
     client.get_flow_run_info = MagicMock(
         return_value=MagicMock(context={"task_loop_count": 20})
     )
-    client.set_flow_run_state = MagicMock()
 
     flow_state = CloudFlowRunner(flow=f).run(return_tasks=[inter, final])
 
@@ -568,7 +567,6 @@ def test_cloud_flow_runner_can_successfully_initialize_cloud_task_runners():
         upstream_states=dict(),
         context=dict(),
         task_runner_state_handlers=[],
-        executor=None,
     )
 
 
@@ -605,6 +603,9 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             calls.append(args)
 
         def set_task_run_state(self, *args, **kwargs):
+            return kwargs.get("state")
+
+        def set_flow_run_state(self, *args, **kwargs):
             return kwargs.get("state")
 
         def get_flow_run_info(self, *args, **kwargs):

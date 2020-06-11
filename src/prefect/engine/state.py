@@ -101,6 +101,9 @@ class State:
         Returns:
             - State: the current state with a fully hydrated Result attached
         """
+        if self.is_mapped():
+            return self
+
         result_reader = result or self._result
 
         known_location = self._result.location or getattr(result, "location", None)  # type: ignore
@@ -373,6 +376,7 @@ class Scheduled(Pending):
     """
 
     color = "#ffab00"
+    start_time: Optional[datetime.datetime]
 
     def __init__(
         self,
@@ -408,7 +412,7 @@ class Paused(Scheduled):
             should be JSON compatible
     """
 
-    color = "#cfd8dc"
+    color = "#99a8e8"
 
     def __init__(
         self,
@@ -418,8 +422,6 @@ class Paused(Scheduled):
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
-        if start_time is None:
-            start_time = pendulum.now().add(years=10)
 
         super().__init__(
             message=message,
@@ -428,6 +430,11 @@ class Paused(Scheduled):
             cached_inputs=cached_inputs,
             context=context,
         )
+
+        # override default logic to set start_time = now();
+        # have indefinite start_time instead
+        if start_time is None:
+            self.start_time = None
 
 
 class _MetaState(State):
@@ -560,7 +567,7 @@ class Resume(Scheduled):
             should be JSON compatible
     """
 
-    color = "#fb8532"
+    color = "#f58c0c"
 
 
 class Retrying(Scheduled):
@@ -799,7 +806,7 @@ class Cancelled(Finished):
             should be JSON compatible
     """
 
-    color = "#c42800"
+    color = "#bdbdbd"
 
 
 class Failed(Finished):

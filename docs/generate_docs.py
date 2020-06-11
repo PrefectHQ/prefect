@@ -17,9 +17,7 @@ import inspect
 import os
 import re
 import shutil
-import subprocess
 import textwrap
-import warnings
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock

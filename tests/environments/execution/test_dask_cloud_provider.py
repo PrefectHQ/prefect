@@ -2,6 +2,9 @@ import os
 import tempfile
 
 import cloudpickle
+import pytest
+
+pytest.importorskip("dask_cloudprovider")
 
 from distributed.deploy import Cluster
 
@@ -23,6 +26,7 @@ def test_create_dask_cloud_provider_environment():
     assert environment._on_execute is None
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.DaskCloudProviderEnvironment"
 
 

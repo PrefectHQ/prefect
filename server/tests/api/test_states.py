@@ -3,12 +3,8 @@
 
 
 import asyncio
-import datetime
-import json
-import time
 import uuid
 
-import pendulum
 import prefect
 import pytest
 from asynctest import CoroutineMock
@@ -38,6 +34,12 @@ from prefect_server.database import models
 
 
 class TestTaskRunStates:
+    async def test_returns_status_dict(
+        self, running_flow_run_id: str, task_run_id: str
+    ):
+        result = await states.set_task_run_state(task_run_id, state=Success())
+        assert result["status"] == "SUCCESS"
+
     @pytest.mark.parametrize(
         "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )
@@ -209,6 +211,10 @@ class TestTaskRunStates:
 
 
 class TestFlowRunStates:
+    async def test_returns_status_dict(self, flow_run_id: str):
+        result = await states.set_flow_run_state(flow_run_id, state=Success())
+        assert result["status"] == "SUCCESS"
+
     @pytest.mark.parametrize(
         "state_cls", [s for s in State.children() if s not in _MetaState.children()]
     )

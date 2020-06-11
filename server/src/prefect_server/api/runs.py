@@ -3,7 +3,7 @@
 
 
 import datetime
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable, List
 
 import pendulum
 import prefect

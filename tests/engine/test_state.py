@@ -1,9 +1,6 @@
 import datetime
 import json
-import tempfile
-import uuid
 
-import cloudpickle
 import pendulum
 import pytest
 
@@ -137,6 +134,22 @@ def test_scheduled_states_have_default_times():
     now = pendulum.now("utc")
     assert now - Scheduled().start_time < datetime.timedelta(seconds=0.1)
     assert now - Retrying().start_time < datetime.timedelta(seconds=0.1)
+
+
+def test_paused_state_has_no_default_start_time():
+    state = Paused()
+    assert state.start_time is None
+
+
+def test_passing_none_to_paused_state_has_no_default_start_time():
+    state = Paused(start_time=None)
+    assert state.start_time is None
+
+
+def test_paused_state_can_have_start_time():
+    dt = pendulum.now().add(years=1)
+    state = Paused(start_time=dt)
+    assert state.start_time == dt
 
 
 def test_queued_states_have_start_times():
@@ -390,6 +403,9 @@ class TestStateHierarchy:
     def test_validation_failed_is_failed(self):
         assert issubclass(ValidationFailed, Failed)
 
+    def test_paused_is_scheduled(self):
+        assert issubclass(Paused, Scheduled)
+
 
 @pytest.mark.parametrize(
     "state_check",
@@ -487,8 +503,14 @@ class TestResultInterface:
         assert state.result is None
 
         new_state = state.load_result(MyResult(location=""))
-        assert new_state.result == 42
-        assert new_state._result.location == "foo"
+        # mapped states should never attempt to hydrate their results
+        # the Result interface is _not_ used for Mapped state results, only their children
+        if not new_state.is_mapped():
+            assert new_state.result == 42
+            assert new_state._result.location == "foo"
+        else:
+            assert new_state.result is None
+            assert not new_state._result.location
 
     @pytest.mark.parametrize("cls", all_states)
     def test_state_load_result_doesnt_call_read_if_value_present(self, cls):
@@ -548,8 +570,13 @@ class TestResultInterface:
 
         new_state = state.load_result(MyResult(location="foo"))
         assert new_state.message is None
-        assert new_state.result == "bar"
-        assert new_state._result.location == "foo"
+
+        if not new_state.is_mapped():
+            assert new_state.result == "bar"
+            assert new_state._result.location == "foo"
+        else:
+            assert new_state.result is None
+            assert not new_state._result.location
 
     @pytest.mark.parametrize("cls", all_states)
     def test_state_load_cached_results_calls_read(self, cls):

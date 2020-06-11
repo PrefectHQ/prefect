@@ -21,7 +21,7 @@ def test_execute_help():
     assert "Execute flow environments." in result.output
 
 
-def test_execute_cloud_flow_fails():
+def test_execute_cloud_flow_fails_outside_cloud_context():
     runner = CliRunner()
     result = runner.invoke(execute, "cloud-flow")
     assert result.exit_code == 1

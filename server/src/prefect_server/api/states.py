@@ -3,27 +3,24 @@
 
 
 import asyncio
-import datetime
-import json
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Dict, Optional
 
 import pendulum
-import prefect
 from box import Box
-from prefect.engine.state import Failed, Queued, Running, State
-from prefect.utilities.graphql import EnumValue, with_args
-
 from prefect_server import api, config
 from prefect_server.database import hasura, models
 from prefect_server.utilities.logging import get_logger
+
+import prefect
+from prefect.engine.state import Failed, Queued, Running, State
+from prefect.utilities.graphql import EnumValue, with_args
 
 logger = get_logger("api")
 
 state_schema = prefect.serialization.state.StateSchema()
 
 
-async def set_flow_run_state(flow_run_id: str, state: State) -> None:
+async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
     """
     Updates a flow run state.
 
@@ -42,6 +39,9 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> None:
         - ValueError: If the flow is being transitioned to `Running`
             and there isn't an available concurrency slot if the
             flow's environment is concurrency limited.
+    Returns:
+        - Dict[str, str]: Mapping indicating status of the state
+            change operation.
     """
 
     if flow_run_id is None:
@@ -98,9 +98,12 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> None:
     )
 
     await flow_run_state.insert()
+    return {"status": "SUCCESS"}
 
 
-async def set_task_run_state(task_run_id: str, state: State, force=False) -> None:
+async def set_task_run_state(
+    task_run_id: str, state: State, force: bool = False
+) -> Dict[str, str]:
     """
     Updates a task run state.
 
@@ -108,6 +111,9 @@ async def set_task_run_state(task_run_id: str, state: State, force=False) -> Non
         - task_run_id (str): the task run id to update
         - state (State): the new state
         - false (bool): if True, avoids pipeline checks
+    Returns:
+        - Dict[str, str]: Mapping indicating status of the state
+            change operation.
     """
 
     if task_run_id is None:
@@ -160,3 +166,4 @@ async def set_task_run_state(task_run_id: str, state: State, force=False) -> Non
     )
 
     await task_run_state.insert()
+    return {"status": "SUCCESS"}

@@ -9,6 +9,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
     networks:
       - prefect-server
     restart: "always"
@@ -67,6 +69,7 @@ services:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
       PREFECT_API_URL: ${PREFECT_API_URL:-http://graphql:4201/graphql/}
       PREFECT_API_HEALTH_URL: ${PREFECT_API_HEALTH_URL:-http://graphql:4201/health}
+      PREFECT_SERVER__TELEMETRY__ENABLED: ${PREFECT_SERVER__TELEMETRY__ENABLED:-true}
     networks:
       - prefect-server
     restart: "always"

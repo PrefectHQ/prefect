@@ -7,18 +7,19 @@ import os
 import tempfile
 import time
 import warnings
+from contextlib import contextmanager
 from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
     Set,
     Tuple,
-    Union,
     cast,
 )
 
@@ -321,17 +322,39 @@ class Flow:
 
     # Context Manager ----------------------------------------------------------
 
+    @contextmanager
+    def _flow_context(self) -> Iterator["Flow"]:
+        """
+        When entering a flow context, the Prefect context is modified to include:
+            - `flow`: the flow itself
+            - `_unused_task_tracker`: a set of all tasks created while the context is
+                open, in order to provide user friendly warnings if they aren't added
+                to the flow itself. This is purely for user experience.
+        """
+        unused_task_tracker = set()  # type: Set[Task]
+
+        with prefect.context(flow=self, _unused_task_tracker=unused_task_tracker):
+            yield self
+
+        # constants are not tracked at the flow level
+        if unused_task_tracker.difference(self.tasks):
+            warnings.warn(
+                "Tasks were created but not added to the flow: "
+                f"{unused_task_tracker.difference(self.tasks)}. This can occur "
+                "when `Task` classes, including `Parameters`, are instantiated "
+                "inside a `with flow:` block but not added to the flow either "
+                "explicitly or as the input to another task. For more information, "
+                "see https://docs.prefect.io/core/advanced_tutorials/task-guide.html#adding-tasks-to-flows."
+            )
+
     def __enter__(self) -> "Flow":
-        self.__previous_flow = prefect.context.get("flow")
-        prefect.context.update(flow=self)
-        return self
+        self._ctx = self._flow_context()
+        return self._ctx.__enter__()
 
-    def __exit__(self, _type, _value, _tb) -> None:  # type: ignore
-        del prefect.context.flow
-        if self.__previous_flow is not None:
-            prefect.context.update(flow=self.__previous_flow)
-
-        del self.__previous_flow
+    def __exit__(self, exc_type, exc_value, traceback) -> None:  # type: ignore
+        result = self._ctx.__exit__(exc_type, exc_value, traceback)
+        # delete _ctx because it's an active generator, which prevents pickling
+        del self._ctx
 
     # Introspection ------------------------------------------------------------
 
@@ -437,9 +460,15 @@ class Flow:
                     "flow.".format(task.slug)
                 )
 
-        if task not in self.tasks:
             self.tasks.add(task)
             self._cache.clear()
+
+            # Parameters must be root tasks
+            # All other new tasks should be added to the current case (if any)
+            if not isinstance(task, Parameter):
+                case = prefect.context.get("case", None)
+                if case is not None:
+                    case.add_task(task, self)
 
         return task
 
@@ -839,7 +868,7 @@ class Flow:
         parameters: Dict[str, Any],
         runner_cls: type,
         run_on_schedule: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
 
         base_parameters = parameters or dict()
@@ -895,7 +924,7 @@ class Flow:
                     state=flow_state,
                     task_states=flow_state.result,
                     context=flow_run_context,
-                    **kwargs
+                    **kwargs,
                 )
 
                 # if flow_state is still scheduled; this most likely means
@@ -908,8 +937,24 @@ class Flow:
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
+
+                # handle Paused states
+                for t, s in filter(
+                    lambda tup: isinstance(tup[1], prefect.engine.state.Paused),
+                    flow_state.result.items(),
+                ):
+                    approve = input(f"{t} is currently Paused; enter 'y' to resume:\n")
+                    if approve.strip().lower() == "y":
+                        flow_state.result[t] = prefect.engine.state.Resume(
+                            "Approval given to resume."
+                        )
+
                 earliest_start = min(
-                    [s.start_time for s in task_states if s.is_scheduled()],
+                    [
+                        s.start_time
+                        for s in task_states
+                        if s.is_scheduled() and s.start_time is not None
+                    ],
                     default=pendulum.now("utc"),
                 )
 
@@ -972,7 +1017,7 @@ class Flow:
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
         runner_cls: type = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "prefect.engine.state.State":
         """
         Run the flow on its schedule using an instance of a FlowRunner.  If the Flow has no schedule,
@@ -1049,7 +1094,7 @@ class Flow:
             parameters=parameters,
             runner_cls=runner_cls,
             run_on_schedule=run_on_schedule,
-            **kwargs
+            **kwargs,
         )
 
         # state always should return a dict of tasks. If it's NoResult (meaning the run was
@@ -1198,7 +1243,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False, format=format)
+            graph.render(filename, view=False, format=format, cleanup=True)
         else:
             try:
                 from IPython import get_ipython
@@ -1334,7 +1379,7 @@ class Flow:
             "logging.log_to_cloud": log_to_cloud,
         }
         with set_temporary_config(temp_config):
-            labels = self.environment.labels
+            labels = list(self.environment.labels) if self.environment.labels else []
             agent = prefect.agent.local.LocalAgent(
                 labels=labels, show_flow_logs=show_flow_logs
             )
@@ -1348,7 +1393,7 @@ class Flow:
         set_schedule_active: bool = True,
         version_group_id: str = None,
         no_url: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Register the flow with Prefect Cloud; if no storage is present on the Flow, the default value from your config

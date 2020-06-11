@@ -4,6 +4,7 @@ import pytest
 
 from prefect import context
 from prefect.agent.docker import DockerAgent
+from prefect.environments import RemoteEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -260,6 +261,46 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert api.pull.called
+    assert api.create_container.called
+    assert api.start.called
+
+    assert api.create_host_config.call_args[1]["auto_remove"] is True
+    assert api.create_container.call_args[1]["command"] == "prefect execute cloud-flow"
+    assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
+    assert api.start.call_args[1]["container"] == "container_id"
+
+
+def test_docker_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_token):
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    api.create_host_config.return_value = {"AutoRemove": True}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "storage": Local().serialize(),
+                        "environment": RemoteEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
                     }
                 ),
                 "id": "id",
@@ -296,7 +337,11 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, runner_token):
             flow_run=GraphQLResult(
                 {
                     "flow": GraphQLResult(
-                        {"storage": Local().serialize(), "id": "foo"}
+                        {
+                            "storage": Local().serialize(),
+                            "id": "foo",
+                            "environment": RemoteEnvironment().serialize(),
+                        }
                     ),
                     "id": "id",
                     "name": "name",
@@ -327,6 +372,43 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
                         "id": "foo",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert not api.pull.called
+    assert api.create_container.called
+    assert api.start.called
+
+
+def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(
+    monkeypatch, runner_token
+):
+
+    api = MagicMock()
+    api.ping.return_value = True
+    api.create_container.return_value = {"Id": "container_id"}
+    monkeypatch.setattr(
+        "prefect.agent.docker.agent.DockerAgent._get_docker_client",
+        MagicMock(return_value=api),
+    )
+
+    agent = DockerAgent(no_pull=True)
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "storage": Local().serialize(),
+                        "environment": RemoteEnvironment(
+                            metadata={"image": "name:tag"}
                         ).serialize(),
                     }
                 ),
@@ -364,6 +446,7 @@ def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -419,6 +502,7 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -851,6 +935,7 @@ def test_docker_agent_network(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -889,6 +974,7 @@ def test_docker_agent_deploy_with_interface_check_linux(
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -925,6 +1011,7 @@ def test_docker_agent_deploy_with_no_interface_check_linux(
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                     }
                 ),
                 "id": "id",

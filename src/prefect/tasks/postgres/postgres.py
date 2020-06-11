@@ -82,6 +82,8 @@ class PostgresExecute(Task):
                     executed = cursor.execute(query=query, vars=data)
                     if commit:
                         conn.commit()
+                    else:
+                        conn.rollback()
 
             conn.close()
             return executed
