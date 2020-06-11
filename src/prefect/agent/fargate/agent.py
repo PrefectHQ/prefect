@@ -684,9 +684,18 @@ class FargateAgent(Agent):
 
         return task["tasks"][0].get("taskArn")
 
-    def test_configuration(self) -> None:
-        """"""
+    def test_agent_configuration(self) -> None:
+        """
+        Utility function for testing Agent's configuration. This function is helpful in
+        determining if the provided configuration for the Agent is able to register a
+        task definition and then subsequently run the task.
+        """
         task_name = f"prefect-test-task-{str(uuid.uuid4())[:8]}"
+
+        # Populate container definition with provided kwargs
+        flow_container_definitions_kwargs = copy.deepcopy(
+            self.container_definitions_kwargs
+        )
 
         container_definitions = [
             {
@@ -701,28 +710,54 @@ class FargateAgent(Agent):
             }
         ]
 
+        base_envar_keys = [x["name"] for x in container_definitions[0]["environment"]]  # type: ignore
+        container_definitions_environment = [
+            x
+            for x in flow_container_definitions_kwargs.get("environment", [])
+            if x["name"] not in base_envar_keys
+        ]
+        container_definitions[0]["environment"].extend(  # type: ignore
+            container_definitions_environment
+        )
+        container_definitions[0]["secrets"] = flow_container_definitions_kwargs.get(
+            "secrets", []
+        )
+        container_definitions[0]["mountPoints"] = flow_container_definitions_kwargs.get(
+            "mountPoints", []
+        )
+        container_definitions[0][
+            "logConfiguration"
+        ] = flow_container_definitions_kwargs.get("logConfiguration", {})
+
+        # Register task definition
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
 
         if self.launch_type:
             flow_task_definition_kwargs["requiresCompatibilities"] = [self.launch_type]
 
+        self.logger.info("Testing test task definition registration...")
         self.boto3_client.register_task_definition(
             family=task_name,
             containerDefinitions=container_definitions,
             networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
+        self.logger.info("Task definition registration successful.")
 
+        # Run task
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
 
         if self.launch_type:
             flow_task_run_kwargs["launchType"] = self.launch_type
 
-        self.boto3_client.run_task(
+        self.logger.info("Testing test task run...")
+        task = self.boto3_client.run_task(
             taskDefinition=task_name,
             overrides={"containerOverrides": []},
             **flow_task_run_kwargs,
         )
+        self.logger.info(f"Task run {task['tasks'][0].get('taskArn')} successful.")
+
 
 if __name__ == "__main__":
     FargateAgent().start()
