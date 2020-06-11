@@ -79,13 +79,44 @@ def cloud_settings():
         {
             "cloud.graphql": "http://my-cloud.foo",
             "cloud.auth_token": "token",
-            "cloud.queue_interval": 0.5,
+            "cloud.queue_interval": 0.1,
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
             "logging.level": "DEBUG",
         }
     ):
         yield
+
+
+@pytest.fixture
+def mock_heartbeats(monkeypatch):
+    """
+    Mocking the heartbeating of cloud flow runs and task runs
+    significantly helps debugging, as they clog up the logs
+    by the not being able to heartbeat properly. Mocks keep
+    complaingin about an unexpected kwarg, `parent` to __init__.
+    """
+
+    def do_mock(flow_kwargs=None, task_kwargs=None):
+        if not flow_kwargs:
+            flow_kwargs = {"return_value": False}
+        if not task_kwargs:
+            task_kwargs = {"return_value": False}
+        mock_flow_run_heartbeat = MagicMock(**flow_kwargs)
+        mock_task_run_heartbeat = MagicMock(**task_kwargs)
+
+        monkeypatch.setattr(
+            "prefect.engine.cloud.task_runner.CloudTaskRunner._heartbeat",
+            mock_task_run_heartbeat,
+        )
+        monkeypatch.setattr(
+            "prefect.engine.cloud.flow_runner.CloudFlowRunner._heartbeat",
+            mock_flow_run_heartbeat,
+        )
+
+        return (mock_flow_run_heartbeat, mock_task_run_heartbeat)
+
+    return do_mock
 
 
 class MockedCloudClient(MagicMock):
@@ -196,26 +227,30 @@ class QueueingMockCloudClient(MockedCloudClient):
     waiting for available space to run.
     """
 
+    def __init__(self, *args, num_times_in_queue: int = 5, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.num_times_in_queue = num_times_in_queue
+
     def set_flow_run_state(self, flow_run_id, version, state, **kwargs):
         """
         Handles the typical flow run state transition, but always
-        queues the flow run twice before allowing it to continue
+        queues the flow run before allowing it to continue
         as planned.
         """
 
         new_state = super().set_flow_run_state(flow_run_id, version, state, **kwargs)
-        if self.call_count["set_flow_run_state"] <= 2:
+        if (
+            self.call_count["set_flow_run_state"] <= self.num_times_in_queue
+            and new_state.is_running()
+        ):
             fr = self.flow_runs[flow_run_id]
-            # We incremented the version on the super class call,
-            # so version - 1 should be the version used to check.
-            if fr.version == version + 1:
-                new_state = Queued(
-                    start_time=pendulum.now("UTC").add(
-                        seconds=prefect.config.cloud.queue_interval
-                    )
+            # We assume the version locking succeeds in the parent class
+            new_state = Queued(
+                start_time=pendulum.now("UTC").add(
+                    seconds=prefect.config.cloud.queue_interval
                 )
-            else:
-                raise ValueError("Error setting queued state")
+            )
+            fr.state = new_state
 
         return new_state
 
@@ -869,21 +904,18 @@ def test_can_queue_successfully_and_run(monkeypatch):
             if t not in [t1,]
         ],
         monkeypatch=monkeypatch,
+        num_times_in_queue=6,
     )
 
-    mock_max = MagicMock(return_value=0.25)
-    # Monkeypatch fails to patch the builtin `max` function since it
-    # isn't imported or namespaced
-    with patch("prefect.engine.cloud.flow_runner.max", mock_max):
-        with prefect.context(flow_run_id=flow_run_id):
-            run_state = CloudFlowRunner(flow=flow).run(
-                executor=LocalExecutor(), return_tasks=flow.tasks
-            )
+    with prefect.context(flow_run_id=flow_run_id):
+        run_state = CloudFlowRunner(flow=flow).run(
+            executor=LocalExecutor(), return_tasks=flow.tasks
+        )
 
     assert run_state.is_successful()
-    # Only decent way to ensure that the flow runner waits twice
-    assert mock_max.call_count == 2
 
-    # Pending -> Running -> Queued -> Success
-    # Calls with state transitions to the same state don't count
-    assert client.call_count["set_flow_run_state"] == 4
+    # Pending -> Running -> Queued (4x) -> Success
+    # State transitions that result in `set_flow_run_state` calls are from
+    # Pending -> Running and Running -> Success, all others
+    # are from Running -> Queued or Queued -> Queued
+    assert client.call_count["set_flow_run_state"] == 2 + (client.num_times_in_queue)

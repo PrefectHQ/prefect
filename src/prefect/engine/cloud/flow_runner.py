@@ -172,13 +172,6 @@ class CloudFlowRunner(FlowRunner):
             - State: `State` representing the final post-run state of the `Flow`.
         """
         context = context or {}
-        # Pre-emptively load the flow run id that exists in the global
-        # context into the run specific context, which is needed
-        # specifically for entering a Queued state and waiting forever until
-        # an exit condition occurs. Prefect's context will have the flow_run_id
-        # on the first call to run, and `context` will have it on all subsequent runs
-        if prefect.context.get("flow_run_id") and not context.get("flow_run_id"):
-            context.update(flow_run_id=prefect.context.get("flow_run_id"))
 
         end_state = super().run(
             state=state,
@@ -199,20 +192,26 @@ class CloudFlowRunner(FlowRunner):
             naptime = max(
                 (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
             )
-            self.logger.debug(
-                f"Flow run is in a Queued state. \
-                Sleeping for {naptime} and attempting to run again."
+            self.logger.info(
+                (
+                    "Flow run is in a Queued state."
+                    f" Sleeping for {naptime:.2f} seconds and attempting to run again."
+                )
             )
             time.sleep(naptime)
-            flow_run_id = context.get("flow_run_id", "")
-            flow_run_info = self.client.get_flow_run_info(flow_run_id=flow_run_id)
+
+            flow_run_info = self.client.get_flow_run_info(
+                flow_run_id=prefect.context.get("flow_run_id")
+            )
             context.update(flow_run_version=flow_run_info.version)
 
             # When concurrency slots become free, this will eventually result
             # in a non queued state, but will result in more or less just waiting
-            # until the orchestration layer says we are clear to go.
+            # until the orchestration layer says we are clear to go. Purposefully
+            # not passing `state` so we can refresh the info from cloud,
+            # allowing us to prematurely bail out of flow runs that have already
+            # reached a finished state via another process.
             end_state = super().run(
-                state=end_state,
                 task_states=task_states,
                 return_tasks=return_tasks,
                 parameters=parameters,
@@ -251,9 +250,7 @@ class CloudFlowRunner(FlowRunner):
         """
 
         # load id from context
-        flow_run_id = prefect.context.get("flow_run_id") or context.get(
-            "flow_run_id", ""
-        )  # type: str
+        flow_run_id = prefect.context.get("flow_run_id")
 
         try:
             flow_run_info = self.client.get_flow_run_info(flow_run_id)
