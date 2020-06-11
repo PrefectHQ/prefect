@@ -124,6 +124,7 @@ class CachedSchema(SuccessSchema):
 
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
+    hashed_inputs = fields.Dict(key=fields.Str(), values=fields.Str(), allow_none=True)
 
 
 class MappedSchema(SuccessSchema):

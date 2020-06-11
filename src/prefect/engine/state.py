@@ -726,6 +726,7 @@ class Cached(Success):
             expires and can no longer be used. Defaults to `None`
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
+        - hashed_inputs (Dict[str, str], optional): a string hash of a dictionary of inputs
     """
 
     color = "#34d058"
@@ -738,10 +739,12 @@ class Cached(Success):
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
         context: Dict[str, Any] = None,
+        hashed_inputs: Dict[str, str] = None,
     ):
         super().__init__(
             message=message, result=result, context=context, cached_inputs=cached_inputs
         )
+        self.hashed_inputs = hashed_inputs
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = pendulum.instance(cached_result_expiration)
