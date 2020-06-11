@@ -2000,7 +2000,7 @@ def test_agent_configuration_utility(monkeypatch, runner_token):
         region_name="region",
         **kwarg_dict
     )
-    agent.validate_agent_configuration()
+    agent.validate_configuration()
 
     assert boto3_client.register_task_definition.called
     assert boto3_client.run_task.called
