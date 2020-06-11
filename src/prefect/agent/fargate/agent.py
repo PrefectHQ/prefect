@@ -742,7 +742,7 @@ class FargateAgent(Agent):
             networkMode="awsvpc",
             **flow_task_definition_kwargs,
         )
-        self.logger.info("Task definition registration successful.")
+        self.logger.info("Task definition registration successful")
 
         # Run task
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
@@ -756,7 +756,7 @@ class FargateAgent(Agent):
             overrides={"containerOverrides": []},
             **flow_task_run_kwargs,
         )
-        self.logger.info(f"Task run {task['tasks'][0].get('taskArn')} successful.")
+        self.logger.info(f"Task run {task['tasks'][0].get('taskArn')} successful")
 
 
 if __name__ == "__main__":
