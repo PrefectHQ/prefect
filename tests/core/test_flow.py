@@ -422,13 +422,24 @@ def test_add_edge_raise_error_for_downstream_parameter():
         f.add_edge(upstream_task=t, downstream_task=p)
 
 
-def test_add_edge_raise_error_for():
+def test_add_edge_raise_error_for_incorrect_mapped_task_trigger():
     f = Flow(name="test")
-    t = Task()
-    p = Parameter("p")
 
-    with pytest.raises(ValueError, match="can not have upstream dependencies"):
-        f.add_edge(upstream_task=t, downstream_task=p)
+    class Vals(Task):
+        def run(self):
+            return [1, 2, 3]
+
+    class Output(Task):
+        def run(self, vals):
+            return vals
+
+    with pytest.raises(
+        ValueError,
+        match="Mapped task <Task: Output> requires an `all_successful` trigger.",
+    ):
+        vals = Vals()
+        output = Output(trigger=prefect.triggers.any_failed)
+        output.set_upstream(vals, key="vals", flow=f, mapped=True)
 
 
 def test_add_edge_raise_error_for_duplicate_key_if_validate():
