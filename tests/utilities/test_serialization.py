@@ -238,7 +238,7 @@ class TestCallableReferenceField_BackwardsCompatibility:
         assert deserialized["f"] is fn
 
     def test_deserialize_invalid_fn(self):
-        with pytest.raises(marshmallow.ValidationError, match="not valid_functionsed"):
+        with pytest.raises(marshmallow.ValidationError, match="Reference not valid"):
             deserialized = self.Schema().load(
                 {"f": "tests.utilities.test_serialization.fn2"}
             )
