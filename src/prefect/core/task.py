@@ -142,7 +142,7 @@ class Task(metaclass=SignatureValidator):
             serves as a unique identifier for this Task's cache, and can be shared
             across both Tasks _and_ Flows; if not provided, the Task's _name_ will
             be used if running locally, or the Task's database ID if running in
-            Cloud 
+            Cloud
         - checkpoint (bool, optional): if this Task is successful, whether to
             store its result using the `result_handler` available during the run;
             Also note that checkpointing will only occur locally if
@@ -152,10 +152,14 @@ class Task(metaclass=SignatureValidator):
             provided, will default to the one attached to the Flow
         - result (Result, optional): the result instance used to retrieve and
             store task results during execution
-        - target (str, optional): location to check for task Result. If a result
+        - target (Union[str, Callable], optional): location to check for task Result. If a result
             exists at that location then the task run will enter a cached state.
             `target` strings can be templated formatting strings which will be
-            formatted at runtime with values from `prefect.context`
+            formatted at runtime with values from `prefect.context`. If a callable function
+            is provided, it should have signature `callable(**kwargs) -> str` and at write
+            time all formatting kwargs will be passed and a fully formatted location is
+            expected as the return value.  Can be used for string formatting logic that
+            `.format(**kwargs)` doesn't support
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
             that will be called whenever the task changes state, providing an
             opportunity to inspect or modify the new state. The handler
@@ -164,8 +168,8 @@ class Task(metaclass=SignatureValidator):
                 `state_handler(task: Task, old_state: State, new_state: State) -> Optional[State]`
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - on_failure (Callable, optional): A function with signature 
-            `fn(task: Task, state: State) -> None` that will be called anytime this 
+        - on_failure (Callable, optional): A function with signature
+            `fn(task: Task, state: State) -> None` that will be called anytime this
             Task enters a failure state
         - log_stdout (bool, optional): Toggle whether or not to send stdout messages to
             the Prefect logger. Defaults to `False`.
