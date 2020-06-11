@@ -515,10 +515,15 @@ class Flow:
         # flow, so we need to perform this check here and not earlier.
         if validate and key and key in {e.key for e in self.edges_to(downstream_task)}:
             raise ValueError(
-                'Argument "{a}" for task {t} has already been assigned in '
+                "Argument '{a}' for task {t} has already been assigned in "
                 "this flow. If you are trying to call the task again with "
                 "new arguments, call Task.copy() before adding the result "
                 "to this flow.".format(a=key, t=downstream_task)
+            )
+
+        if mapped and downstream_task.trigger is not prefect.triggers.all_successful:
+            raise ValueError(
+                f"Mapped task {downstream_task} requires an `all_successful` trigger."
             )
 
         edge = Edge(

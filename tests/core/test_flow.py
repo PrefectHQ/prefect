@@ -422,6 +422,15 @@ def test_add_edge_raise_error_for_downstream_parameter():
         f.add_edge(upstream_task=t, downstream_task=p)
 
 
+def test_add_edge_raise_error_for():
+    f = Flow(name="test")
+    t = Task()
+    p = Parameter("p")
+
+    with pytest.raises(ValueError, match="can not have upstream dependencies"):
+        f.add_edge(upstream_task=t, downstream_task=p)
+
+
 def test_add_edge_raise_error_for_duplicate_key_if_validate():
     f = Flow(name="test")
     t = Task()
