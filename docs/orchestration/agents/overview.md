@@ -54,7 +54,7 @@ Options:
 All Prefect Agents are also extendable as Python objects and can be used programatically!
 
 ```python
-from prefect.agent import DockerAgent
+from prefect.agent.docker import DockerAgent
 
 DockerAgent().start()
 ```
@@ -72,7 +72,7 @@ By default, agents have no set labels and will only pick up runs from flows with
 - Initialization of the Agent class:
 
 ```python
-from prefect.agent import DockerAgent
+from prefect.agent.docker import DockerAgent
 
 DockerAgent(labels=["dev", "staging"]).start()
 ```
