@@ -86,17 +86,12 @@ class TaskRunner(Runner):
         self.context = prefect.context.to_dict()
         self.task = task
 
-        # if the result was provided off the parent Flow object
-        # we want to use the task's target as the target location
+        # Use result from task over the one provided off the parent Flow object
         if task.result:
             self.result = task.result
         else:
             self.result = Result().copy() if result is None else result.copy()
-            if self.task.target:
-                if not isinstance(self.task.target, str):
-                    self.result.location = self.task.target(**prefect.context)
-                else:
-                    self.result.location = self.task.target
+
         self.default_result = default_result or Result()
         super().__init__(state_handlers=state_handlers)
 
@@ -189,6 +184,13 @@ class TaskRunner(Runner):
             )
         else:
             context.update(logger=self.task.logger)
+
+        # If provided, use task's target as result location
+        if self.task.target:
+            if not isinstance(self.task.target, str):
+                self.result.location = self.task.target(**context)
+            else:
+                self.result.location = self.task.target
 
         return TaskRunnerInitializeResult(state=state, context=context)
 

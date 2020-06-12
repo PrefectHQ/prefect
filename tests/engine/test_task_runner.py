@@ -1568,6 +1568,24 @@ class TestTargetExistsStep:
             assert state2.is_successful()
             assert state2.result[t].is_cached()
 
+    def test_target_with_callable_uses_run_context(self, tmp_dir):
+        with set_temporary_config({"flows.checkpointing": True}):
+
+            @prefect.task(target=lambda **kwargs: str(kwargs["task_run_count"]))
+            def my_task():
+                return "data"
+
+            with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
+                t = my_task()
+
+            state = flow.run()
+            assert state.is_successful()
+            assert state.result[t].is_successful()
+
+            state2 = flow.run()
+            assert state2.is_successful()
+            assert state2.result[t].is_cached()
+
 
 class TestCheckScheduledStep:
     @pytest.mark.parametrize(
