@@ -358,7 +358,7 @@ class StatefulFunctionReference(fields.Field):
     Note that `nonlocals` MUST be JSON-compatible, with the exception of datetimes.
 
     Args:
-        - valid_functions (List[Callable]): a whitelist of valid functions
+        - valid_functions (List[Callable]): an allow list of valid functions
         - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
             any value will be allowed, but only functions in `valid_functions` will be deserialized.
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
