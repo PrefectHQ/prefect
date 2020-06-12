@@ -70,18 +70,14 @@ class TaskRunner(Runner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> Optional[State]`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result (Result, optional): the result type to use for retrieving and storing state results
-            during execution (if the Task doesn't already have one)
-        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
-            during execution (to be used on upstream inputs if they don't provide their own results)
+        - flow_result: the result instance configured for the flow (if any)
     """
 
     def __init__(
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result: Result = None,
-        default_result: Result = None,
+        flow_result: Result = None,
     ):
         self.context = prefect.context.to_dict()
         self.task = task
@@ -92,7 +88,7 @@ class TaskRunner(Runner):
         else:
             self.result = Result().copy() if result is None else result.copy()
 
-        self.default_result = default_result or Result()
+        self.flow_result = flow_result
         super().__init__(state_handlers=state_handlers)
 
     def __repr__(self) -> str:
@@ -221,7 +217,7 @@ class TaskRunner(Runner):
             - `State` object representing the final post-run state of the Task
         """
         upstream_states = upstream_states or {}
-        context = context or {}
+        context = context or prefect.context.to_dict()
         map_index = context.setdefault("map_index", None)
         context["task_full_name"] = "{name}{index}".format(
             name=self.task.name,
