@@ -19,12 +19,12 @@ def create():
 
     \b
     Examples:
-        $ prefect create project "My Project"
-        My Project created
+        $ prefect create project "Hello, World!"
+        Hello, World! created
 
     \b
-        $ prefect create project My-Project --description "My description"
-        My-Project created
+        $ prefect create project "Hello, World!" --description "My description"
+        Hello, World! created
     """
 
 

@@ -26,7 +26,7 @@ def welcome_logger():
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
 # Register Flow with the Prefect API
-flow.register("My Project")
+flow.register(project_name="Hello, World!")
 
 # Spawn a local agent and run in process
 flow.run_agent()
@@ -51,7 +51,7 @@ def welcome():
 flow = Flow("Welcome Flow", tasks=[welcome_logger])
 
 # Register Flow with the Prefect API
-flow.register("My Project")
+flow.register(project_name="Hello, World!")
 ```
 
 This flow is registered with the Prefect API with the actual flow code stored in your local `~/.prefect/flows` directory. We can now start a local agent from the CLI and tell it to look for scheduled runs for the _Welcome Flow_.

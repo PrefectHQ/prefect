@@ -318,8 +318,8 @@ For more information regarding Prefect Agents refer to the [agent documentation]
 Running `prefect create project PROJECT_NAME` will create a project in Prefect Cloud with the given name. You can also specify a project description with `--description`.
 
 ```
-$ prefect create project "MY PROJECT" -d "description here"
-MY PROJECT created
+$ prefect create project "Hello, World!" -d "description here"
+Hello World! created
 ```
 
 ### execute
