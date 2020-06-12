@@ -93,9 +93,14 @@ def test_copy_requires_name():
         x.copy()
 
 
-def test_backwards_compatible_access():
+def test_deprecated_parameter_in_task_module():
     """
     Deprecated test that asserts that backwards compatible access works after 0.12
     Can be removed once the backwards compatibility is no longer maintained.
     """
-    assert prefect.core.task.Parameter is prefect.core.parameter.Parameter
+    from prefect.core.task import Parameter as OldParameter
+
+    with pytest.warns(UserWarning, match="please import as"):
+        p = OldParameter("hello")
+
+    assert isinstance(p, Parameter)

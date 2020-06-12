@@ -1097,3 +1097,13 @@ EXTRA_CALL_PARAMETERS = [
     for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
     if p.kind == inspect.Parameter.KEYWORD_ONLY
 ]
+
+# DEPRECATED - this is to allow backwards-compatible access to Parameters
+# https://github.com/PrefectHQ/prefect/pull/2758
+from .parameter import Parameter as _Parameter
+
+
+class Parameter(_Parameter):
+    def __new__(cls, *args, **kwargs):  # type: ignore
+        warnings.warn("`Parameter` has moved, please import as `prefect.Parameter`")
+        return super().__new__(cls)

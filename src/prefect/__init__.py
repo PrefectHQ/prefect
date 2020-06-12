@@ -18,15 +18,6 @@ import prefect.serialization
 
 import prefect.agent
 
-# DEPRECATED - this is to allow backwards-compatible access to Parameters
-# This awkward assignment avoids circular imports in core.task
-# https://github.com/PrefectHQ/prefect/pull/2758
-prefect.core.task.Parameter = Parameter  # type: ignore
-
-# ---------------------------------------------
-# Versioneer
-# ---------------------------------------------
-
 from ._version import get_versions
 
 __version__ = get_versions()["version"]  # type: ignore
