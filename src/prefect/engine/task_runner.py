@@ -86,7 +86,7 @@ class TaskRunner(Runner):
         if task.result:
             self.result = task.result
         else:
-            self.result = Result().copy() if result is None else result.copy()
+            self.result = Result().copy() if flow_result is None else flow_result.copy()
 
         self.flow_result = flow_result
         super().__init__(state_handlers=state_handlers)
