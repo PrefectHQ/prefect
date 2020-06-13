@@ -30,9 +30,8 @@ def database():
 
 
 class TestSQLiteQuery:
-    def test_sqlite_query_task_requires_db(self):
-        with pytest.raises(TypeError):
-            task = SQLiteQuery()
+    def test_initialization(self):
+        task = SQLiteQuery()
 
     def test_sqlite_query_task_initializes_and_runs_basic_query(self, database):
         with Flow(name="test") as f:
@@ -65,9 +64,8 @@ class TestSQLiteQuery:
 
 
 class TestSQLiteScript:
-    def test_sqlite_script_task_requires_db(self):
-        with pytest.raises(TypeError):
-            task = SQLiteScript()
+    def test_initialization(self):
+        task = SQLiteScript()
 
     def test_sqlite_script_task_initializes_and_runs_basic_script(self, database):
         with Flow(name="test") as f:
@@ -109,9 +107,12 @@ def test_parametrization_of_tasks(database):
         script = Parameter("script")
 
         script = SQLiteScript(db=database)(script=script)
-        task = SQLiteQuery()(db=db, query="SELECT * FROM TEST WHERE NUMBER = 14",
-                             upstream_tasks=[script])
+        task = SQLiteQuery()(
+            db=db, query="SELECT * FROM TEST WHERE NUMBER = 14", upstream_tasks=[script]
+        )
 
-    out = f.run(db=database, script="INSERT INTO TEST (NUMBER, DATA) VALUES (14, 'fourth')")
+    out = f.run(
+        db=database, script="INSERT INTO TEST (NUMBER, DATA) VALUES (14, 'fourth')"
+    )
     assert out.is_successful()
     assert out.result[task].result == [(14, "fourth")]
