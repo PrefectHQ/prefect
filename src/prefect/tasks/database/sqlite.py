@@ -52,26 +52,28 @@ class SQLiteScript(Task):
     Task for executing a SQL script against a sqlite3 database.
 
     Args:
-        - db (str): the location of the database (.db) file
+        - db (str, optional): the location of the database (.db) file
         - script (str, optional): the optional _default_ script string to render at runtime;
             can also be provided as a keyword to `run`, which takes precendence over this default.
         - **kwargs (optional): additional keyword arguments to pass to the
             standard Task initialization
     """
 
-    def __init__(self, db: str, script: str = None, **kwargs: Any):
+    def __init__(self, db: str = None, script: str = None, **kwargs: Any):
         self.db = db
         self.script = script
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("script")
-    def run(self, script: str = None):
+    @defaults_from_attrs("db", "script")
+    def run(self, db: str = None, script: str = None):
         """
         Args:
+            - db (str, optional): the location of the database (.db) file;
+                if not provided, `self.db` will be used instead.
             - script (str, optional): the optional script to execute at runtime;
                 if not provided, `self.script` will be used instead.
         """
-        with closing(sql.connect(self.db)) as conn:
+        with closing(sql.connect(db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.executescript(script)
                 conn.commit()
