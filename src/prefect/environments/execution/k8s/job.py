@@ -8,6 +8,7 @@ import yaml
 import prefect
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
+from prefect.tasks.secrets import PrefectSecret
 
 
 class KubernetesJobEnvironment(Environment):
@@ -175,7 +176,7 @@ class KubernetesJobEnvironment(Environment):
                 ## populate global secrets
                 secrets = prefect.context.get("secrets", {})
                 for secret in flow.storage.secrets:
-                    secrets[secret.name] = secret.run()
+                    secrets[secret] = PrefectSecret(name=secret).run()
 
                 with prefect.context(secrets=secrets):
                     runner_cls = get_default_flow_runner_class()
