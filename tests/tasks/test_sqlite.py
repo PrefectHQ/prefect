@@ -5,7 +5,7 @@ from contextlib import closing
 
 import pytest
 
-from prefect import Flow
+from prefect import Flow, Parameter
 from prefect.tasks.database import SQLiteQuery, SQLiteScript
 
 
@@ -101,3 +101,17 @@ def test_composition_of_tasks(database):
     out = f.run()
     assert out.is_successful()
     assert out.result[task].result == [(88, "other", None)]
+
+
+def test_parametrization_of_tasks(database):
+    with Flow(name="test") as f:
+        db = Parameter("db")
+        script = Parameter("script")
+
+        script = SQLiteScript(db=database)(script=script)
+        task = SQLiteQuery()(db=db, query="SELECT * FROM TEST WHERE NUMBER = 14",
+                             upstream_tasks=[script])
+
+    out = f.run(db=database, script="INSERT INTO TEST (NUMBER, DATA) VALUES (14, 'fourth')")
+    assert out.is_successful()
+    assert out.result[task].result == [(14, "fourth")]
