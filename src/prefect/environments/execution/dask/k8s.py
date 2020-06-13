@@ -12,7 +12,6 @@ import prefect
 from prefect.client import Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
-from prefect.tasks.secrets import PrefectSecret
 
 
 class DaskKubernetesEnvironment(Environment):
@@ -311,7 +310,9 @@ class DaskKubernetesEnvironment(Environment):
                 ## populate global secrets
                 secrets = prefect.context.get("secrets", {})
                 for secret in flow.storage.secrets:
-                    secrets[secret] = PrefectSecret(name=secret).run()
+                    secrets[secret] = prefect.tasks.secrets.PrefectSecret(
+                        name=secret
+                    ).run()
 
                 with prefect.context(secrets=secrets):
                     executor = DaskExecutor(address=cluster.scheduler_address)
