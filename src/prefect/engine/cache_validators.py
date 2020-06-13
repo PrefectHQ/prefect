@@ -16,7 +16,7 @@ A cache validator returns `True` if the cache is still valid, and `False` otherw
 from typing import Any, Callable, Dict, Iterable
 
 import pendulum
-
+from prefect.utilities.serialization_future import Serializable
 import prefect
 
 
@@ -121,7 +121,7 @@ def all_parameters(
         return False
 
 
-def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
+class partial_parameters_only(Serializable):
     """
     Validates the cache based on cache expiration _and_ a subset of parameters (determined by the
     `validate_on` keyword) that were provided on the last successful run.
@@ -162,14 +162,15 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
     ```
     """
 
-    def _partial_parameters_only(
+    validate_on: Iterable[str] = None
+
+    def __call__(
+        self,
         state: "prefect.engine.state.Cached",
         inputs: Dict[str, Any],
         parameters: Dict[str, Any],
     ) -> bool:
         """
-        The actual cache validation function that will be used.
-
         Args:
             - state (State): a `Success` state from the last successful Task run that contains the cache
             - inputs (dict): a `dict` of inputs that were available on the last
@@ -183,22 +184,22 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
         parameters = parameters or {}
         if duration_only(state, inputs, parameters) is False:
             return False
-        elif validate_on is None:
+        elif self.validate_on is None:
             return True  # if you dont want to validate on anything, then the cache is valid
         else:
             cached = state.cached_parameters or {}
             partial_provided = {
-                key: value for key, value in parameters.items() if key in validate_on
+                key: value
+                for key, value in parameters.items()
+                if key in self.validate_on
             }
             partial_needed = {
-                key: value for key, value in cached.items() if key in validate_on
+                key: value for key, value in cached.items() if key in self.validate_on
             }
             return partial_provided == partial_needed
 
-    return _partial_parameters_only
 
-
-def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
+class partial_inputs_only(Serializable):
     """
     Validates the cache based on cache expiration _and_ a subset of inputs (determined by the
     `validate_on` keyword) that were provided on the last successful run.
@@ -241,14 +242,15 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
     ```
     """
 
-    def _partial_inputs_only(
+    validate_on: Iterable[str] = None
+
+    def __call__(
+        self,
         state: "prefect.engine.state.Cached",
         inputs: Dict[str, Any],
         parameters: Dict[str, Any],
     ) -> bool:
         """
-        The actual cache validation function that will be used.
-
         Args:
             - state (State): a `Success` state from the last successful Task run that contains the cache
             - inputs (dict): a `dict` of inputs that were available on the last
@@ -262,16 +264,14 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         inputs = inputs or {}
         if duration_only(state, inputs, parameters) is False:
             return False
-        elif validate_on is None:
+        elif self.validate_on is None:
             return True  # if you dont want to validate on anything, then the cache is valid
         else:
             cached = {key: res.value for key, res in state.cached_inputs.items()}
             partial_provided = {
-                key: value for key, value in inputs.items() if key in validate_on
+                key: value for key, value in inputs.items() if key in self.validate_on
             }
             partial_needed = {
-                key: value for key, value in cached.items() if key in validate_on
+                key: value for key, value in cached.items() if key in self.validate_on
             }
             return partial_provided == partial_needed
-
-    return _partial_inputs_only

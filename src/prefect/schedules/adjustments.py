@@ -8,10 +8,11 @@ from typing import Callable
 
 import pendulum
 
+from prefect.utilities.serialization_future import Serializable
 import prefect.schedules.filters
 
 
-def add(interval: timedelta) -> Callable[[datetime], datetime]:
+class add(Serializable):
     """
     Adjustment that adds a specified interval to the date.
 
@@ -21,11 +22,10 @@ def add(interval: timedelta) -> Callable[[datetime], datetime]:
     Returns:
         - Callable[[datetime], bool]: the adjustment function
     """
+    interval: timedelta
 
-    def _adjustment_fn(dt: datetime) -> datetime:
-        return pendulum.instance(dt) + interval
-
-    return _adjustment_fn
+    def __call__(self, dt: datetime) -> datetime:
+        return pendulum.instance(dt) + self.interval
 
 
 def next_weekday(dt: datetime) -> datetime:

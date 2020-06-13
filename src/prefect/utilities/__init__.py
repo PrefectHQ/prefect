@@ -8,4 +8,5 @@ import prefect.utilities.exceptions
 import prefect.utilities.graphql
 import prefect.utilities.notifications
 import prefect.utilities.serialization
+import prefect.utilities.serialization_future
 import prefect.utilities.tasks

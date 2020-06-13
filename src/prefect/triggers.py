@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Union
 from prefect import context
 from prefect.engine import signals
 from prefect.engine.state import Mapped
+from prefect.utilities.serialization_future import Serializable
 
 if TYPE_CHECKING:
     from prefect.engine import state  # pylint: disable=W0611
@@ -171,9 +172,7 @@ def any_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
     return True
 
 
-def some_failed(
-    at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
+class some_failed(Serializable):
     """
     Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -189,10 +188,11 @@ def some_failed(
             absolute number.
     """
 
-    def _some_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
-        """
-        The underlying trigger function.
+    at_least: Union[int, float] = None
+    at_most: Union[int, float] = None
 
+    def __call__(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+        """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states
 
@@ -207,12 +207,14 @@ def some_failed(
             [s for s in _get_all_states_as_set(upstream_states) if s.is_failed()]
         )
         num_states = len(_get_all_states_as_set(upstream_states))
-        if at_least is not None:
-            min_num = (num_states * at_least) if at_least < 1 else at_least
+        if self.at_least is not None:
+            min_num = (
+                (num_states * self.at_least) if self.at_least < 1 else self.at_least
+            )
         else:
             min_num = 0
-        if at_most is not None:
-            max_num = (num_states * at_most) if at_most < 1 else at_most
+        if self.at_most is not None:
+            max_num = (num_states * self.at_most) if self.at_most < 1 else self.at_most
         else:
             max_num = num_states
 
@@ -222,12 +224,8 @@ def some_failed(
             )
         return True
 
-    return _some_failed
 
-
-def some_successful(
-    at_least: Union[int, float] = None, at_most: Union[int, float] = None
-) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
+class some_successful(Serializable):
     """
     Runs if some amount of upstream tasks succeed. This amount can be specified as an upper bound (`at_most`) or
     a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
@@ -243,10 +241,11 @@ def some_successful(
             absolute number.
     """
 
-    def _some_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
-        """
-        The underlying trigger function.
+    at_least: Union[int, float] = None
+    at_most: Union[int, float] = None
 
+    def __call__(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+        """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states
 
@@ -275,8 +274,6 @@ def some_successful(
                 'Trigger was "some_successful" but thresholds were not met.'
             )
         return True
-
-    return _some_successful
 
 
 def not_all_skipped(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
