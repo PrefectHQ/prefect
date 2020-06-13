@@ -1,3 +1,4 @@
+import base64
 import json
 from typing import Any, Union
 
@@ -35,7 +36,16 @@ class Serializer:
         Returns:
             - Any: the deserialized value
         """
-        return cloudpickle.loads(value)
+        try:
+            return cloudpickle.loads(value)
+        except Exception as exc:
+            try:
+                # old versions of Core encoded pickles with base64
+                return cloudpickle.loads(base64.b64decode(value))
+            except:
+                # if there's an error with the backwards-compatible step,
+                # reraise the original exception
+                raise exc
 
 
 class JSONSerializer(Serializer):
