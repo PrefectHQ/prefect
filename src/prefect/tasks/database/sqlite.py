@@ -12,7 +12,7 @@ class SQLiteQuery(Task):
     the result (if any) from the query.
 
     Args:
-        - db (str): the location of the database (.db) file
+        - db (str, optional): the location of the database (.db) file
         - query (str, optional): the optional _default_ query to execute at runtime;
             can also be provided as a keyword to `run`, which takes precendence over this default.
             Note that a query should consist of a _single SQL statement_.
@@ -20,23 +20,26 @@ class SQLiteQuery(Task):
             standard Task initalization
     """
 
-    def __init__(self, db: str, query: str = None, **kwargs: Any):
+    def __init__(self, db: str = None, query: str = None, **kwargs: Any):
         self.db = db
         self.query = query
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query")
-    def run(self, query: str = None):
+    @defaults_from_attrs("db", "query")
+    def run(self, db: str = None, query: str = None):
         """
         Args:
+            - db (str, optional): the location of the database (.db) file;
+                if not provided, `self.db` will be used instead.
             - query (str, optional): the optional query to execute at runtime;
                 if not provided, `self.query` will be used instead. Note that a query should consist of a _single SQL statement_.
 
         Returns:
             - [Any]: the results of the query
         """
+        db = cast(str, db)
         query = cast(str, query)
-        with closing(sql.connect(self.db)) as conn:
+        with closing(sql.connect(db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(query)
                 out = cursor.fetchall()
