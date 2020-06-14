@@ -10,8 +10,7 @@ import pydantic
 import prefect
 
 
-FunctionReference = TypeVar("FunctionReference")
-Function = Union[FunctionReference, 'Serializable', Callable]
+FunctionReference = Union['Serializable', Callable, str]
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -245,14 +244,3 @@ class PolymorphicSerializable(Serializable):
         kwargs.setdefault("type", type(obj).__name__)
         return super()._from_object(obj, **kwargs)
 
-
-class f(Serializable):
-    x: int
-    y: int = 5
-
-    def __call__(self, x):
-        return self.x + self.y + x
-
-
-class g(f):
-    pass

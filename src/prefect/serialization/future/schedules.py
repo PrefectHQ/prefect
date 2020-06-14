@@ -3,7 +3,6 @@ from pydantic import Field
 from typing import Dict, List, Any, Union, Callable
 import prefect
 from prefect.utilities.serialization_future import Serializable, PolymorphicSerializable
-from prefect.serialization.future.results import Result
 
 
 class Clock(PolymorphicSerializable):

@@ -191,7 +191,7 @@ class some_failed(Serializable):
     at_least: Union[int, float] = None
     at_most: Union[int, float] = None
 
-    def __call__(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+    def __call__(self, upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states
@@ -244,7 +244,7 @@ class some_successful(Serializable):
     at_least: Union[int, float] = None
     at_most: Union[int, float] = None
 
-    def __call__(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
+    def __call__(self, upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         """
         Args:
             - upstream_states (dict[Edge, State]): the set of all upstream states

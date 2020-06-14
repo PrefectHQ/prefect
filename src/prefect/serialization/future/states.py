@@ -61,12 +61,19 @@ class State(PolymorphicSerializable):
     cached_parameters: Dict[str, Any] = None
     cached_result_expiration: datetime.datetime = None
 
+    # for backwards compatibility
+    # backwards_compatible_result: dict = Field(alias='_result')
+
     @classmethod
     def from_state(cls, state: prefect.engine.state.State) -> "State":
         return super()._from_object(obj=state, result=Result.from_result(state._result))
 
     def to_state(self):
-        return super()._to_object(result=self.result.to_result())
+        # if self.backwards_compatible_result is not None:
+        #     result = self.backwards_compatible_result
+        # else:
+        result = self.result.to_result()
+        return super()._to_object(result=result)
 
 
 State.update_forward_refs()
