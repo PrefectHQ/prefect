@@ -49,7 +49,7 @@ class CompareValue(Task):
             )
 
 
-def switch(condition: Task, cases: Dict[Any, Task]) -> None:
+def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = False) -> None:
     """
     Adds a SWITCH to a workflow.
 
@@ -81,6 +81,8 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
         - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
             The value of the `condition` task will be compared to the keys of this dict, and
             the matching task will be executed.
+        - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
 
     Raises:
         - PrefectWarning: if any of the tasks in "cases" have upstream dependencies,
@@ -92,8 +94,10 @@ def switch(condition: Task, cases: Dict[Any, Task]) -> None:
     with prefect.tags("switch"):
         for value, task in cases.items():
             task = prefect.utilities.tasks.as_task(task)
-            match_condition = CompareValue(value=value).bind(value=condition)
-            task.set_dependencies(upstream_tasks=[match_condition])
+            match_condition = CompareValue(value=value).bind(
+                value=condition, mapped=mapped
+            )
+            task.set_dependencies(upstream_tasks=[match_condition], mapped=mapped)
 
 
 def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
@@ -119,7 +123,7 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         switch(condition=as_bool(condition), cases=cases)
 
 
-def merge(*tasks: Task, flow=None) -> Task:
+def merge(*tasks: Task, flow=None, mapped: bool = False) -> Task:
     """
     Merges conditional branches back together.
 
@@ -147,11 +151,15 @@ def merge(*tasks: Task, flow=None) -> Task:
             one of them will contain a result and the others will all be skipped.
         - flow (Flow, optional): The flow to use, defaults to the current flow
             in context if no flow is specified
+        - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
 
     Returns:
         - Task: a Task representing the merged result.
 
     """
     return Merge().bind(
-        **{"task_{}".format(i + 1): t for i, t in enumerate(tasks)}, flow=flow
+        **{"task_{}".format(i + 1): t for i, t in enumerate(tasks)},
+        flow=flow,
+        mapped=mapped
     )
