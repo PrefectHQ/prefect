@@ -305,7 +305,7 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
-        with prefect.context(context):
+        with prefect.context(context or {}):
             end_state = super().run(
                 state=state,
                 upstream_states=upstream_states,
