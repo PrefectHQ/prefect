@@ -18,6 +18,8 @@ class case(object):
     Args:
         - task (Task): The task to use in the comparison
         - value (Any): A constant the result of ``task`` will be compared with
+        - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
 
     Example:
 
