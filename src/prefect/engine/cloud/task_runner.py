@@ -305,26 +305,40 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
-        end_state = super().run(
-            state=state,
-            upstream_states=upstream_states,
-            context=context,
-            is_mapped_parent=is_mapped_parent,
-        )
-        while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
-        ):
-            assert isinstance(end_state, (Retrying, Queued))
-            naptime = max(
-                (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
-            )
-            time.sleep(naptime)
-
+        with prefect.context(context):
             end_state = super().run(
-                state=end_state,
+                state=state,
                 upstream_states=upstream_states,
                 context=context,
                 is_mapped_parent=is_mapped_parent,
             )
+            while (end_state.is_retrying() or end_state.is_queued()) and (
+                end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
+            ):
+                assert isinstance(end_state, (Retrying, Queued))
+                naptime = max(
+                    (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
+                )
+                time.sleep(naptime)
 
-        return end_state
+                # mapped children will retrieve their latest info inside
+                # initialize_run(), but we can load up-to-date versions
+                # for all other task runs here
+                if prefect.context.get("map_index") in [-1, None]:
+                    task_run_info = self.client.get_task_run_info(
+                        flow_run_id=prefect.context.get("flow_run_id"),
+                        task_id=prefect.context.get("task_id"),
+                        map_index=prefect.context.get("map_index"),
+                    )
+
+                    # if state was provided, keep it; otherwise use the one from db
+                    context.update(task_run_version=task_run_info.version)  # type: ignore
+
+                end_state = super().run(
+                    state=end_state,
+                    upstream_states=upstream_states,
+                    context=context,
+                    is_mapped_parent=is_mapped_parent,
+                )
+
+            return end_state
