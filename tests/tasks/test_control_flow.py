@@ -164,6 +164,63 @@ def test_merge_imperative_flow():
     assert state.result[c].result == 2
 
 
+def test_mapped_switch_and_merge():
+    with Flow("test") as flow:
+        producer = identity.copy().bind(["a", "b"])
+
+        cond = identity.copy().bind(producer, mapped=True)
+
+        a = identity.copy().bind("a")
+        a.set_upstream(producer, mapped=True)
+
+        b = identity.copy().bind("b")
+        b.set_upstream(producer, mapped=True)
+
+        c = identity.copy().bind("c")
+        c.set_upstream(producer, mapped=True)
+
+        switch(cond, cases=dict(a=a, b=b, c=c), mapped=True)
+
+        d = merge(a, b, mapped=True)
+
+        state = flow.run()
+
+        assert state.result[cond].result == ["a", "b"]
+        assert state.result[a].result == ["a", None]
+        assert state.result[b].result == [None, "b"]
+        assert state.result[c].result == [None, None]
+        assert state.result[d].result == ["a", "b"]
+
+
+def test_mapped_case_and_merge():
+    flow = Flow("test")
+
+    producer = identity.copy().bind(["a", "b"], flow=flow)
+
+    cond = identity.copy().bind(producer, flow=flow, mapped=True)
+    with case(cond, "a", mapped=True):
+        a = identity.copy().bind("a", flow=flow)
+        a.set_upstream(producer, flow=flow, mapped=True)
+
+    with case(cond, "b", mapped=True):
+        b = identity.copy().bind("b", flow=flow)
+        b.set_upstream(producer, flow=flow, mapped=True)
+
+    with case(cond, "c", mapped=True):
+        c = identity.copy().bind("c", flow=flow)
+        c.set_upstream(producer, flow=flow, mapped=True)
+
+    d = merge(a, b, flow=flow, mapped=True)
+
+    state = flow.run()
+
+    assert state.result[cond].result == ["a", "b"]
+    assert state.result[a].result == ["a", None]
+    assert state.result[b].result == [None, "b"]
+    assert state.result[c].result == [None, None]
+    assert state.result[d].result == ["a", "b"]
+
+
 def test_merging_with_objects_that_cant_be_equality_compared():
     class SpecialObject:
         def __eq__(self, other):
