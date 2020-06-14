@@ -691,4 +691,5 @@ def run_task(
             state=state,
             upstream_states=upstream_states,
             is_mapped_parent=is_mapped_parent,
+            context=context
         )
