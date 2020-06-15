@@ -82,14 +82,12 @@ class TaskRunner(Runner):
         self.context = prefect.context.to_dict()
         self.task = task
 
-        # if the result was provided off the parent Flow object
-        # we want to use the task's target as the target location
+        # Use result from task over the one provided off the parent Flow object
         if task.result:
             self.result = task.result
         else:
-            self.result = Result() if flow_result is None else flow_result
-            if self.task.target:
-                self.result.location = self.task.target
+            self.result = Result().copy() if flow_result is None else flow_result.copy()
+
         self.flow_result = flow_result
         super().__init__(state_handlers=state_handlers)
 
@@ -182,6 +180,14 @@ class TaskRunner(Runner):
             )
         else:
             context.update(logger=self.task.logger)
+
+        # If provided, use task's target as result location
+        if self.task.target:
+            if not isinstance(self.task.target, str):
+                self.result._formatter = self.task.target
+                self.result.location = None
+            else:
+                self.result.location = self.task.target
 
         return TaskRunnerInitializeResult(state=state, context=context)
 
@@ -666,8 +672,18 @@ class TaskRunner(Runner):
         target = self.task.target
 
         if result and target:
-            if result.exists(target, **prefect.context):
-                new_res = result.read(target.format(**prefect.context))
+            raw_inputs = {k: r.value for k, r in inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}).copy(),
+                **raw_inputs,
+                **prefect.context,
+            }
+
+            if not isinstance(target, str):
+                target = target(**formatting_kwargs)
+
+            if result.exists(target, **formatting_kwargs):
+                new_res = result.read(target.format(**formatting_kwargs))
                 cached_state = Cached(
                     result=new_res,
                     hashed_inputs={
@@ -675,7 +691,7 @@ class TaskRunner(Runner):
                     },
                     cached_inputs=inputs,
                     cached_result_expiration=None,
-                    cached_parameters=prefect.context.get("parameters"),
+                    cached_parameters=formatting_kwargs.get("parameters"),
                     message=f"Result found at task target {target}",
                 )
                 return cached_state
