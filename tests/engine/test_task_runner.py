@@ -1550,10 +1550,10 @@ class TestTargetExistsStep:
             assert new_state_2.is_cached()
             assert new_state_2._result.location == "testtask"
 
-    def test_target_respects_callable_with_multiple_flow_runs(self, tmp_dir):
+    def test_target_respects_multiple_flow_runs(self, tmp_dir):
         with set_temporary_config({"flows.checkpointing": True}):
 
-            @prefect.task(target=lambda **kwargs: "{task_name}")
+            @prefect.task(target="{task_name}")
             def my_task():
                 return "data"
 
@@ -1577,6 +1577,24 @@ class TestTargetExistsStep:
 
             with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
                 t = my_task()
+
+            state = flow.run()
+            assert state.is_successful()
+            assert state.result[t].is_successful()
+
+            state2 = flow.run()
+            assert state2.is_successful()
+            assert state2.result[t].is_cached()
+
+    def test_target_with_callable_uses_task_inputs(self, tmp_dir):
+        with set_temporary_config({"flows.checkpointing": True}):
+
+            @prefect.task(target=lambda **kwargs: str(kwargs["x"]))
+            def my_task(x):
+                return x
+
+            with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
+                t = my_task("test_input")
 
             state = flow.run()
             assert state.is_successful()

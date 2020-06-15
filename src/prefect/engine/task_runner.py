@@ -184,7 +184,8 @@ class TaskRunner(Runner):
         # If provided, use task's target as result location
         if self.task.target:
             if not isinstance(self.task.target, str):
-                self.result.location = self.task.target(**context)
+                self.result._formatter = self.task.target
+                self.result.location = None
             else:
                 self.result.location = self.task.target
 
@@ -672,7 +673,14 @@ class TaskRunner(Runner):
 
         if result and target:
             if not isinstance(target, str):
-                target = target(**prefect.context)
+                # Pass all necessary kwargs to target callable
+                raw_inputs = {k: r.value for k, r in inputs.items()}
+                formatting_kwargs = {
+                    **prefect.context.get("parameters", {}).copy(),
+                    **raw_inputs,
+                    **prefect.context,
+                }
+                target = target(**formatting_kwargs)
 
             if result.exists(target, **prefect.context):
                 new_res = result.read(target.format(**prefect.context))
