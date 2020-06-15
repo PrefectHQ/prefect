@@ -305,7 +305,7 @@ class DaskKubernetesEnvironment(Environment):
             query = {
                 "query": {
                     with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                        "flow": {"storage": True,},
+                        "flow": {"name": True, "storage": True,},
                     }
                 }
             }
