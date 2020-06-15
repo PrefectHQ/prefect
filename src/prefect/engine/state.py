@@ -59,7 +59,10 @@ class State:
             self.context.setdefault("tags", list(prefect.context.task_tags))
 
     def __repr__(self) -> str:
-        return '<{}: "{}">'.format(type(self).__name__, self.message)
+        if self.message is not None:
+            return f'<{type(self).__name__}: "{self.message}">'
+        else:
+            return f"<{type(self).__name__}>"
 
     def __eq__(self, other: object) -> bool:
         """

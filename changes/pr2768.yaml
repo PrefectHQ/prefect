@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `validate_configuration` utility to Fargate Agent for verifying it can manage tasks properly - [#2768](https://github.com/PrefectHQ/prefect/pull/2768)"

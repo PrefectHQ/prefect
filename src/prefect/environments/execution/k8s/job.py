@@ -175,7 +175,9 @@ class KubernetesJobEnvironment(Environment):
                 ## populate global secrets
                 secrets = prefect.context.get("secrets", {})
                 for secret in flow.storage.secrets:
-                    secrets[secret.name] = secret.run()
+                    secrets[secret] = prefect.tasks.secrets.PrefectSecret(
+                        name=secret
+                    ).run()
 
                 with prefect.context(secrets=secrets):
                     runner_cls = get_default_flow_runner_class()
