@@ -74,7 +74,7 @@ def cloud_flow():
 
             environment.setup(storage=storage)
             environment.execute(
-                flow_run=flow_run, flow_location=storage.flows[flow_data.name]
+                flow_run=flow_run[0], flow_location=storage.flows[flow_data.name]
             )
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
