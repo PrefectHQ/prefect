@@ -192,6 +192,34 @@ def test_mapped_switch_and_merge():
         assert state.result[d].result == ["a", "b"]
 
 
+def test_mapped_ifelse_and_merge():
+    with Flow("test") as flow:
+        producer = identity.copy().bind(["a", "b"])
+
+        @prefect.task
+        def identity_equals(x):
+            return x == "a"
+
+        cond = identity_equals.copy().bind(producer, mapped=True)
+
+        a = identity.copy().bind("a")
+        a.set_upstream(producer, mapped=True)
+
+        b = identity.copy().bind("b")
+        b.set_upstream(producer, mapped=True)
+
+        ifelse(cond, true_task=a, false_task=b, mapped=True)
+
+        c = merge(a, b, mapped=True)
+
+        state = flow.run()
+
+        assert state.result[cond].result == [True, False]
+        assert state.result[a].result == ["a", None]
+        assert state.result[b].result == [None, "b"]
+        assert state.result[c].result == ["a", "b"]
+
+
 def test_mapped_case_and_merge():
     flow = Flow("test")
 

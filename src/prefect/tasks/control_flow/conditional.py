@@ -100,7 +100,9 @@ def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = False) -> Non
             task.set_dependencies(upstream_tasks=[match_condition], mapped=mapped)
 
 
-def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
+def ifelse(
+    condition: Task, true_task: Task, false_task: Task, mapped: bool = False
+) -> None:
     """
     Builds a conditional branch into a workflow.
 
@@ -112,6 +114,8 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         - condition (Task): a task whose boolean result forms the condition for the ifelse
         - true_task (Task): a task that will be executed if the condition is True
         - false_task (Task): a task that will be executed if the condition is False
+        - mapped (bool, optional): Whether the results of these tasks should be mapped over
+                with the specified keyword arguments; defaults to `False`.
     """
 
     @prefect.task
@@ -120,7 +124,8 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
 
     cases = {c: t for c, t in [(True, true_task), (False, false_task)] if t is not None}
     if cases:
-        switch(condition=as_bool(condition), cases=cases)
+        bool_condition = as_bool.copy().bind(condition, mapped=mapped)
+        switch(condition=bool_condition, cases=cases, mapped=mapped)
 
 
 def merge(*tasks: Task, flow=None, mapped: bool = False) -> Task:
