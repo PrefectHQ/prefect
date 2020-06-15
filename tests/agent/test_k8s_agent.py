@@ -156,6 +156,8 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
     monkeypatch.setenv("JOB_MEM_LIMIT", "ml")
     monkeypatch.setenv("JOB_CPU_REQUEST", "cr")
     monkeypatch.setenv("JOB_CPU_LIMIT", "cl")
+    monkeypatch.setenv("IMAGE_PULL_POLICY", "custom_policy")
+    monkeypatch.setenv("SERVICE_ACCOUNT_NAME", "svc_name")
 
     flow_run = GraphQLResult(
         {
@@ -204,6 +206,12 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         ]
         assert env[-1] in user_vars
         assert env[-2] in user_vars
+
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == "custom_policy"
+        )
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] == "svc_name"
 
 
 def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
@@ -267,6 +275,12 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         assert resources["limits"]["memory"] == "ml"
         assert resources["requests"]["cpu"] == "cr"
         assert resources["limits"]["cpu"] == "cl"
+
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == "IfNotPresent"
+        )
+        assert job["spec"]["template"]["spec"].get("serviceAccountName", None) is None
 
 
 @pytest.mark.parametrize("flag", [True, False])
@@ -371,7 +385,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
-    assert agent_env[9]["value"] == "backend-test"
+    assert agent_env[11]["value"] == "backend-test"
 
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"
@@ -391,10 +405,10 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[11]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
-    assert agent_env[11]["value"] == "test2"
-    assert agent_env[12]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
-    assert agent_env[12]["value"] == "test4"
+    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
+    assert agent_env[13]["value"] == "test2"
+    assert agent_env[14]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
+    assert agent_env[14]["value"] == "test4"
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
@@ -408,7 +422,7 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[9]["value"] == "server"
+    assert agent_env[11]["value"] == "server"
 
 
 @pytest.mark.parametrize(
@@ -569,6 +583,8 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(
         mem_limit="ml",
         cpu_request="cr",
         cpu_limit="cl",
+        image_pull_policy="custom_policy",
+        service_account_name="svc",
     )
 
     deployment = yaml.safe_load(deployment)
@@ -579,6 +595,8 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(
     assert env[6]["value"] == "ml"
     assert env[7]["value"] == "cr"
     assert env[8]["value"] == "cl"
+    assert env[9]["value"] == "custom_policy"
+    assert env[10]["value"] == "svc"
 
 
 def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):
