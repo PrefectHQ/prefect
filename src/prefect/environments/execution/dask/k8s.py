@@ -162,7 +162,7 @@ class DaskKubernetesEnvironment(Environment):
                 )
 
     def execute(  # type: ignore
-        self, storage: "Docker", flow_location: str, **kwargs: Any
+        self, flow_run, flow_location: str, **kwargs: Any
     ) -> None:
         """
         Create a single Kubernetes job that spins up a dask scheduler, dynamically
@@ -177,10 +177,9 @@ class DaskKubernetesEnvironment(Environment):
         Raises:
             - TypeError: if the storage is not `Docker`
         """
-        if not isinstance(storage, Docker):
-            raise TypeError("CloudEnvironment requires a Docker storage option")
+        from prefect.utilities.agent import get_flow_image
 
-        self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
+        self.create_flow_run_job(docker_name=get_flow_image(flow_run), flow_file_path=flow_location)
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
