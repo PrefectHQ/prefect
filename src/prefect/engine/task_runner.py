@@ -672,18 +672,18 @@ class TaskRunner(Runner):
         target = self.task.target
 
         if result and target:
+            raw_inputs = {k: r.value for k, r in inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}).copy(),
+                **raw_inputs,
+                **prefect.context,
+            }
+
             if not isinstance(target, str):
-                # Pass all necessary kwargs to target callable
-                raw_inputs = {k: r.value for k, r in inputs.items()}
-                formatting_kwargs = {
-                    **prefect.context.get("parameters", {}).copy(),
-                    **raw_inputs,
-                    **prefect.context,
-                }
                 target = target(**formatting_kwargs)
 
-            if result.exists(target, **prefect.context):
-                new_res = result.read(target.format(**prefect.context))
+            if result.exists(target, **formatting_kwargs):
+                new_res = result.read(target.format(**formatting_kwargs))
                 cached_state = Cached(
                     result=new_res,
                     hashed_inputs={
@@ -691,7 +691,7 @@ class TaskRunner(Runner):
                     },
                     cached_inputs=inputs,
                     cached_result_expiration=None,
-                    cached_parameters=prefect.context.get("parameters"),
+                    cached_parameters=formatting_kwargs.get("parameters"),
                     message=f"Result found at task target {target}",
                 )
                 return cached_state
