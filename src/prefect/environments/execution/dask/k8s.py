@@ -9,9 +9,10 @@ import cloudpickle
 import yaml
 
 import prefect
-from prefect.client import Secret
+from prefect.client import Client, Secret
 from prefect.environments.execution import Environment
 from prefect.environments.storage import Docker
+from prefect.utilities.graphql import with_args
 
 
 class DaskKubernetesEnvironment(Environment):
@@ -179,7 +180,9 @@ class DaskKubernetesEnvironment(Environment):
         """
         from prefect.utilities.agent import get_flow_image
 
-        self.create_flow_run_job(docker_name=get_flow_image(flow_run), flow_file_path=flow_location)
+        self.create_flow_run_job(
+            docker_name=get_flow_image(flow_run), flow_file_path=flow_location
+        )
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
@@ -297,26 +300,36 @@ class DaskKubernetesEnvironment(Environment):
             )
             cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
+            flow_run_id = prefect.context.get("flow_run_id")
 
-                ## populate global secrets
-                secrets = prefect.context.get("secrets", {})
-                for secret in flow.storage.secrets:
-                    secrets[secret] = prefect.tasks.secrets.PrefectSecret(
-                        name=secret
-                    ).run()
+            query = {
+                "query": {
+                    with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
+                        "flow": {"storage": True,},
+                    }
+                }
+            }
 
-                with prefect.context(secrets=secrets):
-                    executor = DaskExecutor(address=cluster.scheduler_address)
-                    runner_cls = get_default_flow_runner_class()
-                    runner_cls(flow=flow).run(executor=executor)
+            client = Client()
+            result = client.graphql(query)
+            flow_run = result.data.flow_run[0]
+
+            flow_data = flow_run.flow
+            storage_schema = prefect.serialization.storage.StorageSchema()
+            storage = storage_schema.load(flow_data.storage)
+
+            ## populate global secrets
+            secrets = prefect.context.get("secrets", {})
+            for secret in storage.secrets:
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(
+                    name=secret
+                ).run()
+
+            with prefect.context(secrets=secrets):
+                flow = storage.get_flow(storage.flows[flow_data.name])
+                executor = DaskExecutor(address=cluster.scheduler_address)
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
