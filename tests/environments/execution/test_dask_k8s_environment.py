@@ -145,23 +145,6 @@ def test_create_secret_isnt_called_if_exists(monkeypatch):
 
 def test_execute(monkeypatch):
     environment = DaskKubernetesEnvironment()
-    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
-
-    create_flow_run = MagicMock()
-    monkeypatch.setattr(
-        "prefect.environments.DaskKubernetesEnvironment.create_flow_run_job",
-        create_flow_run,
-    )
-
-    flow = base_flow
-    flow.storage = storage
-    environment.execute(flow=flow)
-
-    assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
-
-
-def test_create_flow_run_job(monkeypatch):
-    environment = DaskKubernetesEnvironment()
 
     config = MagicMock()
     monkeypatch.setattr("kubernetes.config", config)
@@ -171,20 +154,29 @@ def test_create_flow_run_job(monkeypatch):
         "kubernetes.client", MagicMock(BatchV1Api=MagicMock(return_value=batchv1))
     )
 
+    environment = DaskKubernetesEnvironment()
+    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
+
+    flow = base_flow
+    flow.storage = storage
     with set_temporary_config({"cloud.auth_token": "test"}):
-        environment.create_flow_run_job(docker_name="test1/test2:test3",)
+        environment.execute(flow=flow)
 
     assert (
         batchv1.create_namespaced_job.call_args[1]["body"]["apiVersion"] == "batch/v1"
     )
 
 
-def test_create_flow_run_job_fails_outside_cluster():
+def test_create_namespaced_job_fails_outside_cluster():
     environment = DaskKubernetesEnvironment()
+    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
     with pytest.raises(EnvironmentError):
         with set_temporary_config({"cloud.auth_token": "test"}):
-            environment.create_flow_run_job(docker_name="test1/test2:test3",)
+            flow = base_flow
+            flow.storage = storage
+            with set_temporary_config({"cloud.auth_token": "test"}):
+                environment.execute(flow=flow)
 
 
 def test_run_flow(monkeypatch):

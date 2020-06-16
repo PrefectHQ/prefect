@@ -173,8 +173,41 @@ class DaskKubernetesEnvironment(Environment):
         Args:
             - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
+
+        Raises:
+            - Exception: if the environment is unable to create the Kubernetes job
         """
-        self.create_flow_run_job(docker_name=get_flow_image(flow))
+        docker_name = get_flow_image(flow)
+
+        from kubernetes import client, config
+
+        # Verify environment is running in cluster
+        try:
+            config.load_incluster_config()
+        except config.config_exception.ConfigException:
+            self.logger.error("Environment not currently running inside a cluster")
+            raise EnvironmentError("Environment not currently inside a cluster")
+
+        batch_client = client.BatchV1Api()
+
+        if self._scheduler_spec:
+            job = self._scheduler_spec
+            job = self._populate_scheduler_spec_yaml(
+                yaml_obj=job, docker_name=docker_name
+            )
+        else:
+            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
+                job = yaml.safe_load(job_file)
+                job = self._populate_job_yaml(yaml_obj=job, docker_name=docker_name)
+
+        # Create Job
+        try:
+            batch_client.create_namespaced_job(
+                namespace=prefect.context.get("namespace"), body=job
+            )
+        except Exception as exc:
+            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+            raise exc
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
@@ -220,43 +253,6 @@ class DaskKubernetesEnvironment(Environment):
                     exc
                 )
             )
-            raise exc
-
-    def create_flow_run_job(self, docker_name: str) -> None:
-        """
-        Creates a Kubernetes job to run the flow.
-
-        Args:
-            - docker_name (str): the full name of the docker image (registry/name:tag)
-        """
-        from kubernetes import client, config
-
-        # Verify environment is running in cluster
-        try:
-            config.load_incluster_config()
-        except config.config_exception.ConfigException:
-            self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
-
-        batch_client = client.BatchV1Api()
-
-        if self._scheduler_spec:
-            job = self._scheduler_spec
-            job = self._populate_scheduler_spec_yaml(
-                yaml_obj=job, docker_name=docker_name
-            )
-        else:
-            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
-                job = yaml.safe_load(job_file)
-                job = self._populate_job_yaml(yaml_obj=job, docker_name=docker_name)
-
-        # Create Job
-        try:
-            batch_client.create_namespaced_job(
-                namespace=prefect.context.get("namespace"), body=job
-            )
-        except Exception as exc:
-            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
             raise exc
 
     def run_flow(self) -> None:

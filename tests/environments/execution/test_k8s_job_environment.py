@@ -139,28 +139,6 @@ def test_execute_storage_missing_fields():
 
 
 def test_execute(monkeypatch):
-    with tempfile.TemporaryDirectory() as directory:
-
-        with open(os.path.join(directory, "job.yaml"), "w+") as file:
-            file.write("job")
-
-        environment = KubernetesJobEnvironment(
-            job_spec_file=os.path.join(directory, "job.yaml")
-        )
-        storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
-
-        create_flow_run = MagicMock()
-        monkeypatch.setattr(
-            "prefect.environments.KubernetesJobEnvironment.create_flow_run_job",
-            create_flow_run,
-        )
-
-        environment.execute(Flow("test", storage=storage))
-
-        assert create_flow_run.call_args[1]["docker_name"] == "test1/test2:test3"
-
-
-def test_create_flow_run_job(monkeypatch):
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
     environment = KubernetesJobEnvironment(path.join(file_path, "job.yaml"))
 
@@ -172,15 +150,17 @@ def test_create_flow_run_job(monkeypatch):
         "kubernetes.client", MagicMock(BatchV1Api=MagicMock(return_value=batchv1))
     )
 
+    storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
+
     with set_temporary_config({"cloud.auth_token": "test"}):
-        environment.create_flow_run_job(docker_name="test1/test2:test3")
+        environment.execute(Flow("test", storage=storage))
 
     assert (
         batchv1.create_namespaced_job.call_args[1]["body"]["apiVersion"] == "batch/v1"
     )
 
 
-def test_create_flow_run_job_fails_outside_cluster():
+def test_create_namespaced_job_fails_outside_cluster():
     with tempfile.TemporaryDirectory() as directory:
 
         with open(os.path.join(directory, "job.yaml"), "w+") as file:
@@ -189,10 +169,11 @@ def test_create_flow_run_job_fails_outside_cluster():
         environment = KubernetesJobEnvironment(
             job_spec_file=os.path.join(directory, "job.yaml")
         )
+        storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
 
         with pytest.raises(EnvironmentError):
             with set_temporary_config({"cloud.auth_token": "test"}):
-                environment.create_flow_run_job(docker_name="test1/test2:test3")
+                environment.execute(Flow("test", storage=storage))
 
 
 def test_run_flow(monkeypatch):

@@ -104,16 +104,12 @@ class KubernetesJobEnvironment(Environment):
         Args:
             - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
-        """
-        self.create_flow_run_job(docker_name=get_flow_image(flow),)
 
-    def create_flow_run_job(self, docker_name: str) -> None:
+        Raises:
+            - Exception: if the environment is unable to create the Kubernetes job
         """
-        Creates a Kubernetes job to run the flow.
+        docker_name = get_flow_image(flow)
 
-        Args:
-            - docker_name (str): the full name of the docker image (registry/name:tag)
-        """
         from kubernetes import client, config
 
         # Verify environment is running in cluster
