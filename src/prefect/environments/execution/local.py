@@ -45,11 +45,11 @@ class LocalEnvironment(Environment):
         try:
             from prefect.engine import get_default_flow_runner_class
 
-            flow = flow.storage.get_flow(flow.name)
+            flow_obj = flow.storage.get_flow(flow.name)  # type: ignore
             runner_cls = get_default_flow_runner_class()
-            runner_cls(flow=flow).run(**kwargs)
+            runner_cls(flow=flow_obj).run(**kwargs)
         except NotImplementedError:
-            env_runner = storage.get_env_runner(flow_location)
+            env_runner = flow.storage.get_env_runner(flow.storage.flows[flow.name])  # type: ignore
             current_env = os.environ.copy()
             current_env.update(env)
             env_runner(env=current_env)

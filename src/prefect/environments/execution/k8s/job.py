@@ -13,6 +13,7 @@ from prefect.utilities.storage import get_flow_image
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
+
 class KubernetesJobEnvironment(Environment):
     """
     KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes
@@ -125,8 +126,7 @@ class KubernetesJobEnvironment(Environment):
         batch_client = client.BatchV1Api()
 
         job = self._populate_job_spec_yaml(
-            yaml_obj=self._job_spec,
-            docker_name=docker_name,
+            yaml_obj=self._job_spec, docker_name=docker_name,
         )
 
         # Create Job
@@ -195,9 +195,7 @@ class KubernetesJobEnvironment(Environment):
     # Custom YAML Spec Manipulation
     ###############################
 
-    def _populate_job_spec_yaml(
-        self, yaml_obj: dict, docker_name: str,
-    ) -> dict:
+    def _populate_job_spec_yaml(self, yaml_obj: dict, docker_name: str,) -> dict:
         """
         Populate the custom execution job yaml object used in this environment with the proper values
 
