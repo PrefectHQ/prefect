@@ -81,8 +81,8 @@ def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = False) -> Non
         - cases (Dict[Any, Task]): a dict representing the "case" statements of the switch.
             The value of the `condition` task will be compared to the keys of this dict, and
             the matching task will be executed.
-        - mapped (bool, optional): Whether the results of these tasks should be mapped over
-                with the specified keyword arguments; defaults to `False`.
+        - mapped (bool, optional): If true, the `merge` operation will be mapped over the
+            arguments instead of applied directly. Defaults to `False`.
 
     Raises:
         - PrefectWarning: if any of the tasks in "cases" have upstream dependencies,
@@ -114,8 +114,8 @@ def ifelse(
         - condition (Task): a task whose boolean result forms the condition for the ifelse
         - true_task (Task): a task that will be executed if the condition is True
         - false_task (Task): a task that will be executed if the condition is False
-        - mapped (bool, optional): Whether the results of these tasks should be mapped over
-                with the specified keyword arguments; defaults to `False`.
+        - mapped (bool, optional): If true, the `merge` operation will be mapped over the
+            arguments instead of applied directly. Defaults to `False`.
     """
 
     @prefect.task
