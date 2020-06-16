@@ -1,2 +1,3 @@
 breaking:
-  - "Environment `setup` and `execute` function signatures now accept Flow objects - [#2796](https://github.com/PrefectHQ/prefect/pull/2796"
+  - "Environment `setup` and `execute` function signatures now accept Flow objects - [#2796](https://github.com/PrefectHQ/prefect/pull/2796)"
+  - "`create_flow_run_job` logic has been moved into `execute` for `DaskKubernetesEnvironment` and `KubernetesJobEnvironment` - [#2796](https://github.com/PrefectHQ/prefect/pull/2796)"
