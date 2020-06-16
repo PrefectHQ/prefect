@@ -1,0 +1,2 @@
+breaking:
+  - "Environment `setup` and `execute` function signatures now accept Flow objects - [#2796](https://github.com/PrefectHQ/prefect/pull/2796"
