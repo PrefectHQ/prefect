@@ -18,8 +18,6 @@ class case(object):
     Args:
         - task (Task): The task to use in the comparison
         - value (Any): A constant the result of ``task`` will be compared with
-        - mapped (bool, optional): Whether the results of these tasks should be mapped over
-                with the specified keyword arguments; defaults to `False`.
 
     Example:
 
@@ -56,13 +54,12 @@ class case(object):
     ```
     """
 
-    def __init__(self, task: Task, value: Any, mapped: bool = False):
+    def __init__(self, task: Task, value: Any):
         if isinstance(value, Task):
             raise TypeError("`value` cannot be a task")
 
         self.task = task
         self.value = value
-        self.mapped = mapped
         self._tasks = set()
         self._flow = None
 
@@ -93,11 +90,11 @@ class case(object):
 
         if self._tasks:
             cond = CompareValue(self.value, name=f"case({self.value})",).bind(
-                value=self.task, flow=self._flow, mapped=self.mapped
+                value=self.task, flow=self._flow
             )
 
             for child in self._tasks:
                 # If a task has no upstream tasks created in this case block,
                 # the case conditional should be set as an upstream task.
                 if not self._tasks.intersection(self._flow.upstream_tasks(child)):
-                    child.set_upstream(cond, flow=self._flow, mapped=self.mapped)
+                    child.set_upstream(cond, flow=self._flow)
