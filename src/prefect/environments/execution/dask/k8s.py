@@ -5,14 +5,13 @@ from os import path
 from typing import Any, Callable, List
 import warnings
 
-import cloudpickle
 import yaml
 
 import prefect
 from prefect.client import Client, Secret
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
 from prefect.utilities.graphql import with_args
+from prefect.utilities.storage import get_flow_image
 
 
 class DaskKubernetesEnvironment(Environment):
@@ -178,8 +177,6 @@ class DaskKubernetesEnvironment(Environment):
         Raises:
             - TypeError: if the storage is not `Docker`
         """
-        from prefect.utilities.agent import get_flow_image
-
         self.create_flow_run_job(
             docker_name=get_flow_image(flow_run), flow_file_path=flow_location
         )
@@ -321,9 +318,7 @@ class DaskKubernetesEnvironment(Environment):
             ## populate global secrets
             secrets = prefect.context.get("secrets", {})
             for secret in storage.secrets:
-                secrets[secret] = prefect.tasks.secrets.PrefectSecret(
-                    name=secret
-                ).run()
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
 
             with prefect.context(secrets=secrets):
                 flow = storage.get_flow(storage.flows[flow_data.name])

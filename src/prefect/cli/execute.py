@@ -72,10 +72,12 @@ def cloud_flow():
             flow = storage.get_flow(storage.flows[flow_data.name])
             environment = flow.environment
 
-            environment.setup(storage=storage)
-            environment.execute(
-                flow_run=flow_run[0], flow_location=storage.flows[flow_data.name]
-            )
+            environment.setup(flow)
+            environment.execute(flow)
+            # environment.setup(flow=storage)
+            # environment.execute(
+            #     flow_run=flow_run[0], flow_location=storage.flows[flow_data.name]
+            # )
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)

@@ -1,9 +1,11 @@
-from typing import Any, Callable, List
+from typing import Any, Callable, List, TYPE_CHECKING
 
 from prefect import config
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Storage
 from prefect.utilities.configuration import set_temporary_config
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class RemoteEnvironment(Environment):
@@ -55,7 +57,7 @@ class RemoteEnvironment(Environment):
         return []
 
     def execute(  # type: ignore
-        self, storage: "Storage", flow_location: str, **kwargs: Any
+        self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
         Run a flow from the `flow_location` here using the specified executor and
@@ -78,8 +80,7 @@ class RemoteEnvironment(Environment):
                 get_default_flow_runner_class,
             )
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            flow = storage.get_flow(flow_location)
+            # Run flow with default executor class
             with set_temporary_config({"engine.executor.default_class": self.executor}):
                 executor = get_default_executor_class()
 

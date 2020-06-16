@@ -13,11 +13,13 @@ are accompanied with a Storage objects to specify how and where the flow is stor
 the `DaskKubernetesEnvironment` requires the flow to be stored in a `Docker` storage object.
 """
 
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 import prefect
-from prefect.environments.storage import Storage
 from prefect.utilities import logging
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class Environment:
@@ -59,7 +61,7 @@ class Environment:
     def dependencies(self) -> list:
         return []
 
-    def setup(self, storage: "Storage") -> None:
+    def setup(self, flow: "Flow") -> None:
         """
         Sets up any infrastructure needed for this environment
 
@@ -67,7 +69,7 @@ class Environment:
             - storage (Storage): the Storage object that contains the flow
         """
 
-    def execute(self, storage: "Storage", flow_location: str, **kwargs: Any) -> None:
+    def execute(self, flow: "Flow", **kwargs: Any) -> None:
         """
         Executes the flow for this environment from the storage parameter
 
