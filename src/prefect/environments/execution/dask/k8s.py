@@ -258,11 +258,7 @@ class DaskKubernetesEnvironment(Environment):
     def run_flow(self) -> None:
         """
         Run the flow using a Dask executor
-
-        Raises:
-            - ValueError: if no `flow_run_id` is found in context
         """
-
         # Call on_start callback if specified
         if self.on_start:
             self.on_start()
