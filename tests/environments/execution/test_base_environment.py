@@ -1,6 +1,8 @@
 import tempfile
 from unittest.mock import MagicMock
 
+import pytest
+
 import prefect
 from prefect import Flow
 from prefect.environments import Environment
@@ -108,3 +110,15 @@ def test_run_flow(monkeypatch):
 
         assert flow_runner.call_args[1]["flow"].name == "name"
         assert executor.call_args == None
+
+
+def test_run_flow_no_flow_run_id_in_context(monkeypatch):
+    environment = Environment()
+
+    with tempfile.TemporaryDirectory() as directory:
+        d = Local(directory)
+        d.add_flow(Flow("name"))
+
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            with pytest.raises(ValueError):
+                environment.run_flow()
