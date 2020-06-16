@@ -6,11 +6,6 @@ Different Environment objects correspond to different computation environments. 
 that are written on top of a type of infrastructure also define how to set up and execute
 that environment. e.g. the `DaskKubernetesEnvironment` is an environment which
 runs a flow on Kubernetes using the `dask-kubernetes` library.
-
-Some of the information that the environment requires to run a flow -- such as the flow
-itself -- may not available when the Environment class is instantiated. Therefore, Environments
-are accompanied with a Storage objects to specify how and where the flow is stored. For example,
-the `DaskKubernetesEnvironment` requires the flow to be stored in a `Docker` storage object.
 """
 
 from typing import Any, Callable, Iterable, TYPE_CHECKING
@@ -30,8 +25,7 @@ class Environment:
     call `environment.setup()` to stand up any required static infrastructure and
     `environment.execute()` to execute the flow inside this environment.
 
-    The `setup` and `execute` functions of an environment require a Prefect Storage object which
-    specifies how and where the flow is stored.
+    The `setup` and `execute` functions of an environment require a Prefect Flow object.
 
     Args:
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
@@ -66,7 +60,7 @@ class Environment:
         Sets up any infrastructure needed for this environment
 
         Args:
-            - storage (Storage): the Storage object that contains the flow
+            - flow (Flow): the Flow object
         """
 
     def execute(self, flow: "Flow", **kwargs: Any) -> None:
@@ -74,8 +68,7 @@ class Environment:
         Executes the flow for this environment from the storage parameter
 
         Args:
-            - storage (Storage): the Storage object that contains the flow
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
 

@@ -60,13 +60,10 @@ class RemoteEnvironment(Environment):
         self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
-        Run a flow from the `flow_location` here using the specified executor and
-        executor kwargs.
+        Run the provided flow here using the specified executor and executor kwargs.
 
         Args:
-            - storage (Storage): the storage object that contains information relating
-                to where and how the flow is stored
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
 
