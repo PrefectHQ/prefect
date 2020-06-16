@@ -455,9 +455,7 @@ def test_run_flow(monkeypatch):
         )
         client = MagicMock()
         client.return_value.graphql = gql_return
-        monkeypatch.setattr(
-            "prefect.environments.execution.fargate.fargate_task.Client", client
-        )
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.run_flow()
@@ -499,9 +497,7 @@ def test_run_flow_calls_callbacks(monkeypatch):
         )
         client = MagicMock()
         client.return_value.graphql = gql_return
-        monkeypatch.setattr(
-            "prefect.environments.execution.fargate.fargate_task.Client", client
-        )
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.run_flow()
@@ -639,9 +635,7 @@ def test_entire_environment_process_together(monkeypatch):
             )
             client = MagicMock()
             client.return_value.graphql = gql_return
-            monkeypatch.setattr(
-                "prefect.environments.execution.fargate.fargate_task.Client", client
-            )
+            monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
             with set_temporary_config({"cloud.auth_token": "test"}):
                 environment.run_flow()

@@ -214,7 +214,7 @@ def test_run_flow(monkeypatch):
         )
         client = MagicMock()
         client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.k8s.job.Client", client)
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.run_flow()
@@ -259,7 +259,7 @@ def test_run_flow_calls_callbacks(monkeypatch):
         )
         client = MagicMock()
         client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.k8s.job.Client", client)
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.run_flow()

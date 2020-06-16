@@ -1,6 +1,11 @@
+import tempfile
+from unittest.mock import MagicMock
+
 from prefect import Flow
 from prefect.environments import Environment
-from prefect.environments.storage import Docker
+from prefect.environments.storage import Docker, Local
+from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.graphql import GraphQLResult
 
 
 def test_create_environment():
@@ -56,3 +61,47 @@ def test_serialize_environment():
     environment = Environment()
     env = environment.serialize()
     assert env["type"] == "Environment"
+
+
+def test_run_flow(monkeypatch):
+    environment = Environment()
+
+    flow_runner = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_flow_runner_class",
+        MagicMock(return_value=flow_runner),
+    )
+
+    executor = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.get_default_executor_class", MagicMock(return_value=executor),
+    )
+
+    with tempfile.TemporaryDirectory() as directory:
+        d = Local(directory)
+        d.add_flow(Flow("name"))
+
+        gql_return = MagicMock(
+            return_value=MagicMock(
+                data=MagicMock(
+                    flow_run=[
+                        GraphQLResult(
+                            {
+                                "flow": GraphQLResult(
+                                    {"name": "name", "storage": d.serialize(),}
+                                )
+                            }
+                        )
+                    ],
+                )
+            )
+        )
+        client = MagicMock()
+        client.return_value.graphql = gql_return
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
+
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            environment.run_flow()
+
+        assert flow_runner.call_args[1]["flow"].name == "name"
+        assert executor.call_args == None

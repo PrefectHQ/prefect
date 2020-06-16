@@ -11,7 +11,9 @@ runs a flow on Kubernetes using the `dask-kubernetes` library.
 from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 import prefect
+from prefect.client import Client
 from prefect.utilities import logging
+from prefect.utilities.graphql import with_args
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -81,3 +83,59 @@ class Environment:
         """
         schema = prefect.serialization.environment.EnvironmentSchema()
         return schema.dump(self)
+
+    def run_flow(self) -> None:
+        """
+        Run the flow using the default executor
+        """
+
+        # Call on_start callback if specified
+        if self.on_start:
+            self.on_start()
+
+        try:
+            from prefect.engine import (
+                get_default_flow_runner_class,
+                get_default_executor_class,
+            )
+
+            flow_run_id = prefect.context.get("flow_run_id")
+
+            query = {
+                "query": {
+                    with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
+                        "flow": {"name": True, "storage": True,},
+                    }
+                }
+            }
+
+            client = Client()
+            result = client.graphql(query)
+            flow_run = result.data.flow_run[0]
+
+            flow_data = flow_run.flow
+            storage_schema = prefect.serialization.storage.StorageSchema()
+            storage = storage_schema.load(flow_data.storage)
+
+            ## populate global secrets
+            secrets = prefect.context.get("secrets", {})
+            for secret in storage.secrets:
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+
+            with prefect.context(secrets=secrets):
+                flow = storage.get_flow(storage.flows[flow_data.name])
+                runner_cls = get_default_flow_runner_class()
+                if hasattr(self, "executor_kwargs"):
+                    executor_cls = get_default_executor_class()(**self.executor_kwargs)  # type: ignore
+                else:
+                    executor_cls = get_default_executor_class()
+                runner_cls(flow=flow).run(executor=executor_cls)
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error raised during flow run: {}".format(exc)
+            )
+            raise exc
+        finally:
+            # Call on_exit callback if specified
+            if self.on_exit:
+                self.on_exit()

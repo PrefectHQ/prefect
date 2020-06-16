@@ -257,7 +257,7 @@ class DaskKubernetesEnvironment(Environment):
 
     def run_flow(self) -> None:
         """
-        Run the flow from specified flow_file_path location using a Dask executor
+        Run the flow using a Dask executor
         """
 
         # Call on_start callback if specified
