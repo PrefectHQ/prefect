@@ -164,7 +164,27 @@ def test_merge_imperative_flow():
     assert state.result[c].result == 2
 
 
-def test_mapped_switch_and_merge():
+def test_mapped_switch_and_merge_functional():
+    with Flow("iterated map") as flow:
+        mapped_result = identity.copy().map(["a", "b", "c"])
+
+        a = identity.copy().bind("a")
+        b = identity.copy().bind("b")
+        c = identity.copy().bind("c")
+
+        switch(condition=mapped_result, cases=dict(a=a, b=b, c=c), mapped=True)
+
+        merge_result = merge(a, b, c, flow=flow, mapped=True)
+
+    state = flow.run()
+
+    assert state.result[a].result == ["a", None, None]
+    assert state.result[b].result == [None, "b", None]
+    assert state.result[c].result == [None, None, "c"]
+    assert state.result[merge_result].result == ["a", "b", "c"]
+
+
+def test_mapped_switch_and_merge_imperative():
     with Flow("test") as flow:
         producer = identity.copy().bind(["a", "b"])
 
@@ -192,7 +212,32 @@ def test_mapped_switch_and_merge():
         assert state.result[d].result == ["a", "b"]
 
 
-def test_mapped_ifelse_and_merge():
+def test_mapped_ifelse_and_merge_functional():
+    @task
+    def is_even(x):
+        return x % 2 == 0
+
+    @task
+    def even():
+        return "even"
+
+    @task
+    def odd():
+        return "odd"
+
+    with Flow("iterated map") as flow:
+        mapped_result = is_even.map([1, 2, 3])
+
+        ifelse(condition=mapped_result, true_task=even, false_task=odd, mapped=True)
+
+        merge_result = merge(even, odd, flow=flow, mapped=True)
+
+    state = flow.run()
+
+    assert state.result[merge_result].result == ["odd", "even", "odd"]
+
+
+def test_mapped_ifelse_and_merge_imperative():
     with Flow("test") as flow:
         producer = identity.copy().bind(["a", "b"])
 
@@ -218,35 +263,6 @@ def test_mapped_ifelse_and_merge():
         assert state.result[a].result == ["a", None]
         assert state.result[b].result == [None, "b"]
         assert state.result[c].result == ["a", "b"]
-
-
-def test_mapped_case_and_merge():
-    flow = Flow("test")
-
-    producer = identity.copy().bind(["a", "b"], flow=flow)
-
-    cond = identity.copy().bind(producer, flow=flow, mapped=True)
-    with case(cond, "a", mapped=True):
-        a = identity.copy().bind("a", flow=flow)
-        a.set_upstream(producer, flow=flow, mapped=True)
-
-    with case(cond, "b", mapped=True):
-        b = identity.copy().bind("b", flow=flow)
-        b.set_upstream(producer, flow=flow, mapped=True)
-
-    with case(cond, "c", mapped=True):
-        c = identity.copy().bind("c", flow=flow)
-        c.set_upstream(producer, flow=flow, mapped=True)
-
-    d = merge(a, b, flow=flow, mapped=True)
-
-    state = flow.run()
-
-    assert state.result[cond].result == ["a", "b"]
-    assert state.result[a].result == ["a", None]
-    assert state.result[b].result == [None, "b"]
-    assert state.result[c].result == [None, None]
-    assert state.result[d].result == ["a", "b"]
 
 
 def test_merging_with_objects_that_cant_be_equality_compared():
