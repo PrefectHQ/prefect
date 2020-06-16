@@ -124,7 +124,7 @@ def ifelse(
 
     cases = {c: t for c, t in [(True, true_task), (False, false_task)] if t is not None}
     if cases:
-        bool_condition = as_bool.copy().bind(condition, mapped=mapped)
+        bool_condition = as_bool(condition, mapped=mapped)
         switch(condition=bool_condition, cases=cases, mapped=mapped)
 
 
@@ -156,8 +156,8 @@ def merge(*tasks: Task, flow=None, mapped: bool = False) -> Task:
             one of them will contain a result and the others will all be skipped.
         - flow (Flow, optional): The flow to use, defaults to the current flow
             in context if no flow is specified
-        - mapped (bool, optional): Whether the results of these tasks should be mapped over
-                with the specified keyword arguments; defaults to `False`.
+        - mapped (bool, optional): If true, the `merge` operation will be mapped over the
+            arguments instead of applied directly. Defaults to `False`.
 
     Returns:
         - Task: a Task representing the merged result.

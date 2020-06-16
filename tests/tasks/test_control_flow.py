@@ -164,17 +164,17 @@ def test_merge_imperative_flow():
     assert state.result[c].result == 2
 
 
-def test_mapped_switch_and_merge_functional():
+def test_mapped_switch_and_merge():
     with Flow("iterated map") as flow:
         mapped_result = identity.copy().map(["a", "b", "c"])
 
-        a = identity.copy().bind("a")
-        b = identity.copy().bind("b")
-        c = identity.copy().bind("c")
+        a = identity("a")
+        b = identity("b")
+        c = identity("c")
 
         switch(condition=mapped_result, cases=dict(a=a, b=b, c=c), mapped=True)
 
-        merge_result = merge(a, b, c, flow=flow, mapped=True)
+        merge_result = merge(a, b, c, mapped=True)
 
     state = flow.run()
 
@@ -184,35 +184,7 @@ def test_mapped_switch_and_merge_functional():
     assert state.result[merge_result].result == ["a", "b", "c"]
 
 
-def test_mapped_switch_and_merge_imperative():
-    with Flow("test") as flow:
-        producer = identity.copy().bind(["a", "b"])
-
-        cond = identity.copy().bind(producer, mapped=True)
-
-        a = identity.copy().bind("a")
-        a.set_upstream(producer, mapped=True)
-
-        b = identity.copy().bind("b")
-        b.set_upstream(producer, mapped=True)
-
-        c = identity.copy().bind("c")
-        c.set_upstream(producer, mapped=True)
-
-        switch(cond, cases=dict(a=a, b=b, c=c), mapped=True)
-
-        d = merge(a, b, mapped=True)
-
-        state = flow.run()
-
-        assert state.result[cond].result == ["a", "b"]
-        assert state.result[a].result == ["a", None]
-        assert state.result[b].result == [None, "b"]
-        assert state.result[c].result == [None, None]
-        assert state.result[d].result == ["a", "b"]
-
-
-def test_mapped_ifelse_and_merge_functional():
+def test_mapped_ifelse_and_merge():
     @task
     def is_even(x):
         return x % 2 == 0
@@ -235,34 +207,6 @@ def test_mapped_ifelse_and_merge_functional():
     state = flow.run()
 
     assert state.result[merge_result].result == ["odd", "even", "odd"]
-
-
-def test_mapped_ifelse_and_merge_imperative():
-    with Flow("test") as flow:
-        producer = identity.copy().bind(["a", "b"])
-
-        @prefect.task
-        def identity_equals(x):
-            return x == "a"
-
-        cond = identity_equals.copy().bind(producer, mapped=True)
-
-        a = identity.copy().bind("a")
-        a.set_upstream(producer, mapped=True)
-
-        b = identity.copy().bind("b")
-        b.set_upstream(producer, mapped=True)
-
-        ifelse(cond, true_task=a, false_task=b, mapped=True)
-
-        c = merge(a, b, mapped=True)
-
-        state = flow.run()
-
-        assert state.result[cond].result == [True, False]
-        assert state.result[a].result == ["a", None]
-        assert state.result[b].result == [None, "b"]
-        assert state.result[c].result == ["a", "b"]
 
 
 def test_merging_with_objects_that_cant_be_equality_compared():
