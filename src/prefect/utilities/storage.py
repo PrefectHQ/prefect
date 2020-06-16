@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-def get_flow_image(flow: "Flow") -> Optional[str]:
+def get_flow_image(flow: "Flow") -> str:
     """
     Retrieve the image to use for this flow deployment. Will start by looking for
     an `image` value in the flow's `environment.metadata`. If not found then it will fall
@@ -23,10 +23,8 @@ def get_flow_image(flow: "Flow") -> Optional[str]:
             present in environment metadata
     """
     environment = flow.environment
-    print(environment)
-    print(environment.metadata)
     if hasattr(environment, "metadata") and environment.metadata.get("image"):
-        return environment.metadata.get("image")
+        return environment.metadata.get("image", "")
     else:
         storage = flow.storage
         if not isinstance(storage, prefect.environments.storage.Docker,):

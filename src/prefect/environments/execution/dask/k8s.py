@@ -38,7 +38,6 @@ class DaskKubernetesEnvironment(Environment):
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
-    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
@@ -174,9 +173,6 @@ class DaskKubernetesEnvironment(Environment):
         Args:
             - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
-
-        Raises:
-            - TypeError: if the storage is not `Docker`
         """
         self.create_flow_run_job(docker_name=get_flow_image(flow))
 
