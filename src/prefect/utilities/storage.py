@@ -23,7 +23,9 @@ def get_flow_image(flow: "Flow") -> Optional[str]:
             present in environment metadata
     """
     environment = flow.environment
-    if hasattr(environment, "metadata") and hasattr(environment.metadata, "image"):
+    print(environment)
+    print(environment.metadata)
+    if hasattr(environment, "metadata") and environment.metadata.get("image"):
         return environment.metadata.get("image")
     else:
         storage = flow.storage
