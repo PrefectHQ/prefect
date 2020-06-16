@@ -69,31 +69,46 @@ class ResourceManager:
         """
         batch_client = self.k8s_client.BatchV1Api()
 
-        try:
-            jobs = batch_client.list_namespaced_job(
-                namespace=self.namespace, label_selector="prefect.io/identifier",
-            )
-        except self.k8s_client.rest.ApiException:
-            self.logger.exception(
-                "Error attempting to list jobs in namespace {}".format(self.namespace)
-            )
-            return
-
-        for job in jobs.items:
-            if job.status.succeeded or job.status.failed:
-
-                identifier = job.metadata.labels.get("prefect.io/identifier")
-                name = job.metadata.name
-
-                if job.status.failed:
-                    self.logger.info(
-                        "Found failed job {} in namespace {}".format(
-                            name, self.namespace
+        more = True
+        _continue = ""
+        while more:
+            try:
+                jobs = batch_client.list_namespaced_job(
+                    namespace=self.namespace,
+                    label_selector="prefect.io/identifier",
+                    limit=20,
+                    _continue=_continue,
+                )
+                _continue = jobs.metadata._continue
+                more = bool(_continue)
+            except self.k8s_client.rest.ApiException as exc:
+                if exc.status == 410:
+                    self.logger.debug("List jobs continue token expired, relisting")
+                    _continue = ""
+                    continue
+                else:
+                    self.logger.exception(
+                        "Error attempting to list jobs in namespace {}".format(
+                            self.namespace
                         )
                     )
-                    self.report_failed_job(identifier=identifier)
+                    return
 
-                self.delete_job(name=name)
+            for job in jobs.items:
+                if job.status.succeeded or job.status.failed:
+
+                    identifier = job.metadata.labels.get("prefect.io/identifier")
+                    name = job.metadata.name
+
+                    if job.status.failed:
+                        self.logger.info(
+                            "Found failed job {} in namespace {}".format(
+                                name, self.namespace
+                            )
+                        )
+                        self.report_failed_job(identifier=identifier)
+
+                    self.delete_job(name=name)
 
     def delete_job(self, name: str) -> None:
         """
@@ -106,7 +121,7 @@ class ResourceManager:
             batch_client.delete_namespaced_job(
                 name=name,
                 namespace=self.namespace,
-                body=self.k8s_client.V1DeleteOptions(),
+                body=self.k8s_client.V1DeleteOptions(propagation_policy="Foreground"),
             )
         except self.k8s_client.rest.ApiException:
             self.logger.exception(
