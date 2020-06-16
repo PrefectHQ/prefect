@@ -1,6 +1,7 @@
 import tempfile
 from unittest.mock import MagicMock
 
+import prefect
 from prefect import Flow
 from prefect.environments import Environment
 from prefect.environments.storage import Docker, Local
@@ -100,7 +101,9 @@ def test_run_flow(monkeypatch):
         client.return_value.graphql = gql_return
         monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
-        with set_temporary_config({"cloud.auth_token": "test"}):
+        with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
+            {"flow_run_id": "id"}
+        ):
             environment.run_flow()
 
         assert flow_runner.call_args[1]["flow"].name == "name"

@@ -258,6 +258,9 @@ class DaskKubernetesEnvironment(Environment):
     def run_flow(self) -> None:
         """
         Run the flow using a Dask executor
+
+        Raises:
+            - ValueError: if no `flow_run_id` is found in context
         """
 
         # Call on_start callback if specified
@@ -285,6 +288,9 @@ class DaskKubernetesEnvironment(Environment):
             cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
 
             flow_run_id = prefect.context.get("flow_run_id")
+
+            if not flow_run_id:
+                raise ValueError("No flow run ID found in context.")
 
             query = {
                 "query": {
