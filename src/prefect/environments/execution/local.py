@@ -49,7 +49,7 @@ class LocalEnvironment(Environment):
             runner_cls = get_default_flow_runner_class()
             runner_cls(flow=flow_obj).run(**kwargs)
         except NotImplementedError:
-            env_runner = flow.storage.get_env_runner(flow.storage.flows[flow.name])  # type: ignore
+            env_runner = flow.storage.get_env_runner(flow.name)  # type: ignore
             current_env = os.environ.copy()
             current_env.update(env)
             env_runner(env=current_env)

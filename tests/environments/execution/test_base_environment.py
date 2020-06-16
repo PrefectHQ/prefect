@@ -1,5 +1,4 @@
-import pytest
-
+from prefect import Flow
 from prefect.environments import Environment
 from prefect.environments.storage import Docker
 
@@ -43,13 +42,13 @@ def test_environment_dependencies():
 
 def test_setup_environment_passes():
     environment = Environment()
-    environment.setup(storage=Docker())
+    environment.setup(flow=Flow("test", storage=Docker()))
     assert environment
 
 
 def test_execute_environment_passes():
     environment = Environment()
-    environment.execute(storage=Docker(), flow_location="")
+    environment.execute(flow=Flow("test", storage=Docker()))
     assert environment
 
 
