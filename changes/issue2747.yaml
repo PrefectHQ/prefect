@@ -1,2 +1,0 @@
-fix:
-  - "Fix `S3Result` handling of AWS credentials provided through kwargs  - [#2747](https://github.com/PrefectHQ/prefect/issues/2747)"

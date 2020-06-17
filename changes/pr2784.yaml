@@ -1,5 +1,0 @@
-enhancement:
-  - "Add support for mapped argument in control flows - [#2784](https://github.com/PrefectHQ/prefect/pull/2784)"
-
-contributor:
-  - "[David Haines](https://github.com/davidfhaines)"
