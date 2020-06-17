@@ -464,7 +464,7 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            self.slugs[task] = self._generate_task_slug(task)
+            self.slugs[task] = task.slug or self._generate_task_slug(task)
 
             self.tasks.add(task)
             self._cache.clear()

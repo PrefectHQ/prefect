@@ -1,7 +1,6 @@
 import collections.abc
 import copy
 import inspect
-import uuid
 import warnings
 from datetime import timedelta
 from typing import (
@@ -204,7 +203,7 @@ class Task(metaclass=SignatureValidator):
         target: str = None,
     ):
         self.name = name or type(self).__name__
-        self.slug = slug or str(uuid.uuid4())
+        self.slug = slug
 
         self.logger = logging.get_logger(self.name)
 
@@ -374,10 +373,6 @@ class Task(metaclass=SignatureValidator):
             )
 
         new = copy.copy(self)
-
-        # ensure new slug is provided
-        if "slug" not in task_args:
-            task_args["slug"] = str(uuid.uuid4())
 
         # check task_args
         for attr, val in task_args.items():
