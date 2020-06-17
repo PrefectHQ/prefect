@@ -1,18 +1,19 @@
 import os
-from typing import Any, Callable, List
-
-import cloudpickle
+from typing import Any, Callable, List, TYPE_CHECKING
 
 import prefect
 from prefect import config
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
+from prefect.utilities.storage import get_flow_image
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class FargateTaskEnvironment(Environment):
     """
-    FargateTaskEnvironment is an environment which deploys your flow (stored in a Docker image)
-    as a Fargate task. This environment requires AWS credentials and extra boto3 kwargs which
+    FargateTaskEnvironment is an environment which deploys your flow as a Fargate task.
+    This environment requires AWS credentials and extra boto3 kwargs which
     are used in the creation and running of the Fargate task.
 
     When providing a custom container definition spec the first container in the spec must be the
@@ -25,7 +26,6 @@ class FargateTaskEnvironment(Environment):
     - `PREFECT__CLOUD__AUTH_TOKEN`
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__IMAGE`
-    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
@@ -34,7 +34,7 @@ class FargateTaskEnvironment(Environment):
 
     Additionally, the following command will be applied to the first container:
 
-    `$ /bin/sh -c "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.FargateTaskEnvironment().run_flow()'"`
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -167,12 +167,12 @@ class FargateTaskEnvironment(Environment):
     def dependencies(self) -> list:
         return ["boto3", "botocore"]
 
-    def setup(self, storage: "Docker") -> None:  # type: ignore
+    def setup(self, flow: "Flow") -> None:  # type: ignore
         """
         Register the task definition if it does not already exist.
 
         Args:
-            - storage (Storage): the Storage object that contains the flow
+            - flow (Flow): the Flow object
         """
         from boto3 import client as boto3_client
         from botocore.exceptions import ClientError
@@ -237,7 +237,7 @@ class FargateTaskEnvironment(Environment):
 
             self.task_definition_kwargs.get("containerDefinitions")[0][
                 "image"
-            ] = storage.name
+            ] = get_flow_image(flow)
 
             # set command on first container
             if not self.task_definition_kwargs["containerDefinitions"][0].get(
@@ -248,20 +248,19 @@ class FargateTaskEnvironment(Environment):
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
-                "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'",
+                "python -c 'import prefect; prefect.environments.FargateTaskEnvironment().run_flow()'",
             ]
 
             boto3_c.register_task_definition(**self.task_definition_kwargs)
 
     def execute(  # type: ignore
-        self, storage: "Docker", flow_location: str, **kwargs: Any
+        self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
         Run the Fargate task that was defined for this flow.
 
         Args:
-            - storage (Storage): the Storage object that contains the flow
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
         from boto3 import client as boto3_client
@@ -277,11 +276,7 @@ class FargateTaskEnvironment(Environment):
                         or config.cloud.auth_token,
                     },
                     {"name": "PREFECT__CONTEXT__FLOW_RUN_ID", "value": flow_run_id},
-                    {"name": "PREFECT__CONTEXT__IMAGE", "value": storage.name},
-                    {
-                        "name": "PREFECT__CONTEXT__FLOW_FILE_PATH",
-                        "value": flow_location,
-                    },
+                    {"name": "PREFECT__CONTEXT__IMAGE", "value": get_flow_image(flow)},
                 ],
             }
         ]
@@ -299,40 +294,3 @@ class FargateTaskEnvironment(Environment):
             launchType=self.launch_type,
             **self.task_run_kwargs
         )
-
-    def run_flow(self) -> None:
-        """
-        Run the flow from specified flow_file_path location using the default executor
-        """
-
-        # Call on_start callback if specified
-        if self.on_start:
-            self.on_start()
-
-        try:
-            from prefect.engine import (
-                get_default_flow_runner_class,
-                get_default_executor_class,
-            )
-
-            # Load serialized flow from file and run it with the executor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
-
-                runner_cls = get_default_flow_runner_class()
-                executor_cls = get_default_executor_class()(**self.executor_kwargs)
-                runner_cls(flow=flow).run(executor=executor_cls)
-        except Exception as exc:
-            self.logger.exception(
-                "Unexpected error raised during flow run: {}".format(exc)
-            )
-            raise exc
-        finally:
-            # Call on_exit callback if specified
-            if self.on_exit:
-                self.on_exit()
