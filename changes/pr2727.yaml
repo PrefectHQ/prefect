@@ -1,2 +1,0 @@
-enhancement:
-  - Add an optional `flow` argument to `merge` to support using it when not inside a flow context - [#2727](https://github.com/PrefectHQ/prefect/pull/2727)

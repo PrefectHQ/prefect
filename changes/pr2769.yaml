@@ -1,2 +1,0 @@
-enhancement:
-  - "Add option to specify task targets as callables - [#2769](https://github.com/PrefectHQ/prefect/pull/2769)"

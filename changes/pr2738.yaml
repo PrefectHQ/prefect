@@ -1,3 +1,0 @@
-
-fix:
-  - "Ensure state deserialization works even when another StateSchema exists - [#2738](https://github.com/PrefectHQ/prefect/pull/2738)"
