@@ -568,30 +568,54 @@ class Flow:
             )
         return edges
 
-    def update(self, flow: "Flow", validate: bool = None) -> None:
+    def update(
+        self, flow: "Flow", parmerge: bool = None, validate: bool = None
+    ) -> None:
         """
-        Take all tasks and edges in another flow and add it to this flow
-
+        Take all tasks and edges in another flow and add it to this flow.  
+        When `parmerge` is set to`True` -- Duplicate parameters in the unput `flow`
+        are replaced with those in the flow being updated. 
+    
         Args:
-            - flow (Flow): A flow which is used to update this flow
-            - validate (bool, optional): Whether or not to check the validity of the flow
-
+            - flow (Flow): A flow which is used to update this flow.
+            - parmerge (bool, optional): Merge two graphs on parameters
+            - validate (bool, optional): Whether or not to check the validity of the flow.
+        
         Returns:
             - None
         """
+
         for task in flow.tasks:
-            if task not in self.tasks:
+
+            duped_task = self.get_tasks(slug=task.slug) if parmerge else list()
+
+            # Adds a task if slugs are not duplicate
+            if (task not in self.tasks) and (not duped_task):
                 self.add_task(task)
 
+        # Append the new edges to this flow.
         for edge in flow.edges:
-            if edge not in self.edges:
-                self.add_edge(
-                    upstream_task=edge.upstream_task,
-                    downstream_task=edge.downstream_task,
-                    key=edge.key,
-                    mapped=edge.mapped,
-                    validate=validate,
-                )
+
+            if any(
+                [
+                    e.upstream_task
+                    for e in self.edges
+                    if e.upstream_task.slug == edge.upstream_task.slug
+                ]
+            ):
+
+                # Replaces flow upstream task with this flow's upstream task (Params are always upstream)
+                upstream = self.get_tasks(slug=edge.upstream_task.slug)[0]
+            else:
+                upstream = edge.upstream_task
+
+            self.add_edge(
+                upstream_task=upstream,
+                downstream_task=edge.downstream_task,
+                key=edge.key,
+                mapped=edge.mapped,
+                validate=validate,
+            )
 
         self.constants.update(flow.constants or {})
 
