@@ -10,7 +10,7 @@ import pydantic
 import prefect
 
 
-FunctionReference = Union['Serializable', Callable, str]
+FunctionReference = Union["Serializable", Callable, str]
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -76,7 +76,7 @@ def apply_fn_to_field(field: pydantic.Field, field_value: Any, fn: Callable) -> 
         return type(field_value)(fn(v) for v in field_value)
 
 
-class PrefectModel(pydantic.BaseModel):
+class Serializable(pydantic.BaseModel):
     """
     A base Pydantic model that has extensions for working with
     certain kinds of types
@@ -92,6 +92,22 @@ class PrefectModel(pydantic.BaseModel):
             types.FunctionType: to_qualified_name,
             types.MethodType: to_qualified_name,
         }
+
+    prefect_version: str = None
+    prefect_type: str = None
+
+    def __repr_args__(self) -> str:
+        return list(self.dict().items())
+
+    def dict(self, **kwargs):
+        kwargs["exclude_defaults"] = True
+        return super().dict(**kwargs)
+
+    @pydantic.validator("prefect_version", pre=True, always=True)
+    def _set_prefect_version(cls, value: Any) -> str:
+        # this is called on initialization and the __version__ attribute
+        # may not exist yet
+        return value or getattr(prefect, "__version__", None)
 
     @pydantic.root_validator(pre=True)
     def _convert_types(cls, model_values: dict) -> dict:
@@ -135,49 +151,22 @@ class PrefectModel(pydantic.BaseModel):
 
         return model_values
 
-
-class Metadata(PrefectModel):
-    class Config:
-        extra = "allow"
-
-    prefect_version: str = None
-    type_mro: List[str] = pydantic.Field(default_factory=list)
-
-    @pydantic.validator("prefect_version", pre=True, always=True)
-    def _set_prefect_version(cls, value: Any) -> str:
-        # this is called on initialization and the __version__ attribute
-        # may not exist yet
-        return value or getattr(prefect, '__version__', None)
-
-
-class Serializable(PrefectModel):
-
-    metadata: Metadata = pydantic.Field(default_factory=Metadata)
-
-    @pydantic.validator("metadata", always=True)
-    def _set_type_mro(cls, value: Any) -> List[str]:
-        if value.type_mro == []:
-            # prepare type metadata
-            for i, o in enumerate(cls.mro()):
-                # stop once the mro is uninteresting
-                if i > 0 and o is Serializable:
-                    break
-                value.type_mro.append(to_qualified_name(o))
-
-        return value
-
     @classmethod
     def _from_object(cls, obj: Any, **kwargs) -> "Serializable":
         init_kwargs = {f: getattr(obj, f) for f in cls.__fields__ if hasattr(obj, f)}
         init_kwargs.update(kwargs)
 
-        metadata = init_kwargs.setdefault("metadata", {})
-        if isinstance(metadata, Metadata):
-            metadata = metadata.dict()
-        else:
-            # copy to avoid mutating the object
-            metadata = metadata.copy()
+        init_kwargs.setdefault("prefect_type", type(obj).__name__)
 
+        return cls(**init_kwargs)
+
+
+class PolymorphicSerializable(Serializable):
+
+    prefect_type_mro: List[str] = pydantic.Field(default_factory=list)
+
+    @classmethod
+    def _from_object(cls, obj: Any, **kwargs) -> "PolymorphicSerializable":
         # prepare type metadata
         type_mro = []
         for i, o in enumerate(type(obj).mro()):
@@ -185,26 +174,28 @@ class Serializable(PrefectModel):
             if i > 0 and o in (Serializable, object):
                 break
             type_mro.append(to_qualified_name(o))
-        metadata["type_mro"] = type_mro
-
-        # reassign metadata
-        init_kwargs["metadata"] = metadata
-
-        return cls(**init_kwargs)
+        kwargs.setdefault("prefect_type_mro", type_mro)
+        return super()._from_object(obj, **kwargs)
 
     def _to_object(self, **kwargs: Any) -> Any:
         init_data = self.dict(
-            exclude={"metadata", "type"}, exclude_unset=True, exclude_defaults=True,
+            exclude={"prefect_version", "prefect_type", "prefect_type_mro"},
+            exclude_unset=True,
+            exclude_defaults=True,
         )
         init_data.update(kwargs)
 
         for k in init_data:
             model_type = self.__fields__[k].type_
-            if isinstance(model_type, type) and issubclass(model_type, Serializable):
+            if isinstance(model_type, type) and issubclass(
+                model_type, PolymorphicSerializable
+            ):
                 init_data[k] = apply_fn_to_field(
                     self.__fields__[k],
                     getattr(self, k),
-                    lambda o: o._to_object() if isinstance(o, Serializable) else o,
+                    lambda o: o._to_object()
+                    if isinstance(o, PolymorphicSerializable)
+                    else o,
                 )
 
         cls = self._get_obj_class()
@@ -212,7 +203,7 @@ class Serializable(PrefectModel):
 
     def _get_obj_class(self) -> Any:
         cls = None
-        for name in self.metadata.type_mro:
+        for name in self.prefect_type_mro:
             try:
                 cls = from_qualified_name(name)
                 break
@@ -221,26 +212,3 @@ class Serializable(PrefectModel):
         if cls is None:
             raise ValueError("Could not load object class.")
         return cls
-
-
-class PolymorphicSerializable(Serializable):
-    """
-    PolymorphicSerializable is intended to be used when one large Serializable
-    contains many optional fields. It does not export fields that have their default
-    value.
-    """
-
-    type: str = None
-
-    def __repr_args__(self) -> str:
-        return list(self.dict().items())
-
-    def dict(self, **kwargs):
-        kwargs["exclude_defaults"] = True
-        return super().dict(**kwargs)
-
-    @classmethod
-    def _from_object(cls, obj: Any, **kwargs: Any) -> "PolymorphicSerializable":
-        kwargs.setdefault("type", type(obj).__name__)
-        return super()._from_object(obj, **kwargs)
-

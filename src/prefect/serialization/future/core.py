@@ -1,14 +1,119 @@
-import json
 import datetime
+import json
+from typing import Any, Callable, Dict, List, Union
+
 from pydantic import Field
-from typing import Dict, List, Any, Callable
+
 import prefect
 from prefect.utilities.serialization_future import (
-    Serializable,
     FunctionReference,
+    PolymorphicSerializable,
+    Serializable,
 )
-from prefect.serialization.future.environments import Environment, Storage
-from prefect.serialization.future.schedules import Schedule
+
+
+class Environment(Serializable):
+    class Config:
+        extra = "allow"
+
+    # for ALL environments
+    labels: List[str] = Field(default_factory=list)
+
+    # DaskKubernetes
+    docker_secret: str = None
+    private_registry: bool = None
+    min_workers: int = None
+    max_workers: int = None
+
+    # Remote
+    executor: str = None
+    executor_kwargs: Dict[str, Any] = None
+
+    # RemoteDaskEnvironment
+    address: str = None
+
+    @classmethod
+    def from_environment(cls, obj: prefect.environments.Environment) -> "Environment":
+        return super()._from_object(obj)
+
+
+class Storage(PolymorphicSerializable):
+    class Config:
+        extra = "allow"
+
+    # for ALL storage
+    flows: Dict[str, str]
+    secrets: List[str] = None
+    prefect_version: str = None
+
+    # Azure
+    container: str = None
+    blob_name: str = None
+
+    # Docker
+    registry_url: str = None
+    image_name: str = None
+    image_tag: str = None
+
+    # Local
+    directory: str = None
+
+    # GCS / S3
+    bucket: str = None
+    key: str = None
+
+    # GCS
+    project: str = None
+
+    # S3
+    client_options: Dict[str, Any] = None
+
+    @classmethod
+    def from_storage(cls, obj: prefect.environments.storage.Storage) -> "Storage":
+        return super()._from_object(obj)
+
+
+class Clock(PolymorphicSerializable):
+    # all clocks
+    start_date: datetime.datetime = None
+    end_date: datetime.datetime = None
+    parameter_defaults: Dict[str, Any] = None
+
+    # IntervalClock
+    interval: datetime.timedelta = None
+
+    # CronClock
+    cron: str = None
+
+    # DatesClock
+    dates: List[datetime.datetime] = None
+
+    @classmethod
+    def from_clock(cls, clock: prefect.schedules.clocks.Clock) -> "Clock":
+        return super()._from_object(clock)
+
+    def to_clock(self) -> prefect.schedules.clocks.Clock:
+        return super()._to_object()
+
+
+ScheduleFunctions = List[Union[Callable[[datetime.datetime], bool], Serializable]]
+
+
+class Schedule(Serializable):
+    clocks: List[Clock]
+    filters: ScheduleFunctions = Field(default_factory=list)
+    or_filters: ScheduleFunctions = Field(default_factory=list)
+    not_filters: ScheduleFunctions = Field(default_factory=list)
+    adjustments: ScheduleFunctions = Field(default_factory=list)
+
+    @classmethod
+    def from_schedule(cls, schedule: prefect.schedules.Schedule) -> "Schedule":
+        return super()._from_object(
+            schedule, clocks=[Clock.from_clock(c) for c in schedule.clocks]
+        )
+
+    def to_schedule(self) -> prefect.schedules.Schedule:
+        return super()._to_object()
 
 
 class Edge(Serializable):
@@ -75,21 +180,6 @@ class Task(Serializable):
             is_terminal_task=is_terminal_task,
         )
 
-    def to_task(self) -> prefect.core.Task:
-        return prefect.core.Task(
-            slug=self.slug,
-            name=self.name,
-            tags=self.tags,
-            max_retries=self.max_retries,
-            retry_delay=self.retry_delay,
-            timeout=self.timeout,
-            trigger=self.trigger,
-            skip_on_upstream_skip=self.skip_on_upstream_skip,
-            cache_for=self.cache_for,
-            cache_key=self.cache_key,
-            cache_validator=self.cache_validator if self.cache_for else None,
-        )
-
 
 class Parameter(Serializable):
     slug: str
@@ -112,11 +202,6 @@ class Parameter(Serializable):
             name=parameter.name,
             default=default,
             required=parameter.required,
-        )
-
-    def to_parameter(self) -> prefect.core.Parameter:
-        return prefect.core.Parameter(
-            name=self.name, required=self.required, default=self.default
         )
 
 
@@ -151,26 +236,64 @@ class Flow(Serializable):
             schedule=Schedule.from_schedule(flow.schedule),
         )
 
-    def to_flow(self) -> prefect.core.Flow:
-        tasks = [t.to_task() for t in self.tasks]
-        tasks.extend(p.to_parameter() for p in self.parameters)
 
-        task_lookup = {t.slug: t for t in tasks}
-        edges = [
-            prefect.core.Edge(
-                upstream_task=task_lookup[e.upstream_task_slug],
-                downstream_task=task_lookup[e.downstream_task_slug],
-                key=e.key,
-                mapped=e.mapped,
-            )
-            for e in self.edges
-        ]
+class Result(Serializable):
+    class Config:
+        extra = "allow"
 
-        return prefect.core.Flow(
-            name=self.name,
-            tasks=tasks,
-            edges=edges,
-            environment=self.environment._to_object() if self.environment else None,
-            storage=self.storage._to_object() if self.storage else None,
-            schedule=self.schedule._to_object() if self.schedule else None,
-        )
+    # for ALL results
+    location: str = None
+
+    # for SafeResults
+    value: Union[List, Dict, float, bool, int, str] = None
+
+    # Azure
+    container: str = None
+
+    # GCS, S3
+    bucket: str = None
+
+    # Local
+    dir: str = None
+
+    # Secret
+    secret_type: Callable = None
+
+    @classmethod
+    def from_result(cls, obj: prefect.engine.result.base.Result) -> "Result":
+        return super()._from_object(obj)
+
+
+class State(PolymorphicSerializable):
+
+    # for ALL states
+    message: str = None
+    result: Result = None
+    context: Dict[str, Any] = Field(default_factory=dict)
+    cached_inputs: Dict[str, Any] = Field(default_factory=dict)
+
+    # for SCHEDULED states
+    start_time: datetime.datetime = None
+
+    # for METASTATE states
+    state: "State" = None
+
+    # for RETRYING states
+    run_count: int = None
+
+    # for LOOPED states
+    loop_count: int = None
+
+    # for CACHED states
+    cached_parameters: Dict[str, Any] = None
+    cached_result_expiration: datetime.datetime = None
+
+    @classmethod
+    def from_state(cls, state: prefect.engine.state.State) -> "State":
+        return super()._from_object(obj=state, result=Result.from_result(state._result))
+
+    def to_state(self):
+        return super()._to_object()
+
+
+State.update_forward_refs()
