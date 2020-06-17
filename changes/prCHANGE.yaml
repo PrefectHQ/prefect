@@ -1,5 +1,0 @@
-enhancement:
-  - "flow.update` accepts an optional `kwarg` `parmerge` that allows flows to be updated with common `Parameters` - [#2501](Can't combine flows that have the same parameter name)"
-
-contributor:
-  - "[Itay Livni](https://github.com/gryBox)"
