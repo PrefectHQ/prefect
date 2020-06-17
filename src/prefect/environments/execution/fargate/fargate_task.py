@@ -70,6 +70,7 @@ class FargateTaskEnvironment(Environment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -85,6 +86,7 @@ class FargateTaskEnvironment(Environment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
         **kwargs
     ) -> None:
         self.launch_type = launch_type
@@ -100,7 +102,9 @@ class FargateTaskEnvironment(Environment):
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
         self.executor_kwargs = executor_kwargs or dict()
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     def _parse_kwargs(self, user_kwargs: dict) -> tuple:
         """

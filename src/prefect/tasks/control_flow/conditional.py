@@ -4,7 +4,7 @@ import prefect
 from prefect import Task
 from prefect.engine import signals
 
-__all__ = ["switch", "ifelse"]
+__all__ = ["switch", "ifelse", "merge"]
 
 
 class Merge(Task):
@@ -119,7 +119,7 @@ def ifelse(condition: Task, true_task: Task, false_task: Task) -> None:
         switch(condition=as_bool(condition), cases=cases)
 
 
-def merge(*tasks: Task) -> Task:
+def merge(*tasks: Task, flow=None) -> Task:
     """
     Merges conditional branches back together.
 
@@ -145,9 +145,13 @@ def merge(*tasks: Task) -> Task:
         - *tasks (Task): tasks whose results should be merged into a single result. The tasks are
             assumed to all sit downstream of different `switch` branches, such that only
             one of them will contain a result and the others will all be skipped.
+        - flow (Flow, optional): The flow to use, defaults to the current flow
+            in context if no flow is specified
 
     Returns:
         - Task: a Task representing the merged result.
 
     """
-    return Merge().bind(**{"task_{}".format(i + 1): t for i, t in enumerate(tasks)})
+    return Merge().bind(
+        **{"task_{}".format(i + 1): t for i, t in enumerate(tasks)}, flow=flow
+    )

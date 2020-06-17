@@ -59,7 +59,10 @@ class State:
             self.context.setdefault("tags", list(prefect.context.task_tags))
 
     def __repr__(self) -> str:
-        return '<{}: "{}">'.format(type(self).__name__, self.message)
+        if self.message is not None:
+            return f'<{type(self).__name__}: "{self.message}">'
+        else:
+            return f"<{type(self).__name__}>"
 
     def __eq__(self, other: object) -> bool:
         """
@@ -101,6 +104,9 @@ class State:
         Returns:
             - State: the current state with a fully hydrated Result attached
         """
+        if self.is_mapped():
+            return self
+
         result_reader = result or self._result
 
         known_location = self._result.location or getattr(result, "location", None)  # type: ignore
@@ -409,7 +415,7 @@ class Paused(Scheduled):
             should be JSON compatible
     """
 
-    color = "#cfd8dc"
+    color = "#99a8e8"
 
     def __init__(
         self,
@@ -564,7 +570,7 @@ class Resume(Scheduled):
             should be JSON compatible
     """
 
-    color = "#fb8532"
+    color = "#f58c0c"
 
 
 class Retrying(Scheduled):
@@ -723,6 +729,7 @@ class Cached(Success):
             expires and can no longer be used. Defaults to `None`
         - context (dict, optional): A dictionary of execution context information; values
             should be JSON compatible
+        - hashed_inputs (Dict[str, str], optional): a string hash of a dictionary of inputs
     """
 
     color = "#34d058"
@@ -735,10 +742,12 @@ class Cached(Success):
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
         context: Dict[str, Any] = None,
+        hashed_inputs: Dict[str, str] = None,
     ):
         super().__init__(
             message=message, result=result, context=context, cached_inputs=cached_inputs
         )
+        self.hashed_inputs = hashed_inputs
         self.cached_parameters = cached_parameters  # type: Optional[Dict[str, Any]]
         if cached_result_expiration is not None:
             cached_result_expiration = pendulum.instance(cached_result_expiration)
@@ -803,7 +812,7 @@ class Cancelled(Finished):
             should be JSON compatible
     """
 
-    color = "#c42800"
+    color = "#bdbdbd"
 
 
 class Failed(Finished):

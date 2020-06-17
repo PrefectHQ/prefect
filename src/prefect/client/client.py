@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import re
+import time
 import uuid
 import warnings
 from pathlib import Path
@@ -10,7 +11,6 @@ from urllib.parse import urljoin
 
 import pendulum
 import toml
-import time
 from slugify import slugify
 
 import prefect
@@ -648,6 +648,9 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
+        if isinstance(flow.storage, prefect.environments.storage.Docker):
+            flow.environment.metadata["image"] = flow.storage.name
+
         # verify that the serialized flow can be deserialized
         try:
             prefect.serialization.flow.FlowSchema().load(serialized_flow)
@@ -952,7 +955,7 @@ class Client:
 
     def set_flow_run_state(
         self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
-    ) -> None:
+    ) -> "prefect.engine.state.State":
         """
         Sets new state for a flow run in the database.
 
@@ -960,6 +963,9 @@ class Client:
             - flow_run_id (str): the id of the flow run to set state for
             - version (int): the current version of the flow run state
             - state (State): the new state for this flow run
+
+        Returns:
+            - State: the state the current flow run should be considered in
 
         Raises:
             - ClientError: if the GraphQL mutation is bad for any reason
@@ -986,6 +992,8 @@ class Client:
                 )
             ),
         )  # type: Any
+
+        return state
 
     def get_latest_cached_states(
         self, task_id: str, cache_key: Optional[str], created_after: datetime.datetime

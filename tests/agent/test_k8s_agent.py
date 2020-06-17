@@ -8,6 +8,7 @@ import yaml
 
 import prefect
 from prefect.agent.kubernetes import KubernetesAgent
+from prefect.environments import RemoteEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -58,6 +59,7 @@ def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
+                        "environment": RemoteEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -76,6 +78,43 @@ def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
     )
 
 
+def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_token):
+    k8s_config = MagicMock()
+    monkeypatch.setattr("kubernetes.config", k8s_config)
+
+    batch_client = MagicMock()
+    batch_client.create_namespaced_job.return_value = {}
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(retrurn_value=batch_client)
+    )
+
+    agent = KubernetesAgent()
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "storage": Local().serialize(),
+                        "environment": RemoteEnvironment(
+                            metadata={"image": "repo/name:tag"}
+                        ).serialize(),
+                        "id": "id",
+                    }
+                ),
+                "id": "id",
+            }
+        )
+    )
+
+    assert agent.batch_client.create_namespaced_job.called
+    assert (
+        agent.batch_client.create_namespaced_job.call_args[1]["body"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["image"]
+        == "repo/name:tag"
+    )
+
+
 def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
@@ -91,7 +130,13 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
-                    "flow": GraphQLResult({"storage": Local().serialize(), "id": "id"}),
+                    "flow": GraphQLResult(
+                        {
+                            "storage": Local().serialize(),
+                            "id": "id",
+                            "environment": RemoteEnvironment().serialize(),
+                        }
+                    ),
                     "id": "id",
                 }
             )
@@ -111,6 +156,8 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
     monkeypatch.setenv("JOB_MEM_LIMIT", "ml")
     monkeypatch.setenv("JOB_CPU_REQUEST", "cr")
     monkeypatch.setenv("JOB_CPU_LIMIT", "cl")
+    monkeypatch.setenv("IMAGE_PULL_POLICY", "custom_policy")
+    monkeypatch.setenv("SERVICE_ACCOUNT_NAME", "svc_name")
 
     flow_run = GraphQLResult(
         {
@@ -119,6 +166,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
+                    "environment": RemoteEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -130,7 +178,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
-        job = agent.replace_job_spec_yaml(flow_run)
+        job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
         assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
         assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
@@ -159,6 +207,12 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
         assert env[-1] in user_vars
         assert env[-2] in user_vars
 
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == "custom_policy"
+        )
+        assert job["spec"]["template"]["spec"]["serviceAccountName"] == "svc_name"
+
 
 def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
     k8s_config = MagicMock()
@@ -177,6 +231,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
+                    "environment": RemoteEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -188,7 +243,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
     ):
         agent = KubernetesAgent()
-        job = agent.replace_job_spec_yaml(flow_run)
+        job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
         assert job["metadata"]["labels"]["prefect.io/flow_run_id"] == "id"
         assert job["metadata"]["labels"]["prefect.io/flow_id"] == "new_id"
@@ -221,6 +276,12 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
         assert resources["requests"]["cpu"] == "cr"
         assert resources["limits"]["cpu"] == "cl"
 
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == "IfNotPresent"
+        )
+        assert job["spec"]["template"]["spec"].get("serviceAccountName", None) is None
+
 
 @pytest.mark.parametrize("flag", [True, False])
 def test_k8s_agent_replace_yaml_responds_to_logging_config(
@@ -236,6 +297,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
+                    "environment": RemoteEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -245,7 +307,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
     )
 
     agent = KubernetesAgent(no_cloud_logs=flag)
-    job = agent.replace_job_spec_yaml(flow_run)
+    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
     assert env[6]["value"] == str(not flag).lower()
 
@@ -261,6 +323,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
+                    "environment": RemoteEnvironment().serialize(),
                     "id": "id",
                 }
             ),
@@ -269,7 +332,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
     )
 
     agent = KubernetesAgent()
-    job = agent.replace_job_spec_yaml(flow_run)
+    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
 
     assert not job["spec"]["template"]["spec"]["imagePullSecrets"][0]["name"]
 
@@ -285,6 +348,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
+                    "environment": RemoteEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -293,7 +357,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
     )
 
     agent = KubernetesAgent(labels=["foo", "bar"])
-    job = agent.replace_job_spec_yaml(flow_run)
+    job = agent.replace_job_spec_yaml(flow_run, image="test/name:tag")
     env = job["spec"]["template"]["spec"]["containers"][0]["env"]
     assert env[5]["value"] == "['foo', 'bar']"
 
@@ -321,7 +385,7 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, runner_token):
     assert agent_env[0]["value"] == "test_token"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
-    assert agent_env[9]["value"] == "backend-test"
+    assert agent_env[11]["value"] == "backend-test"
 
     assert resource_manager_env[0]["value"] == "test_token"
     assert resource_manager_env[1]["value"] == "test_api"
@@ -341,10 +405,10 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, runner_token):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[11]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
-    assert agent_env[11]["value"] == "test2"
-    assert agent_env[12]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
-    assert agent_env[12]["value"] == "test4"
+    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test1"
+    assert agent_env[13]["value"] == "test2"
+    assert agent_env[14]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS__test3"
+    assert agent_env[14]["value"] == "test4"
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
@@ -358,7 +422,7 @@ def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[9]["value"] == "server"
+    assert agent_env[11]["value"] == "server"
 
 
 @pytest.mark.parametrize(
@@ -519,6 +583,8 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(
         mem_limit="ml",
         cpu_request="cr",
         cpu_limit="cl",
+        image_pull_policy="custom_policy",
+        service_account_name="svc",
     )
 
     deployment = yaml.safe_load(deployment)
@@ -529,6 +595,8 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(
     assert env[6]["value"] == "ml"
     assert env[7]["value"] == "cr"
     assert env[8]["value"] == "cl"
+    assert env[9]["value"] == "custom_policy"
+    assert env[10]["value"] == "svc"
 
 
 def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, runner_token):

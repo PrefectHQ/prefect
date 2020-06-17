@@ -114,7 +114,7 @@ class CloudFlowRunner(FlowRunner):
 
         try:
             cloud_state = new_state
-            self.client.set_flow_run_state(
+            state = self.client.set_flow_run_state(
                 flow_run_id=flow_run_id, version=version, state=cloud_state
             )
         except Exception as exc:

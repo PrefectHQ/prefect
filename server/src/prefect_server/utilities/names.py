@@ -4,7 +4,7 @@
 
 import coolname
 
-BLACKLIST = {
+DENYLIST = {
     "sexy",
     "demonic",
     "kickass",
@@ -35,8 +35,8 @@ def generate_slug(n_words: int) -> str:
     """
     words = coolname.generate(n_words)
 
-    # regenerate words if they include blacklisted words
-    while BLACKLIST.intersection(words):
+    # regenerate words if they include deny listed words
+    while DENYLIST.intersection(words):
         words = coolname.generate(n_words)
 
     return "-".join(words)

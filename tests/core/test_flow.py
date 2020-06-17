@@ -17,7 +17,8 @@ import toml
 import prefect
 from prefect.core.edge import Edge
 from prefect.core.flow import Flow
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.engine.executors import LocalExecutor
 from prefect.engine.result import Result
@@ -1211,12 +1212,9 @@ class TestFlowVisualize:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
-                graph = f.visualize(filename=tmp.name)
-            with open(tmp.name, "r") as f:
-                contents = f.read()
-
-        assert "label=a_nice_task" in contents
-        assert "shape=ellipse" in contents
+                graph = f.visualize(filename=tmp.name, format="png")
+            assert os.path.exists(f"{tmp.name}.png")
+            assert not os.path.exists(tmp.name)
 
     def test_viz_reflects_mapping(self):
         ipython = MagicMock(
@@ -2457,7 +2455,16 @@ class TestFlowRegister:
 
         assert f.storage is None
         with set_temporary_config({"flows.defaults.storage.default_class": storage}):
-            f.register("My-project")
+            if "Docker" in storage:
+                f.register(
+                    "My-project",
+                    registry_url="FOO",
+                    image_name="BAR",
+                    image_tag="BIG",
+                    no_url=True,
+                )
+            else:
+                f.register("My-project")
 
         assert isinstance(f.storage, from_qualified_name(storage))
         assert f.result == from_qualified_name(storage)().result
@@ -2571,6 +2578,9 @@ class TestFlowRegister:
         assert isinstance(f.storage, prefect.environments.storage.Local)
         assert "foo" in f.environment.labels
         assert len(f.environment.labels) == 2
+
+    def test_flow_register_passes_kwargs_to_storage(self, monkeypatch):
+        monkeypatch.setattr("prefect.Client", MagicMock())
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():

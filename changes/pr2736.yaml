@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue with dask resource tags not being respected - [#2735](https://github.com/PrefectHQ/prefect/pull/2735)"

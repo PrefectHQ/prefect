@@ -1140,12 +1140,12 @@ class TestRunTaskStep:
         assert isinstance(state._result, PrefectResult)
 
     def test_success_state_without_checkpoint(self):
-        @prefect.task(checkpoint=False)
+        @prefect.task(checkpoint=False, result=PrefectResult())
         def fn(x):
             return x + 1
 
         with prefect.context(checkpointing=True):
-            new_state = TaskRunner(task=fn, result=PrefectResult()).get_task_run_state(
+            new_state = TaskRunner(task=fn).get_task_run_state(
                 state=Running(), inputs={"x": Result(1)},
             )
         assert new_state.is_successful()
@@ -1506,6 +1506,103 @@ class TestTargetExistsStep:
         assert result.exists("test-file")
         assert new_state_2.is_cached()
         assert new_state_2._result.location == "test-file"
+
+    def test_check_target_uses_callable(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="testcall")
+        result.write(1)
+
+        my_task = Task(target=lambda **kwargs: "testcall", result=result)
+
+        new_state = TaskRunner(task=my_task).check_target(
+            state=Running(result=result), inputs={}
+        )
+
+        assert result.exists("testcall")
+        assert new_state.is_cached()
+        assert new_state._result.location == "testcall"
+
+        new_state_2 = TaskRunner(task=my_task).check_target(state=new_state, inputs={})
+
+        assert result.exists("testcall")
+        assert new_state_2.is_cached()
+        assert new_state_2._result.location == "testcall"
+
+    def test_check_target_callable_uses_context(self, tmp_dir):
+        result = LocalResult(dir=tmp_dir, location="testtask")
+        result.write(1)
+
+        my_task = Task(target=lambda **kwargs: "{task_name}", result=result,)
+
+        with prefect.context({"task_name": "testtask"}):
+            new_state = TaskRunner(task=my_task).check_target(
+                state=Running(result=result), inputs={}
+            )
+
+            assert result.exists("testtask")
+            assert new_state.is_cached()
+            assert new_state._result.location == "testtask"
+
+            new_state_2 = TaskRunner(task=my_task).check_target(
+                state=new_state, inputs={}
+            )
+
+            assert result.exists("testtask")
+            assert new_state_2.is_cached()
+            assert new_state_2._result.location == "testtask"
+
+    def test_target_respects_multiple_flow_runs(self, tmp_dir):
+        with set_temporary_config({"flows.checkpointing": True}):
+
+            @prefect.task(target="{task_name}")
+            def my_task():
+                return "data"
+
+            with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
+                t = my_task()
+
+            state = flow.run()
+            assert state.is_successful()
+            assert state.result[t].is_successful()
+
+            state2 = flow.run()
+            assert state2.is_successful()
+            assert state2.result[t].is_cached()
+
+    def test_target_with_callable_uses_run_context(self, tmp_dir):
+        with set_temporary_config({"flows.checkpointing": True}):
+
+            @prefect.task(target=lambda **kwargs: str(kwargs["task_run_count"]))
+            def my_task():
+                return "data"
+
+            with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
+                t = my_task()
+
+            state = flow.run()
+            assert state.is_successful()
+            assert state.result[t].is_successful()
+
+            state2 = flow.run()
+            assert state2.is_successful()
+            assert state2.result[t].is_cached()
+
+    def test_target_with_callable_uses_task_inputs(self, tmp_dir):
+        with set_temporary_config({"flows.checkpointing": True}):
+
+            @prefect.task(target=lambda **kwargs: str(kwargs["x"]))
+            def my_task(x):
+                return x
+
+            with prefect.Flow("test", result=LocalResult(dir=tmp_dir)) as flow:
+                t = my_task("test_input")
+
+            state = flow.run()
+            assert state.is_successful()
+            assert state.result[t].is_successful()
+
+            state2 = flow.run()
+            assert state2.is_successful()
+            assert state2.result[t].is_cached()
 
 
 class TestCheckScheduledStep:

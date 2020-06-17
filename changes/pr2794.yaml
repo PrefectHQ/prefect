@@ -1,0 +1,2 @@
+enhancement:
+  - "Use pagination in kubernetes resource manager to reduce memory usage - [#2794](https://github.com/PrefectHQ/prefect/pull/2794)"

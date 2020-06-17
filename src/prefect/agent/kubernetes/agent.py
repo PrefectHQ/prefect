@@ -8,8 +8,7 @@ import yaml
 import prefect
 from prefect import config
 from prefect.agent import Agent
-from prefect.environments.storage import Docker
-from prefect.serialization.storage import StorageSchema
+from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
 
 AGENT_DIRECTORY = path.expanduser("~/.prefect/agent")
@@ -94,22 +93,14 @@ class KubernetesAgent(Agent):
 
         Returns:
             - str: Information about the deployment
-
-        Raises:
-            - ValueError: if deployment attempted on unsupported Storage type
         """
         self.logger.info(
             "Deploying flow run {}".format(flow_run.id)  # type: ignore
         )
 
-        # Require Docker storage
-        if not isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
-            self.logger.error(
-                "Storage for flow run {} is not of type Docker.".format(flow_run.id)
-            )
-            raise ValueError("Unsupported Storage type")
+        image = get_flow_image(flow_run=flow_run)
 
-        job_spec = self.replace_job_spec_yaml(flow_run)
+        job_spec = self.replace_job_spec_yaml(flow_run, image)
 
         self.logger.debug(
             "Creating namespaced job {}".format(job_spec["metadata"]["name"])
@@ -122,12 +113,13 @@ class KubernetesAgent(Agent):
 
         return "Job {}".format(job.metadata.name)
 
-    def replace_job_spec_yaml(self, flow_run: GraphQLResult) -> dict:
+    def replace_job_spec_yaml(self, flow_run: GraphQLResult, image: str) -> dict:
         """
         Populate metadata and variables in the job_spec.yaml file for flow runs
 
         Args:
             - flow_run (GraphQLResult): A flow run object
+            - image (str): The full name of an image to use for the job
 
         Returns:
             - dict: a dictionary representing the populated yaml object
@@ -148,16 +140,10 @@ class KubernetesAgent(Agent):
         job["metadata"]["labels"].update(**k8s_labels)
         job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
 
-        # Use flow storage image for job
-        job["spec"]["template"]["spec"]["containers"][0]["image"] = (
-            StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-        )
+        # Use provided image for job
+        job["spec"]["template"]["spec"]["containers"][0]["image"] = image
 
-        self.logger.debug(
-            "Using image {} for job".format(
-                StorageSchema().load(flow_run.flow.storage).name  # type: ignore
-            )
-        )
+        self.logger.debug("Using image {} for job".format(image))
 
         # Populate environment variables for flow run execution
         env = job["spec"]["template"]["spec"]["containers"][0]["env"]
@@ -189,6 +175,14 @@ class KubernetesAgent(Agent):
             resources["requests"]["cpu"] = os.getenv("JOB_CPU_REQUEST")
         if os.getenv("JOB_CPU_LIMIT"):
             resources["limits"]["cpu"] = os.getenv("JOB_CPU_LIMIT")
+        if os.getenv("IMAGE_PULL_POLICY"):
+            job["spec"]["template"]["spec"]["containers"][0][
+                "imagePullPolicy"
+            ] = os.getenv("IMAGE_PULL_POLICY")
+        if os.getenv("SERVICE_ACCOUNT_NAME"):
+            job["spec"]["template"]["spec"]["serviceAccountName"] = os.getenv(
+                "SERVICE_ACCOUNT_NAME"
+            )
 
         return job
 
@@ -205,6 +199,8 @@ class KubernetesAgent(Agent):
         mem_limit: str = None,
         cpu_request: str = None,
         cpu_limit: str = None,
+        image_pull_policy: str = None,
+        service_account_name: str = None,
         labels: Iterable[str] = None,
         env_vars: dict = None,
         backend: str = None,
@@ -230,6 +226,10 @@ class KubernetesAgent(Agent):
             - mem_limit (str, optional): Limit memory for Prefect init job.
             - cpu_request (str, optional): Requested CPU for Prefect init job.
             - cpu_limit (str, optional): Limit CPU for Prefect init job.
+            - image_pull_policy (str, optional): imagePullPolicy to use for Prefect init job.
+                Job defaults to `IfNotPresent`.
+            - service_account_name (str, optional): Name of a service account to use for
+                Prefect init job. Job defaults to using `default` service account.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): additional environment variables to attach to all
@@ -250,6 +250,8 @@ class KubernetesAgent(Agent):
         mem_limit = mem_limit or ""
         cpu_request = cpu_request or ""
         cpu_limit = cpu_limit or ""
+        image_pull_policy = image_pull_policy or ""
+        service_account_name = service_account_name or ""
         backend = backend or config.backend
 
         version = prefect.__version__.split("+")
@@ -270,13 +272,15 @@ class KubernetesAgent(Agent):
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
         agent_env[4]["value"] = str(labels)
-        agent_env[9]["value"] = backend
+        agent_env[11]["value"] = backend
 
         # Populate job resource env vars
         agent_env[5]["value"] = mem_request
         agent_env[6]["value"] = mem_limit
         agent_env[7]["value"] = cpu_request
         agent_env[8]["value"] = cpu_limit
+        agent_env[9]["value"] = image_pull_policy
+        agent_env[10]["value"] = service_account_name
 
         if env_vars:
             for k, v in env_vars.items():

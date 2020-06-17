@@ -68,6 +68,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -83,6 +84,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         on_execute: Callable[[Dict[str, Any], Dict[str, Any]], None] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
         **kwargs
     ) -> None:
         self._provider_class = provider_class
@@ -108,6 +110,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
+            metadata=metadata,
             security=self._security,
         )
 

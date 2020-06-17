@@ -1,0 +1,2 @@
+feature:
+  - "Support use of cloud storage with containerized environments - [#2517](https://github.com/PrefectHQ/prefect/issues/2517)"
