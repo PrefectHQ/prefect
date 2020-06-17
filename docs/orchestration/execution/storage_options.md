@@ -141,7 +141,9 @@ flow.storage = S3(bucket="my-flows")
 flow.environment = RemoteEnvironment(metadata={"image": "repo/name:tag"})
 ```
 
-This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example). Due to the cloud storage options have sensible defaults for labels make sure the agent's labels match the desired labels for the flows' storage objects.
+This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
+
+Make sure that the agent's labels match the desired labels for the flow storage objects. For example, if you are using `prefect.environments.storage.s3` to store flows, the agent should get label `s3-flow-storage`. See the `"Sensible Defaults"` tips in the previous sections for more details.
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3
