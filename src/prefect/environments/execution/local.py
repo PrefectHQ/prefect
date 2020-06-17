@@ -1,4 +1,3 @@
-import os
 from typing import Any, TYPE_CHECKING
 
 from prefect.environments.execution.base import Environment
@@ -41,18 +40,16 @@ class LocalEnvironment(Environment):
         if self.on_start:
             self.on_start()
 
-        env = kwargs.pop("env", dict())
         try:
             from prefect.engine import get_default_flow_runner_class
 
-            flow_obj = flow.storage.get_flow(flow.name)  # type: ignore
             runner_cls = get_default_flow_runner_class()
-            runner_cls(flow=flow_obj).run(**kwargs)
-        except NotImplementedError:
-            env_runner = flow.storage.get_env_runner(flow.name)  # type: ignore
-            current_env = os.environ.copy()
-            current_env.update(env)
-            env_runner(env=current_env)
+            runner_cls(flow=flow).run(**kwargs)
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error raised during flow run: {}".format(exc)
+            )
+            raise exc
         finally:
             # Call on_exit callback if specified
             if self.on_exit:
