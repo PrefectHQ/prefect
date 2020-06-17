@@ -136,10 +136,13 @@ class Local(Storage):
 
             # Need to strip out things which could cause circular problems
             # In this case I'm calling serialize(build=True) directly and we don't want this
+            # exec may not run __main__ which could resolve this? TBD
             contents = re.sub(r"^.*\b(serialize)\b.*$", "", contents, flags=re.M)
 
             # Save to where flows normally save
             # Could be merged with flow.save where this is ripped from
+            # When we register a script, we shouldn't move it and instead run the
+            # flow from that workdir. Helps with import problems.
             path = "{home}/flows".format(home=prefect.context.config.home_dir)
             fpath = Path(os.path.expanduser(path)) / f"{filename}"
             assert fpath is not None  # mypy assert
@@ -151,8 +154,8 @@ class Local(Storage):
             with open(flow_location, "w") as file:
                 file.write(contents)
 
-
             # Exec the file to get the flow name
+            # when giving dict to exec, contents are not run with main
             exec_vals = {}
             exec(contents, exec_vals)
 
