@@ -1,4 +1,3 @@
-import os
 from typing import Any, TYPE_CHECKING
 
 from prefect.environments.execution.base import Environment
