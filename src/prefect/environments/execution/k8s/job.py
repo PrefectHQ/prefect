@@ -1,5 +1,6 @@
 import os
 import uuid
+import warnings
 from typing import Any, Callable, List, TYPE_CHECKING
 
 import yaml
@@ -41,8 +42,9 @@ class KubernetesJobEnvironment(Environment):
         - job_spec_file (str, optional): Path to a job spec YAML file
         - unique_job_name (bool, optional): whether to use a unique name for each job created with this environment. Defaults
             to `False`
-        - executor_kwargs (dict, optional): a dictionary of kwargs to be passed to
-            the executor; defaults to an empty dictionary
+        - executor (Executor, optional): the executor to run the flow with. If not provided, the
+            default executor will be used.
+        - executor_kwargs (dict, optional): DEPRECATED
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
@@ -54,6 +56,7 @@ class KubernetesJobEnvironment(Environment):
         self,
         job_spec_file: str = None,
         unique_job_name: bool = False,
+        executor: "prefect.engine.executors.Executor" = None,
         executor_kwargs: dict = None,
         labels: List[str] = None,
         on_start: Callable = None,
@@ -62,6 +65,9 @@ class KubernetesJobEnvironment(Environment):
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
         self.unique_job_name = unique_job_name
+        self.executor = executor
+        if executor_kwargs is not None:
+            warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
         self.executor_kwargs = executor_kwargs or dict()
 
         # Load specs from file if path given, store on object

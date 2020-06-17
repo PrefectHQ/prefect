@@ -1,5 +1,6 @@
-from typing import Any, TYPE_CHECKING
+from typing import Any, Iterable, Callable, TYPE_CHECKING
 
+import prefect
 from prefect.environments.execution.base import Environment
 
 if TYPE_CHECKING:
@@ -14,12 +15,27 @@ class LocalEnvironment(Environment):
     used, the environment variables from this process will be passed.
 
     Args:
+        - executor (Executor, optional): the executor to run the flow with. If not provided, the
+            default executor will be used.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
+
+    def __init__(
+        self,
+        executor: "prefect.engine.executors.Executor" = None,
+        labels: Iterable[str] = None,
+        on_start: Callable = None,
+        on_exit: Callable = None,
+        metadata: dict = None,
+    ) -> None:
+        self.executor = executor
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     @property
     def dependencies(self) -> list:
@@ -35,8 +51,6 @@ class LocalEnvironment(Environment):
             - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
-
-        # Call on_start callback if specified
         if self.on_start:
             self.on_start()
 
@@ -44,7 +58,7 @@ class LocalEnvironment(Environment):
             from prefect.engine import get_default_flow_runner_class
 
             runner_cls = get_default_flow_runner_class()
-            runner_cls(flow=flow).run(**kwargs)
+            runner_cls(flow=flow).run(executor=self.executor, **kwargs)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
