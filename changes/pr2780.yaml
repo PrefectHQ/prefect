@@ -1,2 +1,0 @@
-fix:
-  - "Fix issue with declared storage secrets in K8s job environment and Dask K8s environment - [#2780](https://github.com/PrefectHQ/prefect/pull/2780)"

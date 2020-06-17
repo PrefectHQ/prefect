@@ -1,2 +1,0 @@
-enhancement:
-  - "Add CI step to build `prefecthq/prefect:all_extras` Docker image for bundling all Prefect dependencies - [#2745](https://github.com/PrefectHQ/prefect/pull/2745)"

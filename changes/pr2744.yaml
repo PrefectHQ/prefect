@@ -1,4 +1,0 @@
-enhancement:
-  - "Add option to set service account name on Prefect jobs created by Kubernetes agent - [#2547](https://github.com/PrefectHQ/prefect/issues/2547)"
-  - "Add option to set imagePullPolicy on Prefect jobs created by Kubernetes agent - [#2721](https://github.com/PrefectHQ/prefect/issues/2721)"
-  - "Add option to set API url on agent start CLI command - [#2633](https://github.com/PrefectHQ/prefect/issues/2633)"

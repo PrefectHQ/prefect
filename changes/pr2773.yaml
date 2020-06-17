@@ -1,2 +1,0 @@
-enhancement:
-  - 'Improve `State.__repr__` when there is no message - [#2773](https://github.com/PrefectHQ/prefect/pull/2773)'

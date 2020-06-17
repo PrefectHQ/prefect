@@ -1,5 +1,0 @@
-enhancement:
-  - "Add support for db argument at run time in the SQLiteQuery and SQLiteScript - [#2782](https://github.com/PrefectHQ/prefect/pull/2782)"
-
-contributor:
-  - "[Paweł Cieśliński](https://github.com/pcieslinski)"
