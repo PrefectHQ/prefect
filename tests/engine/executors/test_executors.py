@@ -296,6 +296,13 @@ class TestDaskExecutor:
         assert kwargs["key"].startswith("FISH!")
         assert kwargs["resources"] == {"GPU": 1.0}
 
+    def test_submit_sets_task_name(self, mthread):
+        with mthread.start():
+            fut = mthread.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
+            (res,) = mthread.wait([fut])
+            assert fut.key.startswith("inc-")
+            assert res == 2
+
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
         post = cloudpickle.loads(cloudpickle.dumps(executor))

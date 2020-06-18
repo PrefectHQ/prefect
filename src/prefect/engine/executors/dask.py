@@ -255,7 +255,7 @@ class DaskExecutor(Executor):
         from distributed import fire_and_forget, worker_client
 
         extra_context = extra_context or {}
-        task_name = extra_context.get("task_full_name", "")
+        task_name = extra_context.get("task_name", "")
         task_tags = extra_context.get("task_tags", [])
         dask_kwargs = self._prep_dask_kwargs(task_name=task_name, task_tags=task_tags)
         kwargs.update(dask_kwargs)
