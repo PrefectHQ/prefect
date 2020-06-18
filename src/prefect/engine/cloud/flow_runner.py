@@ -181,7 +181,14 @@ class CloudFlowRunner(FlowRunner):
         tasks = {slug: t for t, slug in self.flow.slugs.items()}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
-            task = tasks[task_run.task_slug]
+            try:
+                task = tasks[task_run.task_slug]
+            except KeyError:
+                msg = (
+                    f"Task slug {task_run.task_slug} not found in the current Flow; "
+                    "this is usually caused by changing the Flow without reregistering it with the Prefect API."
+                )
+                raise KeyError(msg)
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
                 task_id=task_run.task_id,

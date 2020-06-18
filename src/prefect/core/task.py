@@ -115,8 +115,9 @@ class Task(metaclass=SignatureValidator):
 
     Args:
         - name (str, optional): The name of this task
-        - slug (str, optional): The slug for this task. Slugs are required and must be unique
-            within any flow; if not provided a random UUID will be generated.
+        - slug (str, optional): The slug for this task. Slugs provide a stable ID for tasks so that
+            the Prefect API can identify task run states. If a slug is not provided, one will be generated
+            automatically once the task is added to a Flow.
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried

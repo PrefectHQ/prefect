@@ -2820,7 +2820,8 @@ class TestSaveLoad:
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+    sys.platform == "win32" or sys.version_info.minor == 6,
+    reason="Windows doesn't support any timeout logic",
 )
 @pytest.mark.parametrize("executor", ["local", "sync", "mthread"], indirect=True)
 def test_timeout_actually_stops_execution(executor):

@@ -908,3 +908,36 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
         == 4
     )
     assert all([tr.state.is_successful() for tr in client.task_runs.values()])
+
+
+def test_slug_mismatch_raises_informative_error(monkeypatch):
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+
+    with prefect.Flow(name="test") as flow:
+        t1 = prefect.Task()
+        t2 = prefect.Task()
+        t2.set_upstream(t1)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(id=task_run_id_2, task_slug="bad-slug", flow_run_id=flow_run_id),
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        with pytest.raises(prefect.engine.signals.ENDRUN) as exc:
+            state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+
+    assert exc.value.state.is_failed()
+
+    ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
+    assert "KeyError" in repr(exc.value.state.result)
+    assert "not found" in repr(exc.value.state.result)
+    assert "changing the Flow" in repr(exc.value.state.result)
