@@ -110,6 +110,8 @@ class EmailTask(Task):
         elif smtp_type == "STARTTLS":
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls(context=context)
+        else:
+            raise ValueError(f"{smtp_type} is an unsupported value for smtp_type.")
 
         server.login(username, password)
         try:
