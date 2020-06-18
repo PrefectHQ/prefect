@@ -291,17 +291,27 @@ class TestDaskExecutor:
     def test_prep_dask_kwargs(self):
         executor = DaskExecutor()
         kwargs = executor._prep_dask_kwargs(
-            task_name="FISH!", task_tags=["dask-resource:GPU=1"]
+            dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"])
         )
         assert kwargs["key"].startswith("FISH!")
         assert kwargs["resources"] == {"GPU": 1.0}
+
+    def test_submit_sets_task_name(self, mthread):
+        with mthread.start():
+            fut = mthread.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
+            (res,) = mthread.wait([fut])
+            assert fut.key.startswith("inc-")
+            assert res == 2
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
         post = cloudpickle.loads(cloudpickle.dumps(executor))
         assert isinstance(post, DaskExecutor)
+        assert post.client is None
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable_after_start(self, executor):
-        post = cloudpickle.loads(cloudpickle.dumps(executor))
-        assert isinstance(post, DaskExecutor)
+        with executor.start():
+            post = cloudpickle.loads(cloudpickle.dumps(executor))
+            assert isinstance(post, DaskExecutor)
+            assert post.client is None
