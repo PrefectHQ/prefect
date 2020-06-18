@@ -111,10 +111,7 @@ def gsheet_helper(fn: Callable):
     package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
 
     Args:
-        - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
-        - sheet_key (str): The key corresponding to the Google Sheet
-        - worksheet_name (str): The worksheet to target
-        - **kwargs (optional): additional kwargs to pass to the `Task` constructor
+        - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
     """
 
     @task
@@ -128,7 +125,9 @@ def gsheet_helper(fn: Callable):
         package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
         
         Args: 
-            - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
+            - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
+            - sheet_key (str): The key corresponding to the Google Sheet
+            - worksheet_name (str): The worksheet to target
         """
         client = gspread.service_account(filename=credentials_filename)
         google_sheet = client.open_by_key(sheet_key)
