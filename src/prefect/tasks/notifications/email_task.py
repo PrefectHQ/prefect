@@ -1,3 +1,4 @@
+import ssl
 import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
@@ -102,12 +103,13 @@ class EmailTask(Task):
         contents["To"] = email_to
 
         message = contents.as_string()
+        context = ssl.create_default_context()
 
         if smtp_type == "SSL":
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=context)
         elif smtp_type == "STARTTLS":
             server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
+            server.starttls(context=context)
 
         server.login(username, password)
         try:
