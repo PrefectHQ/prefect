@@ -2935,3 +2935,35 @@ def test_run_agent_passes_environment_labels(monkeypatch):
 
     assert type(agent.call_args[1]["labels"]) is list
     assert set(agent.call_args[1]["labels"]) == set(["test", "test2"])
+
+
+class TestSlugGeneration:
+    def test_slugs_are_stable(self):
+        tasks = [Task(name=str(x)) for x in range(10)]
+        flow_one = Flow("one", tasks=tasks)
+        flow_two = Flow("two", tasks=tasks)
+
+        assert set(flow_one.slugs.values()) == set([str(x) + "-1" for x in range(10)])
+        assert flow_one.slugs == flow_two.slugs
+
+    def test_slugs_incorporate_tags_and_order(self):
+        with Flow("one") as flow_one:
+            Task("a")()
+            Task("b")()
+            Task("a", tags=["tag1"])()
+            Task("b")()
+
+        assert set(flow_one.slugs.values()) == {"a-1", "b-1", "a-tag1-1", "b-2"}
+
+        with Flow("two") as flow_two:
+            Task("a", tags=["tag1"])()
+            Task("a")()
+            Task("b", tags=["tag1", "tag2"])()
+            Task("b")()
+
+        assert set(flow_two.slugs.values()) == {
+            "a-1",
+            "b-1",
+            "a-tag1-1",
+            "b-tag1-tag2-1",
+        }
