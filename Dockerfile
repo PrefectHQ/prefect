@@ -4,7 +4,8 @@ FROM python:${PYTHON_VERSION}-slim
 RUN apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*
 
 ARG PREFECT_VERSION
-RUN pip install git+https://github.com/PrefectHQ/prefect.git@${PREFECT_VERSION}#egg=prefect[kubernetes]
+ARG EXTRAS=kubernetes
+RUN pip install git+https://github.com/PrefectHQ/prefect.git@${PREFECT_VERSION}#egg=prefect[${EXTRAS}]
 RUN mkdir /root/.prefect/
 
 ARG GIT_SHA

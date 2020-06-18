@@ -53,7 +53,7 @@ endpoint = "${server.host}:${server.port}"
 [cloud]
 api = "${${backend}.endpoint}"
 endpoint = "https://api.prefect.io"
-graphql = "${cloud.api}/graphql/alpha"
+graphql = "${cloud.api}/graphql"
 use_local_secrets = true
 heartbeat_interval = 30.0
 diagnostics = false
@@ -115,7 +115,9 @@ checkpointing = false
 
     [flows.defaults]
         [flows.defaults.storage]
-
+        # Whether to include a storage's default labels. Useful for
+        # controlling Agent's workflows.
+        add_default_labels = true
         # the default storage class, specified using a full path
         default_class = "prefect.environments.storage.Local"
 
@@ -139,11 +141,11 @@ checkpointing = false
     default_class = "prefect.engine.executors.LocalExecutor"
 
         [engine.executor.dask]
-        # the default scheduler address for the DaskExecutor. Set to "local" to configure
-        # a LocalCluster
-        address = "local"
-        # whether to use multiprocessing or not (only applied if address is "local")
-        local_processes = false
+        # the default scheduler address for the DaskExecutor.
+        address = ""
+
+        # the default Cluster class to use to create a temporary dask cluster
+        cluster_class = "distributed.deploy.local.LocalCluster"
 
     [engine.flow_runner]
     # the default flow runner, specified using a full path

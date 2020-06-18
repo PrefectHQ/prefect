@@ -28,16 +28,6 @@ If you'd like to kick the tires on Dask locally, you can [install Dask distribut
 > dask-worker tcp://10.0.0.41:8786
 ```
 
-::: warning Work Stealing
-We highly recommend turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) in your Dask Cluster when executing Prefect flows. This can be done via a environment variable in your Dask Cluster:
-
-```
-DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive
-```
-
-On rare occasions, work stealing can result in tasks attempting to run twice.
-:::
-
 Once you have a cluster up and running, let's deploy a very basic flow that runs on this cluster. This example was repurposed from the [distributed documentation](https://distributed.readthedocs.io/en/latest/web.html#example-computation):
 
 ```python
@@ -101,7 +91,10 @@ from prefect.engine.executors import DaskExecutor
 
 gateway = Gateway()
 cluster = gateway.new_cluster()
-executor = DaskExecutor(address=cluster.scheduler_address, security=cluster.security)
+executor = DaskExecutor(
+    address=cluster.scheduler_address,
+    client_kwargs={"security": cluster.security}
+)
 flow.run(executor=executor)
 ```
 
@@ -114,7 +107,10 @@ from prefect.engine.executors import DaskExecutor
 # ...flow definition...
 
 security = GatewaySecurity(tls_cert="path-to-cert", tls_key="path-to-key")
-executor = DaskExecutor(address="a-scheduler-address", security=security)
+executor = DaskExecutor(
+    address="a-scheduler-address",
+    client_kwargs={"security": security}
+)
 flow.run(executor=executor)
 ```
 

@@ -46,6 +46,31 @@ class TestFunctionTask:
         f = FunctionTask(fn=my_fn, name="test")
         assert f.name == "test"
 
+    def test_function_task_docstring(self):
+        def my_fn():
+            """An example docstring."""
+            pass
+
+        # Original docstring available on class
+        assert "FunctionTask" in FunctionTask.__doc__
+
+        # Wrapped function is docstring on instance
+        f = FunctionTask(fn=my_fn)
+        assert f.__doc__ == my_fn.__doc__
+
+        # Except when no docstring on wrapped function
+        f = FunctionTask(fn=lambda x: x + 1)
+        assert "FunctionTask" in f.__doc__
+
+    def test_function_task_sets__wrapped__(self):
+        def my_fn():
+            """An example function"""
+            pass
+
+        t = FunctionTask(fn=my_fn)
+        assert t.__wrapped__ == my_fn
+        assert not hasattr(FunctionTask, "__wrapped__")
+
 
 class TestCollections:
     def test_list_returns_a_list(self):

@@ -22,9 +22,6 @@ def execute():
     \b
     Examples:
         $ prefect execute cloud-flow
-
-    \b
-        $ prefect execute local-flow ~/.prefect/flows/my_flow.prefect
     """
 
 
@@ -72,10 +69,8 @@ def cloud_flow():
             flow = storage.get_flow(storage.flows[flow_data.name])
             environment = flow.environment
 
-            environment.setup(storage=storage)
-            environment.execute(
-                storage=storage, flow_location=storage.flows[flow_data.name]
-            )
+            environment.setup(flow)
+            environment.execute(flow)
     except Exception as exc:
         msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
         state = prefect.engine.state.Failed(message=msg)

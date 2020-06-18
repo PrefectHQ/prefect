@@ -2,10 +2,8 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import datetime
 import uuid
 
-import pendulum
 import pytest
 
 import prefect

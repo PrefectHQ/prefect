@@ -1,10 +1,7 @@
 import datetime
 import os
-import shlex
-import subprocess
 import sys
 import tempfile
-import uuid
 
 import pytest
 

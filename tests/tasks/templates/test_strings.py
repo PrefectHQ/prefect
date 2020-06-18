@@ -1,15 +1,7 @@
-import os
-import subprocess
-import tempfile
-
-import cloudpickle
-import pendulum
 import pytest
 
 from prefect import Flow, context
-from prefect.engine import signals
 from prefect.tasks.templates import StringFormatter
-from prefect.utilities.debug import raise_on_exception
 
 
 def test_string_formatter_simply_formats():

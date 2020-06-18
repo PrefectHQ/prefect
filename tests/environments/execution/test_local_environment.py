@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock
 
-import pytest
-
 import prefect
+from prefect import Flow
 from prefect.environments.execution import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 
@@ -22,6 +21,7 @@ def test_create_environment():
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
+    assert environment.metadata == {}
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
@@ -29,11 +29,14 @@ def test_create_environment_populated():
     def f():
         pass
 
-    environment = LocalEnvironment(labels=["test"], on_start=f, on_exit=f)
+    environment = LocalEnvironment(
+        labels=["test"], on_start=f, on_exit=f, metadata={"test": "here"}
+    )
     assert environment
     assert environment.labels == set(["test"])
     assert environment.on_start is f
     assert environment.on_exit is f
+    assert environment.metadata == {"test": "here"}
     assert environment.logger.name == "prefect.LocalEnvironment"
 
 
@@ -44,7 +47,7 @@ def test_environment_dependencies():
 
 def test_setup_environment_passes():
     environment = LocalEnvironment()
-    environment.setup(storage=Docker())
+    environment.setup(flow=Flow("test", storage=Docker()))
     assert environment
 
 
@@ -64,9 +67,10 @@ def test_environment_execute():
     environment = LocalEnvironment()
     storage = DummyStorage()
     flow = prefect.Flow("test", tasks=[add_to_dict])
-    flow_loc = storage.add_flow(flow)
+    storage.add_flow(flow)
+    flow.storage = storage
 
-    environment.execute(storage, flow_loc)
+    environment.execute(flow=flow)
     assert global_dict.get("run") is True
 
 
@@ -88,40 +92,11 @@ def test_environment_execute_with_env_runner():
     environment = LocalEnvironment()
     storage = TestStorage()
     flow = prefect.Flow("test", tasks=[add_to_dict])
-    flow_loc = storage.add_flow(flow)
+    storage.add_flow(flow)
+    flow.storage = storage
 
-    environment.execute(storage, flow_loc)
+    environment.execute(flow)
     assert global_dict.get("run") is True
-
-
-def test_environment_execute_with_env_runner_with_kwargs():
-    class TestStorage(DummyStorage):
-        def get_flow(self, *args, **kwargs):
-            raise NotImplementedError()
-
-        def get_env_runner(self, flow_loc):
-            runner = super().get_flow(flow_loc)
-
-            def runner_func(env):
-                runner.run(x=env.get("x"))
-
-            return runner_func
-
-    global_dict = {}
-
-    @prefect.task
-    def add_to_dict(x):
-        global_dict["result"] = x
-
-    environment = LocalEnvironment()
-    storage = TestStorage()
-    with prefect.Flow("test") as flow:
-        x = prefect.Parameter("x")
-        add_to_dict(x)
-
-    flow_loc = storage.add_flow(flow)
-    environment.execute(storage, flow_loc, env=dict(x=42))
-    assert global_dict.get("result") == 42
 
 
 def test_environment_execute_calls_callbacks():
@@ -137,9 +112,10 @@ def test_environment_execute_calls_callbacks():
     environment = LocalEnvironment(on_start=start_func, on_exit=exit_func)
     storage = DummyStorage()
     flow = prefect.Flow("test", tasks=[add_to_dict])
-    flow_loc = storage.add_flow(flow)
+    storage.add_flow(flow)
+    flow.storage = storage
 
-    environment.execute(storage, flow_loc)
+    environment.execute(flow)
     assert global_dict.get("run") is True
 
     assert start_func.called

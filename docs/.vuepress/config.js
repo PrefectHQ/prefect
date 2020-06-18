@@ -1,6 +1,7 @@
 const sidebar81 = require('../api/0.8.1/sidebar')
 const sidebar98 = require('../api/0.9.8/sidebar')
 const sidebar107 = require('../api/0.10.7/sidebar')
+const sidebar115 = require('../api/0.11.5/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -74,7 +75,8 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.11.2)', link: '/api/latest/' },
+          { text: 'Latest (0.12.0)', link: '/api/latest/' },
+          { text: '0.11.5', link: '/api/0.11.5/' },
           { text: '0.10.7', link: '/api/0.10.7/' },
           { text: '0.9.8', link: '/api/0.9.8/' },
           { text: '0.8.1', link: '/api/0.8.1/' },
@@ -90,6 +92,7 @@ module.exports = {
       '/api/0.8.1/': sidebar81.sidebar,
       '/api/0.9.8/': sidebar98.sidebar,
       '/api/0.10.7/': sidebar107.sidebar,
+      '/api/0.11.5/': sidebar115.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',

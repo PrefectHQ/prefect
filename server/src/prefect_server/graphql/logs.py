@@ -3,7 +3,6 @@
 
 
 import asyncio
-import warnings
 from typing import Any
 
 from graphql import GraphQLResolveInfo

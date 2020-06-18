@@ -1,7 +1,6 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import marshmallow
 import pendulum
 import pytest
 

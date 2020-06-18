@@ -31,8 +31,7 @@ class Azure(Storage):
             will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
-        - secrets (List[str], optional): a list of Prefect Secrets which will be used to populate `prefect.context`
-            for each flow run.  Used primarily for providing authentication credentials.
+        - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
@@ -40,7 +39,7 @@ class Azure(Storage):
         container: str,
         connection_string: str = None,
         blob_name: str = None,
-        secrets: List[str] = None,
+        **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
@@ -55,10 +54,10 @@ class Azure(Storage):
         result = AzureResult(
             connection_string=self.connection_string, container=container
         )
-        super().__init__(result=result, secrets=secrets)
+        super().__init__(result=result, **kwargs)
 
     @property
-    def labels(self) -> List[str]:
+    def default_labels(self) -> List[str]:
         return ["azure-flow-storage"]
 
     def get_flow(self, flow_location: str) -> "Flow":
