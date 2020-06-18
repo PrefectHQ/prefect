@@ -374,6 +374,9 @@ class Task(metaclass=SignatureValidator):
 
         new = copy.copy(self)
 
+        if new.slug and "slug" not in task_args:
+            task_args["slug"] = new.slug + "-copy"
+
         # check task_args
         for attr, val in task_args.items():
             if not hasattr(new, attr):

@@ -464,6 +464,11 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
+            if task.slug and task.slug in self.slugs.values():
+                raise ValueError(
+                    'A task with the slug "{}" already exists in this '
+                    "flow.".format(task.slug)
+                )
             self.slugs[task] = task.slug or self._generate_task_slug(task)
 
             self.tasks.add(task)
@@ -1289,7 +1294,10 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
-        serialized = schema(exclude=["storage"]).dump(self)
+        flow_copy = self.copy()
+        for task, slug in flow_copy.slugs.items():
+            task.slug = slug
+        serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
             if not self.storage:
