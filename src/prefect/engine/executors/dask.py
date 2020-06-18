@@ -2,7 +2,7 @@ import logging
 import uuid
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, Iterable, TYPE_CHECKING, Union
+from typing import Any, Callable, Iterator, TYPE_CHECKING, Union
 
 from prefect import context
 from prefect.engine.executors.base import Executor
