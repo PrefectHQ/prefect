@@ -306,7 +306,6 @@ classes = [
         "WriteGsheetRow",
         "ReadGsheetRow",
         ]
-functions = ["gsheet_helper"]
 
 [pages.tasks.jira]
 title = "Jira Tasks"

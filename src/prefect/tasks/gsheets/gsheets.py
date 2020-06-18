@@ -1,6 +1,6 @@
 from prefect.utilities.tasks import defaults_from_attrs
 import gspread
-from typing import List, Union, Any, TypedDict, Callable
+from typing import Any, Callable, List, Union
 from prefect import task, Task
 import pathlib
 
@@ -91,7 +91,7 @@ class ReadGsheetRow(Task):
         Appends a row of data to a Google Sheets worksheet
 
         Args:
-            - data (list): the data to insert. This should be formatted as a list
+            - row (int): The number of the row to read
             - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
             - sheet_key (str): The key corresponding to the Google Sheet
             - worksheet_name (str): The worksheet to target
