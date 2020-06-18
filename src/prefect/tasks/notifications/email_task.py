@@ -15,7 +15,8 @@ class EmailTask(Task):
     Task for sending email from an authenticated email service over SMTP. For this task to function properly,
     you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect Secrets set.  It is recommended
     you use a [Google App Password](https://support.google.com/accounts/answer/185833) if you use Gmail.
-    The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL)
+    The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
+    containing HTML code is support - the default MIME type is set to the text/html.
 
     Args:
         - subject (str, optional): the subject of the email; can also be provided at runtime
@@ -38,7 +39,7 @@ class EmailTask(Task):
         smtp_server: str = "smtp.gmail.com",
         smtp_port: int = 465,
         smtp_type: str = "SSL",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.subject = subject
         self.msg = msg
@@ -96,7 +97,7 @@ class EmailTask(Task):
         email_to = cast(str, email_to)
 
         contents = MIMEMultipart("alternative")
-        contents.attach(MIMEText(cast(str, msg), "plain"))
+        contents.attach(MIMEText(cast(str, msg), "html"))
 
         contents["Subject"] = Header(subject, "UTF-8")
         contents["From"] = email_from
