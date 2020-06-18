@@ -103,35 +103,3 @@ class ReadGsheetRow(Task):
         google_sheet = client.open_by_key(sheet_key)
         worksheet = google_sheet.worksheet(worksheet_name)
         return worksheet.row_values(row)
-
-
-def gsheet_helper(fn: Callable):
-    """
-    A 'factory' to make tasks out of various utility methods in Google Sheets that that `gspread`
-    package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
-
-    Args:
-        - fn (Callable): A function to perform.  For instance, `lambda x: x.find("Dough")`
-    """
-
-    @task
-    def inner(
-        credentials_filename: Union[str, pathlib.Path] = None,
-        sheet_key: str = None,
-        worksheet_name: str = None,
-    ):
-        """
-        A 'factory' to make tasks out of various utility methods in Google Sheets that that `gspread`
-        package has. Docs here: https://gspread.readthedocs.io/en/latest/user-guide.html
-        
-        Args: 
-            - credentials_filename (Union[str, pathlib.Path]): Location of credentials file
-            - sheet_key (str): The key corresponding to the Google Sheet
-            - worksheet_name (str): The worksheet to target
-        """
-        client = gspread.service_account(filename=credentials_filename)
-        google_sheet = client.open_by_key(sheet_key)
-        worksheet = google_sheet.worksheet(worksheet_name)
-        return fn(worksheet)
-
-    return inner
