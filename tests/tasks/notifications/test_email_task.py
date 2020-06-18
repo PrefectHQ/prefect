@@ -27,6 +27,14 @@ class TestInitialization:
                 res = t.run()
         assert smtp.SMTP_SSL.return_value.login.call_args[0] == ("foo", "bar")
 
+    def test_run_raises_error_when_called_with_unsupported_smtp_type(self):
+        t = EmailTask(msg="", smtp_type="TEST")
+        with pytest.raises(
+            ValueError, match="TEST is an unsupported value for smtp_type."
+        ):
+            with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
+                res = t.run()
+
     def test_kwarg_for_email_from_get_passed_to_task_init(self, monkeypatch):
         smtp = MagicMock()
         monkeypatch.setattr("prefect.tasks.notifications.email_task.smtplib", smtp)
