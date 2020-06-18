@@ -1,4 +1,5 @@
 import os
+import socket
 import tempfile
 
 import cloudpickle
@@ -154,3 +155,15 @@ def test_build_healthcheck_returns_on_no_flows():
     with tempfile.TemporaryDirectory() as tmpdir:
         s = Local(directory=tmpdir)
         assert s.build()
+
+
+def test_labels_includes_hostname():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = Local(directory=tmpdir)
+        assert socket.gethostname() in s.labels
+
+
+def test_opt_out_of_hostname_label():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = Local(directory=tmpdir, add_default_labels=False)
+        assert socket.gethostname() not in s.labels

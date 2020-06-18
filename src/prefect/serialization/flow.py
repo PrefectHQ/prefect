@@ -18,7 +18,7 @@ from prefect.utilities.serialization import (
 
 def get_parameters(obj: prefect.Flow, context: dict) -> Set:
     if isinstance(obj, prefect.Flow):
-        return {p for p in obj.tasks if isinstance(p, prefect.core.task.Parameter)}
+        return {p for p in obj.tasks if isinstance(p, prefect.core.parameter.Parameter)}
     else:
         return utils.get_value(obj, "parameters")
 

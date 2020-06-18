@@ -145,6 +145,70 @@ def test_merging_diamond_flow():
         assert isinstance(state.result[merge_task], Success)
 
 
+def test_merge_imperative_flow():
+    flow = Flow("test")
+
+    cond = identity.copy().bind(True, flow=flow)
+    with case(cond, True):
+        a = inc.copy().bind(1, flow=flow)
+
+    with case(cond, False):
+        b = inc.copy().bind(2, flow=flow)
+
+    c = merge(a, b, flow=flow)
+
+    state = flow.run()
+    assert state.result[cond].result == True
+    assert state.result[a].result == 2
+    assert state.result[b].is_skipped()
+    assert state.result[c].result == 2
+
+
+def test_mapped_switch_and_merge():
+    with Flow("iterated map") as flow:
+        mapped_result = identity.copy().map(["a", "b", "c"])
+
+        a = identity("a")
+        b = identity("b")
+        c = identity("c")
+
+        switch(condition=mapped_result, cases=dict(a=a, b=b, c=c), mapped=True)
+
+        merge_result = merge(a, b, c, mapped=True)
+
+    state = flow.run()
+
+    assert state.result[a].result == ["a", None, None]
+    assert state.result[b].result == [None, "b", None]
+    assert state.result[c].result == [None, None, "c"]
+    assert state.result[merge_result].result == ["a", "b", "c"]
+
+
+def test_mapped_ifelse_and_merge():
+    @task
+    def is_even(x):
+        return x % 2 == 0
+
+    @task
+    def even():
+        return "even"
+
+    @task
+    def odd():
+        return "odd"
+
+    with Flow("iterated map") as flow:
+        mapped_result = is_even.map([1, 2, 3])
+
+        ifelse(condition=mapped_result, true_task=even, false_task=odd, mapped=True)
+
+        merge_result = merge(even, odd, flow=flow, mapped=True)
+
+    state = flow.run()
+
+    assert state.result[merge_result].result == ["odd", "even", "odd"]
+
+
 def test_merging_with_objects_that_cant_be_equality_compared():
     class SpecialObject:
         def __eq__(self, other):

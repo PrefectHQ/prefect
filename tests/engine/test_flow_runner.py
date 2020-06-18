@@ -2,12 +2,9 @@ import collections
 import datetime
 import queue
 import random
-import sys
 import time
-from distutils.version import LooseVersion
 from unittest.mock import MagicMock
 
-import cloudpickle
 import pendulum
 import pytest
 
@@ -35,9 +32,8 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
-from prefect.engine.task_runner import TaskRunner
 from prefect.tasks.secrets import PrefectSecret
-from prefect.triggers import any_failed, manual_only
+from prefect.triggers import manual_only
 from prefect.utilities.debug import raise_on_exception
 
 
@@ -320,6 +316,21 @@ def test_parameters_are_placed_into_context():
     flow_state = FlowRunner(flow=flow).run(return_tasks=[y], parameters=dict(y=42))
     assert isinstance(flow_state, Success)
     assert flow_state.result[y].result == 42
+
+
+def test_parameters_are_placed_into_context_including_defaults():
+    @prefect.task
+    def whats_in_ctx():
+        return prefect.context.parameters
+
+    y = prefect.Parameter("y", default=99)
+    z = prefect.Parameter("z", default=19)
+    flow = Flow(name="test", tasks=[y, z, whats_in_ctx])
+    flow_state = FlowRunner(flow=flow).run(
+        return_tasks=[whats_in_ctx], parameters=dict(y=42)
+    )
+    assert isinstance(flow_state, Success)
+    assert flow_state.result[whats_in_ctx].result == dict(y=42, z=19)
 
 
 def test_parameters_are_placed_into_context_and_override_current_context():
@@ -1237,24 +1248,6 @@ class TestMapping:
     @pytest.mark.parametrize(
         "executor", ["local", "mthread", "mproc", "sync"], indirect=True
     )
-    def test_mapped_will_use_partial_existing_map_states_if_incomplete(self, executor):
-
-        with Flow(name="test") as flow:
-            res = ReturnTask().map([1, 1])
-
-        state = FlowRunner(flow=flow).run(
-            return_tasks=[res],
-            executor=executor,
-            task_states={res: Mapped(map_states=[Success(result=100)])},
-        )
-        assert state.is_failed()
-        assert state.result[res].map_states[0].is_successful()
-        assert state.result[res].map_states[0].result == 100
-        assert state.result[res].map_states[1].is_failed()
-
-    @pytest.mark.parametrize(
-        "executor", ["local", "mthread", "mproc", "sync"], indirect=True
-    )
     def test_mapped_tasks_dont_run_if_upstream_pending(self, executor):
 
         with Flow(name="test") as flow:
@@ -1326,45 +1319,17 @@ def test_paused_tasks_stay_paused_when_run():
 
 
 class TestContext:
-    def test_flow_runner_inits_with_current_context(self):
-        runner = FlowRunner(Flow(name="test"))
-        assert isinstance(runner.context, dict)
-        assert "chris" not in runner.context
-
-        with prefect.context(chris="foo"):
-            runner2 = prefect.engine.task_runner.TaskRunner(Task())
-            assert "chris" in runner2.context
-
-        assert "chris" not in prefect.context
-        assert runner2.context["chris"] == "foo"
-
-    def test_flow_runner_passes_along_its_init_context_to_tasks(self):
+    def test_flow_runner_passes_along_its_run_context_to_tasks(self):
         @prefect.task
         def grab_key():
             return prefect.context["THE_ANSWER"]
 
         with prefect.context(THE_ANSWER=42):
             runner = FlowRunner(Flow(name="test", tasks=[grab_key]))
+            flow_state = runner.run(return_tasks=[grab_key])
 
-        flow_state = runner.run(return_tasks=[grab_key])
         assert flow_state.is_successful()
         assert flow_state.result[grab_key].result == 42
-
-    def test_flow_runner_passes_along_its_init_context_to_tasks_after_serialization(
-        self,
-    ):
-        @prefect.task
-        def grab_key():
-            return prefect.context["THE_ANSWER"]
-
-        with prefect.context(THE_ANSWER=42):
-            prerunner = FlowRunner(Flow(name="test", tasks=[grab_key]))
-
-        runner = cloudpickle.loads(cloudpickle.dumps(prerunner))
-
-        flow_state = runner.run(return_tasks=list(runner.flow.tasks))
-        assert flow_state.is_successful()
-        assert flow_state.result[runner.flow.tasks.pop()].result == 42
 
     def test_flow_runner_provides_scheduled_start_time(self):
         @prefect.task
@@ -1479,12 +1444,13 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     here by having the CloudHandler called during logging and the special values present in context.
     """
 
-    class CustomFlowRunner(FlowRunner):
-        def run_task(self, *args, **kwargs):
-            with prefect.utilities.configuration.set_temporary_config(
-                {"logging.log_to_cloud": False, "cloud.auth_token": ""}
-            ):
-                return super().run_task(*args, **kwargs)
+    from prefect.engine.flow_runner import run_task
+
+    def my_run_task(*args, **kwargs):
+        with prefect.utilities.configuration.set_temporary_config(
+            {"logging.log_to_cloud": False, "cloud.auth_token": ""}
+        ):
+            return run_task(*args, **kwargs)
 
     calls = []
 
@@ -1492,6 +1458,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
         def write_run_logs(self, *args, **kwargs):
             calls.append(args)
 
+    monkeypatch.setattr("prefect.engine.flow_runner.run_task", my_run_task)
     monkeypatch.setattr("prefect.client.Client", Client)
 
     @prefect.task
@@ -1511,10 +1478,8 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
         }
     ):
         # captures config at init
-        runner = CustomFlowRunner(flow=Flow("test", tasks=[log_stuff]))
-        flow_state = runner.run(
-            return_tasks=[log_stuff], task_contexts={log_stuff: dict(special_key=99)}
-        )
+        flow = Flow("test", tasks=[log_stuff])
+        flow_state = flow.run(task_contexts={log_stuff: dict(special_key=99)})
 
     assert flow_state.is_successful()
     assert flow_state.result[log_stuff].result == (42, "original")
@@ -1526,7 +1491,7 @@ def test_task_runners_submitted_to_remote_machines_respect_original_config(monke
     loggers = [log["name"] for call in calls for log in call[0]]
     assert set(loggers) == {
         "prefect.TaskRunner",
-        "prefect.CustomFlowRunner",
+        "prefect.FlowRunner",
         "prefect.log_stuff",
     }
 
@@ -1578,8 +1543,8 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert flow_state.is_successful()
     assert flow_state.result[output].result == [100] * 10
 
-    ## only add task was submitted; the list task is a constant
-    assert len(calls) == 1
+    ## the add task was submitted 11 times: one for the parent and 10 times for each child
+    assert len(calls) == 11
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0

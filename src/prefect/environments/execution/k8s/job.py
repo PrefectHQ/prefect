@@ -1,20 +1,21 @@
 import os
 import uuid
-from typing import Any, Callable, List
+from typing import Any, Callable, List, TYPE_CHECKING
 
-import cloudpickle
 import yaml
 
 import prefect
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
+from prefect.utilities.storage import get_flow_image
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class KubernetesJobEnvironment(Environment):
     """
-    KubernetesJobEnvironment is an environment which deploys your flow (stored in a Docker image)
-    as a Kubernetes job. This environment allows (and requires) a custom job YAML spec to be
-    provided.
+    KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes
+    job. This environment allows (and requires) a custom job YAML spec to be provided.
 
     When providing a custom YAML job spec the first container in the spec must be the
     container that the flow runner will be executed on.
@@ -27,7 +28,6 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
-    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
@@ -35,7 +35,7 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
-    `$ /bin/sh -c "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"`
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
@@ -47,6 +47,7 @@ class KubernetesJobEnvironment(Environment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
     def __init__(
@@ -57,6 +58,7 @@ class KubernetesJobEnvironment(Environment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
         self.unique_job_name = unique_job_name
@@ -67,7 +69,9 @@ class KubernetesJobEnvironment(Environment):
 
         self._identifier_label = ""
 
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     @property
     def dependencies(self) -> list:
@@ -90,34 +94,20 @@ class KubernetesJobEnvironment(Environment):
         self.__dict__.update(state)
 
     def execute(  # type: ignore
-        self, storage: "Docker", flow_location: str, **kwargs: Any
+        self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
         Create a single Kubernetes job that runs the flow.
 
         Args:
-            - storage (Docker): the Docker storage object that contains information relating
-                to the image which houses the flow
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
 
         Raises:
-            - TypeError: if the storage is not `Docker`
+            - Exception: if the environment is unable to create the Kubernetes job
         """
-        if not isinstance(storage, Docker):
-            raise TypeError("CloudEnvironment requires a Docker storage option")
+        docker_name = get_flow_image(flow)
 
-        self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
-
-    def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
-        """
-        Creates a Kubernetes job to run the flow using the information stored on the
-        Docker storage object.
-
-        Args:
-            - docker_name (str): the full name of the docker image (registry/name:tag)
-            - flow_file_path (str): location of the flow file in the image
-        """
         from kubernetes import client, config
 
         # Verify environment is running in cluster
@@ -130,9 +120,7 @@ class KubernetesJobEnvironment(Environment):
         batch_client = client.BatchV1Api()
 
         job = self._populate_job_spec_yaml(
-            yaml_obj=self._job_spec,
-            docker_name=docker_name,
-            flow_file_path=flow_file_path,
+            yaml_obj=self._job_spec, docker_name=docker_name,
         )
 
         # Create Job
@@ -144,63 +132,17 @@ class KubernetesJobEnvironment(Environment):
             self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
             raise exc
 
-    def run_flow(self) -> None:
-        """
-        Run the flow from specified flow_file_path location using the default executor
-        """
-
-        # Call on_start callback if specified
-        if self.on_start:
-            self.on_start()
-
-        try:
-            from prefect.engine import (
-                get_default_flow_runner_class,
-                get_default_executor_class,
-            )
-
-            # Load serialized flow from file and run it with the executor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
-
-                ## populate global secrets
-                secrets = prefect.context.get("secrets", {})
-                for secret in flow.storage.secrets:
-                    secrets[secret.name] = secret.run()
-
-                with prefect.context(secrets=secrets):
-                    runner_cls = get_default_flow_runner_class()
-                    executor_cls = get_default_executor_class()(**self.executor_kwargs)
-                    runner_cls(flow=flow).run(executor=executor_cls)
-        except Exception as exc:
-            self.logger.exception(
-                "Unexpected error raised during flow run: {}".format(exc)
-            )
-            raise exc
-        finally:
-            # Call on_exit callback if specified
-            if self.on_exit:
-                self.on_exit()
-
     ###############################
     # Custom YAML Spec Manipulation
     ###############################
 
-    def _populate_job_spec_yaml(
-        self, yaml_obj: dict, docker_name: str, flow_file_path: str
-    ) -> dict:
+    def _populate_job_spec_yaml(self, yaml_obj: dict, docker_name: str,) -> dict:
         """
         Populate the custom execution job yaml object used in this environment with the proper values
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
             - docker_name (str): the full path to the docker image
-            - flow_file_path (str): the location of the flow within the docker container
 
         Returns:
             - dict: a dictionary with the yaml values replaced
@@ -226,11 +168,12 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["metadata"]["labels"] = {}
 
         # Populate metadata label fields
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        k8s_labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        yaml_obj["metadata"]["labels"].update(k8s_labels)
+        yaml_obj["spec"]["template"]["metadata"]["labels"].update(k8s_labels)
 
         # Required Cloud environment variables
         env_values = [
@@ -245,7 +188,6 @@ class KubernetesJobEnvironment(Environment):
                 "value": prefect.context.get("namespace", ""),
             },
             {"name": "PREFECT__CONTEXT__IMAGE", "value": docker_name},
-            {"name": "PREFECT__CONTEXT__FLOW_FILE_PATH", "value": flow_file_path},
             {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
             {
                 "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -288,7 +230,7 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
 
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'import prefect; prefect.Flow.load(prefect.context.flow_file_path).environment.run_flow()'"
+            "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
         ]
 
         return yaml_obj

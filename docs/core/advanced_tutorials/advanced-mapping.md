@@ -237,7 +237,10 @@ print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state.map_states[:5]]))
 
 Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarrassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `Synchronous` executor), so this property was not taken advantage of during execution.
 
-In order to allow for parallel execution of tasks, we don't need to "recompile" our flow: we provide an executor which can handle parallelism in our call to `run`. In the local case, Prefect offers the `DaskExecutor` for executing parallel flows. These execution pipelines can either spawn new processes (`local_processes=True`), or only use threads; we have chosen to use `local_processes=True` in our example below.
+In order to allow for parallel execution of tasks, we don't need to "recompile"
+our flow: we provide an executor which can handle parallelism in our call to
+`run`. In the local case, Prefect offers the `DaskExecutor` for executing
+parallel flows.
 
 :::tip What is an executor, anyway?
 A Prefect executor is the core driver of computation - an executor specifies _how_ and _where_ each task in a flow should be run.
@@ -252,7 +255,7 @@ If you are following along and executing the code locally, it is recommended you
 ```python
 from prefect.engine.executors import DaskExecutor
 
-executor = DaskExecutor(local_processes=True)
+executor = DaskExecutor()
 
 %%time
 scraped_state = flow.run(parameters={"url": "http://www.insidethex.co.uk/"},
