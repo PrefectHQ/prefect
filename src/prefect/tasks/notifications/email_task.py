@@ -16,7 +16,7 @@ class EmailTask(Task):
     you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect Secrets set.  It is recommended
     you use a [Google App Password](https://support.google.com/accounts/answer/185833) if you use Gmail.
     The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
-    containing HTML code is support - the default MIME type is set to the text/html.
+    containing HTML code is supported - the default MIME type is set to the text/html.
 
     Args:
         - subject (str, optional): the subject of the email; can also be provided at runtime
