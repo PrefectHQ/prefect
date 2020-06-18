@@ -320,9 +320,11 @@ class LocalDaskExecutor(Executor):
             def _posttask(self, key, value, dsk, state, id):  # type: ignore
                 self.cache[key] = value
 
-        self._callback = PrefectCallback()  # type: ignore
-        yield
-        self._callback = None
+        try:
+            self._callback = PrefectCallback()  # type: ignore
+            yield
+        finally:
+            self._callback = None
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
