@@ -36,14 +36,16 @@ Most reference docs sections update their sidebars automatically by detecting th
 
 ### Archiving API docs
 
-Whenever a new release of Prefect is cut, we must archive the old API docs so they are available for users using the older versions. To do so, follow these steps:
+Whenever a new minor release of Prefect is cut, we must archive the old API docs so they are available for users using the older versions. For example, this means that if we are releasing Prefect `0.10.0` then the highest patch release of `0.9.x` must be archived. To do so, follow these steps:
 
 - first, make sure you are on the release commit: `git checkout $VERSION_TAG`
 - next, generate the documentation: `cd docs/ && python generate_docs.py`
-- push the API docs into a new folder: `cd api/ && mv unreleased/ $VERSION_TAG`
+- push the API docs into a new folder: `cd api/ && mv latest/ $VERSION_TAG`
 - begin tracking any changes to the new folder: `git checkout master && git checkout -b new-version-branch && git add $VERSION_TAG`
-- lastly, create a new `sidebar.js` file in the `$VERSION_TAG/` folder with an exportable sidebar object (see [0.5.0](https://github.com/PrefectHQ/prefect/blob/master/docs/api/0.5.0/sidebar.js) for an example)
+- lastly, create a new `sidebar.js` file in the `$VERSION_TAG/` folder with an exportable sidebar object (see [0.11.5](https://github.com/PrefectHQ/prefect/blob/master/docs/api/0.11.5/sidebar.js) for an example)
 - this sidebar will need to be imported into `docs/.vuepress/config.js` and added to a new dropdown option in the API navigation bar
+
+The most recent release of Prefect will always be the `latest` release and the API docs for latest are auto generated with each doc build. On release the `Latest (x.y.z)` should be updated with the most recent version in [`docs/.vuepress/config.js`](https://github.com/PrefectHQ/prefect/blob/master/docs/.vuepress/config.js).
 
 ## Concepts
 
