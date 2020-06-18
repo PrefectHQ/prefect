@@ -477,6 +477,7 @@ jobs:
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:all_extras-${CIRCLE_TAG} \
+              -t prefecthq/prefect:all_extras \
               .
       - run:
           name: Test image
