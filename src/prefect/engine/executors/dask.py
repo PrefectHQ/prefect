@@ -170,11 +170,11 @@ class DaskExecutor(Executor):
             client_kwargs.update(kwargs)
 
         self.address = address
-        self.is_started = False
         self.cluster_class = cluster_class
         self.cluster_kwargs = cluster_kwargs
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
+        self.client = None
 
         super().__init__()
 
@@ -192,7 +192,6 @@ class DaskExecutor(Executor):
             if self.address is not None:
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
-                    self.is_started = True
                     yield self.client
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
@@ -200,19 +199,22 @@ class DaskExecutor(Executor):
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
                         self.client = client
-                        self.is_started = True
                         yield self.client
         finally:
             self.client = None
-            self.is_started = False
 
-    def _prep_dask_kwargs(self, task_name: str, task_tags: Iterable[str]) -> dict:
+    def _prep_dask_kwargs(self, extra_context: dict = None) -> dict:
+        if extra_context is None:
+            extra_context = {}
+
+        task_name = extra_context.get("task_name", "")
+        task_tags = extra_context.get("task_tags", [])
+
         dask_kwargs = {"pure": False}  # type: dict
 
         # set a key for the dask scheduler UI
         if task_name:
-            key = f"{task_name}-{str(uuid.uuid4())}"
-            dask_kwargs.update(key=key)
+            dask_kwargs.update(key=f"{task_name}-{str(uuid.uuid4())}")
 
         # infer from context if dask resources are being utilized
         dask_resource_tags = [
@@ -229,8 +231,7 @@ class DaskExecutor(Executor):
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        if "client" in state:
-            del state["client"]
+        state["client"] = None
         return state
 
     def __setstate__(self, state: dict) -> None:
@@ -251,25 +252,11 @@ class DaskExecutor(Executor):
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
-        # import dask functions here to decrease our import times
-        from distributed import fire_and_forget, worker_client
-
-        extra_context = extra_context or {}
-        task_name = extra_context.get("task_name", "")
-        task_tags = extra_context.get("task_tags", [])
-        dask_kwargs = self._prep_dask_kwargs(task_name=task_name, task_tags=task_tags)
-        kwargs.update(dask_kwargs)
-
-        if self.is_started and hasattr(self, "client"):
-            future = self.client.submit(fn, *args, **kwargs)
-        elif self.is_started:
-            with worker_client(separate_thread=True) as client:
-                future = client.submit(fn, *args, **kwargs)
-        else:
+        if self.client is None:
             raise ValueError("This executor has not been started.")
 
-        fire_and_forget(future)
-        return future
+        kwargs.update(self._prep_dask_kwargs(extra_context))
+        return self.client.submit(fn, *args, **kwargs)
 
     def wait(self, futures: Any) -> Any:
         """
@@ -281,16 +268,10 @@ class DaskExecutor(Executor):
         Returns:
             - Any: an iterable of resolved futures with similar shape to the input
         """
-        # import dask functions here to decrease our import times
-        from distributed import worker_client
-
-        if self.is_started and hasattr(self, "client"):
-            return self.client.gather(futures)
-        elif self.is_started:
-            with worker_client(separate_thread=True) as client:
-                return client.gather(futures)
-        else:
+        if self.client is None:
             raise ValueError("This executor has not been started.")
+
+        return self.client.gather(futures)
 
 
 class LocalDaskExecutor(Executor):
