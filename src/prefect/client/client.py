@@ -648,8 +648,16 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
+        # Set Docker storage image in environment metadata if provided
         if isinstance(flow.storage, prefect.environments.storage.Docker):
             flow.environment.metadata["image"] = flow.storage.name
+
+        # If no image ever set, default metadata to all_extras image on current version
+        if not flow.environment.metadata.get("image"):
+            version = prefect.__version__.split("+")[0]
+            flow.environment.metadata[
+                "image"
+            ] = f"prefecthq/prefect:all_extras-{version}"
 
         # verify that the serialized flow can be deserialized
         try:
