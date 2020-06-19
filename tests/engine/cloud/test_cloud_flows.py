@@ -269,8 +269,12 @@ def test_simple_two_task_flow(monkeypatch, executor):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
         ],
         monkeypatch=monkeypatch,
     )
@@ -300,7 +304,9 @@ def test_scheduled_start_time_is_in_context(monkeypatch, executor):
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
             TaskRun(
-                id=task_run_id_1, task_slug=whats_the_time.slug, flow_run_id=flow_run_id
+                id=task_run_id_1,
+                task_slug=flow.slugs[whats_the_time],
+                flow_run_id=flow_run_id,
             )
         ],
         monkeypatch=monkeypatch,
@@ -332,10 +338,12 @@ def test_simple_two_task_flow_with_final_task_set_to_fail(monkeypatch, executor)
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
             TaskRun(
                 id=task_run_id_2,
-                task_slug=t2.slug,
+                task_slug=flow.slugs[t2],
                 flow_run_id=flow_run_id,
                 state=Failed(),
             ),
@@ -371,10 +379,12 @@ def test_simple_two_task_flow_with_final_task_already_running(monkeypatch, execu
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
             TaskRun(
                 id=task_run_id_2,
-                task_slug=t2.slug,
+                task_slug=flow.slugs[t2],
                 version=1,
                 flow_run_id=flow_run_id,
                 state=Running(),
@@ -417,9 +427,15 @@ def test_simple_three_task_flow_with_one_failing_task(monkeypatch, executor):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_3, task_slug=t3.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_3, task_slug=flow.slugs[t3], flow_run_id=flow_run_id
+            ),
         ],
         monkeypatch=monkeypatch,
     )
@@ -465,9 +481,15 @@ def test_simple_three_task_flow_with_first_task_retrying(monkeypatch, executor):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_3, task_slug=t3.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_3, task_slug=flow.slugs[t3], flow_run_id=flow_run_id
+            ),
         ],
         monkeypatch=monkeypatch,
     )
@@ -499,10 +521,12 @@ def test_simple_map(monkeypatch):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id)
+            TaskRun(id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id)
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t is not t1
         ],
@@ -518,7 +542,10 @@ def test_simple_map(monkeypatch):
     assert client.flow_runs[flow_run_id].state.is_successful()
     assert client.task_runs[task_run_id_1].state.is_mapped()
     # there should be a total of 4 task runs corresponding to the mapped task
-    assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
+    assert (
+        len([tr for tr in client.task_runs.values() if tr.task_slug == flow.slugs[t1]])
+        == 4
+    )
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
@@ -537,12 +564,20 @@ def test_deep_map(monkeypatch, executor):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_3, task_slug=t3.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_3, task_slug=flow.slugs[t3], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1, t2, t3]
         ],
@@ -563,7 +598,14 @@ def test_deep_map(monkeypatch, executor):
     # there should be a total of 4 task runs corresponding to each mapped task
     for t in [t1, t2, t3]:
         assert (
-            len([tr for tr in client.task_runs.values() if tr.task_slug == t.slug]) == 4
+            len(
+                [
+                    tr
+                    for tr in client.task_runs.values()
+                    if tr.task_slug == flow.slugs[t]
+                ]
+            )
+            == 4
         )
 
 
@@ -583,12 +625,20 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_3, task_slug=t3.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_3, task_slug=flow.slugs[t3], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1, t2, t3]
         ],
@@ -607,14 +657,21 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     # there should be a total of 4 task runs corresponding to each mapped task
     for t in [t1, t2, t3]:
         assert (
-            len([tr for tr in client.task_runs.values() if tr.task_slug == t.slug]) == 4
+            len(
+                [
+                    tr
+                    for tr in client.task_runs.values()
+                    if tr.task_slug == flow.slugs[t]
+                ]
+            )
+            == 4
         )
 
     # t2's first child task should have failed
     t2_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     )
     assert t2_0.state.is_failed()
 
@@ -622,7 +679,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     t3_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t3.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t3] and tr.map_index == 0
     )
     assert t3_0.state.is_failed()
 
@@ -654,12 +711,20 @@ def test_deep_map_with_a_retry(monkeypatch):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_3, task_slug=t3.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_3, task_slug=flow.slugs[t3], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1, t2, t3]
         ],
@@ -677,14 +742,21 @@ def test_deep_map_with_a_retry(monkeypatch):
     # there should be a total of 4 task runs corresponding to each mapped task
     for t in [t1, t2, t3]:
         assert (
-            len([tr for tr in client.task_runs.values() if tr.task_slug == t.slug]) == 4
+            len(
+                [
+                    tr
+                    for tr in client.task_runs.values()
+                    if tr.task_slug == flow.slugs[t]
+                ]
+            )
+            == 4
         )
 
     # t2's first child task should be retrying
     t2_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     )
     assert isinstance(t2_0.state, Retrying)
 
@@ -692,7 +764,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     t3_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t3.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t3] and tr.map_index == 0
     )
     assert t3_0.state.is_pending()
 
@@ -700,7 +772,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     failed_id = [
         t_id
         for t_id, tr in client.task_runs.items()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     ].pop()
     client.task_runs[failed_id].state.start_time = pendulum.now("UTC")
 
@@ -711,7 +783,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     t2_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     )
     assert t2_0.state.is_successful()
 
@@ -719,7 +791,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     t3_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t3.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t3] and tr.map_index == 0
     )
     assert t3_0.state.is_successful()
 
@@ -747,11 +819,17 @@ def test_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
-            TaskRun(id=task_run_id_2, task_slug=t2.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1, t2]
         ],
@@ -768,14 +846,21 @@ def test_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
     # there should be a total of 4 task runs corresponding to each mapped task
     for t in [t1, t2]:
         assert (
-            len([tr for tr in client.task_runs.values() if tr.task_slug == t.slug]) == 4
+            len(
+                [
+                    tr
+                    for tr in client.task_runs.values()
+                    if tr.task_slug == flow.slugs[t]
+                ]
+            )
+            == 4
         )
 
     # t2's first child task should be retrying
     t2_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     )
     assert isinstance(t2_0.state, Retrying)
 
@@ -784,7 +869,7 @@ def test_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
     failed_id = [
         t_id
         for t_id, tr in client.task_runs.items()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     ].pop()
     client.task_runs[failed_id].state.start_time = pendulum.now("UTC")
 
@@ -798,7 +883,7 @@ def test_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdir):
     t2_0 = next(
         tr
         for tr in client.task_runs.values()
-        if tr.task_slug == t2.slug and tr.map_index == 0
+        if tr.task_slug == flow.slugs[t2] and tr.map_index == 0
     )
     assert t2_0.state.is_successful()
 
@@ -834,13 +919,19 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
             TaskRun(
-                id=task_run_id_2, task_slug=return_list.slug, flow_run_id=flow_run_id
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(
+                id=task_run_id_2,
+                task_slug=flow.slugs[return_list],
+                flow_run_id=flow_run_id,
             ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1, return_list]
         ],
@@ -855,21 +946,24 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
     assert client.task_runs[task_run_id_2].state.is_successful()
 
     # there should be a total of 4 task runs corresponding to each mapped task
-    assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
+    assert (
+        len([tr for tr in client.task_runs.values() if tr.task_slug == flow.slugs[t1]])
+        == 4
+    )
 
     # t1's first child task should be retrying
     assert all(
         [
             isinstance(tr.state, Retrying)
             for tr in client.task_runs.values()
-            if (tr.task_slug == t1.slug and tr.map_index != -1)
+            if (tr.task_slug == flow.slugs[t1] and tr.map_index != -1)
         ]
     )
 
     # RUN A SECOND TIME with an artificially updated start time
     # and remove all in-memory data
     for idx, tr in client.task_runs.items():
-        if tr.task_slug == t1.slug and tr.map_index != -1:
+        if tr.task_slug == flow.slugs[t1] and tr.map_index != -1:
             tr.state.start_time = pendulum.now("UTC")
 
     for idx, tr in client.task_runs.items():
@@ -878,8 +972,44 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
     with prefect.context(flow_run_id=flow_run_id):
         CloudFlowRunner(flow=flow).run(executor=LocalExecutor())
 
-    assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
+    assert (
+        len([tr for tr in client.task_runs.values() if tr.task_slug == flow.slugs[t1]])
+        == 4
+    )
     assert all([tr.state.is_successful() for tr in client.task_runs.values()])
+
+
+def test_slug_mismatch_raises_informative_error(monkeypatch):
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+    task_run_id_2 = str(uuid.uuid4())
+
+    with prefect.Flow(name="test") as flow:
+        t1 = prefect.Task()
+        t2 = prefect.Task()
+        t2.set_upstream(t1)
+
+    client = MockedCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
+            TaskRun(id=task_run_id_2, task_slug="bad-slug", flow_run_id=flow_run_id),
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        with pytest.raises(prefect.engine.signals.ENDRUN) as exc:
+            state = CloudFlowRunner(flow=flow).run(return_tasks=flow.tasks)
+
+    assert exc.value.state.is_failed()
+
+    ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
+    assert "KeyError" in repr(exc.value.state.result)
+    assert "not found" in repr(exc.value.state.result)
+    assert "changing the Flow" in repr(exc.value.state.result)
 
 
 def test_can_queue_successfully_and_run(monkeypatch):
@@ -896,10 +1026,14 @@ def test_can_queue_successfully_and_run(monkeypatch):
     client = QueueingMockCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t1.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1,]
         ],
