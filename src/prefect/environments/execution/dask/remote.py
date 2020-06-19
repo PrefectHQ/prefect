@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, List
 
 from distributed.security import Security
@@ -57,6 +58,10 @@ class RemoteDaskEnvironment(RemoteEnvironment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        warnings.warn(
+            "`RemoteDaskEnvironment` is deprecated, please use `LocalEnvironment` with a "
+            "`DaskExecutor` instead."
+        )
         self.address = address
         dask_executor_kwargs = executor_kwargs or dict()
         dask_executor_kwargs["address"] = address
