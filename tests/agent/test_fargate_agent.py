@@ -168,6 +168,7 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
                 "secrets": "test",
                 "mountPoints": "test",
                 "logConfiguration": "test",
+                "repositoryCredentials": "repo",
             }
         ]
     }
@@ -183,6 +184,7 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
         "secrets": "test",
         "mountPoints": "test",
         "logConfiguration": "test",
+        "repositoryCredentials": "repo",
     }
 
 
