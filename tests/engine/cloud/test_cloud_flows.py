@@ -1026,10 +1026,14 @@ def test_can_queue_successfully_and_run(monkeypatch):
     client = QueueingMockCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
-            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+            TaskRun(
+                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            ),
         ]
         + [
-            TaskRun(id=str(uuid.uuid4()), task_slug=t1.slug, flow_run_id=flow_run_id)
+            TaskRun(
+                id=str(uuid.uuid4()), task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+            )
             for t in flow.tasks
             if t not in [t1,]
         ],
