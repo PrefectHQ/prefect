@@ -1,6 +1,6 @@
 from typing import Any
 
-from marshmallow import fields, post_load, Schema
+from marshmallow import fields, post_load
 
 from prefect.environments import (
     DaskKubernetesEnvironment,
@@ -19,11 +19,6 @@ from prefect.utilities.serialization import (
 )
 
 
-class ExecutorSchema(Schema):
-    type = fields.Function(lambda x: to_qualified_name(type(x)), lambda x: x)
-    metadata = JSONCompatible(allow_none=True)
-
-
 class BaseEnvironmentSchema(ObjectSchema):
     class Meta:
         object_class = Environment
@@ -38,28 +33,6 @@ class LocalEnvironmentSchema(ObjectSchema):
 
     labels = fields.List(fields.String())
     metadata = JSONCompatible(allow_none=True)
-    executor = fields.Nested(ExecutorSchema())
-
-
-class FargateTaskEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = FargateTaskEnvironment
-
-    labels = fields.List(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-    executor = fields.Nested(ExecutorSchema())
-
-
-class KubernetesJobEnvironmentSchema(ObjectSchema):
-    class Meta:
-        object_class = KubernetesJobEnvironment
-
-    labels = fields.List(fields.String())
-    metadata = JSONCompatible(allow_none=True)
-    executor = fields.Nested(ExecutorSchema())
-
-
-# -- Deprecated --
 
 
 class DaskKubernetesEnvironmentSchema(ObjectSchema):
@@ -72,6 +45,22 @@ class DaskKubernetesEnvironmentSchema(ObjectSchema):
     private_registry = fields.Boolean(allow_none=False)
     min_workers = fields.Int()
     max_workers = fields.Int()
+
+
+class FargateTaskEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = FargateTaskEnvironment
+
+    labels = fields.List(fields.String())
+    metadata = JSONCompatible(allow_none=True)
+
+
+class KubernetesJobEnvironmentSchema(ObjectSchema):
+    class Meta:
+        object_class = KubernetesJobEnvironment
+
+    labels = fields.List(fields.String())
+    metadata = JSONCompatible(allow_none=True)
 
 
 class RemoteEnvironmentSchema(ObjectSchema):
