@@ -8,7 +8,7 @@ import pytest
 
 from prefect import Flow, Task, task
 from prefect.engine.results import LocalResult
-from prefect.environments import Environment, RemoteEnvironment
+from prefect.environments import Environment
 from prefect.environments.storage import _healthcheck as healthchecks
 
 
@@ -191,11 +191,6 @@ class TestResultCheck:
 class TestEnvironmentDependencyCheck:
     def test_no_raise_on_normal_flow(self):
         flow = Flow("THIS IS A TEST")
-
-        assert healthchecks.environment_dependency_check([flow]) is None
-
-    def test_no_raise_on_remote_env(self):
-        flow = Flow("THIS IS A TEST", environment=RemoteEnvironment())
 
         assert healthchecks.environment_dependency_check([flow]) is None
 
