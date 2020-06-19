@@ -1,6 +1,6 @@
 import '@babel/polyfill'
 import fetch from 'node-fetch'
-import { ApolloServer } from 'apollo-server'
+import { ApolloServer } from 'apollo-server-express'
 import { v4 as uuidv4 } from 'uuid'
 import { print, GraphQLError } from 'graphql'
 import {
@@ -31,7 +31,9 @@ const TELEMETRY_ID = uuidv4()
 
 // --------------------------------------------------------------------
 // Server
+const express = require('express')
 const depthLimit = require('graphql-depth-limit')
+const app = express()
 
 class PrefectApolloServer extends ApolloServer {
   async createGraphQLServerOptions(req, res) {
@@ -87,7 +89,7 @@ async function buildSchema() {
     executor: hasuraExecutor,
     transforms: [
       // remove all hasura mutations
-      new FilterRootFields(operation => !(operation === 'Mutation'))
+      new FilterRootFields((operation) => !(operation === 'Mutation'))
     ]
   })
 
@@ -147,11 +149,11 @@ async function runServer() {
         }
       })
     },
-    formatError: error => {
+    formatError: (error) => {
       log(JSON.stringify(error))
       return error
     },
-    formatResponse: response => {
+    formatResponse: (response) => {
       return response
     },
     // this function is called whenever a request is made to the server in order to populate
@@ -171,19 +173,21 @@ async function runServer() {
     }
   })
 
-  server
-    .listen({
-      host: APOLLO_API_BIND_ADDRESS,
-      port: APOLLO_API_PORT,
-      family: 'IPv4'
-    })
-    .then(({ url }) => {
-      console.log(`Server ready at ${url} 🚀`)
-    })
+  // without specifying a limit, we occasionally run into an implicit 100kb
+  // limit set in bodyParser
+  server.applyMiddleware({ app, path: '/', bodyParserConfig: { limit: '1pb' } })
+  app.listen({
+    host: APOLLO_API_BIND_ADDRESS,
+    port: APOLLO_API_PORT,
+    family: 'IPv4'
+  })
+  console.log(
+    `Server ready at http://${APOLLO_API_BIND_ADDRESS}:${APOLLO_API_PORT} 🚀`
+  )
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function runServerForever() {

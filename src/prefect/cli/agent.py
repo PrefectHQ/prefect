@@ -49,6 +49,7 @@ def agent():
 @click.option(
     "--token", "-t", required=False, help="A Prefect Cloud API token.", hidden=True
 )
+@click.option("--api", "-a", required=False, help="A Prefect API URL.", hidden=True)
 @click.option(
     "--name",
     "-n",
@@ -137,6 +138,7 @@ def start(
     ctx,
     agent_option,
     token,
+    api,
     name,
     verbose,
     label,
@@ -164,6 +166,7 @@ def start(
     \b
     Options:
         --token, -t     TEXT    A Prefect Cloud API token with RUNNER scope
+        --api, -a       TEXT    A Prefect API URL
         --name, -n      TEXT    A name to use for the agent
         --verbose, -v           Enable verbose agent DEBUG logs
                                 Defaults to INFO level logging
@@ -221,6 +224,8 @@ def start(
     }
     if verbose:
         tmp_config["cloud.agent.level"] = "DEBUG"
+    if api:
+        tmp_config["cloud.api"] = api
 
     with set_temporary_config(tmp_config):
         retrieved_agent = _agents.get(agent_option, None)
@@ -336,6 +341,18 @@ def start(
     "--cpu-limit", required=False, help="Limit CPU for Prefect init job.", hidden=True
 )
 @click.option(
+    "--image-pull-policy",
+    required=False,
+    help="imagePullPolicy for Prefect init job",
+    hidden=True,
+)
+@click.option(
+    "--service-account-name",
+    required=False,
+    help="Name of Service Account for Prefect init job",
+    hidden=True,
+)
+@click.option(
     "--label",
     "-l",
     multiple=True,
@@ -383,6 +400,8 @@ def install(
     mem_limit,
     cpu_request,
     cpu_limit,
+    image_pull_policy,
+    service_account_name,
     label,
     env,
     import_path,
@@ -418,6 +437,8 @@ def install(
         --mem-limit                 TEXT    Limit memory for Prefect init job
         --cpu-request               TEXT    Requested CPU for Prefect init job
         --cpu-limit                 TEXT    Limit CPU for Prefect init job
+        --image-pull-policy         TEXT    imagePullPolicy for Prefect init job
+        --service-account-name      TEXT    Name of Service Account for Prefect init job
         --backend                   TEST    Prefect backend to use for this agent
                                             Defaults to the backend currently set in config.
 
@@ -457,6 +478,8 @@ def install(
             mem_limit=mem_limit,
             cpu_request=cpu_request,
             cpu_limit=cpu_limit,
+            image_pull_policy=image_pull_policy,
+            service_account_name=service_account_name,
             labels=list(label),
             env_vars=env_vars,
             backend=backend,

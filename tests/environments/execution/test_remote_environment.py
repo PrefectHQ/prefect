@@ -3,11 +3,11 @@ from os import path
 from unittest.mock import MagicMock
 
 import cloudpickle
-import pytest
 
 import prefect
+from prefect import Flow
 from prefect.environments import RemoteEnvironment
-from prefect.environments.storage import Docker
+from prefect.environments.storage import Local
 
 
 def test_create_remote_environment():
@@ -62,10 +62,11 @@ def test_environment_execute():
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
 
-        environment = RemoteEnvironment()
-        storage = Docker(registry_url="test")
+            environment = RemoteEnvironment()
+            storage = Local(directory)
+            storage.add_flow(flow)
 
-        environment.execute(storage, flow_path)
+        environment.execute(flow=flow)
 
         with open(path.join(directory, "output"), "r") as file:
             assert file.read() == "success"
@@ -88,10 +89,11 @@ def test_environment_execute_calls_callbacks():
             with open(flow_path, "wb") as f:
                 cloudpickle.dump(flow, f)
 
-        environment = RemoteEnvironment(on_start=start_func, on_exit=exit_func)
-        storage = Docker(registry_url="test")
+            environment = RemoteEnvironment(on_start=start_func, on_exit=exit_func)
+            storage = Local(directory)
+            storage.add_flow(flow)
 
-        environment.execute(storage, flow_path)
+        environment.execute(flow)
 
         with open(path.join(directory, "output"), "r") as file:
             assert file.read() == "success"

@@ -15,7 +15,7 @@ spec:
       containers:
         - name: flow
           image: prefecthq/prefect:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args: ["prefect execute cloud-flow"]
           env:

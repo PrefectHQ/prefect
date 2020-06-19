@@ -60,7 +60,7 @@ class FlowRunTask(Task):
             ```python
             from prefect.tasks.prefect.flow_run import FlowRunTask
 
-            kickoff_task = FlowRunTask(project_name="My Project", flow_name="My Cloud Flow")
+            kickoff_task = FlowRunTask(project_name="Hello, World!", flow_name="My Cloud Flow")
             ```
 
         """

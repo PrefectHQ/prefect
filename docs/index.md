@@ -20,6 +20,10 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     </div>
 </div>
 
+<div style="text-align: center;">
+  Have a few minutes to help make Prefect even better? Take our <a target="_blank" href="https://forms.gle/uLL9qW1hjEQkMp567">Prefect Server survey</a>!
+</div>
+
 <div class="features">
 <div class="feature">
 

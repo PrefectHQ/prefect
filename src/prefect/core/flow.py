@@ -31,7 +31,8 @@ from slugify import slugify
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.result import NoResult, Result
 from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
@@ -1243,7 +1244,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False, format=format)
+            graph.render(filename, view=False, format=format, cleanup=True)
         else:
             try:
                 from IPython import get_ipython
@@ -1427,9 +1428,6 @@ class Flow:
 
         if labels:
             self.environment.labels.update(labels)
-
-        if isinstance(self.storage, prefect.environments.storage.Docker):
-            self.environment.metadata["image"] = self.storage.name
 
         # register the flow with a default result handler if one not provided
         if not self.result:

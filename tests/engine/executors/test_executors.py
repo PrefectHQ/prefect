@@ -4,6 +4,7 @@ import sys
 import time
 
 import cloudpickle
+import dask
 import distributed
 import pytest
 
@@ -58,13 +59,17 @@ class TestLocalDaskExecutor:
         e = LocalDaskExecutor()
         assert e.scheduler == "threads"
 
-    def test_responds_to_kwargs(self):
-        e = LocalDaskExecutor(scheduler="threads")
-        assert e.scheduler == "threads"
+    def test_configurable_scheduler(self):
+        e = LocalDaskExecutor(scheduler="synchronous")
+        assert e.scheduler == "synchronous"
 
-    def test_start_yields_cfg(self):
-        with LocalDaskExecutor(scheduler="threads").start() as cfg:
-            assert cfg["scheduler"] == "threads"
+        def check_scheduler(val):
+            assert dask.config.get("scheduler") == val
+
+        with dask.config.set(scheduler="threads"):
+            check_scheduler("threads")
+            with e.start():
+                e.submit(check_scheduler, "synchronous")
 
     def test_submit(self):
         e = LocalDaskExecutor()
@@ -84,6 +89,36 @@ class TestLocalDaskExecutor:
             assert e.wait(e.submit(lambda x: x, x=1)) == 1
             assert e.wait(e.submit(lambda: prefect)) is prefect
 
+    def test_submit_sets_task_name(self):
+        e = LocalDaskExecutor()
+        with e.start():
+            f = e.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
+            (res,) = e.wait([f])
+            assert f.key.startswith("inc-")
+            assert res == 2
+
+    def test_only_compute_once(self):
+        e = LocalDaskExecutor()
+        count = 0
+
+        def inc(x):
+            nonlocal count
+            count += 1
+            return x + 1
+
+        with e.start():
+            f1 = e.submit(inc, 0)
+            f2 = e.submit(inc, f1)
+            f3 = e.submit(inc, f2)
+            assert e.wait([f1]) == [1]
+            assert count == 1
+            assert e.wait([f2]) == [2]
+            assert count == 2
+            assert e.wait([f3]) == [3]
+            assert count == 3
+            assert e.wait([f1, f2, f3]) == [1, 2, 3]
+            assert count == 3
+
     def test_is_pickleable(self):
         e = LocalDaskExecutor()
         post = cloudpickle.loads(cloudpickle.dumps(e))
@@ -94,6 +129,7 @@ class TestLocalDaskExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, LocalDaskExecutor)
+            assert post._callback is None
 
 
 class TestLocalExecutor:
@@ -290,17 +326,28 @@ class TestDaskExecutor:
 
     def test_prep_dask_kwargs(self):
         executor = DaskExecutor()
-        with prefect.context(task_full_name="FISH!", task_tags=["dask-resource:GPU=1"]):
-            kwargs = executor._prep_dask_kwargs()
-            assert kwargs["key"].startswith("FISH!")
-            assert kwargs["resources"] == {"GPU": 1.0}
+        kwargs = executor._prep_dask_kwargs(
+            dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"])
+        )
+        assert kwargs["key"].startswith("FISH!")
+        assert kwargs["resources"] == {"GPU": 1.0}
+
+    def test_submit_sets_task_name(self, mthread):
+        with mthread.start():
+            fut = mthread.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
+            (res,) = mthread.wait([fut])
+            assert fut.key.startswith("inc-")
+            assert res == 2
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable(self, executor):
         post = cloudpickle.loads(cloudpickle.dumps(executor))
         assert isinstance(post, DaskExecutor)
+        assert post.client is None
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
     def test_is_pickleable_after_start(self, executor):
-        post = cloudpickle.loads(cloudpickle.dumps(executor))
-        assert isinstance(post, DaskExecutor)
+        with executor.start():
+            post = cloudpickle.loads(cloudpickle.dumps(executor))
+            assert isinstance(post, DaskExecutor)
+            assert post.client is None

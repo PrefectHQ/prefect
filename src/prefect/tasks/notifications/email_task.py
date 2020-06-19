@@ -1,3 +1,4 @@
+import ssl
 import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
@@ -14,7 +15,8 @@ class EmailTask(Task):
     Task for sending email from an authenticated email service over SMTP. For this task to function properly,
     you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect Secrets set.  It is recommended
     you use a [Google App Password](https://support.google.com/accounts/answer/185833) if you use Gmail.
-    The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL)
+    The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
+    containing HTML code is supported - the default MIME type is set to the text/html.
 
     Args:
         - subject (str, optional): the subject of the email; can also be provided at runtime
@@ -37,7 +39,7 @@ class EmailTask(Task):
         smtp_server: str = "smtp.gmail.com",
         smtp_port: int = 465,
         smtp_type: str = "SSL",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.subject = subject
         self.msg = msg
@@ -95,19 +97,22 @@ class EmailTask(Task):
         email_to = cast(str, email_to)
 
         contents = MIMEMultipart("alternative")
-        contents.attach(MIMEText(cast(str, msg), "plain"))
+        contents.attach(MIMEText(cast(str, msg), "html"))
 
         contents["Subject"] = Header(subject, "UTF-8")
         contents["From"] = email_from
         contents["To"] = email_to
 
         message = contents.as_string()
+        context = ssl.create_default_context()
 
         if smtp_type == "SSL":
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=context)
         elif smtp_type == "STARTTLS":
             server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
+            server.starttls(context=context)
+        else:
+            raise ValueError(f"{smtp_type} is an unsupported value for smtp_type.")
 
         server.login(username, password)
         try:

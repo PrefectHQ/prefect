@@ -4,7 +4,7 @@ Prefect includes a variety of `Storage` options for saving flows.
 
 As of Prefect version `0.9.0` every storage option except for `Docker` will automatically have a result handler attached that will write results to the corresponding platform. For example, this means that if you register a flow with the Prefect API using the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result](/api/latest/engine/results.html#s3result).
 
-Version `0.11.6` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+Version `0.12.0` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
 
 ## Local
 
@@ -141,7 +141,9 @@ flow.storage = S3(bucket="my-flows")
 flow.environment = RemoteEnvironment(metadata={"image": "repo/name:tag"})
 ```
 
-This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example). Due to the cloud storage options have sensible defaults for labels make sure the agent's labels match the desired labels for the flows' storage objects.
+This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
+
+Make sure that the agent's labels match the desired labels for the flow storage objects. For example, if you are using `prefect.environments.storage.s3` to store flows, the agent should get label `s3-flow-storage`. See the `"Sensible Defaults"` tips in the previous sections for more details.
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3
@@ -156,4 +158,16 @@ The addition of these default labels can be disabled by passing `add_default_lab
 
 One thing to keep in mind when using cloud storage options in conjunction with containerized environments is authentication. Since the flow is being retrieved from inside a container then that container must be authenticated to pull the flow from whichever cloud storage it has set. This means that at runtime the container needs to have the proper authentication.
 
-Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secrets) which could be used for off-the-shelf authentication. Using the above snippet as an example it is possible to create an `AWS_CREDENTIALS` Prefect secret that will automatically be used to pull the flow stom S3 storage at runtime without having to configure authentication in the image directly.
+Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secrets) which could be used for off-the-shelf authentication. Using the above snippet as an example it is possible to create an `AWS_CREDENTIALS` Prefect secret that will automatically be used to pull the flow from S3 storage at runtime without having to configure authentication in the image directly.
+
+```python
+flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
+
+flow.environment = RemoteEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
+```
+
+::: warning Dependencies
+It is important to make sure that the `image` set in the environment's metadata contains the dependencies required to use the storage option. For example, using `S3` storage requires Prefect's `aws` dependencies.
+
+These are generally packaged with custom built images or optionally you could use the `prefecthq/prefect:all_extras` image which contains all of Prefect's optional extra packages.
+:::

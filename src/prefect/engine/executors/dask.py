@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from distributed import Future
 
 
+__any__ = ("DaskExecutor", "LocalDaskExecutor")
+
+
 # XXX: remove when deprecation of DaskExecutor kwargs is done
 _valid_client_kwargs = {
     "timeout",
@@ -98,7 +101,7 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -170,11 +173,11 @@ class DaskExecutor(Executor):
             client_kwargs.update(kwargs)
 
         self.address = address
-        self.is_started = False
         self.cluster_class = cluster_class
         self.cluster_kwargs = cluster_kwargs
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
+        self.client = None
 
         super().__init__()
 
@@ -192,7 +195,6 @@ class DaskExecutor(Executor):
             if self.address is not None:
                 with Client(self.address, **self.client_kwargs) as client:
                     self.client = client
-                    self.is_started = True
                     yield self.client
             else:
                 with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
@@ -200,25 +202,26 @@ class DaskExecutor(Executor):
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
                         self.client = client
-                        self.is_started = True
                         yield self.client
         finally:
             self.client = None
-            self.is_started = False
 
-    def _prep_dask_kwargs(self) -> dict:
+    def _prep_dask_kwargs(self, extra_context: dict = None) -> dict:
+        if extra_context is None:
+            extra_context = {}
+
+        task_name = extra_context.get("task_name", "")
+        task_tags = extra_context.get("task_tags", [])
+
         dask_kwargs = {"pure": False}  # type: dict
 
         # set a key for the dask scheduler UI
-        if context.get("task_full_name"):
-            key = "{}-{}".format(context.get("task_full_name", ""), str(uuid.uuid4()))
-            dask_kwargs.update(key=key)
+        if task_name:
+            dask_kwargs.update(key=f"{task_name}-{uuid.uuid4().hex}")
 
         # infer from context if dask resources are being utilized
         dask_resource_tags = [
-            tag
-            for tag in context.get("task_tags", [])
-            if tag.lower().startswith("dask-resource")
+            tag for tag in task_tags if tag.lower().startswith("dask-resource")
         ]
         if dask_resource_tags:
             resources = {}
@@ -231,41 +234,32 @@ class DaskExecutor(Executor):
 
     def __getstate__(self) -> dict:
         state = self.__dict__.copy()
-        if "client" in state:
-            del state["client"]
+        state["client"] = None
         return state
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "Future":
+    def submit(
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
+    ) -> "Future":
         """
         Submit a function to the executor for execution. Returns a Future object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
-        # import dask functions here to decrease our import times
-        from distributed import fire_and_forget, worker_client
-
-        dask_kwargs = self._prep_dask_kwargs()
-        kwargs.update(dask_kwargs)
-
-        if self.is_started and hasattr(self, "client"):
-            future = self.client.submit(fn, *args, **kwargs)
-        elif self.is_started:
-            with worker_client(separate_thread=True) as client:
-                future = client.submit(fn, *args, **kwargs)
-        else:
+        if self.client is None:
             raise ValueError("This executor has not been started.")
 
-        fire_and_forget(future)
-        return future
+        kwargs.update(self._prep_dask_kwargs(extra_context))
+        return self.client.submit(fn, *args, **kwargs)
 
     def wait(self, futures: Any) -> Any:
         """
@@ -277,66 +271,91 @@ class DaskExecutor(Executor):
         Returns:
             - Any: an iterable of resolved futures with similar shape to the input
         """
-        # import dask functions here to decrease our import times
-        from distributed import worker_client
-
-        if self.is_started and hasattr(self, "client"):
-            return self.client.gather(futures)
-        elif self.is_started:
-            with worker_client(separate_thread=True) as client:
-                return client.gather(futures)
-        else:
+        if self.client is None:
             raise ValueError("This executor has not been started.")
+
+        return self.client.gather(futures)
 
 
 class LocalDaskExecutor(Executor):
     """
-    An executor that runs all functions locally using `dask` and a configurable dask scheduler.  Note that
-    this executor is known to occasionally run tasks twice when using multi-level mapping.
+    An executor that runs all functions locally using `dask` and a configurable
+    dask scheduler.
 
     Args:
-        - scheduler (str): The local dask scheduler to use; common options are "synchronous", "threads" and "processes".  Defaults to "threads".
+        - scheduler (str): The local dask scheduler to use; common options are
+            "threads", "processes", and "synchronous".  Defaults to "threads".
         - **kwargs (Any): Additional keyword arguments to pass to dask config
     """
 
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
+        self._callback = None
         self.scheduler = scheduler
-        self.kwargs = kwargs
+        self.dask_config = kwargs
         super().__init__()
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        state["_callback"] = None
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
     @contextmanager
     def start(self) -> Iterator:
-        """
-        Context manager for initializing execution.
-
-        Configures `dask` and yields the `dask.config` contextmanager.
-        """
+        """Context manager for initializing execution."""
         # import dask here to reduce prefect import times
-        import dask
+        from dask.callbacks import Callback
 
-        with dask.config.set(scheduler=self.scheduler, **self.kwargs) as cfg:
-            yield cfg
+        class PrefectCallback(Callback):
+            def __init__(self):  # type: ignore
+                self.cache = {}
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> "dask.delayed":
+            def _start(self, dsk):  # type: ignore
+                overlap = set(dsk) & set(self.cache)
+                for key in overlap:
+                    dsk[key] = self.cache[key]
+
+            def _posttask(self, key, value, dsk, state, id):  # type: ignore
+                self.cache[key] = value
+
+        try:
+            self._callback = PrefectCallback()  # type: ignore
+            yield
+        finally:
+            self._callback = None
+
+    def submit(
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
+    ) -> "dask.delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - extra_context (dict, optional): an optional dictionary with extra
+                information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
-            - dask.delayed: a `dask.delayed` object that represents the computation of `fn(*args, **kwargs)`
+            - dask.delayed: a `dask.delayed` object that represents the
+                computation of `fn(*args, **kwargs)`
         """
         # import dask here to reduce prefect import times
         import dask
 
-        return dask.delayed(fn)(*args, **kwargs)
+        extra_kwargs = {}
+        task_name = (extra_context or {}).get("task_name", "")
+        if task_name:
+            extra_kwargs["dask_key_name"] = f"{task_name}-{uuid.uuid4().hex}"
+        return dask.delayed(fn, pure=False)(*args, **kwargs, **extra_kwargs)
 
     def wait(self, futures: Any) -> Any:
         """
-        Resolves a `dask.delayed` object to its values. Blocks until the computation is complete.
+        Resolves a (potentially nested) collection of `dask.delayed` object to
+        its values. Blocks until the computation is complete.
 
         Args:
             - futures (Any): iterable of `dask.delayed` objects to compute
@@ -347,5 +366,5 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
-        with dask.config.set(scheduler=self.scheduler, **self.kwargs):
-            return dask.compute(futures)[0]
+        with self._callback, dask.config.set(**self.dask_config):  # type: ignore
+            return dask.compute(futures, scheduler=self.scheduler)[0]

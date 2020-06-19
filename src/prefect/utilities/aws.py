@@ -43,16 +43,20 @@ def get_boto_client(
         session = boto3.session.Session()
         return session.client(
             resource,
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
+            aws_access_key_id=aws_access_key or kwargs.pop("aws_access_key_id", None),
+            aws_secret_access_key=aws_secret_access_key
+            or kwargs.pop("aws_secret_access_key", None),
+            aws_session_token=aws_session_token
+            or kwargs.pop("aws_session_token", None),
             **kwargs
         )
     else:
         return boto3.client(
             resource,
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
+            aws_access_key_id=aws_access_key or kwargs.pop("aws_access_key_id", None),
+            aws_secret_access_key=aws_secret_access_key
+            or kwargs.pop("aws_secret_access_key", None),
+            aws_session_token=aws_session_token
+            or kwargs.pop("aws_session_token", None),
             **kwargs
         )
