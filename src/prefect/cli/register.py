@@ -43,4 +43,4 @@ def flow(file):
     # Should have a build option here
     flow_obj.register()
 
-    print("Registered!")
+    # print("Registered!")
