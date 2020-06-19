@@ -602,7 +602,7 @@ class Flow:
     
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - parmerge (bool, optional): Merge two graphs on parameters
+            - merge_parameters (bool, optional): Whether to merge parameters that share the same name; defaults to `False`
             - validate (bool, optional): Whether or not to check the validity of the flow.
         
         Returns:
