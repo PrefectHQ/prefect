@@ -3,6 +3,7 @@ import datetime
 import queue
 import random
 import time
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pendulum
@@ -1550,20 +1551,25 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0
 
 
-def test_flow_runner_provides_consistent_extra_context():
-    """Check that the `extra_context` provided to an executor is consistent.
-
-    The `extra_context` is used by the dask executor to generate good key names
-    and add task resource requirements"""
-    extra_contexts = []
+def test_dask_executor_with_flow_runner_sets_task_keys(mthread):
+    """Integration test that ensures the flow runner forwards the proper
+    information to the DaskExecutor so that key names are set based on
+    the task name"""
+    key_names = set()
 
     class MyExecutor(Executor):
-        def submit(self, fn, *args, extra_context=None, **kwargs):
-            extra_contexts.append(extra_context)
-            return fn(*args, **kwargs)
+        @contextmanager
+        def start(self):
+            with mthread.start():
+                yield
+
+        def submit(self, *args, **kwargs):
+            fut = mthread.submit(*args, **kwargs)
+            key_names.add(fut.key.split("-")[0])
+            return fut
 
         def wait(self, x):
-            return x
+            return mthread.wait(x)
 
     @prefect.task
     def inc(x):
@@ -1580,5 +1586,4 @@ def test_flow_runner_provides_consistent_extra_context():
 
     flow.run(executor=MyExecutor())
 
-    for ctx in extra_contexts:
-        assert ctx.keys() == {"task_name", "task_index", "task_tags"}
+    assert key_names == {"inc", "do_sum"}
