@@ -1548,3 +1548,33 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0
+
+
+def test_flow_runner_provides_consistent_extra_context():
+    extra_contexts = []
+
+    class MyExecutor(Executor):
+        def submit(self, fn, *args, extra_context=None, **kwargs):
+            extra_contexts.append(extra_context)
+            return fn(*args, **kwargs)
+
+        def wait(self, x):
+            return x
+
+    @prefect.task
+    def inc(x):
+        return x + 1
+
+    @prefect.task
+    def do_sum(x):
+        return sum(x)
+
+    with Flow("test") as flow:
+        a = inc(1)
+        b = inc.map(range(3))
+        c = do_sum(b)
+
+    flow.run(executor=MyExecutor())
+
+    for ctx in extra_contexts:
+        assert ctx.keys() == {"task_name", "task_index", "task_tags"}
