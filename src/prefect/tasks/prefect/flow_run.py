@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlparse
 
 from prefect import config, Task
 from prefect.client import Client
@@ -64,10 +65,15 @@ class FlowRunTask(Task):
             ```
 
         """
+        is_hosted_backend = (
+            "prefect.io" in urlparse(config.cloud.api).netloc
+            or config.backend == "cloud"
+        )
+
         # verify that flow and project names were passed where necessary
         if flow_name is None:
             raise ValueError("Must provide a flow name.")
-        if project_name is None and config.backend == "cloud":
+        if project_name is None and is_hosted_backend:
             raise ValueError("Must provide a project name.")
 
         where_clause = {
