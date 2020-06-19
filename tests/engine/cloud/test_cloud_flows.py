@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections import Counter
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -16,6 +16,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Pending,
+    Queued,
     Retrying,
     Running,
     Skipped,
@@ -78,12 +79,44 @@ def cloud_settings():
         {
             "cloud.graphql": "http://my-cloud.foo",
             "cloud.auth_token": "token",
+            "cloud.queue_interval": 0.1,
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
             "logging.level": "DEBUG",
         }
     ):
         yield
+
+
+@pytest.fixture
+def mock_heartbeats(monkeypatch):
+    """
+    Mocking the heartbeating of cloud flow runs and task runs
+    significantly helps debugging, as they clog up the logs
+    by the not being able to heartbeat properly. Mocks keep
+    complaingin about an unexpected kwarg, `parent` to __init__.
+    """
+
+    def do_mock(flow_kwargs=None, task_kwargs=None):
+        if not flow_kwargs:
+            flow_kwargs = {"return_value": False}
+        if not task_kwargs:
+            task_kwargs = {"return_value": False}
+        mock_flow_run_heartbeat = MagicMock(**flow_kwargs)
+        mock_task_run_heartbeat = MagicMock(**task_kwargs)
+
+        monkeypatch.setattr(
+            "prefect.engine.cloud.task_runner.CloudTaskRunner._heartbeat",
+            mock_task_run_heartbeat,
+        )
+        monkeypatch.setattr(
+            "prefect.engine.cloud.flow_runner.CloudFlowRunner._heartbeat",
+            mock_flow_run_heartbeat,
+        )
+
+        return (mock_flow_run_heartbeat, mock_task_run_heartbeat)
+
+    return do_mock
 
 
 class MockedCloudClient(MagicMock):
@@ -184,6 +217,42 @@ class MockedCloudClient(MagicMock):
         else:
             raise ValueError("Invalid task run update")
         return state
+
+
+class QueueingMockCloudClient(MockedCloudClient):
+    """
+    Mock Cloud Client to be used when testing flow runs that
+    get put into the `Queued` state, which represent
+    a FlowRun that is being concurrency limited and is
+    waiting for available space to run.
+    """
+
+    def __init__(self, *args, num_times_in_queue: int = 5, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.num_times_in_queue = num_times_in_queue
+
+    def set_flow_run_state(self, flow_run_id, version, state, **kwargs):
+        """
+        Handles the typical flow run state transition, but always
+        queues the flow run before allowing it to continue
+        as planned.
+        """
+
+        new_state = super().set_flow_run_state(flow_run_id, version, state, **kwargs)
+        if (
+            self.call_count["set_flow_run_state"] <= self.num_times_in_queue
+            and new_state.is_running()
+        ):
+            fr = self.flow_runs[flow_run_id]
+            # We assume the version locking succeeds in the parent class
+            new_state = Queued(
+                start_time=pendulum.now("UTC").add(
+                    seconds=prefect.config.cloud.queue_interval
+                )
+            )
+            fr.state = new_state
+
+        return new_state
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
@@ -811,3 +880,42 @@ def test_non_keyed_states_are_hydrated_correctly_with_retries(monkeypatch, tmpdi
 
     assert len([tr for tr in client.task_runs.values() if tr.task_slug == t1.slug]) == 4
     assert all([tr.state.is_successful() for tr in client.task_runs.values()])
+
+
+def test_can_queue_successfully_and_run(monkeypatch):
+    @prefect.task
+    def return_one():
+        return 1
+
+    with prefect.Flow("test-queues-work!") as flow:
+        t1 = return_one()
+
+    flow_run_id = str(uuid.uuid4())
+    task_run_id_1 = str(uuid.uuid4())
+
+    client = QueueingMockCloudClient(
+        flow_runs=[FlowRun(id=flow_run_id)],
+        task_runs=[
+            TaskRun(id=task_run_id_1, task_slug=t1.slug, flow_run_id=flow_run_id),
+        ]
+        + [
+            TaskRun(id=str(uuid.uuid4()), task_slug=t1.slug, flow_run_id=flow_run_id)
+            for t in flow.tasks
+            if t not in [t1,]
+        ],
+        monkeypatch=monkeypatch,
+        num_times_in_queue=6,
+    )
+
+    with prefect.context(flow_run_id=flow_run_id):
+        run_state = CloudFlowRunner(flow=flow).run(
+            executor=LocalExecutor(), return_tasks=flow.tasks
+        )
+
+    assert run_state.is_successful()
+
+    # Pending -> Running -> Queued (4x) -> Success
+    # State transitions that result in `set_flow_run_state` calls are from
+    # Pending -> Running and Running -> Success, all others
+    # are from Running -> Queued or Queued -> Queued
+    assert client.call_count["set_flow_run_state"] == 2 + (client.num_times_in_queue)

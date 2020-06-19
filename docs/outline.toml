@@ -303,12 +303,20 @@ classes = [
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
         ]
-
+ 
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = [
         "RunGreatExpectationsCheckpoint",
+        ]
+
+[pages.tasks.gsheets]
+title = "Google Sheets Tasks"
+module = "prefect.tasks.gsheets"
+classes = [
+        "WriteGsheetRow",
+        "ReadGsheetRow",
         ]
 
 [pages.tasks.jira]

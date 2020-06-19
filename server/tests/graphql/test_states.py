@@ -102,6 +102,34 @@ class TestSetFlowRunStates:
         assert fr3.version == 4
         assert fr3.state == "Retrying"
 
+    async def test_set_multiple_flow_run_states_with_error(
+        self, run_query, flow_run_id, flow_run_id_2, flow_run_id_3
+    ):
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            flow_run_id=flow_run_id,
+                            version=1,
+                            state=Running().serialize(),
+                        ),
+                        dict(
+                            flow_run_id=flow_run_id_2, version=10, state="a bad state",
+                        ),
+                        dict(
+                            flow_run_id=flow_run_id_3,
+                            version=3,
+                            state=Retrying().serialize(),
+                        ),
+                    ]
+                )
+            ),
+        )
+        assert result.data.set_flow_run_states is None
+        assert result.errors[0].message
+
     async def test_set_flow_run_state_with_result(self, run_query, flow_run_id):
         result = Result(10, result_handler=JSONResultHandler())
         result.store_safe_value()
@@ -216,6 +244,34 @@ class TestSetTaskRunStates:
         ).first({"state", "version"})
         assert tr3.version == 2
         assert tr3.state == "Retrying"
+
+    async def test_set_multiple_task_run_states(
+        self, run_query, running_flow_run_id, task_run_id, task_run_id_2, task_run_id_3
+    ):
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            task_run_id=task_run_id,
+                            version=0,
+                            state=Running().serialize(),
+                        ),
+                        dict(
+                            task_run_id=task_run_id_2, version=10, state="a bad state",
+                        ),
+                        dict(
+                            task_run_id=task_run_id_3,
+                            version=1,
+                            state=Retrying().serialize(),
+                        ),
+                    ]
+                )
+            ),
+        )
+        assert result.data.set_task_run_states is None
+        assert result.errors[0].message
 
     async def test_set_task_run_state_with_result(self, run_query, task_run_id):
         result = Result(10, result_handler=JSONResultHandler())

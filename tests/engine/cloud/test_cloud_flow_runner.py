@@ -23,6 +23,7 @@ from prefect.engine.state import (
     Failed,
     Finished,
     Pending,
+    Queued,
     Retrying,
     Running,
     Scheduled,
@@ -225,14 +226,14 @@ def test_flow_runner_respects_the_db_state(monkeypatch, state):
 @pytest.mark.parametrize(
     "state", [Finished, Success, Skipped, Failed, TimedOut, TriggerFailed]
 )
-def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state):
+def test_flow_runner_prioritizes_kwarg_states_over_db_states(
+    monkeypatch, state, client
+):
     flow = prefect.Flow(name="test")
     db_state = state("already", result=10)
     get_flow_run_info = MagicMock(return_value=MagicMock(state=db_state))
-    set_flow_run_state = MagicMock()
-    client = MagicMock(
-        get_flow_run_info=get_flow_run_info, set_flow_run_state=set_flow_run_state
-    )
+    client.get_flow_run_info = get_flow_run_info
+
     monkeypatch.setattr(
         "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
     )
@@ -240,9 +241,9 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(monkeypatch, state)
 
     ## assertions
     assert get_flow_run_info.call_count == 1  # one time to pull latest state
-    assert set_flow_run_state.call_count == 2  # Pending -> Running -> Success
+    assert client.set_flow_run_state.call_count == 2  # Pending -> Running -> Success
 
-    states = [call[1]["state"] for call in set_flow_run_state.call_args_list]
+    states = [call[1]["state"] for call in client.set_flow_run_state.call_args_list]
     assert states == [Running(), Success(result={})]
 
 
@@ -627,3 +628,44 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
     task_run_ids = [c["task_run_id"] for c in logs if c["task_run_id"]]
     assert set(task_run_ids) == {"TESTME"}
+
+
+@pytest.mark.parametrize("num_attempts", [5, 10, 15])
+def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_attempts):
+
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.time.sleep", mock_sleep)
+
+    run_states = [
+        Queued(start_time=pendulum.now("UTC").add(seconds=i))
+        for i in range(num_attempts - 1)
+    ]
+    run_states.append(Success())
+
+    mock_run = MagicMock(side_effect=run_states)
+
+    client.get_flow_run_info = MagicMock(
+        side_effect=[MagicMock(version=i) for i in range(num_attempts)]
+    )
+
+    # Mock out the actual flow execution
+    monkeypatch.setattr("prefect.engine.cloud.flow_runner.FlowRunner.run", mock_run)
+
+    @prefect.task
+    def return_one():
+        return 1
+
+    with prefect.Flow("test-cloud-flow-runner-with-queues") as flow:
+        one = return_one()
+
+    # Without these (actual, not mocked) sleep calls, when running full test suite this
+    # test can fail for no reason.
+    final_state = CloudFlowRunner(flow=flow).run()
+    assert final_state.is_successful()
+
+    assert mock_run.call_count == num_attempts
+    # Not called on the initial run attempt
+    assert client.get_flow_run_info.call_count == num_attempts - 1
+    # Not checking the value of the `time.sleep` mock, since it appears to
+    # be getting called thousands of times, likely due to a pytest
+    # plugin or something of the like.
