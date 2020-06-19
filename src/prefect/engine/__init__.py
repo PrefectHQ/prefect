@@ -16,7 +16,7 @@ def get_default_executor_class() -> type:
     `prefect.config.engine.executor.default_class`. If the value is a string, it will
     attempt to load the already-imported object. Otherwise, the value is returned.
 
-    Defaults to `SynchronousExecutor` if the string config value can not be loaded
+    Defaults to `LocalExecutor` if the string config value can not be loaded
     """
     config_value = config.engine.executor.default_class
 

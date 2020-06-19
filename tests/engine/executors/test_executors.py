@@ -14,7 +14,6 @@ from prefect.engine.executors import (
     Executor,
     LocalDaskExecutor,
     LocalExecutor,
-    SynchronousExecutor,
 )
 
 
@@ -41,17 +40,6 @@ class TestBaseExecutor:
         with e.start():
             post = cloudpickle.loads(cloudpickle.dumps(e))
             assert isinstance(post, Executor)
-
-
-class TestSyncExecutor:
-    def test_sync_is_depcrecated(self):
-        with pytest.warns(UserWarning) as w:
-            e = SynchronousExecutor()
-
-        assert "deprecated" in str(w[0].message)
-        assert "LocalDaskExecutor" in str(w[0].message)
-        assert isinstance(e, LocalDaskExecutor)
-        assert e.scheduler == "synchronous"
 
 
 class TestLocalDaskExecutor:
