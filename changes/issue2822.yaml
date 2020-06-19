@@ -1,0 +1,2 @@
+enhancement:
+  - "Add option to set `repositoryCredentials` on Fargate Agent `containerDefinitions` - [#2822](https://github.com/PrefectHQ/prefect/issues/2822)"
