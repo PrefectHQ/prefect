@@ -437,6 +437,20 @@ class Flow:
     # Graph --------------------------------------------------------------------
 
     def _generate_task_slug(self, task: Task) -> str:
+        """
+        Given a Task, generates the corresponding slug for this Flow.  Slugs are the unique IDs
+        the Prefect API uses to track state updates for each task within a Flow.
+
+        The logic for slug generation within a Flow is essentially "name-tags-#count".
+        Having slugs be properties of (Task, Flow) instead of just Task alone allows Prefect
+        to ensure that every time you run the same build script for a Flow, the Task slugs remain constant.
+
+        Args:
+            - task (Task): the task to generate a slug for
+
+        Returns:
+            - str: the corresponding slug
+        """
         slug_bases = []
         for t in self.tasks:
             slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
@@ -1294,6 +1308,11 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
+
+        # because of how our serializers work, we need to make sure that
+        # each task has its slug attached as an attribute.  We don't perform this
+        # update when the task is added to the flow because the task might get used
+        # within another flow (and hence have a different slug)
         flow_copy = self.copy()
         for task, slug in flow_copy.slugs.items():
             task.slug = slug
