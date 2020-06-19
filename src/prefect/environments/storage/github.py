@@ -8,6 +8,7 @@ from slugify import slugify
 import prefect
 from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
+from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -19,11 +20,12 @@ class GitHub(Storage):
     """
 
     def __init__(
-        self, repo: str, **kwargs: Any
+        self, repo: str, path: str = None, **kwargs: Any
     ) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
+        self.path = path
 
         super().__init__(**kwargs)
 
@@ -49,20 +51,14 @@ class GitHub(Storage):
         """
         repo = self._github_client.get_repo(self.repo)
 
+        # Needs some error handling
         contents = repo.get_contents(file)
-        f = contents.decoded_content
+        decoded_contents = contents.decoded_content
 
-        exec_vals = {}
-        exec(f, exec_vals)
+        return extract_flow_from_file(file_contents=decoded_contents)
 
-        # Grab flow name from values loaded via exec
-        # This will only work with one flow per file
-        for i in exec_vals:
-            if isinstance(exec_vals[i], prefect.Flow):
-                return exec_vals[i]
-        # return cloudpickle.loads(output)
 
-    def add_flow(self, file: str, file_path: str) -> str:
+    def add_flow(self, flow_name: str, path: str = None) -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.
 
@@ -75,16 +71,16 @@ class GitHub(Storage):
         Raises:
             - ValueError: if a flow with the same name is already contained in this storage
         """
-        if file in self:
+        if flow_name in self:
             raise ValueError(
                 'Name conflict: Flow with the name "{}" is already present in this storage.'.format(
-                    file
+                    flow_name
                 )
             )
 
         # the file name should be able to be specified or we default to the name of the original .py file
-        self.flows[file] = file_path
-        return file
+        self.flows[flow_name] = path or self.path
+        return path or self.path
 
     def build(self) -> "Storage":
         """
@@ -101,17 +97,17 @@ class GitHub(Storage):
         """
         self.run_basic_healthchecks()
 
-        for file, file_path in self.flows.items():
-            repo = self._github_client.get_repo(self.repo)
-            # try:
-                # need to figure this out
-                # repo.get_contents(file)
-                # need to update
-            # except:
-                # Doesn't exist
-            with open(file_path, "r") as f:
-                content = f.read()
-            repo.create_file(path=file, content=content, message="I am flow")
+        # for file, file_path in self.flows.items():
+        #     repo = self._github_client.get_repo(self.repo)
+        #     # try:
+        #         # need to figure this out
+        #         # repo.get_contents(file)
+        #         # need to update
+        #     # except:
+        #         # Doesn't exist
+        #     with open(file_path, "r") as f:
+        #         content = f.read()
+        #     repo.create_file(path=file, content=content, message="I am flow")
 
         return self
 

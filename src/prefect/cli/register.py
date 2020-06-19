@@ -3,6 +3,7 @@ import os
 import click
 
 import prefect
+from prefect.utilities.storage import extract_flow_from_file
 
 @click.group(hidden=True)
 def register():
@@ -30,35 +31,16 @@ def flow(file):
     """
 
     file_path = os.path.abspath(file)
+    flow_obj = extract_flow_from_file(file_path=file_path)
 
-    # Grab contents of file
-    with open(file_path, "r") as f:
-        contents = f.read()
-
-    # Exec the file to get the flow name
-    # when giving dict to exec, contents are not run with main
-    exec_vals = {}
-    exec(contents, exec_vals)
-
-    # Grab flow name from values loaded via exec
-    # This will only work with one flow per file, could add name option
-    for i in exec_vals:
-        if isinstance(exec_vals[i], prefect.Flow):
-            flow_name = exec_vals[i].name
-            flow = exec_vals[i]
-            break
-
-
-    # print(flow.storage.flows)
-    # return
-    # Add to storage (will replace with add_flow)
-    # Temp until Local is updated to move write to build
-    # flow.storage.flows[flow_name] = file_path
-    # flow.storage._flows[flow_name] = flow
-    flow.storage.add_flow(file=file, file_path=file_path)
+    # Allow a path to be set here
+    # Maybe we can overload the add_flow to take both flow and flow.name
+    # OR keep passing in the flow object and then pull the name off of it in there
+    # which is probably the best option
+    flow_obj.storage.add_flow(flow_name=flow_obj.name)
 
     # Replace with register
-    flow.storage.build()
-    # flow.serialize(build=True)
+    # Should have a build option here
+    flow_obj.register()
 
     print("Registered!")

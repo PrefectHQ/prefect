@@ -33,3 +33,33 @@ def get_flow_image(flow: "Flow") -> str:
             )
 
         return storage.name
+
+def extract_flow_from_file(file_path: str = None, file_contents: str = None) -> "Flow":
+    """
+    Extract a flow object from a file
+    """
+    # TODO: Add support for passing name, otherwise get first flow found
+
+    if file_path and file_contents:
+        raise ValueError("Only one can be used")
+
+    # Read file contents
+    if file_path:
+        with open(file_path, "r") as f:
+            contents = f.read()
+
+    # Use contents directly
+    if file_contents:
+        contents = file_contents
+
+    # Load objects from file into dict
+    exec_vals = {}
+    exec(contents, exec_vals)
+
+    # Grab flow name from values loaded via exec
+    for var in exec_vals:
+        if isinstance(exec_vals[var], prefect.Flow):
+            # flow_name = exec_vals[var].name
+            return exec_vals[var]
+
+    raise ValueError(f"No flow found in {file_path}")
