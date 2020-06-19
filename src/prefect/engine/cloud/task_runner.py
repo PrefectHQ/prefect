@@ -211,13 +211,7 @@ class CloudTaskRunner(TaskRunner):
                 created_after=oldest_valid_cache,
             )
 
-            if not cached_states:
-                self.logger.debug(
-                    "Task '{name}': can't use cache because no Cached states were found".format(
-                        name=prefect.context.get("task_full_name", self.task.name)
-                    )
-                )
-            else:
+            if cached_states:
                 self.logger.debug(
                     "Task '{name}': {num} candidate cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name),
@@ -225,18 +219,26 @@ class CloudTaskRunner(TaskRunner):
                     )
                 )
 
-            for candidate_state in cached_states:
-                assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.load_cached_results(inputs)
-                sanitized_inputs = {key: res.value for key, res in inputs.items()}
-                if self.task.cache_validator(
-                    candidate_state, sanitized_inputs, prefect.context.get("parameters")
-                ):
-                    return candidate_state.load_result(self.result)
+                for candidate_state in cached_states:
+                    assert isinstance(candidate_state, Cached)  # mypy assert
+                    candidate_state.load_cached_results(inputs)
+                    sanitized_inputs = {key: res.value for key, res in inputs.items()}
+                    if self.task.cache_validator(
+                        candidate_state,
+                        sanitized_inputs,
+                        prefect.context.get("parameters"),
+                    ):
+                        return candidate_state.load_result(self.result)
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
                     "were valid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+            else:
+                self.logger.debug(
+                    "Task '{name}': can't use cache because no Cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )

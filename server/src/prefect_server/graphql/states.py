@@ -26,28 +26,20 @@ async def resolve_set_flow_run_states(
     """
 
     async def set_state(state_input: dict) -> str:
-        try:
-            state = state_schema.load(state_input["state"])
+        state = state_schema.load(state_input["state"])
 
-            result = await api.states.set_flow_run_state(
-                flow_run_id=state_input["flow_run_id"], state=state,
-            )
-            result.update({"id": state_input["flow_run_id"], "message": None})
-            return result
+        await api.states.set_flow_run_state(
+            flow_run_id=state_input["flow_run_id"], state=state,
+        )
 
-        except Exception as exc:
-            return {
-                # placing the error inside the payload will get GraphQL to return the data
-                # AND raise an error, but this is fragile because it requires users to request
-                # the ID field
-                "id": exc,
-                "status": "ERROR",
-                "message": str(exc),
-            }
+        return {
+            "id": state_input["flow_run_id"],
+            "status": "SUCCESS",
+            "message": None,
+        }
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],
-        return_exceptions=True,
     )
 
     return {"states": result}
@@ -63,28 +55,20 @@ async def resolve_set_task_run_states(
 
     async def set_state(state_input: dict) -> str:
 
-        try:
-            state = state_schema.load(state_input["state"])
+        state = state_schema.load(state_input["state"])
 
-            result = await api.states.set_task_run_state(
-                task_run_id=state_input["task_run_id"], state=state,
-            )
-            result.update({"id": state_input["task_run_id"], "message": None})
-            return result
+        await api.states.set_task_run_state(
+            task_run_id=state_input["task_run_id"], state=state,
+        )
 
-        except Exception as exc:
-            return {
-                # placing the error inside the payload will get GraphQL to return the data
-                # AND raise an error, but this is fragile because it requires users to request
-                # the ID field
-                "id": exc,
-                "status": "ERROR",
-                "message": str(exc),
-            }
+        return {
+            "id": state_input["task_run_id"],
+            "status": "SUCCESS",
+            "message": None,
+        }
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],
-        return_exceptions=True,
     )
 
     return {"states": result}
