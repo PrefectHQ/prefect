@@ -32,6 +32,12 @@ class LocalEnvironment(Environment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()()
+        elif not isinstance(executor, prefect.engine.executors.Executor):
+            raise TypeError(
+                f"`executor` must be an `Executor` or `None`, got `{executor}`"
+            )
         self.executor = executor
         super().__init__(
             labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata

@@ -90,7 +90,7 @@ class FargateTaskEnvironment(Environment):
         on_start: Callable = None,
         on_exit: Callable = None,
         metadata: dict = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.launch_type = launch_type
         # Not serialized, only stored on the object
@@ -104,10 +104,17 @@ class FargateTaskEnvironment(Environment):
         # Parse accepted kwargs for definition and run
         self.task_definition_kwargs, self.task_run_kwargs = self._parse_kwargs(kwargs)
 
-        self.executor = executor
         if executor_kwargs is not None:
             warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
-        self.executor_kwargs = executor_kwargs or dict()
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()(
+                **(executor_kwargs or {})
+            )
+        elif not isinstance(executor, prefect.engine.executors.Executor):
+            raise TypeError(
+                f"`executor` must be an `Executor` or `None`, got `{executor}`"
+            )
+        self.executor = executor
 
         super().__init__(
             labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
@@ -299,5 +306,5 @@ class FargateTaskEnvironment(Environment):
         boto3_c.run_task(
             overrides={"containerOverrides": container_overrides},
             launchType=self.launch_type,
-            **self.task_run_kwargs
+            **self.task_run_kwargs,
         )

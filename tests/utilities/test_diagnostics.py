@@ -105,7 +105,7 @@ def test_flow_information():
     assert flow_information["task_count"] == 2
 
     # Kwargs presence check
-    assert flow_information["environment"]["executor"] is False
+    assert flow_information["environment"]["executor"] is True
     assert flow_information["environment"]["labels"] is False
     assert flow_information["environment"]["on_start"] is False
     assert flow_information["environment"]["on_exit"] is False
@@ -163,7 +163,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         assert flow_information["task_count"] == 2
 
         # Kwargs presence check
-        assert flow_information["environment"]["executor"] is False
+        assert flow_information["environment"]["executor"] is True
         assert flow_information["environment"]["labels"] is False
         assert flow_information["environment"]["on_start"] is False
         assert flow_information["environment"]["on_exit"] is False

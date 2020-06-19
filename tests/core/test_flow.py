@@ -2429,7 +2429,7 @@ class TestFlowDiagnostics:
             assert flow_information["task_count"] == 2
 
             # Kwargs presence check
-            assert flow_information["environment"]["executor"] is False
+            assert flow_information["environment"]["executor"] is True
             assert flow_information["environment"]["labels"] is False
             assert flow_information["environment"]["on_start"] is False
             assert flow_information["environment"]["on_exit"] is False

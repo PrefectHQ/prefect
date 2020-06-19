@@ -65,10 +65,18 @@ class KubernetesJobEnvironment(Environment):
     ) -> None:
         self.job_spec_file = os.path.abspath(job_spec_file) if job_spec_file else None
         self.unique_job_name = unique_job_name
-        self.executor = executor
+
         if executor_kwargs is not None:
             warnings.warn("`executor_kwargs` is deprecated, use `executor` instead")
-        self.executor_kwargs = executor_kwargs or dict()
+        if executor is None:
+            executor = prefect.engine.get_default_executor_class()(
+                **(executor_kwargs or {})
+            )
+        elif not isinstance(executor, prefect.engine.executors.Executor):
+            raise TypeError(
+                f"`executor` must be an `Executor` or `None`, got `{executor}`"
+            )
+        self.executor = executor
 
         # Load specs from file if path given, store on object
         self._job_spec = self._load_spec_from_file()
