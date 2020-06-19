@@ -199,7 +199,6 @@ module.exports = {
             'execution/overview',
             'execution/storage_options',
             'execution/local_environment',
-            'execution/remote_dask_environment',
             'execution/dask_cloud_provider_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',

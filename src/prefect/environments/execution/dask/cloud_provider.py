@@ -31,8 +31,8 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     should be as independent as possible, e.g. each Flow could have its own docker
     image, dynamically create the Dask cluster to run on, etc. However, for
     development and interactive testing, creating a Dask cluster manually with Dask
-    Cloud Provider and then using `RemoteDaskEnvironment` or just `DaskExecutor`
-    with your flows will result in a much better development experience.
+    Cloud Provider and then using `LocalEnvironment` with a `DaskExecutor`
+    will result in a much better development experience.
 
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
