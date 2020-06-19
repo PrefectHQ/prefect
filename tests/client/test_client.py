@@ -11,7 +11,7 @@ import requests
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.state import Pending, State
+from prefect.engine.state import Pending, Running, State
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult, decompress
@@ -712,7 +712,13 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
 
 
 def test_set_flow_run_state(patch_post):
-    response = {"data": {"set_flow_run_state": {"id": 1}}}
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": 1, "status": "SUCCESS", "message": None}]
+            }
+        }
+    }
     post = patch_post(response)
 
     with set_temporary_config(
@@ -724,6 +730,62 @@ def test_set_flow_run_state(patch_post):
     result = client.set_flow_run_state(flow_run_id="74-salt", version=0, state=state)
     assert isinstance(result, State)
     assert isinstance(result, Pending)
+
+
+def test_set_flow_run_state_gets_queued(patch_post):
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": "74-salt", "status": "QUEUED", "message": None}]
+            }
+        }
+    }
+    post = patch_post(response)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    state = Running()
+    result = client.set_flow_run_state(flow_run_id="74-salt", version=0, state=state)
+    assert isinstance(result, State)
+    assert state != result
+    assert result.is_queued()
+
+
+@pytest.mark.parametrize("interval_seconds", [10, 20, 30, 40])
+def test_set_flow_run_state_uses_config_queue_interval(
+    patch_post, interval_seconds, monkeypatch
+):
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": "74-salt", "status": "QUEUED", "message": None}]
+            }
+        }
+    }
+    post = patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.queue_interval": interval_seconds,
+        }
+    ):
+        client = Client()
+
+        # Mocking the concept of "now" so we can have consistent assertions
+        now = pendulum.now("UTC")
+        mock_now = MagicMock(return_value=now)
+        monkeypatch.setattr("prefect.client.client.pendulum.now", mock_now)
+
+        result = client.set_flow_run_state(
+            flow_run_id="74-salt", version=0, state=Running()
+        )
+    mock_now.assert_called_once()
+
+    assert now.add(seconds=interval_seconds) == result.start_time
 
 
 def test_set_flow_run_state_with_error(patch_post):
