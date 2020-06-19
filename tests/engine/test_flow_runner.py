@@ -1551,6 +1551,10 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
 
 
 def test_flow_runner_provides_consistent_extra_context():
+    """Check that the `extra_context` provided to an executor is consistent.
+
+    The `extra_context` is used by the dask executor to generate good key names
+    and add task resource requirements"""
     extra_contexts = []
 
     class MyExecutor(Executor):
