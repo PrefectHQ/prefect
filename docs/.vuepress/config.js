@@ -52,8 +52,7 @@ module.exports = {
         twitter: true
       }
     ],
-    ['vuepress-plugin-smooth-scroll'],
-    ['@vuepress/active-header-links']
+    ['vuepress-plugin-smooth-scroll']
   ],
   themeConfig: {
     algolia: {
