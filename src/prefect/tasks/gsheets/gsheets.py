@@ -1,7 +1,7 @@
 from prefect.utilities.tasks import defaults_from_attrs
 import gspread
-from typing import Any, Callable, List, Union
-from prefect import task, Task
+from typing import Any, List, Union
+from prefect import Task
 import pathlib
 
 
