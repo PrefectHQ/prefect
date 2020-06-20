@@ -85,6 +85,13 @@ class TestLocalDaskExecutor:
             assert f.key.startswith("inc-")
             assert res == 2
 
+            f = e.submit(
+                lambda x: x + 1, 1, extra_context={"task_name": "inc", "task_index": 1}
+            )
+            (res,) = e.wait([f])
+            assert f.key.startswith("inc-1-")
+            assert res == 2
+
     def test_only_compute_once(self):
         e = LocalDaskExecutor()
         count = 0
@@ -317,14 +324,26 @@ class TestDaskExecutor:
         kwargs = executor._prep_dask_kwargs(
             dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"])
         )
-        assert kwargs["key"].startswith("FISH!")
+        assert kwargs["key"].startswith("FISH!-")
         assert kwargs["resources"] == {"GPU": 1.0}
+
+        kwargs = executor._prep_dask_kwargs(
+            dict(task_name="FISH!", task_tags=["dask-resource:GPU=1"], task_index=1)
+        )
+        assert kwargs["key"].startswith("FISH!-1-")
 
     def test_submit_sets_task_name(self, mthread):
         with mthread.start():
             fut = mthread.submit(lambda x: x + 1, 1, extra_context={"task_name": "inc"})
             (res,) = mthread.wait([fut])
             assert fut.key.startswith("inc-")
+            assert res == 2
+
+            fut = mthread.submit(
+                lambda x: x + 1, 1, extra_context={"task_name": "inc", "task_index": 1}
+            )
+            (res,) = mthread.wait([fut])
+            assert fut.key.startswith("inc-1-")
             assert res == 2
 
     @pytest.mark.parametrize("executor", ["mproc", "mthread"], indirect=True)
