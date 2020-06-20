@@ -40,25 +40,18 @@ class CloudTaskRunner(TaskRunner):
             (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
             If multiple functions are passed, then the `new_state` argument will be the
             result of the previous handler.
-        - result (Result, optional): the result instance used to retrieve and store task results during execution;
-            if not provided, will default to the one on the provided Task
-        - default_result (Result, optional): the fallback result type to use for retrieving and storing state results
-            during execution (to be used on upstream inputs if they don't provide their own results)
+        - flow_result: the result instance configured for the flow (if any)
     """
 
     def __init__(
         self,
         task: Task,
         state_handlers: Iterable[Callable] = None,
-        result: Result = None,
-        default_result: Result = None,
+        flow_result: Result = None,
     ) -> None:
         self.client = Client()
         super().__init__(
-            task=task,
-            state_handlers=state_handlers,
-            result=result,
-            default_result=default_result,
+            task=task, state_handlers=state_handlers, flow_result=flow_result,
         )
 
     def _heartbeat(self) -> bool:
@@ -218,13 +211,7 @@ class CloudTaskRunner(TaskRunner):
                 created_after=oldest_valid_cache,
             )
 
-            if not cached_states:
-                self.logger.debug(
-                    "Task '{name}': can't use cache because no Cached states were found".format(
-                        name=prefect.context.get("task_full_name", self.task.name)
-                    )
-                )
-            else:
+            if cached_states:
                 self.logger.debug(
                     "Task '{name}': {num} candidate cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name),
@@ -232,18 +219,26 @@ class CloudTaskRunner(TaskRunner):
                     )
                 )
 
-            for candidate_state in cached_states:
-                assert isinstance(candidate_state, Cached)  # mypy assert
-                candidate_state.load_cached_results(inputs)
-                sanitized_inputs = {key: res.value for key, res in inputs.items()}
-                if self.task.cache_validator(
-                    candidate_state, sanitized_inputs, prefect.context.get("parameters")
-                ):
-                    return candidate_state.load_result(self.result)
+                for candidate_state in cached_states:
+                    assert isinstance(candidate_state, Cached)  # mypy assert
+                    candidate_state.load_cached_results(inputs)
+                    sanitized_inputs = {key: res.value for key, res in inputs.items()}
+                    if self.task.cache_validator(
+                        candidate_state,
+                        sanitized_inputs,
+                        prefect.context.get("parameters"),
+                    ):
+                        return candidate_state.load_result(self.result)
 
                 self.logger.debug(
                     "Task '{name}': can't use cache because no candidate Cached states "
                     "were valid".format(
+                        name=prefect.context.get("task_full_name", self.task.name)
+                    )
+                )
+            else:
+                self.logger.debug(
+                    "Task '{name}': can't use cache because no Cached states were found".format(
                         name=prefect.context.get("task_full_name", self.task.name)
                     )
                 )
@@ -269,11 +264,11 @@ class CloudTaskRunner(TaskRunner):
         try:
             for edge, upstream_state in upstream_states.items():
                 upstream_states[edge] = upstream_state.load_result(
-                    edge.upstream_task.result or self.default_result
+                    edge.upstream_task.result or self.flow_result
                 )
                 if edge.key is not None:
                     upstream_results[edge.key] = (
-                        edge.upstream_task.result or self.default_result
+                        edge.upstream_task.result or self.flow_result
                     )
 
             state.load_cached_results(upstream_results)
@@ -312,34 +307,40 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - `State` object representing the final post-run state of the Task
         """
-        context = context or {}
-        end_state = super().run(
-            state=state,
-            upstream_states=upstream_states,
-            context=context,
-            is_mapped_parent=is_mapped_parent,
-        )
-        while (end_state.is_retrying() or end_state.is_queued()) and (
-            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
-        ):
-            assert isinstance(end_state, (Retrying, Queued))
-            naptime = max(
-                (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
-            )
-            time.sleep(naptime)
-
-            # currently required as context has reset to its original state
-            task_run_info = self.client.get_task_run_info(
-                flow_run_id=context.get("flow_run_id", ""),
-                task_id=context.get("task_id", ""),
-                map_index=context.get("map_index"),
-            )
-            context.update(task_run_version=task_run_info.version)  # type: ignore
-
+        with prefect.context(context or {}):
             end_state = super().run(
-                state=end_state,
+                state=state,
                 upstream_states=upstream_states,
                 context=context,
                 is_mapped_parent=is_mapped_parent,
             )
-        return end_state
+            while (end_state.is_retrying() or end_state.is_queued()) and (
+                end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
+            ):
+                assert isinstance(end_state, (Retrying, Queued))
+                naptime = max(
+                    (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
+                )
+                time.sleep(naptime)
+
+                # mapped children will retrieve their latest info inside
+                # initialize_run(), but we can load up-to-date versions
+                # for all other task runs here
+                if prefect.context.get("map_index") in [-1, None]:
+                    task_run_info = self.client.get_task_run_info(
+                        flow_run_id=prefect.context.get("flow_run_id"),
+                        task_id=prefect.context.get("task_id"),
+                        map_index=prefect.context.get("map_index"),
+                    )
+
+                    # if state was provided, keep it; otherwise use the one from db
+                    context.update(task_run_version=task_run_info.version)  # type: ignore
+
+                end_state = super().run(
+                    state=end_state,
+                    upstream_states=upstream_states,
+                    context=context,
+                    is_mapped_parent=is_mapped_parent,
+                )
+
+            return end_state

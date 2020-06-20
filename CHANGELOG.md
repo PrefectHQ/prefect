@@ -1,5 +1,76 @@
 # Changelog
 
+## 0.12.0 <Badge text="beta" type="success">
+
+Released on June 17, 2020.
+
+### Features
+
+- Depth First Execution with Mapping on Dask - [#2646](https://github.com/PrefectHQ/prefect/pull/2646)
+- Support use of cloud storage with containerized environments - [#2517](https://github.com/PrefectHQ/prefect/issues/2517),[#2796](https://github.com/PrefectHQ/prefect/pull/2796)
+
+### Enhancements
+
+- Add flag to include hostname on local storage - [#2653](https://github.com/PrefectHQ/prefect/issues/2653)
+- Add option to set `image_pull_secret` directly on `DaskKubernetesEnvironment` - [#2657](https://github.com/PrefectHQ/prefect/pull/2657)
+- Allow for custom callables for Result locations - [#2577](https://github.com/PrefectHQ/prefect/issues/2577)
+- Ensure all Parameter values, included non-required defaults, are present in context - [#2698](https://github.com/PrefectHQ/prefect/pull/2698)
+- Use absolute path for `LocalResult` location for disambiguation - [#2698](https://github.com/PrefectHQ/prefect/pull/2698)
+- Retry client requests when receiving an `API_ERROR` code in the response - [#2705](https://github.com/PrefectHQ/prefect/pull/2705)
+- Reduce size of serialized tasks when running on Dask - [#2707](https://github.com/PrefectHQ/prefect/pull/2707)
+- Extend run state signatures for future development - [#2718](https://github.com/PrefectHQ/prefect/pull/2718)
+- Update set_flow_run_state for future meta state use - [#2725](https://github.com/PrefectHQ/prefect/pull/2725)
+- Add an optional `flow` argument to `merge` to support using it when not inside a flow context - [#2727](https://github.com/PrefectHQ/prefect/pull/2727)
+- Add option to set service account name on Prefect jobs created by Kubernetes agent - [#2547](https://github.com/PrefectHQ/prefect/issues/2547)
+- Add option to set imagePullPolicy on Prefect jobs created by Kubernetes agent - [#2721](https://github.com/PrefectHQ/prefect/issues/2721)
+- Add option to set API url on agent start CLI command - [#2633](https://github.com/PrefectHQ/prefect/issues/2633)
+- Add CI step to build `prefecthq/prefect:all_extras` Docker image for bundling all Prefect dependencies - [#2745](https://github.com/PrefectHQ/prefect/pull/2745)
+- Move `Parameter` to a standalone module - [#2758](https://github.com/PrefectHQ/prefect/pull/2758)
+- Validate Cached states based on hashed inputs - [#2763](https://github.com/PrefectHQ/prefect/pull/2763)
+- Add `validate_configuration` utility to Fargate Agent for verifying it can manage tasks properly - [#2768](https://github.com/PrefectHQ/prefect/pull/2768)
+- Add option to specify task targets as callables - [#2769](https://github.com/PrefectHQ/prefect/pull/2769)
+- Improve `State.__repr__` when there is no message - [#2773](https://github.com/PrefectHQ/prefect/pull/2773)
+- Add support for db argument at run time in the SQLiteQuery and SQLiteScript - [#2782](https://github.com/PrefectHQ/prefect/pull/2782)
+- Add support for mapped argument in control flows - [#2784](https://github.com/PrefectHQ/prefect/pull/2784)
+- Use pagination in kubernetes resource manager to reduce memory usage - [#2794](https://github.com/PrefectHQ/prefect/pull/2794)
+
+### Task Library
+
+- Adds a task to expose Great Expectations checkpoints as a node in a Prefect pipeline - [#2489](https://github.com/PrefectHQ/prefect/issues/2489)
+
+### Server
+
+- None
+
+### Fixes
+
+- Fix flow.visualize cleanup of source files when using `filename` - [#2726](https://github.com/PrefectHQ/prefect/issues/2726)
+- Fix `S3Result` handling of AWS credentials provided through kwargs  - [#2747](https://github.com/PrefectHQ/prefect/issues/2747)
+- Fix `DaskKubernetesEnvironment` requiring that an `env` block is set when using custom specs - [#2657](https://github.com/PrefectHQ/prefect/pull/2657)
+- Fix `PostgresExecute` task auto commit when commit is set to `False` - [#2658](https://github.com/PrefectHQ/prefect/issue/2658)
+- Remove need for `{filename}` in mapped templates - [#2640](https://github.com/PrefectHQ/prefect/issues/2640)
+- Fix issue with Results erroring out on multi-level mapped pipelines - [#2716](https://github.com/PrefectHQ/prefect/issues/2716)
+- Fix issue with dask resource tags not being respected - [#2735](https://github.com/PrefectHQ/prefect/pull/2735)
+- Ensure state deserialization works even when another StateSchema exists - [#2738](https://github.com/PrefectHQ/prefect/pull/2738)
+- Remove implicit payload size restriction from Apollo - [#2764](https://github.com/PrefectHQ/prefect/pull/2764)
+- Fix issue with declared storage secrets in K8s job environment and Dask K8s environment - [#2780](https://github.com/PrefectHQ/prefect/pull/2780)
+- Fix context handling for Cloud when working with in-process retries - [#2783](https://github.com/PrefectHQ/prefect/pull/2783)
+
+### Deprecations
+
+- Accessing `prefect.core.task.Parameter` is deprecated in favor of `prefect.core.parameter.Parameter` - [#2758](https://github.com/PrefectHQ/prefect/pull/2758)
+
+### Breaking Changes
+
+- Environment `setup` and `execute` function signatures now accept Flow objects - [#2796](https://github.com/PrefectHQ/prefect/pull/2796)
+- `create_flow_run_job` logic has been moved into `execute` for `DaskKubernetesEnvironment` and `KubernetesJobEnvironment` - [#2796](https://github.com/PrefectHQ/prefect/pull/2796)
+
+### Contributors
+
+- [Alex Cano](https://github.com/alexisprince1994)
+- [David Haines](https://github.com/davidfhaines)
+- [Paweł Cieśliński](https://github.com/pcieslinski)
+
 ## 0.11.5 <Badge text="beta" type="success">
 
 Released on June 2, 2020.

@@ -31,7 +31,8 @@ from slugify import slugify
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.result import NoResult, Result
 from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
@@ -173,6 +174,7 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.slugs = dict()  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -434,6 +436,28 @@ class Flow:
 
     # Graph --------------------------------------------------------------------
 
+    def _generate_task_slug(self, task: Task) -> str:
+        """
+        Given a Task, generates the corresponding slug for this Flow.  Slugs are the unique IDs
+        the Prefect API uses to track state updates for each task within a Flow.
+
+        The logic for slug generation within a Flow is essentially "name-tags-#count".
+        Having slugs be properties of (Task, Flow) instead of just Task alone allows Prefect
+        to ensure that every time you run the same build script for a Flow, the Task slugs remain constant.
+
+        Args:
+            - task (Task): the task to generate a slug for
+
+        Returns:
+            - str: the corresponding slug
+        """
+        slug_bases = []
+        for t in self.tasks:
+            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
+        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
+        index = slug_bases.count(new_slug)
+        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+
     def add_task(self, task: Task) -> Task:
         """
         Add a task to the flow if the task does not already exist. The tasks are
@@ -454,11 +478,12 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if task.slug and any(task.slug == t.slug for t in self.tasks):
+            if task.slug and task.slug in self.slugs.values():
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
                     "flow.".format(task.slug)
                 )
+            self.slugs[task] = task.slug or self._generate_task_slug(task)
 
             self.tasks.add(task)
             self._cache.clear()
@@ -1283,7 +1308,15 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
-        serialized = schema(exclude=["storage"]).dump(self)
+
+        # because of how our serializers work, we need to make sure that
+        # each task has its slug attached as an attribute.  We don't perform this
+        # update when the task is added to the flow because the task might get used
+        # within another flow (and hence have a different slug)
+        flow_copy = self.copy()
+        for task, slug in flow_copy.slugs.items():
+            task.slug = slug
+        serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
             if not self.storage:

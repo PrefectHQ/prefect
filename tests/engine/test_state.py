@@ -47,87 +47,91 @@ all_states = sorted(
 )
 
 
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_no_args(cls):
-    state = cls()
-    assert state.message is None
-    assert state.result is None
-    assert state._result == NoResult
-    assert state.context == dict()
-    assert state.cached_inputs == dict()
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_kwarg_result_arg(cls):
-    state = cls(result=1)
-    assert isinstance(state._result, Result)
-    assert state._result.safe_value is NoResult
-    assert state._result.result_handler is None
-    assert state.result == 1
-    assert state.message is None
-    assert isinstance(state._result, Result)
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_kwarg_cached_inputs(cls):
-    state = cls(cached_inputs=dict(x=42))
-    assert state.message is None
-    assert state.cached_inputs == dict(x=42)
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_kwarg_context(cls):
-    state = cls(context={"my-keys": "my-vals"})
-    assert state.message is None
-    assert state.context == {"my-keys": "my-vals"}
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_fully_hydrated_result(cls):
-    result = Result(value=10)
-    state = cls(result=result)
-    assert isinstance(state._result, Result)
-    assert state._result.value == 10
-    assert state.result == 10
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_positional_message_arg(cls):
-    state = cls("i am a string")
-    assert state.message == "i am a string"
-    assert state._result == NoResult
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_data_and_message(cls):
-    state = cls(message="x", result="y")
-    assert state.result == "y"
-    assert state.message == "x"
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_data_and_error(cls):
-    try:
-        1 / 0
-    except Exception as e:
-        state = cls(result="oh no!", message=e)
-    assert state.result == "oh no!"
-    assert isinstance(state.message, Exception)
-    assert "division by zero" in str(state.message)
-
-
-@pytest.mark.parametrize("cls", all_states)
-def test_create_state_with_tags_in_context(cls):
-    with prefect.context(task_tags=set("abcdef")):
+class TestCreateStates:
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_no_args(self, cls):
         state = cls()
-    assert state.message is None
-    assert state.result is None
-    assert state._result == NoResult
-    assert state.context == dict(tags=list(set("abcdef")))
+        assert state.message is None
+        assert state.result is None
+        assert state._result == NoResult
+        assert state.context == dict()
+        assert state.cached_inputs == dict()
 
-    with prefect.context(task_tags=set("abcdef")):
-        state = cls(context={"tags": ["foo"]})
-    assert state.context == dict(tags=["foo"])
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_kwarg_result_arg(self, cls):
+        state = cls(result=1)
+        assert isinstance(state._result, Result)
+        assert state._result.safe_value is NoResult
+        assert state._result.result_handler is None
+        assert state.result == 1
+        assert state.message is None
+        assert isinstance(state._result, Result)
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_kwarg_cached_inputs(self, cls):
+        state = cls(cached_inputs=dict(x=42))
+        assert state.message is None
+        assert state.cached_inputs == dict(x=42)
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_kwarg_context(self, cls):
+        state = cls(context={"my-keys": "my-vals"})
+        assert state.message is None
+        assert state.context == {"my-keys": "my-vals"}
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_fully_hydrated_result(self, cls):
+        result = Result(value=10)
+        state = cls(result=result)
+        assert isinstance(state._result, Result)
+        assert state._result.value == 10
+        assert state.result == 10
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_positional_message_arg(self, cls):
+        state = cls("i am a string")
+        assert state.message == "i am a string"
+        assert state._result == NoResult
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_data_and_message(self, cls):
+        state = cls(message="x", result="y")
+        assert state.result == "y"
+        assert state.message == "x"
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_data_and_error(self, cls):
+        try:
+            1 / 0
+        except Exception as e:
+            state = cls(result="oh no!", message=e)
+        assert state.result == "oh no!"
+        assert isinstance(state.message, Exception)
+        assert "division by zero" in str(state.message)
+
+    @pytest.mark.parametrize("cls", all_states)
+    def test_create_state_with_tags_in_context(self, cls):
+        with prefect.context(task_tags=set("abcdef")):
+            state = cls()
+        assert state.message is None
+        assert state.result is None
+        assert state._result == NoResult
+        assert state.context == dict(tags=list(set("abcdef")))
+
+        with prefect.context(task_tags=set("abcdef")):
+            state = cls(context={"tags": ["foo"]})
+        assert state.context == dict(tags=["foo"])
+
+
+def test_repr_with_message():
+    state = Success(message="a message")
+    assert repr(state) == '<Success: "a message">'
+
+
+def test_repr_without_message():
+    state = Success()
+    assert state.message is None
+    assert repr(state) == "<Success>"
 
 
 def test_scheduled_states_have_default_times():

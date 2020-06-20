@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Type
+from typing import Any, Callable, Dict, List, Type, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import prefect
@@ -6,6 +6,9 @@ from distributed.deploy.cluster import Cluster
 from distributed.security import Security
 from prefect import Client
 from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
@@ -149,7 +152,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             )
 
     def execute(  # type: ignore
-        self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
+        self, flow: "Flow", **kwargs: Any  # type: ignore
     ) -> None:
         flow_run_info = None
         flow_run_id = prefect.context.get("flow_run_id")
@@ -210,4 +213,4 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 self.executor_kwargs["address"]
             )
         )
-        super().execute(storage, flow_location, **kwargs)
+        super().execute(flow, **kwargs)

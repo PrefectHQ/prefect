@@ -1,3 +1,0 @@
-fix:
-  - "Remove need for {filename} in mapped templates - [#2640](https://github.com/PrefectHQ/prefect/issues/2640)"
-  - "Fix issue with Results erroring out on multi-level mapped pipelines - [#2716](https://github.com/PrefectHQ/prefect/issues/2716)"

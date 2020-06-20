@@ -1,5 +1,0 @@
-enhancement:
-  - 'Add flag to include hostname on local storage [#2653](https://github.com/PrefectHQ/prefect/issues/2653)'
-
-contributor:
-  - '[Alex Cano](https://github.com/alexisprince1994)'
