@@ -362,21 +362,29 @@ class TestFlowRunStatesConcurrency:
 
         mock_concurrency_check.assert_not_called()
 
-    async def test_ignores_request_from_queued_to_queued(
-        self, flow_run_id: str, monkeypatch
+    async def test_ignores_request_if_queued_already(
+        self, labeled_flow_run_id, monkeypatch, flow_concurrency_limit,
     ):
         """
         Tests to make sure that if a flow run's state is transitioning
-        from a `Queued` state to another `Queued` state, we keep the
-        existing `Queued` state, as an attempt to not keep extending the time in the
-        flow run queue, thus delaying additional flow runs that otherwise would've
+        from a `Queued` state to another `Queued` state due to unavailable
+        concurrency slots, we keep the existing `Queued` state,
+        as an attempt to not keep extending the time in the flow run queue,
+        thus delaying additional flow runs that otherwise would've
         been spawned by an agent.
         """
-        # Succeeds first time, since we're going Scheduled -> Queued
+        # Succeeds first time, since we're forcing directly to Queued
         result = await states.set_flow_run_state(
-            flow_run_id, Queued(start_time=pendulum.now("UTC").add(minutes=9))
+            labeled_flow_run_id, Queued(start_time=pendulum.now("UTC").add(minutes=9))
         )
         assert result["status"] == "SUCCESS"
+
+        mock_concurrency_check = CoroutineMock(return_value={"foo": 0, "bar": 0})
+        monkeypatch.setattr(
+            "prefect_server.api.states.api.concurrency_limits.get_available_flow_concurrency",
+            mock_concurrency_check,
+        )
+
         mock_new_state = MagicMock()
         monkeypatch.setattr(
             "prefect_server.api.states.models.FlowRunState", mock_new_state
@@ -384,8 +392,7 @@ class TestFlowRunStatesConcurrency:
         mock_insert = CoroutineMock()
         mock_new_state.return_value.insert = mock_insert
         # Shouldn't occur second time, since we're going Queued -> Queued
-        result = await states.set_flow_run_state(
-            flow_run_id, Queued(start_time=pendulum.now("UTC").add(minutes=9))
-        )
+        result = await states.set_flow_run_state(labeled_flow_run_id, Running())
+
         assert result["status"] == "QUEUED"
         mock_insert.assert_not_called()

@@ -249,8 +249,9 @@ async def get_runs_in_queue(
 
     # The concurrency checks occuring here are _not_ the end-all-be-all
     # for ensuring flow concurrency. The checks occur here to ensure we
-    # don't have agents pulling runs that  Without these checks here,
-    # a situation where _only_ flow runs that _don't_ have available
+    # don't have agents pulling runs that we already know won't pass
+    # concurrency checks. Without these checks here, a situation where
+    # _only_ flow runs that _don't_ have available
     # concurrency slots are returned is possible when there are
     # runs in the queue that _could_ be submitted for execution.
 

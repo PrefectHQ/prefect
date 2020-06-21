@@ -26,7 +26,9 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
 
     If the flow's execution environment has a flow concurrency limit,
     this is the location that is ultimately responsible for ensuring
-    no more than the allowed limit are `Running` at once.
+    no more than the allowed limit are `Running` at once. Runs that
+    are limited by concurrency that are trying to enter `Running`
+    are placed into a `Queued` state instead.
 
     Args:
         - flow_run_id (str): the flow run id to update
@@ -36,12 +38,9 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
         - ValueError: If the provided `flow_run_id` is `None`
         - ValueError: If the `flow_run` associated with the given
             `flow_run_id` can't be found
-        - ValueError: If the flow is being transitioned to `Running`
-            and there isn't an available concurrency slot if the
-            flow's environment is concurrency limited.
     Returns:
         - Dict[str, str]: Mapping indicating status of the state
-            change operation.
+            change operation. Options are `SUCCESS` or `QUEUED`.
     """
 
     if flow_run_id is None:
@@ -63,17 +62,9 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
 
     status = "SUCCESS"
 
-    # Handle the situation where a Flow Run currently has a
-    # Queued state, and is requesting another queued state.
-    # This indicates a flow run attempted to enter the Running
-    # state, but couldn't due to concurrency limit checks,
-    # so is planning on waiting and trying again.
-    if isinstance(state, Queued):
-        existing_state = state_schema.load(flow_run.serialized_state)
-        if existing_state.is_queued():
-            return {"status": "QUEUED"}
+    if state.is_running():
 
-    if isinstance(state, Running):
+        # if isinstance(state, Running):
         # Check whether the environment is concurrency constrained
         # or not.
         execution_env_labels = flow_run.flow.environment.get("labels")
@@ -86,7 +77,10 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
             if not all([limits.get(label, 1) > 0 for label in execution_env_labels]):
 
                 # More details for better logging
-                unavailable_slots = [limit for limit in limits.values() if limit > 0]
+
+                unavailable_slots = [
+                    limit for limit, slots in limits.items() if slots <= 0
+                ]
 
                 state = Queued(
                     state=state,
@@ -94,6 +88,15 @@ async def set_flow_run_state(flow_run_id: str, state: State) -> Dict[str, str]:
                     start_time=pendulum.now("UTC").add(minutes=10),
                 )
                 status = "QUEUED"
+
+                existing_state = state_schema.load(flow_run.serialized_state)
+                if existing_state.is_queued():
+                    # Handle the situation where a Flow Run currently has a
+                    # Queued state, and is being put into another queued state.
+                    # We don't create a new state with a new start time
+                    # to avoid endlessly pushing out the start time
+                    # when slots aren't available.
+                    return {"status": status}
 
     # --------------------------------------------------------
     # insert the new state in the database
