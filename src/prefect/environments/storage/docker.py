@@ -388,9 +388,7 @@ class Docker(Storage):
         directory as well.
 
         Args:
-            - directory (str, optional): A directory where the Dockerfile will be
-                created, if no directory is specified is will be created in the
-                current working directory
+            - directory (str): A directory where the Dockerfile will be created
 
         Returns:
             - str: the absolute file path to the Dockerfile
