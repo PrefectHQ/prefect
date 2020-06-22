@@ -34,7 +34,10 @@ def get_flow_image(flow: "Flow") -> str:
 
         return storage.name
 
-def extract_flow_from_file(file_path: str = None, file_contents: str = None, flow_name: str = None) -> "Flow":
+
+def extract_flow_from_file(
+    file_path: str = None, file_contents: str = None, flow_name: str = None
+) -> "Flow":
     """
     Extract a flow object from a file.
 
@@ -66,7 +69,7 @@ def extract_flow_from_file(file_path: str = None, file_contents: str = None, flo
         contents = file_contents
 
     # Load objects from file into dict
-    exec_vals = {}
+    exec_vals = {}  # type: ignore
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec

@@ -20,7 +20,6 @@ def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
     Returns:
         - Client: an initialized and authenticated github Client
     """
-    # https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line
     access_token = None
 
     if credentials:

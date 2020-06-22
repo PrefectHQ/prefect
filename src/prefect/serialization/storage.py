@@ -101,6 +101,7 @@ class S3Schema(ObjectSchema):
         base_obj.flows = flows
         return base_obj
 
+
 class GitHubSchema(ObjectSchema):
     class Meta:
         object_class = GitHub
@@ -116,6 +117,7 @@ class GitHubSchema(ObjectSchema):
         base_obj = super().create_object(data)
         base_obj.flows = flows
         return base_obj
+
 
 class StorageSchema(OneOfSchema):
     """
