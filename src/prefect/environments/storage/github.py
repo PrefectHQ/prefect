@@ -1,12 +1,6 @@
-import io
 from typing import TYPE_CHECKING, Any, Dict, List
 
-import cloudpickle
-import pendulum
-from slugify import slugify
 
-import prefect
-from prefect.engine.results import S3Result
 from prefect.environments.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
@@ -16,12 +10,31 @@ if TYPE_CHECKING:
 
 class GitHub(Storage):
     """
-    GitHub storage class
+    GitHub storage class. This class represents the Storage interface for Flows stored
+    in `.py` files in a GitHub repository.
+
+    This class represents a mapping of flow name to file paths contained in the git repo,
+    meaning that all flow files should be pushed independently. A typical workflow using
+    this storage type might look like the following:
+
+    Compose flow `.py` file where flow has GitHub storage:
+
+    ```python
+    flow = Flow("my-flow")
+    flow.storage = GitHub(repo="my/repo", path="/flows/flow.py")
+    ```
+
+    Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+
+    Call `prefect register -f flow.py` to register this flow with GitHub storage.
+
+    Args:
+        - repo (str): the name of a GitHub repository to store this Flow
+        - path (str, optional): a path pointing to a flow file in the repo
+        - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
-    def __init__(
-        self, repo: str, path: str = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, repo: str, path: str = None, **kwargs: Any) -> None:
         self.flows = dict()  # type: Dict[str, str]
         self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
@@ -33,81 +46,75 @@ class GitHub(Storage):
     def default_labels(self) -> List[str]:
         return ["github-flow-storage"]
 
-    def get_flow(self, file: str) -> "Flow":
+    def get_flow(self, flow_location: str) -> "Flow":
         """
         Given a flow_location within this Storage object, returns the underlying Flow (if possible).
         If the Flow is not found an error will be logged and `None` will be returned.
 
         Args:
             - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to
+                a file path on a repository where a Flow file has been committed
 
         Returns:
             - Flow: the requested Flow
 
         Raises:
-            - ValueError: if the Flow is not contained in this storage
-            - botocore.ClientError: if there is an issue downloading the Flow from S3
+            - UnknownObjectException: if the Flow file is unable to be retrieved
         """
+        from github import UnknownObjectException
+
         repo = self._github_client.get_repo(self.repo)
 
-        # Needs some error handling
-        contents = repo.get_contents(file)
-        decoded_contents = contents.decoded_content
+        try:
+            contents = repo.get_contents(flow_location)
+            decoded_contents = contents.decoded_content
+        except UnknownObjectException as exc:
+            self.logger.error(
+                "Error retrieving file contents from {} on repo {}. Ensure the file exists.".format(
+                    flow_location, self.repo
+                )
+            )
+            raise exc
 
         return extract_flow_from_file(file_contents=decoded_contents)
 
-
-    def add_flow(self, flow_name: str, path: str = None) -> str:
+    def add_flow(self, flow: "Flow", path: str = None) -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.
 
         Args:
             - flow (Flow): a Prefect Flow to add
+            - path (str, optional): location of `.py` file in the repo. Defaults to the
+                value set in `self.path`.
 
         Returns:
-            - str: the location of the newly added flow in this Storage object
+            - str: the location of the added flow in the repo
 
         Raises:
             - ValueError: if a flow with the same name is already contained in this storage
         """
-        if flow_name in self:
+        if flow.name in self:
             raise ValueError(
                 'Name conflict: Flow with the name "{}" is already present in this storage.'.format(
-                    flow_name
+                    flow.name
                 )
             )
 
-        # the file name should be able to be specified or we default to the name of the original .py file
-        self.flows[flow_name] = path or self.path
-        return path or self.path
+        self.flows[flow.name] = path or self.path  # type: ignore
+        self._flows[flow.name] = flow
+        return path or self.path  # type: ignore
 
     def build(self) -> "Storage":
         """
-        Build the S3 storage object by uploading Flows to an S3 bucket. This will upload
-        all of the flows found in `storage.flows`. If there is an issue uploading to the
-        S3 bucket an error will be logged.
+        Build the GitHub storage object and run basic healthchecks. Due to this object
+        supporting file based storage no files are committed to the repository during
+        this step. Instead, all files should be committed independently.
 
         Returns:
-            - Storage: an S3 object that contains information about how and where
+            - Storage: a GitHub object that contains information about how and where
                 each flow is stored
-
-        Raises:
-            - botocore.ClientError: if there is an issue uploading a Flow to S3
         """
         self.run_basic_healthchecks()
-
-        # for file, file_path in self.flows.items():
-        #     repo = self._github_client.get_repo(self.repo)
-        #     # try:
-        #         # need to figure this out
-        #         # repo.get_contents(file)
-        #         # need to update
-        #     # except:
-        #         # Doesn't exist
-        #     with open(file_path, "r") as f:
-        #         content = f.read()
-        #     repo.create_file(path=file, content=content, message="I am flow")
 
         return self
 
