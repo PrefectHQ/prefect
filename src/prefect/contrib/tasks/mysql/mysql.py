@@ -143,7 +143,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-    ):
+    ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
 
@@ -180,6 +180,10 @@ class MySQLFetch(Task):
             with conn:
                 with conn.cursor() as cursor:
                     cursor.execute(query)
+
+                    # override mypy inferred type since we redefine with incompatible types
+                    results: Any
+
                     if fetch == "all":
                         results = cursor.fetchall()
                     elif fetch == "many":
