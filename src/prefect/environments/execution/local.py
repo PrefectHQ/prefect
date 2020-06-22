@@ -10,9 +10,6 @@ if TYPE_CHECKING:
 class LocalEnvironment(Environment):
     """
     A LocalEnvironment class for executing a flow in the local process.
-    Execution will first attempt to call `get_flow` on the flow's storage object,
-    and if that fails it will fall back to `get_env_runner`.  If `get_env_runner` is
-    used, the environment variables from this process will be passed.
 
     Args:
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
@@ -49,9 +46,7 @@ class LocalEnvironment(Environment):
 
     def execute(self, flow: "Flow", **kwargs: Any) -> None:
         """
-        Executes the flow provided to this environment by calling `get_flow` on the
-        flow's storage; if that fails, `get_env_runner` will be used with the OS
-        environment variables inherited from this process.
+        Executes the flow in the local process.
 
         Args:
             - flow (Flow): the Flow object
@@ -71,6 +66,5 @@ class LocalEnvironment(Environment):
             )
             raise exc
         finally:
-            # Call on_exit callback if specified
             if self.on_exit:
                 self.on_exit()
