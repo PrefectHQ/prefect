@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import socket
 from typing import TYPE_CHECKING, Any, Dict, List
 
@@ -34,11 +33,7 @@ class Local(Storage):
     """
 
     def __init__(
-        self,
-        directory: str = None,
-        validate: bool = True,
-        store_as_pickle: bool = True,
-        **kwargs: Any,
+        self, directory: str = None, validate: bool = True, **kwargs: Any
     ) -> None:
         directory = directory or os.path.join(prefect.config.home_dir, "flows")
         self.flows = dict()  # type: Dict[str, str]
@@ -50,9 +45,6 @@ class Local(Storage):
                 os.makedirs(abs_directory)
         else:
             abs_directory = directory
-
-        # This needs to be added to the serializers
-        self.store_as_pickle = store_as_pickle
 
         self.directory = abs_directory
         result = LocalResult(self.directory, validate_dir=validate)
@@ -79,26 +71,10 @@ class Local(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
+        if not flow_location in self.flows.values():
+            raise ValueError("Flow is not contained in this Storage")
 
-        if not self.store_as_pickle:
-            with open(flow_location, "r") as file:
-                contents = file.read()
-
-            exec_vals = {}
-            exec(contents, exec_vals)
-
-            # Grab flow name from values loaded via exec
-            # This will only work with one flow per file
-            for i in exec_vals:
-                if isinstance(exec_vals[i], prefect.Flow):
-                    return exec_vals[i]
-        else:
-            # Temporarily moving this value error due to having to save in one file
-            # and load in another
-            # We need to figure out a good workflow for this
-            if not flow_location in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-            return prefect.core.flow.Flow.load(flow_location)
+        return prefect.core.flow.Flow.load(flow_location)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -120,67 +96,12 @@ class Local(Storage):
                 )
             )
 
-        import inspect
-        import re
-
-        if not self.store_as_pickle:
-            # Grab file off the stack, however this will only work if calling f.serialize(build=True)
-            # when calling .add_flow directly it will be [1] level down the stack
-            frame = inspect.stack()[2]
-            filename = frame[1]
-            path_to_flow_file = os.path.abspath(filename)
-
-            # Grab contents of file
-            with open(path_to_flow_file, "r") as file:
-                contents = file.read()
-
-            # Need to strip out things which could cause circular problems
-            # In this case I'm calling serialize(build=True) directly and we don't want this
-            # exec may not run __main__ which could resolve this? TBD
-            contents = re.sub(r"^.*\b(serialize)\b.*$", "", contents, flags=re.M)
-
-            # Save to where flows normally save
-            # Could be merged with flow.save where this is ripped from
-            # When we register a script, we shouldn't move it and instead run the
-            # flow from that workdir. Helps with import problems.
-            path = "{home}/flows".format(home=prefect.context.config.home_dir)
-            fpath = Path(os.path.expanduser(path)) / f"{filename}"
-            assert fpath is not None  # mypy assert
-            fpath.parent.mkdir(exist_ok=True, parents=True)
-
-            flow_location = str(fpath)
-
-            # Write contents to file, should be moved to flow.save somehow
-            with open(flow_location, "w") as file:
-                file.write(contents)
-
-            # Exec the file to get the flow name
-            # when giving dict to exec, contents are not run with main
-            exec_vals = {}
-            exec(contents, exec_vals)
-
-            # Grab flow name from values loaded via exec
-            # This will only work with one flow per file
-            for i in exec_vals:
-                if isinstance(exec_vals[i], prefect.Flow):
-                    flow_name = exec_vals[i].name
-                    flow = exec_vals[i]
-                    break
-
-            # Update self.flows with file path
-            self.flows[flow_name] = flow_location
-            self._flows[flow_name] = flow
-        else:
-            # TODO: This logic needs to be moved to build to follow other storage types
-            flow_location = os.path.join(
-                self.directory, "{}.prefect".format(slugify(flow.name))
-            )
-            flow_location = flow.save(flow_location)
-            self.flows[flow.name] = flow_location
-            self._flows[flow.name] = flow
-
-        # Temporary convenience print
-        print(flow_location)
+        flow_location = os.path.join(
+            self.directory, "{}.prefect".format(slugify(flow.name))
+        )
+        flow_location = flow.save(flow_location)
+        self.flows[flow.name] = flow_location
+        self._flows[flow.name] = flow
         return flow_location
 
     def __contains__(self, obj: Any) -> bool:

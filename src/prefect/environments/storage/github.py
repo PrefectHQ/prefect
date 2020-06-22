@@ -62,7 +62,7 @@ class GitHub(Storage):
             - UnknownObjectException: if the Flow file is unable to be retrieved
         """
         from github import UnknownObjectException
-
+        print("HERE")
         repo = self._github_client.get_repo(self.repo)
 
         try:
@@ -78,14 +78,12 @@ class GitHub(Storage):
 
         return extract_flow_from_file(file_contents=decoded_contents)
 
-    def add_flow(self, flow: "Flow", path: str = None) -> str:
+    def add_flow(self, flow: "Flow") -> str:
         """
         Method for storing a new flow as bytes in the local filesytem.
 
         Args:
             - flow (Flow): a Prefect Flow to add
-            - path (str, optional): location of `.py` file in the repo. Defaults to the
-                value set in `self.path`.
 
         Returns:
             - str: the location of the added flow in the repo
@@ -100,9 +98,9 @@ class GitHub(Storage):
                 )
             )
 
-        self.flows[flow.name] = path or self.path  # type: ignore
+        self.flows[flow.name] = self.path  # type: ignore
         self._flows[flow.name] = flow
-        return path or self.path  # type: ignore
+        return self.path  # type: ignore
 
     def build(self) -> "Storage":
         """
@@ -128,9 +126,6 @@ class GitHub(Storage):
 
     @property
     def _github_client(self):  # type: ignore
-        from github import Github
-        import os
+        from prefect.utilities.git import get_github_client
 
-        # We should have some prefect secret defaults for this
-        # add support for user/pass/access_token and github enterprise
-        return Github(os.getenv("ACCESS_TOKEN"))
+        return get_github_client()

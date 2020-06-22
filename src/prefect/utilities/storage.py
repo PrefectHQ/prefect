@@ -34,14 +34,27 @@ def get_flow_image(flow: "Flow") -> str:
 
         return storage.name
 
-def extract_flow_from_file(file_path: str = None, file_contents: str = None) -> "Flow":
+def extract_flow_from_file(file_path: str = None, file_contents: str = None, flow_name: str = None) -> "Flow":
     """
-    Extract a flow object from a file
-    """
-    # TODO: Add support for passing name, otherwise get first flow found
+    Extract a flow object from a file.
 
+    Args:
+        - file_path (str, optional): A file path pointing to a .py file containing a flow
+        - file_contents (str, optional): The string contents of a .py file containing a flow
+        - flow_name (str, optional): A specific name of a flow to extract from a file.
+            If not set then the first flow object retrieved from file will be returned.
+
+    Returns:
+        - Flow: A flow object extracted from a file
+
+    Raises:
+        - ValueError: if both `file_path` and `file_contents` are provided or neither are.
+    """
     if file_path and file_contents:
-        raise ValueError("Only one can be used")
+        raise ValueError("Provide either `file_path` or `file_contents` but not both.")
+
+    if not file_path and not file_contents:
+        raise ValueError("Provide either `file_path` or `file_contents`.")
 
     # Read file contents
     if file_path:
@@ -59,7 +72,9 @@ def extract_flow_from_file(file_path: str = None, file_contents: str = None) -> 
     # Grab flow name from values loaded via exec
     for var in exec_vals:
         if isinstance(exec_vals[var], prefect.Flow):
-            # flow_name = exec_vals[var].name
-            return exec_vals[var]
+            if flow_name and exec_vals[var].name == flow_name:
+                return exec_vals[var]
+            elif not flow_name:
+                return exec_vals[var]
 
-    raise ValueError(f"No flow found in {file_path}")
+    raise ValueError(f"No flow found in file.")
