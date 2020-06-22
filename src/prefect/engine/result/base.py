@@ -28,7 +28,7 @@ import uuid
 from typing import Any, Callable, Iterable
 
 from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.serializers import Serializer
+from prefect.engine.serializers import BytesSerializer
 from prefect.utilities import logging
 
 
@@ -95,7 +95,7 @@ class Result(ResultInterface):
             str` and at write time all formatting kwargs will be passed and a fully
             formatted location is expected as the return value.  Can be used for
             string formatting logic that `.format(**kwargs)` doesn't support
-        - serializer (Serializer): a Serializer that can transform Python
+        - serializer (BytesSerializer): a BytesSerializer that can transform Python
             objects to bytes and recover them. The serializer is used whenever the
             `Result` is writing to or reading from storage.
     """
@@ -107,7 +107,7 @@ class Result(ResultInterface):
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         location: str = None,
-        serializer: Serializer = None,
+        serializer: BytesSerializer = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
@@ -115,7 +115,7 @@ class Result(ResultInterface):
         self.validators = validators
         self.run_validators = run_validators
         if serializer is None:
-            serializer = Serializer()
+            serializer = BytesSerializer()
         self.serializer = serializer
         if isinstance(location, (str, type(None))):
             self.location = location
