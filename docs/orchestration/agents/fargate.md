@@ -144,6 +144,7 @@ environments               list
 secrets                    list
 mountPoints                list
 logConfiguration           dict
+repositoryCredentials      dict
 ```
 
 Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.
