@@ -8,7 +8,7 @@ import yaml
 
 import prefect
 from prefect.agent.kubernetes import KubernetesAgent
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -59,7 +59,7 @@ def test_k8s_agent_deploy_flow(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                         "id": "id",
                     }
                 ),
@@ -95,7 +95,7 @@ def test_k8s_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_tok
                 "flow": GraphQLResult(
                     {
                         "storage": Local().serialize(),
-                        "environment": RemoteEnvironment(
+                        "environment": LocalEnvironment(
                             metadata={"image": "repo/name:tag"}
                         ).serialize(),
                         "id": "id",
@@ -134,7 +134,7 @@ def test_k8s_agent_deploy_flow_raises(monkeypatch, runner_token):
                         {
                             "storage": Local().serialize(),
                             "id": "id",
-                            "environment": RemoteEnvironment().serialize(),
+                            "environment": LocalEnvironment().serialize(),
                         }
                     ),
                     "id": "id",
@@ -166,7 +166,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -231,7 +231,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, runner_token, cloud_api):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -297,7 +297,7 @@ def test_k8s_agent_replace_yaml_responds_to_logging_config(
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),
@@ -323,7 +323,7 @@ def test_k8s_agent_replace_yaml_no_pull_secrets(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "id",
                 }
             ),
@@ -348,7 +348,7 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, runner_token):
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "new_id",
                 }
             ),

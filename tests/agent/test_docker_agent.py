@@ -4,7 +4,7 @@ import pytest
 
 from prefect import context
 from prefect.agent.docker import DockerAgent
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
@@ -261,7 +261,7 @@ def test_docker_agent_deploy_flow(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -298,7 +298,7 @@ def test_docker_agent_deploy_flow_uses_environment_metadata(monkeypatch, runner_
                     {
                         "id": "foo",
                         "storage": Local().serialize(),
-                        "environment": RemoteEnvironment(
+                        "environment": LocalEnvironment(
                             metadata={"image": "repo/name:tag"}
                         ).serialize(),
                     }
@@ -340,7 +340,7 @@ def test_docker_agent_deploy_flow_storage_raises(monkeypatch, runner_token):
                         {
                             "storage": Local().serialize(),
                             "id": "foo",
-                            "environment": RemoteEnvironment().serialize(),
+                            "environment": LocalEnvironment().serialize(),
                         }
                     ),
                     "id": "id",
@@ -373,7 +373,7 @@ def test_docker_agent_deploy_flow_no_pull(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -407,7 +407,7 @@ def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(
                     {
                         "id": "foo",
                         "storage": Local().serialize(),
-                        "environment": RemoteEnvironment(
+                        "environment": LocalEnvironment(
                             metadata={"image": "name:tag"}
                         ).serialize(),
                     }
@@ -446,7 +446,7 @@ def test_docker_agent_deploy_flow_show_flow_logs(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -502,7 +502,7 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(monkeypatch, runner_
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -935,7 +935,7 @@ def test_docker_agent_network(monkeypatch, runner_token):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -974,7 +974,7 @@ def test_docker_agent_deploy_with_interface_check_linux(
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",
@@ -1011,7 +1011,7 @@ def test_docker_agent_deploy_with_no_interface_check_linux(
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": RemoteEnvironment().serialize(),
+                        "environment": LocalEnvironment().serialize(),
                     }
                 ),
                 "id": "id",

@@ -1,11 +1,11 @@
-import os
-import tempfile
 from unittest.mock import MagicMock
 
 import cloudpickle
+import pytest
 
 import prefect
 from prefect import Flow
+from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments import FargateTaskEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
@@ -16,8 +16,7 @@ from botocore.exceptions import ClientError
 
 def test_create_fargate_task_environment():
     environment = FargateTaskEnvironment()
-    assert environment
-    assert environment.executor_kwargs == {}
+    assert environment.executor is not None
     assert environment.labels == set()
     assert environment.on_start is None
     assert environment.on_exit is None
@@ -25,15 +24,26 @@ def test_create_fargate_task_environment():
     assert environment.logger.name == "prefect.FargateTaskEnvironment"
 
 
-def test_create_fargate_task_environment_with_executor_kwargs():
-    environment = FargateTaskEnvironment(executor_kwargs={"test": "here"})
-    assert environment
-    assert environment.executor_kwargs == {"test": "here"}
+def test_create_fargate_task_environment_with_executor():
+    executor = LocalDaskExecutor()
+    environment = FargateTaskEnvironment(executor=executor)
+    assert environment.executor is executor
+
+
+def test_create_fargate_task_environment_with_deprecated_executor_kwargs():
+    with set_temporary_config(
+        {"engine.executor.default_class": "prefect.engine.executors.LocalDaskExecutor"}
+    ):
+        with pytest.warns(UserWarning, match="executor_kwargs"):
+            environment = FargateTaskEnvironment(
+                executor_kwargs={"scheduler": "synchronous"}
+            )
+    assert isinstance(environment.executor, LocalDaskExecutor)
+    assert environment.executor.scheduler == "synchronous"
 
 
 def test_create_fargate_task_environment_labels():
     environment = FargateTaskEnvironment(labels=["foo"])
-    assert environment
     assert environment.labels == set(["foo"])
 
 
@@ -42,7 +52,6 @@ def test_create_fargate_task_environment_callbacks():
         pass
 
     environment = FargateTaskEnvironment(labels=["foo"], on_start=f, on_exit=f)
-    assert environment
     assert environment.labels == set(["foo"])
     assert environment.on_start is f
     assert environment.on_exit is f
@@ -61,7 +70,6 @@ def test_create_fargate_task_environment_aws_creds_provided():
         aws_session_token="session",
         region_name="region",
     )
-    assert environment
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
@@ -76,7 +84,6 @@ def test_create_fargate_task_environment_aws_creds_environment(monkeypatch):
     monkeypatch.setenv("REGION_NAME", "region")
 
     environment = FargateTaskEnvironment(labels=["foo"])
-    assert environment
     assert environment.labels == set(["foo"])
     assert environment.aws_access_key_id == "id"
     assert environment.aws_secret_access_key == "secret"
@@ -420,53 +427,49 @@ def test_execute_run_task_agent_token(monkeypatch):
         assert boto3_client.run_task.call_args[1]["cluster"] == "test"
 
 
-def test_run_flow(monkeypatch):
-    environment = FargateTaskEnvironment(executor_kwargs={"test": "here"})
+def test_run_flow(monkeypatch, tmpdir):
+    environment = FargateTaskEnvironment()
 
     flow_runner = MagicMock()
+    flow_runner_class = MagicMock(return_value=flow_runner)
+
     monkeypatch.setattr(
         "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner),
+        MagicMock(return_value=flow_runner_class),
     )
 
-    executor = MagicMock()
-    monkeypatch.setattr(
-        "prefect.engine.get_default_executor_class", MagicMock(return_value=executor),
-    )
+    d = Local(str(tmpdir))
+    d.add_flow(prefect.Flow("name"))
 
-    with tempfile.TemporaryDirectory() as directory:
-        d = Local(directory)
-        d.add_flow(prefect.Flow("name"))
-
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=MagicMock(
-                    flow_run=[
-                        GraphQLResult(
-                            {
-                                "flow": GraphQLResult(
-                                    {"name": "name", "storage": d.serialize(),}
-                                )
-                            }
-                        )
-                    ],
-                )
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                flow_run=[
+                    GraphQLResult(
+                        {
+                            "flow": GraphQLResult(
+                                {"name": "name", "storage": d.serialize(),}
+                            )
+                        }
+                    )
+                ],
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
-        with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-            {"flow_run_id": "id"}
-        ):
-            environment.run_flow()
+    with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
+        {"flow_run_id": "id"}
+    ):
+        environment.run_flow()
 
-        assert flow_runner.call_args[1]["flow"].name == "name"
-        assert executor.call_args[1] == {"test": "here"}
+    assert flow_runner_class.call_args[1]["flow"].name == "name"
+    assert flow_runner.run.call_args[1]["executor"] is environment.executor
 
 
-def test_run_flow_calls_callbacks(monkeypatch):
+def test_run_flow_calls_callbacks(monkeypatch, tmpdir):
     start_func = MagicMock()
     exit_func = MagicMock()
 
@@ -478,41 +481,40 @@ def test_run_flow_calls_callbacks(monkeypatch):
         MagicMock(return_value=flow_runner),
     )
 
-    with tempfile.TemporaryDirectory() as directory:
-        d = Local(directory)
-        d.add_flow(prefect.Flow("name"))
+    d = Local(str(tmpdir))
+    d.add_flow(prefect.Flow("name"))
 
-        gql_return = MagicMock(
-            return_value=MagicMock(
-                data=MagicMock(
-                    flow_run=[
-                        GraphQLResult(
-                            {
-                                "flow": GraphQLResult(
-                                    {"name": "name", "storage": d.serialize(),}
-                                )
-                            }
-                        )
-                    ],
-                )
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                flow_run=[
+                    GraphQLResult(
+                        {
+                            "flow": GraphQLResult(
+                                {"name": "name", "storage": d.serialize(),}
+                            )
+                        }
+                    )
+                ],
             )
         )
-        client = MagicMock()
-        client.return_value.graphql = gql_return
-        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
-        with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-            {"flow_run_id": "id"}
-        ):
-            environment.run_flow()
+    with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
+        {"flow_run_id": "id"}
+    ):
+        environment.run_flow()
 
-        assert flow_runner.call_args[1]["flow"].name == "name"
+    assert flow_runner.call_args[1]["flow"].name == "name"
 
     assert start_func.called
     assert exit_func.called
 
 
-def test_entire_environment_process_together(monkeypatch):
+def test_entire_environment_process_together(monkeypatch, tmpdir):
     boto3_client = MagicMock()
     boto3_client.describe_task_definition.side_effect = ClientError({}, None)
     boto3_client.register_task_definition.return_value = {}
@@ -550,7 +552,6 @@ def test_entire_environment_process_together(monkeypatch):
             taskDefinition="test",
         )
 
-        assert environment
         assert environment.aws_access_key_id == "id"
         assert environment.aws_secret_access_key == "secret"
         assert environment.aws_session_token == "session"
@@ -618,45 +619,39 @@ def test_entire_environment_process_together(monkeypatch):
         assert boto3_client.run_task.call_args[1]["launchType"] == "FARGATE"
         assert boto3_client.run_task.call_args[1]["cluster"] == "test"
 
-        with tempfile.TemporaryDirectory() as directory:
-            d = Local(directory)
-            d.add_flow(prefect.Flow("name"))
+        d = Local(str(tmpdir))
+        d.add_flow(prefect.Flow("name"))
 
-            gql_return = MagicMock(
-                return_value=MagicMock(
-                    data=MagicMock(
-                        flow_run=[
-                            GraphQLResult(
-                                {
-                                    "flow": GraphQLResult(
-                                        {"name": "name", "storage": d.serialize(),}
-                                    )
-                                }
-                            )
-                        ],
-                    )
+        gql_return = MagicMock(
+            return_value=MagicMock(
+                data=MagicMock(
+                    flow_run=[
+                        GraphQLResult(
+                            {
+                                "flow": GraphQLResult(
+                                    {"name": "name", "storage": d.serialize(),}
+                                )
+                            }
+                        )
+                    ],
                 )
             )
-            client = MagicMock()
-            client.return_value.graphql = gql_return
-            monkeypatch.setattr("prefect.environments.execution.base.Client", client)
+        )
+        client = MagicMock()
+        client.return_value.graphql = gql_return
+        monkeypatch.setattr("prefect.environments.execution.base.Client", client)
 
-            with set_temporary_config({"cloud.auth_token": "test"}):
-                environment.run_flow()
+        with set_temporary_config({"cloud.auth_token": "test"}):
+            environment.run_flow()
 
-            assert flow_runner.call_args[1]["flow"].name == "name"
+        assert flow_runner.call_args[1]["flow"].name == "name"
 
 
 def test_roundtrip_cloudpickle():
-    with tempfile.TemporaryDirectory() as directory:
+    environment = FargateTaskEnvironment(cluster="test")
 
-        with open(os.path.join(directory, "job.yaml"), "w+") as file:
-            file.write("job")
+    assert environment.task_run_kwargs == {"cluster": "test"}
 
-        environment = FargateTaskEnvironment(cluster="test")
-
-        assert environment.task_run_kwargs == {"cluster": "test"}
-
-        new = cloudpickle.loads(cloudpickle.dumps(environment))
-        assert isinstance(new, FargateTaskEnvironment)
-        assert new.task_run_kwargs == {"cluster": "test"}
+    new = cloudpickle.loads(cloudpickle.dumps(environment))
+    assert isinstance(new, FargateTaskEnvironment)
+    assert new.task_run_kwargs == {"cluster": "test"}
