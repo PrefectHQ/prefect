@@ -34,9 +34,8 @@ def test_serialize_github_storage():
 
 
 def test_github_client_property(monkeypatch):
-    client = MagicMock()
-    github = MagicMock(MagicMock(return_value=client))
-    monkeypatch.setattr("github.Github", github)
+    github = MagicMock()
+    monkeypatch.setattr("prefect.utilities.git.Github", github)
 
     storage = GitHub(repo="test/repo")
 
@@ -71,8 +70,8 @@ def test_add_flow_to_github_already_added():
 def test_get_flow_github(monkeypatch):
     f = Flow("test")
 
-    github = MagicMock(MagicMock(return_value=MagicMock()))
-    monkeypatch.setattr("github.Github", github)
+    github = MagicMock()
+    monkeypatch.setattr("prefect.utilities.git.Github", github)
 
     monkeypatch.setattr(
         "prefect.environments.storage.github.extract_flow_from_file",
