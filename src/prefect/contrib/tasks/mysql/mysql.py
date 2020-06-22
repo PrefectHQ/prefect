@@ -18,7 +18,7 @@ class MySQLExecute(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
+        - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
@@ -47,7 +47,7 @@ class MySQLExecute(Task):
     @defaults_from_attrs("query", "commit", "charset")
     def run(
         self, query: str = None, commit: bool = False, charset: str = "utf8mb4",
-    ) -> None:
+    ) -> int:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -58,7 +58,7 @@ class MySQLExecute(Task):
 
         Returns:
             - executed (int): number of affected rows
-            
+
         Raises:
             - pymysql.MySQLError
         """
@@ -104,7 +104,8 @@ class MySQLFetch(Task):
         - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
+        - charset (str, optional): charset of the query, defaults to "utf8mb4"
+        - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
@@ -145,6 +146,7 @@ class MySQLFetch(Task):
     ):
         """
         Task run method. Executes a query against MySQL database and fetches results.
+
         Args:
             - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
