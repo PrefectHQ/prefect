@@ -3,6 +3,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 import pymysql.cursors
 import logging
+from typing import Any
 
 
 class MySQLExecute(Task):
@@ -31,7 +32,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        **kwargs
+        **kwargs: Any
     ):
         self.db_name = db_name
         self.user = user
@@ -54,8 +55,10 @@ class MySQLExecute(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to False
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
+
         Returns:
-            - None
+            - executed (int): number of affected rows
+            
         Raises:
             - pymysql.MySQLError
         """
@@ -84,7 +87,7 @@ class MySQLExecute(Task):
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
             logging.debug("Execute Error: ", e)
-            return e
+            raise e
 
 
 class MySQLFetch(Task):
@@ -117,7 +120,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        **kwargs
+        **kwargs: Any
     ):
         self.db_name = db_name
         self.user = user
@@ -148,8 +151,10 @@ class MySQLFetch(Task):
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
+
         Returns:
-            - records (tuple or list of tuples): records from provided query
+            - results (tuple or list of tuples): records from provided query
+
         Raises:
             - pymysql.MySQLError
         """
@@ -190,4 +195,4 @@ class MySQLFetch(Task):
         except (Exception, pymysql.MySQLError) as e:
             conn.close()
             logging.debug("Fetch Error: ", e)
-            return e
+            raise e
