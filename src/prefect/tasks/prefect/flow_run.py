@@ -65,10 +65,7 @@ class FlowRunTask(Task):
             ```
 
         """
-        is_hosted_backend = (
-            "prefect.io" in urlparse(config.cloud.api).netloc
-            or config.backend == "cloud"
-        )
+        is_hosted_backend = "prefect.io" in urlparse(config.cloud.api).netloc
 
         # verify that flow and project names were passed where necessary
         if flow_name is None:
