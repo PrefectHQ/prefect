@@ -1,9 +1,6 @@
 # Licensed under the Prefect Community License, available at
 # https://www.prefect.io/legal/prefect-community-license
 
-
-import httpx
-import ujson
 import os
 
 import prefect_server
@@ -19,6 +16,3 @@ ENV_VAR_PREFIX = "PREFECT_SERVER"
 config = load_configuration(
     path=DEFAULT_CONFIG, user_config_path=USER_CONFIG, env_var_prefix=ENV_VAR_PREFIX
 )
-
-
-httpx.models.jsonlib = ujson

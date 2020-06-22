@@ -1,6 +1,3 @@
-import datetime
-import json
-
 import pytest
 
 import prefect
@@ -39,7 +36,7 @@ def test_serialize_edge_only_records_task_slug():
 
 
 def test_deserialize_edge():
-    t1, t2 = Task("t1"), Task("t2")
+    t1, t2 = Task("t1", slug="1"), Task("t2", slug="2")
     serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     deserialized = EdgeSchema().load(serialized)
     assert isinstance(deserialized, Edge)
@@ -51,7 +48,7 @@ def test_deserialize_edge_has_no_task_info():
     """
     Edges only serialize task slugs, so the task names will revert to default.
     """
-    t1, t2 = Task("t1"), Task("t2")
+    t1, t2 = Task("t1", slug="1"), Task("t2", slug="2")
     serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     deserialized = EdgeSchema().load(serialized)
 
@@ -63,7 +60,7 @@ def test_deserialize_edge_uses_task_cache():
     """
     If a Task Cache is available, the task attributes will use it
     """
-    t1, t2 = Task("t1"), Task("t2")
+    t1, t2 = Task("t1", slug="1"), Task("t2", slug="2")
     context = dict(task_cache={t1.slug: t1, t2.slug: t2})
     serialized = EdgeSchema().dump(Edge(t1, t2, key="x", mapped=True))
     deserialized = EdgeSchema(context=context).load(serialized)

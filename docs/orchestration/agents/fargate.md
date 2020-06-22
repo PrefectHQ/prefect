@@ -117,6 +117,10 @@ The Fargate Agent allows for a set of AWS configuration options to be set or pro
 
 While the above configuration options allow for the initialization of the boto3 client, you may also need to specify the arguments that allow for the registering and running of Fargate task definitions. The Fargate Agent makes no assumptions on how your particular AWS configuration is set up and instead has a `kwargs` argument which will accept any arguments for boto3's `register_task_definition` and `run_task` functions.
 
+::: tip Validating Configuration
+The Fargate Agent has a utility function [`validate_configuration`](/api/latest/agent/fargate.html#fargateagent) which can be used to test the configuration options set on the agent to ensure is it able to register the task definition and run the task.
+:::
+
 Accepted kwargs for [`register_task_definition`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition):
 
 ```
@@ -140,9 +144,10 @@ environments               list
 secrets                    list
 mountPoints                list
 logConfiguration           dict
+repositoryCredentials      dict
 ```
 
-Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.  
+Environment was added to support adding flow level environment variables via the `use_external_kwargs` described later on in the documentation.
 You should continue to use the `env_vars` kwarg to pass agent level environment variables to your tasks.
 
 This adds support for Native AWS Secrets Manager and/or Parameter Store in your flows.

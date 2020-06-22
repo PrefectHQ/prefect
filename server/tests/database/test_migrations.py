@@ -3,8 +3,6 @@
 
 
 import prefect
-import uuid
-import pendulum
 import alembic
 import subprocess
 

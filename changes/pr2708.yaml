@@ -1,0 +1,2 @@
+server:
+  - "Failing to set a state raises errors more aggressively - [#2708](https://github.com/PrefectHQ/prefect/pull/2708)"

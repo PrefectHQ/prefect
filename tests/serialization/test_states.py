@@ -1,8 +1,5 @@
-import base64
 import datetime
-import json
 
-import cloudpickle
 import marshmallow
 import pendulum
 import pytest
@@ -23,6 +20,8 @@ all_states = sorted(
     ),
     key=lambda c: c.__name__,
 )
+
+from marshmallow import Schema
 
 
 def complex_states():

@@ -13,6 +13,7 @@ Note that _all_ validators take into account cache expiration.
 
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
+from dask.base import tokenize
 from typing import Any, Callable, Dict, Iterable
 
 import pendulum
@@ -88,6 +89,11 @@ def all_inputs(
     """
     if duration_only(state, inputs, parameters) is False:
         return False
+    elif getattr(state, "hashed_inputs", None) is not None:
+        if state.hashed_inputs == {key: tokenize(val) for key, val in inputs.items()}:
+            return True
+        else:
+            return False
     elif {key: res.value for key, res in state.cached_inputs.items()} == inputs:
         return True
     else:

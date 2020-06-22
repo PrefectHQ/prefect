@@ -1,9 +1,7 @@
 import datetime
 import json
-import os
-import tempfile
 import uuid
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 
 import marshmallow
 import pendulum
@@ -13,7 +11,7 @@ import requests
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.engine.result import NoResult, Result, SafeResult
-from prefect.engine.state import Pending
+from prefect.engine.state import Pending, Running, State
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.exceptions import AuthorizationError, ClientError
 from prefect.utilities.graphql import GraphQLResult, decompress
@@ -360,6 +358,103 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
 
 
 @pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, tmpdir):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "create_flow_from_compressed_string": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+        }
+    post = patch_post(response)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(
+        name="test",
+        storage=prefect.environments.storage.Docker(image_name="test_image"),
+    )
+    flow.result = flow.storage.result
+
+    flow_id = client.register(
+        flow, project_name="my-default-project", compressed=compressed, build=True
+    )
+
+    ## extract POST info
+    if compressed:
+        serialized_flow = decompress(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serialized_flow"
+            ]
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serialized_flow"
+        ]
+    assert serialized_flow["storage"] is not None
+    assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
+
+
+@pytest.mark.parametrize("compressed", [True, False])
+def test_client_register_default_all_extras_image(
+    patch_post, compressed, monkeypatch, tmpdir
+):
+    if compressed:
+        response = {
+            "data": {
+                "project": [{"id": "proj-id"}],
+                "create_flow_from_compressed_string": {"id": "long-id"},
+            }
+        }
+    else:
+        response = {
+            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
+        }
+    post = patch_post(response)
+
+    monkeypatch.setattr(
+        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
+    )
+    monkeypatch.setattr("prefect.environments.storage.Docker._build_image", MagicMock())
+
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+    flow = prefect.Flow(name="test", storage=prefect.environments.storage.Local(tmpdir))
+    flow.result = flow.storage.result
+
+    flow_id = client.register(
+        flow, project_name="my-default-project", compressed=compressed, build=True
+    )
+
+    ## extract POST info
+    if compressed:
+        serialized_flow = decompress(
+            json.loads(post.call_args[1]["json"]["variables"])["input"][
+                "serialized_flow"
+            ]
+        )
+    else:
+        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
+            "serialized_flow"
+        ]
+    assert serialized_flow["storage"] is not None
+    assert "all_extras" in serialized_flow["environment"]["metadata"]["image"]
+
+
+@pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_optionally_avoids_building_flow(
     patch_post, compressed, monkeypatch
 ):
@@ -665,17 +760,80 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
 
 
 def test_set_flow_run_state(patch_post):
-    response = {"data": {"set_flow_run_state": {"id": 1}}}
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": 1, "status": "SUCCESS", "message": None}]
+            }
+        }
+    }
     post = patch_post(response)
 
     with set_temporary_config(
         {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
     ):
         client = Client()
-    result = client.set_flow_run_state(
-        flow_run_id="74-salt", version=0, state=Pending()
-    )
-    assert result is None
+
+    state = Pending()
+    result = client.set_flow_run_state(flow_run_id="74-salt", version=0, state=state)
+    assert isinstance(result, State)
+    assert isinstance(result, Pending)
+
+
+def test_set_flow_run_state_gets_queued(patch_post):
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": "74-salt", "status": "QUEUED", "message": None}]
+            }
+        }
+    }
+    post = patch_post(response)
+    with set_temporary_config(
+        {"cloud.api": "http://my-cloud.foo", "cloud.auth_token": "secret_token"}
+    ):
+        client = Client()
+
+    state = Running()
+    result = client.set_flow_run_state(flow_run_id="74-salt", version=0, state=state)
+    assert isinstance(result, State)
+    assert state != result
+    assert result.is_queued()
+
+
+@pytest.mark.parametrize("interval_seconds", [10, 20, 30, 40])
+def test_set_flow_run_state_uses_config_queue_interval(
+    patch_post, interval_seconds, monkeypatch
+):
+    response = {
+        "data": {
+            "set_flow_run_states": {
+                "states": [{"id": "74-salt", "status": "QUEUED", "message": None}]
+            }
+        }
+    }
+    post = patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.queue_interval": interval_seconds,
+        }
+    ):
+        client = Client()
+
+        # Mocking the concept of "now" so we can have consistent assertions
+        now = pendulum.now("UTC")
+        mock_now = MagicMock(return_value=now)
+        monkeypatch.setattr("prefect.client.client.pendulum.now", mock_now)
+
+        result = client.set_flow_run_state(
+            flow_run_id="74-salt", version=0, state=Running()
+        )
+    mock_now.assert_called_once()
+
+    assert now.add(seconds=interval_seconds) == result.start_time
 
 
 def test_set_flow_run_state_with_error(patch_post):

@@ -83,7 +83,12 @@ classes = ["Flow"]
 [pages.core.task]
 title = "Task"
 module = "prefect.core.task"
-classes = ["Task", "Parameter"]
+classes = ["Task"]
+
+[pages.core.parameters]
+title = "Parameter"
+module = "prefect.core.parameter"
+classes = ["Parameter"]
 
 [pages.engine.cache_validators]
 title = "Cache Validators"
@@ -179,7 +184,7 @@ classes = ["Docker", "Local", "S3", "GCS", "Azure"]
 [pages.environments.execution]
 title = "Execution Environments"
 module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment", "RemoteEnvironment", "RemoteDaskEnvironment"]
+classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
 [pages.tasks.control_flow]
 title = "Control Flow Tasks"
@@ -297,6 +302,21 @@ classes = [
         "BigQueryLoadGoogleCloudStorage",
         "BigQueryStreamingInsert",
         "CreateBigQueryTable"
+        ]
+ 
+[pages.tasks.great_expectations]
+title = "Great Expectations Task"
+module = "prefect.tasks.great_expectations"
+classes = [
+        "RunGreatExpectationsCheckpoint",
+        ]
+
+[pages.tasks.gsheets]
+title = "Google Sheets Tasks"
+module = "prefect.tasks.gsheets"
+classes = [
+        "WriteGsheetRow",
+        "ReadGsheetRow",
         ]
 
 [pages.tasks.jira]

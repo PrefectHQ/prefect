@@ -1,7 +1,4 @@
-from unittest.mock import MagicMock
-
 import pytest
-import requests
 
 import prefect
 from prefect.tasks.github import OpenGitHubIssue

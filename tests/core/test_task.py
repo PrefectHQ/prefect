@@ -1,9 +1,8 @@
-from unittest.mock import MagicMock
-import json
+import inspect
 import logging
 import uuid
 from datetime import timedelta
-from typing import Any, Union
+from typing import Any
 
 import pytest
 
@@ -47,8 +46,7 @@ class TestCreateTask:
 
     def test_create_task_with_slug(self):
         t1 = Task()
-        assert t1.slug
-        assert uuid.UUID(t1.slug)  # slug is a UUID
+        assert t1.slug is None
 
         t2 = Task(slug="test")
         assert t2.slug == "test"
@@ -233,6 +231,23 @@ class TestCreateTask:
     def test_class_instantiation_raises_helpful_warning_for_unsupported_callables(self):
         with pytest.raises(ValueError, match="This function can not be inspected"):
             task(zip)
+
+    def test_task_signature_generation(self):
+        class Test(Task):
+            def run(self, x: int, y: bool, z: int = 1):
+                pass
+
+        t = Test()
+
+        sig = inspect.signature(t)
+        # signature is a superset of the `run` method
+        for k, p in inspect.signature(t.run).parameters.items():
+            assert sig.parameters[k] == p
+        # extra kwonly args to __call__ also in sig
+        assert set(sig.parameters).issuperset(
+            {"mapped", "task_args", "upstream_tasks", "flow"}
+        )
+        assert sig.return_annotation == "Task"
 
     def test_create_task_with_and_without_cache_for(self):
         t1 = Task()
@@ -435,13 +450,6 @@ class TestTaskCopy:
 
         assert x.result.location == "target"
         assert y.result.location == "target"
-
-
-def test_task_has_slug():
-    t1 = Task()
-    t2 = Task()
-
-    assert t1.slug and t1.slug != t2.slug
 
 
 class TestDependencies:

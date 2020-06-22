@@ -9,7 +9,6 @@ import time
 from pathlib import Path
 
 import click
-import pendulum
 
 import prefect_server
 from prefect_server import config

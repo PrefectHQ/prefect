@@ -1,3 +1,4 @@
+from dask.base import tokenize
 from datetime import timedelta
 
 import pendulum
@@ -49,8 +50,16 @@ class TestAllInputs:
         state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
         assert all_inputs(state, dict(x=1, s="strs"), None) is False
 
+    def test_hashed_inputs_invalidate(self):
+        state = Cached(hashed_inputs=dict(x=tokenize(2), s=tokenize("str")))
+        assert all_inputs(state, dict(x=1, s="str"), None) is False
+
     def test_inputs_validate(self):
         state = Cached(cached_inputs=dict(x=Result(1), s=Result("str")))
+        assert all_inputs(state, dict(x=1, s="str"), None) is True
+
+    def test_hashed_inputs_validate(self):
+        state = Cached(hashed_inputs=dict(x=tokenize(1), s=tokenize("str")))
         assert all_inputs(state, dict(x=1, s="str"), None) is True
 
     def test_additional_inputs_invalidate(self):

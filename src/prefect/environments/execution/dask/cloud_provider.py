@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Type
+from typing import Any, Callable, Dict, List, Type, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import prefect
@@ -6,6 +6,9 @@ from distributed.deploy.cluster import Cluster
 from distributed.security import Security
 from prefect import Client
 from prefect.environments.execution.dask.remote import RemoteDaskEnvironment
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
@@ -28,8 +31,8 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
     should be as independent as possible, e.g. each Flow could have its own docker
     image, dynamically create the Dask cluster to run on, etc. However, for
     development and interactive testing, creating a Dask cluster manually with Dask
-    Cloud Provider and then using `RemoteDaskEnvironment` or just `DaskExecutor`
-    with your flows will result in a much better development experience.
+    Cloud Provider and then using `LocalEnvironment` with a `DaskExecutor`
+    will result in a much better development experience.
 
     (Dask Cloud Provider currently only supports AWS using either Fargate or ECS.
     Support for AzureML is coming soon.)
@@ -68,6 +71,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`
     """
@@ -83,6 +87,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
         on_execute: Callable[[Dict[str, Any], Dict[str, Any]], None] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
         **kwargs
     ) -> None:
         self._provider_class = provider_class
@@ -108,6 +113,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             labels=labels,
             on_start=on_start,
             on_exit=on_exit,
+            metadata=metadata,
             security=self._security,
         )
 
@@ -146,7 +152,7 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
             )
 
     def execute(  # type: ignore
-        self, storage: "Storage", flow_location: str, **kwargs: Any  # type: ignore
+        self, flow: "Flow", **kwargs: Any  # type: ignore
     ) -> None:
         flow_run_info = None
         flow_run_id = prefect.context.get("flow_run_id")
@@ -207,4 +213,4 @@ class DaskCloudProviderEnvironment(RemoteDaskEnvironment):
                 self.executor_kwargs["address"]
             )
         )
-        super().execute(storage, flow_location, **kwargs)
+        super().execute(flow, **kwargs)

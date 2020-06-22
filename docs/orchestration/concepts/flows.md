@@ -13,10 +13,10 @@ flow.register()
 ```
 
 :::warning Projects <Badge text="Cloud"/>
-Prefect Cloud allows users to organize flows into projects.
+Prefect Cloud requires users to organize flows into projects. In this case we are using the `Hello, World!` Project created in [the "creating a project" tutorial](projects.html#creating-a-project).
 
 ```python
-flow.register(project_name="<project name>")
+flow.register(project_name="Hello, World!")
 ```
 
 :::
@@ -151,6 +151,14 @@ mutation {
   }
 }
 ```
+
+::: warning Dask Work Stealing with Version Locking
+**If you are using Dask**, you might consider turning off [Dask work stealing](https://distributed.dask.org/en/latest/work-stealing.html) if you enable version locking. In rare occasions work stealing can result in tasks attempting to run twice. Though the version locking feature will prevent this from happening, you may experience a lot of log noise and inefficient re-submissions of the flow run when it occurs.
+
+You can turn off Dask worker stealing via an environment variable in your Dask Cluster:
+
+```DASK_DISTRIBUTED__SCHEDULER__WORK_STEALING="False" # case sensitive```
+:::
 
 ## Scheduling
 

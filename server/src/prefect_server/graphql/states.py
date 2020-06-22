@@ -3,19 +3,16 @@
 
 
 import asyncio
-import json
-import sys
-import warnings
 from typing import Any
 
-from graphql import GraphQLResolveInfo
-
 import prefect
+from graphql import GraphQLResolveInfo
 from prefect.utilities.graphql import EnumValue
+
 from prefect_server import api, config
 from prefect_server.database import models
-from prefect_server.utilities.graphql import mutation
 from prefect_server.utilities import context, exceptions
+from prefect_server.utilities.graphql import mutation
 
 state_schema = prefect.serialization.state.StateSchema()
 
@@ -29,31 +26,20 @@ async def resolve_set_flow_run_states(
     """
 
     async def set_state(state_input: dict) -> str:
-        try:
-            state = state_schema.load(state_input["state"])
+        state = state_schema.load(state_input["state"])
 
-            await api.states.set_flow_run_state(
-                flow_run_id=state_input["flow_run_id"], state=state,
-            )
+        await api.states.set_flow_run_state(
+            flow_run_id=state_input["flow_run_id"], state=state,
+        )
 
-            return {
-                "id": state_input["flow_run_id"],
-                "status": "SUCCESS",
-                "message": None,
-            }
-        except Exception as exc:
-            return {
-                # placing the error inside the payload will get GraphQL to return the data
-                # AND raise an error, but this is fragile because it requires users to request
-                # the ID field
-                "id": exc,
-                "status": "ERROR",
-                "message": str(exc),
-            }
+        return {
+            "id": state_input["flow_run_id"],
+            "status": "SUCCESS",
+            "message": None,
+        }
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],
-        return_exceptions=True,
     )
 
     return {"states": result}
@@ -69,31 +55,20 @@ async def resolve_set_task_run_states(
 
     async def set_state(state_input: dict) -> str:
 
-        try:
-            state = state_schema.load(state_input["state"])
+        state = state_schema.load(state_input["state"])
 
-            await api.states.set_task_run_state(
-                task_run_id=state_input["task_run_id"], state=state,
-            )
+        await api.states.set_task_run_state(
+            task_run_id=state_input["task_run_id"], state=state,
+        )
 
-            return {
-                "id": state_input["task_run_id"],
-                "status": "SUCCESS",
-                "message": None,
-            }
-        except Exception as exc:
-            return {
-                # placing the error inside the payload will get GraphQL to return the data
-                # AND raise an error, but this is fragile because it requires users to request
-                # the ID field
-                "id": exc,
-                "status": "ERROR",
-                "message": str(exc),
-            }
+        return {
+            "id": state_input["task_run_id"],
+            "status": "SUCCESS",
+            "message": None,
+        }
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],
-        return_exceptions=True,
     )
 
     return {"states": result}

@@ -37,6 +37,8 @@ Prefect is a new workflow management system, designed for modern infrastructure 
 
 Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE)!
 
+Have a few minutes to help make Prefect even better? Take our [feedback survey](https://forms.gle/yLWF2zR3L7TgAAxP7)!
+
 ### Welcome to Workflows
 
 Prefect's Pythonic API should feel familiar for newcomers. Mark functions as tasks and call them on each other to build up a flow.
