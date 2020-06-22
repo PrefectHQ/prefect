@@ -20,7 +20,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Union,
     cast,
 )
 
@@ -32,7 +31,8 @@ from slugify import slugify
 import prefect
 import prefect.schedules
 from prefect.core.edge import Edge
-from prefect.core.task import Parameter, Task
+from prefect.core.task import Task
+from prefect.core.parameter import Parameter
 from prefect.engine.result import NoResult, Result
 from prefect.engine.results import ResultHandlerResult
 from prefect.engine.result_handlers import ResultHandler
@@ -111,7 +111,7 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
+           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
@@ -160,7 +160,7 @@ class Flow:
         self.name = name
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
-        self.environment = environment or prefect.environments.RemoteEnvironment()
+        self.environment = environment or prefect.environments.LocalEnvironment()
         self.storage = storage
         if result_handler:
             warnings.warn(
@@ -174,6 +174,7 @@ class Flow:
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
+        self.slugs = dict()  # type: Dict[Task, str]
         self.constants = collections.defaultdict(
             dict
         )  # type: Dict[Task, Dict[str, Any]]
@@ -328,25 +329,20 @@ class Flow:
         """
         When entering a flow context, the Prefect context is modified to include:
             - `flow`: the flow itself
-            - `_new_task_tracker`: a set of all tasks created while the context is
+            - `_unused_task_tracker`: a set of all tasks created while the context is
                 open, in order to provide user friendly warnings if they aren't added
                 to the flow itself. This is purely for user experience.
         """
-        new_task_tracker = set()  # type: Set[Task]
+        unused_task_tracker = set()  # type: Set[Task]
 
-        with prefect.context(flow=self, _new_task_tracker=new_task_tracker):
+        with prefect.context(flow=self, _unused_task_tracker=unused_task_tracker):
             yield self
 
         # constants are not tracked at the flow level
-        new_tasks = {
-            t
-            for t in new_task_tracker
-            if not isinstance(t, prefect.tasks.core.constants.Constant)
-        }
-        if new_tasks.difference(self.tasks):
+        if unused_task_tracker.difference(self.tasks):
             warnings.warn(
                 "Tasks were created but not added to the flow: "
-                f"{new_task_tracker.difference(self.tasks)}. This can occur "
+                f"{unused_task_tracker.difference(self.tasks)}. This can occur "
                 "when `Task` classes, including `Parameters`, are instantiated "
                 "inside a `with flow:` block but not added to the flow either "
                 "explicitly or as the input to another task. For more information, "
@@ -440,6 +436,28 @@ class Flow:
 
     # Graph --------------------------------------------------------------------
 
+    def _generate_task_slug(self, task: Task) -> str:
+        """
+        Given a Task, generates the corresponding slug for this Flow.  Slugs are the unique IDs
+        the Prefect API uses to track state updates for each task within a Flow.
+
+        The logic for slug generation within a Flow is essentially "name-tags-#count".
+        Having slugs be properties of (Task, Flow) instead of just Task alone allows Prefect
+        to ensure that every time you run the same build script for a Flow, the Task slugs remain constant.
+
+        Args:
+            - task (Task): the task to generate a slug for
+
+        Returns:
+            - str: the corresponding slug
+        """
+        slug_bases = []
+        for t in self.tasks:
+            slug_bases.append(f"{t.name}-" + "-".join(sorted(t.tags)))
+        new_slug = f"{task.name}-" + "-".join(sorted(task.tags))
+        index = slug_bases.count(new_slug)
+        return f"{new_slug}{'' if new_slug.endswith('-') else '-'}{index + 1}"
+
     def add_task(self, task: Task) -> Task:
         """
         Add a task to the flow if the task does not already exist. The tasks are
@@ -460,18 +478,22 @@ class Flow:
                 "Tasks must be Task instances (received {})".format(type(task))
             )
         elif task not in self.tasks:
-            if task.slug and any(task.slug == t.slug for t in self.tasks):
+            if task.slug and task.slug in self.slugs.values():
                 raise ValueError(
                     'A task with the slug "{}" already exists in this '
                     "flow.".format(task.slug)
                 )
+            self.slugs[task] = task.slug or self._generate_task_slug(task)
 
             self.tasks.add(task)
             self._cache.clear()
 
-            case = prefect.context.get("case", None)
-            if case is not None:
-                case.add_task(task, self)
+            # Parameters must be root tasks
+            # All other new tasks should be added to the current case (if any)
+            if not isinstance(task, Parameter):
+                case = prefect.context.get("case", None)
+                if case is not None:
+                    case.add_task(task, self)
 
         return task
 
@@ -940,8 +962,24 @@ class Flow:
                 task_states = list(flow_state.result.values())
                 for s in filter(lambda x: x.is_mapped(), task_states):
                     task_states.extend(s.map_states)
+
+                # handle Paused states
+                for t, s in filter(
+                    lambda tup: isinstance(tup[1], prefect.engine.state.Paused),
+                    flow_state.result.items(),
+                ):
+                    approve = input(f"{t} is currently Paused; enter 'y' to resume:\n")
+                    if approve.strip().lower() == "y":
+                        flow_state.result[t] = prefect.engine.state.Resume(
+                            "Approval given to resume."
+                        )
+
                 earliest_start = min(
-                    [s.start_time for s in task_states if s.is_scheduled()],
+                    [
+                        s.start_time
+                        for s in task_states
+                        if s.is_scheduled() and s.start_time is not None
+                    ],
                     default=pendulum.now("utc"),
                 )
 
@@ -1230,7 +1268,7 @@ class Flow:
                 )
 
         if filename:
-            graph.render(filename, view=False, format=format)
+            graph.render(filename, view=False, format=format, cleanup=True)
         else:
             try:
                 from IPython import get_ipython
@@ -1270,7 +1308,15 @@ class Flow:
 
         self.validate()
         schema = prefect.serialization.flow.FlowSchema
-        serialized = schema(exclude=["storage"]).dump(self)
+
+        # because of how our serializers work, we need to make sure that
+        # each task has its slug attached as an attribute.  We don't perform this
+        # update when the task is added to the flow because the task might get used
+        # within another flow (and hence have a different slug)
+        flow_copy = self.copy()
+        for task, slug in flow_copy.slugs.items():
+            task.slug = slug
+        serialized = schema(exclude=["storage"]).dump(flow_copy)
 
         if build:
             if not self.storage:

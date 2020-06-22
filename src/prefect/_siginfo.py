@@ -19,7 +19,6 @@ def sig_handler(*args, **kwargs):
         screen = curses.initscr()
         width = screen.getmaxyx()[1]
         height = screen.getmaxyx()[0]
-        size = width * height
         start_pos = (width - 60) // 2
 
         if width < 60 or height < 35:

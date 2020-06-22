@@ -1,9 +1,12 @@
-from typing import Any, Callable, List
+import warnings
+from typing import Any, Callable, List, TYPE_CHECKING
 
 from prefect import config
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Storage
 from prefect.utilities.configuration import set_temporary_config
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class RemoteEnvironment(Environment):
@@ -32,6 +35,7 @@ class RemoteEnvironment(Environment):
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
     def __init__(
@@ -41,26 +45,34 @@ class RemoteEnvironment(Environment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
     ) -> None:
+        if type(self) is RemoteEnvironment or not type(self).__module__.startswith(
+            "prefect."
+        ):
+            # Only warn if its a subclass not part of prefect, since we don't
+            # want to update the code for e.g. `DaskCloudProviderEnvironment`
+            warnings.warn(
+                "`RemoteEnvironment` is deprecated, please use `LocalEnvironment` instead."
+            )
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     @property
     def dependencies(self) -> list:
         return []
 
     def execute(  # type: ignore
-        self, storage: "Storage", flow_location: str, **kwargs: Any
+        self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
-        Run a flow from the `flow_location` here using the specified executor and
-        executor kwargs.
+        Run the provided flow here using the specified executor and executor kwargs.
 
         Args:
-            - storage (Storage): the storage object that contains information relating
-                to where and how the flow is stored
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
         """
 
@@ -74,8 +86,7 @@ class RemoteEnvironment(Environment):
                 get_default_flow_runner_class,
             )
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            flow = storage.get_flow(flow_location)
+            # Run flow with default executor class
             with set_temporary_config({"engine.executor.default_class": self.executor}):
                 executor = get_default_executor_class()
 

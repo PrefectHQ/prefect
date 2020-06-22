@@ -9,9 +9,7 @@ from typing import Any
 
 import ariadne
 import httpx
-import json
 import pytest
-import uuid
 from ariadne import make_executable_schema
 from ariadne.asgi import GraphQL
 from graphql import GraphQLResolveInfo
@@ -71,8 +69,7 @@ class TestDummyClient:
         schema = make_executable_schema(type_defs, query)
         app = Starlette()
         app.mount("/", GraphQL(schema))
-        async with httpx.Client(app=app, base_url="http://prefect.io") as dummy_client:
-            yield dummy_client
+        yield httpx.AsyncClient(app=app, base_url="http://prefect.io")
 
     @pytest.fixture
     def run_dummy_query(self, dummy_client):

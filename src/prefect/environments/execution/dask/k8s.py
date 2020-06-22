@@ -2,28 +2,30 @@ import base64
 import json
 import uuid
 from os import path
-from typing import Any, Callable, List
+from typing import Any, Callable, List, TYPE_CHECKING
+import warnings
 
-import cloudpickle
 import yaml
 
 import prefect
-from prefect.client import Secret
+from prefect.client import Client, Secret
 from prefect.environments.execution import Environment
-from prefect.environments.storage import Docker
+from prefect.utilities.graphql import with_args
+from prefect.utilities.storage import get_flow_image
+
+if TYPE_CHECKING:
+    from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
 class DaskKubernetesEnvironment(Environment):
     """
-    DaskKubernetesEnvironment is an environment which deploys your flow (stored in a Docker image)
-    on Kubernetes by spinning up a temporary Dask Cluster (using [dask-kubernetes](https://kubernetes.dask.org/en/latest/))
+    DaskKubernetesEnvironment is an environment which deploys your flow on Kubernetes by
+    spinning up a temporary Dask Cluster (using [dask-kubernetes](https://kubernetes.dask.org/en/latest/))
     and running the Prefect `DaskExecutor` on this cluster.
 
-    If pulling from a private docker registry, `setup` will ensure the appropriate
-    kubernetes secret exists; `execute` creates a single job that has the role
-    of spinning up a dask executor and running the flow. The job created in the execute
-    function does have the requirement in that it needs to have an `identifier_label`
-    set with a UUID so resources can be cleaned up independently of other deployments.
+    When running your flows that are registered with a private container registry, you
+    should either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment`
+    or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
 
     It is possible to provide a custom scheduler and worker spec YAML files through the `scheduler_spec_file` and
     `worker_spec_file` arguments. These specs (if provided) will be used in place of the defaults. Your spec files
@@ -36,7 +38,6 @@ class DaskKubernetesEnvironment(Environment):
     - `PREFECT__CONTEXT__FLOW_RUN_ID`
     - `PREFECT__CONTEXT__NAMESPACE`
     - `PREFECT__CONTEXT__IMAGE`
-    - `PREFECT__CONTEXT__FLOW_FILE_PATH`
     - `PREFECT__CLOUD__USE_LOCAL_SECRETS`
     - `PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
@@ -51,18 +52,21 @@ class DaskKubernetesEnvironment(Environment):
             Only used when a custom scheduler spec is not provided. Enabling this may cause ClientErrors
             to appear when multiple Dask workers try to run the same Prefect Task.
         - scheduler_logs (bool, optional): log all Dask scheduler logs, defaults to False
-        - private_registry (bool, optional): a boolean specifying whether your Flow's Docker container will be in a private
+        - private_registry (bool, optional, DEPRECATED): a boolean specifying whether your Flow's Docker container will be in a private
             Docker registry; if so, requires a Prefect Secret containing your docker credentials to be set.
             Defaults to `False`.
-        - docker_secret (str, optional): the name of the Prefect Secret containing your Docker credentials; defaults to
+        - docker_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing your Docker credentials; defaults to
             `"DOCKER_REGISTRY_CREDENTIALS"`.  This Secret should be a dictionary containing the following keys: `"docker-server"`,
             `"docker-username"`, `"docker-password"`, and `"docker-email"`.
         - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
             Agents when polling for work
         - on_start (Callable, optional): a function callback which will be called before the flow begins to run
         - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - scheduler_spec_file (str, optional): Path to a scheduler spec YAML file
         - worker_spec_file (str, optional): Path to a worker spec YAML file
+        - image_pull_secret (str, optional): optional name of an `imagePullSecret` to use for the scheduler and worker
+            pods. For more information go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
     """
 
     def __init__(
@@ -76,8 +80,10 @@ class DaskKubernetesEnvironment(Environment):
         labels: List[str] = None,
         on_start: Callable = None,
         on_exit: Callable = None,
+        metadata: dict = None,
         scheduler_spec_file: str = None,
         worker_spec_file: str = None,
+        image_pull_secret: str = None,
     ) -> None:
         self.min_workers = min_workers
         self.max_workers = max_workers
@@ -86,17 +92,25 @@ class DaskKubernetesEnvironment(Environment):
         self.private_registry = private_registry
         if self.private_registry:
             self.docker_secret = docker_secret or "DOCKER_REGISTRY_CREDENTIALS"
+
+            warnings.warn(
+                "The `private_registry` and `docker_secret` options are deprecated. Please set `imagePullSecrets` on custom work and scheduler YAML manifests.",
+                stacklevel=2,
+            )
         else:
             self.docker_secret = None  # type: ignore
         self.scheduler_spec_file = scheduler_spec_file
         self.worker_spec_file = worker_spec_file
+        self.image_pull_secret = image_pull_secret
 
         # Load specs from file if path given, store on object
         self._scheduler_spec, self._worker_spec = self._load_specs_from_file()
 
         self._identifier_label = ""
 
-        super().__init__(labels=labels, on_start=on_start, on_exit=on_exit)
+        super().__init__(
+            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata
+        )
 
     @property
     def dependencies(self) -> list:
@@ -118,7 +132,7 @@ class DaskKubernetesEnvironment(Environment):
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
 
-    def setup(self, storage: "Docker") -> None:  # type: ignore
+    def setup(self, flow: "Flow") -> None:  # type: ignore
         if self.private_registry:
             from kubernetes import client, config
 
@@ -150,25 +164,50 @@ class DaskKubernetesEnvironment(Environment):
                 )
 
     def execute(  # type: ignore
-        self, storage: "Docker", flow_location: str, **kwargs: Any
+        self, flow: "Flow", **kwargs: Any
     ) -> None:
         """
         Create a single Kubernetes job that spins up a dask scheduler, dynamically
         creates worker pods, and runs the flow.
 
         Args:
-            - storage (Docker): the Docker storage object that contains information relating
-                to the image which houses the flow
-            - flow_location (str): the location of the Flow to execute
+            - flow (Flow): the Flow object
             - **kwargs (Any): additional keyword arguments to pass to the runner
 
         Raises:
-            - TypeError: if the storage is not `Docker`
+            - Exception: if the environment is unable to create the Kubernetes job
         """
-        if not isinstance(storage, Docker):
-            raise TypeError("CloudEnvironment requires a Docker storage option")
+        docker_name = get_flow_image(flow)
 
-        self.create_flow_run_job(docker_name=storage.name, flow_file_path=flow_location)
+        from kubernetes import client, config
+
+        # Verify environment is running in cluster
+        try:
+            config.load_incluster_config()
+        except config.config_exception.ConfigException:
+            self.logger.error("Environment not currently running inside a cluster")
+            raise EnvironmentError("Environment not currently inside a cluster")
+
+        batch_client = client.BatchV1Api()
+
+        if self._scheduler_spec:
+            job = self._scheduler_spec
+            job = self._populate_scheduler_spec_yaml(
+                yaml_obj=job, docker_name=docker_name
+            )
+        else:
+            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
+                job = yaml.safe_load(job_file)
+                job = self._populate_job_yaml(yaml_obj=job, docker_name=docker_name)
+
+        # Create Job
+        try:
+            batch_client.create_namespaced_job(
+                namespace=prefect.context.get("namespace"), body=job
+            )
+        except Exception as exc:
+            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
+            raise exc
 
     def _create_namespaced_secret(self) -> None:
         self.logger.debug(
@@ -216,52 +255,10 @@ class DaskKubernetesEnvironment(Environment):
             )
             raise exc
 
-    def create_flow_run_job(self, docker_name: str, flow_file_path: str) -> None:
-        """
-        Creates a Kubernetes job to run the flow using the information stored on the
-        Docker storage object.
-
-        Args:
-            - docker_name (str): the full name of the docker image (registry/name:tag)
-            - flow_file_path (str): location of the flow file in the image
-        """
-        from kubernetes import client, config
-
-        # Verify environment is running in cluster
-        try:
-            config.load_incluster_config()
-        except config.config_exception.ConfigException:
-            self.logger.error("Environment not currently running inside a cluster")
-            raise EnvironmentError("Environment not currently inside a cluster")
-
-        batch_client = client.BatchV1Api()
-
-        if self._scheduler_spec:
-            job = self._scheduler_spec
-            job = self._populate_scheduler_spec_yaml(
-                yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
-            )
-        else:
-            with open(path.join(path.dirname(__file__), "job.yaml")) as job_file:
-                job = yaml.safe_load(job_file)
-                job = self._populate_job_yaml(
-                    yaml_obj=job, docker_name=docker_name, flow_file_path=flow_file_path
-                )
-
-        # Create Job
-        try:
-            batch_client.create_namespaced_job(
-                namespace=prefect.context.get("namespace"), body=job
-            )
-        except Exception as exc:
-            self.logger.critical("Failed to create Kubernetes job: {}".format(exc))
-            raise exc
-
     def run_flow(self) -> None:
         """
-        Run the flow from specified flow_file_path location using a Dask executor
+        Run the flow using a Dask executor
         """
-
         # Call on_start callback if specified
         if self.on_start:
             self.on_start()
@@ -286,24 +283,37 @@ class DaskKubernetesEnvironment(Environment):
             )
             cluster.adapt(minimum=self.min_workers, maximum=self.max_workers)
 
-            # Load serialized flow from file and run it with a DaskExecutor
-            with open(
-                prefect.context.get(
-                    "flow_file_path", "/root/.prefect/flow_env.prefect"
-                ),
-                "rb",
-            ) as f:
-                flow = cloudpickle.load(f)
+            flow_run_id = prefect.context.get("flow_run_id")
 
-                ## populate global secrets
-                secrets = prefect.context.get("secrets", {})
-                for secret in flow.storage.secrets:
-                    secrets[secret.name] = secret.run()
+            if not flow_run_id:
+                raise ValueError("No flow run ID found in context.")
 
-                with prefect.context(secrets=secrets):
-                    executor = DaskExecutor(address=cluster.scheduler_address)
-                    runner_cls = get_default_flow_runner_class()
-                    runner_cls(flow=flow).run(executor=executor)
+            query = {
+                "query": {
+                    with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
+                        "flow": {"name": True, "storage": True,},
+                    }
+                }
+            }
+
+            client = Client()
+            result = client.graphql(query)
+            flow_run = result.data.flow_run[0]
+
+            flow_data = flow_run.flow
+            storage_schema = prefect.serialization.storage.StorageSchema()
+            storage = storage_schema.load(flow_data.storage)
+
+            ## populate global secrets
+            secrets = prefect.context.get("secrets", {})
+            for secret in storage.secrets:
+                secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()
+
+            with prefect.context(secrets=secrets):
+                flow = storage.get_flow(storage.flows[flow_data.name])
+                executor = DaskExecutor(address=cluster.scheduler_address)
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)
@@ -345,16 +355,21 @@ class DaskKubernetesEnvironment(Environment):
     # Default YAML Spec Manipulation
     ################################
 
-    def _populate_job_yaml(
-        self, yaml_obj: dict, docker_name: str, flow_file_path: str
-    ) -> dict:
+    def _set_prefect_labels(self, obj: dict) -> None:
+        flow_run_id = prefect.context.get("flow_run_id", "unknown")
+        labels = {
+            "prefect.io/identifier": self.identifier_label,
+            "prefect.io/flow_run_id": flow_run_id,
+        }
+        obj.setdefault("metadata", {}).setdefault("labels", {}).update(labels)
+
+    def _populate_job_yaml(self, yaml_obj: dict, docker_name: str) -> dict:
         """
         Populate the execution job yaml object used in this environment with the proper values
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
             - docker_name (str): the full path to the docker image
-            - flow_file_path (str): the location of the flow within the docker container
 
         Returns:
             - dict: a dictionary with the yaml values replaced
@@ -366,27 +381,26 @@ class DaskKubernetesEnvironment(Environment):
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        self._set_prefect_labels(yaml_obj)
+        self._set_prefect_labels(yaml_obj["spec"]["template"])
 
         # set environment variables
         env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        pod_spec = yaml_obj["spec"]["template"]["spec"]
         if self.private_registry:
-            pod_spec = yaml_obj["spec"]["template"]["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+        elif self.image_pull_secret:
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
 
         env[0]["value"] = prefect.config.cloud.graphql
         env[1]["value"] = prefect.config.cloud.auth_token
         env[2]["value"] = flow_run_id
         env[3]["value"] = prefect.context.get("namespace", "default")
         env[4]["value"] = docker_name
-        env[5]["value"] = flow_file_path
-        env[13]["value"] = str(self.work_stealing)
-        env[15]["value"] = self._extra_loggers()
+        env[12]["value"] = str(self.work_stealing)
+        env[14]["value"] = self._extra_loggers()
 
         # set image
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["image"] = docker_name
@@ -404,10 +418,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
-            "flow_run_id", "unknown"
-        )
+        self._set_prefect_labels(yaml_obj)
 
         # set environment variables
         env = yaml_obj["spec"]["containers"][0]["env"]
@@ -417,11 +428,14 @@ class DaskKubernetesEnvironment(Environment):
         env[2]["value"] = prefect.context.get("flow_run_id", "")
         env[11]["value"] = self._extra_loggers()
 
+        pod_spec = yaml_obj["spec"]
         if self.private_registry:
             namespace = prefect.context.get("namespace", "default")
-            pod_spec = yaml_obj["spec"]
             pod_spec["imagePullSecrets"] = []
             pod_spec["imagePullSecrets"].append({"name": namespace + "-docker"})
+        elif self.image_pull_secret:
+            pod_spec["imagePullSecrets"] = []
+            pod_spec["imagePullSecrets"].append({"name": self.image_pull_secret})
 
         # set image
         yaml_obj["spec"]["containers"][0]["image"] = prefect.context.get(
@@ -434,16 +448,13 @@ class DaskKubernetesEnvironment(Environment):
     # Custom YAML Spec Manipulation
     ###############################
 
-    def _populate_scheduler_spec_yaml(
-        self, yaml_obj: dict, docker_name: str, flow_file_path: str
-    ) -> dict:
+    def _populate_scheduler_spec_yaml(self, yaml_obj: dict, docker_name: str) -> dict:
         """
         Populate the custom execution job yaml object used in this environment with the proper values
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml
             - docker_name (str): the full path to the docker image
-            - flow_file_path (str): the location of the flow within the docker container
 
         Returns:
             - dict: a dictionary with the yaml values replaced
@@ -453,12 +464,8 @@ class DaskKubernetesEnvironment(Environment):
         yaml_obj["metadata"]["name"] = "prefect-dask-job-{}".format(
             self.identifier_label
         )
-
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = flow_run_id
-        yaml_obj["spec"]["template"]["metadata"]["labels"][
-            "identifier"
-        ] = self.identifier_label
+        self._set_prefect_labels(yaml_obj)
+        self._set_prefect_labels(yaml_obj["spec"]["template"])
 
         # Required Cloud environment variables
         env_values = [
@@ -473,7 +480,6 @@ class DaskKubernetesEnvironment(Environment):
                 "value": prefect.context.get("namespace", "default"),
             },
             {"name": "PREFECT__CONTEXT__IMAGE", "value": docker_name},
-            {"name": "PREFECT__CONTEXT__FLOW_FILE_PATH", "value": flow_file_path},
             {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
             {
                 "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
@@ -498,7 +504,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["template"]["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"] = []
+            env = yaml_obj["spec"]["template"]["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image
@@ -517,10 +527,7 @@ class DaskKubernetesEnvironment(Environment):
             - dict: a dictionary with the yaml values replaced
         """
         # set identifier labels
-        yaml_obj["metadata"]["labels"]["identifier"] = self.identifier_label
-        yaml_obj["metadata"]["labels"]["flow_run_id"] = prefect.context.get(
-            "flow_run_id", "unknown"
-        )
+        self._set_prefect_labels(yaml_obj)
 
         # Required Cloud environment variables
         env_values = [
@@ -557,7 +564,11 @@ class DaskKubernetesEnvironment(Environment):
         ]
 
         # set environment variables
-        env = yaml_obj["spec"]["containers"][0]["env"]
+        env = yaml_obj["spec"]["containers"][0].get("env")
+        if not env:
+            yaml_obj["spec"]["containers"][0]["env"] = []
+            env = yaml_obj["spec"]["containers"][0]["env"]
+
         env.extend(env_values)
 
         # set image

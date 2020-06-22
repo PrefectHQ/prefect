@@ -1,4 +1,4 @@
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 from prefect.engine.executors.base import Executor
 
@@ -9,36 +9,22 @@ class LocalExecutor(Executor):
     the main thread.  To be used mainly for debugging purposes.
     """
 
-    def submit(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    def submit(
+        self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
+    ) -> Any:
         """
         Submit a function to the executor for execution. Returns the result of the computation.
 
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
+            - extra_context (dict, optional): an optional dictionary with extra information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
 
         Returns:
             - Any: the result of `fn(*args, **kwargs)`
         """
         return fn(*args, **kwargs)
-
-    def map(self, fn: Callable, *args: Any) -> List[Any]:
-        """
-        Submit a function to be mapped over its iterable arguments.
-
-        Args:
-            - fn (Callable): function that is being submitted for execution
-            - *args (Any): arguments that the function will be mapped over
-
-        Returns:
-            - List[Any]: the result of computating the function over the arguments
-
-        """
-        results = []
-        for args_i in zip(*args):
-            results.append(fn(*args_i))
-        return results
 
     def wait(self, futures: Any) -> Any:
         """

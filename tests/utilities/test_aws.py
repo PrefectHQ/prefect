@@ -72,3 +72,20 @@ class TestGetBotoClient:
             "aws_secret_access_key": None,
             "aws_session_token": None,
         }
+
+    def test_credentials_provided_in_kwargs(self, monkeypatch):
+        client = MagicMock()
+        boto3 = MagicMock(client=client)
+        monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
+        get_boto_client(
+            resource="not a real resource",
+            aws_access_key_id="id",
+            aws_secret_access_key="secret",
+            aws_session_token="session",
+        )
+        kwargs = client.call_args[1]
+        assert kwargs == {
+            "aws_access_key_id": "id",
+            "aws_secret_access_key": "secret",
+            "aws_session_token": "session",
+        }

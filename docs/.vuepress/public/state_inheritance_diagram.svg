@@ -78,7 +78,7 @@
 <!-- 140296059184960 -->
 <g id="node4" class="node">
 <title>140296059184960</title>
-<ellipse fill="#cfd8dc" fill-opacity="0.600000" stroke="#cfd8dc" stroke-opacity="0.600000" cx="35.16" cy="-18" rx="35.32" ry="18"/>
+<ellipse fill="#99a8e8" fill-opacity="0.600000" stroke="#99a8e8" stroke-opacity="0.600000" cx="35.16" cy="-18" rx="35.32" ry="18"/>
 <text text-anchor="middle" x="35.16" y="-13.8" font-family="Times,serif" font-size="14.00">Paused</text>
 </g>
 <!-- 140296059183072&#45;&gt;140296059184960 -->
@@ -90,7 +90,7 @@
 <!-- 140296059192240 -->
 <g id="node5" class="node">
 <title>140296059192240</title>
-<ellipse fill="#fb8532" fill-opacity="0.600000" stroke="#fb8532" stroke-opacity="0.600000" cx="127.16" cy="-18" rx="38.7" ry="18"/>
+<ellipse fill="#f58c0c" fill-opacity="0.600000" stroke="#f58c0c" stroke-opacity="0.600000" cx="127.16" cy="-18" rx="38.7" ry="18"/>
 <text text-anchor="middle" x="127.16" y="-13.8" font-family="Times,serif" font-size="14.00">Resume</text>
 </g>
 <!-- 140296059183072&#45;&gt;140296059192240 -->
@@ -174,7 +174,7 @@
 <!-- 140296059205088 -->
 <g id="node18" class="node">
 <title>140296059205088</title>
-<ellipse fill="#c42800" fill-opacity="0.600000" stroke="#c42800" stroke-opacity="0.600000" cx="754.16" cy="-90" rx="45.43" ry="18"/>
+<ellipse fill="#bdbdbd" fill-opacity="0.600000" stroke="#f58c0c" stroke-opacity="0.600000" cx="754.16" cy="-90" rx="45.43" ry="18"/>
 <text text-anchor="middle" x="754.16" y="-85.8" font-family="Times,serif" font-size="14.00">Cancelled</text>
 </g>
 <!-- 140296059197360&#45;&gt;140296059205088 -->

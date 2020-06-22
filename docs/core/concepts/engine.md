@@ -36,7 +36,7 @@ Executors have a relatively simple API - users can `submit` functions and `wait`
 
 For testing and development, the `LocalExecutor` is preferred. It runs every function synchronously in the local process and is the default executor for flows unless otherwise specified.
 
-The `SynchronousExecutor` is slightly more complex. It still runs functions in a single thread, but uses Dask's scheduling logic.
+The `LocalDaskExecutor` is slightly more complex. It still runs functions locally, but uses Dask to parallelize across threads or processes.
 
 The `DaskExecutor` is a completely asynchronous engine that can run functions in a distributed Dask cluster. This is the recommended engine for production.
 

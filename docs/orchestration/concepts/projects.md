@@ -15,7 +15,7 @@ Projects can be created from the project filter on the [dashboard](/orchestratio
 To create a new project with the Prefect CLI:
 
 ```
-$ prefect create project "My Project"
+$ prefect create project "Hello, World!"
 ```
 
 ### Core Client
@@ -26,7 +26,7 @@ To create a new project with the Core client:
 from prefect import Client
 
 client = Client()
-client.create_project(project_name="My Project")
+client.create_project(project_name="Hello, World!")
 ```
 
 ### GraphQL <Badge text="GQL"/>
@@ -35,7 +35,7 @@ To create a new project with GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
-  create_project(input: { name: "My Project" }) {
+  create_project(input: { name: "Hello, World!" }) {
     project {
       id
       name

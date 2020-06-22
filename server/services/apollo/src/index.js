@@ -1,16 +1,14 @@
 import '@babel/polyfill'
 import fetch from 'node-fetch'
-import {
-  ApolloServer,
-  makeRemoteExecutableSchema,
-  mergeSchemas,
-  introspectSchema,
-  RenameTypes,
-  transformSchema,
-  FilterRootFields
-} from 'apollo-server'
-import { HttpLink } from 'apollo-link-http'
+import { ApolloServer } from 'apollo-server-express'
 import { v4 as uuidv4 } from 'uuid'
+import { print, GraphQLError } from 'graphql'
+import {
+  introspectSchema,
+  FilterRootFields,
+  wrapSchema
+} from '@graphql-tools/wrap'
+import { stitchSchemas } from '@graphql-tools/stitch'
 
 const APOLLO_API_PORT = process.env.APOLLO_API_PORT || '4200'
 const APOLLO_API_BIND_ADDRESS = process.env.APOLLO_API_BIND_ADDRESS || '0.0.0.0'
@@ -30,9 +28,13 @@ const PREFECT_SERVER__TELEMETRY__ENABLED =
 const TELEMETRY_ENABLED =
   PREFECT_SERVER__TELEMETRY__ENABLED == 'true' ? true : false
 const TELEMETRY_ID = uuidv4()
+
 // --------------------------------------------------------------------
 // Server
+const express = require('express')
 const depthLimit = require('graphql-depth-limit')
+const app = express()
+
 class PrefectApolloServer extends ApolloServer {
   async createGraphQLServerOptions(req, res) {
     const options = await super.createGraphQLServerOptions(req, res)
@@ -47,41 +49,61 @@ function log(...items) {
   console.log(new Date().toISOString(), ...items)
 }
 
-const hasuraHTTPLink = new HttpLink({
-  uri: HASURA_API_URL,
-  fetch
-})
+function makeExecutor(API_URL) {
+  return async ({ document, variables, context }) => {
+    // parse GQL document
+    const query = print(document)
 
-// base HTTP link
-const prefectHTTPLink = new HttpLink({
-  uri: PREFECT_API_URL,
-  fetch
-})
+    // issue remote query
+    const fetchResult = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ query, variables })
+    })
+
+    // get result
+    const result = await fetchResult.json()
+
+    // transform error keys into GraphQLErrors as a workaround for
+    // https://github.com/ardatan/graphql-tools/pull/1572
+    if (result.errors) {
+      for (const error of result.errors) {
+        Object.setPrototypeOf(error, GraphQLError.prototype)
+      }
+    }
+
+    return result
+  }
+}
+
+const hasuraExecutor = makeExecutor(HASURA_API_URL)
+const prefectExecutor = makeExecutor(PREFECT_API_URL)
 
 async function buildSchema() {
   log('Building schema...')
   // create remote Hasura schema with admin auth link for introspection and unified hasura link otherwise
-  const hasuraSchema = await makeRemoteExecutableSchema({
-    schema: await introspectSchema(hasuraHTTPLink),
-    link: hasuraHTTPLink
+  const hasuraSchema = wrapSchema({
+    schema: await introspectSchema(hasuraExecutor),
+    executor: hasuraExecutor,
+    transforms: [
+      // remove all hasura mutations
+      new FilterRootFields((operation) => !(operation === 'Mutation'))
+    ]
   })
 
   // create remote Prefect schema with admin auth link introspection and user auth link otherwise
-  const prefectSchema = await makeRemoteExecutableSchema({
-    schema: await introspectSchema(prefectHTTPLink),
-    link: prefectHTTPLink
+  const prefectSchema = wrapSchema({
+    schema: await introspectSchema(prefectExecutor),
+    executor: prefectExecutor
   })
-
-  // Filter the Hasura schema
-  const transformedHasuraSchema = transformSchema(hasuraSchema, [
-    // remove all hasura mutations
-    new FilterRootFields(operation => !(operation === 'Mutation'))
-  ])
 
   // merge schemas
-  const schema = mergeSchemas({
-    schemas: [transformedHasuraSchema, prefectSchema]
+  const schema = stitchSchemas({
+    subschemas: [{ schema: hasuraSchema }, { schema: prefectSchema }]
   })
+
   log('Building schema complete!')
   return schema
 }
@@ -127,11 +149,11 @@ async function runServer() {
         }
       })
     },
-    formatError: error => {
+    formatError: (error) => {
       log(JSON.stringify(error))
       return error
     },
-    formatResponse: response => {
+    formatResponse: (response) => {
       return response
     },
     // this function is called whenever a request is made to the server in order to populate
@@ -151,19 +173,21 @@ async function runServer() {
     }
   })
 
-  server
-    .listen({
-      host: APOLLO_API_BIND_ADDRESS,
-      port: APOLLO_API_PORT,
-      family: 'IPv4'
-    })
-    .then(({ url }) => {
-      console.log(`Server ready at ${url} 🚀`)
-    })
+  // without specifying a limit, we occasionally run into an implicit 100kb
+  // limit set in bodyParser
+  server.applyMiddleware({ app, path: '/', bodyParserConfig: { limit: '1pb' } })
+  app.listen({
+    host: APOLLO_API_BIND_ADDRESS,
+    port: APOLLO_API_PORT,
+    family: 'IPv4'
+  })
+  console.log(
+    `Server ready at http://${APOLLO_API_BIND_ADDRESS}:${APOLLO_API_PORT} 🚀`
+  )
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function runServerForever() {
@@ -192,7 +216,7 @@ async function send_telemetry_event(event) {
         type: event,
         payload: { id: TELEMETRY_ID }
       })
-      log(`Sending telemetry to Prefect Technnologies, Inc: ${body}`)
+      log(`Sending telemetry to Prefect Technologies, Inc.: ${body}`)
 
       fetch('https://sens-o-matic.prefect.io/', {
         method: 'post',

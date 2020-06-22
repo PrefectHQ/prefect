@@ -1,4 +1,7 @@
+import time
 from typing import Any, Callable, Dict, Iterable, Optional
+
+import pendulum
 
 import prefect
 from prefect.client import Client
@@ -6,7 +9,7 @@ from prefect.core import Flow, Task
 from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
-from prefect.engine.state import Failed, State
+from prefect.engine.state import Failed, Queued, State
 from prefect.utilities.graphql import with_args
 
 
@@ -114,7 +117,7 @@ class CloudFlowRunner(FlowRunner):
 
         try:
             cloud_state = new_state
-            self.client.set_flow_run_state(
+            state = self.client.set_flow_run_state(
                 flow_run_id=flow_run_id, version=version, state=cloud_state
             )
         except Exception as exc:
@@ -123,9 +126,102 @@ class CloudFlowRunner(FlowRunner):
             )
             raise ENDRUN(state=new_state)
 
+        if state.is_queued():
+            state.state = old_state  # type: ignore
+            raise ENDRUN(state=state)
+
         prefect.context.update(flow_run_version=version + 1)
 
         return new_state
+
+    def run(
+        self,
+        state: State = None,
+        task_states: Dict[Task, State] = None,
+        return_tasks: Iterable[Task] = None,
+        parameters: Dict[str, Any] = None,
+        task_runner_state_handlers: Iterable[Callable] = None,
+        executor: "prefect.engine.executors.Executor" = None,
+        context: Dict[str, Any] = None,
+        task_contexts: Dict[Task, Dict[str, Any]] = None,
+    ) -> State:
+        """
+        The main endpoint for FlowRunners.  Calling this method will perform all
+        computations contained within the Flow and return the final state of the Flow.
+
+        Args:
+            - state (State, optional): starting state for the Flow. Defaults to
+                `Pending`
+            - task_states (dict, optional): dictionary of task states to begin
+                computation with, with keys being Tasks and values their corresponding state
+            - return_tasks ([Task], optional): list of Tasks to include in the
+                final returned Flow state. Defaults to `None`
+            - parameters (dict, optional): dictionary of any needed Parameter
+                values, with keys being strings representing Parameter names and values being
+                their corresponding values
+            - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
+                handlers that will be provided to the task_runner, and called whenever a task changes
+                state.
+            - executor (Executor, optional): executor to use when performing
+                computation; defaults to the executor specified in your prefect configuration
+            - context (Dict[str, Any], optional): prefect.Context to use for execution
+                to use for each Task run
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
+
+        Returns:
+            - State: `State` representing the final post-run state of the `Flow`.
+        """
+        context = context or {}
+
+        end_state = super().run(
+            state=state,
+            task_states=task_states,
+            return_tasks=return_tasks,
+            parameters=parameters,
+            task_runner_state_handlers=task_runner_state_handlers,
+            executor=executor,
+            context=context,
+            task_contexts=task_contexts,
+        )
+        # If start time is more than 10 minutes in the future,
+        # we fail the run so Lazarus can pick it up and reschedule it.
+        while end_state.is_queued() and (
+            end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
+        ):
+            assert isinstance(end_state, Queued)
+            naptime = max(
+                (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
+            )
+            self.logger.info(
+                (
+                    "Flow run is in a Queued state."
+                    f" Sleeping for {naptime:.2f} seconds and attempting to run again."
+                )
+            )
+            time.sleep(naptime)
+
+            flow_run_info = self.client.get_flow_run_info(
+                flow_run_id=prefect.context.get("flow_run_id")
+            )
+            context.update(flow_run_version=flow_run_info.version)
+
+            # When concurrency slots become free, this will eventually result
+            # in a non queued state, but will result in more or less just waiting
+            # until the orchestration layer says we are clear to go. Purposefully
+            # not passing `state` so we can refresh the info from cloud,
+            # allowing us to prematurely bail out of flow runs that have already
+            # reached a finished state via another process.
+            end_state = super().run(
+                task_states=task_states,
+                return_tasks=return_tasks,
+                parameters=parameters,
+                task_runner_state_handlers=task_runner_state_handlers,
+                executor=executor,
+                context=context,
+                task_contexts=task_contexts,
+            )
+
+        return end_state
 
     def initialize_run(  # type: ignore
         self,
@@ -178,10 +274,17 @@ class CloudFlowRunner(FlowRunner):
             scheduled_start_time=flow_run_info.scheduled_start_time,
         )
 
-        tasks = {t.slug: t for t in self.flow.tasks}
+        tasks = {slug: t for t, slug in self.flow.slugs.items()}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
-            task = tasks[task_run.task_slug]
+            try:
+                task = tasks[task_run.task_slug]
+            except KeyError:
+                msg = (
+                    f"Task slug {task_run.task_slug} not found in the current Flow; "
+                    "this is usually caused by changing the Flow without reregistering it with the Prefect API."
+                )
+                raise KeyError(msg)
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
                 task_id=task_run.task_id,

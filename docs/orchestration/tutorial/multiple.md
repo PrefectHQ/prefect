@@ -21,7 +21,7 @@ flow.register()
 ```
 
 :::warning Projects <Badge text="Cloud"/>
-Prefect Cloud allows users to organize flows into projects. In this case we are using the default `Hello, World!` Project.
+Prefect Cloud requires users to organize flows into projects. In this case we are using the `Hello, World!` Project created in [the "creating a project" tutorial](projects.html#creating-a-project).
 
 ```python
 flow.register(project_name="Hello, World!")

@@ -91,3 +91,5 @@ Image tag breakdown:
 | X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
 | X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
 | X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |
+| all_extras       | most recent PyPi version |            3.8 |
+| all_extras-X.Y.Z |          X.Y.Z           |            3.8 |

@@ -110,11 +110,19 @@ To create a Cloud Hook using the [API](/orchestration/concepts/api.html), you ca
 
 ```graphql
 mutation {
-  create_cloud_hook(input: {type: EMAIL, name: "Example", version_group_id: "abc", states: ["Running"], config: {to: "test@test.com"}}) {
+  create_cloud_hook(
+    input: {
+      type: EMAIL,
+      name: "Example",
+      version_group_id: "abc",
+      states: ["Running"],
+      config: "{\"to\": \"test@test.com\"}"}
+      ) {
     id
   }
 }
 ```
+
 A full list of Cloud Hook queries and mutations can be found in the API schema (for example in the [Interactive API](/orchestration/ui/interactive-api.html) page of the UI.)
 
 <style>
