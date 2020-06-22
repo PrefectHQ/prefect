@@ -65,7 +65,7 @@ should be as independent as possible, e.g. each Flow could have its own docker
 image, dynamically create the Dask cluster for each Flow run, etc. However, for
 development and interactive testing, either using ECS (instead of Fargate) or
 creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using
-`RemoteDaskEnvironment` or just `DaskExecutor` with your flows will result
+`LocalEnvironment` configured with a `DaskExecutor` will result
 in a much better and faster development experience.
 :::
 
