@@ -18,8 +18,7 @@
 # Here's an example of a PR that adds an enhancement
 
 enhancement:
-    - "Forward state change status back to core - [#2839](https://github.com/PrefectHQ/prefect/pull/2839)"
-  
-  contributor:
-    - "[Alex Cano](https://github.com/alexisprince1994)"
-  
+  - "Forward state change status back to core - [#2839](https://github.com/PrefectHQ/prefect/pull/2839)"
+
+contributor:
+  - "[Alex Cano](https://github.com/alexisprince1994)"
