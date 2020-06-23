@@ -16,7 +16,7 @@ repo
 First, compose your flow file and give the flow `GitHub` storage:
 
 ```python
-# /flows/my_flow.py
+# flows/my_flow.py
 
 from prefect import task, Flow
 from prefect.environments.storage import GitHub
@@ -35,7 +35,7 @@ with Flow("file-based-flow") as flow:
 
 flow.storage = GitHub(
     repo="org/repo",                 # name of repo
-    path="/flows/my_flow.py",        # location of flow file in repo
+    path="flows/my_flow.py",        # location of flow file in repo
     secrets=["GITHUB_ACCESS_TOKEN"]  # name of personal access token secret
 )
 ```
@@ -57,7 +57,7 @@ git push
 Now that the file exists on the repo the flow needs to be registered with a Prefect API backend (either Core's server or Prefect Cloud).
 
 ```bash
-prefect register -f /flows/my_flow.py
+prefect register -f flows/my_flow.py
 Result check: OK
 Flow: http://localhost:8080/flow/9f5f7bea-186e-44d1-a746-417239663614
 ```
