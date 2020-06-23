@@ -502,7 +502,7 @@ class Flow:
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
-        mapped: bool = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> Edge:
         """
@@ -529,9 +529,7 @@ class Flow:
         if validate is None:
             validate = cast(bool, prefect.config.flows.eager_edge_validation)
 
-        if mapped is None:
-            mapped = prefect.context.get("mapped", False)
-        elif mapped is True and prefect.context.get("mapped", False):
+        if mapped and prefect.context.get("mapped", False):
             raise ValueError(
                 "Cannot set `mapped=True` when running from inside a mapped context"
             )
@@ -823,7 +821,7 @@ class Flow:
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        mapped: bool = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> None:
         """
@@ -851,10 +849,7 @@ class Flow:
         Returns:
             - None
         """
-        orig_mapped = mapped
-        if mapped is None:
-            mapped = prefect.context.get("mapped", False)
-        elif mapped is True and prefect.context.get("mapped", False):
+        if mapped and prefect.context.get("mapped", False):
             raise ValueError(
                 "Cannot set `mapped=True` when running from inside a mapped context"
             )
@@ -874,7 +869,7 @@ class Flow:
                 upstream_task=t,
                 downstream_task=task,
                 validate=validate,
-                mapped=is_mapped if not is_mapped else orig_mapped,
+                mapped=is_mapped,
             )
 
         # add downstream tasks
@@ -898,7 +893,7 @@ class Flow:
                     downstream_task=task,
                     key=key,
                     validate=validate,
-                    mapped=is_mapped if not is_mapped else orig_mapped,
+                    mapped=is_mapped,
                 )
 
     # Execution  ---------------------------------------------------------------

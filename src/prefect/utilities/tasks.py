@@ -72,27 +72,86 @@ def compose_map(
     with Flow("example") as flow:
         compose_map(inc_if_even, range(10))
     """
-    # Check if valid first
+    from prefect.tasks.core.constants import Constant
+
+    no_flow_provided = flow is None
+    if no_flow_provided:
+        flow = prefect.context.get("flow", None)
+        if flow is None:
+            raise ValueError("Couldn't infer a flow in the current context")
+    assert flow is not None  # appease mypy
+
+    # Check if args/kwargs are valid first
     for x in itertools.chain(args, kwargs.values()):
         if not isinstance(x, (prefect.Task, unmapped, Sequence)):
             raise TypeError(
                 f"Cannot map over non sequence  object of type `{type(x).__name__}`"
             )
-    # Convert any non-`task`/`unmapped` objects to tasks. We leave `unmapped`
-    # objects as they are.
-    args = tuple(
-        a if isinstance(a, (prefect.Task, unmapped)) else as_task(a, flow=flow)
-        for a in args
-    )
-    kwargs = {
-        k: v if isinstance(v, (prefect.Task, unmapped)) else as_task(v, flow=flow)
-        for k, v in kwargs.items()
-    }
+
+    flow2 = prefect.Flow("temporary flow")
+    upstream_info = {}
+    id_to_const = {}
+
+    def preprocess(a: Any) -> "Task":
+        a2 = as_task(a, flow=flow2)
+        is_mapped = not isinstance(a, unmapped)
+        is_constant = isinstance(a2, Constant)
+        upstream_info[a2] = (is_mapped, is_constant)
+        if is_mapped and is_constant:
+            id_to_const[id(a2.value)] = a2  # type: ignore
+        return a2
+
+    args2 = [preprocess(a) for a in args]
+    kwargs2 = {k: preprocess(v) for k, v in kwargs.items()}
+
+    # Construct a temporary flow for the subgraph
     with prefect.context(mapped=True):
-        if flow is None:
-            return func(*args, **kwargs)
-        else:
-            return func(*args, flow=flow, **kwargs)
+        with flow2:
+            if no_flow_provided:
+                res = func(*args2, **kwargs2)
+            else:
+                res = func(*args2, flow=flow2, **kwargs2)
+
+    # Copy over all tasks in the subgraph
+    for task in flow2.tasks:
+        flow.add_task(task)
+
+    # Copy over all edges, updating any non-explicitly-unmapped edges to mapped
+    for edge in flow2.edges:
+        flow.add_edge(
+            upstream_task=edge.upstream_task,
+            downstream_task=edge.downstream_task,
+            key=edge.key,
+            mapped=upstream_info.get(edge.upstream_task, (True,))[0],
+        )
+
+    # Copy over all constants, updating any constants that should be mapped
+    # to be tasks rather than stored in the constants mapping
+    for task, constants in flow2.constants.items():
+        for key, c in constants.items():
+            if id(c) in id_to_const:
+                c_task = id_to_const[id(c)]
+                flow.add_task(c_task)
+                flow.add_edge(
+                    upstream_task=c_task, downstream_task=task, key=key, mapped=True
+                )
+            else:
+                flow.constants[task][key] = c
+
+    # Finally, find tasks added from the sub-graph that still have no upstream
+    # tasks. Add all of the non-constant args as direct upstream tasks.  These
+    # tasks occur if inside `func` a task is created with no non-constant
+    # arguments - there's nothing upstream of this task binding it under the
+    # mapping, so we need to add the original mapped arguments as upstream
+    # tasks.
+    for task in flow2.tasks:
+        if task not in upstream_info and not flow.upstream_tasks(task):
+            for arg_task, (is_mapped, is_constant) in upstream_info.items():
+                if not is_constant:
+                    flow.add_edge(
+                        upstream_task=arg_task, downstream_task=task, mapped=is_mapped,
+                    )
+    return res
 
 
 @contextmanager

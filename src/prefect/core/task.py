@@ -434,7 +434,7 @@ class Task(metaclass=SignatureValidator):
     def __call__(
         self,
         *args: Any,
-        mapped: bool = None,
+        mapped: bool = False,
         task_args: dict = None,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
@@ -472,7 +472,7 @@ class Task(metaclass=SignatureValidator):
     def bind(
         self,
         *args: Any,
-        mapped: bool = None,
+        mapped: bool = False,
         upstream_tasks: Iterable[Any] = None,
         flow: "Flow" = None,
         **kwargs: Any
@@ -584,7 +584,7 @@ class Task(metaclass=SignatureValidator):
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        mapped: bool = None,
+        mapped: bool = False,
         validate: bool = None,
     ) -> None:
         """
@@ -625,7 +625,7 @@ class Task(metaclass=SignatureValidator):
         )
 
     def set_upstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = None
+        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
@@ -649,7 +649,7 @@ class Task(metaclass=SignatureValidator):
             self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
-        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = None
+        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
