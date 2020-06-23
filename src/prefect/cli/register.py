@@ -2,6 +2,7 @@ import os
 
 import click
 
+import prefect
 from prefect.utilities.storage import extract_flow_from_file
 
 
@@ -57,7 +58,10 @@ def flow(file, name, project):
     Examples:
         $ prefect register flow --file my_flow.py --name My-Flow
     """
-    file_path = os.path.abspath(file)
-    flow_obj = extract_flow_from_file(file_path=file_path, flow_name=name)
+
+    # Don't run extra `run` and `register` functions inside file
+    with prefect.context({"function_gate": True}):
+        file_path = os.path.abspath(file)
+        flow_obj = extract_flow_from_file(file_path=file_path, flow_name=name)
 
     flow_obj.register(project_name=project)
