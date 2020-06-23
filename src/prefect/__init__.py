@@ -31,4 +31,3 @@ try:
     _signal.signal(29, _sig_handler)
 except:
     pass
-

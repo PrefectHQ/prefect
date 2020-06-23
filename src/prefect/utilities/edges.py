@@ -116,4 +116,3 @@ class flat(EdgeAnnotation):
 
     def __init__(self, task: "Task"):
         super().__init__(task=task, annotations={"flat": True})
-

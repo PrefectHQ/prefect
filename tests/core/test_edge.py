@@ -147,5 +147,3 @@ class TestEdgeAnnotations:
         e = Edge(edges.flatten(edges.mapped(Task())), Task())
         assert e.flat is True
         assert e.mapped is True
-
-    
