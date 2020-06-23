@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, List
 
 from distributed.security import Security
@@ -57,6 +58,15 @@ class RemoteDaskEnvironment(RemoteEnvironment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        if type(self) is RemoteDaskEnvironment or not type(self).__module__.startswith(
+            "prefect."
+        ):
+            # Only warn if its a subclass not part of prefect, since we don't
+            # want to update the code for e.g. `DaskCloudProviderEnvironment`
+            warnings.warn(
+                "`RemoteDaskEnvironment` is deprecated, please use `LocalEnvironment` with a "
+                "`DaskExecutor` instead."
+            )
         self.address = address
         dask_executor_kwargs = executor_kwargs or dict()
         dask_executor_kwargs["address"] = address

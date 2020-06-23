@@ -130,11 +130,16 @@ class Environment:
             with prefect.context(secrets=secrets):
                 flow = storage.get_flow(storage.flows[flow_data.name])
                 runner_cls = get_default_flow_runner_class()
-                if hasattr(self, "executor_kwargs"):
-                    executor_cls = get_default_executor_class()(**self.executor_kwargs)  # type: ignore
+                if getattr(self, "executor", None) is not None:
+                    executor = self.executor  # type: ignore
                 else:
                     executor_cls = get_default_executor_class()
-                runner_cls(flow=flow).run(executor=executor_cls)
+                    # Deprecated, to be removed
+                    if hasattr(self, "executor_kwargs"):
+                        executor = executor_cls(**self.executor_kwargs)  # type: ignore
+                    else:
+                        executor = executor_cls
+                runner_cls(flow=flow).run(executor=executor)
         except Exception as exc:
             self.logger.exception(
                 "Unexpected error raised during flow run: {}".format(exc)

@@ -46,8 +46,7 @@ class TestCreateTask:
 
     def test_create_task_with_slug(self):
         t1 = Task()
-        assert t1.slug
-        assert uuid.UUID(t1.slug)  # slug is a UUID
+        assert t1.slug is None
 
         t2 = Task(slug="test")
         assert t2.slug == "test"
@@ -451,13 +450,6 @@ class TestTaskCopy:
 
         assert x.result.location == "target"
         assert y.result.location == "target"
-
-
-def test_task_has_slug():
-    t1 = Task()
-    t2 = Task()
-
-    assert t1.slug and t1.slug != t2.slug
 
 
 class TestDependencies:

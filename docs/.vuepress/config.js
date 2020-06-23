@@ -199,8 +199,7 @@ module.exports = {
           children: [
             'execution/overview',
             'execution/storage_options',
-            'execution/remote_environment',
-            'execution/remote_dask_environment',
+            'execution/local_environment',
             'execution/dask_cloud_provider_environment',
             'execution/dask_k8s_environment',
             'execution/k8s_job_environment',
