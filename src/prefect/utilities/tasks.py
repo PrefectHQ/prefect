@@ -1,3 +1,5 @@
+import itertools
+from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
@@ -8,13 +10,52 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
+__all__ = [
+    "tags",
+    "as_task",
+    "pause_task",
+    "task",
+    "unmapped",
+    "compose_map",
+    "defaults_from_attrs",
+]
 
 if TYPE_CHECKING:
     import prefect.tasks.core.constants
     import prefect.tasks.core.collections
     import prefect.tasks.core.function
-    from prefect.core.flow import Flow  # pylint: disable=W0611
+    from prefect import Task, Flow  # pylint: disable=W0611
+
+
+def compose_map(
+    func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any
+) -> Optional["Task"]:
+    """
+    Map a function that adds tasks to a flow elementwise across one or more
+    tasks.  Arguments that should _not_ be mapped over should be wrapped with
+    `prefect.unmapped`.
+
+    Args:
+        - func (Callable): a function that adds tasks to a flow
+        - *args: task arguments to map over
+        - flow (Flow, optional): The flow to use, defaults to the current flow
+            in context if no flow is specified. If specified, `func` must accept
+            a `flow` keyword argument.
+        - **kwargs: keyword task arguments to map over
+
+    Returns:
+        - Task: the output of `func`, if any
+    """
+    for x in itertools.chain(args, kwargs.values()):
+        if not isinstance(x, (prefect.Task, unmapped, Sequence)):
+            raise TypeError(
+                f"Cannot map over non sequence  object of type `{type(x).__name__}`"
+            )
+    with prefect.context(mapped=True):
+        if flow is None:
+            return func(*args, **kwargs)
+        else:
+            return func(*args, flow=flow, **kwargs)
 
 
 @contextmanager
@@ -84,18 +125,24 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
 
     # collections
     elif isinstance(x, list):
-        return_task = prefect.tasks.core.collections.List().bind(*x, flow=flow)
+        return_task = prefect.tasks.core.collections.List().bind(
+            *x, flow=flow, mapped=False
+        )
     elif isinstance(x, tuple):
-        return_task = prefect.tasks.core.collections.Tuple().bind(*x, flow=flow)
+        return_task = prefect.tasks.core.collections.Tuple().bind(
+            *x, flow=flow, mapped=False
+        )
     elif isinstance(x, set):
-        return_task = prefect.tasks.core.collections.Set().bind(*x, flow=flow)
+        return_task = prefect.tasks.core.collections.Set().bind(
+            *x, flow=flow, mapped=False
+        )
     elif isinstance(x, dict):
         keys, values = [], []
         for k, v in x.items():
             keys.append(k)
             values.append(v)
         return_task = prefect.tasks.core.collections.Dict().bind(
-            keys=keys, values=values, flow=flow
+            keys=keys, values=values, flow=flow, mapped=False
         )
 
     else:

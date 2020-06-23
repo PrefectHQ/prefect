@@ -502,7 +502,7 @@ class Flow:
         upstream_task: Task,
         downstream_task: Task,
         key: str = None,
-        mapped: bool = False,
+        mapped: bool = None,
         validate: bool = None,
     ) -> Edge:
         """
@@ -528,6 +528,10 @@ class Flow:
         """
         if validate is None:
             validate = cast(bool, prefect.config.flows.eager_edge_validation)
+
+        if mapped is None:
+            mapped = prefect.context.get("mapped", False)
+
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -815,7 +819,7 @@ class Flow:
         upstream_tasks: Iterable[object] = None,
         downstream_tasks: Iterable[object] = None,
         keyword_tasks: Mapping[str, object] = None,
-        mapped: bool = False,
+        mapped: bool = None,
         validate: bool = None,
     ) -> None:
         """
@@ -843,6 +847,13 @@ class Flow:
         Returns:
             - None
         """
+
+        if mapped is None:
+            mapped = prefect.context.get("mapped", False)
+        elif mapped is True and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
 
         task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert

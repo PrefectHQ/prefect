@@ -49,7 +49,7 @@ class CompareValue(Task):
             )
 
 
-def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = False) -> None:
+def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = None) -> None:
     """
     Adds a SWITCH to a workflow.
 
@@ -128,7 +128,7 @@ def ifelse(
         switch(condition=bool_condition, cases=cases, mapped=mapped)
 
 
-def merge(*tasks: Task, flow=None, mapped: bool = False) -> Task:
+def merge(*tasks: Task, flow=None, mapped: bool = None) -> Task:
     """
     Merges conditional branches back together.
 
