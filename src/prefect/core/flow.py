@@ -531,6 +531,10 @@ class Flow:
 
         if mapped is None:
             mapped = prefect.context.get("mapped", False)
+        elif mapped is True and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
 
         if isinstance(downstream_task, Parameter):
             raise ValueError(
@@ -847,7 +851,7 @@ class Flow:
         Returns:
             - None
         """
-
+        orig_mapped = mapped
         if mapped is None:
             mapped = prefect.context.get("mapped", False)
         elif mapped is True and prefect.context.get("mapped", False):
@@ -863,14 +867,14 @@ class Flow:
 
         # add upstream tasks
         for t in upstream_tasks or []:
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
                 upstream_task=t,
                 downstream_task=task,
                 validate=validate,
-                mapped=is_mapped,
+                mapped=is_mapped if not is_mapped else orig_mapped,
             )
 
         # add downstream tasks
@@ -881,7 +885,7 @@ class Flow:
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
 
             # if the task can be represented as a constant and we don't need to map over it
@@ -894,7 +898,7 @@ class Flow:
                     downstream_task=task,
                     key=key,
                     validate=validate,
-                    mapped=is_mapped,
+                    mapped=is_mapped if not is_mapped else orig_mapped,
                 )
 
     # Execution  ---------------------------------------------------------------

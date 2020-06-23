@@ -35,6 +35,9 @@ def compose_map(
     tasks.  Arguments that should _not_ be mapped over should be wrapped with
     `prefect.unmapped`.
 
+    This can be useful when wanting to create complicated mapped pipelines
+    (e.g. ones using control flow components like `case`).
+
     Args:
         - func (Callable): a function that adds tasks to a flow
         - *args: task arguments to map over
@@ -45,12 +48,46 @@ def compose_map(
 
     Returns:
         - Task: the output of `func`, if any
+
+    Example:
+
+    ```python
+    from prefect import task, case
+    from prefect.tasks.control_flow import merge
+    from prefect.utilities.tasks import compose_map
+
+    @task
+    def inc(x):
+        return x + 1
+
+    @task
+    def is_even(x):
+        return x % 2 == 0
+
+    def inc_if_even(x):
+        with case(is_even(x), True):
+            x2 = inc(x)
+        return merge(x, x2)
+
+    with Flow("example") as flow:
+        compose_map(inc_if_even, range(10))
     """
+    # Check if valid first
     for x in itertools.chain(args, kwargs.values()):
         if not isinstance(x, (prefect.Task, unmapped, Sequence)):
             raise TypeError(
                 f"Cannot map over non sequence  object of type `{type(x).__name__}`"
             )
+    # Convert any non-`task`/`unmapped` objects to tasks. We leave `unmapped`
+    # objects as they are.
+    args = tuple(
+        a if isinstance(a, (prefect.Task, unmapped)) else as_task(a, flow=flow)
+        for a in args
+    )
+    kwargs = {
+        k: v if isinstance(v, (prefect.Task, unmapped)) else as_task(v, flow=flow)
+        for k, v in kwargs.items()
+    }
     with prefect.context(mapped=True):
         if flow is None:
             return func(*args, **kwargs)

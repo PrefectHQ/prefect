@@ -101,7 +101,7 @@ def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = None) -> None
 
 
 def ifelse(
-    condition: Task, true_task: Task, false_task: Task, mapped: bool = False
+    condition: Task, true_task: Task, false_task: Task, mapped: bool = None
 ) -> None:
     """
     Builds a conditional branch into a workflow.
