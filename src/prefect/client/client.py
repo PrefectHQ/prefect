@@ -329,8 +329,19 @@ class Client:
             session=session, method=method, url=url, params=params, headers=headers
         )
 
+        # parse the response
+        try:
+            json_resp = response.json()
+        except json.JSONDecodeError:
+            if prefect.config.backend == "cloud" and "Authorization" not in headers:
+                raise ClientError(
+                    "Malformed response received from Cloud - please ensure that you have an API token properly configured."
+                )
+            else:
+                raise ClientError(f"Malformed response received from API.")
+
         # check if there was an API_ERROR code in the response
-        if "API_ERROR" in str(response.json().get("errors")):
+        if "API_ERROR" in str(json_resp.get("errors")):
             success, retry_count = False, 0
             # retry up to six times
             while success is False and retry_count < 6:
@@ -648,8 +659,16 @@ class Client:
 
         serialized_flow = flow.serialize(build=build)  # type: Any
 
+        # Set Docker storage image in environment metadata if provided
         if isinstance(flow.storage, prefect.environments.storage.Docker):
             flow.environment.metadata["image"] = flow.storage.name
+
+        # If no image ever set, default metadata to all_extras image on current version
+        if not flow.environment.metadata.get("image"):
+            version = prefect.__version__.split("+")[0]
+            flow.environment.metadata[
+                "image"
+            ] = f"prefecthq/prefect:all_extras-{version}"
 
         # verify that the serialized flow can be deserialized
         try:

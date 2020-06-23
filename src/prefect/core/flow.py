@@ -111,7 +111,7 @@ class Flow:
         - name (str): The name of the flow. Cannot be `None` or an empty string
         - schedule (prefect.schedules.Schedule, optional): A default schedule for the flow
         - environment (prefect.environments.Environment, optional): The environment
-           that the flow should be run in. If `None`, a `RemoteEnvironment` will be created.
+           that the flow should be run in. If `None`, a `LocalEnvironment` will be created.
         - storage (prefect.environments.storage.Storage, optional): The unit of storage
             that the flow will be written into.
         - tasks ([Task], optional): If provided, a list of tasks that will initialize the flow
@@ -160,7 +160,7 @@ class Flow:
         self.name = name
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
-        self.environment = environment or prefect.environments.RemoteEnvironment()
+        self.environment = environment or prefect.environments.LocalEnvironment()
         self.storage = storage
         if result_handler:
             warnings.warn(

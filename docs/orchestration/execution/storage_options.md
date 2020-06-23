@@ -129,7 +129,7 @@ Prefect allows for flows to be stored in cloud storage services and executed in 
 
 ```python
 from prefect import Flow
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import S3
 
 flow = Flow("example")
@@ -138,7 +138,7 @@ flow = Flow("example")
 flow.storage = S3(bucket="my-flows")
 
 # set flow environment
-flow.environment = RemoteEnvironment(metadata={"image": "repo/name:tag"})
+flow.environment = LocalEnvironment(metadata={"image": "repo/name:tag"})
 ```
 
 This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
@@ -163,7 +163,7 @@ Prefect has a couple [default secrets](/core/concepts/secrets.html#default-secre
 ```python
 flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
 
-flow.environment = RemoteEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
+flow.environment = LocalEnvironment(metadata={"image": "prefecthq/prefect:all_extras"})
 ```
 
 ::: warning Dependencies

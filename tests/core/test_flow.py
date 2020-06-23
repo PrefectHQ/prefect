@@ -157,12 +157,13 @@ class TestCreateFlow:
         assert f2.result == result
 
     def test_create_flow_with_environment(self):
-        f2 = Flow(name="test", environment=prefect.environments.RemoteEnvironment())
-        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
+        env = prefect.environments.LocalEnvironment()
+        f2 = Flow(name="test", environment=env)
+        assert f2.environment is env
 
     def test_create_flow_has_default_environment(self):
         f2 = Flow(name="test")
-        assert isinstance(f2.environment, prefect.environments.RemoteEnvironment)
+        assert isinstance(f2.environment, prefect.environments.LocalEnvironment)
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -1742,10 +1743,6 @@ class TestSerialize:
         with pytest.raises(ValueError, match="Cycle found"):
             f.serialize()
 
-    def test_default_environment_is_cloud_environment(self):
-        f = Flow(name="test")
-        assert isinstance(f.environment, prefect.environments.RemoteEnvironment)
-
     def test_serialize_includes_storage(self):
         f = Flow(name="test", storage=prefect.environments.storage.Local())
         s_no_build = f.serialize()
@@ -2472,7 +2469,7 @@ class TestFlowDiagnostics:
             assert flow_information
 
             # Type information
-            assert flow_information["environment"]["type"] == "RemoteEnvironment"
+            assert flow_information["environment"]["type"] == "LocalEnvironment"
             assert flow_information["storage"]["type"] == "Local"
             assert flow_information["result"]["type"] == "PrefectResult"
             assert flow_information["schedule"]["type"] == "Schedule"
@@ -2480,7 +2477,6 @@ class TestFlowDiagnostics:
 
             # Kwargs presence check
             assert flow_information["environment"]["executor"] is True
-            assert flow_information["environment"]["executor_kwargs"] is False
             assert flow_information["environment"]["labels"] is False
             assert flow_information["environment"]["on_start"] is False
             assert flow_information["environment"]["on_exit"] is False
@@ -2611,7 +2607,7 @@ class TestFlowRegister:
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(
             name="test",
-            environment=prefect.environments.RemoteEnvironment(labels=["foo"]),
+            environment=prefect.environments.LocalEnvironment(labels=["foo"]),
         )
 
         assert f.storage is None

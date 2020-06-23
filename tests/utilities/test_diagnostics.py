@@ -98,7 +98,7 @@ def test_flow_information():
     assert flow_information
 
     # Type information
-    assert flow_information["environment"]["type"] == "RemoteEnvironment"
+    assert flow_information["environment"]["type"] == "LocalEnvironment"
     assert flow_information["storage"]["type"] == "Local"
     assert flow_information["result"]["type"] == "PrefectResult"
     assert flow_information["schedule"]["type"] == "Schedule"
@@ -106,7 +106,6 @@ def test_flow_information():
 
     # Kwargs presence check
     assert flow_information["environment"]["executor"] is True
-    assert flow_information["environment"]["executor_kwargs"] is False
     assert flow_information["environment"]["labels"] is False
     assert flow_information["environment"]["on_start"] is False
     assert flow_information["environment"]["on_exit"] is False
@@ -157,7 +156,7 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
         assert flow_information
 
         # Type information
-        assert flow_information["environment"]["type"] == "RemoteEnvironment"
+        assert flow_information["environment"]["type"] == "LocalEnvironment"
         assert flow_information["storage"]["type"] == "Local"
         assert flow_information["result"]["type"] == "PrefectResult"
         assert flow_information["schedule"]["type"] == "Schedule"
@@ -165,7 +164,6 @@ def test_diagnostic_info_with_flow_no_secrets(monkeypatch):
 
         # Kwargs presence check
         assert flow_information["environment"]["executor"] is True
-        assert flow_information["environment"]["executor_kwargs"] is False
         assert flow_information["environment"]["labels"] is False
         assert flow_information["environment"]["on_start"] is False
         assert flow_information["environment"]["on_exit"] is False

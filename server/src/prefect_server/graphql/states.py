@@ -28,15 +28,12 @@ async def resolve_set_flow_run_states(
     async def set_state(state_input: dict) -> str:
         state = state_schema.load(state_input["state"])
 
-        await api.states.set_flow_run_state(
+        payload = await api.states.set_flow_run_state(
             flow_run_id=state_input["flow_run_id"], state=state,
         )
+        payload.update(id=state_input["flow_run_id"], message=None)
 
-        return {
-            "id": state_input["flow_run_id"],
-            "status": "SUCCESS",
-            "message": None,
-        }
+        return payload
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],
@@ -57,15 +54,12 @@ async def resolve_set_task_run_states(
 
         state = state_schema.load(state_input["state"])
 
-        await api.states.set_task_run_state(
+        payload = await api.states.set_task_run_state(
             task_run_id=state_input["task_run_id"], state=state,
         )
 
-        return {
-            "id": state_input["task_run_id"],
-            "status": "SUCCESS",
-            "message": None,
-        }
+        payload.update(id=state_input["task_run_id"], message=None)
+        return payload
 
     result = await asyncio.gather(
         *[set_state(state_input) for state_input in input["states"]],

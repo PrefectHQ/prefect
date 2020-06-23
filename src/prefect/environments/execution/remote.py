@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Callable, List, TYPE_CHECKING
 
 from prefect import config
@@ -46,6 +47,14 @@ class RemoteEnvironment(Environment):
         on_exit: Callable = None,
         metadata: dict = None,
     ) -> None:
+        if type(self) is RemoteEnvironment or not type(self).__module__.startswith(
+            "prefect."
+        ):
+            # Only warn if its a subclass not part of prefect, since we don't
+            # want to update the code for e.g. `DaskCloudProviderEnvironment`
+            warnings.warn(
+                "`RemoteEnvironment` is deprecated, please use `LocalEnvironment` instead."
+            )
         self.executor = executor or config.engine.executor.default_class
         self.executor_kwargs = executor_kwargs or dict()
         super().__init__(

@@ -1,0 +1,7 @@
+feature:
+  - Support configuring executors for `LocalEnvironment`, `KubernetesJobEnvironment`, and `FargateTaskEnvironment` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+
+deprecation:
+  - Deprecate `RemoteEnvironment` in favor of `LocalEnvironment` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+  - Deprecate `RemoteDaskEnvironment` in favor of `LocalEnvironment` with a `DaskExecutor` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)
+  - Deprecate `executor_kwargs` in `KubernetesJobEnvironment` and `FargateTaskEnvironment` in favor of `executor` - [#2805](https://github.com/PrefectHQ/prefect/pull/2805)

@@ -326,6 +326,7 @@ class FargateAgent(Agent):
             "secrets",
             "environment",
             "logConfiguration",
+            "repositoryCredentials",
         ]
 
         task_definition_kwargs = {}
