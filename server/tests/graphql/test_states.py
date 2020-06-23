@@ -2,12 +2,13 @@
 # https://www.prefect.io/legal/prefect-community-license
 
 
-import pytest
-
 import prefect
+import pytest
+from asynctest import CoroutineMock
 from prefect.engine.result import NoResult, Result, SafeResult
 from prefect.engine.result_handlers import JSONResultHandler
-from prefect.engine.state import Failed, Retrying, Running, Success, Submitted
+from prefect.engine.state import Failed, Retrying, Running, Submitted, Success
+
 from prefect_server import api
 from prefect_server.database import models
 from prefect_server.utilities.exceptions import Unauthenticated, Unauthorized
@@ -50,6 +51,51 @@ class TestSetFlowRunStates:
         ).first({"state", "version"})
         assert fr.version == 2
         assert fr.state == "Running"
+
+    @pytest.mark.parametrize(
+        "payload_response",
+        [
+            {"status": "SUCCESS"},
+            {"status": "QUEUED"},
+            {"status": "a status we don't actually use"},
+        ],
+    )
+    async def test_returns_status_from_underlying_call(
+        self, run_query, flow_run_id, payload_response, monkeypatch
+    ):
+        """
+        This test should ensure that the `status` field should be determined
+        based on the underlying `api.states.set_flow_run_state()` call. 
+        """
+
+        mock_state_api = CoroutineMock(return_value=payload_response)
+
+        monkeypatch.setattr(
+            "src.prefect_server.graphql.states.api.states.set_flow_run_state",
+            mock_state_api,
+        )
+
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            flow_run_id=flow_run_id,
+                            version=1,
+                            state=Running().serialize(),
+                        )
+                    ]
+                )
+            ),
+        )
+
+        mock_state_api.assert_awaited_once()
+
+        assert (
+            result.data.set_flow_run_states.states[0].status
+            == payload_response["status"]
+        )
 
     async def test_set_multiple_flow_run_states(
         self, run_query, flow_run_id, flow_run_id_2, flow_run_id_3
@@ -101,6 +147,34 @@ class TestSetFlowRunStates:
         ).first({"state", "version"})
         assert fr3.version == 4
         assert fr3.state == "Retrying"
+
+    async def test_set_multiple_flow_run_states_with_error(
+        self, run_query, flow_run_id, flow_run_id_2, flow_run_id_3
+    ):
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            flow_run_id=flow_run_id,
+                            version=1,
+                            state=Running().serialize(),
+                        ),
+                        dict(
+                            flow_run_id=flow_run_id_2, version=10, state="a bad state",
+                        ),
+                        dict(
+                            flow_run_id=flow_run_id_3,
+                            version=3,
+                            state=Retrying().serialize(),
+                        ),
+                    ]
+                )
+            ),
+        )
+        assert result.data.set_flow_run_states is None
+        assert result.errors[0].message
 
     async def test_set_flow_run_state_with_result(self, run_query, flow_run_id):
         result = Result(10, result_handler=JSONResultHandler())
@@ -216,6 +290,79 @@ class TestSetTaskRunStates:
         ).first({"state", "version"})
         assert tr3.version == 2
         assert tr3.state == "Retrying"
+
+    @pytest.mark.parametrize(
+        "payload_response",
+        [
+            {"status": "SUCCESS"},
+            {"status": "QUEUED"},
+            {"status": "a status we don't actually use"},
+        ],
+    )
+    async def test_returns_status_from_underlying_call(
+        self, run_query, task_run_id, payload_response, monkeypatch
+    ):
+        """
+        This test should ensure that the `status` field should be determined
+        based on the underlying `api.states.set_flow_run_state()` call. 
+        """
+
+        mock_state_api = CoroutineMock(return_value=payload_response)
+
+        monkeypatch.setattr(
+            "src.prefect_server.graphql.states.api.states.set_task_run_state",
+            mock_state_api,
+        )
+
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            task_run_id=task_run_id,
+                            version=0,
+                            state=Running().serialize(),
+                        )
+                    ]
+                )
+            ),
+        )
+
+        mock_state_api.assert_awaited_once()
+
+        assert (
+            result.data.set_task_run_states.states[0].status
+            == payload_response["status"]
+        )
+
+    async def test_set_multiple_task_run_states(
+        self, run_query, running_flow_run_id, task_run_id, task_run_id_2, task_run_id_3
+    ):
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(
+                            task_run_id=task_run_id,
+                            version=0,
+                            state=Running().serialize(),
+                        ),
+                        dict(
+                            task_run_id=task_run_id_2, version=10, state="a bad state",
+                        ),
+                        dict(
+                            task_run_id=task_run_id_3,
+                            version=1,
+                            state=Retrying().serialize(),
+                        ),
+                    ]
+                )
+            ),
+        )
+        assert result.data.set_task_run_states is None
+        assert result.errors[0].message
 
     async def test_set_task_run_state_with_result(self, run_query, task_run_id):
         result = Result(10, result_handler=JSONResultHandler())

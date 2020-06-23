@@ -1,0 +1,2 @@
+feature:
+  - "Task slugs are now stable across rebuilds of the same Flow - [#2531](https://github.com/PrefectHQ/prefect/pull/2531)"

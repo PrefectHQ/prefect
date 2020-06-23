@@ -3,6 +3,7 @@ import datetime
 import queue
 import random
 import time
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pendulum
@@ -1548,3 +1549,41 @@ def test_constant_tasks_arent_submitted_when_mapped(caplog):
 
     ## to be safe, ensure '5' isn't in the logs
     assert len([log.message for log in caplog.records if "99" in log.message]) == 0
+
+
+def test_dask_executor_with_flow_runner_sets_task_keys(mthread):
+    """Integration test that ensures the flow runner forwards the proper
+    information to the DaskExecutor so that key names are set based on
+    the task name"""
+    key_names = set()
+
+    class MyExecutor(Executor):
+        @contextmanager
+        def start(self):
+            with mthread.start():
+                yield
+
+        def submit(self, *args, **kwargs):
+            fut = mthread.submit(*args, **kwargs)
+            key_names.add(fut.key.split("-")[0])
+            return fut
+
+        def wait(self, x):
+            return mthread.wait(x)
+
+    @prefect.task
+    def inc(x):
+        return x + 1
+
+    @prefect.task
+    def do_sum(x):
+        return sum(x)
+
+    with Flow("test") as flow:
+        a = inc(1)
+        b = inc.map(range(3))
+        c = do_sum(b)
+
+    flow.run(executor=MyExecutor())
+
+    assert key_names == {"inc", "do_sum"}
