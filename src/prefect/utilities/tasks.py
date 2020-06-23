@@ -1,20 +1,37 @@
+import warnings
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Set
 
 import pendulum
 from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
+__all__ = (
+    "tags",
+    "as_task",
+    "pause_task",
+    "task",
+    "defaults_from_attrs",
+)
 
 if TYPE_CHECKING:
     import prefect.tasks.core.constants
     import prefect.tasks.core.collections
     import prefect.tasks.core.function
     from prefect.core.flow import Flow  # pylint: disable=W0611
+
+# DEPRECATED backward-compatible import
+from prefect.utilities.edges import unmapped as _unmapped
+
+
+def unmapped(*args, **kwargs):
+    warnings.warn(
+        "`unmapped` has moved, please import as `prefect.utilities.edges.unmapped`"
+    )
+    return _unmapped(*args, **kwargs)
 
 
 @contextmanager
@@ -64,7 +81,7 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
         Helper function for determining if nested collections are constants without calling
         `bind()`, which would create new tasks on the active graph.
         """
-        if isinstance(x, (prefect.core.Task, unmapped)):
+        if isinstance(x, (prefect.core.Task, prefect.utilities.edges.EdgeAnnotation)):
             return False
         elif isinstance(x, (list, tuple, set)):
             return all(is_constant(xi) for xi in x)
@@ -75,7 +92,7 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
     # task objects
     if isinstance(x, prefect.core.Task):  # type: ignore
         return x
-    elif isinstance(x, unmapped):
+    elif isinstance(x, prefect.utilities.edges.EdgeAnnotation):
         return x.task
 
     # handle constants, including collections of constants
@@ -200,38 +217,6 @@ def task(
     ```
     """
     return prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
-
-
-class unmapped:
-    """
-    A container for specifying that a task should _not_ be mapped over when
-    called with `task.map`.
-
-    Args:
-        - task (Task): the task to mark as "unmapped"; if not a Task subclass,
-            Prefect will attempt to convert it to one.
-
-    Example:
-        ```python
-        from prefect import Flow, Task, unmapped
-
-        class AddTask(Task):
-            def run(self, x, y):
-                return x + y
-
-        class ListTask(Task):
-            def run(self):
-                return [1, 2, 3]
-
-        with Flow("My Flow"):
-            add = AddTask()
-            ll = ListTask()
-            result = add.map(x=ll, y=unmapped(5), upstream_tasks=[unmapped(Task())])
-        ```
-    """
-
-    def __init__(self, task: "prefect.Task"):
-        self.task = as_task(task)
 
 
 def defaults_from_attrs(*attr_args: str) -> Callable:

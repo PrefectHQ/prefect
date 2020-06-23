@@ -12,11 +12,12 @@ from prefect.core import Task, Flow, Parameter
 import prefect.engine
 import prefect.tasks
 from prefect.tasks.control_flow import case
-from prefect.utilities.tasks import task, tags, unmapped
 
 import prefect.serialization
-
 import prefect.agent
+
+from prefect.utilities.tasks import task, tags
+from prefect.utilities.edges import mapped, unmapped, flat
 
 from ._version import get_versions
 
@@ -30,3 +31,4 @@ try:
     _signal.signal(29, _sig_handler)
 except:
     pass
+

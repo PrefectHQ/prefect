@@ -230,21 +230,6 @@ def test_context_manager_for_setting_tags():
             assert t3.tags == set(["1", "2", "3", "4", "5"])
 
 
-class TestUnmappedContainer:
-    def test_unmapped_initializes_with_task(self):
-        t1 = Task()
-        unmapped_t1 = tasks.unmapped(t1)
-        assert unmapped_t1.task is t1
-
-    def test_unmapped_converts_its_argument_to_task(self):
-        unmapped_t1 = tasks.unmapped(5)
-        assert isinstance(unmapped_t1.task, Task)
-
-    def test_as_task_unpacks_unmapped_objects(self):
-        t1 = Task()
-        unmapped_t1 = tasks.unmapped(t1)
-        assert tasks.as_task(t1) is t1
-        assert tasks.as_task(t1).auto_generated is False
 
 
 class TestPauseTask:

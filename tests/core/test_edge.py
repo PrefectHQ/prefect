@@ -2,6 +2,7 @@ import pytest
 
 import prefect
 from prefect.core import Edge, Flow, Task
+from prefect.utilities import edges
 
 
 class TaskWithKey(Task):
@@ -102,3 +103,49 @@ def test_serialize_edge():
         mapped=True,
         __version__=prefect.__version__,
     )
+
+
+class TestEdgeAnnotations:
+    def test_none(self):
+        e = Edge(Task(), Task())
+        assert e.mapped is False
+        assert e.flat is False
+
+    def test_mapped(self):
+        e = Edge(edges.mapped(Task()), Task())
+        assert e.mapped is True
+
+    def test_mapped_annotation_takes_precedance_over_kwarg(self):
+        e = Edge(edges.mapped(Task()), Task(), mapped=False)
+        assert e.mapped is True
+
+    def test_mapped_kwarg(self):
+        e = Edge(Task(), Task(), mapped=True)
+        assert e.mapped is True
+
+    def test_unmapped(self):
+        e = Edge(edges.unmapped(Task()), Task())
+        assert e.mapped is False
+
+    def test_unmapped_annotation_takes_precedence(self):
+        e = Edge(edges.unmapped(Task()), Task(), mapped=True)
+        assert e.mapped is False
+
+    def test_flatten(self):
+        e = Edge(edges.flatten(Task()), Task())
+        assert e.flat is True
+
+    def test_flatten_kwarg(self):
+        e = Edge(Task(), Task(), flat=True)
+        assert e.flat is True
+
+    def test_unmapped_annotation_takes_precedence(self):
+        e = Edge(edges.flatten(Task()), Task(), flat=False)
+        assert e.flat is True
+
+    def test_nested_annotation(self):
+        e = Edge(edges.flatten(edges.mapped(Task())), Task())
+        assert e.flat is True
+        assert e.mapped is True
+
+    

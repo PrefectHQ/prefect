@@ -451,7 +451,7 @@ class Task(metaclass=SignatureValidator):
             - **kwargs: keyword arguments to bind to the new Task's `run` method
             - mapped (bool, optional): Whether the results of these tasks should be mapped over
                 with the specified keyword arguments; defaults to `False`.
-                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                If `True`, any arguments contained within a `prefect.utilities.edges.unmapped`
                 container will _not_ be mapped over.
             - task_args (dict, optional): a dictionary of task attribute keyword arguments, these attributes
                 will be set on the new copy
@@ -466,7 +466,11 @@ class Task(metaclass=SignatureValidator):
         """
         new = self.copy(**(task_args or {}))
         new.bind(
-            *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+            *args,
+            mapped=mapped,
+            upstream_tasks=upstream_tasks,
+            flow=flow,
+            **kwargs
         )
         return new
 
@@ -492,7 +496,7 @@ class Task(metaclass=SignatureValidator):
             - *args: arguments to bind to the current Task's `run` method
             - mapped (bool, optional): Whether the results of these tasks should be mapped over
                 with the specified keyword arguments; defaults to `False`.
-                If `True`, any arguments contained within a `prefect.utilities.tasks.unmapped`
+                If `True`, any arguments contained within a `prefect.utilities.edges.unmapped`
                 container will _not_ be mapped over.
             - upstream_tasks ([Task], optional): a list of upstream dependencies for the
                 current task.
@@ -542,7 +546,7 @@ class Task(metaclass=SignatureValidator):
     ) -> "Task":
         """
         Map the Task elementwise across one or more Tasks. Arguments that should _not_ be mapped over
-        should be placed in the `prefect.utilities.tasks.unmapped` container.
+        should be placed in the `prefect.utilities.edges.unmapped` container.
 
         For example:
             ```
@@ -576,7 +580,11 @@ class Task(metaclass=SignatureValidator):
                 )
         new = self.copy(**(task_args or {}))
         return new.bind(
-            *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
+            *args,
+            mapped=True,
+            upstream_tasks=upstream_tasks,
+            flow=flow,
+            **kwargs
         )
 
     def set_dependencies(
@@ -597,7 +605,7 @@ class Task(metaclass=SignatureValidator):
             - upstream_tasks ([object], optional): A list of upstream tasks for this task
             - downstream_tasks ([object], optional): A list of downtream tasks for this task
             - keyword_tasks ({str, object}}, optional): The results of these tasks will be provided
-            to this task under the specified keyword arguments.
+                to this task under the specified keyword arguments.
             - mapped (bool, optional): Whether the results of the _upstream_ tasks should be mapped over
                 with the specified keyword arguments
             - validate (bool, optional): Whether or not to check the validity of the flow. If not
@@ -626,7 +634,11 @@ class Task(metaclass=SignatureValidator):
         )
 
     def set_upstream(
-        self, task: object, flow: "Flow" = None, key: str = None, mapped: bool = False
+        self,
+        task: object,
+        flow: "Flow" = None,
+        key: str = None,
+        mapped: bool = False,
     ) -> None:
         """
         Sets the provided task as an upstream dependency of this task.
@@ -639,18 +651,30 @@ class Task(metaclass=SignatureValidator):
             - key (str, optional): The key to be set for the new edge; the result of the upstream task
                 will be passed to this task's `run()` method under this keyword argument.
             - mapped (bool, optional): Whether this dependency is mapped; defaults to `False`
-
+            
         Raises:
             - ValueError: if no flow is specified and no flow can be found in the current context
         """
         if key is not None:
             keyword_tasks = {key: task}
-            self.set_dependencies(flow=flow, keyword_tasks=keyword_tasks, mapped=mapped)
+            self.set_dependencies(
+                flow=flow,
+                keyword_tasks=keyword_tasks,
+                mapped=mapped,
+                )
         else:
-            self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
+            self.set_dependencies(
+                flow=flow,
+                upstream_tasks=[task],
+                mapped=mapped,
+                )
 
     def set_downstream(
-        self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False
+        self,
+        task: "Task",
+        flow: "Flow" = None,
+        key: str = None,
+        mapped: bool = False,
     ) -> None:
         """
         Sets the provided task as a downstream dependency of this task.
@@ -669,10 +693,16 @@ class Task(metaclass=SignatureValidator):
         if key is not None:
             keyword_tasks = {key: self}
             task.set_dependencies(  # type: ignore
-                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped
-            )  # type: ignore
+                flow=flow,
+                keyword_tasks=keyword_tasks,
+                mapped=mapped,
+                )  # type: ignore
         else:
-            task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
+            task.set_dependencies(
+                flow=flow,
+                upstream_tasks=[self],
+                mapped=mapped,
+                )
 
     def inputs(self) -> Dict[str, Dict]:
         """
