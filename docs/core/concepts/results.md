@@ -161,10 +161,10 @@ There is one exception to the rule for Results: Prefect Parameters. Prefect Para
 
 ### Choose a `Serializer`
 
-`Serializers` tell Prefect how to transform Python objects into bytes and recover them later. The default `Serializer` uses `cloudpickle`, but you can write your own by adopting this template:
+`Serializers` tell Prefect how to transform Python objects into bytes and recover them later. The default `PickleSerializer` uses `cloudpickle`, but you can write your own by adopting this template:
 
 ```python
-class MySerializer(prefect.engine.serializers.Serializer):
+class MySerializer(prefect.engine.serializers.PickleSerializer):
 
     def serialize(self, value: Any) -> bytes:
         # transform a Python object into bytes

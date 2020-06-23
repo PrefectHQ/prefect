@@ -5,9 +5,9 @@ from typing import Any, Union
 import cloudpickle
 
 
-class BytesSerializer:
+class PickleSerializer:
     """
-    BytesSerializers are used by Results to handle the transformation of
+    PickleSerializers are used by Results to handle the transformation of
     Python objects to and from bytes.
     """
 
@@ -48,7 +48,7 @@ class BytesSerializer:
                 raise exc
 
 
-class JSONSerializer(BytesSerializer):
+class JSONSerializer(PickleSerializer):
     """
     JSONSerializers serialize objects to and from JSON
     """
