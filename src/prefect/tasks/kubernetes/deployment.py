@@ -19,7 +19,7 @@ class CreateNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -126,7 +126,7 @@ class DeleteNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -236,7 +236,7 @@ class ListNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -327,7 +327,7 @@ class PatchNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -447,7 +447,7 @@ class ReadNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -553,7 +553,7 @@ class ReplaceNamespacedDeployment(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
