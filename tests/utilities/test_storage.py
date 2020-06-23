@@ -3,6 +3,7 @@ import tempfile
 
 import pytest
 
+import prefect
 from prefect import Flow
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
@@ -62,3 +63,29 @@ def test_extract_flow_from_file():
 
         with pytest.raises(ValueError):
             extract_flow_from_file()
+
+
+def test_extract_flow_from_file_raises_on_run_register():
+    with tempfile.TemporaryDirectory() as tmpdir:
+
+        contents = """from prefect import Flow\nf=Flow('test-flow')\nf.run()"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        with prefect.context({"function_gate": True}):
+            with pytest.raises(RuntimeError):
+                extract_flow_from_file(file_path=full_path)
+
+        contents = """from prefect import Flow\nf=Flow('test-flow')\nf.register()"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        with prefect.context({"function_gate": True}):
+            with pytest.raises(RuntimeError):
+                extract_flow_from_file(file_path=full_path)

@@ -35,6 +35,7 @@ def register():
 )
 @click.option(
     "--project",
+    "-p",
     required=False,
     help="The name of a Prefect Cloud project to register this flow.",
     hidden=True,
