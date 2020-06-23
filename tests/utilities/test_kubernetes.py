@@ -9,6 +9,9 @@ from prefect.utilities.kubernetes import get_kubernetes_client
 from prefect.utilities.configuration import set_temporary_config
 
 
+pytest.importorskip("kubernetes")
+
+
 @pytest.fixture
 def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
