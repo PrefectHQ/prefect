@@ -10,10 +10,7 @@
     "lodash.template": "^4.5.0",
     "markdown-it-attrs": "^2.4.1",
     "markdown-it-checkbox": "^1.1.0",
-    "netlify-identity-widget": "^1.6.0",
-    "vuepress": "^1.5.2",
-    "vuepress-plugin-code-copy": "^1.0.6",
-    "vuepress-plugin-selected-text-popup": "^1.0.0"
+    "netlify-identity-widget": "^1.6.0"
   },
   "scripts": {
     "docs:generate-api": "cd docs && python generate_docs.py",
@@ -25,9 +22,22 @@
     "url": "git+https://github.com/PrefectHQ/prefect.git"
   },
   "devDependencies": {
-    "@vuepress/plugin-google-analytics": "^1.5.2",
+    "vuepress": "<=1.4.0",
+    "@vuepress/core": "<=1.4.0",
+    "@vuepress/markdown": "<=1.4.0",
+    "@vuepress/markdown-loader": "<=1.4.0",
+    "@vuepress/plugin-active-header-links": "<=1.4.0",
+    "@vuepress/plugin-last-updated": "<=1.4.0",
+    "@vuepress/plugin-nprogress": "<=1.4.0",
+    "@vuepress/plugin-register-components": "<=1.4.0",
+    "@vuepress/plugin-search": "<=1.4.0",
+    "@vuepress/shared-utils": "<=1.4.0",
+    "@vuepress/theme-default": "<=1.4.0",
+    "@vuepress/plugin-google-analytics": "<=1.4.0",
     "vuepress-plugin-element-tabs": "^0.1.8",
-    "vuepress-plugin-smooth-scroll": "0.0.9"
+    "vuepress-plugin-smooth-scroll": "0.0.9",
+    "vuepress-plugin-code-copy": "^1.0.6",
+    "vuepress-plugin-selected-text-popup": "^1.0.0"
   },
   "prettier": {
     "trailingComma": "none",
