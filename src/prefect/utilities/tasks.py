@@ -221,24 +221,18 @@ def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
 
     # collections
     elif isinstance(x, list):
-        return_task = prefect.tasks.core.collections.List().bind(
-            *x, flow=flow, mapped=False
-        )
+        return_task = prefect.tasks.core.collections.List().bind(*x, flow=flow)
     elif isinstance(x, tuple):
-        return_task = prefect.tasks.core.collections.Tuple().bind(
-            *x, flow=flow, mapped=False
-        )
+        return_task = prefect.tasks.core.collections.Tuple().bind(*x, flow=flow)
     elif isinstance(x, set):
-        return_task = prefect.tasks.core.collections.Set().bind(
-            *x, flow=flow, mapped=False
-        )
+        return_task = prefect.tasks.core.collections.Set().bind(*x, flow=flow)
     elif isinstance(x, dict):
         keys, values = [], []
         for k, v in x.items():
             keys.append(k)
             values.append(v)
         return_task = prefect.tasks.core.collections.Dict().bind(
-            keys=keys, values=values, flow=flow, mapped=False
+            keys=keys, values=values, flow=flow
         )
 
     else:
