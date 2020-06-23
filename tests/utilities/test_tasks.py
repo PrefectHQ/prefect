@@ -230,8 +230,6 @@ def test_context_manager_for_setting_tags():
             assert t3.tags == set(["1", "2", "3", "4", "5"])
 
 
-
-
 class TestPauseTask:
     def test_pause_task_pauses(self):
         class AddTask(Task):

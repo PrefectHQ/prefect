@@ -645,13 +645,9 @@ class Task(metaclass=SignatureValidator):
         """
         if key is not None:
             keyword_tasks = {key: task}
-            self.set_dependencies(
-                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped,
-            )
+            self.set_dependencies(flow=flow, keyword_tasks=keyword_tasks, mapped=mapped)
         else:
-            self.set_dependencies(
-                flow=flow, upstream_tasks=[task], mapped=mapped,
-            )
+            self.set_dependencies(flow=flow, upstream_tasks=[task], mapped=mapped)
 
     def set_downstream(
         self, task: "Task", flow: "Flow" = None, key: str = None, mapped: bool = False,
@@ -673,12 +669,10 @@ class Task(metaclass=SignatureValidator):
         if key is not None:
             keyword_tasks = {key: self}
             task.set_dependencies(  # type: ignore
-                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped,
+                flow=flow, keyword_tasks=keyword_tasks, mapped=mapped
             )  # type: ignore
         else:
-            task.set_dependencies(
-                flow=flow, upstream_tasks=[self], mapped=mapped,
-            )
+            task.set_dependencies(flow=flow, upstream_tasks=[self], mapped=mapped)
 
     def inputs(self) -> Dict[str, Dict]:
         """

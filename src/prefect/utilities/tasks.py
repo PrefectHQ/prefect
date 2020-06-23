@@ -2,20 +2,14 @@ import warnings
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 import pendulum
 from toolz import curry
 
 import prefect
 
-__all__ = (
-    "tags",
-    "as_task",
-    "pause_task",
-    "task",
-    "defaults_from_attrs",
-)
+__all__ = ("tags", "as_task", "pause_task", "task", "defaults_from_attrs")
 
 if TYPE_CHECKING:
     import prefect.tasks.core.constants
