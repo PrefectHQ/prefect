@@ -1,0 +1,5 @@
+enhancement:
+  - "Create utility function for getting Kubernetes client - [#2845](https://github.com/PrefectHQ/prefect/pull/2845)"
+
+contributor:
+  - "[Paweł Cieśliński](https://github.com/pcieslinski)"

@@ -1,15 +1,15 @@
 from unittest.mock import MagicMock
 
 import pytest
+
+pytest.importorskip("kubernetes")
+
 from kubernetes import client
 from kubernetes.config.config_exception import ConfigException
 
 import prefect
 from prefect.utilities.kubernetes import get_kubernetes_client
 from prefect.utilities.configuration import set_temporary_config
-
-
-pytest.importorskip("kubernetes")
 
 
 @pytest.fixture
