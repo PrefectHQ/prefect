@@ -4,8 +4,8 @@ the pymysql library.
 """
 
 try:
-    from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
+    from prefect.contrib.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 except ImportError:
     raise ImportError(
-        'Using `prefect.tasks.mysql` requires Prefect to be installed with the "mysql" extra.'
+        'Using `prefect.contrib.tasks.mysql` requires Prefect to be installed with the "mysql" extra.'
     )
