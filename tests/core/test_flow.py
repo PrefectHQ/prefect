@@ -936,37 +936,33 @@ def test_update_with_mapped_edges():
 
 
 def test_update_with_parameter_merge():
-    
     @task
-    def add_one(a_number: int): 
+    def add_one(a_number: int):
         return a_number + 1
 
     @task
-    def mult_one(z :int): 
+    def mult_one(z: int):
         return z * 1
 
     with Flow("Add") as add_fl:
         a_number = Parameter("a_number", default=1)
-        
-        the_result = add_one(a_number)
-        
-        pos_two = mult_one(the_result)
 
+        the_result = add_one(a_number)
+
+        pos_two = mult_one(the_result)
 
     @task
     def sub_one(a_number: int, another_number: int):
         return a_number - another_number
 
-
     with Flow("Subtract") as subtract_fl:
-        
+
         a_number = Parameter("a_number", default=1)
         another_number = Parameter("another_number", default=2)
-        
-        the_result = sub_one(a_number, another_number)
-        
-        neg_one = mult_one(the_result)
 
+        the_result = sub_one(a_number, another_number)
+
+        neg_one = mult_one(the_result)
 
     add_fl.update(subtract_fl, merge_parameters=True)
 
@@ -979,8 +975,11 @@ def test_update_with_parameter_merge():
     assert add_res == 2
     assert sub_res == -1
 
-    with pytest.raises(ValueError, match='A task with the slug "a_number" already exists in this flow.'):
+    with pytest.raises(
+        ValueError, match='A task with the slug "a_number" already exists in this flow.'
+    ):
         add_fl.update(subtract_fl)
+
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
     f = Flow(name="test")

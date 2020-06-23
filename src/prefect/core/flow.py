@@ -612,34 +612,33 @@ class Flow:
             validate = True
 
         for task in flow.tasks:
-            
+
             if merge_parameters and isinstance(task, Parameter):
                 duped_parameter = [p for p in self.parameters() if p.name == task.name]
             else:
                 duped_parameter = []
-            #duped_task = self.get_tasks(slug=task.slug) if merge_parameters else list()
+            # duped_task = self.get_tasks(slug=task.slug) if merge_parameters else list()
 
             # Adds a task if slugs are not duplicate
             if (task not in self.tasks) and (not duped_parameter):
                 self.add_task(task)
 
-
         # Append the new edges to this flow.
         for edge in flow.edges:
-    
+
             if edge.upstream_task.name in self.slugs.values():
-                
+
                 upstream_task = self.get_tasks(name=edge.upstream_task.name)[0]
-              
+
             else:
                 upstream_task = edge.upstream_task
-    
+
             self.add_edge(
                 upstream_task=upstream_task,
                 downstream_task=edge.downstream_task,
                 key=edge.key,
                 mapped=edge.mapped,
-                validate=validate
+                validate=validate,
             )
 
         self.constants.update(flow.constants or {})
