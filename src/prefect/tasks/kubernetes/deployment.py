@@ -1,11 +1,10 @@
-from typing import Any
+from typing import Any, cast
 
-from kubernetes import client, config
-from kubernetes.config.config_exception import ConfigException
+from kubernetes import client
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.utilities.kubernetes import get_kubernetes_client
 
 
 class CreateNamespacedDeployment(Task):
@@ -91,21 +90,10 @@ class CreateNamespacedDeployment(Task):
                 "A dictionary representing a ExtensionsV1beta1Deployment must be provided."
             )
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
@@ -198,21 +186,10 @@ class DeleteNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
         delete_option_kwargs = delete_option_kwargs or {}
@@ -295,21 +272,10 @@ class ListNamespacedDeployment(Task):
             - ExtensionsV1beta1DeploymentList: a Kubernetes ExtensionsV1beta1DeploymentList
                 of the deployments which are found
         """
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
@@ -412,21 +378,10 @@ class PatchNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
@@ -519,21 +474,10 @@ class ReadNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
@@ -638,21 +582,10 @@ class ReplaceNamespacedDeployment(Task):
         if not deployment_name:
             raise ValueError("The name of a Kubernetes deployment must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.ExtensionsV1beta1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.ExtensionsV1beta1Api()
+        api_client = cast(
+            client.ExtensionsV1beta1Api,
+            get_kubernetes_client("deployment", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
