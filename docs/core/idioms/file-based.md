@@ -44,7 +44,7 @@ Here's a breakdown of the three kwargs set on the `GitHub` storage:
 
 - `repo`: the name of the repo that this code will live in
 - `path`: the location of the flow file in the repo. This must be an exact match to the path of the file.
-- `secrets`: the name of a [default Prefect secret](http://localhost:8081/core/concepts/secrets.html#default-secrets) which is a GitHub [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line). This is set so that when the flow is executed it has the proper permissions to pull the file from the repo.
+- `secrets`: the name of a [default Prefect secret](/core/concepts/secrets.html#default-secrets) which is a GitHub [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line). This is set so that when the flow is executed it has the proper permissions to pull the file from the repo.
 
 Push this code to the repository:
 
