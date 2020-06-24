@@ -72,9 +72,9 @@ def cloud_flow():
             environment.setup(flow)
             environment.execute(flow)
     except Exception as exc:
-        msg = """Flow failed to deserialize — please ensure that all packages / imports
-        that the flow relies on are available and that the flow is being deserialized in
-        an environment that has the same Python version that it was built in.
+        msg = """Flow failed to deserialize — please ensure all packages / imports the
+        flow relies on are available and the flow is being deserialized in an environment
+        that has the same Python version it was built in.
         {}""".format(
             repr(exc)
         )
