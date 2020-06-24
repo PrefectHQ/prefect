@@ -51,8 +51,7 @@ module.exports = {
         githubLabels: ['docs'],
         twitter: true
       }
-    ],
-    ['vuepress-plugin-smooth-scroll', true]
+    ]
   ],
   themeConfig: {
     algolia: {
