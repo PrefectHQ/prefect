@@ -130,7 +130,9 @@ class Environment:
             with prefect.context(secrets=secrets):
                 flow = storage.get_flow(storage.flows[flow_data.name])
                 runner_cls = get_default_flow_runner_class()
-                if getattr(self, "executor", None) is not None:
+                if getattr(flow.environment, "executor", None) is not None:
+                    executor = flow.environment.executor
+                elif getattr(self, "executor", None) is not None:
                     executor = self.executor  # type: ignore
                 else:
                     executor_cls = get_default_executor_class()
