@@ -68,21 +68,22 @@ def cloud_flow():
             secrets[secret] = PrefectSecret(name=secret).run()
 
         with prefect.context(secrets=secrets, loading_flow=True):
-            flow = storage.get_flow(storage.flows[flow_data.name])
+            try:
+                flow = storage.get_flow(storage.flows[flow_data.name])
+            except TypeError:
+                raise TypeError(
+                    (
+                        "Flow failed to deserialize — please ensure all packages / imports the flow "
+                        "relies on are available and the flow is being deserialized in an environment "
+                        "that has the same Python version it was built in."
+                    )
+                )
             environment = flow.environment
 
             environment.setup(flow)
             environment.execute(flow)
     except Exception as exc:
-        msg = textwrap.dedent(
-            """Flow failed to deserialize — please ensure all packages / imports the flow
-            relies on are available and the flow is being deserialized in an environment
-            that has the same Python version it was built in. Also verify the flow's
-            environment is configured properly to create the necessary resources.
-            {}""".format(
-                repr(exc)
-            )
-        )
+        msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
 
         state = prefect.engine.state.Failed(message=msg)
         version = result.data.flow_run[0].version
