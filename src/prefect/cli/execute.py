@@ -1,3 +1,5 @@
+import textwrap
+
 import click
 
 import prefect
@@ -72,12 +74,16 @@ def cloud_flow():
             environment.setup(flow)
             environment.execute(flow)
     except Exception as exc:
-        msg = """Flow failed to deserialize — please ensure all packages / imports the
-        flow relies on are available and the flow is being deserialized in an environment
-        that has the same Python version it was built in.
-        {}""".format(
-            repr(exc)
+        msg = textwrap.dedent(
+            """Flow failed to deserialize — please ensure all packages / imports the flow
+            relies on are available and the flow is being deserialized in an environment
+            that has the same Python version it was built in. Also verify the flow's
+            environment is configured properly to create the necessary resources.
+            {}""".format(
+                repr(exc)
+            )
         )
+
         state = prefect.engine.state.Failed(message=msg)
         version = result.data.flow_run[0].version
         client.set_flow_run_state(flow_run_id=flow_run_id, version=version, state=state)
