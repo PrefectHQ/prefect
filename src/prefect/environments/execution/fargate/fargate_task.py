@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Any, Callable, List, TYPE_CHECKING
+from typing import Callable, List, TYPE_CHECKING
 
 import prefect
 from prefect import config
