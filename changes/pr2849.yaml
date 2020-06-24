@@ -1,0 +1,2 @@
+fix:
+  - "Change Environment.run_flow() to prefer executor from flow's environment - [#2849](https://github.com/PrefectHQ/prefect/pull/2849)"
