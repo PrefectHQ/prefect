@@ -39,7 +39,7 @@ module.exports = {
       }
     ],
     ['vuepress-plugin-code-copy', true],
-    'vuepress-plugin-element-tabs',
+    ['vuepress-plugin-element-tabs', true],
     [
       'vuepress-plugin-selected-text-popup',
       {
@@ -51,7 +51,8 @@ module.exports = {
         githubLabels: ['docs'],
         twitter: true
       }
-    ]
+    ],
+    ['vuepress-plugin-smooth-scroll', true]
   ],
   themeConfig: {
     algolia: {

@@ -20,7 +20,7 @@ SECTIONS = [
 DEDUPLICATE_SECTIONS = ["contributor"]
 
 TEMPLATE = """
-## {version} <Badge text="beta" type="success">
+## {version} <Badge text="beta" type="success" />
 
 Released on {date}.
 
