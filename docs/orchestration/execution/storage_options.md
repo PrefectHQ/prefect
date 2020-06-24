@@ -29,7 +29,7 @@ Additionally, in more recent releases of Core your flow will default to using a 
 
 ## Azure Blob Storage
 
-[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from that Azure Blob container using a connection string or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[Azure Storage](/api/latest/environments/storage.html#azure) is a storage option that uploads flows to an Azure Blob container.
 
 ```python
 from prefect import Flow
@@ -54,7 +54,7 @@ Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us
 
 ## AWS S3
 
-[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from an S3 bucket or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[S3 Storage](/api/latest/environments/storage.html#s3) is a storage option that uploads flows to an AWS S3 bucket.
 
 ```python
 from prefect import Flow
@@ -79,7 +79,7 @@ S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.
 
 ## Google Cloud Storage
 
-[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to download from a GCS bucket or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[GCS Storage](/api/latest/environments/storage.html#gcs) is a storage option that uploads flows to a Google Cloud Storage bucket.
 
 ```python
 from prefect import Flow
@@ -104,7 +104,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 ## GitHub
 
-[GitHub Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files. Flows stored using this option can be run by [local agents](/orchestration/agents/local.html) as long as the machine running the local agent is configured to pull from a git repo or by container-based agents using the method outlined [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+[GitHub Storage](/api/latest/environments/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
 
 For a detailed look on how to use GitHub storage visit the [Using file based storage](/core/idioms/file-based.html) idiom.
 
