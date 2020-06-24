@@ -36,56 +36,52 @@ def test_get_flow_image_raises_on_missing_info():
         image = get_flow_image(flow=flow)
 
 
-def test_extract_flow_from_file():
-    with tempfile.TemporaryDirectory() as tmpdir:
+def test_extract_flow_from_file(tmpdir):
+    contents = """from prefect import Flow\nf=Flow('test-flow')"""
 
-        contents = """from prefect import Flow\nf=Flow('test-flow')"""
+    full_path = os.path.join(tmpdir, "flow.py")
 
-        full_path = os.path.join(tmpdir, "flow.py")
+    with open(full_path, "w") as f:
+        f.write(contents)
 
-        with open(full_path, "w") as f:
-            f.write(contents)
+    flow = extract_flow_from_file(file_path=full_path)
+    assert flow.run().is_successful()
 
-        flow = extract_flow_from_file(file_path=full_path)
-        assert flow.run().is_successful()
+    flow = extract_flow_from_file(file_contents=contents)
+    assert flow.run().is_successful()
 
-        flow = extract_flow_from_file(file_contents=contents)
-        assert flow.run().is_successful()
+    flow = extract_flow_from_file(file_path=full_path, flow_name="test-flow")
+    assert flow.run().is_successful()
 
-        flow = extract_flow_from_file(file_path=full_path, flow_name="test-flow")
-        assert flow.run().is_successful()
+    with pytest.raises(ValueError):
+        extract_flow_from_file(file_path=full_path, flow_name="not-real")
 
-        with pytest.raises(ValueError):
-            extract_flow_from_file(file_path=full_path, flow_name="not-real")
+    with pytest.raises(ValueError):
+        extract_flow_from_file(file_path=full_path, file_contents=contents)
 
-        with pytest.raises(ValueError):
-            extract_flow_from_file(file_path=full_path, file_contents=contents)
-
-        with pytest.raises(ValueError):
-            extract_flow_from_file()
+    with pytest.raises(ValueError):
+        extract_flow_from_file()
 
 
-def test_extract_flow_from_file_raises_on_run_register():
-    with tempfile.TemporaryDirectory() as tmpdir:
+def test_extract_flow_from_file_raises_on_run_register(tmpdir):
+    contents = """from prefect import Flow\nf=Flow('test-flow')\nf.run()"""
 
-        contents = """from prefect import Flow\nf=Flow('test-flow')\nf.run()"""
+    full_path = os.path.join(tmpdir, "flow.py")
 
-        full_path = os.path.join(tmpdir, "flow.py")
+    with open(full_path, "w") as f:
+        f.write(contents)
 
-        with open(full_path, "w") as f:
-            f.write(contents)
+    with prefect.context({"loading_flow": True}):
+        with pytest.raises(RuntimeError):
+            extract_flow_from_file(file_path=full_path)
 
-        with prefect.context({"loading_flow": True}):
-            with pytest.raises(RuntimeError):
-                extract_flow_from_file(file_path=full_path)
+    contents = """from prefect import Flow\nf=Flow('test-flow')\nf.register()"""
 
-        contents = """from prefect import Flow\nf=Flow('test-flow')\nf.register()"""
+    full_path = os.path.join(tmpdir, "flow.py")
 
-        full_path = os.path.join(tmpdir, "flow.py")
+    with open(full_path, "w") as f:
+        f.write(contents)
 
-        with open(full_path, "w") as f:
-            f.write(contents)
-
-        with prefect.context({"loading_flow": True}):
-            with pytest.raises(RuntimeError):
-                extract_flow_from_file(file_path=full_path)
+    with prefect.context({"loading_flow": True}):
+        with pytest.raises(RuntimeError):
+            extract_flow_from_file(file_path=full_path)

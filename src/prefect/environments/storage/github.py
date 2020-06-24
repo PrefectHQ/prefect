@@ -17,16 +17,16 @@ class GitHub(Storage):
     meaning that all flow files should be pushed independently. A typical workflow using
     this storage type might look like the following:
 
-    Compose flow `.py` file where flow has GitHub storage:
+    - Compose flow `.py` file where flow has GitHub storage:
 
     ```python
     flow = Flow("my-flow")
     flow.storage = GitHub(repo="my/repo", path="/flows/flow.py")
     ```
 
-    Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+    - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
 
-    Call `prefect register -f flow.py` to register this flow with GitHub storage.
+    - Call `prefect register -f flow.py` to register this flow with GitHub storage.
 
     Args:
         - repo (str): the name of a GitHub repository to store this Flow

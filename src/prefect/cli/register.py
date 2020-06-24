@@ -30,7 +30,7 @@ def register():
     "--name",
     "-n",
     required=False,
-    help="The name of a flow to pull out of the file provided.",
+    help="The `flow.name` to pull out of the file provided.",
     hidden=True,
     default=None,
 )
@@ -50,7 +50,7 @@ def flow(file, name, project):
     \b
     Options:
         --file, -f      TEXT    The path to a local file which contains a flow  [required]
-        --name, -n      TEXT    The name of a flow to pull out of the file provided. If a name
+        --name, -n      TEXT    The `flow.name` to pull out of the file provided. If a name
                                 is not provided then the first flow object found will be registered.
         --project       TEXT    The name of a Prefect Cloud project to register this flow
 
