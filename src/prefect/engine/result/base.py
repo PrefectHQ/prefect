@@ -28,7 +28,7 @@ import uuid
 from typing import Any, Callable, Iterable
 
 from prefect.engine.result_handlers import ResultHandler
-from prefect.engine.serializers import PickleSerializer
+from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
 
 
@@ -95,9 +95,10 @@ class Result(ResultInterface):
             str` and at write time all formatting kwargs will be passed and a fully
             formatted location is expected as the return value.  Can be used for
             string formatting logic that `.format(**kwargs)` doesn't support
-        - serializer (PickleSerializer): a serializer that can transform Python
+        - serializer (Serializer): a serializer that can transform Python
             objects to bytes and recover them. The serializer is used whenever the
-            `Result` is writing to or reading from storage.
+            `Result` is writing to or reading from storage. Defaults to
+            `PickleSerializer`.
     """
 
     def __init__(
@@ -107,7 +108,7 @@ class Result(ResultInterface):
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         location: str = None,
-        serializer: PickleSerializer = None,
+        serializer: Serializer = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
