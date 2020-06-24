@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,7 +6,8 @@ import pytest
 import prefect
 from prefect import Flow
 from prefect.environments import Environment
-from prefect.environments.storage import Docker, Local
+from prefect.environments.execution import load_and_run_flow
+from prefect.environments.storage import Docker, Local, Storage
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -65,19 +67,25 @@ def test_serialize_environment():
     assert env["type"] == "Environment"
 
 
-def test_run_flow(monkeypatch, tmpdir):
-    environment = Environment()
+def test_load_and_run_flow(monkeypatch, tmpdir):
+    myflow = Flow("test-flow")
 
-    flow_runner = MagicMock()
-    flow_runner_class = MagicMock(return_value=flow_runner)
+    # This is gross. Since the flow is pickled/unpickled, there's no easy way
+    # to access the same object to set a flag. Resort to setting an environment
+    # variable as a global flag that won't get copied eagerly through
+    # cloudpickle.
+    monkeypatch.setenv("TEST_RUN_CALLED", "FALSE")
 
-    monkeypatch.setattr(
-        "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner_class),
-    )
+    class MyEnvironment(Environment):
+        def run(self, flow):
+            assert flow is myflow
+            os.environ["TEST_RUN_CALLED"] = "TRUE"
 
-    d = Local(str(tmpdir))
-    d.add_flow(Flow("name"))
+    myflow.environment = MyEnvironment()
+
+    storage = Local(str(tmpdir))
+    myflow.storage = storage
+    storage.add_flow(myflow)
 
     gql_return = MagicMock(
         return_value=MagicMock(
@@ -86,7 +94,7 @@ def test_run_flow(monkeypatch, tmpdir):
                     GraphQLResult(
                         {
                             "flow": GraphQLResult(
-                                {"name": "name", "storage": d.serialize()}
+                                {"name": myflow.name, "storage": storage.serialize()}
                             )
                         }
                     )
@@ -101,18 +109,11 @@ def test_run_flow(monkeypatch, tmpdir):
     with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
         {"flow_run_id": "id"}
     ):
-        environment.run_flow()
-
-    assert flow_runner_class.call_args[1]["flow"].name == "name"
-    assert flow_runner.run.call_args[1]["executor"] is not None
+        load_and_run_flow()
+    assert os.environ["TEST_RUN_CALLED"] == "TRUE"
 
 
-def test_run_flow_no_flow_run_id_in_context(monkeypatch, tmpdir):
-    environment = Environment()
-
-    d = Local(str(tmpdir))
-    d.add_flow(Flow("name"))
-
+def test_load_and_run_flow_no_flow_run_id_in_context(monkeypatch, tmpdir):
     with set_temporary_config({"cloud.auth_token": "test"}):
         with pytest.raises(ValueError):
-            environment.run_flow()
+            load_and_run_flow()

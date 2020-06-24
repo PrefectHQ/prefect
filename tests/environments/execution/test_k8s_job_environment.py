@@ -10,9 +10,8 @@ import prefect
 from prefect import Flow
 from prefect.engine.executors import LocalDaskExecutor
 from prefect.environments import KubernetesJobEnvironment
-from prefect.environments.storage import Docker, Local
+from prefect.environments.storage import Docker
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.graphql import GraphQLResult
 
 
 @pytest.fixture
@@ -122,6 +121,30 @@ def test_execute(monkeypatch):
     )
 
 
+def test_environment_run():
+    class MyExecutor(LocalDaskExecutor):
+        submit_called = False
+
+        def submit(self, *args, **kwargs):
+            self.submit_called = True
+            return super().submit(*args, **kwargs)
+
+    global_dict = {}
+
+    @prefect.task
+    def add_to_dict():
+        global_dict["run"] = True
+
+    executor = MyExecutor()
+    environment = KubernetesJobEnvironment(executor=executor)
+    flow = prefect.Flow("test", tasks=[add_to_dict], environment=environment)
+
+    environment.run(flow=flow)
+
+    assert global_dict.get("run") is True
+    assert executor.submit_called
+
+
 def test_create_namespaced_job_fails_outside_cluster(job_spec_file):
     environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
     storage = Docker(registry_url="test1", image_name="test2", image_tag="test3")
@@ -129,96 +152,6 @@ def test_create_namespaced_job_fails_outside_cluster(job_spec_file):
     with pytest.raises(EnvironmentError):
         with set_temporary_config({"cloud.auth_token": "test"}):
             environment.execute(Flow("test", storage=storage))
-
-
-def test_run_flow(monkeypatch, tmpdir, job_spec_file):
-    environment = KubernetesJobEnvironment(job_spec_file=job_spec_file)
-
-    flow_runner = MagicMock()
-    flow_runner_class = MagicMock(return_value=flow_runner)
-
-    monkeypatch.setattr(
-        "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner_class),
-    )
-
-    d = Local(str(tmpdir))
-    d.add_flow(prefect.Flow("name"))
-
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(
-                flow_run=[
-                    GraphQLResult(
-                        {
-                            "flow": GraphQLResult(
-                                {"name": "name", "storage": d.serialize(),}
-                            )
-                        }
-                    )
-                ],
-            )
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.environments.execution.base.Client", client)
-
-    with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-        {"flow_run_id": "id"}
-    ):
-        environment.run_flow()
-
-    assert flow_runner_class.call_args[1]["flow"].name == "name"
-    assert flow_runner.run.call_args[1]["executor"] is environment.executor
-
-
-def test_run_flow_calls_callbacks(monkeypatch, tmpdir):
-    start_func = MagicMock()
-    exit_func = MagicMock()
-
-    file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
-    environment = KubernetesJobEnvironment(
-        os.path.join(file_path, "job.yaml"), on_start=start_func, on_exit=exit_func
-    )
-
-    flow_runner = MagicMock()
-    monkeypatch.setattr(
-        "prefect.engine.get_default_flow_runner_class",
-        MagicMock(return_value=flow_runner),
-    )
-
-    d = Local(str(tmpdir))
-    d.add_flow(prefect.Flow("name"))
-
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(
-                flow_run=[
-                    GraphQLResult(
-                        {
-                            "flow": GraphQLResult(
-                                {"name": "name", "storage": d.serialize()}
-                            )
-                        }
-                    )
-                ],
-            )
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.environments.execution.base.Client", client)
-
-    with set_temporary_config({"cloud.auth_token": "test"}), prefect.context(
-        {"flow_run_id": "id"}
-    ):
-        environment.run_flow()
-
-    assert flow_runner.call_args[1]["flow"].name == "name"
-
-    assert start_func.called
-    assert exit_func.called
 
 
 def test_populate_job_yaml(job_spec_file, job):
@@ -272,7 +205,7 @@ def test_populate_job_yaml(job_spec_file, job):
         "-c",
     ]
     assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
     ]
 
 
@@ -320,7 +253,7 @@ def test_populate_job_yaml_no_defaults(job_spec_file, job):
         "-c",
     ]
     assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
     ]
 
 
@@ -376,7 +309,7 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
         "-c",
     ]
     assert yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] == [
-        "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
     ]
 
     # Assert Second Container
@@ -395,7 +328,7 @@ def test_populate_job_yaml_multiple_containers(job_spec_file, job):
     )
 
     assert yaml_obj["spec"]["template"]["spec"]["containers"][1]["args"] != [
-        "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+        "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
     ]
 
 

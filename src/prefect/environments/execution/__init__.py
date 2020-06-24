@@ -4,7 +4,7 @@ Execution environments encapsulate the logic for where your Flow should execute 
 Currently, we recommend all users deploy their Flow using the `LocalEnvironment` configured with the
 appropriate choice of executor.
 """
-from prefect.environments.execution.base import Environment
+from prefect.environments.execution.base import Environment, load_and_run_flow
 from prefect.environments.execution.dask import DaskKubernetesEnvironment
 from prefect.environments.execution.dask import DaskCloudProviderEnvironment
 from prefect.environments.execution.fargate import FargateTaskEnvironment
