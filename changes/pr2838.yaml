@@ -1,0 +1,2 @@
+fix:
+  - "Make sure image from Docker storage is always used with KubernetesJobEnvironment - [#2838](https://github.com/PrefectHQ/prefect/pull/2838)"
