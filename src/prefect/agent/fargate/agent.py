@@ -618,6 +618,9 @@ class FargateAgent(Agent):
         container_definitions[0]["logConfiguration"] = container_definitions_kwargs.get(
             "logConfiguration", {}
         )
+        container_definitions[0][
+            "repositoryCredentials"
+        ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
         # Register task definition
         self.logger.debug(
