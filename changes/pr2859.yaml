@@ -1,0 +1,2 @@
+task:
+  - "Raise a more informative error when attempting to deserialize a flow in a different Python version - [#2859](https://github.com/PrefectHQ/prefect/pull/2859)"
