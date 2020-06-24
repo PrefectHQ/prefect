@@ -139,6 +139,16 @@ class TestPrefectResult:
         assert result.exists(json.dumps(value)) is True
         assert result.exists(value) is False
 
+    def test_has_json_serializer(self):
+        result = PrefectResult(value=42)
+        assert isinstance(result.serializer, prefect.engine.serializers.JSONSerializer)
+
+    def test_cant_change_serializer(self):
+        with pytest.raises(ValueError, match="PrefectResult must use a JSONSerializer"):
+            PrefectResult(
+                value=42, serializer=prefect.engine.serializers.PickleSerializer
+            )
+
 
 class TestLocalResult:
     @pytest.fixture(scope="class")

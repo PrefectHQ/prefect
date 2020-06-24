@@ -16,8 +16,9 @@ class PrefectResult(Result):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        if "serializer" not in kwargs:
-            kwargs["serializer"] = JSONSerializer()
+        if "serializer" in kwargs:
+            raise ValueError("PrefectResult must use a JSONSerializer")
+        kwargs["serializer"] = JSONSerializer()
         super().__init__(**kwargs)
 
     def read(self, location: str) -> Result:
