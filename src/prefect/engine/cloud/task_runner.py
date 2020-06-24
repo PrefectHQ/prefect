@@ -111,11 +111,23 @@ class CloudTaskRunner(TaskRunner):
             cloud_state = new_state
             state = self.client.set_task_run_state(
                 task_run_id=task_run_id,
-                version=version,
+                version=version if cloud_state.is_running() else None,
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
+        except prefect.utilities.exceptions.VersionLockError as exc:
+            # task_run_info = self.client.get_task_run_info(
+            #         flow_run_id=prefect.context.get("flow_run_id", ""),
+            #         task_id=task_run_id,
+            #         map_index=prefect.context.get("map_index"),
+            #     )
+            # Add a client function for retrieving task run state based solely on id
+            print(task_run_info)
+            print("WE HAVE A VERSION LOCK ERROR")
+            raise ENDRUN(state=ClientFailed(state=new_state))
         except Exception as exc:
+            print("@@@@@@@@@@@@@@@@")
+            print(exc[0].message)
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
             )

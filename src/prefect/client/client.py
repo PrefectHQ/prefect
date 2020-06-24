@@ -14,7 +14,7 @@ import toml
 from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import AuthorizationError, ClientError
+from prefect.utilities.exceptions import AuthorizationError, ClientError, VersionLockError
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
@@ -223,6 +223,8 @@ class Client:
                 raise AuthorizationError(result["errors"])
             elif "Malformed Authorization header" in str(result["errors"]):
                 raise AuthorizationError(result["errors"])
+            elif "State update failed" in str(result["errors"]):
+                raise VersionLockError(result["errors"])
             raise ClientError(result["errors"])
         else:
             return GraphQLResult(result)  # type: ignore
@@ -975,15 +977,15 @@ class Client:
         self.graphql(mutation, raise_on_error=True)
 
     def set_flow_run_state(
-        self, flow_run_id: str, version: int, state: "prefect.engine.state.State"
+        self, flow_run_id: str, state: "prefect.engine.state.State", version: int = None,
     ) -> "prefect.engine.state.State":
         """
         Sets new state for a flow run in the database.
 
         Args:
             - flow_run_id (str): the id of the flow run to set state for
-            - version (int): the current version of the flow run state
             - state (State): the new state for this flow run
+            - version (int, optional): the current version of the flow run state
 
         Returns:
             - State: the state the current flow run should be considered in
@@ -1134,8 +1136,8 @@ class Client:
     def set_task_run_state(
         self,
         task_run_id: str,
-        version: int,
         state: "prefect.engine.state.State",
+        version: int = None,
         cache_for: datetime.timedelta = None,
     ) -> "prefect.engine.state.State":
         """
@@ -1143,8 +1145,8 @@ class Client:
 
         Args:
             - task_run_id (str): the id of the task run to set state for
-            - version (int): the current version of the task run state
             - state (State): the new state for this task run
+            - version (int, optional): the current version of the task run state
             - cache_for (timedelta, optional): how long to store the result of this task for, using the
                 serializer set in config; if not provided, no caching occurs
 
