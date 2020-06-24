@@ -1,0 +1,9 @@
+contact_links:
+
+  - name: Ask a question or present an idea 💡
+    url: https://github.com/PrefectHQ/prefect/discussions/category_choices
+    about: We demand rigidly defined areas of doubt and uncertainty!
+
+  - name: Chat in Slack 💬
+    url: https://join.slack.com/t/prefect-community/shared_invite/enQtODQ3MTA2MjI4OTgyLTliYjEyYzljNTc2OThlMDE4YmViYzk3NDU4Y2EzMWZiODM0NmU3NjM0NjIyNWY0MGIxOGQzODMxNDMxYWYyOTE
+    about: Don't Panic
