@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from kubernetes.config.config_exception import ConfigException
 
 import prefect
 from prefect.tasks.kubernetes import (
@@ -20,6 +19,16 @@ def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
             yield
+
+
+@pytest.fixture
+def api_client(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.tasks.kubernetes.service.get_kubernetes_client",
+        MagicMock(return_value=client),
+    )
+    return client
 
 
 class TestCreateNamespacedServiceTask:
@@ -52,149 +61,50 @@ class TestCreateNamespacedServiceTask:
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = CreateNamespacedService(body={"test": "test"})
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = CreateNamespacedService(
-            body={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = CreateNamespacedService(
-            body={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedService(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert coreapi.create_namespaced_service.call_args[1]["body"] == {"test": "b"}
+        assert api_client.create_namespaced_service.call_args[1]["body"] == {
+            "test": "b"
+        }
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedService(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"a": "test"})
 
-        assert coreapi.create_namespaced_service.call_args[1]["body"] == {
+        assert api_client.create_namespaced_service.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedService()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.create_namespaced_service.call_args[1]["body"] == {"test": "a"}
+        assert api_client.create_namespaced_service.call_args[1]["body"] == {
+            "test": "a"
+        }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedService(body={"test": "a"}, kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.create_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.create_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedService(body={"test": "a"}, kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.create_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.create_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.create_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedService(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.create_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_service.call_args[1]["test"] == "a"
 
 
 class TestDeleteNamespacedServiceTask:
@@ -227,104 +137,24 @@ class TestDeleteNamespacedServiceTask:
         with pytest.raises(ValueError):
             task.run(service_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = DeleteNamespacedService(service_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = DeleteNamespacedService(
-            service_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = DeleteNamespacedService(
-            service_name="test",
-            kube_kwargs={"test": "a"},
-            kubernetes_api_key_secret=None,
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = DeleteNamespacedService(service_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.delete_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.delete_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = DeleteNamespacedService(service_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.delete_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.delete_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.delete_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = DeleteNamespacedService(service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.delete_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_service.call_args[1]["test"] == "a"
 
 
 class TestListNamespacedServiceTask:
@@ -344,100 +174,24 @@ class TestListNamespacedServiceTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ListNamespacedService()
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = ListNamespacedService(
-            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = ListNamespacedService(
-            kube_kwargs={"test": "a"}, kubernetes_api_key_secret=None
-        )
-
-        task.run(kube_kwargs={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ListNamespacedService(kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.list_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.list_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ListNamespacedService(kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.list_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.list_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.list_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ListNamespacedService()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.list_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_service.call_args[1]["test"] == "a"
 
 
 class TestPatchNamespacedServiceTask:
@@ -478,152 +232,49 @@ class TestPatchNamespacedServiceTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, service_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = PatchNamespacedService(body={"test": "test"}, service_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = PatchNamespacedService(
-            body={"test": "a"}, service_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = PatchNamespacedService(
-            body={"test": "a"}, service_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedService(body={"test": "a"}, service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert coreapi.patch_namespaced_service.call_args[1]["body"] == {"test": "b"}
+        assert api_client.patch_namespaced_service.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedService(body={"test": "a"}, service_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"a": "test"})
-        assert coreapi.patch_namespaced_service.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_service.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedService(service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.patch_namespaced_service.call_args[1]["body"] == {"test": "a"}
+        assert api_client.patch_namespaced_service.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedService(
             body={"test": "a"}, kube_kwargs={"test": "a"}, service_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.patch_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.patch_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedService(
             body={"test": "a"}, kube_kwargs={"test": "a"}, service_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.patch_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.patch_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.patch_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedService(body={"test": "a"}, service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.patch_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_service.call_args[1]["test"] == "a"
 
 
 class TestReadNamespacedServiceTask:
@@ -656,65 +307,24 @@ class TestReadNamespacedServiceTask:
         with pytest.raises(ValueError):
             task.run(service_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ReadNamespacedService(service_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReadNamespacedService(service_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.read_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.read_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReadNamespacedService(service_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.read_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.read_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.read_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReadNamespacedService(service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.read_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_service.call_args[1]["test"] == "a"
 
 
 class TestReplaceNamespacedServiceTask:
@@ -755,149 +365,50 @@ class TestReplaceNamespacedServiceTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, service_name=None)
 
-    def test_api_key_pulled_from_secret(self, monkeypatch, kube_secret):
-        task = ReplaceNamespacedService(body={"test": "test"}, service_name="test")
-        client = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.client", client)
-
-        api_key = {}
-        conf_call = MagicMock()
-        conf_call.return_value.api_key = api_key
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client.Configuration", conf_call
-        )
-        task.run()
-        assert api_key == {"authorization": "test_key"}
-
-    def test_kube_config_in_cluster(self, monkeypatch):
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = ReplaceNamespacedService(
-            body={"test": "a"}, service_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_incluster_config.called
-
-    def test_kube_config_out_of_cluster(self, monkeypatch):
-        config = MagicMock()
-        config.load_incluster_config.side_effect = ConfigException()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
-        task = ReplaceNamespacedService(
-            body={"test": "a"}, service_name="test", kubernetes_api_key_secret=None
-        )
-
-        task.run(body={"test": "b"})
-        assert config.load_kube_config.called
-
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedService(body={"test": "a"}, service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "b"})
-        assert coreapi.replace_namespaced_service.call_args[1]["body"] == {"test": "b"}
+        assert api_client.replace_namespaced_service.call_args[1]["body"] == {
+            "test": "b"
+        }
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedService(body={"test": "a"}, service_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"a": "test"})
-        assert coreapi.replace_namespaced_service.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_service.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedService(service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.replace_namespaced_service.call_args[1]["body"] == {"test": "a"}
+        assert api_client.replace_namespaced_service.call_args[1]["body"] == {
+            "test": "a"
+        }
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedService(
             body={"test": "a"}, kube_kwargs={"test": "a"}, service_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.replace_namespaced_service.call_args[1]["test"] == "b"
+        assert api_client.replace_namespaced_service.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedService(
             body={"test": "a"}, kube_kwargs={"test": "a"}, service_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.replace_namespaced_service.call_args[1]["a"] == "test"
-        assert coreapi.replace_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_service.call_args[1]["a"] == "test"
+        assert api_client.replace_namespaced_service.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedService(body={"test": "a"}, service_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.service.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.service.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.replace_namespaced_service.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_service.call_args[1]["test"] == "a"
