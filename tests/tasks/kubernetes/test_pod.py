@@ -21,6 +21,16 @@ def kube_secret():
             yield
 
 
+@pytest.fixture
+def api_client(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.tasks.kubernetes.pod.get_kubernetes_client",
+        MagicMock(return_value=client),
+    )
+    return client
+
+
 class TestCreateNamespacedPodTask:
     def test_empty_initialization(self, kube_secret):
         task = CreateNamespacedPod()
@@ -51,100 +61,46 @@ class TestCreateNamespacedPodTask:
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedPod(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert coreapi.create_namespaced_pod.call_args[1]["body"] == {"test": "b"}
+        assert api_client.create_namespaced_pod.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedPod(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"a": "test"})
 
-        assert coreapi.create_namespaced_pod.call_args[1]["body"] == {
+        assert api_client.create_namespaced_pod.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedPod()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.create_namespaced_pod.call_args[1]["body"] == {"test": "a"}
+        assert api_client.create_namespaced_pod.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedPod(body={"test": "a"}, kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.create_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.create_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedPod(body={"test": "a"}, kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.create_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.create_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.create_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedPod(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.create_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_pod.call_args[1]["test"] == "a"
 
 
 class TestDeleteNamespacedPodTask:
@@ -177,51 +133,24 @@ class TestDeleteNamespacedPodTask:
         with pytest.raises(ValueError):
             task.run(pod_name=None)
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = DeleteNamespacedPod(pod_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.delete_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.delete_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = DeleteNamespacedPod(pod_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.delete_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.delete_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.delete_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = DeleteNamespacedPod(pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.delete_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_pod.call_args[1]["test"] == "a"
 
 
 class TestListNamespacedPodTask:
@@ -241,51 +170,24 @@ class TestListNamespacedPodTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ListNamespacedPod(kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.list_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.list_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ListNamespacedPod(kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.list_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.list_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.list_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ListNamespacedPod()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.list_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_pod.call_args[1]["test"] == "a"
 
 
 class TestPatchNamespacedPodTask:
@@ -326,103 +228,49 @@ class TestPatchNamespacedPodTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, pod_name=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedPod(body={"test": "a"}, pod_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["body"] == {"test": "b"}
+        assert api_client.patch_namespaced_pod.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedPod(body={"test": "a"}, pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_pod.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedPod(pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["body"] == {"test": "a"}
+        assert api_client.patch_namespaced_pod.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedPod(
             body={"test": "a"}, kube_kwargs={"test": "a"}, pod_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.patch_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedPod(
             body={"test": "a"}, kube_kwargs={"test": "a"}, pod_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.patch_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.patch_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedPod(body={"test": "a"}, pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.patch_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_pod.call_args[1]["test"] == "a"
 
 
 class TestReadNamespacedPodTask:
@@ -455,51 +303,24 @@ class TestReadNamespacedPodTask:
         with pytest.raises(ValueError):
             task.run(pod_name=None)
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReadNamespacedPod(pod_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.read_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.read_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReadNamespacedPod(pod_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.read_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.read_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.read_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReadNamespacedPod(pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.read_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_pod.call_args[1]["test"] == "a"
 
 
 class TestReplaceNamespacedPodTask:
@@ -540,100 +361,46 @@ class TestReplaceNamespacedPodTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, pod_name=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(body={"test": "a"}, pod_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["body"] == {"test": "b"}
+        assert api_client.replace_namespaced_pod.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(body={"test": "a"}, pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_pod.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["body"] == {"test": "a"}
+        assert api_client.replace_namespaced_pod.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(
             body={"test": "a"}, kube_kwargs={"test": "a"}, pod_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["test"] == "b"
+        assert api_client.replace_namespaced_pod.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(
             body={"test": "a"}, kube_kwargs={"test": "a"}, pod_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["a"] == "test"
-        assert coreapi.replace_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_pod.call_args[1]["a"] == "test"
+        assert api_client.replace_namespaced_pod.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedPod(body={"test": "a"}, pod_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.pod.config", config)
-
-        coreapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.pod.client",
-            MagicMock(CoreV1Api=MagicMock(return_value=coreapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert coreapi.replace_namespaced_pod.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_pod.call_args[1]["test"] == "a"

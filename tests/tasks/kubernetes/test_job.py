@@ -21,6 +21,16 @@ def kube_secret():
             yield
 
 
+@pytest.fixture
+def api_client(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.tasks.kubernetes.job.get_kubernetes_client",
+        MagicMock(return_value=client),
+    )
+    return client
+
+
 class TestCreateNamespacedJobTask:
     def test_empty_initialization(self, kube_secret):
         task = CreateNamespacedJob()
@@ -51,100 +61,46 @@ class TestCreateNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(body=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedJob(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert batchapi.create_namespaced_job.call_args[1]["body"] == {"test": "b"}
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedJob(body={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(body={"a": "test"})
 
-        assert batchapi.create_namespaced_job.call_args[1]["body"] == {
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedJob()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert batchapi.create_namespaced_job.call_args[1]["body"] == {"test": "a"}
+        assert api_client.create_namespaced_job.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = CreateNamespacedJob(body={"test": "a"}, kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.create_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = CreateNamespacedJob(body={"test": "a"}, kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.create_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.create_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = CreateNamespacedJob(body={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.create_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.create_namespaced_job.call_args[1]["test"] == "a"
 
 
 class TestDeleteNamespacedJobTask:
@@ -177,51 +133,24 @@ class TestDeleteNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(job_name=None)
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = DeleteNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.delete_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.delete_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = DeleteNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.delete_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.delete_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.delete_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = DeleteNamespacedJob(job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.delete_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.delete_namespaced_job.call_args[1]["test"] == "a"
 
 
 class TestListNamespacedJobTask:
@@ -241,51 +170,24 @@ class TestListNamespacedJobTask:
         assert task.kube_kwargs == {"test": "test"}
         assert task.kubernetes_api_key_secret == "test"
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ListNamespacedJob(kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.list_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.list_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ListNamespacedJob(kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.list_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.list_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.list_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ListNamespacedJob()
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.list_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.list_namespaced_job.call_args[1]["test"] == "a"
 
 
 class TestPatchNamespacedJobTask:
@@ -326,103 +228,49 @@ class TestPatchNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, job_name=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedJob(body={"test": "a"}, job_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert batchapi.patch_namespaced_job.call_args[1]["body"] == {"test": "b"}
+        assert api_client.patch_namespaced_job.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedJob(body={"test": "a"}, job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert batchapi.patch_namespaced_job.call_args[1]["body"] == {
+        assert api_client.patch_namespaced_job.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedJob(job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert batchapi.patch_namespaced_job.call_args[1]["body"] == {"test": "a"}
+        assert api_client.patch_namespaced_job.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = PatchNamespacedJob(
             body={"test": "a"}, kube_kwargs={"test": "a"}, job_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.patch_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.patch_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = PatchNamespacedJob(
             body={"test": "a"}, kube_kwargs={"test": "a"}, job_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.patch_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.patch_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.patch_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = PatchNamespacedJob(body={"test": "a"}, job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.patch_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.patch_namespaced_job.call_args[1]["test"] == "a"
 
 
 class TestReadNamespacedJobTask:
@@ -455,51 +303,24 @@ class TestReadNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(job_name=None)
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReadNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.read_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.read_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReadNamespacedJob(job_name="test", kube_kwargs={"test": "a"})
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.read_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.read_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.read_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReadNamespacedJob(job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.read_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.read_namespaced_job.call_args[1]["test"] == "a"
 
 
 class TestReplaceNamespacedJobTask:
@@ -540,100 +361,46 @@ class TestReplaceNamespacedJobTask:
         with pytest.raises(ValueError):
             task.run(body={"test": "test"}, job_name=None)
 
-    def test_body_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_body_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(body={"test": "a"}, job_name="test")
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
 
         task.run(body={"test": "b"})
-        assert batchapi.replace_namespaced_job.call_args[1]["body"] == {"test": "b"}
+        assert api_client.replace_namespaced_job.call_args[1]["body"] == {"test": "b"}
 
-    def test_body_value_is_appended(self, monkeypatch, kube_secret):
+    def test_body_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(body={"test": "a"}, job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(body={"a": "test"})
-        assert batchapi.replace_namespaced_job.call_args[1]["body"] == {
+        assert api_client.replace_namespaced_job.call_args[1]["body"] == {
             "a": "test",
             "test": "a",
         }
 
-    def test_empty_body_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_body_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(body={"test": "a"})
-        assert batchapi.replace_namespaced_job.call_args[1]["body"] == {"test": "a"}
+        assert api_client.replace_namespaced_job.call_args[1]["body"] == {"test": "a"}
 
-    def test_kube_kwargs_value_is_replaced(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_replaced(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(
             body={"test": "a"}, kube_kwargs={"test": "a"}, job_name="test"
-        )
-
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
         )
 
         task.run(kube_kwargs={"test": "b"})
-        assert batchapi.replace_namespaced_job.call_args[1]["test"] == "b"
+        assert api_client.replace_namespaced_job.call_args[1]["test"] == "b"
 
-    def test_kube_kwargs_value_is_appended(self, monkeypatch, kube_secret):
+    def test_kube_kwargs_value_is_appended(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(
             body={"test": "a"}, kube_kwargs={"test": "a"}, job_name="test"
         )
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"a": "test"})
-        assert batchapi.replace_namespaced_job.call_args[1]["a"] == "test"
-        assert batchapi.replace_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_job.call_args[1]["a"] == "test"
+        assert api_client.replace_namespaced_job.call_args[1]["test"] == "a"
 
-    def test_empty_kube_kwargs_value_is_updated(self, monkeypatch, kube_secret):
+    def test_empty_kube_kwargs_value_is_updated(self, kube_secret, api_client):
         task = ReplaceNamespacedJob(body={"test": "a"}, job_name="test")
 
-        config = MagicMock()
-        monkeypatch.setattr("prefect.tasks.kubernetes.job.config", config)
-
-        batchapi = MagicMock()
-        monkeypatch.setattr(
-            "prefect.tasks.kubernetes.job.client",
-            MagicMock(BatchV1Api=MagicMock(return_value=batchapi)),
-        )
-
         task.run(kube_kwargs={"test": "a"})
-        assert batchapi.replace_namespaced_job.call_args[1]["test"] == "a"
+        assert api_client.replace_namespaced_job.call_args[1]["test"] == "a"
