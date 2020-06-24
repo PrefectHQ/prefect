@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker, Local
 from prefect.utilities.agent import get_flow_image
 from prefect.utilities.graphql import GraphQLResult
@@ -14,7 +14,7 @@ def test_get_flow_image_docker_storage():
                     "storage": Docker(
                         registry_url="test", image_name="name", image_tag="tag"
                     ).serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "id",
                 }
             ),
@@ -31,7 +31,7 @@ def test_get_flow_image_env_metadata():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "environment": RemoteEnvironment(
+                    "environment": LocalEnvironment(
                         metadata={"image": "repo/name:tag"}
                     ).serialize(),
                     "id": "id",
@@ -50,7 +50,7 @@ def test_get_flow_image_raises_on_missing_info():
             "flow": GraphQLResult(
                 {
                     "storage": Local().serialize(),
-                    "environment": RemoteEnvironment().serialize(),
+                    "environment": LocalEnvironment().serialize(),
                     "id": "id",
                 }
             ),

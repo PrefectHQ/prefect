@@ -101,11 +101,16 @@ One thing to note in this recipe is the fact that the Dask scheduler and worker 
 
 ### Flow Source
 
-`dask_flow.py` is a flow which uses the [Remote Dask Environment](/orchestration/execution/remote_dask_environment.html#overview) to execute a flow on a static Dask cluster. The Dask scheduler address is the one that was assigned from `dask_service.yaml`.
+`dask_flow.py` is a flow which uses the
+[LocalEnvironment](/orchestration/execution/local_environment.html) with a
+[DaskExecutor](/api/latest/engine/executors.html#daskexecutor) to execute a
+flow on a static Dask cluster. The Dask scheduler address is the one that was
+assigned from `dask_service.yaml`.
 
 ```python
 from prefect import task, Flow
-from prefect.environments import RemoteDaskEnvironment
+from prefect.engine.executor import DaskExecutor
+from prefect.environments import LocalEnvironment
 from prefect.environments.storage import Docker
 
 
@@ -121,7 +126,9 @@ def output_value(value):
 
 flow = Flow(
     "Static Dask Cluster Example",
-    environment=RemoteDaskEnvironment(address="tcp://dask-scheduler:8786"),
+    environment=LocalEnvironment(
+        executor=DaskExecutor("tcp://dask-scheduler:8786"),
+    ),
     storage=Docker(
         registry_url="gcr.io/dev/", image_name="dask-k8s-flow", image_tag="0.1.0"
     ),

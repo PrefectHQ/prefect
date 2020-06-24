@@ -2,6 +2,7 @@
 sidebarDepth: 1
 editLink: false
 ---
+
 # Changelog
 
 ## Unreleased <Badge text="beta" type="success"/>
@@ -215,7 +216,7 @@ Released on Nov 5, 2019
 
 - None
 
-## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success">
+## 0.7.0 To Affinity and Beyond <Badge text="beta" type="success" />
 
 Released October 29, 2019
 
@@ -1127,4 +1128,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on December 17, 2019 at 21:20 UTC</p>
+  <p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on December 17, 2019 at 21:20 UTC</p>

@@ -64,26 +64,30 @@ While Storage objects provide a way to save and retrieve Flows, [Environments](h
 
 ### How Environments are Used
 
-By default, Prefect attaches `RemoteEnvironment` with your local default executor to every Flow you create. To specify a different environment, provide it to your Flow at initialization:
+By default, Prefect attaches `LocalEnvironment` with your local default
+executor to every Flow you create. To specify a different environment, provide
+it to your Flow at initialization:
 
 ```python
-from prefect.environments import RemoteEnvironment
+from prefect.engine.executors import DaskExecutor
+from prefect.environments import LocalEnvironment
 
-f = Flow("example-env", environment=RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor"))
+f = Flow("example-env", environment=LocalEnvironment(executor=DaskExecutor()))
 ```
 
 or assign it directly:
 
 ```python
-from prefect.environments import RemoteEnvironment
+from prefect.engine.executors import DaskExecutor
+from prefect.environments import LocalEnvironment
 
 f = Flow("example-env")
-f.environment = RemoteEnvironment(executor="prefect.engine.executors.LocalExecutor")
+f.environment = LocalEnvironment(executor=DaskExecutor())
 ```
 
 ### Setup & Execute
 
-The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the Flow is executed e.g., spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the Flow where and how it needs to run e.g., running the Flow in process, as per the [`RemoteEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html##remoteenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html#fargatetaskenvironment).
+The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the Flow is executed e.g., spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the Flow where and how it needs to run e.g., running the Flow in process, as per the [`LocalEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html##localenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html#fargatetaskenvironment).
 
 ### Environment Callbacks
 
@@ -93,11 +97,13 @@ _For more information on the design behind Environment Callbacks visit [PIN 12](
 
 #### Callback Example
 
-In this example we have a function called `report_cluster_metrics` which, when run on a Kubernetes cluster, gathers information about current resource usage. We can use this to track resource usage both before and after a Flow run.
+In this example we have a function called `report_cluster_metrics` which, when
+run on a Kubernetes cluster, gathers information about current resource usage.
+We can use this to track resource usage both before and after a Flow run.
 
 ```python
 from prefect import Flow, task
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 
 
 # Report cluster metrics that we will use before and after Flow run
@@ -124,8 +130,10 @@ def load(data):
 
 
 # Attach out metrics reporting callbacks
-environment = RemoteEnvironment(on_start=report_cluster_metrics,
-                                on_exit=report_cluster_metrics)
+environment = LocalEnvironment(
+    on_start=report_cluster_metrics,
+    on_exit=report_cluster_metrics
+)
 
 
 with Flow("Callback-Example", environment=environment) as flow:
@@ -143,10 +151,10 @@ Environments expose a configurable list of `labels`, allowing you to label your 
 An Agent's labels must be a superset of the labels specified on a Flow's environment. This means that if a Flow's environment labels are specified as `["dev"]` and an Agent is running with labels set to `["dev", "staging"]`, the agent will run that Flow because the _dev_ label is a subset of the labels provided to the Agent.
 
 ```python
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 
 f = Flow("example-label")
-f.environment = RemoteEnvironment(labels=["dev"])
+f.environment = LocalEnvironment(labels=["dev"])
 ```
 
 ```python
@@ -160,10 +168,10 @@ LocalAgent(labels=["dev", "staging"]).start()
 On the other hand if you register a flow that has environment labels set to `["dev", "staging"]` and run an Agent with the labels `["dev"]` then it will not pick up the flow because there exists labels in the environment which were not provided to the agent.
 
 ```python
-from prefect.environments import RemoteEnvironment
+from prefect.environments import LocalEnvironment
 
 f = Flow("example-label")
-f.environment = RemoteEnvironment(labels=["dev", "staging"])
+f.environment = LocalEnvironment(labels=["dev", "staging"])
 ```
 
 ```python

@@ -2,9 +2,10 @@
 sidebarDepth: 1
 editLink: false
 ---
+
 # Changelog
 
-## 0.11.4 <Badge text="beta" type="success">
+## 0.11.4 <Badge text="beta" type="success" />
 
 Released on May 27, 2020.
 
@@ -12,7 +13,7 @@ Released on May 27, 2020.
 
 - Revert GraphQL endpoint change - [#2660](https://github.com/PrefectHQ/prefect/pull/2660)
 
-## 0.11.3 <Badge text="beta" type="success">
+## 0.11.3 <Badge text="beta" type="success" />
 
 Released on May 27, 2020.
 
@@ -1911,4 +1912,4 @@ Released August 20, 2018
 ### Breaking Changes
 
 - None
-<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on June 17, 2020 at 17:27 UTC</p>
+  <p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on June 17, 2020 at 17:27 UTC</p>

@@ -1,8 +1,5 @@
 <template>
-  <ul
-    class="sidebar-links"
-    v-if="items.length"
-  >
+  <ul v-if="items.length" class="sidebar-links">
     <li v-for="(item, i) in items" :key="i">
       <SidebarGroup
         v-if="item.type === 'group'"
@@ -10,13 +7,10 @@
         :open="i === openGroupIndex"
         :collapsable="item.collapsable || item.collapsible"
         :depth="depth"
+        :sidebar-depth="5"
         @toggle="toggleGroup(i)"
       />
-      <SidebarLink
-        v-else
-        :sidebarDepth="sidebarDepth"
-        :item="item"
-      />
+      <SidebarLink v-else :sidebar-depth="5" :item="item" />
     </li>
   </ul>
 </template>
@@ -25,62 +19,63 @@
 import SidebarGroup from '@theme/components/SidebarGroup.vue'
 import SidebarLink from '@theme/components/SidebarLink.vue'
 import { isActive } from '../util'
+// import {debounce} from 'lodash'
 
 export default {
   name: 'SidebarLinks',
-
   components: { SidebarGroup, SidebarLink },
-
   props: [
     'items',
-    'depth',  // depth of current sidebar links
+    'depth', // depth of current sidebar links
     'sidebarDepth' // depth of headers to be extracted
   ],
-
-  data () {
+  data() {
     return {
       openGroupIndex: 0
     }
   },
-
-  created () {
-    this.refreshIndex()
-  },
-
   watch: {
-    '$route' () {
+    $route() {
       this.refreshIndex()
     }
   },
-
+  created() {
+    this.refreshIndex()
+  },
   methods: {
-    refreshIndex () {
-      const index = resolveOpenGroupIndex(
-        this.$route,
-        this.items
-      )
+    refreshIndex() {
+      const index = resolveOpenGroupIndex(this.$route, this.items)
       if (index > -1) {
         this.openGroupIndex = index
       }
     },
-
-    toggleGroup (index) {
+    toggleGroup(index) {
       this.openGroupIndex = index === this.openGroupIndex ? -1 : index
     },
-
-    isActive (page) {
+    isActive(page) {
       return isActive(this.$route, page.regularPath)
     }
   }
 }
-
-function resolveOpenGroupIndex (route, items) {
+function resolveOpenGroupIndex(route, items) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
-    if (item.type === 'group' && item.children.some(c => c.type === 'page' && isActive(route, c.path))) {
+    if (descendantIsActive(route, item)) {
       return i
     }
   }
   return -1
+}
+function descendantIsActive(route, item) {
+  if (item.type === 'group') {
+    return item.children.some(child => {
+      if (child.type === 'group') {
+        return descendantIsActive(route, child)
+      } else {
+        return child.type === 'page' && isActive(route, child.path)
+      }
+    })
+  }
+  return false
 }
 </script>

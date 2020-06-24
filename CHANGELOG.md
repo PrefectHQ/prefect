@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.12.0 <Badge text="beta" type="success">
+## 0.12.0 <Badge text="beta" type="success" />
 
 Released on June 17, 2020.
 
@@ -45,7 +45,7 @@ Released on June 17, 2020.
 ### Fixes
 
 - Fix flow.visualize cleanup of source files when using `filename` - [#2726](https://github.com/PrefectHQ/prefect/issues/2726)
-- Fix `S3Result` handling of AWS credentials provided through kwargs  - [#2747](https://github.com/PrefectHQ/prefect/issues/2747)
+- Fix `S3Result` handling of AWS credentials provided through kwargs - [#2747](https://github.com/PrefectHQ/prefect/issues/2747)
 - Fix `DaskKubernetesEnvironment` requiring that an `env` block is set when using custom specs - [#2657](https://github.com/PrefectHQ/prefect/pull/2657)
 - Fix `PostgresExecute` task auto commit when commit is set to `False` - [#2658](https://github.com/PrefectHQ/prefect/issue/2658)
 - Remove need for `{filename}` in mapped templates - [#2640](https://github.com/PrefectHQ/prefect/issues/2640)
@@ -71,7 +71,7 @@ Released on June 17, 2020.
 - [David Haines](https://github.com/davidfhaines)
 - [Paweł Cieśliński](https://github.com/pcieslinski)
 
-## 0.11.5 <Badge text="beta" type="success">
+## 0.11.5 <Badge text="beta" type="success" />
 
 Released on June 2, 2020.
 
@@ -118,7 +118,7 @@ Released on June 2, 2020.
 
 - [Alex Cano](https://github.com/alexisprince1994)
 
-## 0.11.4 <Badge text="beta" type="success">
+## 0.11.4 <Badge text="beta" type="success" />
 
 Released on May 27, 2020.
 
@@ -126,7 +126,7 @@ Released on May 27, 2020.
 
 - Revert GraphQL endpoint change - [#2660](https://github.com/PrefectHQ/prefect/pull/2660)
 
-## 0.11.3 <Badge text="beta" type="success">
+## 0.11.3 <Badge text="beta" type="success" />
 
 Released on May 27, 2020.
 

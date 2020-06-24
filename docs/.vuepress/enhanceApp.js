@@ -9,6 +9,6 @@ export default ({ router }) => {
     {
       path: '/guide/*',
       redirect: '/core/*'
-    },
+    }
   ])
 }
