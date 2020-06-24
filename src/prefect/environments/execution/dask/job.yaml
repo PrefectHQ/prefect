@@ -17,7 +17,7 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             [
-              'python -c "import prefect; prefect.environments.DaskKubernetesEnvironment().run_flow()"',
+              'python -c "import prefect; prefect.environments.execution.load_and_run_flow()"',
             ]
           env:
             - name: PREFECT__CLOUD__GRAPHQL
