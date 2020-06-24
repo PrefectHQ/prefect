@@ -1,6 +1,7 @@
 # Licensed under the Prefect Community License, available at
 # https://www.prefect.io/legal/prefect-community-license
 
+import asyncio
 
 import prefect
 import pytest
@@ -96,6 +97,54 @@ class TestSetFlowRunStates:
             result.data.set_flow_run_states.states[0].status
             == payload_response["status"]
         )
+
+    async def test_sets_flow_run_to_queued_if_no_slots_available(
+        self, run_query, labeled_flow_id, flow_concurrency_limit
+    ):
+
+        run_1 = await api.runs.create_flow_run(labeled_flow_id)
+
+        to_be_queued = await asyncio.gather(
+            *[api.runs.create_flow_run(labeled_flow_id) for _ in range(10)]
+        )
+
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(flow_run_id=run_1, version=1, state=Running().serialize(),)
+                    ]
+                )
+            ),
+        )
+        # Should succeed since slots are available
+        assert result.data.set_flow_run_states.states[0].status == "SUCCESS"
+
+        result = await run_query(
+            query=self.mutation,
+            variables=dict(
+                input=dict(
+                    states=[
+                        dict(flow_run_id=run_id, version=1, state=Running().serialize())
+                        for run_id in to_be_queued
+                    ]
+                )
+            ),
+        )
+        # Should fail due to concurrency check
+        for payload in result.data.set_flow_run_states.states:
+            assert payload.status == "QUEUED"
+
+        num_running_runs = await models.FlowRun.where(
+            {"state": {"_eq": "Running"}}
+        ).count()
+        num_queued_runs = await models.FlowRun.where(
+            {"state": {"_eq": "Queued"}}
+        ).count()
+
+        assert num_running_runs == 1
+        assert num_queued_runs == len(to_be_queued)
 
     async def test_set_multiple_flow_run_states(
         self, run_query, flow_run_id, flow_run_id_2, flow_run_id_3
