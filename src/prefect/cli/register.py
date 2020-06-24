@@ -60,7 +60,7 @@ def flow(file, name, project):
     """
 
     # Don't run extra `run` and `register` functions inside file
-    with prefect.context({"function_gate": True}):
+    with prefect.context({"loading_flow": True}):
         file_path = os.path.abspath(file)
         flow_obj = extract_flow_from_file(file_path=file_path, flow_name=name)
 

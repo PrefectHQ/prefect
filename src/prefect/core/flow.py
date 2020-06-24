@@ -1068,7 +1068,7 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
-        if prefect.context.get("function_gate", False):
+        if prefect.context.get("loading_flow", False):
             raise RuntimeError(
                 "Attempting to call `flow.run` during execution of flow file will lead to unexpected results."
             )
@@ -1457,7 +1457,7 @@ class Flow:
         Returns:
             - str: the ID of the flow that was registered
         """
-        if prefect.context.get("function_gate", False):
+        if prefect.context.get("loading_flow", False):
             raise RuntimeError(
                 "Attempting to call `flow.register` during execution of flow file will lead to unexpected results."
             )

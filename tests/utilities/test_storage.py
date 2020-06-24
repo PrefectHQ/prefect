@@ -75,7 +75,7 @@ def test_extract_flow_from_file_raises_on_run_register():
         with open(full_path, "w") as f:
             f.write(contents)
 
-        with prefect.context({"function_gate": True}):
+        with prefect.context({"loading_flow": True}):
             with pytest.raises(RuntimeError):
                 extract_flow_from_file(file_path=full_path)
 
@@ -86,6 +86,6 @@ def test_extract_flow_from_file_raises_on_run_register():
         with open(full_path, "w") as f:
             f.write(contents)
 
-        with prefect.context({"function_gate": True}):
+        with prefect.context({"loading_flow": True}):
             with pytest.raises(RuntimeError):
                 extract_flow_from_file(file_path=full_path)
