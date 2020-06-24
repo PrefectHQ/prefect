@@ -75,7 +75,7 @@ def test_execute_cloud_flow_fails(monkeypatch):
     assert client.return_value.set_flow_run_state.call_args[1]["flow_run_id"] == "test"
     assert client.return_value.set_flow_run_state.call_args[1]["state"].is_failed()
     assert (
-        "Failed to load"
+        "Flow failed to deserialize"
         in client.return_value.set_flow_run_state.call_args[1]["state"].message
     )
 
