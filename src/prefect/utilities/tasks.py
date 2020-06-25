@@ -79,24 +79,29 @@ def apply_map(
         flow = prefect.context.get("flow", None)
         if flow is None:
             raise ValueError("Couldn't infer a flow in the current context")
-    assert flow is not None  # appease mypy
+    assert isinstance(flow, prefect.Flow)  # appease mypy
 
     # Check if args/kwargs are valid first
     for x in itertools.chain(args, kwargs.values()):
         if not isinstance(x, (prefect.Task, unmapped, Sequence)):
             raise TypeError(
-                f"Cannot map over non sequence  object of type `{type(x).__name__}`"
+                f"Cannot map over non-sequence object of type `{type(x).__name__}`"
             )
 
     flow2 = prefect.Flow("temporary flow")
-    upstream_info = {}
+    # A mapping of all the input args -> (is_mapped, is_constant)
+    arg_info = {}
+    # A mapping of the ids of all constants -> the Constant task.
+    # Used to convert constants to constant tasks if needed
     id_to_const = {}
 
     def preprocess(a: Any) -> "Task":
         a2 = as_task(a, flow=flow2)
         is_mapped = not isinstance(a, unmapped)
         is_constant = isinstance(a2, Constant)
-        upstream_info[a2] = (is_mapped, is_constant)
+        arg_info[a2] = (is_mapped, is_constant)
+        if not is_constant:
+            flow.add_task(a2)  # type: ignore
         if is_mapped and is_constant:
             id_to_const[id(a2.value)] = a2  # type: ignore
         return a2
@@ -122,7 +127,7 @@ def apply_map(
             upstream_task=edge.upstream_task,
             downstream_task=edge.downstream_task,
             key=edge.key,
-            mapped=upstream_info.get(edge.upstream_task, (True,))[0],
+            mapped=arg_info.get(edge.upstream_task, (True,))[0],
         )
 
     # Copy over all constants, updating any constants that should be mapped
@@ -139,15 +144,14 @@ def apply_map(
                 flow.constants[task][key] = c
 
     # Finally, find tasks added from the sub-graph that still have no upstream
-    # tasks. Add all of the non-constant args as direct upstream tasks.  These
-    # tasks occur if inside `func` a task is created with no non-constant
-    # arguments - there's nothing upstream of this task binding it under the
-    # mapping, so we need to add the original mapped arguments as upstream
-    # tasks.
+    # tasks. Add all of the mapped args as direct upstream tasks. These tasks
+    # occur if inside `func` a task is created with no non-constant arguments -
+    # there's nothing upstream of this task binding it under the mapping, so we
+    # need to add the original mapped arguments as upstream tasks.
     for task in flow2.tasks:
-        if task not in upstream_info and not flow.upstream_tasks(task):
-            for arg_task, (is_mapped, is_constant) in upstream_info.items():
-                if not is_constant:
+        if task not in arg_info and not flow.upstream_tasks(task):
+            for arg_task, (is_mapped, is_constant) in arg_info.items():
+                if is_mapped:
                     flow.add_edge(
                         upstream_task=arg_task, downstream_task=task, mapped=is_mapped,
                     )
