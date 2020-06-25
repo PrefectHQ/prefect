@@ -16,7 +16,7 @@ __all__ = [
     "pause_task",
     "task",
     "unmapped",
-    "compose_map",
+    "apply_map",
     "defaults_from_attrs",
 ]
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from prefect import Task, Flow  # pylint: disable=W0611
 
 
-def compose_map(
+def apply_map(
     func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any
 ) -> Optional["Task"]:
     """
@@ -54,7 +54,7 @@ def compose_map(
     ```python
     from prefect import task, case
     from prefect.tasks.control_flow import merge
-    from prefect.utilities.tasks import compose_map
+    from prefect.utilities.tasks import apply_map
 
     @task
     def inc(x):
@@ -70,7 +70,7 @@ def compose_map(
         return merge(x, x2)
 
     with Flow("example") as flow:
-        compose_map(inc_if_even, range(10))
+        apply_map(inc_if_even, range(10))
     """
     from prefect.tasks.core.constants import Constant
 
