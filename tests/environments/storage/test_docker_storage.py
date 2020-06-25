@@ -55,11 +55,11 @@ def test_add_flow_to_docker_custom_prefect_dir():
     storage = Docker(prefect_directory="/usr/prefect-is-gr8")
     f = Flow("test")
     assert f not in storage
-    assert storage.add_flow(f) == "/usr/prefect-is-gr8/prefect/flows/test.prefect"
+    assert storage.add_flow(f) == "/usr/prefect-is-gr8/flows/test.prefect"
     assert f.name in storage
-    assert storage.flows[f.name] == "/usr/prefect-is-gr8/prefect/flows/test.prefect"
+    assert storage.flows[f.name] == "/usr/prefect-is-gr8/flows/test.prefect"
     assert storage.env_vars == {
-        "PREFECT__USER_CONFIG_PATH": "/usr/prefect-is-gr8/prefect/config.toml"
+        "PREFECT__USER_CONFIG_PATH": "/usr/prefect-is-gr8/config.toml"
     }
 
 
@@ -644,11 +644,9 @@ def test_run_healthchecks_arg_custom_prefect_dir(ignore_healthchecks):
                 output = dockerfile.read()
 
             if ignore_healthchecks:
-                assert (
-                    "RUN python /usr/local/prefect/prefect/healthcheck.py" not in output
-                )
+                assert "RUN python /usr/local/prefect/healthcheck.py" not in output
             else:
-                assert "RUN python /usr/local/prefect/prefect/healthcheck.py" in output
+                assert "RUN python /usr/local/prefect/healthcheck.py" in output
 
 
 def test_pull_image(capsys, monkeypatch):

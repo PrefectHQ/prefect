@@ -98,7 +98,7 @@ def test_docker_serialize_with_flow_and_custom_prefect_dir():
     assert serialized["image_name"] == "name"
     assert serialized["image_tag"] == "tag"
     assert serialized["registry_url"] == "url"
-    assert serialized["flows"] == {"test": "/tmp/something/prefect/flows/test.prefect"}
+    assert serialized["flows"] == {"test": "/tmp/something/flows/test.prefect"}
     assert serialized["secrets"] == ["FOO"]
 
     deserialized = DockerSchema().load(serialized)
