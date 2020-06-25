@@ -6,14 +6,14 @@ from typing import Any, Callable, List, TYPE_CHECKING
 import yaml
 
 import prefect
-from prefect.environments.execution import Environment
+from prefect.environments.execution.base import Environment, _RunMixin
 from prefect.utilities.storage import get_flow_image
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-class KubernetesJobEnvironment(Environment):
+class KubernetesJobEnvironment(Environment, _RunMixin):
     """
     KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes
     job. This environment allows (and requires) a custom job YAML spec to be provided.
@@ -36,7 +36,7 @@ class KubernetesJobEnvironment(Environment):
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Additionally, the following command will be applied to the first container:
-    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
@@ -244,7 +244,7 @@ class KubernetesJobEnvironment(Environment):
             yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = []
 
         yaml_obj["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            "python -c 'import prefect; prefect.environments.KubernetesJobEnvironment().run_flow()'"
+            "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"
         ]
 
         return yaml_obj

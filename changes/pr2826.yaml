@@ -1,2 +1,0 @@
-breaking:
-  - "Remove previously deprecated `SynchronousExecutor` - [#2826](https://github.com/PrefectHQ/prefect/pull/2826)"

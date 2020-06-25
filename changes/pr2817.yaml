@@ -1,2 +1,0 @@
-enhancement:
-  - "Simplify `DaskExecutor` internals - [#2817](https://github.com/PrefectHQ/prefect/pull/2817)"

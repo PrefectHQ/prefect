@@ -1,2 +1,0 @@
-fix:
-  - "Fix `all_extras` tag not being set during CI job to build image - [#2801](https://github.com/PrefectHQ/prefect/issues/2801)"

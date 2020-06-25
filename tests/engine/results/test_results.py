@@ -15,6 +15,7 @@ from prefect.engine.results import (
     PrefectResult,
     SecretResult,
 )
+from prefect.engine.serializers import JSONSerializer, PickleSerializer
 from prefect.tasks.core.constants import Constant
 from prefect.tasks.secrets import PrefectSecret
 
@@ -57,6 +58,10 @@ class TestSecretResult:
         with pytest.raises(ValueError):
             result.write("new")
 
+    def test_cant_pass_serializer_to_secret_result(self):
+        with pytest.raises(ValueError, match="Can't pass a serializer"):
+            SecretResult(PrefectSecret("foo"), serializer=None)
+
 
 class TestConstantResult:
     def test_instantiates_with_value(self):
@@ -93,8 +98,33 @@ class TestConstantResult:
 
         assert result_exists is True
 
+    def test_cant_pass_serializer_to_constant_result(self):
+        with pytest.raises(ValueError, match="Can't pass a serializer"):
+            ConstantResult(serializer=None)
+
 
 class TestPrefectResult:
+    def test_serializer_not_configurable(self):
+        # By default creates own JSONSerializer
+        result = PrefectResult()
+        assert isinstance(result.serializer, JSONSerializer)
+
+        # Can specify one manually as well
+        serializer = JSONSerializer()
+        result = PrefectResult(serializer=serializer)
+        assert result.serializer is serializer
+
+        # Can set if it's a JSONSerializer
+        serializer2 = JSONSerializer()
+        result.serializer = serializer2
+        assert result.serializer is serializer2
+
+        # Type errors for other serializer types
+        with pytest.raises(TypeError):
+            result.serializer = PickleSerializer()
+        with pytest.raises(TypeError):
+            result = PrefectResult(serializer=PickleSerializer())
+
     def test_instantiates_with_value(self):
         result = PrefectResult(value=5)
         assert result.value == 5

@@ -1,13 +1,13 @@
-from typing import Any, Iterable, Callable, TYPE_CHECKING
+from typing import Iterable, Callable, TYPE_CHECKING
 
 import prefect
-from prefect.environments.execution.base import Environment
+from prefect.environments.execution.base import Environment, _RunMixin
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-class LocalEnvironment(Environment):
+class LocalEnvironment(Environment, _RunMixin):
     """
     A LocalEnvironment class for executing a flow in the local process.
 
@@ -44,27 +44,11 @@ class LocalEnvironment(Environment):
     def dependencies(self) -> list:
         return []
 
-    def execute(self, flow: "Flow", **kwargs: Any) -> None:
+    def execute(self, flow: "Flow") -> None:
         """
         Executes the flow in the local process.
 
         Args:
             - flow (Flow): the Flow object
-            - **kwargs (Any): additional keyword arguments to pass to the runner
         """
-        if self.on_start:
-            self.on_start()
-
-        try:
-            from prefect.engine import get_default_flow_runner_class
-
-            runner_cls = get_default_flow_runner_class()
-            runner_cls(flow=flow).run(executor=self.executor, **kwargs)
-        except Exception as exc:
-            self.logger.exception(
-                "Unexpected error raised during flow run: {}".format(exc)
-            )
-            raise exc
-        finally:
-            if self.on_exit:
-                self.on_exit()
+        self.run(flow)

@@ -15,6 +15,7 @@ from .get import get as _get
 from .run import run as _run
 from .server import server as _server
 from .heartbeat import heartbeat as _heartbeat
+from .register import register as _register
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -66,6 +67,7 @@ cli.add_command(_get)
 cli.add_command(_run)
 cli.add_command(_server)
 cli.add_command(_heartbeat)
+cli.add_command(_register)
 
 
 # Miscellaneous Commands

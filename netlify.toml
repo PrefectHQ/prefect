@@ -2,7 +2,7 @@
 #
 # Other Netlify files:
 # - runtime.txt: version of Python to build with
-# - yarn.lock: indicates we need lock isntalled
+# - package-lock.json: indicates we need node && npm installed
 #
 # “base” is directory to change to before starting build. if you set base:
 #    that is where we will look for package.json/.nvmrc/etc not repo root!
@@ -13,7 +13,7 @@
 [build]
   base    = ""
   publish = "docs/.vuepress/dist"
-  command = 'export GIT_SHA=$COMMIT_REF && pip install -e ".[dev]" && yarn docs:build'
+  command = 'export GIT_SHA=$COMMIT_REF && pip install -e ".[dev]" && npm run docs:build'
 
 # redirect from /guide/core_concepts to /core/concepts
 [[redirects]]
