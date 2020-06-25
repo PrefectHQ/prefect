@@ -68,7 +68,7 @@ class GCSResult(Result):
         new = self.format(**kwargs)
         new.value = value
         self.logger.debug("Starting to upload result to {}...".format(new.location))
-        binary_data = new.serialize_to_bytes(new.value).decode()
+        binary_data = new.serializer.serialize(new.value)
 
         self.gcs_bucket.blob(new.location).upload_from_string(binary_data)
         self.logger.debug("Finished uploading result to {}.".format(new.location))
@@ -92,7 +92,7 @@ class GCSResult(Result):
             self.logger.debug("Starting to download result from {}...".format(location))
             serialized_value = self.gcs_bucket.blob(location).download_as_string()
             try:
-                new.value = new.deserialize_from_bytes(serialized_value)
+                new.value = new.serializer.deserialize(serialized_value)
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))

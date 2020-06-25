@@ -92,7 +92,7 @@ class S3Result(Result):
         new = self.format(**kwargs)
         new.value = value
         self.logger.debug("Starting to upload result to {}...".format(new.location))
-        binary_data = new.serialize_to_bytes(new.value)
+        binary_data = new.serializer.serialize(new.value)
 
         stream = io.BytesIO(binary_data)
 
@@ -132,7 +132,7 @@ class S3Result(Result):
             stream.seek(0)
 
             try:
-                new.value = new.deserialize_from_bytes(stream.read())
+                new.value = new.serializer.deserialize(stream.read())
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))
