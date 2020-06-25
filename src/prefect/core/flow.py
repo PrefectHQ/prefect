@@ -6,6 +6,7 @@ import inspect
 import os
 import tempfile
 import time
+import uuid
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -967,7 +968,14 @@ class Flow:
         # run this flow indefinitely, so long as its schedule has future dates
         while True:
 
-            flow_run_context.update(scheduled_start_time=next_run_time)
+            ## add relevant context keys
+            ## many of these are intended to ensure local runs behave similarly as runs against a backend
+            flow_run_context.update(
+                scheduled_start_time=next_run_time,
+                flow_id=self.name,
+                flow_run_id=str(uuid.uuid4()),
+                flow_run_name=str(uuid.uuid4()),
+            )
 
             if flow_state.is_scheduled():
                 next_run_time = flow_state.start_time
