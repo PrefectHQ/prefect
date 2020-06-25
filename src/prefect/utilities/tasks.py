@@ -143,15 +143,36 @@ def apply_map(
             else:
                 flow.constants[task][key] = c
 
-    # Finally, find tasks added from the sub-graph that still have no upstream
-    # tasks. Add all of the mapped args as direct upstream tasks. These tasks
-    # occur if inside `func` a task is created with no non-constant arguments -
-    # there's nothing upstream of this task binding it under the mapping, so we
-    # need to add the original mapped arguments as upstream tasks.
-    for task in flow2.tasks:
-        if task not in arg_info and not flow.upstream_tasks(task):
+    # Any task created inside `apply_map` must have a transitive dependency to
+    # all of the inputs to apply_map, except for unmapped constants.  This
+    # ensures three things:
+    #
+    # - All mapped arguments must have the same length. supporting disparate
+    # lengths leads to odd semantics.
+    #
+    # - Tasks created by `apply_map` conceptually share an upstream dependency
+    # tree. This matches the causality you'd expect if you were running as
+    # normal eager python code - the stuff inside the `apply_map` only runs if
+    # the inputs are completed, not just the inputs that certain subcomponents
+    # depend on.
+    #
+    # - Tasks with no external dependencies are treated the same as tasks with
+    # external deps (we need to add upstream_tasks to tasks created in `func`
+    # with no external deps to get them to run as proper map tasks).  We add
+    # upstream tasks uniformly for all tasks, not just ones without external
+    # deps - the uniform behavior makes this easier to reason about.
+    #
+    # Here we do a final pass adding missing upstream deps on mapped arguments
+    # to all newly created tasks in the apply_map.
+    new_tasks = flow2.tasks.difference(arg_info)
+    for task in new_tasks:
+        upstream_tasks = flow.upstream_tasks(task)
+        is_root_in_subgraph = not upstream_tasks.intersection(new_tasks)
+        if is_root_in_subgraph:
             for arg_task, (is_mapped, is_constant) in arg_info.items():
-                if is_mapped:
+                # Add all args except unmapped constants as direct
+                # upstream tasks if they're not already upstream tasks
+                if arg_task not in upstream_tasks and (is_mapped or not is_constant):
                     flow.add_edge(
                         upstream_task=arg_task, downstream_task=task, mapped=is_mapped,
                     )
