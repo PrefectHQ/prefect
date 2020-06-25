@@ -27,9 +27,7 @@ if TYPE_CHECKING:
     from prefect import Task, Flow  # pylint: disable=W0611
 
 
-def apply_map(
-    func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any
-) -> Optional["Task"]:
+def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) -> Any:
     """
     Map a function that adds tasks to a flow elementwise across one or more
     tasks.  Arguments that should _not_ be mapped over should be wrapped with
@@ -47,7 +45,7 @@ def apply_map(
         - **kwargs: keyword task arguments to map over
 
     Returns:
-        - Task: the output of `func`, if any
+        - Any: the output of `func`, if any
 
     Example:
 
