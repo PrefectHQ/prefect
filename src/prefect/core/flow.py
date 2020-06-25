@@ -1068,6 +1068,11 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
+        if prefect.context.get("loading_flow", False):
+            raise RuntimeError(
+                "Attempting to call `flow.run` during execution of flow file will lead to unexpected results."
+            )
+
         # protect against old behavior
         if "return_tasks" in kwargs:
             raise ValueError(
@@ -1452,6 +1457,11 @@ class Flow:
         Returns:
             - str: the ID of the flow that was registered
         """
+        if prefect.context.get("loading_flow", False):
+            raise RuntimeError(
+                "Attempting to call `flow.register` during execution of flow file will lead to unexpected results."
+            )
+
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 

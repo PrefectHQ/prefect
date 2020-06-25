@@ -45,7 +45,7 @@ class TestGCSResult:
 
     def test_gcs_reads_and_updates_location(self, google_client):
         bucket = MagicMock()
-        bucket.blob.return_value.download_as_string.return_value = ""
+        bucket.blob.return_value.download_as_string.return_value = b""
         google_client.return_value.bucket = MagicMock(return_value=bucket)
         result = GCSResult(bucket="foo", location="{thing}/here.txt")
         new_result = result.read("path/to/my/stuff.txt")
@@ -61,7 +61,7 @@ class TestGCSResult:
         result = GCSResult(bucket="foo", location="nothing/here.txt")
         new_result = result.write(None)
         assert blob.upload_from_string.called
-        assert isinstance(blob.upload_from_string.call_args[0][0], str)
+        assert isinstance(blob.upload_from_string.call_args[0][0], bytes)
 
     def test_gcs_result_is_pickleable(self, google_client, monkeypatch):
         class gcs_bucket:

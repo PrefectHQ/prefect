@@ -1,11 +1,10 @@
-from typing import Any
+from typing import Any, cast
 
-from kubernetes import client, config
-from kubernetes.config.config_exception import ConfigException
+from kubernetes import client
 
 from prefect import Task
-from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.utilities.kubernetes import get_kubernetes_client
 
 
 class CreateNamespacedService(Task):
@@ -19,7 +18,7 @@ class CreateNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -89,21 +88,10 @@ class CreateNamespacedService(Task):
         if not body:
             raise ValueError("A dictionary representing a V1Service must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
@@ -124,7 +112,7 @@ class DeleteNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -196,21 +184,10 @@ class DeleteNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
         delete_option_kwargs = delete_option_kwargs or {}
@@ -234,7 +211,7 @@ class ListNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -292,21 +269,10 @@ class ListNamespacedService(Task):
         Returns:
             - V1ServiceList: a Kubernetes V1ServiceList of the services which are found
         """
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
@@ -324,7 +290,7 @@ class PatchNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -405,21 +371,10 @@ class PatchNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
@@ -440,7 +395,7 @@ class ReadNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -511,21 +466,10 @@ class ReadNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
 
@@ -545,7 +489,7 @@ class ReplaceNamespacedService(Task):
 
     1. Attempt to use a Prefect Secret that contains a Kubernetes API Key. If
     `kubernetes_api_key_secret` = `None` then it will attempt the next two connection
-    mathods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
+    methods. By default the value is `KUBERNETES_API_KEY` so providing `None` acts as
     an override for the remote connection.
     2. Attempt in-cluster connection (will only work when running on a Service in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
@@ -624,21 +568,10 @@ class ReplaceNamespacedService(Task):
         if not service_name:
             raise ValueError("The name of a Kubernetes service must be provided.")
 
-        kubernetes_api_key = None
-        if kubernetes_api_key_secret:
-            kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-        if kubernetes_api_key:
-            configuration = client.Configuration()
-            configuration.api_key["authorization"] = kubernetes_api_key
-            api_client = client.CoreV1Api(client.ApiClient(configuration))
-        else:
-            try:
-                config.load_incluster_config()
-            except ConfigException:
-                config.load_kube_config()
-
-            api_client = client.CoreV1Api()
+        api_client = cast(
+            client.CoreV1Api,
+            get_kubernetes_client("service", kubernetes_api_key_secret),
+        )
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}

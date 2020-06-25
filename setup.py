@@ -44,6 +44,7 @@ extras = {
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",
     ],
+    "github": ["PyGithub >= 1.51, < 2.0"],
     "google": [
         "google-cloud-bigquery >= 1.6.0, < 2.0",
         "google-cloud-storage >= 1.13, < 2.0",
