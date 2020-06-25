@@ -19,6 +19,7 @@ from prefect.engine.state import (
     State,
 )
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
+from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.executors import tail_recursive
 from prefect.utilities.graphql import with_args
 
@@ -115,19 +116,19 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except prefect.utilities.exceptions.VersionLockError as exc:
-            # task_run_info = self.client.get_task_run_info(
-            #         flow_run_id=prefect.context.get("flow_run_id", ""),
-            #         task_id=task_run_id,
-            #         map_index=prefect.context.get("map_index"),
-            #     )
-            # Add a client function for retrieving task run state based solely on id
-            print(task_run_info)
-            print("WE HAVE A VERSION LOCK ERROR")
-            raise ENDRUN(state=ClientFailed(state=new_state))
+        except VersionLockError as exc:
+            state = self.client.get_task_run_state(task_run_id=task_run_id)
+
+            if state.is_running():
+                raise ENDRUN(state=state)
+
+            self.logger.debug(
+                "Version lock encountered for task {}, proceeding with state {}...".format(
+                    self.task.name, type(state).__name__
+                )
+            )
+            new_state = state
         except Exception as exc:
-            print("@@@@@@@@@@@@@@@@")
-            print(exc[0].message)
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
             )

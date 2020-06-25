@@ -14,7 +14,11 @@ import toml
 from slugify import slugify
 
 import prefect
-from prefect.utilities.exceptions import AuthorizationError, ClientError, VersionLockError
+from prefect.utilities.exceptions import (
+    AuthorizationError,
+    ClientError,
+    VersionLockError,
+)
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
@@ -976,8 +980,33 @@ class Client:
         }
         self.graphql(mutation, raise_on_error=True)
 
+    def get_flow_run_state(self, flow_run_id: str) -> "prefect.engine.state.State":
+        """
+        Retrieves the current state for a flow run.
+
+        Args:
+            - flow_run_id (str): the id for this flow run
+
+        Returns:
+            - State: a Prefect State object
+        """
+        query = {
+            "query": {
+                with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        flow_run = self.graphql(query).data.flow_run_by_pk
+
+        return prefect.engine.state.State.deserialize(flow_run.serialized_state)
+
     def set_flow_run_state(
-        self, flow_run_id: str, state: "prefect.engine.state.State", version: int = None,
+        self,
+        flow_run_id: str,
+        state: "prefect.engine.state.State",
+        version: int = None,
     ) -> "prefect.engine.state.State":
         """
         Sets new state for a flow run in the database.
@@ -1132,6 +1161,28 @@ class Client:
             version=task_run.version,
             state=state,
         )
+
+    def get_task_run_state(self, task_run_id: str) -> "prefect.engine.state.State":
+        """
+        Retrieves the current state for a task run.
+
+        Args:
+            - task_run_id (str): the id for this task run
+
+        Returns:
+            - State: a Prefect State object
+        """
+        query = {
+            "query": {
+                with_args("task_run_by_pk", {"id": task_run_id}): {
+                    "serialized_state": True,
+                }
+            }
+        }
+
+        task_run = self.graphql(query).data.task_run_by_pk
+
+        return prefect.engine.state.State.deserialize(task_run.serialized_state)
 
     def set_task_run_state(
         self,

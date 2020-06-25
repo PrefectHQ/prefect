@@ -10,6 +10,7 @@ from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Queued, State
+from prefect.utilities.exceptions import VersionLockError
 from prefect.utilities.graphql import with_args
 
 
@@ -118,8 +119,22 @@ class CloudFlowRunner(FlowRunner):
         try:
             cloud_state = new_state
             state = self.client.set_flow_run_state(
-                flow_run_id=flow_run_id, version=version if cloud_state.is_running() else None, state=cloud_state
+                flow_run_id=flow_run_id,
+                version=version if cloud_state.is_running() else None,
+                state=cloud_state,
             )
+        except VersionLockError as exc:
+            state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
+
+            if state.is_running():
+                raise ENDRUN(state=state)
+
+            self.logger.debug(
+                "Version lock encountered, proceeding with state {}...".format(
+                    type(state).__name__
+                )
+            )
+            new_state = state
         except Exception as exc:
             self.logger.debug(
                 "Failed to set flow state with error: {}".format(repr(exc))
