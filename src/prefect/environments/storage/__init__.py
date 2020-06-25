@@ -21,6 +21,7 @@ from prefect.environments.storage.local import Local
 from prefect.environments.storage.azure import Azure
 from prefect.environments.storage.gcs import GCS
 from prefect.environments.storage.s3 import S3
+from prefect.environments.storage.github import GitHub
 
 
 def get_default_storage_class() -> type:

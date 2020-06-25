@@ -1,17 +1,17 @@
 import os
 import warnings
-from typing import Any, Callable, List, TYPE_CHECKING
+from typing import Callable, List, TYPE_CHECKING
 
 import prefect
 from prefect import config
-from prefect.environments.execution import Environment
+from prefect.environments.execution.base import Environment, _RunMixin
 from prefect.utilities.storage import get_flow_image
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
 
 
-class FargateTaskEnvironment(Environment):
+class FargateTaskEnvironment(Environment, _RunMixin):
     """
     FargateTaskEnvironment is an environment which deploys your flow as a Fargate task.
     This environment requires AWS credentials and extra boto3 kwargs which
@@ -35,7 +35,7 @@ class FargateTaskEnvironment(Environment):
 
     Additionally, the following command will be applied to the first container:
 
-    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.FargateTaskEnvironment().run_flow()'"`
+    `$ /bin/sh -c "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'"`
 
     All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition`
     and `run_task`. For information on the kwargs supported visit the following links:
@@ -262,20 +262,17 @@ class FargateTaskEnvironment(Environment):
             self.task_definition_kwargs.get("containerDefinitions")[0]["command"] = [
                 "/bin/sh",
                 "-c",
-                "python -c 'import prefect; prefect.environments.FargateTaskEnvironment().run_flow()'",
+                "python -c 'import prefect; prefect.environments.execution.load_and_run_flow()'",
             ]
 
             boto3_c.register_task_definition(**self.task_definition_kwargs)
 
-    def execute(  # type: ignore
-        self, flow: "Flow", **kwargs: Any
-    ) -> None:
+    def execute(self, flow: "Flow") -> None:  # type: ignore
         """
         Run the Fargate task that was defined for this flow.
 
         Args:
             - flow (Flow): the Flow object
-            - **kwargs (Any): additional keyword arguments to pass to the runner
         """
         from boto3 import client as boto3_client
 
