@@ -52,9 +52,8 @@ def apply_map(
     Example:
 
     ```python
-    from prefect import task, case
+    from prefect import task, case, apply_map
     from prefect.tasks.control_flow import merge
-    from prefect.utilities.tasks import apply_map
 
     @task
     def inc(x):
