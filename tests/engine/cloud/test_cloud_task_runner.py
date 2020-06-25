@@ -762,8 +762,12 @@ def test_task_runner_performs_retries_for_short_delays(client):
     assert (
         client.set_task_run_state.call_count == 5
     )  # Pending -> Running -> Failed -> Retrying -> Running -> Success
-    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
-    assert versions == [1, 2, 3, 4, 5]
+    versions = [
+        call[1]["version"]
+        for call in client.set_task_run_state.call_args_list
+        if call[1]["version"]
+    ]
+    assert versions == [1, 4]
 
 
 def test_task_runner_handles_looping(client):
@@ -783,8 +787,12 @@ def test_task_runner_handles_looping(client):
     assert (
         client.set_task_run_state.call_count == 6
     )  # Pending -> Running -> Looped (1) -> Running -> Looped (2) -> Running -> Success
-    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
-    assert versions == [1, 2, 3, 4, 5, 6]
+    versions = [
+        call[1]["version"]
+        for call in client.set_task_run_state.call_args_list
+        if call[1]["version"]
+    ]
+    assert versions == [1, 3, 5]
 
 
 def test_task_runner_handles_looping_with_no_result(client):
@@ -804,8 +812,12 @@ def test_task_runner_handles_looping_with_no_result(client):
     assert (
         client.set_task_run_state.call_count == 6
     )  # Pending -> Running -> Looped (1) -> Running -> Looped (2) -> Running -> Success
-    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
-    assert versions == [1, 2, 3, 4, 5, 6]
+    versions = [
+        call[1]["version"]
+        for call in client.set_task_run_state.call_args_list
+        if call[1]["version"]
+    ]
+    assert versions == [1, 3, 5]
 
 
 def test_task_runner_handles_looping_with_retries_with_no_result(client):
@@ -836,8 +848,12 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
     assert (
         client.set_task_run_state.call_count == 9
     )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
-    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    versions = [
+        call[1]["version"]
+        for call in client.set_task_run_state.call_args_list
+        if call[1]["version"]
+    ]
+    assert versions == [1, 3, 6, 8]
 
 
 def test_task_runner_handles_looping_with_retries(client):
@@ -868,8 +884,12 @@ def test_task_runner_handles_looping_with_retries(client):
     assert (
         client.set_task_run_state.call_count == 9
     )  # Pending -> Running -> Looped (1) -> Running -> Failed -> Retrying -> Running -> Looped(2) -> Running -> Success
-    versions = [call[1]["version"] for call in client.set_task_run_state.call_args_list]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    versions = [
+        call[1]["version"]
+        for call in client.set_task_run_state.call_args_list
+        if call[1]["version"]
+    ]
+    assert versions == [1, 3, 6, 8]
 
 
 def test_cloud_task_runner_respects_queued_states_from_cloud(client):
