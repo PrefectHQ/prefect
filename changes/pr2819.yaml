@@ -1,5 +1,0 @@
-fix:
-  - "Fix the `LocalDaskExecutor` to only compute tasks once, not multiple times - [#2819](https://github.com/PrefectHQ/prefect/pull/2819)"
-
-enhancement:
-  - "Set task names in `LocalDaskExecutor` - [#2819](https://github.com/PrefectHQ/prefect/pull/2819)"

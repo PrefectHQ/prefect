@@ -1,5 +1,0 @@
-task:
- - Adds a MySQL task using pymysql driver - [#2124](https://github.com/PrefectHQ/prefect/issues/2124)
-
-contributor:
- - "[@manesioz](https://github.com/manesioz)"
