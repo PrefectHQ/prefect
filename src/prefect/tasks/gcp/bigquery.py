@@ -33,6 +33,8 @@ class BigQueryTask(Task):
         - table_dest (str, optional): the optional name of a destination table to write the
             query results to, if you don't want them returned; if provided, `dataset_dest` must also be
             provided
+        - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas dataframe 
+            instead of a list of `bigquery.table.Row` objects. Defaults to False
         - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
             the parameters provided here must be pickleable (e.g., dataset references will be rejected)
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
@@ -47,6 +49,7 @@ class BigQueryTask(Task):
         dry_run_max_bytes: int = None,
         dataset_dest: str = None,
         table_dest: str = None,
+        to_dataframe: bool = False,
         job_config: dict = None,
         **kwargs,
     ):
@@ -57,6 +60,7 @@ class BigQueryTask(Task):
         self.dry_run_max_bytes = dry_run_max_bytes
         self.dataset_dest = dataset_dest
         self.table_dest = table_dest
+        self.to_dataframe = to_dataframe
         self.job_config = job_config or {}
         super().__init__(**kwargs)
 
@@ -68,6 +72,7 @@ class BigQueryTask(Task):
         "dry_run_max_bytes",
         "dataset_dest",
         "table_dest",
+        "to_dataframe",
         "job_config",
     )
     def run(
@@ -80,6 +85,7 @@ class BigQueryTask(Task):
         credentials: dict = None,
         dataset_dest: str = None,
         table_dest: str = None,
+        to_dataframe: bool = False,
         job_config: dict = None,
     ):
         """
@@ -106,6 +112,8 @@ class BigQueryTask(Task):
             - table_dest (str, optional): the optional name of a destination table to write the
                 query results to, if you don't want them returned; if provided, `dataset_dest` must also be
                 provided
+            - to_dataframe (bool, optional): if provided, returns the results of the query as a pandas dataframe 
+                instead of a list of `bigquery.table.Row` objects. Defaults to False
             - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
                 the parameters provided here must be pickleable (e.g., dataset references will be rejected)
 
@@ -160,7 +168,13 @@ class BigQueryTask(Task):
             job_config.destination = table_ref
 
         query_job = client.query(query, location=location, job_config=job_config)
-        return list(query_job.result())
+
+        ## if returning the results as a dataframe
+        if to_dataframe:
+            return query_job.result().to_dataframe()
+        ## else if returning as a list of bigquery.table.Row objects (default)
+        else:
+            return list(query_job.result())
 
 
 class BigQueryStreamingInsert(Task):
