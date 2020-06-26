@@ -1022,7 +1022,8 @@ class Client:
         Args:
             - flow_run_id (str): the id of the flow run to set state for
             - state (State): the new state for this flow run
-            - version (int, optional): the current version of the flow run state
+            - version (int, optional): the current version of the flow run state. This is optional
+                but it can be supplied to enforce version-locking.
 
         Returns:
             - State: the state the current flow run should be considered in
@@ -1207,7 +1208,8 @@ class Client:
         Args:
             - task_run_id (str): the id of the task run to set state for
             - state (State): the new state for this task run
-            - version (int, optional): the current version of the task run state
+            - version (int, optional): the current version of the task run state. This is optional
+                but it can be supplied to enforce version-locking.
             - cache_for (timedelta, optional): how long to store the result of this task for,
                 using the serializer set in config; if not provided, no caching occurs
 

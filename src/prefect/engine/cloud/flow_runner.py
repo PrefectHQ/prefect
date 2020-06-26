@@ -127,6 +127,9 @@ class CloudFlowRunner(FlowRunner):
             state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
 
             if state.is_running():
+                self.logger.debug(
+                    "Version lock encountered and flow is already in a running state."
+                )
                 raise ENDRUN(state=state)
 
             self.logger.debug(
@@ -145,8 +148,7 @@ class CloudFlowRunner(FlowRunner):
             state.state = old_state  # type: ignore
             raise ENDRUN(state=state)
 
-        if version is not None:
-            prefect.context.update(flow_run_version=version + 1)
+        prefect.context.update(flow_run_version=(version or 0) + 1)
 
         return new_state
 

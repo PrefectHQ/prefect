@@ -119,6 +119,11 @@ class CloudTaskRunner(TaskRunner):
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
+                self.logger.debug(
+                    "Version lock encountered and task {} is already in a running state.".format(
+                        self.task.name
+                    )
+                )
                 raise ENDRUN(state=state)
 
             self.logger.debug(
@@ -126,7 +131,7 @@ class CloudTaskRunner(TaskRunner):
                     self.task.name, type(state).__name__
                 )
             )
-            new_state = state
+            new_state = state.load_result(self.result)
         except Exception as exc:
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))
