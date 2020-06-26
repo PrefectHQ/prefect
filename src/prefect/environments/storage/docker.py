@@ -71,8 +71,8 @@ class Docker(Storage):
             client. [Documentation](https://docker-py.readthedocs.io/en/stable/tls.html#docker.tls.TLSConfig)
         - build_kwargs (dict, optional): Additional keyword arguments to pass to Docker's build step.
             [Documentation](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.build.BuildApiMixin.build)
-        - prefect_directory (str, optional): A path inside the Docker image that `prefect` uses to store files like
-            configurations and flows. If this is not given, `/opt/prefect` will be used.
+        - prefect_directory (str, optional): Path to the directory where prefect configuration/flows
+             should be stored inside the Docker image. Defaults to `/opt/prefect`.
         - **kwargs (Any, optional): any additional `Storage` initialization options
 
     Raises:
