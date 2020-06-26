@@ -438,14 +438,6 @@ class TestInitializeRun:
                 result = TaskRunner(Task()).initialize_run(state=None, context=ctx)
                 assert result.context.checkpointing == "FOO"
 
-    def test_task_runner_puts_task_slug_in_context(self):
-        with prefect.context() as ctx:
-            assert "task_slug" not in ctx
-            result = TaskRunner(Task(slug="test-slug")).initialize_run(
-                state=None, context=ctx
-            )
-            assert result.context.task_slug == "test-slug"
-
     def test_task_runner_puts_tags_in_context(self):
         with prefect.context() as ctx:
             assert "task_tags" not in ctx
@@ -989,7 +981,6 @@ class TestCheckTaskCached:
             task_run_count=1,
             task_name="Task",
             task_tags=set(),
-            task_slug=task.slug,
             checkpointing=False,
         )
         for key, val in expected_subset.items():
@@ -1166,9 +1157,9 @@ class TestRunTaskStep:
         assert new_state._result.location == "3"
 
     def test_result_formatting_with_checkpointing(self, tmpdir):
-        result = LocalResult(dir=tmpdir, location="{task_slug}.txt")
+        result = LocalResult(dir=tmpdir, location="{task_name}.txt")
 
-        @prefect.task(checkpoint=True, result=result, slug="boo")
+        @prefect.task(checkpoint=True, result=result)
         def fn(x):
             return x + 1
 
@@ -1178,14 +1169,14 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
-        assert new_state._result.location.endswith("boo.txt")
+        assert new_state._result.location.endswith("fn.txt")
 
     def test_result_formatting_with_custom_formatter(self, tmpdir):
         result = LocalResult(
-            dir=tmpdir, location=lambda **kwargs: kwargs["task_slug"][:2] + ".txt"
+            dir=tmpdir, location=lambda **kwargs: kwargs["task_name"][:3] + ".txt"
         )
 
-        @prefect.task(checkpoint=True, result=result, slug="1234567")
+        @prefect.task(checkpoint=True, result=result, name="big function name")
         def fn(x):
             return x + 1
 
@@ -1195,7 +1186,7 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
-        assert new_state._result.location.endswith("12.txt")
+        assert new_state._result.location.endswith("big.txt")
 
     def test_result_formatting_with_templated_inputs(self, tmpdir):
         result = LocalResult(dir=tmpdir, location="{x}.txt")
