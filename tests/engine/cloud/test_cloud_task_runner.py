@@ -817,7 +817,7 @@ def test_task_runner_handles_looping(client):
         for call in client.set_task_run_state.call_args_list
         if call[1]["version"]
     ]
-    assert versions == [1, 3, 5]
+    assert versions == [1, 1, 1]
 
 
 def test_task_runner_handles_looping_with_no_result(client):
@@ -842,7 +842,7 @@ def test_task_runner_handles_looping_with_no_result(client):
         for call in client.set_task_run_state.call_args_list
         if call[1]["version"]
     ]
-    assert versions == [1, 3, 5]
+    assert versions == [1, 1, 1]
 
 
 def test_task_runner_handles_looping_with_retries_with_no_result(client):
@@ -878,7 +878,7 @@ def test_task_runner_handles_looping_with_retries_with_no_result(client):
         for call in client.set_task_run_state.call_args_list
         if call[1]["version"]
     ]
-    assert versions == [1, 3, 6, 8]
+    assert versions == [1, 1, 6, 6]
 
 
 def test_task_runner_handles_looping_with_retries(client):
@@ -914,7 +914,7 @@ def test_task_runner_handles_looping_with_retries(client):
         for call in client.set_task_run_state.call_args_list
         if call[1]["version"]
     ]
-    assert versions == [1, 3, 6, 8]
+    assert versions == [1, 1, 6, 6]
 
 
 def test_cloud_task_runner_respects_queued_states_from_cloud(client):
