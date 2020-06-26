@@ -1,5 +1,4 @@
 [flake8]
-min_python_version = 3.6.0
 exclude =
     __init__.py,
     versioneer.py,
