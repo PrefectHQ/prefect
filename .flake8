@@ -22,4 +22,4 @@ ignore =
 
 # black is set to 88, but isn't a strict limit so we add some wiggle room for
 # flake8 testing.
-max-line-length = 100
+max-line-length = 105

@@ -200,8 +200,8 @@ class DatastoreUpload(Task):
     Task for uploading local files to a Datastore.
 
     Args:
-        - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore,
-            optional): The datastore to upload the files to.
+        - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional):
+            The datastore to upload the files to.
         - relative_root (str, optional): The root from which is used to determine the path of
             the files in the blob. For example, if we upload /path/to/file.txt, and we define
             base path to be /path, when file.txt is uploaded to the blob storage, it will have
@@ -247,8 +247,8 @@ class DatastoreUpload(Task):
         Task run method.
 
         Args:
-            - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore,
-                optional): The datastore to upload the files to.
+            - datastore (azureml.data.azure_storage_datastore.AbstractAzureStorageDatastore, optional):
+                The datastore to upload the files to.
             - relative_root (str, optional): The root from which is used to determine the path
                 of the files in the blob. For example, if we upload `/path/to/file.txt`, and we
                 define base path to be `/path`, when `file.txt` is uploaded to the blob
