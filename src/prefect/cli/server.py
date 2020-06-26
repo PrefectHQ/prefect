@@ -323,7 +323,7 @@ def start(
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         while True:
             time.sleep(0.5)
-    except Exception:
+    except BaseException:
         click.secho(
             "Exception caught; killing services (press ctrl-C to force)",
             fg="white",
