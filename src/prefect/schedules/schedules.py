@@ -12,11 +12,12 @@ import prefect.schedules.filters
 
 class Schedule:
     """
-    Schedules are used to generate dates for flow runs. Scheduling logic works as follows: First off, 
-    candidate events are emitted by one or more `clocks`. Secondly, if filters were specified, 
-    they are applied in this order: all `filters` must return True, at least one `or_filter` must 
-    return True, then all `not_filters` must return False. Thridly, events that pass the filters 
-    are adjusted based on the `adjustments` functions. Finally, the resulting `datetime` is emitted.
+    Schedules are used to generate dates for flow runs. Scheduling logic works as follows:
+    First off, candidate events are emitted by one or more `clocks`. Secondly, if filters were
+    specified, they are applied in this order: all `filters` must return True, at least one
+    `or_filter` must return True, then all `not_filters` must return False. Thridly, events
+    that pass the filters are adjusted based on the `adjustments` functions. Finally, the
+    resulting `datetime` is emitted.
 
     Example:
 
@@ -33,7 +34,10 @@ class Schedule:
         filters=[filters.is_weekday],
 
         # only include 9am and 5pm
-        or_filters=[filters.between_times(time(9), time(9)), filters.between_times(time(17), time(17))]
+        or_filters=[
+            filters.between_times(time(9), time(9)),
+            filters.between_times(time(17), time(17))
+        ]
     )
 
     schedule.next(4) # returns the next 4 occurences of 9am and 5pm on weekdays
@@ -92,8 +96,9 @@ class Schedule:
             - n (int): the number of dates to return
             - after (datetime): an optional starting point. All returned dates will be after this
                 time.
-            - return_events (bool, optional): an optional boolean specifying whether to return a full
-                Clock Event or just the start_time of the associated event; defaults to `False`
+            - return_events (bool, optional): an optional boolean specifying whether to return
+                a full Clock Event or just the start_time of the associated event; defaults to
+                `False`
 
         Returns:
             - List[datetime]: a list of datetimes
@@ -132,7 +137,8 @@ class Schedule:
         # this next line yields items only if they differ from the previous item, which means
         # this generator only yields unique events (since the input is sorted)
         #
-        # code from `unique_justseen()` at https://docs.python.org/3/library/itertools.html#itertools-recipes
+        # code from `unique_justseen()` at
+        # https://docs.python.org/3/library/itertools.html#itertools-recipes
         unique_events = map(
             next, map(operator.itemgetter(1), itertools.groupby(sorted_events))
         )  # type: Iterable[prefect.schedules.clocks.ClockEvent]

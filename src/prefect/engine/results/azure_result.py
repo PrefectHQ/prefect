@@ -21,8 +21,8 @@ class AzureResult(Result):
     Args:
         - container (str): the name of the container to write to / read from
         - connection_string (str, optional): an Azure connection string for communicating with
-            Blob storage. If not provided the value set in the environment as `AZURE_STORAGE_CONNECTION_STRING`
-            will be used
+            Blob storage. If not provided the value set in the environment as
+            `AZURE_STORAGE_CONNECTION_STRING` will be used
         - connection_string_secret (str, optional): the name of a Prefect Secret
             which stores your Azure connection tring
         - **kwargs (Any, optional): any additional `Result` initialization options
@@ -93,7 +93,7 @@ class AzureResult(Result):
 
         self.logger.debug("Starting to upload result to {}...".format(new.location))
 
-        ## prepare data
+        # prepare data
         binary_data = new.serializer.serialize(new.value)
 
         # initialize client and upload

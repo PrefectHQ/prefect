@@ -49,8 +49,8 @@ from prefect.engine import signals
 from prefect.engine.state import Mapped
 
 if TYPE_CHECKING:
-    from prefect.engine import state  # pylint: disable=W0611
-    from prefect import core  # pylint: disable=W0611
+    from prefect.engine import state  # noqa
+    from prefect import core  # noqa
 
 
 def _get_all_states_as_set(upstream_states: Dict["core.Edge", "state.State"]) -> set:
@@ -175,19 +175,22 @@ def some_failed(
     at_least: Union[int, float] = None, at_most: Union[int, float] = None
 ) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
     """
-    Runs if some amount of upstream tasks failed. This amount can be specified as an upper bound (`at_most`) or
-    a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
+    Runs if some amount of upstream tasks failed. This amount can be specified
+    as an upper bound (`at_most`) or a lower bound (`at_least`), and can be
+    provided as an absolute number or a percentage of upstream tasks.
 
-    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are considered failures.
+    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED`
+    tasks are considered failures.
 
     Args:
-        - at_least (Union[int, float], optional): the minimum number of upstream failures that must occur for
-            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
-            absolute number.
-        - at_most (Union[int, float], optional): the maximum number of upstream failures to allow for
-            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
-            absolute number.
-    """
+        - at_least (Union[int, float], optional): the minimum number of
+            upstream failures that must occur for this task to run.  If the
+            provided number is less than 0, it will be interpreted as a
+            percentage, otherwise as an absolute number.
+        - at_most (Union[int, float], optional): the maximum number of upstream
+           failures to allow for this task to run.  If the provided number is
+           less than 0, it will be interpreted as a percentage, otherwise as an
+           absolute number.  """
 
     def _some_failed(upstream_states: Dict["core.Edge", "state.State"]) -> bool:
         """
@@ -229,18 +232,23 @@ def some_successful(
     at_least: Union[int, float] = None, at_most: Union[int, float] = None
 ) -> Callable[[Dict["core.Edge", "state.State"]], bool]:
     """
-    Runs if some amount of upstream tasks succeed. This amount can be specified as an upper bound (`at_most`) or
-    a lower bound (`at_least`), and can be provided as an absolute number or a percentage of upstream tasks.
 
-    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED` tasks are considered failures.
+    Runs if some amount of upstream tasks succeed. This amount can be specified
+    as an upper bound (`at_most`) or a lower bound (`at_least`), and can be
+    provided as an absolute number or a percentage of upstream tasks.
+
+    Note that `SKIPPED` tasks are considered successes and `TRIGGER_FAILED`
+    tasks are considered failures.
 
     Args:
-        - at_least (Union[int, float], optional): the minimum number of upstream successes that must occur for
-            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
-            absolute number.
-        - at_most (Union[int, float], optional): the maximum number of upstream successes to allow for
-            this task to run.  If the provided number is less than 0, it will be interpreted as a percentage, otherwise as an
-            absolute number.
+        - at_least (Union[int, float], optional): the minimum number of
+            upstream successes that must occur for this task to run.  If the
+            provided number is less than 0, it will be interpreted as a
+            percentage, otherwise as an absolute number.
+        - at_most (Union[int, float], optional): the maximum number of upstream
+            successes to allow for this task to run.  If the provided number is
+            less than 0, it will be interpreted as a percentage, otherwise as
+            an absolute number.
     """
 
     def _some_successful(upstream_states: Dict["core.Edge", "state.State"]) -> bool:

@@ -18,17 +18,16 @@ class AzureResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from an Azure Blob storage.
 
-    Note that your flow's runtime environment must be able to authenticate with
-    Azure; there are currently two supported options: provide a connection string
-    either at initialization or at runtime through an environment variable, or
-    set your Azure credentials as a Prefect Secret.  Using an environment variable is the recommended
-    approach.
+    Note that your flow's runtime environment must be able to authenticate with Azure; there
+    are currently two supported options: provide a connection string either at initialization
+    or at runtime through an environment variable, or set your Azure credentials as a Prefect
+    Secret.  Using an environment variable is the recommended approach.
 
     Args:
         - container (str): the name of the container to write to / read from
         - connection_string (str, optional): an Azure connection string for communicating with
-            Blob storage. If not provided the value set in the environment as `AZURE_STORAGE_CONNECTION_STRING`
-            will be used
+            Blob storage. If not provided the value set in the environment as
+            `AZURE_STORAGE_CONNECTION_STRING` will be used
         - azure_credentials_secret (str, optional): the name of a Prefect Secret
             which stores your Azure credentials; this Secret must be a JSON payload
             with two keys: `ACCOUNT_NAME` and either `ACCOUNT_KEY` or `SAS_TOKEN`
@@ -103,10 +102,10 @@ class AzureResultHandler(ResultHandler):
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
 
-        ## prepare data
+        # prepare data
         binary_data = base64.b64encode(cloudpickle.dumps(result)).decode()
 
-        ## upload
+        # upload
         self.service.create_blob_from_text(
             container_name=self.container, blob_name=uri, text=binary_data
         )

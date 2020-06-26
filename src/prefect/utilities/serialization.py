@@ -150,7 +150,8 @@ class ObjectSchema(Schema):
             - data (dict): the deserialized data
 
         Returns:
-            - Any: an instantiated object, if `create_object` is found in context; otherwise, the data dict
+            - Any: an instantiated object, if `create_object` is found in context; otherwise,
+                the data dict
         """
         if self.context.get("create_object", True):
             object_class = self.opts.object_class
@@ -199,8 +200,9 @@ class Nested(fields.Nested):
 
     Args:
         - nested (type): the nested schema class
-        - value_selection_fn (Callable): a function that is called whenever the object is serialized,
-            to retrieve the object (if not available as a simple attribute of the parent schema)
+        - value_selection_fn (Callable): a function that is called whenever the object is
+            serialized, to retrieve the object (if not available as a simple attribute of the
+            parent schema)
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
     """
 
@@ -302,8 +304,9 @@ class FunctionReference(fields.Field):
     Args:
         - valid_functions (List[Callable]): a list of functions that will be serialized as string
             references
-        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
-            any value will be allowed, but only functions in `valid_functions` will be deserialized.
+        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected.
+            If False, any value will be allowed, but only functions in `valid_functions` will
+            be deserialized.
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
 
     """
@@ -359,8 +362,9 @@ class StatefulFunctionReference(fields.Field):
 
     Args:
         - valid_functions (List[Callable]): an allow list of valid functions
-        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
-            any value will be allowed, but only functions in `valid_functions` will be deserialized.
+        - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected.
+            If False, any value will be allowed, but only functions in `valid_functions` will
+            be deserialized.
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
 
     """
@@ -378,7 +382,7 @@ class StatefulFunctionReference(fields.Field):
 
         try:
             qual_name = to_qualified_name(value)
-        except:
+        except Exception:
             raise ValidationError(
                 f"Invalid function reference, function required, got {value}"
             )

@@ -1,7 +1,9 @@
 """
-Result Handlers provide the hooks that Prefect uses to store task results in production; a `ResultHandler` can be provided to a `Flow` at creation.
+Result Handlers provide the hooks that Prefect uses to store task results in production; a
+`ResultHandler` can be provided to a `Flow` at creation.
 
-Anytime a task needs its output or inputs stored, a result handler is used to determine where this data should be stored (and how it can be retrieved).
+Anytime a task needs its output or inputs stored, a result handler is used to determine where
+this data should be stored (and how it can be retrieved).
 """
 import os
 from typing import Any
