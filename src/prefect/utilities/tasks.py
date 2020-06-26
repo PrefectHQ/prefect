@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     import prefect.tasks.core.constants
     import prefect.tasks.core.collections
     import prefect.tasks.core.function
-    from prefect import Task, Flow  # pylint: disable=W0611
+    from prefect import Flow
 
 
 def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) -> Any:
@@ -92,7 +92,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     # Used to convert constants to constant tasks if needed
     id_to_const = {}
 
-    def preprocess(a: Any) -> "Task":
+    def preprocess(a: Any) -> "prefect.Task":
         a2 = as_task(a, flow=flow2)
         is_mapped = not isinstance(a, unmapped)
         is_constant = isinstance(a2, Constant)
@@ -204,7 +204,7 @@ def tags(*tags: str) -> Iterator[None]:
         yield
 
 
-def as_task(x: Any, flow: Optional["Flow"] = None) -> "prefect.Task":
+def as_task(x: Any, flow: "Optional[Flow]" = None) -> "prefect.Task":
     """
     Wraps a function, collection, or constant with the appropriate Task type. If a constant
     or collection of constants is passed, a `Constant` task is returned.
@@ -396,11 +396,12 @@ class unmapped:
 def defaults_from_attrs(*attr_args: str) -> Callable:
     """
     Helper decorator for dealing with Task classes with attributes that serve
-    as defaults for `Task.run`.  Specifically, this decorator allows the author of a Task
-    to identify certain keyword arguments to the run method which will fall back to `self.ATTR_NAME`
-    if not explicitly provided to `self.run`.  This pattern allows users to create a Task "template",
-    whose default settings can be created at initialization but overrided in individual instances when the
-    Task is called.
+    as defaults for `Task.run`.  Specifically, this decorator allows the author
+    of a Task to identify certain keyword arguments to the run method which
+    will fall back to `self.ATTR_NAME` if not explicitly provided to
+    `self.run`.  This pattern allows users to create a Task "template", whose
+    default settings can be created at initialization but overrided in
+    individual instances when the Task is called.
 
     Args:
         - *attr_args (str): a splatted list of strings specifying which

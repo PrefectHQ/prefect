@@ -4,13 +4,9 @@ from marshmallow import fields, post_load
 
 import prefect
 from prefect.utilities.serialization import (
-    UUID,
-    FunctionReference,
     JSONCompatible,
     ObjectSchema,
-    OneOfSchema,
     StatefulFunctionReference,
-    from_qualified_name,
     to_qualified_name,
 )
 

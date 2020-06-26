@@ -8,7 +8,8 @@ try:
     from jinja2 import Template
 except ImportError:
     raise ImportError(
-        'Using `prefect.tasks.templates.jinja2` requires Prefect to be installed with the "templates" extra.'
+        "Using `prefect.tasks.templates.jinja2` requires Prefect to be installed "
+        "with the 'templates' extra."
     )
 
 

@@ -19,7 +19,11 @@ def system_check(python_version: str):
         sys.version_info.minor < python_version[1]
         or sys.version_info.minor > python_version[1]
     ):
-        msg = "Your Docker container is using python version {sys_ver}, but your Flow was serialized using {user_ver}; this could lead to unexpected errors in deployment.".format(
+        msg = (
+            "Your Docker container is using python version {sys_ver}, but your Flow was "
+            "serialized using {user_ver}; this could lead to unexpected errors in "
+            "deployment."
+        ).format(
             sys_ver=(sys.version_info.major, sys.version_info.minor),
             user_ver=python_version,
         )
@@ -47,7 +51,7 @@ def result_check(flows: list):
         if flow.result is not None:
             continue
 
-        ## test for tasks which might retry without upstream result handlers
+        # test for tasks which might retry without upstream result handlers
         retry_tasks = [t for t in flow.tasks if t.max_retries > 0]
         upstream_edges = flow.all_upstream_edges()
         for task in retry_tasks:
@@ -59,19 +63,19 @@ def result_check(flows: list):
                 ]
             ):
                 raise ValueError(
-                    "Task {} has retry settings but some upstream dependencies do not have result types. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
+                    f"Task {task} has retry settings but some upstream dependencies do not "
+                    f"have result types. See https://docs.prefect.io/core/concepts/results.html "
+                    f"for more details."
                 )
 
-        ## test for tasks which request caching with no result handler or no upstream result handlers
+        # test for tasks which request caching with no result handler or no upstream result handlers
         cached_tasks = [t for t in flow.tasks if t.cache_for is not None]
         for task in cached_tasks:
             if task.result is None:
                 raise ValueError(
-                    "Task {} has cache settings but does not have a result type. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
+                    f"Task {task} has cache settings but does not have a result type. "
+                    f"See https://docs.prefect.io/core/concepts/results.html for more "
+                    f"details."
                 )
             if any(
                 [
@@ -81,9 +85,9 @@ def result_check(flows: list):
                 ]
             ):
                 raise ValueError(
-                    "Task {} has cache settings but some upstream dependencies do not have result types. See https://docs.prefect.io/core/concepts/results.html for more details.".format(
-                        task
-                    )
+                    f"Task {task} has cache settings but some upstream dependencies do not have "
+                    f"result types. See https://docs.prefect.io/core/concepts/results.html for "
+                    f"more details."
                 )
     print("Result check: OK")
 

@@ -6,7 +6,7 @@
 
 The Prefect Cloud platform includes a UI for monitoring and managing any workflows you build with Prefect Core. You can kick off new runs, get live-updating states, browse workflow structures, stream logs, and more.
 
-You can sign up for a free Cloud account [right here](https://www.prefect.io/pricing) or check out the [UI docs](/orchestration/ui/dashboard.html) if you're only curious.
+You can sign up for a free Cloud account [right here](https://www.prefect.io/download) or check out the [UI docs](/orchestration/ui/dashboard.html) if you're only curious.
 
 ### What is the difference between Prefect Core and Prefect Cloud?
 

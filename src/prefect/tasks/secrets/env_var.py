@@ -34,8 +34,8 @@ class EnvVarSecret(PrefectSecret):
         Returns the value of an environment variable after applying an optional `cast` function.
 
         Args:
-            - name (str, optional): the name of the underlying environment variable to retrieve. Defaults
-                to the name provided at initialization.
+            - name (str, optional): the name of the underlying environment variable to
+                retrieve. Defaults to the name provided at initialization.
 
         Returns:
             - Any: the (optionally type-cast) value of the environment variable

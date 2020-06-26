@@ -44,7 +44,8 @@ class FargateTaskEnvironment(Environment, _RunMixin):
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 
-    Note: You must provide `family` and `taskDefinition` with the same string so they match on run of the task.
+    Note: You must provide `family` and `taskDefinition` with the same string so they match on
+    run of the task.
 
     The secrets and kwargs that are provided at initialization time of this environment
     are not serialized and will only ever exist on this object.
@@ -68,10 +69,12 @@ class FargateTaskEnvironment(Environment, _RunMixin):
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
             default executor will be used.
         - executor_kwargs (dict, optional): DEPRECATED
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
         - **kwargs (dict, optional): additional keyword arguments to pass to boto3 for
             `register_task_definition` and `run_task`

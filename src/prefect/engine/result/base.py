@@ -160,9 +160,10 @@ class Result(ResultInterface):
 
     def validate(self) -> bool:
         """
-        Run any validator functions associated with this result and return whether the result is valid or not.
-        All individual validator functions must return True for this method to return True.
-        Emits a warning log if run_validators isn't true, and proceeds to run validation functions anyway.
+        Run any validator functions associated with this result and return whether the result
+        is valid or not.  All individual validator functions must return True for this method
+        to return True.  Emits a warning log if run_validators isn't true, and proceeds to run
+        validation functions anyway.
 
 
         Returns:
@@ -170,9 +171,10 @@ class Result(ResultInterface):
         """
         if not self.run_validators:
             self.logger.warning(
-                "A Result's validate method has been called, but its run_validators attribute is False. "
-                "Prefect will not honor the validators without run_validators=True, so please change it "
-                "if you expect validation to occur automatically for this Result in your pipeline."
+                "A Result's validate method has been called, but its run_validators "
+                "attribute is False. Prefect will not honor the validators without "
+                "run_validators=True, so please change it if you expect validation "
+                "to occur automatically for this Result in your pipeline."
             )
 
         if self.validators:
@@ -199,7 +201,8 @@ class Result(ResultInterface):
 
     def format(self, **kwargs: Any) -> "Result":
         """
-        Takes a set of string format key-value pairs and renders the result.location to a final location string
+        Takes a set of string format key-value pairs and renders the result.location to a final
+        location string
 
         Args:
             - **kwargs (Any): string format arguments for result.location
@@ -233,7 +236,9 @@ class Result(ResultInterface):
             - bool: whether or not the target result exists.
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
     def read(self, location: str) -> "Result":
@@ -247,7 +252,9 @@ class Result(ResultInterface):
             - Any: The value saved to the result.
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
     def write(self, value: Any, **kwargs: Any) -> "Result":
@@ -264,14 +271,17 @@ class Result(ResultInterface):
             - Result: a new result object with the appropriately formatted location destination
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
 
 class SafeResult(ResultInterface):
     """
-    A _safe_ representation of the result of a Prefect task; this class contains information about
-    the serialized value of a task's result, and a result handler specifying how to deserialize this value
+    A _safe_ representation of the result of a Prefect task; this class contains information
+    about the serialized value of a task's result, and a result handler specifying how to
+    deserialize this value
 
     Args:
         - value (Any): the safe representation of a value

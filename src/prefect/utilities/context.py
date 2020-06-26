@@ -27,9 +27,13 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `logger` | the logger for the current task |
-| `config` | the complete [Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html) object that is being used during this run |
+| `config` | the complete [Prefect configuration]\
+(https://docs.prefect.io/core/concepts/configuration.html) object that is being used \
+during this run |
 | `flow_name` | the name of the current flow |
-| `scheduled_start_time` | a datetime object representing the scheduled start time for the flow run; falls back to `now` for unscheduled runs |
+| `scheduled_start_time` | \
+a datetime object representing the scheduled start time for the flow run; \
+falls back to `now` for unscheduled runs |
 | `parameters` | a dictionary of parameter values for the current flow run |
 | `map_index` | the map index of the current task (if mapped, otherwise `None`) |
 | `task_name` | the name of the current task |
@@ -52,7 +56,9 @@ In addition, Prefect Cloud supplies some additional context variables:
 | `task_run_id` | the id of the current task run |
 | `task_run_version` | the state version of the current task run |
 
-Users can also provide values to context at runtime. For more information, see the [Context concept doc](https://docs.prefect.io/core/concepts/execution.html#context).
+Users can also provide values to context at runtime. For more information, see
+the [Context concept
+doc](https://docs.prefect.io/core/concepts/execution.html#context).
 """
 
 import contextlib
@@ -88,12 +94,8 @@ class Context(DotDict, threading.local):
         as an attribute of the prefect module.
         """
         raise TypeError(
-            "\n".join(
-                [
-                    "Pickling context objects is explicitly not supported.",
-                    "You should always access context as an attribute of the `prefect` module, as in `prefect.context`",
-                ]
-            )
+            "Pickling context objects is explicitly not supported. You should always "
+            "access context as an attribute of the `prefect` module, as in `prefect.context`"
         )
 
     def __repr__(self) -> str:

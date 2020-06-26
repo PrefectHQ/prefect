@@ -1,6 +1,7 @@
 """
-Utilities for interacting with [Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html).  These are only intended
-to be used for testing.
+Utilities for interacting with [Prefect
+configuration](https://docs.prefect.io/core/concepts/configuration.html).  These are only
+intended to be used for testing.
 """
 from contextlib import contextmanager
 from typing import Iterator
@@ -15,8 +16,8 @@ def set_temporary_config(temp_config: dict) -> Iterator:
     Temporarily sets configuration values for the duration of the context manager.
 
     Args:
-        - temp_config (dict): a dictionary containing (possibly nested) configuration keys and values.
-            Nested configuration keys should be supplied as `.`-delimited strings.
+        - temp_config (dict): a dictionary containing (possibly nested) configuration keys and
+            values. Nested configuration keys should be supplied as `.`-delimited strings.
 
     Example:
         ```python

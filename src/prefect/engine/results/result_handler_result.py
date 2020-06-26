@@ -31,6 +31,15 @@ CONVERSIONS = [
     (LocalResultHandler, dict(dir="dir"), LocalResult),
     (S3ResultHandler, dict(bucket="bucket", boto3_kwargs="boto3_kwargs"), S3Result),
     (SecretResultHandler, dict(secret_task="secret_task"), SecretResult),
+    (
+        AzureResultHandler,
+        dict(
+            container="container",
+            connection_string="connection_string",
+            connection_string_secret="connection_string_secret",
+        ),
+        AzureResult,
+    ),
 ]  # type: List[Tuple[Type[ResultHandler], Dict[Any, Any], Type[Result]]]
 
 
@@ -52,8 +61,8 @@ class ResultHandlerResult(Result):
 
     def read(self, location: str) -> Result:
         """
-        Exposes the read method of the underlying custom result handler fitting the Result interface.
-        Returns a new Result with the value read from the custom result handler.
+        Exposes the read method of the underlying custom result handler fitting the Result
+        interface.  Returns a new Result with the value read from the custom result handler.
 
         Args:
             - location (str): the location to read from
@@ -67,7 +76,8 @@ class ResultHandlerResult(Result):
 
     def write(self, value: Any, **kwargs: Any) -> Result:
         """
-        Exposes the write method of the underlying custom result handler fitting the Result interface.
+        Exposes the write method of the underlying custom result handler fitting the Result
+        interface.
 
         Args:
             - value (Any): the value to write and attach to the result

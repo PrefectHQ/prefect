@@ -17,24 +17,25 @@ class BigQueryTask(Task):
 
     Args:
         - query (str, optional): a string of the query to execute
-        - query_params (list[tuple], optional): a list of 3-tuples specifying
-            BigQuery query parameters; currently only scalar query parameters are supported. See
-            [the Google documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+        - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery query
+            parameters; currently only scalar query parameters are supported.  See [the Google
+            documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
             for more details on how both the query and the query parameters should be formatted
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-            will default to the one inferred from your credentials
+        - project (str, optional): the project to initialize the BigQuery Client with; if not
+            provided, will default to the one inferred from your credentials
         - location (str, optional): location of the dataset that will be queried; defaults to "US"
-        - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
-            to process; this will be determined by executing a dry run and raising a `ValueError` if the
-            maximum is exceeded
+        - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query
+            is allowed to process; this will be determined by executing a dry run and raising a
+            `ValueError` if the maximum is exceeded
         - dataset_dest (str, optional): the optional name of a destination dataset to write the
-            query results to, if you don't want them returned; if provided, `table_dest` must also be
-            provided
+            query results to, if you don't want them returned; if provided, `table_dest` must
+            also be provided
         - table_dest (str, optional): the optional name of a destination table to write the
-            query results to, if you don't want them returned; if provided, `dataset_dest` must also be
-            provided
-        - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
-            the parameters provided here must be pickleable (e.g., dataset references will be rejected)
+            query results to, if you don't want them returned; if provided, `dataset_dest` must
+            also be provided
+        - job_config (dict, optional): an optional dictionary of job configuration parameters;
+            note that the parameters provided here must be pickleable (e.g., dataset references
+            will be rejected)
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -83,31 +84,37 @@ class BigQueryTask(Task):
         job_config: dict = None,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
             - query (str, optional): a string of the query to execute
-            - query_params (list[tuple], optional): a list of 3-tuples specifying
-                BigQuery query parameters; currently only scalar query parameters are supported. See
-                [the Google documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
-                for more details on how both the query and the query parameters should be formatted
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-                will default to the one inferred from your credentials
-            - location (str, optional): location of the dataset that will be queried; defaults to "US"
-            - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the query is allowed
-                to process; this will be determined by executing a dry run and raising a `ValueError` if the
-                maximum is exceeded
+            - query_params (list[tuple], optional): a list of 3-tuples specifying BigQuery
+                query parameters; currently only scalar query parameters are supported. See
+                [the Google
+                documentation](https://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+                for more details on how both the query and the query parameters should be
+                formatted
+            - project (str, optional): the project to initialize the BigQuery Client with; if
+                not provided, will default to the one inferred from your credentials
+            - location (str, optional): location of the dataset that will be queried; defaults
+                to "US"
+            - dry_run_max_bytes (int, optional): if provided, the maximum number of bytes the
+                query is allowed to process; this will be determined by executing a dry run and
+                raising a `ValueError` if the maximum is exceeded
             - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
-                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
+                You should provide these at runtime with an upstream Secret task.  If not
+                provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
+                will use default Google client logic.
             - dataset_dest (str, optional): the optional name of a destination dataset to write the
-                query results to, if you don't want them returned; if provided, `table_dest` must also be
-                provided
+                query results to, if you don't want them returned; if provided, `table_dest`
+                must also be provided
             - table_dest (str, optional): the optional name of a destination table to write the
-                query results to, if you don't want them returned; if provided, `dataset_dest` must also be
-                provided
-            - job_config (dict, optional): an optional dictionary of job configuration parameters; note that
-                the parameters provided here must be pickleable (e.g., dataset references will be rejected)
+                query results to, if you don't want them returned; if provided, `dataset_dest`
+                must also be provided
+            - job_config (dict, optional): an optional dictionary of job configuration
+                parameters; note that the parameters provided here must be pickleable (e.g.,
+                dataset references will be rejected)
 
         Raises:
             - ValueError: if the `query` is `None`
@@ -117,18 +124,19 @@ class BigQueryTask(Task):
         Returns:
             - list: a fully populated list of Query results, with one item per row
         """
-        ## check for any argument inconsistencies
+        # check for any argument inconsistencies
         if query is None:
             raise ValueError("No query provided.")
         if sum([dataset_dest is None, table_dest is None]) == 1:
             raise ValueError(
-                "Both `dataset_dest` and `table_dest` must be provided if writing to a destination table."
+                "Both `dataset_dest` and `table_dest` must be provided if writing to a "
+                "destination table."
             )
 
-        ## create client
+        # create client
         client = get_bigquery_client(project=project, credentials=credentials)
 
-        ## setup jobconfig
+        # setup jobconfig
         job_config = bigquery.QueryJobConfig(**job_config)
         if query_params is not None:
             hydrated_params = [
@@ -136,7 +144,7 @@ class BigQueryTask(Task):
             ]
             job_config.query_parameters = hydrated_params
 
-        ## perform dry_run if requested
+        # perform dry_run if requested
         if dry_run_max_bytes is not None:
             old_info = dict(
                 dry_run=job_config.dry_run, use_query_cache=job_config.use_query_cache
@@ -146,15 +154,15 @@ class BigQueryTask(Task):
             self.logger.debug("Performing a dry run...")
             query_job = client.query(query, location=location, job_config=job_config)
             if query_job.total_bytes_processed > dry_run_max_bytes:
-                raise ValueError(
-                    "Query will process {0} bytes which is above the set maximum of {1} for this task.".format(
-                        query_job.total_bytes_processed, dry_run_max_bytes
-                    )
-                )
+                msg = (
+                    "Query will process {0} bytes which is above the set maximum of {1} "
+                    "for this task."
+                ).format(query_job.total_bytes_processed, dry_run_max_bytes)
+                raise ValueError(msg)
             job_config.dry_run = old_info["dry_run"]
             job_config.use_query_cache = old_info["use_query_cache"]
 
-        ## if writing to a destination table
+        # if writing to a destination table
         if dataset_dest is not None:
             table_ref = client.dataset(dataset_dest).table(table_dest)
             job_config.destination = table_ref
@@ -165,17 +173,19 @@ class BigQueryTask(Task):
 
 class BigQueryStreamingInsert(Task):
     """
-    Task for insert records in a Google BigQuery table via [the streaming API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
-    Note that all of these settings can optionally be provided or overwritten at runtime.
+    Task for insert records in a Google BigQuery table via [the streaming
+    API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).  Note that all of
+    these settings can optionally be provided or overwritten at runtime.
 
     Args:
         - dataset_id (str, optional): the id of a destination dataset to write the
             records to
         - table (str, optional): the name of a destination table to write the
             records to
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-            will default to the one inferred from your credentials
-        - location (str, optional): location of the dataset that will be written to; defaults to "US"
+        - project (str, optional): the project to initialize the BigQuery Client with; if not
+            provided, will default to the one inferred from your credentials
+        - location (str, optional): location of the dataset that will be written to; defaults
+            to "US"
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -205,24 +215,27 @@ class BigQueryStreamingInsert(Task):
         **kwargs,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
-            - records (list[dict]): the list of records to insert as rows into
-                the BigQuery table; each item in the list should be a dictionary whose keys correspond
-                to columns in the table
-            - dataset_id (str, optional): the id of a destination dataset to write the
-                records to; if not provided here, will default to the one provided at initialization
+            - records (list[dict]): the list of records to insert as rows into the BigQuery
+                table; each item in the list should be a dictionary whose keys correspond to
+                columns in the table
+            - dataset_id (str, optional): the id of a destination dataset to write the records
+                to; if not provided here, will default to the one provided at initialization
             - table (str, optional): the name of a destination table to write the
                 records to; if not provided here, will default to the one provided at initialization
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-                will default to the one inferred from your credentials
-            - location (str, optional): location of the dataset that will be written to; defaults to "US"
-            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
-                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
-            - **kwargs (optional): additional kwargs to pass to the
-                `insert_rows_json` method; see the documentation here:
+            - project (str, optional): the project to initialize the BigQuery Client with; if
+                not provided, will default to the one inferred from your credentials
+            - location (str, optional): location of the dataset that will be written to;
+                defaults to "US"
+            - credentials (dict, optional): a JSON document containing Google Cloud
+                credentials.  You should provide these at runtime with an upstream Secret task.
+                If not provided, Prefect will first check `context` for `GCP_CREDENTIALS` and
+                lastly will use default Google client logic.
+            - **kwargs (optional): additional kwargs to pass to the `insert_rows_json` method;
+                see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
 
         Raises:
@@ -232,17 +245,17 @@ class BigQueryStreamingInsert(Task):
         Returns:
             - the response from `insert_rows_json`
         """
-        ## check for any argument inconsistencies
+        # check for any argument inconsistencies
         if dataset_id is None or table is None:
             raise ValueError("Both dataset_id and table must be provided.")
 
-        ## create client
+        # create client
         client = get_bigquery_client(project=project, credentials=credentials)
 
-        ## get table reference
+        # get table reference
         table_ref = client.dataset(dataset_id).table(table)
 
-        ## stream data in
+        # stream data in
         response = client.insert_rows_json(table=table_ref, json_rows=records, **kwargs)
 
         errors = []
@@ -260,8 +273,9 @@ class BigQueryStreamingInsert(Task):
 
 class BigQueryLoadGoogleCloudStorage(Task):
     """
-    Task for insert records in a Google BigQuery table via a [load job](https://cloud.google.com/bigquery/docs/loading-data).
-    Note that all of these settings can optionally be provided or overwritten at runtime.
+    Task for insert records in a Google BigQuery table via a [load
+    job](https://cloud.google.com/bigquery/docs/loading-data).  Note that all of these settings
+    can optionally be provided or overwritten at runtime.
 
     Args:
         - uri (str, optional): GCS path to load data from
@@ -269,8 +283,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
             records to
         - table (str, optional): the name of a destination table to write the
             records to
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-            will default to the one inferred from your credentials
+        - project (str, optional): the project to initialize the BigQuery Client with; if not
+            provided, will default to the one inferred from your credentials
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - location (str, optional): location of the dataset that will be queried; defaults to "US"
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
@@ -307,7 +321,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
         **kwargs,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
             - uri (str, optional): GCS path to load data from
@@ -315,13 +330,16 @@ class BigQueryLoadGoogleCloudStorage(Task):
                 records to; if not provided here, will default to the one provided at initialization
             - table (str, optional): the name of a destination table to write the
                 records to; if not provided here, will default to the one provided at initialization
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-                will default to the one inferred from your credentials
-            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
-            - location (str, optional): location of the dataset that will be written to; defaults to "US"
-            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
-                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
+            - project (str, optional): the project to initialize the BigQuery Client with; if
+                not provided, will default to the one inferred from your credentials
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating
+                the table
+            - location (str, optional): location of the dataset that will be written to;
+                defaults to "US"
+            - credentials (dict, optional): a JSON document containing Google Cloud
+                credentials.  You should provide these at runtime with an upstream Secret task.
+                If not provided, Prefect will first check `context` for `GCP_CREDENTIALS` and
+                lastly will use default Google client logic.
             - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
                 see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
@@ -333,43 +351,47 @@ class BigQueryLoadGoogleCloudStorage(Task):
         Returns:
             - the response from `load_table_from_uri`
         """
-        ## check for any argument inconsistencies
+        # check for any argument inconsistencies
         if dataset_id is None or table is None:
             raise ValueError("Both dataset_id and table must be provided.")
 
-        ## create client
+        # create client
         client = get_bigquery_client(project=project, credentials=credentials)
 
-        ## get table reference
+        # get table reference
         table_ref = client.dataset(dataset_id).table(table)
 
-        ## load data
+        # load data
         autodetect = kwargs.pop("autodetect", True)
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema
         load_job = client.load_table_from_uri(uri, table_ref, job_config=job_config)
-        result = load_job.result()  # block until job is finished
+        load_job.result()  # block until job is finished
 
 
 class BigQueryLoadFile(Task):
     """
-    Task for insert records in a Google BigQuery table via a [load job](https://cloud.google.com/bigquery/docs/loading-data).
-    Note that all of these settings can optionally be provided or overwritten at runtime.
+    Task for insert records in a Google BigQuery table via a [load
+    job](https://cloud.google.com/bigquery/docs/loading-data).  Note that all of these settings
+    can optionally be provided or overwritten at runtime.
 
     Args:
-        - file (Union[str, path-like object], optional): A string or path-like object of the file to be loaded
-        - rewind (bool, optional): if True, seek to the beginning of the file handle before reading the file
-        - size (int, optional):  the number of bytes to read from the file handle. If size is None or large,
-            resumable upload will be used. Otherwise, multipart upload will be used.
-        - dataset_id (str, optional): the id of a destination dataset to write the
-            records to
-        - table (str, optional): the name of a destination table to write the
-            records to
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-            will default to the one inferred from your credentials
-        - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
-        - location (str, optional): location of the dataset that will be queried; defaults to "US"
+        - file (Union[str, path-like object], optional): A string or path-like object of the
+            file to be loaded
+        - rewind (bool, optional): if True, seek to the beginning of the file handle before
+            reading the file
+        - size (int, optional):  the number of bytes to read from the file handle. If size is
+            None or large, resumable upload will be used. Otherwise, multipart upload will be
+            used.
+        - dataset_id (str, optional): the id of a destination dataset to write the records to
+        - table (str, optional): the name of a destination table to write the records to
+        - project (str, optional): the project to initialize the BigQuery Client with; if not
+            provided, will default to the one inferred from your credentials
+        - schema (List[bigquery.SchemaField], optional): the schema to use when creating the
+            table
+        - location (str, optional): location of the dataset that will be queried; defaults to
+            "US"
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -422,23 +444,29 @@ class BigQueryLoadFile(Task):
         **kwargs,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task. Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
-            - file (Union[str, path-liike object], optional): A string or path-like object of the file to be loaded
-            - rewind (bool, optional): if True, seek to the beginning of the file handle before reading the file
-            - size (int, optional):  the number of bytes to read from the file handle. If size is None or large,
-                resumable upload will be used. Otherwise, multipart upload will be used.
-            - dataset_id (str, optional): the id of a destination dataset to write the
-                records to; if not provided here, will default to the one provided at initialization
-            - table (str, optional): the name of a destination table to write the
-                records to; if not provided here, will default to the one provided at initialization
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-                will default to the one inferred from your credentials
-            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
-            - location (str, optional): location of the dataset that will be written to; defaults to "US"
-            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.
+            - file (Union[str, path-liike object], optional): A string or path-like object of
+                the file to be loaded
+            - rewind (bool, optional): if True, seek to the beginning of the file handle before
+                reading the file
+            - size (int, optional):  the number of bytes to read from the file handle. If size
+                is None or large, resumable upload will be used. Otherwise, multipart upload
+                will be used.
+            - dataset_id (str, optional): the id of a destination dataset to write the records
+                to; if not provided here, will default to the one provided at initialization
+            - table (str, optional): the name of a destination table to write the records to;
+                if not provided here, will default to the one provided at initialization
+            - project (str, optional): the project to initialize the BigQuery Client with; if
+                not provided, will default to the one inferred from your credentials
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating
+                the table
+            - location (str, optional): location of the dataset that will be written to;
+                defaults to "US"
+            - credentials (dict, optional): a JSON document containing Google Cloud
+                credentials.  You should provide these at runtime with an upstream Secret task.
             - **kwargs (optional): additional kwargs to pass to the `bigquery.LoadJobConfig`;
                 see the documentation here:
                 https://googleapis.github.io/google-cloud-python/latest/bigquery/generated/google.cloud.bigquery.client.Client.html
@@ -451,7 +479,7 @@ class BigQueryLoadFile(Task):
         Returns:
             - the response from `load_table_from_file`
         """
-        ## check for any argument inconsistencies
+        # check for any argument inconsistencies
         if dataset_id is None or table is None:
             raise ValueError("Both dataset_id and table must be provided.")
         try:
@@ -461,19 +489,19 @@ class BigQueryLoadFile(Task):
         if not path.is_file():
             raise ValueError(f"File {path.as_posix()} does not exist.")
 
-        ## create client
+        # create client
         client = get_bigquery_client(project=project, credentials=credentials,)
 
-        ## get table reference
+        # get table reference
         table_ref = client.dataset(dataset_id).table(table)
 
-        ## configure job
+        # configure job
         autodetect = kwargs.pop("autodetect", True)
         job_config = bigquery.LoadJobConfig(autodetect=autodetect, **kwargs)
         if schema:
             job_config.schema = schema
 
-        ## load data
+        # load data
         try:
             with open(file, "rb") as file_obj:
                 load_job = client.load_table_from_file(
@@ -487,7 +515,7 @@ class BigQueryLoadFile(Task):
         except IOError:
             raise IOError(f"Can't open and read from {path.as_posix()}.")
 
-        result = load_job.result()  # block until job is finished
+        load_job.result()  # block until job is finished
 
 
 class CreateBigQueryTable(Task):
@@ -496,14 +524,15 @@ class CreateBigQueryTable(Task):
     can optionally be provided at runtime.
 
     Args:
-        - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-            will default to the one inferred from your credentials
+        - project (str, optional): the project to initialize the BigQuery Client with; if not
+            provided, will default to the one inferred from your credentials
         - dataset (str, optional): the name of a dataset in that the table will be created
         - table (str, optional): the name of a table to create
         - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
         - clustering_fields (List[str], optional): a list of fields to cluster the table by
-        - time_partitioning (bigquery.TimePartitioning, optional): a `bigquery.TimePartitioning` object specifying
-            a partitioninig of the newly created table
+        - time_partitioning (bigquery.TimePartitioning, optional): a
+            `bigquery.TimePartitioning` object specifying a partitioninig of the newly created
+            table
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -535,17 +564,20 @@ class CreateBigQueryTable(Task):
         schema: List[bigquery.SchemaField] = None,
     ):
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
-            - project (str, optional): the project to initialize the BigQuery Client with; if not provided,
-                will default to the one inferred from your credentials
-            - credentials (dict, optional): a JSON document containing Google Cloud credentials.
-                You should provide these at runtime with an upstream Secret task.  If not provided, Prefect will
-                first check `context` for `GCP_CREDENTIALS` and lastly will use default Google client logic.
+            - project (str, optional): the project to initialize the BigQuery Client with; if
+                not provided, will default to the one inferred from your credentials
+            - credentials (dict, optional): a JSON document containing Google Cloud
+                credentials.  You should provide these at runtime with an upstream Secret task.
+                If not provided, Prefect will first check `context` for `GCP_CREDENTIALS` and
+                lastly will use default Google client logic.
             - dataset (str, optional): the name of a dataset in that the table will be created
             - table (str, optional): the name of a table to create
-            - schema (List[bigquery.SchemaField], optional): the schema to use when creating the table
+            - schema (List[bigquery.SchemaField], optional): the schema to use when creating
+                the table
 
         Returns:
             - None

@@ -11,9 +11,10 @@ class S3Download(Task):
     Task for downloading data from an S3 bucket and returning it as a string.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret containing
-    your AWS access keys which will be passed directly to the `boto3` client, or you can
-    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret
+    containing your AWS access keys which will be passed directly to the `boto3` client, or you
+    can [configure your flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
 
     Args:
@@ -52,10 +53,10 @@ class S3Download(Task):
 
         stream = io.BytesIO()
 
-        ## download
+        # download
         s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=stream)
 
-        ## prepare data and return
+        # prepare data and return
         stream.seek(0)
         output = stream.read()
         return output.decode()
@@ -66,9 +67,10 @@ class S3Upload(Task):
     Task for uploading string data (e.g., a JSON string) to an S3 bucket.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
-    For authentication, there are two options: you can set a Prefect Secret containing
-    your AWS access keys which will be passed directly to the `boto3` client, or you can
-    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can set a Prefect Secret containing your AWS
+    access keys which will be passed directly to the `boto3` client, or you can [configure your
+    flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
 
     Args:
@@ -107,16 +109,16 @@ class S3Upload(Task):
 
         s3_client = get_boto_client("s3", credentials=credentials)
 
-        ## prepare data
+        # prepare data
         try:
             stream = io.BytesIO(data)
         except TypeError:
             stream = io.BytesIO(data.encode())
 
-        ## create key if not provided
+        # create key if not provided
         if key is None:
             key = str(uuid.uuid4())
 
-        ## upload
+        # upload
         s3_client.upload_fileobj(stream, Bucket=bucket, Key=key)
         return key

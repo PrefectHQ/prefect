@@ -11,25 +11,44 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class DatasetCreateFromDelimitedFiles(Task):
     """
-    Task for creating a TabularDataset from delimited files for use in a Azure Machine Learning service Workspace. The files should exist in a Datastore.
-    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+    Task for creating a TabularDataset from delimited files for use in a Azure Machine Learning
+    service Workspace. The files should exist in a Datastore.  Note that all initialization
+    arguments can optionally be provided or overwritten at runtime.
 
     Args:
         - dataset_name (str, optional): The name of the Dataset in the Workspace
-        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
-        - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
+        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the
+            files.
+        - path (Union[str, List[str]], optional): The path to the delimited files in the
+            Datastore.
         - dataset_description (str, optional): Description of the Dataset.
         - dataset_tags (str, optional): Tags to associate with the Dataset.
-        - include_path (bool, optional): Boolean to keep path information as column in the dataset.
+        - include_path (bool, optional): Boolean to keep path information as column in the
+            dataset.
         - infer_column_types (bool, optional): Boolean to infer column data types.
-        - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set column data type, where key is column name and value is a `azureml.data.DataType`.
+        - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set
+            column data type, where key is column name and value is a `azureml.data.DataType`.
         - fine_grain_timestamp (str, optional): The name of column as fine grain timestamp.
         - coarse_grain_timestamp (str, optional): The name of column coarse grain timestamp.
         - separator (str, optional): The separator used to split columns.
-        - header (azureml.data.dataset_type_definitions.PromoteHeadersBehavior, optional): Controls how column headers are promoted when reading from files. Defaults to assume that all files have the same header.
-        - partition_format (str, optional): Specify the partition format of path. Defaults to None. The partition information of each path will be extracted into columns based on the specified format. Format part `{column_name}` creates string column, and `{column_name:yyyy/MM/dd/HH/mm/ss}` creates datetime column, where `yyyy`, `MM`, `dd`, `HH`, `mm` and `ss` are used to extrat year, month, day, hour, minute and second for the datetime type. The format should start from the position of first partition key until the end of file path. For example, given the path `../Germany/2019/01/01/data.csv` where the partition is by country and time, `partition_format="/{Country}/{PartitionDate:yyyy/MM/dd}/data.csv"` creates string column `Country` with value `Germany` and datetime column `PartitionDate` with value `2019-01-01`.
-        - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+        - header (azureml.data.dataset_type_definitions.PromoteHeadersBehavior, optional):
+            Controls how column headers are promoted when reading from files. Defaults to
+            assume that all files have the same header.
+        - partition_format (str, optional): Specify the partition format of path. Defaults to
+            None. The partition information of each path will be extracted into columns based
+            on the specified format. Format part `{column_name}` creates string column, and
+            `{column_name:yyyy/MM/dd/HH/mm/ss}` creates datetime column, where `yyyy`, `MM`,
+            `dd`, `HH`, `mm` and `ss` are used to extrat year, month, day, hour, minute and
+            second for the datetime type. The format should start from the position of first
+            partition key until the end of file path. For example, given the path
+            `../Germany/2019/01/01/data.csv` where the partition is by country and time,
+            `partition_format="/{Country}/{PartitionDate:yyyy/MM/dd}/data.csv"` creates string
+            column `Country` with value `Germany` and datetime column `PartitionDate` with
+            value `2019-01-01`.
+        - create_new_version (bool, optional): Boolean to register the dataset as a new version
+            under the specified name.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task
+            constructor
     """
 
     def __init__(
@@ -105,19 +124,27 @@ class DatasetCreateFromDelimitedFiles(Task):
 
         Args:
             - dataset_name (str, optional): The name of the Dataset in the Workspace
-            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
-            - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
+            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds
+                the files.
+            - path (Union[str, List[str]], optional): The path to the delimited files in the
+                Datastore.
             - dataset_description (str, optional): Description of the Dataset.
             - dataset_tags (str, optional): Tags to associate with the Dataset.
-            - include_path (bool, optional): Boolean to keep path information as column in the dataset.
+            - include_path (bool, optional): Boolean to keep path information as column in the
+                dataset.
             - infer_column_types (bool, optional): Boolean to infer column data types.
-            - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set column data type, where key is column name and value is a `azureml.data.DataType`.
+            - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to
+                set column data type, where key is column name and value is a
+                `azureml.data.DataType`.
             - fine_grain_timestamp (str, optional): The name of column as fine grain timestamp.
             - coarse_grain_timestamp (str, optional): The name of column coarse grain timestamp.
             - separator (str, optional): The separator used to split columns.
-            - header (azureml.data.dataset_type_definitions.PromoteHeadersBehavior, optional): Controls how column headers are promoted when reading from files. Defaults to assume that all files have the same header.
+            - header (azureml.data.dataset_type_definitions.PromoteHeadersBehavior, optional):
+                Controls how column headers are promoted when reading from files. Defaults to
+                assume that all files have the same header.
             - partition_format (str, optional): Specify the partition format of path.
-            - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
+            - create_new_version (bool, optional): Boolean to register the dataset as a new
+                version under the specified name.
 
         Returns:
             - azureml.data.TabularDataset: the created TabularDataset
@@ -164,21 +191,35 @@ class DatasetCreateFromDelimitedFiles(Task):
 
 class DatasetCreateFromParquetFiles(Task):
     """
-    Task for creating a TabularDataset from Parquet files for use in a Azure Machine Learning service Workspace. The files should exist in a Datastore.
-    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+    Task for creating a TabularDataset from Parquet files for use in a Azure Machine Learning
+    service Workspace. The files should exist in a Datastore.  Note that all initialization
+    arguments can optionally be provided or overwritten at runtime.
 
     Args:
         - dataset_name (str, optional): The name of the Dataset in the Workspace
-        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
+        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the
+            files.
         - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
         - dataset_description (str, optional): Description of the Dataset.
         - dataset_tags (str, optional): Tags to associate with the Dataset.
         - include_path (bool, optional): Boolean to keep path information as column in the dataset.
-        - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set column data type, where key is column name and value is a `azureml.data.DataType`.
+        - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set
+            column data type, where key is column name and value is a `azureml.data.DataType`.
         - fine_grain_timestamp (str, optional): The name of column as fine grain timestamp.
         - coarse_grain_timestamp (str, optional): The name of column coarse grain timestamp.
-        - partition_format (str, optional): Specify the partition format of path. Defaults to None. The partition information of each path will be extracted into columns based on the specified format. Format part `{column_name}` creates string column, and `{column_name:yyyy/MM/dd/HH/mm/ss}` creates datetime column, where `yyyy`, `MM`, `dd`, `HH`, `mm` and `ss` are used to extrat year, month, day, hour, minute and second for the datetime type. The format should start from the position of first partition key until the end of file path. For example, given the path `../Germany/2019/01/01/data.csv` where the partition is by country and time, `partition_format="/{Country}/{PartitionDate:yyyy/MM/dd}/data.csv"` creates string column `Country` with value `Germany` and datetime column `PartitionDate` with value `2019-01-01`.
-        - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
+        - partition_format (str, optional): Specify the partition format of path. Defaults to
+            None. The partition information of each path will be extracted into columns based
+            on the specified format. Format part `{column_name}` creates string column, and
+            `{column_name:yyyy/MM/dd/HH/mm/ss}` creates datetime column, where `yyyy`, `MM`,
+            `dd`, `HH`, `mm` and `ss` are used to extrat year, month, day, hour, minute and
+            second for the datetime type. The format should start from the position of first
+            partition key until the end of file path. For example, given the path
+            `../Germany/2019/01/01/data.csv` where the partition is by country and time,
+            `partition_format="/{Country}/{PartitionDate:yyyy/MM/dd}/data.csv"` creates string
+            column `Country` with value `Germany` and datetime column `PartitionDate` with
+            value `2019-01-01`.
+        - create_new_version (bool, optional): Boolean to register the dataset as a new version
+            under the specified name.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -244,16 +285,22 @@ class DatasetCreateFromParquetFiles(Task):
 
         Args:
             - dataset_name (str, optional): The name of the Dataset in the Workspace
-            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
-            - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
+            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds
+                the files.
+            - path (Union[str, List[str]], optional): The path to the delimited files in the
+                Datastore.
             - dataset_description (str, optional): Description of the Dataset.
             - dataset_tags (str, optional): Tags to associate with the Dataset.
-            - include_path (bool, optional): Boolean to keep path information as column in the dataset.
-            - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to set column data type, where key is column name and value is a `azureml.data.DataType`.
+            - include_path (bool, optional): Boolean to keep path information as column in the
+                dataset.
+            - set_column_types (Dict[str, azureml.data.DataType], optional): A dictionary to
+                set column data type, where key is column name and value is a
+                `azureml.data.DataType`.
             - fine_grain_timestamp (str, optional): The name of column as fine grain timestamp.
             - coarse_grain_timestamp (str, optional): The name of column coarse grain timestamp.
             - partition_format (str, optional): Specify the partition format of path.
-            - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
+            - create_new_version (bool, optional): Boolean to register the dataset as a new
+                version under the specified name.
 
         Returns:
             - azureml.data.TabularDataset: the created TabularDataset.
@@ -296,16 +343,19 @@ class DatasetCreateFromParquetFiles(Task):
 
 class DatasetCreateFromFiles(Task):
     """
-    Task for creating a FileDataset from files for use in a Azure Machine Learning service Workspace. The files should exist in a Datastore.
-    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+    Task for creating a FileDataset from files for use in a Azure Machine Learning service
+    Workspace. The files should exist in a Datastore.  Note that all initialization arguments
+    can optionally be provided or overwritten at runtime.
 
     Args:
         - dataset_name (str, optional): The name of the Dataset in the Workspace
-        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
+        - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the
+            files.
         - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
         - dataset_description (str, optional): Description of the Dataset.
         - dataset_tags (str, optional): Tags to associate with the Dataset.
-        - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
+        - create_new_version (bool, optional): Boolean to register the dataset as a new version
+            under the specified name.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -351,11 +401,14 @@ class DatasetCreateFromFiles(Task):
 
         Args:
             - dataset_name (str, optional): The name of the Dataset in the Workspace
-            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds the files.
-            - path (Union[str, List[str]], optional): The path to the delimited files in the Datastore.
+            - datastore (azureml.core.datastore.Datastore, optional): The Datastore which holds
+                the files.
+            - path (Union[str, List[str]], optional): The path to the delimited files in the
+                Datastore.
             - dataset_description (str, optional): Description of the Dataset.
             - dataset_tags (str, optional): Tags to associate with the Dataset.
-            - create_new_version (bool, optional): Boolean to register the dataset as a new version under the specified name.
+            - create_new_version (bool, optional): Boolean to register the dataset as a new
+                version under the specified name.
 
         Returns:
             - azureml.data.FileDataset: the created FileDataset

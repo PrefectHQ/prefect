@@ -1,6 +1,7 @@
 """
-These Exceptions, when raised, are used to signal state changes when tasks or flows are running. Signals
-are used in TaskRunners and FlowRunners as a way of communicating the changes in states.
+These Exceptions, when raised, are used to signal state changes when tasks or flows are
+running. Signals are used in TaskRunners and FlowRunners as a way of communicating the changes
+in states.
 """
 
 from prefect.engine import state

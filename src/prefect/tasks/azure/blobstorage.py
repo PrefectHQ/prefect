@@ -118,7 +118,7 @@ class BlobStorageUpload(Task):
 
         blob_service = azure.storage.blob.BlockBlobService(conn_str=azure_credentials)
 
-        ## create key if not provided
+        # create key if not provided
         if blob_name is None:
             blob_name = str(uuid.uuid4())
 

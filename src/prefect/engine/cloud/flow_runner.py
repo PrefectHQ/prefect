@@ -81,7 +81,7 @@ class CloudFlowRunner(FlowRunner):
             if not flow_run.flow.settings.get("heartbeat_enabled", True):
                 return False
             return True
-        except Exception as exc:
+        except Exception:
             self.logger.exception(
                 "Heartbeat failed for Flow '{}'".format(self.flow.name)
             )
@@ -160,13 +160,14 @@ class CloudFlowRunner(FlowRunner):
                 values, with keys being strings representing Parameter names and values being
                 their corresponding values
             - task_runner_state_handlers (Iterable[Callable], optional): A list of state change
-                handlers that will be provided to the task_runner, and called whenever a task changes
-                state.
+                handlers that will be provided to the task_runner, and called whenever a task
+                changes state.
             - executor (Executor, optional): executor to use when performing
                 computation; defaults to the executor specified in your prefect configuration
             - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run
-            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be
+                provided to each task
 
         Returns:
             - State: `State` representing the final post-run state of the `Flow`.
@@ -241,7 +242,8 @@ class CloudFlowRunner(FlowRunner):
             - task_states (Dict[Task, State]): a dictionary of any initial task states
             - context (Dict[str, Any], optional): prefect.Context to use for execution
                 to use for each Task run
-            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be provided to each task
+            - task_contexts (Dict[Task, Dict[str, Any]], optional): contexts that will be
+                provided to each task
             - parameters(dict): the parameter values for the run
 
         Returns:
@@ -282,7 +284,8 @@ class CloudFlowRunner(FlowRunner):
             except KeyError:
                 msg = (
                     f"Task slug {task_run.task_slug} not found in the current Flow; "
-                    "this is usually caused by changing the Flow without reregistering it with the Prefect API."
+                    f"this is usually caused by changing the Flow without reregistering "
+                    f"it with the Prefect API."
                 )
                 raise KeyError(msg)
             task_states.setdefault(task, task_run.state)

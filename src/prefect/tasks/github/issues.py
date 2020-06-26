@@ -10,13 +10,16 @@ class OpenGitHubIssue(Task):
     Task for opening / creating new GitHub issues using the v3 version of the GitHub REST API.
 
     Args:
-        - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-            form `organization/repo_name`; can also be provided to the `run` method
-        - title (str, optional): the title of the issue to create; can also be provided to the `run` method
+        - repo (str, optional): the name of the repository to open the issue in; must be
+            provided in the form `organization/repo_name`; can also be provided to the `run`
+            method
+        - title (str, optional): the title of the issue to create; can also be provided to the
+            `run` method
         - body (str, optional): the contents of the issue; can also be provided to the `run` method
-        - labels (List[str], optional): a list of labels to apply to the newly opened issues; can also
-            be provided to the `run` method
-        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task init method
+        - labels (List[str], optional): a list of labels to apply to the newly opened issues;
+            can also be provided to the `run` method
+        - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+            init method
     """
 
     def __init__(
@@ -43,16 +46,19 @@ class OpenGitHubIssue(Task):
         token: str = None,
     ) -> None:
         """
-        Run method for this Task. Invoked by calling this Task after initialization within a Flow context,
-        or by using `Task.bind`.
+        Run method for this Task. Invoked by calling this Task after initialization within a
+        Flow context, or by using `Task.bind`.
 
         Args:
-            - repo (str, optional): the name of the repository to open the issue in; must be provided in the
-                form `organization/repo_name`; defaults to the one provided at initialization
-            - title (str, optional): the title of the issue to create; defaults to the one provided at initialization
-            - body (str, optional): the contents of the issue; defaults to the one provided at initialization
-            - labels (List[str], optional): a list of labels to apply to the newly opened issues; defaults to
-            the ones provided at initialization
+            - repo (str, optional): the name of the repository to open the issue in; must be
+                provided in the form `organization/repo_name`; defaults to the one provided at
+                initialization
+            - title (str, optional): the title of the issue to create; defaults to the one
+                provided at initialization
+            - body (str, optional): the contents of the issue; defaults to the one provided at
+                initialization
+            - labels (List[str], optional): a list of labels to apply to the newly opened
+                issues; defaults to the ones provided at initialization
             - token (str): a GitHub API token
 
         Raises:
@@ -76,6 +82,6 @@ class OpenGitHubIssue(Task):
         }
         issue = {"title": title, "body": body, "labels": labels}
 
-        ## send the request
+        # send the request
         resp = requests.post(url, data=json.dumps(issue), headers=headers)
         resp.raise_for_status()
