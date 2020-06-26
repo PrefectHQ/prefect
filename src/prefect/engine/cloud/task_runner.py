@@ -13,7 +13,6 @@ from prefect.engine.state import (
     Cached,
     ClientFailed,
     Failed,
-    Mapped,
     Queued,
     Retrying,
     State,
@@ -34,12 +33,12 @@ class CloudTaskRunner(TaskRunner):
     Args:
         - task (Task): the Task to be run / executed
         - state_handlers (Iterable[Callable], optional): A list of state change handlers
-            that will be called whenever the task changes state, providing an
-            opportunity to inspect or modify the new state. The handler
-            will be passed the task runner instance, the old (prior) state, and the new
-            (current) state, with the following signature: `state_handler(TaskRunner, old_state, new_state) -> State`;
-            If multiple functions are passed, then the `new_state` argument will be the
-            result of the previous handler.
+            that will be called whenever the task changes state, providing an opportunity to
+            inspect or modify the new state. The handler will be passed the task runner
+            instance, the old (prior) state, and the new (current) state, with the following
+            signature: `state_handler(TaskRunner, old_state, new_state) -> State`; If multiple
+            functions are passed, then the `new_state` argument will be the result of the
+            previous handler.
         - flow_result: the result instance configured for the flow (if any)
     """
 
@@ -73,7 +72,7 @@ class CloudTaskRunner(TaskRunner):
             if not flow_run.flow.settings.get("heartbeat_enabled", True):
                 return False
             return True
-        except Exception as exc:
+        except Exception:
             self.logger.exception(
                 "Heartbeat failed for Task '{}'".format(self.task.name)
             )
@@ -249,7 +248,8 @@ class CloudTaskRunner(TaskRunner):
         self, state: State, upstream_states: Dict[Edge, State]
     ) -> Tuple[State, Dict[Edge, State]]:
         """
-        Given the task's current state and upstream states, populates all relevant result objects for this task run.
+        Given the task's current state and upstream states, populates all relevant result
+        objects for this task run.
 
         Args:
             - state (State): the task's current state.
@@ -291,8 +291,8 @@ class CloudTaskRunner(TaskRunner):
         """
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
         `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
-        state which allow this Task to run.  Additionally, this method will wait and perform Task retries
-        which are scheduled for <= 1 minute in the future.
+        state which allow this Task to run.  Additionally, this method will wait and perform
+        Task retries which are scheduled for <= 1 minute in the future.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -301,8 +301,8 @@ class CloudTaskRunner(TaskRunner):
                 representing the states of any tasks upstream of this one. The keys of the
                 dictionary should correspond to the edges leading to the task.
             - context (dict, optional): prefect Context to use for execution
-            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of a parent
-                mapped task
+            - is_mapped_parent (bool): a boolean indicating whether this task run is the run of
+                a parent mapped task
 
         Returns:
             - `State` object representing the final post-run state of the Task

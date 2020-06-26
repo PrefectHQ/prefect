@@ -214,10 +214,11 @@ def start(
 
     \b
     Options:
-        --version, -v       TEXT    The server image versions to use (for example, '0.10.0' or 'master')
-                                    Defaults to the current installed Prefect version.
+        --version, -v       TEXT    The server image versions to use (for example, '0.10.0' or
+                                    'master'). Defaults to the current installed Prefect version.
         --skip-pull                 Flag to skip pulling new images (if available)
-        --no-upgrade, -n            Flag to avoid running a database upgrade when the database spins up
+        --no-upgrade, -n            Flag to avoid running a database upgrade when the database
+                                    spins up
         --no-ui, -u                 Flag to avoid starting the UI
 
     \b
@@ -236,7 +237,8 @@ def start(
 
     \b
         --use-volume                Enable the use of a volume for the Postgres service
-        --volume-path       TEXT    A path to use for the Postgres volume, defaults to '~/.prefect/pg_data'
+        --volume-path       TEXT    A path to use for the Postgres volume, defaults to
+                                    '~/.prefect/pg_data'
     """
 
     docker_dir = Path(__file__).parents[0]
@@ -324,7 +326,7 @@ def start(
         proc = subprocess.Popen(cmd, cwd=compose_dir_path, env=env)
         while True:
             time.sleep(0.5)
-    except:
+    except Exception:
         click.secho(
             "Exception caught; killing services (press ctrl-C to force)",
             fg="white",

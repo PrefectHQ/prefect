@@ -36,15 +36,17 @@ class KubernetesAgent(Agent):
             to the environment variable `NAMESPACE` or `default`.
         - name (str, optional): An optional name to give this agent. Can also be set through
             the environment variable `PREFECT__CLOUD__AGENT__NAME`. Defaults to "agent"
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - env_vars (dict, optional): a dictionary of environment variables and values that will be set
-            on each flow run that this agent submits for execution
-        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud for flow runs;
-            defaults to infinite
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - env_vars (dict, optional): a dictionary of environment variables and values that will
+            be set on each flow run that this agent submits for execution
+        - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
+            for flow runs; defaults to infinite
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
-            just health checks for use by an orchestration layer. Leave blank for no api server (default).
-        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent and all deployed flow runs
+            just health checks for use by an orchestration layer. Leave blank for no api server
+            (default).
+        - no_cloud_logs (bool, optional): Disable logging to a Prefect backend for this agent
+            and all deployed flow runs
     """
 
     def __init__(

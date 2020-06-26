@@ -29,7 +29,8 @@ def get_flow_image(flow: "Flow") -> str:
         storage = flow.storage
         if not isinstance(storage, prefect.environments.storage.Docker,):
             raise ValueError(
-                f"Storage for flow run {flow.name} is not of type Docker and environment has no `image` attribute in the metadata field."
+                f"Storage for flow run {flow.name} is not of type Docker and "
+                f"environment has no `image` attribute in the metadata field."
             )
 
         return storage.name

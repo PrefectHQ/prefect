@@ -13,8 +13,9 @@ def get_github_client(credentials: dict = None, **kwargs: Any) -> "Github":
     Utility function for loading github client objects from a given set of credentials.
 
     Args:
-        - credentials (dict, optional): a dictionary of AWS credentials used to initialize the Client; if
-            not provided, will attempt to load the Client using ambient environment settings
+        - credentials (dict, optional): a dictionary of AWS credentials used to
+            initialize the Client; if not provided, will attempt to load the
+            Client using ambient environment settings
         - **kwargs (Any, optional): additional keyword arguments to pass to the github Client
 
     Returns:

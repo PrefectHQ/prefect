@@ -137,7 +137,8 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
             to validate against
 
     Returns:
-        - Callable: the actual validation function specifying whether or not the cache should be used
+        - Callable: the actual validation function specifying whether or not the cache should
+            be used
 
     Example:
     ```python
@@ -177,7 +178,8 @@ def partial_parameters_only(validate_on: Iterable[str] = None,) -> Callable:
         The actual cache validation function that will be used.
 
         Args:
-            - state (State): a `Success` state from the last successful Task run that contains the cache
+            - state (State): a `Success` state from the last successful Task run that contains
+                the cache
             - inputs (dict): a `dict` of inputs that were available on the last
                 successful run of the cached Task
             - parameters (dict): a `dict` of parameters that were available on the
@@ -214,7 +216,8 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
             to validate against
 
     Returns:
-        - Callable: the actual validation function specifying whether or not the cache should be used
+        - Callable: the actual validation function specifying whether or not the cache should
+            be used
 
     Example:
     ```python
@@ -256,7 +259,8 @@ def partial_inputs_only(validate_on: Iterable[str] = None,) -> Callable:
         The actual cache validation function that will be used.
 
         Args:
-            - state (State): a `Success` state from the last successful Task run that contains the cache
+            - state (State): a `Success` state from the last successful Task run that contains
+                the cache
             - inputs (dict): a `dict` of inputs that were available on the last
                 successful run of the cached Task
             - parameters (dict): a `dict` of parameters that were available on the

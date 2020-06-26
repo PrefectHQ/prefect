@@ -79,7 +79,7 @@ class LambdaCreate(Task):
         self.role = role
         self.handler = handler
 
-        ## if zip file is provided, pass this to boto3 create, otherwise pass s3 object
+        # if zip file is provided, pass this to boto3 create, otherwise pass s3 object
         if zip_file:
             self.code = {"ZipFile": open(zip_file, "rb").read()}
         else:
@@ -124,7 +124,7 @@ class LambdaCreate(Task):
 
         lambda_client = get_boto_client("lambda", credentials=credentials)
 
-        ## create lambda function
+        # create lambda function
         response = lambda_client.create_function(
             FunctionName=self.function_name,
             Runtime=self.runtime,
@@ -181,7 +181,7 @@ class LambdaDelete(Task):
 
         lambda_client = get_boto_client("lambda", credentials=credentials)
 
-        ## delete function, depending on if qualifier provided
+        # delete function, depending on if qualifier provided
         if len(self.qualifier) > 0:
             response = lambda_client.delete_function(
                 FunctionName=self.function_name, Qualifier=self.qualifier
@@ -228,7 +228,7 @@ class LambdaInvoke(Task):
         self.invocation_type = invocation_type
         self.log_type = log_type
 
-        ## encode input dictionary as base64 json
+        # encode input dictionary as base64 json
         self.client_context = self._encode_lambda_context(**(client_context or {}))
 
         self.payload = payload
@@ -276,7 +276,7 @@ class LambdaInvoke(Task):
 
         lambda_client = get_boto_client("lambda", credentials=credentials)
 
-        ## invoke lambda function
+        # invoke lambda function
         response = lambda_client.invoke(
             FunctionName=function_name,
             InvocationType=self.invocation_type,
@@ -337,7 +337,7 @@ class LambdaList(Task):
 
         lambda_client = get_boto_client("lambda", credentials=credentials)
 
-        ## list functions, optionally passing in marker if not None
+        # list functions, optionally passing in marker if not None
         if self.marker:
             response = lambda_client.list_functions(
                 MasterRegion=self.master_region,

@@ -8,13 +8,14 @@ from typing import Any
 
 class MySQLExecute(Task):
     """
-    Task for executing a query against a MySQL database. 
+    Task for executing a query against a MySQL database.
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
         - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
+        - port (int, optional): port used to connect to MySQL database, defaults to 3307
+            if not provided
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
@@ -93,15 +94,18 @@ class MySQLExecute(Task):
 class MySQLFetch(Task):
     """
     Task for fetching results of query from MySQL database.
-    
+
     Args:
         - db_name (str): name of MySQL database
         - user (str): user name used to authenticate
         - password (str): password used to authenticate
         - host (str): database host address
-        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not provided
-        - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
-        - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
+        - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not
+            provided
+        - fetch (str, optional): one of "one" "many" or "all", used to determine how many
+            results to fetch from executed query
+        - fetch_count (int, optional): if fetch = 'many', determines the number of results to
+            fetch, defaults to 10
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset of the query, defaults to "utf8mb4"
@@ -148,8 +152,10 @@ class MySQLFetch(Task):
         Task run method. Executes a query against MySQL database and fetches results.
 
         Args:
-            - fetch (str, optional): one of "one" "many" or "all", used to determine how many results to fetch from executed query
-            - fetch_count (int, optional): if fetch = 'many', determines the number of results to fetch, defaults to 10
+            - fetch (str, optional): one of "one" "many" or "all", used to determine how many
+                results to fetch from executed query
+            - fetch_count (int, optional): if fetch = 'many', determines the number of results
+                to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
