@@ -376,9 +376,9 @@ class FargateAgent(Agent):
         except (ValueError, SyntaxError):
             pass
 
-        if len(container_defs) > 1:
+        if len(container_defs) != 1:
             raise ValueError(
-                "Multiple container definitions provided to Fargate agent."
+                "Fargate agent only accepts configuration for a single container definition."
             )
 
         for key, item in container_defs[0].items():
