@@ -115,7 +115,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError as exc:
+        except VersionLockError:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
@@ -131,7 +131,17 @@ class CloudTaskRunner(TaskRunner):
                     self.task.name, type(state).__name__
                 )
             )
-            new_state = state.load_result(self.result)
+
+            try:
+                new_state = state.load_result(self.result)
+            except Exception as exc:
+                self.logger.debug(
+                    "Error encountered attempting to load result for state of {} task...".format(
+                        self.task.name
+                    )
+                )
+                self.logger.error(repr(exc))
+                raise ENDRUN(state=state)
         except Exception as exc:
             self.logger.exception(
                 "Failed to set task state with error: {}".format(repr(exc))

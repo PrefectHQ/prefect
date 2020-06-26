@@ -123,7 +123,7 @@ class CloudFlowRunner(FlowRunner):
                 version=version if cloud_state.is_running() else None,
                 state=cloud_state,
             )
-        except VersionLockError as exc:
+        except VersionLockError:
             state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
 
             if state.is_running():
