@@ -86,9 +86,10 @@ def switch(condition: Task, cases: Dict[Any, Task], mapped: bool = False) -> Non
 
     Raises:
         - PrefectWarning: if any of the tasks in "cases" have upstream dependencies,
-            then this task will warn that those upstream tasks may run whether or not the switch condition matches their branch. The most common cause of this
-            is passing a list of tasks as one of the cases, which adds the `List` task
-            to the switch condition but leaves the tasks themselves upstream.
+            then this task will warn that those upstream tasks may run whether or not the
+            switch condition matches their branch. The most common cause of this is passing a
+            list of tasks as one of the cases, which adds the `List` task to the switch
+            condition but leaves the tasks themselves upstream.
     """
 
     with prefect.tags("switch"):

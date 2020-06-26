@@ -60,7 +60,7 @@ def cloud_flow():
         storage_schema = prefect.serialization.storage.StorageSchema()
         storage = storage_schema.load(flow_data.storage)
 
-        ## populate global secrets
+        # populate global secrets
         secrets = prefect.context.get("secrets", {})
         for secret in storage.secrets:
             secrets[secret] = PrefectSecret(name=secret).run()

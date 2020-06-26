@@ -27,8 +27,8 @@ class Azure(Storage):
     Args:
         - container (str): the name of the Azure Blob Container to store the Flow
         - connection_string (str, optional): an Azure connection string for communicating with
-            Blob storage. If not provided the value set in the environment as `AZURE_STORAGE_CONNECTION_STRING`
-            will be used
+            Blob storage. If not provided the value set in the environment as
+            `AZURE_STORAGE_CONNECTION_STRING` will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
         - **kwargs (Any, optional): any additional `Storage` initialization options
@@ -74,7 +74,7 @@ class Azure(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if not flow_location in self.flows.values():
+        if flow_location not in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
         client = self._azure_block_blob_service.get_blob_client(

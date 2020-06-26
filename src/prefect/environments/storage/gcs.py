@@ -14,10 +14,11 @@ if TYPE_CHECKING:
 
 class GCS(Storage):
     """
-    GoogleCloudStorage storage class.  This class represents the Storage interface for Flows stored as
-    bytes in an GCS bucket.  To authenticate with Google Cloud, you need to ensure that your Prefect
-    Agent has the proper credentials available (see https://cloud.google.com/docs/authentication/production
-    for all the authentication options).
+    GoogleCloudStorage storage class.  This class represents the Storage interface for Flows
+    stored as bytes in an GCS bucket.  To authenticate with Google Cloud, you need to ensure
+    that your Prefect Agent has the proper credentials available (see
+    https://cloud.google.com/docs/authentication/production for all the authentication
+    options).
 
     This storage class optionally takes a `key` which will be the name of the Flow object
     when stored in GCS. If this key is not provided the Flow upload name will take the form
@@ -66,7 +67,7 @@ class GCS(Storage):
         Raises:
             - ValueError: if the flow is not contained in this storage
         """
-        if not flow_location in self.flows.values():
+        if flow_location not in self.flows.values():
             raise ValueError("Flow is not contained in this Storage")
 
         bucket = self._gcs_client.get_bucket(self.bucket)

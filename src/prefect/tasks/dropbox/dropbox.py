@@ -14,8 +14,8 @@ class DropboxDownload(Task):
 
     Args:
         - path (str, optional): the path to the file to download. May be provided at runtime.
-        - access_token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing a
-            Dropbox access token
+        - access_token_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+            containing a Dropbox access token
         - **kwargs (optional): additional kwargs to pass to the `Task` constructor
     """
 
@@ -32,13 +32,14 @@ class DropboxDownload(Task):
         access_token_secret: str = None,
     ) -> bytes:
         """
-        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after initialization.
+        Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
+        initialization.
 
         Args:
             - path (str, optional): the path to the file to download
             - access_token (str): a Dropbox access token, provided with a Prefect secret.
-            - access_token_secret (str, optional, DEPRECATED): the name of the Prefect Secret containing a
-                Dropbox access token
+            - access_token_secret (str, optional, DEPRECATED): the name of the Prefect Secret
+                containing a Dropbox access token
 
         Raises:
             - ValueError: if the `path` is `None`
@@ -46,7 +47,7 @@ class DropboxDownload(Task):
         Returns:
             - bytes: the file contents, as bytes
         """
-        ## check for any argument inconsistencies
+        # check for any argument inconsistencies
         if path is None:
             raise ValueError("No path provided.")
 

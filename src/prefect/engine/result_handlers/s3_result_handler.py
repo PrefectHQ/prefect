@@ -19,9 +19,10 @@ class S3ResultHandler(ResultHandler):
     """
     Result Handler for writing to and reading from an AWS S3 Bucket.
 
-    For authentication, there are two options: you can set a Prefect Secret containing
-    your AWS access keys which will be passed directly to the `boto3` client, or you can
-    [configure your flow's runtime environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    For authentication, there are two options: you can set a Prefect Secret containing your AWS
+    access keys which will be passed directly to the `boto3` client, or you can [configure your
+    flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
 
     Args:
@@ -31,7 +32,8 @@ class S3ResultHandler(ResultHandler):
             with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
             passed directly to `boto3`.  If not provided, `boto3`
             will fall back on standard AWS rules for authentication.
-        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
+        - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
+            session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized (changing the "service_name" is not permitted).
     """
 
@@ -62,7 +64,8 @@ class S3ResultHandler(ResultHandler):
         if self.aws_credentials_secret:
             if aws_access_key is not None or aws_secret_access_key is not None:
                 self.logger.warning(
-                    '"aws_access_key" or "aws_secret_access_key" were set in "boto3_kwargs", ignoring those for what is populated in "aws_credentials_secret"'
+                    "'aws_access_key' or 'aws_secret_access_key' were set in 'boto3_kwargs', "
+                    "ignoring those for what is populated in 'aws_credentials_secret'"
                 )
 
             aws_credentials = Secret(self.aws_credentials_secret).get()
@@ -72,8 +75,8 @@ class S3ResultHandler(ResultHandler):
             aws_access_key = aws_credentials["ACCESS_KEY"]
             aws_secret_access_key = aws_credentials["SECRET_ACCESS_KEY"]
 
-        # use a new boto session when initializing in case we are in a new thread
-        # see https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
+        # use a new boto session when initializing in case we are in a new thread see
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/resources.html?#multithreading-multiprocessing
         session = boto3.session.Session()
         s3_client = session.client(
             "s3",
@@ -87,7 +90,9 @@ class S3ResultHandler(ResultHandler):
     def client(self) -> "boto3.client":
         """
         Initializes a client if we believe we are in a new thread.
-        We consider ourselves in a new thread if we haven't stored a client yet in the current context.
+
+        We consider ourselves in a new thread if we haven't stored a client yet in the current
+        context.
         """
         if not prefect.context.get("boto3client") or not getattr(self, "_client", None):
             self.initialize_client()
@@ -123,11 +128,11 @@ class S3ResultHandler(ResultHandler):
         uri = "{date}/{uuid}.prefect_result".format(date=date, uuid=uuid.uuid4())
         self.logger.debug("Starting to upload result to {}...".format(uri))
 
-        ## prepare data
+        # prepare data
         binary_data = base64.b64encode(cloudpickle.dumps(result))
         stream = io.BytesIO(binary_data)
 
-        ## upload
+        # upload
         self.client.upload_fileobj(stream, Bucket=self.bucket, Key=uri)
         self.logger.debug("Finished uploading result to {}.".format(uri))
         return uri
@@ -146,7 +151,7 @@ class S3ResultHandler(ResultHandler):
             self.logger.debug("Starting to download result from {}...".format(uri))
             stream = io.BytesIO()
 
-            ## download
+            # download
             self.client.download_fileobj(Bucket=self.bucket, Key=uri, Fileobj=stream)
             stream.seek(0)
 
