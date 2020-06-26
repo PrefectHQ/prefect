@@ -35,6 +35,7 @@ from prefect.engine.state import (
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import VersionLockError
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +58,30 @@ def client(monkeypatch):
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(
             side_effect=lambda task_run_id, version, state, cache_for: state
+        ),
+        get_latest_task_run_states=MagicMock(
+            side_effect=lambda flow_run_id, states: states
+        ),
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=cloud_client)
+    )
+    yield cloud_client
+
+
+@pytest.fixture()
+def vclient(monkeypatch):
+    cloud_client = MagicMock(
+        get_flow_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_flow_run_state=MagicMock(),
+        get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
+        set_task_run_state=MagicMock(
+            side_effect=VersionLockError(),
+            return_value=Running()
+            # side_effect=lambda task_run_id, version, state, cache_for: state
         ),
         get_latest_task_run_states=MagicMock(
             side_effect=lambda flow_run_id, states: states
@@ -1086,3 +1111,31 @@ def test_task_runner_gracefully_handles_load_results_failures(client):
 
     states = [call[1]["state"] for call in client.set_task_run_state.call_args_list]
     assert [type(s).__name__ for s in states] == ["Failed"]
+
+
+def test_task_runner_handles_version_lock_error(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
+    )
+    client.set_task_run_state.side_effect = VersionLockError()
+
+    task = Task(name="test")
+    runner = CloudTaskRunner(task=task)
+
+    # successful state
+    client.get_task_run_state.return_value = Success()
+    res = runner.call_runner_target_handlers(Pending(), Running())
+    assert res.is_successful()
+
+    # currently running
+    client.get_task_run_state.return_value = Running()
+    with pytest.raises(ENDRUN):
+        runner.call_runner_target_handlers(Pending(), Running())
+
+    # result load error
+    s = Success()
+    s.load_result = MagicMock(side_effect=Exception())
+    client.get_task_run_state.return_value = s
+    with pytest.raises(ENDRUN):
+        res = runner.call_runner_target_handlers(Pending(), Running())

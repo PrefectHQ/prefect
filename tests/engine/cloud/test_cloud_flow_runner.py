@@ -17,6 +17,7 @@ from prefect.engine.result_handlers import (
     SecretResultHandler,
 )
 from prefect.engine.results import PrefectResult, SecretResult
+from prefect.engine.runner import ENDRUN
 from prefect.engine.signals import LOOP
 from prefect.engine.state import (
     Cancelled,
@@ -34,6 +35,7 @@ from prefect.engine.state import (
 )
 from prefect.serialization.result_handlers import ResultHandlerSchema
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.exceptions import VersionLockError
 
 
 @pytest.fixture(autouse=True)
@@ -669,3 +671,24 @@ def test_flow_runner_retries_forever_on_queued_state(client, monkeypatch, num_at
     # Not checking the value of the `time.sleep` mock, since it appears to
     # be getting called thousands of times, likely due to a pytest
     # plugin or something of the like.
+
+
+def test_flowrunner_handles_version_lock_error(monkeypatch):
+    client = MagicMock()
+    monkeypatch.setattr(
+        "prefect.engine.cloud.flow_runner.Client", MagicMock(return_value=client)
+    )
+    client.set_flow_run_state.side_effect = VersionLockError()
+
+    flow = prefect.Flow(name="test")
+    runner = CloudFlowRunner(flow=flow)
+
+    # successful state
+    client.get_flow_run_state.return_value = Success()
+    res = runner.call_runner_target_handlers(Pending(), Running())
+    assert res.is_successful()
+
+    # currently running
+    client.get_flow_run_state.return_value = Running()
+    with pytest.raises(ENDRUN):
+        runner.call_runner_target_handlers(Pending(), Running())
