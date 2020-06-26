@@ -1,2 +1,0 @@
-fix:
-  - "Generate key names for mapped tasks that work better with Dask's dashboard - [#2831](https://github.com/PrefectHQ/prefect/pull/2831)"

@@ -13,24 +13,27 @@ class DbtShellTask(ShellTask):
     Args:
         - command (string, optional): dbt command to be executed; can also be
             provided post-initialization by calling this task instance
-        - dbt_kwargs (dict, optional): keyword arguments used to populate the profiles.yml file (e.g.
-         `{'type': 'snowflake', 'threads': 4, 'account': '...'}`); can also be provided at runtime
+        - dbt_kwargs (dict, optional): keyword arguments used to populate the profiles.yml file
+            (e.g.  `{'type': 'snowflake', 'threads': 4, 'account': '...'}`); can also be
+            provided at runtime
         - env (dict, optional): dictionary of environment variables to use for
             the subprocess; can also be provided at runtime
         - environment (string, optional): The default target your dbt project will use
-        - overwrite_profiles (boolean, optional): flag to indicate whether existing profiles.yml file
-            should be overwritten; defaults to `False`
-        - profile_name (string, optional): Profile name used for populating the profile name of profiles.yml
-        - profiles_dir (string, optional): path to directory where the profile.yml file will be contained
-        - set_profiles_envar (boolean, optional): flag to indicate whether DBT_PROFILES_DIR should be set to the
-            provided profiles_dir; defaults to `True`
+        - overwrite_profiles (boolean, optional): flag to indicate whether existing
+            profiles.yml file should be overwritten; defaults to `False`
+        - profile_name (string, optional): Profile name used for populating the profile name of
+            profiles.yml
+        - profiles_dir (string, optional): path to directory where the profile.yml file will be
+            contained
+        - set_profiles_envar (boolean, optional): flag to indicate whether DBT_PROFILES_DIR
+            should be set to the provided profiles_dir; defaults to `True`
         - helper_script (str, optional): a string representing a shell script, which
             will be executed prior to the `command` in the same process. Can be used to
             change directories, define helper functions, etc. when re-using this Task
             for different commands in a Flow
         - shell (string, optional): shell to run the command with; defaults to "bash"
-        - return_all (bool, optional): boolean specifying whether this task should return all lines of stdout
-            as a list, or just the last line as a string; defaults to `False`
+        - return_all (bool, optional): boolean specifying whether this task should return all
+            lines of stdout as a list, or just the last line as a string; defaults to `False`
         - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Example:
@@ -86,8 +89,9 @@ class DbtShellTask(ShellTask):
         self, command: str = None, env: dict = None, dbt_kwargs: dict = None
     ) -> str:
         """
-        If no profiles.yml file is found or if overwrite_profiles flag is set to True, this will first generate
-        a profiles.yml file in the profiles_dir directory. Then run the dbt cli shell command.
+        If no profiles.yml file is found or if overwrite_profiles flag is set to True, this
+        will first generate a profiles.yml file in the profiles_dir directory. Then run the dbt
+        cli shell command.
 
         Args:
             - command (string): shell command to be executed; can also be
@@ -99,9 +103,10 @@ class DbtShellTask(ShellTask):
              - dbt_kwargs(dict, optional): keyword arguments used to populate the profiles.yml file
 
         Returns:
-            - stdout (string): if `return_all` is `False` (the default), only the last line of stdout
-                is returned, otherwise all lines are returned, which is useful for passing
-                result of shell command to other downstream tasks. If there is no output, `None` is returned.
+            - stdout (string): if `return_all` is `False` (the default), only the last line of
+                stdout is returned, otherwise all lines are returned, which is useful for
+                passing result of shell command to other downstream tasks. If there is no
+                output, `None` is returned.
 
         Raises:
             - prefect.engine.signals.FAIL: if command has an exit code other

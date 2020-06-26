@@ -30,10 +30,12 @@ class Environment:
     The `setup` and `execute` functions of an environment require a Prefect Flow object.
 
     Args:
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
@@ -129,11 +131,6 @@ def load_and_run_flow() -> None:
     """
     logger = logging.get_logger("Environment")
     try:
-        from prefect.engine import (
-            get_default_flow_runner_class,
-            get_default_executor_class,
-        )
-
         flow_run_id = prefect.context.get("flow_run_id")
 
         if not flow_run_id:
@@ -142,7 +139,7 @@ def load_and_run_flow() -> None:
         query = {
             "query": {
                 with_args("flow_run", {"where": {"id": {"_eq": flow_run_id}}}): {
-                    "flow": {"name": True, "storage": True,},
+                    "flow": {"name": True, "storage": True},
                 }
             }
         }
@@ -155,7 +152,7 @@ def load_and_run_flow() -> None:
         storage_schema = prefect.serialization.storage.StorageSchema()
         storage = storage_schema.load(flow_data.storage)
 
-        ## populate global secrets
+        # populate global secrets
         secrets = prefect.context.get("secrets", {})
         for secret in storage.secrets:
             secrets[secret] = prefect.tasks.secrets.PrefectSecret(name=secret).run()

@@ -40,15 +40,17 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
 
     Args:
         - job_spec_file (str, optional): Path to a job spec YAML file
-        - unique_job_name (bool, optional): whether to use a unique name for each job created with this environment. Defaults
-            to `False`
+        - unique_job_name (bool, optional): whether to use a unique name for each job created
+            with this environment. Defaults to `False`
         - executor (Executor, optional): the executor to run the flow with. If not provided, the
             default executor will be used.
         - executor_kwargs (dict, optional): DEPRECATED
-        - labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect
-            Agents when polling for work
-        - on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        - on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
+        - labels (List[str], optional): a list of labels, which are arbitrary string
+            identifiers used by Prefect Agents when polling for work
+        - on_start (Callable, optional): a function callback which will be called before the
+            flow begins to run
+        - on_exit (Callable, optional): a function callback which will be called after the flow
+            finishes its run
         - metadata (dict, optional): extra metadata to be set and serialized on this environment
     """
 
@@ -152,7 +154,8 @@ class KubernetesJobEnvironment(Environment, _RunMixin):
 
     def _populate_job_spec_yaml(self, yaml_obj: dict, docker_name: str,) -> dict:
         """
-        Populate the custom execution job yaml object used in this environment with the proper values
+        Populate the custom execution job yaml object used in this environment with the proper
+        values.
 
         Args:
             - yaml_obj (dict): A dictionary representing the parsed yaml

@@ -18,6 +18,8 @@ class SecretResult(Result):
     def __init__(
         self, secret_task: "prefect.tasks.secrets.Secret", **kwargs: Any
     ) -> None:
+        if "serializer" in kwargs:
+            raise ValueError("Can't pass a serializer to a SecretResult.")
         self.secret_task = secret_task
         kwargs.setdefault("location", secret_task.name)
         super().__init__(**kwargs)
