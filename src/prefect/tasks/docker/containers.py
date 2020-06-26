@@ -193,7 +193,8 @@ class ListContainers(Task):
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     Args:
-        - all_containers (bool, optional): Show all containers. Only running containers are shown by default
+        - all_containers (bool, optional): Show all containers. Only running
+            containers are shown by default
         - filters (dict, optional): Filter the results. See
             https://docker-py.readthedocs.io/en/stable/containers.html for more details
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
@@ -227,7 +228,8 @@ class ListContainers(Task):
         Task run method.
 
         Args:
-            - all_containers (bool, optional): Show all containers. Only running containers are shown by default
+            - all_containers (bool, optional): Show all containers. Only
+                running containers are shown by default
             - filters (dict, optional): Filter the results. See
                 https://docker-py.readthedocs.io/en/stable/containers.html for more details
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
@@ -437,8 +439,8 @@ class WaitOnContainer(Task):
         - docker_server_url (str, optional): URL for the Docker server. Defaults to
             `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
             can be provided
-        - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
-            defaults to `True`
+        - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal
+            for a nonzero exit code; defaults to `True`
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -471,15 +473,16 @@ class WaitOnContainer(Task):
             - docker_server_url (str, optional): URL for the Docker server. Defaults to
                 `unix:///var/run/docker.sock` however other hosts such as `tcp://0.0.0.0:2375`
                 can be provided
-            - raise_on_exit_code (bool, optional): whether to raise a `FAIL` signal for a nonzero exit code;
-                defaults to `True`
+            - raise_on_exit_code (bool, optional): whether to raise a `FAIL`
+                signal for a nonzero exit code; defaults to `True`
 
         Returns:
             - dict: a dictionary with `StatusCode` and `Error` keys
 
         Raises:
             - ValueError: if `container_id` is `None`
-            - FAIL: if `raise_on_exit_code` is `True` and the container exits with a nonzero exit code
+            - FAIL: if `raise_on_exit_code` is `True` and the container exits
+                with a nonzero exit code
         """
         if not container_id:
             raise ValueError("A container id must be provided.")

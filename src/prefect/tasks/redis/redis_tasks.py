@@ -15,17 +15,21 @@ class RedisSet(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             that stores your Redis credentials
-        - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
-        - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
-            Redis native types include strings, dictionaries, lists, sets, and sorted sets
-        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
-            initializer
-        - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
-        - px (int, optional): if provided, sets an expire flag, in milliseconds, on 'redis_key' set
-        - nx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
-            if it does not exist, defaults to False
-        - xx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
-            if it already exists, defaults to False
+        - redis_key (str, optional): Redis key to be set, can be provided at
+            initialization or runtime
+        - redis_val (Redis native type, optional): Redis val to be set, can be
+            provided at initialization or runtime, Redis native types include
+            strings, dictionaries, lists, sets, and sorted sets
+        - redis_connection_params (dict, optional): key-value pairs passed to
+            the redis.Redis connection initializer
+        - ex (int, optional): if provided, sets an expire flag, in seconds, on
+            'redis_key' set
+        - px (int, optional): if provided, sets an expire flag, in
+            milliseconds, on 'redis_key' set
+        - nx (int, optional): if set to True, set the value at 'redis_key' to
+            'redis_val' only if it does not exist, defaults to False
+        - xx (int, optional): if set to True, set the value at 'redis_key' to
+            'redis_val' only if it already exists, defaults to False
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -73,15 +77,19 @@ class RedisSet(Task):
         Task run method. Sets Redis key-value pair.
 
         Args:
-            - redis_key (str, optional): Redis key to be set, can be provided at initialization or runtime
-            - redis_val (Redis native type, optional): Redis val to be set, can be provided at initialization or runtime,
-                Redis native types include strings, dictionaries, lists, sets, and sorted sets
-            - ex (int, optional): if provided, sets an expire flag, in seconds, on 'redis_key' set
-            - px (int, optional): if provided, sets an expire flag, in milliseconds, on 'redis_key' set
-            - nx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
-                if it does not exist, defaults to False
-            - xx (int, optional): if set to True, set the value at 'redis_key' to 'redis_val' only
-                if it already exists, defaults to False
+            - redis_key (str, optional): Redis key to be set, can be provided
+                at initialization or runtime
+            - redis_val (Redis native type, optional): Redis val to be set, can
+                be provided at initialization or runtime, Redis native types
+                include strings, dictionaries, lists, sets, and sorted sets
+            - ex (int, optional): if provided, sets an expire flag, in seconds,
+                on 'redis_key' set
+            - px (int, optional): if provided, sets an expire flag, in
+                milliseconds, on 'redis_key' set
+            - nx (int, optional): if set to True, set the value at 'redis_key'
+                to 'redis_val' only if it does not exist, defaults to False
+            - xx (int, optional): if set to True, set the value at 'redis_key'
+                to 'redis_val' only if it already exists, defaults to False
 
         Returns:
             - bool: status of set operation
@@ -92,7 +100,7 @@ class RedisSet(Task):
         if None in (redis_key, redis_val):
             raise ValueError("redis_key and redis_val must be provided")
 
-        ## connect to redis
+        # connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
             host=self.host,
@@ -119,9 +127,10 @@ class RedisGet(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             that stores your Redis password
-        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
-            initializer
-        - redis_key (str, optional): Redis key to get value, can be provided at initialization or runtime
+        - redis_connection_params (dict, optional): key-value pairs passed to
+            the redis.Redis connection initializer
+        - redis_key (str, optional): Redis key to get value, can be provided at
+            initialization or runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -151,7 +160,8 @@ class RedisGet(Task):
         Task run method.
 
         Args:
-            - redis_key (str, optional): Redis key to get value, can be provided at initialization or runtime
+            - redis_key (str, optional): Redis key to get value, can be
+                provided at initialization or runtime
 
         Returns:
             - value: value associated with redis_key
@@ -162,7 +172,7 @@ class RedisGet(Task):
         if not redis_key:
             raise ValueError("redis_key must be provided")
 
-        ## connect to redis
+        # connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
             host=self.host,
@@ -187,10 +197,10 @@ class RedisExecute(Task):
         - db (int, optional): redis database index, defaults to 0
         - password_secret (str, optional): the name of the Prefect Secret
             that stores your Redis credentials
-        - redis_connection_params (dict, optional): key-value pairs passed to the redis.Redis connection
-            initializer
-        - redis_cmd (str, optional): Redis command to execute, must be provided at initialization or
-            runtime
+        - redis_connection_params (dict, optional): key-value pairs passed to
+            the redis.Redis connection initializer
+        - redis_cmd (str, optional): Redis command to execute, must be provided
+            at initialization or runtime
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -220,8 +230,8 @@ class RedisExecute(Task):
         Task run method. Executes a command against a Redis connection.
 
         Args:
-            - redis_cmd (str, optional): Redis command to execute, must be provided at initialization or
-                runtime
+            - redis_cmd (str, optional): Redis command to execute, must be
+                provided at initialization or runtime
 
         Returns:
             - result: result of executed Redis command
@@ -229,7 +239,7 @@ class RedisExecute(Task):
         if not redis_cmd:
             raise ValueError("A redis command must be specified")
 
-        ## connect to redis
+        # connect to redis
         password = Secret(self.password_secret).get()
         connection = redis.Redis(
             host=self.host,

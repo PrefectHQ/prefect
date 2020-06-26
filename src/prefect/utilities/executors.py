@@ -17,9 +17,9 @@ import prefect
 if TYPE_CHECKING:
     import prefect.engine.runner
     import prefect.engine.state
-    from prefect.core.edge import Edge  # pylint: disable=W0611
-    from prefect.core.task import Task  # pylint: disable=W0611
-    from prefect.engine.state import State  # pylint: disable=W0611
+    from prefect.core.edge import Edge
+    from prefect.core.task import Task
+    from prefect.engine.state import State
 
 StateList = Union["State", List["State"]]
 
@@ -59,7 +59,7 @@ def run_with_heartbeat(
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-            except Exception as exc:
+            except Exception:
                 self.logger.exception(
                     "Heartbeat failed to start.  This could result in a zombie run."
                 )
@@ -163,10 +163,12 @@ def timeout_handler(
     """
     Helper function for implementing timeouts on function executions.
 
-    The exact implementation varies depending on whether this function is being run
-    in the main thread or a non-daemonic subprocess.  If this is run from a daemonic subprocess or on Windows,
-    the task is run in a `ThreadPoolExecutor` and only a soft timeout is enforced, meaning
-    a `TimeoutError` is raised at the appropriate time but the task continues running in the background.
+    The exact implementation varies depending on whether this function is being
+    run in the main thread or a non-daemonic subprocess.  If this is run from a
+    daemonic subprocess or on Windows, the task is run in a
+    `ThreadPoolExecutor` and only a soft timeout is enforced, meaning a
+    `TimeoutError` is raised at the appropriate time but the task continues
+    running in the background.
 
     Args:
         - fn (callable): the function to execute
@@ -185,8 +187,9 @@ def timeout_handler(
     if timeout is None:
         return fn(*args, **kwargs)
 
-    # if we are running the main thread, use a signal to stop execution at the appropriate time;
-    # else if we are running in a non-daemonic process, spawn a subprocess to kill at the appropriate time
+    # if we are running the main thread, use a signal to stop execution at the
+    # appropriate time; else if we are running in a non-daemonic process, spawn
+    # a subprocess to kill at the appropriate time
     if not sys.platform.startswith("win"):
         if threading.current_thread() is threading.main_thread():
             return main_thread_timeout(fn, *args, timeout=timeout, **kwargs)
@@ -265,8 +268,9 @@ def tail_recursive(func: Callable) -> Callable:
                         )
                     )
 
-                # there may be multiple nested recursive calls, we should only respond to calls for the
-                # wrapped function explicitly, otherwise allow the call to continue to propagate
+                # there may be multiple nested recursive calls, we should only
+                # respond to calls for the wrapped function explicitly,
+                # otherwise allow the call to continue to propagate
                 if call_func != func:
                     raise exc
                 args = exc.args
@@ -279,8 +283,8 @@ def tail_recursive(func: Callable) -> Callable:
 
 def prepare_upstream_states_for_mapping(
     state: "State",
-    upstream_states: Dict["Edge", "State"],
-    mapped_children: Dict["Task", list],
+    upstream_states: "Dict[Edge, State]",
+    mapped_children: "Dict[Task, list]",
 ) -> list:
     """
     If the task is being mapped, submits children tasks for execution. Returns a `Mapped` state.
@@ -294,9 +298,9 @@ def prepare_upstream_states_for_mapping(
         - List: a restructured list of upstream states correponding to each new mapped child task
     """
 
-    ## if the current state is failed / skipped or otherwise
-    ## in a state that signifies we should not continue with mapping,
-    ## we return an empty list
+    # if the current state is failed / skipped or otherwise
+    # in a state that signifies we should not continue with mapping,
+    # we return an empty list
     if state.is_pending() or state.is_failed() or state.is_skipped():
         return []
 
@@ -350,9 +354,11 @@ def prepare_upstream_states_for_mapping(
                     ):
                         if not hasattr(upstream_state.result, "__getitem__"):
                             raise TypeError(
-                                "Cannot map over unsubscriptable object of type {t}: {preview}...".format(
+                                (
+                                    "Cannot map over unsubscriptable object of type {t}: {val}..."
+                                ).format(
                                     t=type(upstream_state.result),
-                                    preview=repr(upstream_state.result)[:10],
+                                    val=repr(upstream_state.result)[:10],
                                 )
                             )
                         upstream_result = upstream_state._result.from_value(  # type: ignore

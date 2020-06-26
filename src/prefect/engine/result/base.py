@@ -1,30 +1,34 @@
 """
-Results represent Prefect Task inputs and outputs.  In particular, anytime a Task runs, its output
-is encapsulated in a `Result` object.  This object retains information about what the data is, and how to "handle" it
-if it needs to be saved / retrieved at a later time (for example, if this Task requests for its outputs to be cached or checkpointed).
+Results represent Prefect Task inputs and outputs.  In particular, anytime a
+Task runs, its output is encapsulated in a `Result` object.  This object retains
+information about what the data is, and how to "handle" it if it needs to be
+saved / retrieved at a later time (for example, if this Task requests for its
+outputs to be cached or checkpointed).
 
 An instantiated Result object has the following attributes:
 
 - a `value`: the value of a Result represents a single piece of data
 - a `safe_value`: this attribute maintains a reference to a `SafeResult` object
-    which contains a "safe" representation of the `value`; for example, the `value` of a `SafeResult`
-    might be a URI or filename pointing to where the raw data lives
-- a `result_handler` that holds onto the `ResultHandler` used to read /
-    write the value to / from its handled representation
+    which contains a "safe" representation of the `value`; for example, the
+    `value` of a `SafeResult` might be a URI or filename pointing to where the
+    raw data lives
+- a `serializer`: an object that can serialize Python objects to bytes and
+  recover them later
+- a `result_handler` that holds onto the `ResultHandler` used to read / write
+    the value to / from its handled representation
 
-To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
-also provides a `NoResult` object representing the _absence_ of computation / data.  This is in contrast to a `Result`
-whose value is `None`.
+To distinguish between a Task that runs but does not return output from a Task
+that has yet to run, Prefect also provides a `NoResult` object representing the
+_absence_ of computation / data.  This is in contrast to a `Result` whose value
+is `None`.
 """
-import base64
 import copy
 import pendulum
 import uuid
-from typing import Any, Callable, Iterable, Union
-
-import cloudpickle
+from typing import Any, Callable, Iterable
 
 from prefect.engine.result_handlers import ResultHandler
+from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
 
 
@@ -50,11 +54,13 @@ class ResultInterface:
 
     def to_result(self, result_handler: ResultHandler = None) -> "ResultInterface":
         """
-        If no result handler provided, returns self.  If a ResultHandler is provided, however,
-        it will become the new result handler for this result.
+        If no result handler provided, returns self.  If a ResultHandler is
+        provided, however, it will become the new result handler for this
+        result.
 
         Args:
-            - result_handler (optional): an optional result handler to override the current handler
+            - result_handler (optional): an optional result handler to override
+                the current handler
 
         Returns:
             - ResultInterface: a potentially new Result object
@@ -69,21 +75,30 @@ class ResultInterface:
 
 class Result(ResultInterface):
     """
-    A representation of the result of a Prefect task; this class contains information about
-    the value of a task's result, a result handler specifying how to serialize or store this value securely,
-    and a `safe_value` attribute which holds information about the current "safe" representation of this result.
+    A representation of the result of a Prefect task; this class contains
+    information about the value of a task's result, a result handler specifying
+    how to serialize or store this value securely, and a `safe_value` attribute
+    which holds information about the current "safe" representation of this
+    result.
 
     Args:
         - value (Any, optional): the value of the result
         - result_handler (ResultHandler, optional): the result handler to use
-            when storing / serializing this result's value; required if you intend on persisting this result in some way
-        - validators (Iterable[Callable], optional): Iterable of validation functions to apply to
-            the result to ensure it is `valid`.
+            when storing / serializing this result's value; required if you intend
+            on persisting this result in some way
+        - validators (Iterable[Callable], optional): Iterable of validation
+            functions to apply to the result to ensure it is `valid`.
         - run_validators (bool): Whether the result value should be validated.
-        - location (Union[str, Callable], optional): Possibly templated location to be used for saving the
-            result to the destination. If a callable function is provided, it should have signature `callable(**kwargs) -> str`
-            and at write time all formatting kwargs will be passed and a fully formatted location is expected
-            as the return value.  Can be used for string formatting logic that `.format(**kwargs)` doesn't support
+        - location (Union[str, Callable], optional): Possibly templated location
+            to be used for saving the result to the destination. If a callable
+            function is provided, it should have signature `callable(**kwargs) ->
+            str` and at write time all formatting kwargs will be passed and a fully
+            formatted location is expected as the return value.  Can be used for
+            string formatting logic that `.format(**kwargs)` doesn't support
+        - serializer (Serializer): a serializer that can transform Python
+            objects to bytes and recover them. The serializer is used whenever the
+            `Result` is writing to or reading from storage. Defaults to
+            `PickleSerializer`.
     """
 
     def __init__(
@@ -93,12 +108,16 @@ class Result(ResultInterface):
         validators: Iterable[Callable] = None,
         run_validators: bool = True,
         location: str = None,
+        serializer: Serializer = None,
     ):
         self.value = value
         self.safe_value = NoResult  # type: SafeResult
         self.result_handler = result_handler  # type: ignore
         self.validators = validators
         self.run_validators = run_validators
+        if serializer is None:
+            serializer = PickleSerializer()
+        self.serializer = serializer
         if isinstance(location, (str, type(None))):
             self.location = location
             self._formatter = None
@@ -109,7 +128,8 @@ class Result(ResultInterface):
 
     def store_safe_value(self) -> None:
         """
-        Populate the `safe_value` attribute with a `SafeResult` using the result handler
+        Populate the `safe_value` attribute with a `SafeResult` using the result
+        handler
         """
         # don't bother with `None` values
         if self.value is None:
@@ -140,9 +160,10 @@ class Result(ResultInterface):
 
     def validate(self) -> bool:
         """
-        Run any validator functions associated with this result and return whether the result is valid or not.
-        All individual validator functions must return True for this method to return True.
-        Emits a warning log if run_validators isn't true, and proceeds to run validation functions anyway.
+        Run any validator functions associated with this result and return whether the result
+        is valid or not.  All individual validator functions must return True for this method
+        to return True.  Emits a warning log if run_validators isn't true, and proceeds to run
+        validation functions anyway.
 
 
         Returns:
@@ -150,9 +171,10 @@ class Result(ResultInterface):
         """
         if not self.run_validators:
             self.logger.warning(
-                "A Result's validate method has been called, but its run_validators attribute is False. "
-                "Prefect will not honor the validators without run_validators=True, so please change it "
-                "if you expect validation to occur automatically for this Result in your pipeline."
+                "A Result's validate method has been called, but its run_validators "
+                "attribute is False. Prefect will not honor the validators without "
+                "run_validators=True, so please change it if you expect validation "
+                "to occur automatically for this Result in your pipeline."
             )
 
         if self.validators:
@@ -171,32 +193,6 @@ class Result(ResultInterface):
         """
         return copy.copy(self)
 
-    @classmethod
-    def serialize_to_bytes(cls, value: Any) -> bytes:
-        """
-        Serializes the provided value into bytes.
-
-        Args:
-            - value (Any): the value to serialize to bytes
-
-        Returns:
-            - bytes: the serialized result value
-        """
-        return base64.b64encode(cloudpickle.dumps(value))
-
-    @classmethod
-    def deserialize_from_bytes(cls, serialized_value: Union[str, bytes]) -> Any:
-        """
-        Takes a given serialized result value and returns a deserialized value.
-
-        Args:
-            - serialized_value (str): The serialized result value
-
-        Returns:
-            - Any: the deserialized result value
-        """
-        return cloudpickle.loads(base64.b64decode(serialized_value))
-
     @property
     def default_location(self) -> str:
         date = pendulum.now("utc").format("Y/M/D")  # type: ignore
@@ -205,7 +201,8 @@ class Result(ResultInterface):
 
     def format(self, **kwargs: Any) -> "Result":
         """
-        Takes a set of string format key-value pairs and renders the result.location to a final location string
+        Takes a set of string format key-value pairs and renders the result.location to a final
+        location string
 
         Args:
             - **kwargs (Any): string format arguments for result.location
@@ -239,7 +236,9 @@ class Result(ResultInterface):
             - bool: whether or not the target result exists.
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
     def read(self, location: str) -> "Result":
@@ -253,7 +252,9 @@ class Result(ResultInterface):
             - Any: The value saved to the result.
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
     def write(self, value: Any, **kwargs: Any) -> "Result":
@@ -270,14 +271,17 @@ class Result(ResultInterface):
             - Result: a new result object with the appropriately formatted location destination
         """
         raise NotImplementedError(
-            "Not implemented on the base Result class - if you are seeing this error you might be trying to use features that require choosing a Result subclass; see https://docs.prefect.io/core/concepts/results.html"
+            "Not implemented on the base Result class - if you are seeing this error you "
+            "might be trying to use features that require choosing a Result subclass; "
+            "see https://docs.prefect.io/core/concepts/results.html"
         )
 
 
 class SafeResult(ResultInterface):
     """
-    A _safe_ representation of the result of a Prefect task; this class contains information about
-    the serialized value of a task's result, and a result handler specifying how to deserialize this value
+    A _safe_ representation of the result of a Prefect task; this class contains information
+    about the serialized value of a task's result, and a result handler specifying how to
+    deserialize this value
 
     Args:
         - value (Any): the safe representation of a value

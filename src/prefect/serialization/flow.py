@@ -9,7 +9,6 @@ from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.storage import StorageSchema
 from prefect.serialization.task import ParameterSchema, TaskSchema
 from prefect.utilities.serialization import (
-    JSONCompatible,
     Nested,
     ObjectSchema,
     to_qualified_name,

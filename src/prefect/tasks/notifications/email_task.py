@@ -12,10 +12,11 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class EmailTask(Task):
     """
-    Task for sending email from an authenticated email service over SMTP. For this task to function properly,
-    you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect Secrets set.  It is recommended
-    you use a [Google App Password](https://support.google.com/accounts/answer/185833) if you use Gmail.
-    The default SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
+    Task for sending email from an authenticated email service over SMTP. For this task to
+    function properly, you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect
+    Secrets set.  It is recommended you use a [Google App
+    Password](https://support.google.com/accounts/answer/185833) if you use Gmail.  The default
+    SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
     containing HTML code is supported - the default MIME type is set to the text/html.
 
     Args:
@@ -23,11 +24,13 @@ class EmailTask(Task):
         - msg (str, optional): the contents of the email; can also be provided at runtime
         - email_to (str, optional): the destination email address to send the message to; can also
             be provided at runtime
-        - email_from (str, optional): the email address to send from; defaults to notifications@prefect.io
+        - email_from (str, optional): the email address to send from; defaults to
+            notifications@prefect.io
         - smtp_server (str, optional): the hostname of the SMTP server; defaults to smtp.gmail.com
         - smtp_port (int, optional): the port number of the SMTP server; defaults to 465
         - smtp_type (str, optional): either SSL or STARTTLS; defaults to SSL
-        - **kwargs (Any, optional): additional keyword arguments to pass to the base Task initialization
+        - **kwargs (Any, optional): additional keyword arguments to pass to the base Task
+            initialization
     """
 
     def __init__(

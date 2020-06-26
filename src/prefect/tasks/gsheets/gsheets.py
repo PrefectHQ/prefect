@@ -97,7 +97,7 @@ class ReadGsheetRow(Task):
             - worksheet_name (str): The worksheet to target
 
         Returns:
-            - a list of values from the row 
+            - a list of values from the row
         """
         client = gspread.service_account(filename=credentials_filename)
         google_sheet = client.open_by_key(sheet_key)

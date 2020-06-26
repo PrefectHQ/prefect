@@ -70,7 +70,7 @@ def flows(name, version, project, output):
                                 Defaults to Python dictionary format.
     """
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
     query_results = {
         "name": True,
         "version": True,
@@ -133,7 +133,7 @@ def tasks(name, version, project, output):
                                 Defaults to Python dictionary format.
     """
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
 
     if project:
         where_clause["_and"]["project"] = {"name": {"_eq": project}}

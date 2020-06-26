@@ -291,7 +291,7 @@ class RemoveImage(Task):
         self.logger.debug("Starting to remove Docker images: {}".format(image))
         client = docker.APIClient(base_url=docker_server_url, version="auto")
 
-        feed = client.remove_image(image=image, force=force)
+        client.remove_image(image=image, force=force)
         self.logger.debug("Completed removing Docker images... {}".format(image))
 
 

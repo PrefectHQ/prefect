@@ -12,6 +12,8 @@ class ConstantResult(Result):
     """
 
     def __init__(self, **kwargs: Any) -> None:
+        if "serializer" in kwargs:
+            raise ValueError("Can't pass a serializer to a ConstantResult.")
         super().__init__(**kwargs)
 
     def read(self, location: str) -> Result:

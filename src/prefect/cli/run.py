@@ -89,13 +89,15 @@ def cloud(
 
     \b
     Options:
-        --name, -n                  TEXT        The name of a flow to run                                       [required]
-        --project, -p               TEXT        The name of a project that contains the flow                    [required]
+        --name, -n                  TEXT        The name of a flow to run [required]
+        --project, -p               TEXT        The name of a project that contains
+                                                the flow [required]
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
         --parameters-string, -ps    TEXT        A string of JSON parameters
         --run-name, -rn             TEXT        A name to assign for this run
-        --watch, -w                             Watch current state of the flow run, stream output to stdout
+        --watch, -w                             Watch current state of the flow run, stream
+                                                output to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
         --no-url                                Only output the flow run id instead of a link
 
@@ -108,7 +110,7 @@ def cloud(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
-    
+
     Returns:
         - flow_run_id (str): the flow run ID if the flow run completes
         - None: if flow or flow run canot be found
@@ -166,12 +168,13 @@ def server(
 
     \b
     Options:
-        --name, -n                  TEXT        The name of a flow to run                                       [required]
+        --name, -n                  TEXT        The name of a flow to run [required]
         --version, -v               INTEGER     A flow version to run
         --parameters-file, -pf      FILE PATH   A filepath of a JSON file containing parameters
         --parameters-string, -ps    TEXT        A string of JSON parameters
         --run-name, -rn             TEXT        A name to assign for this run
-        --watch, -w                             Watch current state of the flow run, stream output to stdout
+        --watch, -w                             Watch current state of the flow run, stream output
+                                                to stdout
         --logs, -l                              Get logs of the flow run, stream output to stdout
         --no-url                                Only output the flow run id instead of a link
 
@@ -184,7 +187,7 @@ def server(
     File contains:  {"a": 1, "b": 2}
     String:         '{"a": 3}'
     Parameters passed to the flow run: {"a": 3, "b": 2}
-    
+
     Returns:
         - flow_run_id (str): the flow run ID if the flow run completes
         - None: if flow or flow run canot be found
@@ -218,7 +221,7 @@ def _run_flow(
         )
         return
 
-    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version},}}
+    where_clause = {"_and": {"name": {"_eq": name}, "version": {"_eq": version}}}
 
     if project:
         where_clause["_and"]["project"] = {"name": {"_eq": project}}

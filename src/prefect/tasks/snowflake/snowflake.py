@@ -18,7 +18,8 @@ class SnowflakeQuery(Task):
         - role (str, optional): name of the default role to use
         - warehouse (str, optional): name of the default warehouse to use
         - query (str, optional): query to execute against database
-        - data (tuple, optional): values to use in query, must be specified using placeholder is query string
+        - data (tuple, optional): values to use in query, must be specified using placeholder
+            is query string
         - autocommit (bool, optional): set to True to autocommit, defaults to None, which
             takes snowflake AUTOCOMMIT parameter
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -92,10 +93,10 @@ class SnowflakeQuery(Task):
             if value is not None
         }
 
-        ## connect to database, open cursor
+        # connect to database, open cursor
         conn = sf.connect(**connect_params)
-        ## try to execute query
-        ## context manager automatically rolls back failed transactions
+        # try to execute query
+        # context manager automatically rolls back failed transactions
         try:
             with conn:
                 with conn.cursor() as cursor:
@@ -104,7 +105,7 @@ class SnowflakeQuery(Task):
             conn.close()
             return executed
 
-        ## pass through error, and ensure connection is closed
+        # pass through error, and ensure connection is closed
         except Exception as error:
             conn.close()
             raise error

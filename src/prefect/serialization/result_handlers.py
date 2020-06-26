@@ -9,10 +9,8 @@ from prefect.engine.result_handlers import (
     LocalResultHandler,
     ResultHandler,
     S3ResultHandler,
-    SecretResultHandler,
 )
 from prefect.utilities.serialization import (
-    JSONCompatible,
     ObjectSchema,
     OneOfSchema,
     to_qualified_name,

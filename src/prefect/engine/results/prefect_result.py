@@ -1,8 +1,7 @@
-import json
-
 from typing import Any
 
 from prefect.engine.result import Result
+from prefect.engine.serializers import JSONSerializer, Serializer
 
 
 class PrefectResult(Result):
@@ -15,7 +14,19 @@ class PrefectResult(Result):
     """
 
     def __init__(self, **kwargs: Any) -> None:
+        if "serializer" not in kwargs:
+            kwargs["serializer"] = JSONSerializer()
         super().__init__(**kwargs)
+
+    @property  # type: ignore
+    def serializer(self) -> Serializer:  # type: ignore
+        return self._serializer
+
+    @serializer.setter
+    def serializer(self, val: Serializer) -> None:  # type: ignore
+        if not isinstance(val, JSONSerializer):
+            raise TypeError("PrefectResult only supports JSONSerializer")
+        self._serializer = val
 
     def read(self, location: str) -> Result:
         """
@@ -28,7 +39,7 @@ class PrefectResult(Result):
             - Result: a new result instance with the data represented by the location
         """
         new = self.copy()
-        new.value = json.loads(location)
+        new.value = self.serializer.deserialize(location.encode("utf-8"))
         new.location = location
         return new
 
@@ -46,7 +57,7 @@ class PrefectResult(Result):
         """
         new = self.copy()
         new.value = value
-        new.location = json.dumps(new.value)
+        new.location = self.serializer.serialize(new.value).decode("utf-8")
         return new
 
     def exists(self, location: str, **kwargs: Any) -> bool:
@@ -61,7 +72,7 @@ class PrefectResult(Result):
             - bool: whether the provided string can be deserialized
         """
         try:
-            json.loads(location)
+            self.serializer.deserialize(location.encode("utf-8"))
             return True
-        except:
+        except Exception:
             return False

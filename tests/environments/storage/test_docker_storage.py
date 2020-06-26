@@ -620,30 +620,26 @@ def test_run_healthchecks_arg(ignore_healthchecks):
 
 
 @pytest.mark.parametrize("ignore_healthchecks", [True, False])
-def test_run_healthchecks_arg_custom_prefect_dir(ignore_healthchecks):
+def test_run_healthchecks_arg_custom_prefect_dir(ignore_healthchecks, tmpdir):
 
-    with tempfile.TemporaryDirectory() as tempdir_outside:
+    with open(os.path.join(tmpdir, "test"), "w+") as t:
+        t.write("asdf")
 
-        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
-            t.write("asdf")
+    storage = Docker(
+        ignore_healthchecks=ignore_healthchecks, prefect_directory="/usr/local/prefect",
+    )
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            storage = Docker(
-                ignore_healthchecks=ignore_healthchecks,
-                prefect_directory="/usr/local/prefect",
-            )
+    f = Flow("test")
+    storage.add_flow(f)
+    dpath = storage.create_dockerfile_object(directory=tmpdir)
 
-            f = Flow("test")
-            storage.add_flow(f)
-            dpath = storage.create_dockerfile_object(directory=tempdir)
+    with open(dpath, "r") as dockerfile:
+        output = dockerfile.read()
 
-            with open(dpath, "r") as dockerfile:
-                output = dockerfile.read()
-
-            if ignore_healthchecks:
-                assert "RUN python /usr/local/prefect/healthcheck.py" not in output
-            else:
-                assert "RUN python /usr/local/prefect/healthcheck.py" in output
+    if ignore_healthchecks:
+        assert "RUN python /usr/local/prefect/healthcheck.py" not in output
+    else:
+        assert "RUN python /usr/local/prefect/healthcheck.py" in output
 
 
 def test_pull_image(capsys, monkeypatch):
