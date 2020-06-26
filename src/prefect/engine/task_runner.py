@@ -169,7 +169,6 @@ class TaskRunner(Runner):
             task_tags=self.task.tags,
         )
         context.setdefault("checkpointing", config.flows.checkpointing)
-        context.setdefault("task_slug", self.task.slug)
 
         map_index = context.get("map_index", None)
         if isinstance(map_index, int) and context.get("task_full_name"):

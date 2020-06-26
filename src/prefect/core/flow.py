@@ -951,7 +951,7 @@ class Flow:
             ## begin a single flow run
             while not flow_state.is_finished():
                 runner = runner_cls(flow=self)
-                task_ctxts = kwargs.pop("task_contexts", {})
+                task_ctxts = kwargs.pop("task_contexts", {}).copy()
                 for t in self.tasks:
                     task_ctxts.setdefault(t, dict())
                     task_ctxts[t].update(task_run_id=str(uuid.uuid4()))
