@@ -59,10 +59,7 @@ def make_env(fname=None):
 
     if fname is not None:
         list_of_pairs = [
-            "{k}={repr(v)}".format(k=k, v=v)
-            if "\n" in v
-            else "{k}={v}".format(k=k, v=v)
-            for k, v in ENV.items()
+            f"{k}={v!r}" if "\n" in v else f"{k}={v}" for k, v in ENV.items()
         ]
         with open(fname, "w") as f:
             f.write("\n".join(list_of_pairs))

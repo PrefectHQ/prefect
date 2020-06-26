@@ -81,4 +81,4 @@ def extract_flow_from_file(
             elif not flow_name:
                 return exec_vals[var]
 
-    raise ValueError(f"No flow found in file.")
+    raise ValueError("No flow found in file.")

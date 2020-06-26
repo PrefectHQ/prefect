@@ -339,7 +339,7 @@ class Client:
                     "have an API token properly configured."
                 )
             else:
-                raise ClientError(f"Malformed response received from API.")
+                raise ClientError("Malformed response received from API.")
 
         # check if there was an API_ERROR code in the response
         if "API_ERROR" in str(json_resp.get("errors")):
