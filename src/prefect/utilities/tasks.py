@@ -92,6 +92,11 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     # Used to convert constants to constant tasks if needed
     id_to_const = {}
 
+    # Preprocess inputs to `apply_map`:
+    # - Extract information about each argument (is unmapped, is constant, ...)
+    # - Convert all arguments to instances of `Task`
+    # - Add all non-constant arguments to the flow. Constant arguments are
+    #   added later as needed.
     def preprocess(a: Any) -> "prefect.Task":
         a2 = as_task(a, flow=flow2)
         is_mapped = not isinstance(a, unmapped)
