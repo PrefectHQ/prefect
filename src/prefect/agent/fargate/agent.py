@@ -370,7 +370,18 @@ class FargateAgent(Agent):
                 self.logger.debug("{} = {}".format(key, item))
 
         container_definitions_kwargs = {}
-        for key, item in user_kwargs.get("containerDefinitions", [{}])[0].items():
+        container_defs = user_kwargs.get("containerDefinitions", [{}])
+        try:
+            container_defs = literal_eval(container_defs)
+        except (ValueError, SyntaxError):
+            pass
+
+        if len(container_defs) != 1:
+            raise ValueError(
+                "Fargate agent only accepts configuration for a single container definition."
+            )
+
+        for key, item in container_defs[0].items():
             if key in container_definitions_kwarg_list:
                 try:
                     # Parse kwarg if needed

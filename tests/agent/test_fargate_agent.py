@@ -188,6 +188,72 @@ def test_parse_container_definition_kwargs(monkeypatch, runner_token):
     }
 
 
+def test_parse_container_definition_kwargs_provided_as_string(
+    monkeypatch, runner_token
+):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": str(
+            [
+                {
+                    "environment": "test",
+                    "secrets": "test",
+                    "mountPoints": "test",
+                    "logConfiguration": "test",
+                    "repositoryCredentials": "repo",
+                }
+            ]
+        )
+    }
+
+    (
+        task_definition_kwargs,
+        task_run_kwargs,
+        container_definitions_kwargs,
+    ) = agent._parse_kwargs(kwarg_dict)
+
+    assert container_definitions_kwargs == {
+        "environment": "test",
+        "secrets": "test",
+        "mountPoints": "test",
+        "logConfiguration": "test",
+        "repositoryCredentials": "repo",
+    }
+
+
+def test_parse_container_definition_kwargs_errors_on_multiple(
+    monkeypatch, runner_token
+):
+    boto3_client = MagicMock()
+    monkeypatch.setattr("boto3.client", boto3_client)
+
+    agent = FargateAgent()
+
+    kwarg_dict = {
+        "containerDefinitions": [
+            {
+                "environment": "test",
+                "secrets": "test",
+                "mountPoints": "test",
+                "logConfiguration": "test",
+                "repositoryCredentials": "repo",
+            },
+            {"test": "here"},
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        (
+            task_definition_kwargs,
+            task_run_kwargs,
+            container_definitions_kwargs,
+        ) = agent._parse_kwargs(kwarg_dict)
+
+
 def test_parse_container_definition_kwargs_errors(monkeypatch, runner_token):
     boto3_client = MagicMock()
     monkeypatch.setattr("boto3.client", boto3_client)
