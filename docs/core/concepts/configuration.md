@@ -27,9 +27,8 @@ Prefect will do its best to detect the type of your environment variable and cas
 
 - `"true"` (with any capitalization) is converted to `True`
 - `"false"` (with any capitalization) is converted to `False`
-- strings that parse as integers are converted to integers
-- strings that parse as floats are converted to floats
-- all other values remain strings
+- strings that parse as integers, floats, None, lists, dictionaries, etc. are all converted to their
+respective Python type
 
 ## User configuration
 
@@ -82,7 +81,8 @@ assert prefect.config.api.url == "https://localhost:5432"
 Or even to create complex switching logic based on the value of one variable:
 
 ```
-user = "${environments.${environment}}"
+environment = "prod"
+user = "${environments.${environment}.user}"
 
 [environments]
 
