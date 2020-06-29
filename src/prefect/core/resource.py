@@ -6,6 +6,7 @@ from typing import Callable, Any
 
 from toolz import curry
 
+import prefect
 from prefect.core.task import Task
 from prefect.engine.result import Result
 
@@ -14,6 +15,26 @@ __all__ = ("resource",)
 
 
 RESOURCES = weakref.WeakValueDictionary()
+
+
+class ResourcePool:
+    def __init__(self):
+        self.resources = weakref.WeakSet()
+
+    def add(self, handle):
+        self.resources.add(handle)
+
+    def __enter__(self):
+        self.__prev_pool = prefect.context.get("resource_pool")
+        prefect.context.update(resource_pool=self)
+
+    def __exit__(self, *args):
+        for r in self.resources:
+            r.clear()
+        if self.__prev_pool is None:
+            prefect.context.pop("resource_pool", None)
+        else:
+            prefect.context.update(resource_pool=self.__prev_pool)
 
 
 class ResourceHandle:
@@ -28,16 +49,25 @@ class ResourceHandle:
         self.args = func_args
         self.kwargs = func_kwargs
         self.generator = None
+
+        pool = prefect.context.get("resource_pool")
+        if pool is not None:
+            pool.add(self)
+
         return self
 
     def __reduce__(self):
         return (ResourceHandle, (self.key, self.func, self.args, self.kwargs))
 
     def __del__(self):
-        self.reset()
+        self.drop()
 
     def get(self):
-        if not hasattr(self, "value"):
+        if self.func is None:
+            raise ValueError(
+                "Cannot access value of `Resource` tasks outside of a flow run"
+            )
+        elif not hasattr(self, "value"):
             result = self.func(*self.args, **self.kwargs)
             if isinstance(result, types.GeneratorType):
                 self.generator = result
@@ -46,7 +76,7 @@ class ResourceHandle:
                 self.value = result
         return self.value
 
-    def reset(self):
+    def drop(self):
         if hasattr(self, "value"):
             del self.value
             if self.generator is not None:
@@ -55,6 +85,12 @@ class ResourceHandle:
                 except StopIteration:
                     pass
                 del self.generator
+
+    def clear(self):
+        self.drop()
+        self.args = None
+        self.kwargs = None
+        self.func = None
 
 
 class ResourceResult(Result):
