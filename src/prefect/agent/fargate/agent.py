@@ -641,18 +641,26 @@ class FargateAgent(Agent):
         container_definitions[0]["environment"].extend(  # type: ignore
             container_definitions_environment
         )
-        container_definitions[0]["secrets"] = container_definitions_kwargs.get(
-            "secrets", []
-        )
-        container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
-            "mountPoints", []
-        )
-        container_definitions[0]["logConfiguration"] = container_definitions_kwargs.get(
-            "logConfiguration", {}
-        )
-        container_definitions[0][
-            "repositoryCredentials"
-        ] = container_definitions_kwargs.get("repositoryCredentials", {})
+
+        # Set container definition values if provided
+        if container_definitions_kwargs.get("secrets"):
+            container_definitions[0]["secrets"] = container_definitions_kwargs.get(
+                "secrets", []
+            )
+
+        if container_definitions_kwargs.get("mountPoints"):
+            container_definitions[0]["mountPoints"] = container_definitions_kwargs.get(
+                "mountPoints", []
+            )
+        if container_definitions_kwargs.get("logConfiguration"):
+            container_definitions[0][
+                "logConfiguration"
+            ] = container_definitions_kwargs.get("logConfiguration", {})
+
+        if container_definitions_kwargs.get("repositoryCredentials"):
+            container_definitions[0][
+                "repositoryCredentials"
+            ] = container_definitions_kwargs.get("repositoryCredentials", {})
 
         # Register task definition
         self.logger.debug(
