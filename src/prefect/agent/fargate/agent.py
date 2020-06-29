@@ -610,9 +610,6 @@ class FargateAgent(Agent):
                         "value": "prefect.engine.cloud.CloudTaskRunner",
                     },
                 ],
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
                 "essential": True,
             }
         ]
@@ -747,9 +744,6 @@ class FargateAgent(Agent):
                 "image": "busybox",
                 "command": ["/bin/sh", "-c", "echo 'I am alive!'"],
                 "environment": [],
-                "secrets": [],
-                "mountPoints": [],
-                "logConfiguration": {},
                 "essential": True,
             }
         ]
@@ -765,15 +759,27 @@ class FargateAgent(Agent):
         container_definitions[0]["environment"].extend(  # type: ignore
             container_definitions_environment
         )
-        container_definitions[0]["secrets"] = flow_container_definitions_kwargs.get(
-            "secrets", []
-        )
-        container_definitions[0]["mountPoints"] = flow_container_definitions_kwargs.get(
-            "mountPoints", []
-        )
-        container_definitions[0][
-            "logConfiguration"
-        ] = flow_container_definitions_kwargs.get("logConfiguration", {})
+
+        # Assign user-provided container definition options
+        if flow_container_definitions_kwargs.get("secrets"):
+            container_definitions[0]["secrets"] = flow_container_definitions_kwargs.get(
+                "secrets", []
+            )
+
+        if flow_container_definitions_kwargs.get("mountPoints"):
+            container_definitions[0][
+                "mountPoints"
+            ] = flow_container_definitions_kwargs.get("mountPoints", [])
+
+        if flow_container_definitions_kwargs.get("logConfiguration"):
+            container_definitions[0][
+                "logConfiguration"
+            ] = flow_container_definitions_kwargs.get("logConfiguration", {})
+
+        if flow_container_definitions_kwargs.get("repositoryCredentials"):
+            container_definitions[0][
+                "repositoryCredentials"
+            ] = flow_container_definitions_kwargs.get("repositoryCredentials", {})
 
         # Register task definition
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)

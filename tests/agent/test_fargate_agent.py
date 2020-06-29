@@ -1168,7 +1168,6 @@ def test_deploy_flows_includes_agent_labels_in_environment(
             "secrets": [],
             "mountPoints": [],
             "logConfiguration": {},
-            "repositoryCredentials": {},
         }
     ]
     assert boto3_client.register_task_definition.call_args[1][
