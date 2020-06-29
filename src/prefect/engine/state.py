@@ -248,7 +248,7 @@ class State:
         Returns:
             - bool: `True` if the state is skipped, `False` otherwise
         """
-        return isinstance(self, Scheduled)
+        return isinstance(self, (Scheduled, Queued))
 
     def is_submitted(self) -> bool:
         """
