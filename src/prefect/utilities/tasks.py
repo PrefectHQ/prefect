@@ -1,3 +1,5 @@
+import itertools
+from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
@@ -8,13 +10,175 @@ from toolz import curry
 
 import prefect
 
-__all__ = ["tags", "as_task", "pause_task", "task", "unmapped", "defaults_from_attrs"]
+__all__ = [
+    "tags",
+    "as_task",
+    "pause_task",
+    "task",
+    "unmapped",
+    "apply_map",
+    "defaults_from_attrs",
+]
 
 if TYPE_CHECKING:
     import prefect.tasks.core.constants
     import prefect.tasks.core.collections
     import prefect.tasks.core.function
-    from prefect.core.flow import Flow
+    from prefect import Flow
+
+
+def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) -> Any:
+    """
+    Map a function that adds tasks to a flow elementwise across one or more
+    tasks.  Arguments that should _not_ be mapped over should be wrapped with
+    `prefect.unmapped`.
+
+    This can be useful when wanting to create complicated mapped pipelines
+    (e.g. ones using control flow components like `case`).
+
+    Args:
+        - func (Callable): a function that adds tasks to a flow
+        - *args: task arguments to map over
+        - flow (Flow, optional): The flow to use, defaults to the current flow
+            in context if no flow is specified. If specified, `func` must accept
+            a `flow` keyword argument.
+        - **kwargs: keyword task arguments to map over
+
+    Returns:
+        - Any: the output of `func`, if any
+
+    Example:
+
+    ```python
+    from prefect import task, case, apply_map
+    from prefect.tasks.control_flow import merge
+
+    @task
+    def inc(x):
+        return x + 1
+
+    @task
+    def is_even(x):
+        return x % 2 == 0
+
+    def inc_if_even(x):
+        with case(is_even(x), True):
+            x2 = inc(x)
+        return merge(x, x2)
+
+    with Flow("example") as flow:
+        apply_map(inc_if_even, range(10))
+    """
+    from prefect.tasks.core.constants import Constant
+
+    no_flow_provided = flow is None
+    if no_flow_provided:
+        flow = prefect.context.get("flow", None)
+        if flow is None:
+            raise ValueError("Couldn't infer a flow in the current context")
+    assert isinstance(flow, prefect.Flow)  # appease mypy
+
+    # Check if args/kwargs are valid first
+    for x in itertools.chain(args, kwargs.values()):
+        if not isinstance(x, (prefect.Task, unmapped, Sequence)):
+            raise TypeError(
+                f"Cannot map over non-sequence object of type `{type(x).__name__}`"
+            )
+
+    flow2 = prefect.Flow("temporary flow")
+    # A mapping of all the input args -> (is_mapped, is_constant)
+    arg_info = {}
+    # A mapping of the ids of all constants -> the Constant task.
+    # Used to convert constants to constant tasks if needed
+    id_to_const = {}
+
+    # Preprocess inputs to `apply_map`:
+    # - Extract information about each argument (is unmapped, is constant, ...)
+    # - Convert all arguments to instances of `Task`
+    # - Add all non-constant arguments to the flow. Constant arguments are
+    #   added later as needed.
+    def preprocess(a: Any) -> "prefect.Task":
+        a2 = as_task(a, flow=flow2)
+        is_mapped = not isinstance(a, unmapped)
+        is_constant = isinstance(a2, Constant)
+        arg_info[a2] = (is_mapped, is_constant)
+        if not is_constant:
+            flow.add_task(a2)  # type: ignore
+        if is_mapped and is_constant:
+            id_to_const[id(a2.value)] = a2  # type: ignore
+        return a2
+
+    args2 = [preprocess(a) for a in args]
+    kwargs2 = {k: preprocess(v) for k, v in kwargs.items()}
+
+    # Construct a temporary flow for the subgraph
+    with prefect.context(mapped=True):
+        with flow2:
+            if no_flow_provided:
+                res = func(*args2, **kwargs2)
+            else:
+                res = func(*args2, flow=flow2, **kwargs2)
+
+    # Copy over all tasks in the subgraph
+    for task in flow2.tasks:
+        flow.add_task(task)
+
+    # Copy over all edges, updating any non-explicitly-unmapped edges to mapped
+    for edge in flow2.edges:
+        flow.add_edge(
+            upstream_task=edge.upstream_task,
+            downstream_task=edge.downstream_task,
+            key=edge.key,
+            mapped=arg_info.get(edge.upstream_task, (True,))[0],
+        )
+
+    # Copy over all constants, updating any constants that should be mapped
+    # to be tasks rather than stored in the constants mapping
+    for task, constants in flow2.constants.items():
+        for key, c in constants.items():
+            if id(c) in id_to_const:
+                c_task = id_to_const[id(c)]
+                flow.add_task(c_task)
+                flow.add_edge(
+                    upstream_task=c_task, downstream_task=task, key=key, mapped=True
+                )
+            else:
+                flow.constants[task][key] = c
+
+    # Any task created inside `apply_map` must have a transitive dependency to
+    # all of the inputs to apply_map, except for unmapped constants.  This
+    # ensures three things:
+    #
+    # - All mapped arguments must have the same length. supporting disparate
+    # lengths leads to odd semantics.
+    #
+    # - Tasks created by `apply_map` conceptually share an upstream dependency
+    # tree. This matches the causality you'd expect if you were running as
+    # normal eager python code - the stuff inside the `apply_map` only runs if
+    # the inputs are completed, not just the inputs that certain subcomponents
+    # depend on.
+    #
+    # - Tasks with no external dependencies are treated the same as tasks with
+    # external deps (we need to add upstream_tasks to tasks created in `func`
+    # with no external deps to get them to run as proper map tasks).  We add
+    # upstream tasks uniformly for all tasks, not just ones without external
+    # deps - the uniform behavior makes this easier to reason about.
+    #
+    # Here we do a final pass adding missing upstream deps on mapped arguments
+    # to all newly created tasks in the apply_map.
+    new_tasks = flow2.tasks.difference(arg_info)
+    for task in new_tasks:
+        upstream_tasks = flow.upstream_tasks(task)
+        is_root_in_subgraph = not upstream_tasks.intersection(new_tasks)
+        if is_root_in_subgraph:
+            for arg_task, (is_mapped, is_constant) in arg_info.items():
+                # Add all args except unmapped constants as direct
+                # upstream tasks if they're not already upstream tasks
+                if arg_task not in upstream_tasks and (is_mapped or not is_constant):
+                    flow.add_edge(
+                        upstream_task=arg_task, downstream_task=task, mapped=is_mapped,
+                    )
+    return res
 
 
 @contextmanager

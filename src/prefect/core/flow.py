@@ -535,6 +535,12 @@ class Flow:
         """
         if validate is None:
             validate = cast(bool, prefect.config.flows.eager_edge_validation)
+
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
+
         if isinstance(downstream_task, Parameter):
             raise ValueError(
                 "Parameters must be root tasks and can not have upstream dependencies."
@@ -850,6 +856,10 @@ class Flow:
         Returns:
             - None
         """
+        if mapped and prefect.context.get("mapped", False):
+            raise ValueError(
+                "Cannot set `mapped=True` when running from inside a mapped context"
+            )
 
         task = as_task(task, flow=self)
         assert isinstance(task, Task)  # mypy assert
@@ -859,7 +869,7 @@ class Flow:
 
         # add upstream tasks
         for t in upstream_tasks or []:
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
             assert isinstance(t, Task)  # mypy assert
             self.add_edge(
@@ -877,7 +887,7 @@ class Flow:
 
         # add data edges to upstream tasks
         for key, t in (keyword_tasks or {}).items():
-            is_mapped = mapped & (not isinstance(t, unmapped))
+            is_mapped = mapped and not isinstance(t, unmapped)
             t = as_task(t, flow=self)
 
             # if the task can be represented as a constant and we don't need to map over it

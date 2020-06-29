@@ -508,4 +508,4 @@ functions = ["to_qualified_name", "from_qualified_name"]
 title = "Task Utilities"
 module = "prefect.utilities.tasks"
 classes = ["unmapped"]
-functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs"]
+functions = ["tags", "as_task", "pause_task", "task", "defaults_from_attrs", "apply_map"]
