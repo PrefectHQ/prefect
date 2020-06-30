@@ -619,7 +619,7 @@ class Flow:
             - merge_parameters (bool, False): Duplicate paramaeters in the input flow are replaced
                 with parameters from the updated flow. Validate defaults to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
-   
+
         Returns:
             - None
         """
