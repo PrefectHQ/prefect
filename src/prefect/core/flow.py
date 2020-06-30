@@ -611,12 +611,13 @@ class Flow:
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
-        When `merge_parameters` is set to`True` -- Duplicate parameters in the unput `flow`
-        are replaced with those in the flow being updated. 
-    
+            When `merge_parameters` is set to`True` -- Duplicate parameters in the unput `flow`
+            are replaced with those in the flow being updated.
+
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): Duplicate paramaeters in the input flow are replaced with parameters from the updated flow. Validate defaults to `True`.
+            - merge_parameters (bool, False): Duplicate paramaeters in the input flow are replaced 
+                with parameters from the updated flow. Validate defaults to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
         
         Returns:
