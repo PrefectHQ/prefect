@@ -1,0 +1,2 @@
+fix:
+  - "Add missing `prefect register flow` to CLI help text - [#2895](https://github.com/PrefectHQ/prefect/pull/2895)"
