@@ -416,7 +416,7 @@ def flatten_mapped_children(
     mapped_children: List["State"], executor: "prefect.engine.Executor",
 ):
     counts = executor.wait(
-        [executor.submit(len, c._result.value) for c in mapped_children]
+        [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]
     )
     new_states = []
 
