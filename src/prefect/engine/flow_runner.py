@@ -11,7 +11,7 @@ from typing import (
 import pendulum
 import prefect
 from prefect.core import Edge, Flow, Task
-from prefect.core.resource import ResourcePool
+from prefect.core.resource import ResourcePool, ResourceResult
 from prefect.engine.result import Result
 from prefect.engine.results import ConstantResult
 from prefect.engine.runner import ENDRUN, Runner, call_state_handlers
@@ -425,12 +425,18 @@ class FlowRunner(Runner):
                 # if the state is finished, don't run the task, just use the provided state if
                 # the state is cached / mapped, we still want to run the task runner pipeline
                 # steps to either ensure the cache is still valid / or to recreate the mapped
-                # pipeline for possible retries
+                # pipeline for possible retries. Likewise, if the task is a resource that
+                # previously succeeded, we always want to recreate it, since resources can't
+                # be checkpointed.
                 if (
                     isinstance(task_state, State)
                     and task_state.is_finished()
                     and not task_state.is_cached()
                     and not task_state.is_mapped()
+                    and not (
+                        task_state.is_successful()
+                        and isinstance(task_state.result, ResourceResult)
+                    )
                 ):
                     continue
 
