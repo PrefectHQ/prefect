@@ -117,6 +117,11 @@ class SecretResultSchema(ObjectSchema):
         return base_obj
 
 
+class ResourceResultSchema(ObjectSchema):
+    class Meta:
+        object_class = results.ResourceResult
+
+
 class ResultHandlerResultSchema(ObjectSchema):
     class Meta:
         object_class = results.ResultHandlerResult
@@ -152,6 +157,7 @@ class StateResultSchema(OneOfSchema):
         "PrefectResult": PrefectResultSchema,
         "S3Result": S3ResultSchema,
         "SecretResult": SecretResultSchema,
+        "ResourceResult": ResourceResultSchema,
         "ResultHandlerResult": ResultHandlerResultSchema,
     }
 

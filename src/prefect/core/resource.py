@@ -8,7 +8,6 @@ from toolz import curry
 
 import prefect
 from prefect.core.task import Task
-from prefect.engine.result import Result
 
 
 __all__ = ("resource",)
@@ -93,38 +92,10 @@ class ResourceHandle:
         self.func = None
 
 
-class ResourceResult(Result):
-    def __init__(self, **kwargs):
-        if "serializer" in kwargs:
-            raise ValueError("Can't pass a serializer to a ResourceResult.")
-        self.handle = None
-        super().__init__(**kwargs)
-
-    def read(self, location: str) -> Result:
-        return self.copy()
-
-    @property
-    def value(self):
-        if self.handle is None:
-            raise ValueError("No value found for this result")
-        return self.handle.get()
-
-    @value.setter
-    def value(self, val):
-        pass
-
-    def from_value(self, value: Any) -> "Result":
-        new = self.copy()
-        new.location = None
-        new.handle = value
-        return new
-
-    def write(self, value: Any, **kwargs: Any) -> Result:
-        raise ValueError("ResourceResult cannot be written to.")
-
-
 class Resource(Task):
     def __init__(self, resource_function: Callable, **kwargs: Any):
+        from prefect.engine.results import ResourceResult
+
         @functools.wraps(resource_function)
         def run(*args, **kwargs):
             return ResourceHandle(uuid.uuid4().hex, resource_function, args, kwargs)
